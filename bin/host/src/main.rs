@@ -4,16 +4,13 @@
 #![deny(unused_must_use, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-use crate::cli::{init_tracing_subscriber, HostCli, HostMode};
 use anyhow::Result;
 use clap::Parser;
-use kona_host::DetachedHostOrchestrator;
+use kona_host::{
+    cli::{init_tracing_subscriber, HostCli, HostMode},
+    DetachedHostOrchestrator,
+};
 use tracing::info;
-
-pub mod cli;
-pub mod eth;
-pub mod interop;
-pub mod single;
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {

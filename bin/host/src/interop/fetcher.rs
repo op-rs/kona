@@ -2,6 +2,7 @@
 //! preimages from a remote source serving the super-chain (interop) proof mode.
 
 use super::InteropHostCli;
+use crate::KeyValueStore;
 use alloy_consensus::{Header, TxEnvelope, EMPTY_ROOT_HASH};
 use alloy_eips::{
     eip2718::Encodable2718,
@@ -17,7 +18,6 @@ use alloy_rpc_types::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use kona_host::KeyValueStore;
 use kona_preimage::{
     errors::{PreimageOracleError, PreimageOracleResult},
     HintRouter, PreimageFetcher, PreimageKey, PreimageKeyType,
