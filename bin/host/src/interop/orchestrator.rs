@@ -1,14 +1,13 @@
 //! [SingleChainHostCli]'s [HostOrchestrator] + [DetachedHostOrchestrator] implementations.
 
 use super::{InteropFetcher, InteropHostCli, LocalKeyValueStore};
-use crate::eth::http_provider;
+use crate::{
+    eth::http_provider, DetachedHostOrchestrator, DiskKeyValueStore, Fetcher, HostOrchestrator,
+    MemoryKeyValueStore, SharedKeyValueStore, SplitKeyValueStore,
+};
 use alloy_provider::{Provider, ReqwestProvider};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use kona_host::{
-    DetachedHostOrchestrator, DiskKeyValueStore, Fetcher, HostOrchestrator, MemoryKeyValueStore,
-    SharedKeyValueStore, SplitKeyValueStore,
-};
 use kona_preimage::{HintWriter, NativeChannel, OracleReader};
 use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use std::{collections::HashMap, sync::Arc};

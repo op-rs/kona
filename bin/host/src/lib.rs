@@ -19,3 +19,8 @@ pub use preimage::{
 
 mod server;
 pub use server::PreimageServer;
+
+pub mod cli;
+pub mod eth;
+pub mod interop;
+pub mod single;
