@@ -1,7 +1,7 @@
 [package]
 name = "kona-std-fpvm-proc"
 description = "Proc macro entry point for `kona-std-fpvm` targeted programs."
-version = "0.1.2"
+version = "0.1.3"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
