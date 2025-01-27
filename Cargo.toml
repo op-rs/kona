@@ -66,17 +66,17 @@ lto = "fat"
 # Workspace
 kona-host = { path = "bin/host", version = "0.1.0", default-features = false }
 kona-client = { path = "bin/client", version = "0.1.0", default-features = false }
-kona-mpt = { path = "crates/mpt", version = "0.1.2", default-features = false }
-kona-derive = { path = "crates/derive", version = "0.2.3", default-features = false }
-kona-driver = { path = "crates/driver", version = "0.2.3", default-features = false }
-kona-providers-alloy = { path = "crates/providers-alloy", version = "0.1.0", default-features = false }
-kona-executor = { path = "crates/executor", version = "0.2.3", default-features = false }
-kona-interop = { path = "crates/interop", version = "0.1.1", default-features = false }
-kona-proof = { path = "crates/proof-sdk/proof", version = "0.2.3", default-features = false }
-kona-proof-interop = { path = "crates/proof-sdk/proof-interop", version = "0.1.1", default-features = false }
-kona-std-fpvm = { path = "crates/proof-sdk/std-fpvm", version = "0.1.2", default-features = false }
-kona-preimage = { path = "crates/proof-sdk/preimage", version = "0.2.1", default-features = false }
-kona-std-fpvm-proc = { path = "crates/proof-sdk/std-fpvm-proc", version = "0.1.2", default-features = false }
+kona-mpt = { path = "crates/mpt", version = "0.1.3", default-features = false }
+kona-derive = { path = "crates/derive", version = "0.2.4", default-features = false }
+kona-driver = { path = "crates/driver", version = "0.2.4", default-features = false }
+kona-providers-alloy = { path = "crates/providers-alloy", version = "0.1.1", default-features = false }
+kona-executor = { path = "crates/executor", version = "0.2.4", default-features = false }
+kona-interop = { path = "crates/interop", version = "0.2.0", default-features = false }
+kona-proof = { path = "crates/proof-sdk/proof", version = "0.2.4", default-features = false }
+kona-proof-interop = { path = "crates/proof-sdk/proof-interop", version = "0.1.2", default-features = false }
+kona-std-fpvm = { path = "crates/proof-sdk/std-fpvm", version = "0.1.3", default-features = false }
+kona-preimage = { path = "crates/proof-sdk/preimage", version = "0.2.2", default-features = false }
+kona-std-fpvm-proc = { path = "crates/proof-sdk/std-fpvm-proc", version = "0.1.3", default-features = false }
 
 # Maili
 maili-consensus = { version = "0.1.6", default-features = false }
