@@ -1,4 +1,4 @@
-//! [SingleChainHostCli]'s [HostOrchestrator] + [DetachedHostOrchestrator] implementations.
+//! [InteropHostCli]'s [HostOrchestrator] + [DetachedHostOrchestrator] implementations.
 
 use super::{InteropFetcher, InteropHostCli, LocalKeyValueStore};
 use crate::{
