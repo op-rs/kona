@@ -32,7 +32,7 @@ where
 {
     /// Creates a new [OracleInteropProvider] with the given oracle client and [PreState].
     pub fn new(oracle: Arc<T>, pre_state: PreState) -> Self {
-        Self { oracle, pre_state, safe_head_cache: Arc::new(RwLock::new(HashMap::new())) }
+        Self { oracle, pre_state, safe_head_cache: Arc::new(RwLock::new(HashMap::default())) }
     }
 
     /// Fetch the [Header] for the block with the given hash.

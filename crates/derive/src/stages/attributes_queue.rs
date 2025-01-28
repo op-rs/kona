@@ -13,7 +13,8 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use maili_genesis::RollupConfig;
 use maili_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
-use op_alloy_rpc_types_engine::{OpAttributesWithParent, OpPayloadAttributes};
+use maili_rpc::OpAttributesWithParent;
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// [AttributesQueue] accepts batches from the [BatchQueue] stage
 /// and transforms them into [OpPayloadAttributes].

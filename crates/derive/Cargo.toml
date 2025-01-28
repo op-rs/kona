@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 # Maili
+maili-rpc.workspace = true
 maili-genesis.workspace = true
 maili-protocol.workspace = true
 
@@ -41,7 +42,6 @@ spin.workspace = true
 proptest.workspace = true
 serde_json.workspace = true
 maili-registry.workspace = true
-maili-consensus.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 tracing = { workspace = true, features = ["std"] }

@@ -468,10 +468,9 @@ mod tests {
     use alloy_eips::{eip2718::Decodable2718, BlockNumHash};
     use alloy_primitives::{address, b256, Address, Bytes, TxKind, B256, U256};
     use alloy_rlp::{BytesMut, Encodable};
-    use maili_consensus::TxDeposit;
     use maili_genesis::{ChainGenesis, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
     use maili_protocol::{BatchReader, L1BlockInfoBedrock, L1BlockInfoTx};
-    use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType};
+    use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType, TxDeposit};
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 

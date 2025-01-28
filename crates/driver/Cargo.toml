@@ -16,6 +16,7 @@ workspace = true
 kona-derive.workspace = true
 
 # Maili
+maili-rpc.workspace = true
 maili-genesis.workspace = true
 maili-protocol.workspace = true
 

@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use maili_genesis::{RollupConfig, SystemConfig};
 use maili_protocol::{BlockInfo, L2BlockInfo};
-use op_alloy_rpc_types_engine::OpAttributesWithParent;
+use maili_rpc::OpAttributesWithParent;
 
 /// The derivation pipeline is responsible for deriving L2 inputs from L1 data.
 #[derive(Debug)]
@@ -197,7 +197,8 @@ mod tests {
     use alloy_rpc_types_engine::PayloadAttributes;
     use maili_genesis::{RollupConfig, SystemConfig};
     use maili_protocol::L2BlockInfo;
-    use op_alloy_rpc_types_engine::{OpAttributesWithParent, OpPayloadAttributes};
+    use maili_rpc::OpAttributesWithParent;
+    use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
     fn default_test_payload_attributes() -> OpAttributesWithParent {
         OpAttributesWithParent {

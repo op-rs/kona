@@ -5,12 +5,11 @@ use crate::{
     traits::L2ChainProvider,
 };
 use alloc::{boxed::Box, string::ToString, sync::Arc};
-use alloy_consensus::Block;
 use alloy_primitives::map::HashMap;
 use async_trait::async_trait;
 use maili_genesis::{RollupConfig, SystemConfig};
 use maili_protocol::{BatchValidationProvider, L2BlockInfo};
-use op_alloy_consensus::OpTxEnvelope;
+use op_alloy_consensus::OpBlock;
 use thiserror::Error;
 
 /// A mock implementation of the `SystemConfigL2Fetcher` for testing.
@@ -49,9 +48,8 @@ impl From<TestSystemConfigL2FetcherError> for PipelineErrorKind {
 #[async_trait]
 impl BatchValidationProvider for TestSystemConfigL2Fetcher {
     type Error = TestSystemConfigL2FetcherError;
-    type Transaction = OpTxEnvelope;
 
-    async fn block_by_number(&mut self, _: u64) -> Result<Block<Self::Transaction>, Self::Error> {
+    async fn block_by_number(&mut self, _: u64) -> Result<OpBlock, Self::Error> {
         unimplemented!()
     }
 

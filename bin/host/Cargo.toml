@@ -23,8 +23,9 @@ kona-client.workspace = true
 kona-providers-alloy.workspace = true
 
 # Maili
-maili-protocol = { workspace = true, features = ["std", "serde"] }
+maili-rpc.workspace = true
 maili-registry.workspace = true
+maili-protocol = { workspace = true, features = ["std", "serde"] }
 maili-genesis = { workspace = true, features = ["std", "serde"] }
 
 # Alloy

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use core::iter::Iterator;
 use maili_genesis::{RollupConfig, SystemConfig};
 use maili_protocol::L2BlockInfo;
-use op_alloy_rpc_types_engine::OpAttributesWithParent;
+use maili_rpc::OpAttributesWithParent;
 
 use crate::{errors::PipelineErrorKind, traits::OriginProvider, types::StepResult};
 

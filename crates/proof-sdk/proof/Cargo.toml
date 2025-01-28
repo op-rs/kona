@@ -20,6 +20,7 @@ kona-preimage.workspace = true
 kona-executor.workspace = true
 
 # Maili
+maili-rpc.workspace = true
 maili-protocol.workspace = true
 maili-registry.workspace = true
 maili-genesis = { workspace = true, features = ["serde"] }

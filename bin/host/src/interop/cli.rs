@@ -124,20 +124,17 @@ impl InteropHostCli {
             )
         })?;
 
-        rollup_config_paths.iter().try_fold(
-            HashMap::with_capacity(rollup_config_paths.len()),
-            |mut acc, path| {
-                // Read the serialized config from the file system.
-                let ser_config = std::fs::read_to_string(path)
-                    .map_err(|e| anyhow!("Error reading RollupConfig file: {e}"))?;
+        rollup_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
+            // Read the serialized config from the file system.
+            let ser_config = std::fs::read_to_string(path)
+                .map_err(|e| anyhow!("Error reading RollupConfig file: {e}"))?;
 
-                // Deserialize the config and return it.
-                let cfg: RollupConfig = serde_json::from_str(&ser_config)
-                    .map_err(|e| anyhow!("Error deserializing RollupConfig: {e}"))?;
+            // Deserialize the config and return it.
+            let cfg: RollupConfig = serde_json::from_str(&ser_config)
+                .map_err(|e| anyhow!("Error deserializing RollupConfig: {e}"))?;
 
-                acc.insert(cfg.l2_chain_id, cfg);
-                Ok(acc)
-            },
-        )
+            acc.insert(cfg.l2_chain_id, cfg);
+            Ok(acc)
+        })
     }
 }

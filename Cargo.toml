@@ -79,13 +79,13 @@ kona-preimage = { path = "crates/proof-sdk/preimage", version = "0.2.1", default
 kona-std-fpvm-proc = { path = "crates/proof-sdk/std-fpvm-proc", version = "0.1.2", default-features = false }
 
 # Maili
-maili-consensus = { version = "0.1.6", default-features = false }
-maili-protocol = { version = "0.1.6", default-features = false }
-maili-registry = { version = "0.1.6", default-features = false }
-maili-genesis = { version = "0.1.6", default-features = false }
+maili-rpc = { version = "0.1.8", default-features = false }
+maili-protocol = { version = "0.1.8", default-features = false }
+maili-registry = { version = "0.1.8", default-features = false }
+maili-genesis = { version = "0.1.8", default-features = false }
 
 # Alloy
-alloy-rlp = { version = "0.3.10", default-features = false }
+alloy-rlp = { version = "0.3.11", default-features = false }
 alloy-trie = { version = "0.7.8", default-features = false }
 alloy-eips = { version = "0.9.2", default-features = false }
 alloy-serde = { version = "0.9.2", default-features = false }
@@ -94,16 +94,16 @@ alloy-consensus = { version = "0.9.2", default-features = false }
 alloy-transport = { version = "0.9.2", default-features = false }
 alloy-rpc-types = { version = "0.9.2", default-features = false }
 alloy-rpc-client = { version = "0.9.2", default-features = false }
-alloy-primitives = { version = "0.8.14", default-features = false }
+alloy-primitives = { version = "0.8.19", default-features = false }
 alloy-node-bindings = { version = "0.9.2", default-features = false }
 alloy-transport-http = { version = "0.9.2", default-features = false }
 alloy-rpc-types-engine = { version = "0.9.2", default-features = false }
 alloy-rpc-types-beacon = { version = "0.9.2", default-features = false }
-alloy-sol-types = { version = "0.8.18", default-features = false }
+alloy-sol-types = { version = "0.8.19", default-features = false }
 
 # OP Alloy
-op-alloy-consensus = { version = "0.9.5", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.9.5", default-features = false }
+op-alloy-consensus = { version = "0.9.6", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.9.6", default-features = false }
 
 # General
 lru = "0.12.5"

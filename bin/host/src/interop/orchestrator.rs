@@ -2,6 +2,7 @@
 
 use super::{InteropFetcher, InteropHostCli, LocalKeyValueStore};
 use crate::eth::http_provider;
+use alloy_primitives::map::HashMap;
 use alloy_provider::{Provider, ReqwestProvider};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -11,7 +12,7 @@ use kona_host::{
 };
 use kona_preimage::{HintWriter, NativeChannel, OracleReader};
 use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// The providers required for the single chain host.
@@ -45,7 +46,7 @@ impl HostOrchestrator for InteropHostCli {
         // Resolve all chain IDs to their corresponding providers.
         let l2_node_addresses =
             self.l2_node_addresses.as_ref().ok_or(anyhow!("L2 node addresses must be set"))?;
-        let mut l2_providers = HashMap::with_capacity(l2_node_addresses.len());
+        let mut l2_providers = HashMap::default();
         for l2_node_address in l2_node_addresses {
             let l2_provider = http_provider(l2_node_address);
             let chain_id = l2_provider.get_chain_id().await?;

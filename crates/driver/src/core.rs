@@ -13,8 +13,8 @@ use kona_derive::{
 };
 use maili_genesis::RollupConfig;
 use maili_protocol::L2BlockInfo;
+use maili_rpc::OpAttributesWithParent;
 use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType};
-use op_alloy_rpc_types_engine::OpAttributesWithParent;
 use spin::RwLock;
 
 /// The Rollup Driver entrypoint.

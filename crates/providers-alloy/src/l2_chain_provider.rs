@@ -11,7 +11,7 @@ use kona_derive::{
 };
 use maili_genesis::{RollupConfig, SystemConfig};
 use maili_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
-use op_alloy_consensus::{OpBlock, OpTxEnvelope};
+use op_alloy_consensus::OpBlock;
 use std::sync::Arc;
 
 /// The [AlloyL2ChainProvider] is a concrete implementation of the [L2ChainProvider] trait,
@@ -90,7 +90,6 @@ impl From<AlloyL2ChainProviderError> for PipelineErrorKind {
 #[async_trait]
 impl BatchValidationProvider for AlloyL2ChainProvider {
     type Error = AlloyL2ChainProviderError;
-    type Transaction = OpTxEnvelope;
 
     async fn l2_block_info_by_number(&mut self, number: u64) -> Result<L2BlockInfo, Self::Error> {
         let block = self

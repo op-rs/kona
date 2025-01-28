@@ -84,7 +84,7 @@ pub struct ChainBuilder {
 
 impl SuperchainBuilder {
     pub fn new(timestamp: u64) -> Self {
-        Self { chains: HashMap::new(), timestamp }
+        Self { chains: HashMap::default(), timestamp }
     }
 
     pub fn chain(&mut self, chain_id: u64) -> &mut ChainBuilder {
@@ -93,8 +93,8 @@ impl SuperchainBuilder {
 
     /// Builds the scenario into the format needed for testing
     pub fn build(self) -> (Vec<(u64, Sealed<Header>)>, MockInteropProvider) {
-        let mut headers_map = HashMap::new();
-        let mut receipts_map = HashMap::new();
+        let mut headers_map = HashMap::default();
+        let mut receipts_map = HashMap::default();
         let mut sealed_headers = Vec::new();
 
         for (chain_id, chain) in self.chains {
@@ -102,11 +102,11 @@ impl SuperchainBuilder {
             let header_hash = header.hash_slow();
             let sealed_header = header.seal(header_hash);
 
-            let mut chain_headers = HashMap::new();
+            let mut chain_headers = HashMap::default();
             chain_headers.insert(0, sealed_header.clone());
             headers_map.insert(chain_id, chain_headers);
 
-            let mut chain_receipts = HashMap::new();
+            let mut chain_receipts = HashMap::default();
             chain_receipts.insert(0, chain.receipts);
             receipts_map.insert(chain_id, chain_receipts);
 
