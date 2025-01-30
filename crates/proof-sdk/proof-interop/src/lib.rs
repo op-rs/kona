@@ -20,3 +20,6 @@ pub use provider::OracleInteropProvider;
 
 pub mod boot;
 pub use boot::BootInfo;
+
+mod consolidation;
+pub use consolidation::SuperchainConsolidator;

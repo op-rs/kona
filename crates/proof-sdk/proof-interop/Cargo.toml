@@ -17,6 +17,7 @@ kona-preimage.workspace = true
 kona-interop = { workspace = true, features = ["serde"] }
 kona-proof.workspace = true
 kona-mpt.workspace = true
+kona-executor.workspace = true
 
 # Maili
 maili-registry.workspace = true
@@ -27,9 +28,11 @@ alloy-rlp.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-eips.workspace = true
+alloy-rpc-types-engine.workspace = true
 
 # OP Alloy
 op-alloy-consensus.workspace = true
+op-alloy-rpc-types-engine.workspace = true
 
 # General
 serde.workspace = true

@@ -24,7 +24,7 @@ use tracing::{info, warn};
 ///
 /// [MessageIdentifier]: crate::MessageIdentifier
 #[derive(Debug)]
-pub struct MessageGraph<P> {
+pub struct MessageGraph<'a, P> {
     /// The horizon timestamp is the highest timestamp of all blocks containing [ExecutingMessage]s
     /// within the graph.
     ///
@@ -36,10 +36,10 @@ pub struct MessageGraph<P> {
     messages: Vec<EnrichedExecutingMessage>,
     /// The data provider for the graph. Required for fetching headers, receipts and remote
     /// messages within history during resolution.
-    provider: P,
+    provider: &'a P,
 }
 
-impl<P> MessageGraph<P>
+impl<'a, P> MessageGraph<'a, P>
 where
     P: InteropProvider,
 {
@@ -49,7 +49,7 @@ where
     /// [ExecutingMessage]: crate::ExecutingMessage
     pub async fn derive(
         blocks: &[(u64, Sealed<Header>)],
-        provider: P,
+        provider: &'a P,
     ) -> MessageGraphResult<Self, P> {
         info!(
             target: "message-graph",
@@ -249,7 +249,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         graph.resolve().await.unwrap();
     }
 
@@ -270,7 +270,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         graph.resolve().await.unwrap();
     }
 
@@ -283,7 +283,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
     }
 
@@ -296,7 +296,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
     }
 
@@ -309,7 +309,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
     }
 
@@ -322,7 +322,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
     }
 
@@ -341,7 +341,7 @@ mod test {
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), provider).await.unwrap();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
         assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
     }
 }

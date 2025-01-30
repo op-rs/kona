@@ -24,6 +24,7 @@ kona-std-fpvm-proc.workspace = true
 # Maili
 maili-protocol.workspace = true
 maili-genesis = { workspace = true, features = ["serde"] }
+maili-registry.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

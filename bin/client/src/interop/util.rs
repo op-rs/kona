@@ -38,7 +38,7 @@ where
         .send(caching_oracle)
         .await?;
     let output_preimage = caching_oracle
-        .get(PreimageKey::new(*rich_output.output_root, PreimageKeyType::Keccak256))
+        .get(PreimageKey::new(*output_root, PreimageKeyType::Keccak256))
         .await
         .map_err(OracleProviderError::Preimage)?;
 
