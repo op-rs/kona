@@ -5,7 +5,7 @@ use crate::interop::util::fetch_output_block_hash;
 use alloc::{sync::Arc, vec::Vec};
 use core::fmt::Debug;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
-use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider, CachingOracle};
+use kona_proof::{l2::OracleL2ChainProvider, CachingOracle};
 use kona_proof_interop::{
     BootInfo, HintType, OracleInteropProvider, PreState, SuperchainConsolidator,
 };
@@ -21,13 +21,13 @@ use tracing::info;
 /// [OptimisticBlock]: kona_proof_interop::OptimisticBlock
 pub(crate) async fn consolidate_dependencies<P, H>(
     oracle: Arc<CachingOracle<P, H>>,
-    boot: BootInfo,
+    mut boot: BootInfo,
 ) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
 {
-    let provider = OracleInteropProvider::new(oracle, boot.agreed_pre_state.clone());
+    let provider = OracleInteropProvider::new(oracle.clone(), boot.agreed_pre_state.clone());
 
     info!(target: "client_interop", "Deriving local-safe headers from prestate");
 
@@ -56,37 +56,38 @@ where
         // by the host, it will re-execute it and store the required preimages to complete
         // deposit-only re-execution. If the block is determined to be canonical, the host will
         // no-op, and fetch preimages through the traditional route as needed.
-        oracle
-            .write(&HintType::L2BlockData.encode_with(&[
+        HintType::L2BlockData
+            .with_data(&[
                 safe_head_hash.as_slice(),
                 block_hash.as_slice(),
                 pre.chain_id.to_be_bytes().as_slice(),
-            ]))
-            .await
-            .map_err(OracleProviderError::Preimage)?;
+            ])
+            .send(oracle.as_ref())
+            .await?;
 
-        let header = interop_provider.header_by_hash(pre.chain_id, block_hash).await?;
+        let header = provider.header_by_hash(pre.chain_id, block_hash).await?;
         headers.push((pre.chain_id, header.seal(block_hash)));
 
-        let rollup_config =
-            ROLLUP_CONFIGS.get(&pre.chain_id).cloned().expect("TODO: Handle gracefully");
+        let rollup_config = ROLLUP_CONFIGS
+            .get(&pre.chain_id)
+            .or_else(|| boot.rollup_configs.get(&pre.chain_id))
+            .ok_or(FaultProofProgramError::MissingRollupConfig(pre.chain_id))?;
 
-        let provider = OracleL2ChainProvider::new(safe_head_hash, rollup_config, oracle.clone());
+        let mut provider = OracleL2ChainProvider::new(
+            safe_head_hash,
+            Arc::new(rollup_config.clone()),
+            oracle.clone(),
+        );
+        provider.set_chain_id(Some(pre.chain_id));
         l2_providers.insert(pre.chain_id, provider);
     }
 
     info!(target: "client_interop", "Loaded {} local-safe headers", headers.len());
 
     // Consolidate the superchain
-    SuperchainConsolidator::new(&mut pre, interop_provider, l2_providers, headers)
-        .consolidate()
-        .await
-        .expect("TODO: Handle gracefully");
+    SuperchainConsolidator::new(&mut boot, provider, l2_providers, headers).consolidate().await?;
 
     // Transition to the Super Root at the next timestamp.
-    //
-    // TODO: This won't work if we replace blocks, `transition` doesn't allow replacement of pending
-    // progress just yet.
     let post = boot
         .agreed_pre_state
         .transition(None)

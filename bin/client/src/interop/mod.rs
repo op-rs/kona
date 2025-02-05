@@ -8,7 +8,9 @@ use kona_driver::DriverError;
 use kona_executor::{ExecutorError, KonaHandleRegister};
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider, CachingOracle};
-use kona_proof_interop::{BootInfo, PreState, INVALID_TRANSITION_HASH, TRANSITION_STATE_MAX_STEPS};
+use kona_proof_interop::{
+    BootInfo, ConsolidationError, PreState, INVALID_TRANSITION_HASH, TRANSITION_STATE_MAX_STEPS,
+};
 use thiserror::Error;
 use tracing::{error, info};
 use transition::sub_transition;
@@ -25,16 +27,22 @@ pub enum FaultProofProgramError {
     InvalidClaim(B256, B256),
     /// An error occurred in the Oracle provider.
     #[error(transparent)]
-    OracleProviderError(#[from] OracleProviderError),
+    OracleProvider(#[from] OracleProviderError),
     /// An error occurred in the driver.
     #[error(transparent)]
     Driver(#[from] DriverError<ExecutorError>),
     /// An error occurred during RLP decoding.
     #[error("RLP decoding error: {0}")]
-    RLPDecodingError(alloy_rlp::Error),
+    Rlp(alloy_rlp::Error),
     /// State transition failed.
     #[error("Critical state transition failure")]
     StateTransitionFailed,
+    /// Missing a rollup configuration.
+    #[error("Missing rollup configuration for chain ID {0}")]
+    MissingRollupConfig(u64),
+    /// Consolidation error.
+    #[error(transparent)]
+    Consolidation(#[from] ConsolidationError),
 }
 
 /// Executes the interop fault proof program with the given [PreimageOracleClient] and

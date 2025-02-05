@@ -1,11 +1,11 @@
 //! Interop dependency resolution and consolidation logic.
 
-use crate::{OptimisticBlock, OracleInteropProvider, PreState};
+use crate::{BootInfo, OptimisticBlock, OracleInteropProvider, PreState};
 use alloc::{boxed::Box, vec::Vec};
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::Sealable;
 use alloy_rpc_types_engine::PayloadAttributes;
-use kona_executor::StatelessL2BlockExecutor;
+use kona_executor::{ExecutorError, StatelessL2BlockExecutor};
 use kona_interop::{MessageGraph, MessageGraphError};
 use kona_mpt::OrderedListWalker;
 use kona_preimage::CommsClient;
@@ -13,6 +13,7 @@ use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider};
 use maili_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::OpTxType;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use thiserror::Error;
 use tracing::{error, info};
 
 /// The [SuperchainConsolidator] holds a [MessageGraph] and is responsible for recursively
@@ -24,8 +25,8 @@ pub struct SuperchainConsolidator<'a, C>
 where
     C: CommsClient,
 {
-    /// The [PreState] being operated on.
-    pre_state: &'a mut PreState,
+    /// The [BootInfo] of the program.
+    boot_info: &'a mut BootInfo,
     /// The [OracleInteropProvider] used for the message graph.
     interop_provider: OracleInteropProvider<C>,
     /// The [OracleL2ChainProvider]s used for re-execution of invalid blocks, keyed by chain ID.
@@ -40,19 +41,19 @@ where
 {
     /// Creates a new [SuperchainConsolidator] with the given providers and [Header]s.
     pub const fn new(
-        pre_state: &'a mut PreState,
+        boot_info: &'a mut BootInfo,
         interop_provider: OracleInteropProvider<C>,
         l2_providers: HashMap<u64, OracleL2ChainProvider<C>>,
         headers: Vec<(u64, Sealed<Header>)>,
     ) -> Self {
-        Self { pre_state, interop_provider, l2_providers, headers }
+        Self { boot_info, interop_provider, l2_providers, headers }
     }
 
     /// Recursively consolidates the dependencies of the blocks within the [MessageGraph].
     ///
     /// This method will recurse until all invalid cross-chain dependencies have been resolved,
     /// re-executing deposit-only blocks for chains with invalid dependencies as needed.
-    pub async fn consolidate(&mut self) -> Result<(), MessageGraphError<OracleProviderError>> {
+    pub async fn consolidate(&mut self) -> Result<(), ConsolidationError> {
         info!(target: "superchain_consolidator", "Consolidating superchain");
 
         match self.consolidate_once().await {
@@ -60,7 +61,7 @@ where
                 info!(target: "superchain_consolidator", "Superchain consolidation complete");
                 Ok(())
             }
-            Err(MessageGraphError::InvalidMessages(_)) => {
+            Err(ConsolidationError::MessageGraph(MessageGraphError::InvalidMessages(_))) => {
                 // If invalid messages are still present in the graph, recurse.
                 Box::pin(self.consolidate()).await
             }
@@ -78,7 +79,7 @@ where
     /// 2. Resolve the [MessageGraph].
     /// 3. If any invalid messages are found, re-execute the bad block(s) only deposit transactions,
     ///    and bubble up the error.
-    async fn consolidate_once(&mut self) -> Result<(), MessageGraphError<OracleProviderError>> {
+    async fn consolidate_once(&mut self) -> Result<(), ConsolidationError> {
         // Derive the message graph from the current set of block headers.
         let graph = MessageGraph::derive(self.headers.as_slice(), &self.interop_provider).await?;
 
@@ -86,7 +87,7 @@ where
         // initiate a re-execution of the original block, with only deposit transactions.
         if let Err(MessageGraphError::InvalidMessages(chain_ids)) = graph.resolve().await {
             self.re_execute_deposit_only(&chain_ids).await?;
-            return Err(MessageGraphError::InvalidMessages(chain_ids));
+            return Err(MessageGraphError::InvalidMessages(chain_ids).into());
         }
 
         Ok(())
@@ -97,7 +98,7 @@ where
     async fn re_execute_deposit_only(
         &mut self,
         chain_ids: &[u64],
-    ) -> Result<(), MessageGraphError<OracleProviderError>> {
+    ) -> Result<(), ConsolidationError> {
         for chain_id in chain_ids {
             // Find the optimistic block header for the chain ID.
             let header = self
@@ -147,10 +148,10 @@ where
             };
 
             // Fetch the rollup config + provider for the current chain ID.
-            //
-            // TODO: Rollup cfg will require some reworking of the interop boot info to pass all of
-            // the rollup cfgs in.
-            let rollup_config = ROLLUP_CONFIGS.get(chain_id).expect("TODO: Handle gracefully");
+            let rollup_config = ROLLUP_CONFIGS
+                .get(chain_id)
+                .or_else(|| self.boot_info.rollup_configs.get(chain_id))
+                .ok_or(ConsolidationError::MissingRollupConfig(*chain_id))?;
             let l2_provider = self.l2_providers.get(chain_id).expect("TODO: Handle gracefully");
 
             // Create a new stateless L2 block executor for the current chain.
@@ -169,8 +170,10 @@ where
             let new_output_root = executor.compute_output_root().unwrap();
 
             // Replace the original optimistic block with the deposit only block.
-            let PreState::TransitionState(ref mut transition_state) = self.pre_state else {
-                panic!("SuperchainConsolidator received invalid PreState variant");
+            let PreState::TransitionState(ref mut transition_state) =
+                self.boot_info.agreed_pre_state
+            else {
+                return Err(ConsolidationError::InvalidPreStateVariant);
             };
             let original_optimistic_block = transition_state
                 .pending_progress
@@ -185,4 +188,24 @@ where
 
         Ok(())
     }
+}
+
+/// An error type for the [SuperchainConsolidator] struct.
+#[derive(Debug, Error)]
+pub enum ConsolidationError {
+    /// An invalid pre-state variant was passed to the consolidator.
+    #[error("Invalid PreState variant")]
+    InvalidPreStateVariant,
+    /// Missing a rollup configuration.
+    #[error("Missing rollup configuration for chain ID {0}")]
+    MissingRollupConfig(u64),
+    /// An error occurred during consolidation.
+    #[error(transparent)]
+    MessageGraph(#[from] MessageGraphError<OracleProviderError>),
+    /// An error occurred during execution.
+    #[error(transparent)]
+    Executor(#[from] ExecutorError),
+    /// An error occurred during RLP decoding.
+    #[error(transparent)]
+    OracleProvider(#[from] OracleProviderError),
 }

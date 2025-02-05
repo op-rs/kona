@@ -22,4 +22,4 @@ pub mod boot;
 pub use boot::BootInfo;
 
 mod consolidation;
-pub use consolidation::SuperchainConsolidator;
+pub use consolidation::{ConsolidationError, SuperchainConsolidator};
