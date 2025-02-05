@@ -79,10 +79,10 @@ kona-preimage = { path = "crates/proof-sdk/preimage", version = "0.2.1", default
 kona-std-fpvm-proc = { path = "crates/proof-sdk/std-fpvm-proc", version = "0.1.2", default-features = false }
 
 # Maili
-maili-rpc = { version = "0.2.0", default-features = false }
-maili-protocol = { version = "0.2.0", default-features = false }
-maili-registry = { version = "0.2.0", default-features = false }
-maili-genesis = { version = "0.2.0", default-features = false }
+maili-rpc = { version = "0.2.1", default-features = false }
+maili-genesis = { version = "0.2.1", default-features = false }
+maili-protocol = { version = "0.2.1", default-features = false }
+maili-registry = { version = "0.2.1", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }
@@ -90,35 +90,35 @@ alloy-trie = { version = "0.7.8", default-features = false }
 alloy-eips = { version = "0.11.0", default-features = false }
 alloy-serde = { version = "0.11.0", default-features = false }
 alloy-provider = { version = "0.11.0", default-features = false }
+alloy-sol-types = { version = "0.8.20", default-features = false }
 alloy-consensus = { version = "0.11.0", default-features = false }
 alloy-transport = { version = "0.11.0", default-features = false }
 alloy-rpc-types = { version = "0.11.0", default-features = false }
 alloy-rpc-client = { version = "0.11.0", default-features = false }
-alloy-primitives = { version = "0.8.19", default-features = false }
+alloy-primitives = { version = "0.8.20", default-features = false }
 alloy-node-bindings = { version = "0.11.0", default-features = false }
 alloy-transport-http = { version = "0.11.0", default-features = false }
 alloy-rpc-types-engine = { version = "0.11.0", default-features = false }
 alloy-rpc-types-beacon = { version = "0.11.0", default-features = false }
-alloy-sol-types = { version = "0.8.19", default-features = false }
 
 # OP Alloy
+op-alloy-network = { version = "0.10.2", default-features = false }
 op-alloy-consensus = { version = "0.10.2", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.10.2", default-features = false }
-op-alloy-network = { version = "0.10.2", default-features = false }
 
 # General
 lru = "0.13.0"
 spin = "0.9.8"
 rand = "0.9.0"
-clap = "4.5.27"
+clap = "4.5.28"
 tokio = "1.43.0"
-async-channel = "2.3.1"
 cfg-if = "1.0.0"
-reqwest = "0.12.12"
-async-trait = "0.1.85"
-linked_list_allocator = "0.10.5"
 rstest = "0.24.0"
+reqwest = "0.12.12"
 tempfile = "3.16.0"
+async-trait = "0.1.86"
+async-channel = "2.3.1"
+linked_list_allocator = "0.10.5"
 
 # General
 sha2 = { version = "0.10.8", default-features = false }
@@ -137,7 +137,7 @@ proptest = "1.6.0"
 criterion = "0.5.1"
 
 # Serialization
-rkyv = "0.8.9"
+rkyv = "0.8.10"
 serde = { version = "1.0.217", default-features = false }
 serde_json = { version = "1.0.138", default-features = false }
 
