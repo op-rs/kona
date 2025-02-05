@@ -248,7 +248,7 @@ impl OnlineHostBackendCfg for InteropHost {
 }
 
 /// The providers required for the single chain host.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InteropProviders {
     /// The L1 EL provider.
     pub l1: RootProvider,

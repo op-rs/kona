@@ -2,23 +2,38 @@
 
 use super::InteropHost;
 use crate::{
-    backend::util::store_ordered_trie, HintHandler, OnlineHostBackendCfg, SharedKeyValueStore,
+    backend::util::store_ordered_trie, HintHandler, OnlineHostBackend, OnlineHostBackendCfg,
+    PreimageServer, SharedKeyValueStore,
 };
-use alloy_consensus::Header;
+use alloy_consensus::{Header, Sealed};
 use alloy_eips::{
     eip2718::Encodable2718,
     eip4844::{IndexedBlobHash, FIELD_ELEMENTS_PER_BLOB},
 };
 use alloy_primitives::{address, keccak256, Address, Bytes, B256};
 use alloy_provider::Provider;
-use alloy_rlp::Decodable;
+use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::{Block, BlockTransactionsKind};
 use anyhow::{anyhow, ensure, Result};
 use async_trait::async_trait;
-use kona_preimage::{PreimageKey, PreimageKeyType};
+use kona_driver::Driver;
+use kona_executor::TrieDBProvider;
+use kona_preimage::{
+    BidirectionalChannel, HintReader, HintWriter, OracleReader, OracleServer, PreimageKey,
+    PreimageKeyType,
+};
+use kona_proof::{
+    executor::KonaExecutor,
+    l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
+    l2::OracleL2ChainProvider,
+    sync::new_pipeline_cursor,
+    CachingOracle,
+};
 use kona_proof_interop::{HintType, PreState};
 use maili_protocol::BlockInfo;
 use maili_registry::ROLLUP_CONFIGS;
+use std::sync::Arc;
+use tokio::task;
 
 /// The [HintHandler] for the [InteropHost].
 #[derive(Debug, Clone, Copy)]
@@ -376,7 +391,145 @@ impl HintHandler for InteropHintHandler {
                 })?;
             }
             HintType::L2BlockData => {
-                unimplemented!("L2BlockData hint type is not yet implemented");
+                ensure!(hint.data.len() == 72, "Invalid hint data length");
+
+                let agreed_block_hash = B256::from_slice(&hint.data.as_ref()[..32]);
+                let disputed_block_hash = B256::from_slice(&hint.data.as_ref()[32..64]);
+                let chain_id = u64::from_be_bytes(hint.data.as_ref()[64..72].try_into()?);
+
+                let l2_provider = providers.l2(&chain_id)?;
+                let rollup_config = ROLLUP_CONFIGS
+                    .get(&chain_id)
+                    .cloned()
+                    .or_else(|| {
+                        let local_cfgs = cfg.read_rollup_configs().ok()?;
+                        local_cfgs.get(&chain_id).cloned()
+                    })
+                    .map(Arc::new)
+                    .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
+
+                // Check if the block is canonical before continuing.
+                let parent_block = l2_provider
+                    .get_block_by_hash(agreed_block_hash, BlockTransactionsKind::Hashes)
+                    .await?
+                    .ok_or(anyhow!("Block not found."))?;
+                let disputed_block = l2_provider
+                    .get_block_by_number(
+                        (parent_block.header.number + 1).into(),
+                        BlockTransactionsKind::Hashes,
+                    )
+                    .await?
+                    .ok_or(anyhow!("Block not found."))?;
+
+                // Return early if the disputed block is canonical - preimages can be fetched
+                // through the normal flow.
+                if disputed_block.header.hash == disputed_block_hash {
+                    return Ok(());
+                }
+
+                // Reproduce the preimages for the optimistic block's derivation + execution and
+                // store them in the key-value store.
+                let hint = BidirectionalChannel::new()?;
+                let preimage = BidirectionalChannel::new()?;
+                let backend =
+                    OnlineHostBackend::new(cfg.clone(), kv.clone(), providers.clone(), Self);
+                let server_task = task::spawn(
+                    PreimageServer::new(
+                        OracleServer::new(preimage.host),
+                        HintReader::new(hint.host),
+                        Arc::new(backend),
+                    )
+                    .start(),
+                );
+                let client_task = task::spawn({
+                    let l1_head = cfg.l1_head;
+
+                    async move {
+                        let oracle = Arc::new(CachingOracle::new(
+                            1024,
+                            OracleReader::new(preimage.client),
+                            HintWriter::new(hint.client),
+                        ));
+
+                        let mut l1_provider = OracleL1ChainProvider::new(l1_head, oracle.clone());
+                        let mut l2_provider = OracleL2ChainProvider::new(
+                            agreed_block_hash,
+                            rollup_config.clone(),
+                            oracle.clone(),
+                        );
+                        let beacon = OracleBlobProvider::new(oracle.clone());
+
+                        l2_provider.set_chain_id(Some(chain_id));
+
+                        let safe_head = l2_provider
+                            .header_by_hash(agreed_block_hash)
+                            .map(|header| Sealed::new_unchecked(header, agreed_block_hash))?;
+                        let target_block = safe_head.number + 1;
+
+                        let cursor = new_pipeline_cursor(
+                            rollup_config.as_ref(),
+                            safe_head,
+                            &mut l1_provider,
+                            &mut l2_provider,
+                        )
+                        .await?;
+                        l2_provider.set_cursor(cursor.clone());
+
+                        let pipeline = OraclePipeline::new(
+                            rollup_config.clone(),
+                            cursor.clone(),
+                            oracle,
+                            beacon,
+                            l1_provider,
+                            l2_provider.clone(),
+                        );
+                        let executor = KonaExecutor::new(
+                            rollup_config.as_ref(),
+                            l2_provider.clone(),
+                            l2_provider,
+                            None,
+                            None,
+                        );
+                        let mut driver = Driver::new(cursor, executor, pipeline);
+
+                        driver
+                            .advance_to_target(rollup_config.as_ref(), Some(target_block))
+                            .await?;
+
+                        Ok::<_, anyhow::Error>(driver.safe_head_artifacts.unwrap_or_default())
+                    }
+                });
+
+                // Wait on both the server and client tasks to complete.
+                let (_, client_result) = tokio::try_join!(server_task, client_task)?;
+                let (execution_artifacts, raw_transactions) = client_result?;
+
+                // Store optimistic block hash preimage.
+                let mut kv_lock = kv.write().await;
+                let mut rlp_buf = Vec::with_capacity(execution_artifacts.block_header.length());
+                execution_artifacts.block_header.encode(&mut rlp_buf);
+                kv_lock.set(
+                    PreimageKey::new(
+                        *execution_artifacts.block_header.hash(),
+                        PreimageKeyType::Keccak256,
+                    )
+                    .into(),
+                    rlp_buf,
+                )?;
+
+                // Drop the lock on the key-value store to avoid deadlocks.
+                drop(kv_lock);
+
+                // Store receipts root preimages.
+                let raw_receipts = execution_artifacts
+                    .receipts
+                    .into_iter()
+                    .map(|receipt| Ok::<_, anyhow::Error>(receipt.encoded_2718()))
+                    .collect::<Result<Vec<_>>>()?;
+                store_ordered_trie(kv.as_ref(), raw_receipts.as_slice()).await?;
+
+                // Store tx root preimages.
+                store_ordered_trie(kv.as_ref(), raw_transactions.as_slice()).await?;
             }
         }
 
