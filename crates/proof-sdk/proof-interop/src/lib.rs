@@ -9,7 +9,8 @@ extern crate alloc;
 
 mod pre_state;
 pub use pre_state::{
-    OptimisticBlock, PreState, TransitionState, INVALID_TRANSITION_HASH, TRANSITION_STATE_MAX_STEPS,
+    OptimisticBlock, PreState, TransitionState, INVALID_TRANSITION, INVALID_TRANSITION_HASH,
+    TRANSITION_STATE_MAX_STEPS,
 };
 
 mod hint;

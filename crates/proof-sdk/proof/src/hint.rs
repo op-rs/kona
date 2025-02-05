@@ -42,8 +42,8 @@ where
         }
 
         let mut hint_data = Vec::with_capacity(self.data.len() + data.as_ref().len());
-        hint_data[..self.data.len()].copy_from_slice(self.data.as_ref());
-        hint_data[self.data.len()..].copy_from_slice(data.as_ref());
+        hint_data.extend_from_slice(self.data.as_ref());
+        hint_data.extend_from_slice(data.as_ref());
 
         Self { data: hint_data.into(), ..self }
     }

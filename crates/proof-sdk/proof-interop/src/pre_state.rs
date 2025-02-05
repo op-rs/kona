@@ -12,6 +12,9 @@ pub(crate) const TRANSITION_STATE_VERSION: u8 = 255;
 /// The maximum number of steps allowed in a [TransitionState].
 pub const TRANSITION_STATE_MAX_STEPS: u64 = 2u64.pow(10) - 1;
 
+/// The [Bytes] representation of the string "invalid".
+pub const INVALID_TRANSITION: Bytes = Bytes::from_static(b"invalid");
+
 /// `keccak256("invalid")`
 pub const INVALID_TRANSITION_HASH: B256 =
     b256!("ffd7db0f9d5cdeb49c4c9eba649d4dc6d852d64671e65488e57f58584992ac68");

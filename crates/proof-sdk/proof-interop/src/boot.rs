@@ -1,7 +1,7 @@
 //! This module contains the prologue phase of the client program, pulling in the boot information
 //! through the `PreimageOracle` ABI as local keys.
 
-use crate::{HintType, PreState};
+use crate::{HintType, PreState, INVALID_TRANSITION, INVALID_TRANSITION_HASH};
 use alloc::{string::ToString, vec::Vec};
 use alloy_primitives::{Bytes, B256, U256};
 use alloy_rlp::Decodable;
@@ -13,6 +13,7 @@ use kona_proof::errors::OracleProviderError;
 use maili_genesis::RollupConfig;
 use maili_registry::{HashMap, ROLLUP_CONFIGS};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tracing::warn;
 
 /// The local key ident for the L1 head hash.
@@ -56,7 +57,7 @@ impl BootInfo {
     /// ## Returns
     /// - `Ok(BootInfo)`: The boot information.
     /// - `Err(_)`: Failed to load the boot information.
-    pub async fn load<O>(oracle: &O) -> Result<Self, OracleProviderError>
+    pub async fn load<O>(oracle: &O) -> Result<Self, BootstrapError>
     where
         O: PreimageOracleClient + HintWriterClient + Clone + Send,
     {
@@ -88,9 +89,22 @@ impl BootInfo {
                 .map_err(OracleProviderError::SliceConversion)?,
         );
 
+        let raw_pre_state = read_raw_pre_state(oracle, l2_pre).await?;
+        if raw_pre_state == INVALID_TRANSITION {
+            warn!(
+                target: "boot-loader",
+                "Invalid pre-state, short-circuiting to check post-state claim."
+            );
+
+            if l2_post == INVALID_TRANSITION_HASH {
+                return Err(BootstrapError::NoOpTransition);
+            } else {
+                return Err(BootstrapError::InvalidPostState(l2_post));
+            }
+        }
+
         let agreed_pre_state =
-            PreState::decode(&mut read_raw_pre_state(oracle, l2_pre).await?.as_ref())
-                .map_err(OracleProviderError::Rlp)?;
+            PreState::decode(&mut raw_pre_state.as_ref()).map_err(OracleProviderError::Rlp)?;
 
         let chain_ids: Vec<_> = match agreed_pre_state {
             PreState::SuperRoot(ref super_root) => {
@@ -133,6 +147,20 @@ impl BootInfo {
         let active_l2_chain_id = self.agreed_pre_state.active_l2_chain_id()?;
         self.rollup_configs.get(&active_l2_chain_id).cloned()
     }
+}
+
+/// An error that occurred during the bootstrapping phase.
+#[derive(Debug, Error)]
+pub enum BootstrapError {
+    /// An error occurred while reading from the preimage oracle.
+    #[error(transparent)]
+    Oracle(#[from] OracleProviderError),
+    /// The pre-state is invalid and the post-state claim is not invalid.
+    #[error("`INVALID` pre-state claim; Post-state {0} unexpected.")]
+    InvalidPostState(B256),
+    /// The pre-state is invalid and the post-state claim is also invalid.
+    #[error("No-op state transition detected; both pre and post states are `INVALID`.")]
+    NoOpTransition,
 }
 
 /// Reads the raw pre-state from the preimage oracle.

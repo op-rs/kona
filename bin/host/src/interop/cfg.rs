@@ -158,7 +158,7 @@ impl InteropHost {
         let preimage = BidirectionalChannel::new()?;
 
         let server_task = self.start_server(hint.host, preimage.host).await?;
-        let client_task = task::spawn(kona_client::single::run(
+        let client_task = task::spawn(kona_client::interop::run(
             OracleReader::new(preimage.client),
             HintWriter::new(hint.client),
             None,

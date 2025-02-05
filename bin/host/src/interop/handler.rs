@@ -362,7 +362,7 @@ impl HintHandler for InteropHintHandler {
 
                 let block_number = u64::from_be_bytes(hint.data.as_ref()[..8].try_into()?);
                 let address = Address::from_slice(&hint.data.as_ref()[8..28]);
-                let slot = B256::from_slice(&hint.data.as_ref()[28..]);
+                let slot = B256::from_slice(&hint.data.as_ref()[28..60]);
                 let chain_id = u64::from_be_bytes(hint.data[60..].try_into()?);
 
                 let mut proof_response = providers

@@ -9,7 +9,7 @@ use kona_executor::{ExecutorError, KonaHandleRegister};
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider, CachingOracle};
 use kona_proof_interop::{
-    BootInfo, ConsolidationError, PreState, INVALID_TRANSITION_HASH, TRANSITION_STATE_MAX_STEPS,
+    boot::BootstrapError, BootInfo, ConsolidationError, PreState, TRANSITION_STATE_MAX_STEPS,
 };
 use thiserror::Error;
 use tracing::{error, info};
@@ -31,18 +31,18 @@ pub enum FaultProofProgramError {
     /// An error occurred in the driver.
     #[error(transparent)]
     Driver(#[from] DriverError<ExecutorError>),
-    /// An error occurred during RLP decoding.
-    #[error("RLP decoding error: {0}")]
-    Rlp(alloy_rlp::Error),
+    /// Consolidation error.
+    #[error(transparent)]
+    Consolidation(#[from] ConsolidationError),
+    /// Bootstrap error
+    #[error(transparent)]
+    Bootstrap(#[from] BootstrapError),
     /// State transition failed.
     #[error("Critical state transition failure")]
     StateTransitionFailed,
     /// Missing a rollup configuration.
     #[error("Missing rollup configuration for chain ID {0}")]
     MissingRollupConfig(u64),
-    /// Consolidation error.
-    #[error(transparent)]
-    Consolidation(#[from] ConsolidationError),
 }
 
 /// Executes the interop fault proof program with the given [PreimageOracleClient] and
@@ -68,19 +68,15 @@ where
     let oracle = Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client, hint_client));
     let boot = match BootInfo::load(oracle.as_ref()).await {
         Ok(boot) => boot,
+        Err(BootstrapError::NoOpTransition) => {
+            info!(target: "client_interop", "No-op transition, short-circuiting.");
+            return Ok(());
+        }
         Err(e) => {
-            error!(target: "client_interop", "Failed to load boot info: {:?}", e);
+            error!(target: "client_interop", "Failed to load boot info: {}", e);
             return Err(e.into());
         }
     };
-
-    // If the pre state is invalid, short-circuit and check if the post-state claim is also invalid.
-    if boot.agreed_pre_state_commitment == INVALID_TRANSITION_HASH &&
-        boot.claimed_post_state == INVALID_TRANSITION_HASH
-    {
-        info!(target: "client_interop", "Invalid pre and post state, short-circuiting.");
-        return Ok(());
-    }
 
     // Load in the agreed pre-state from the preimage oracle in order to determine the active
     // sub-problem.
