@@ -18,14 +18,16 @@ coverage:
         only_pulls: true
 
 ignore:
-  - "bin/"
   - "**/test_utils/*"
   - "**/test_utils*"
   - "**/test_util*"
   - "**/tests*"
-  - "crates/proof-sdk/proof-interop"
   - "crates/providers-alloy"
   - "crates/mpt/src/noop.rs"
+  # Interop - not yet integrated
+  - "crates/proof-sdk/proof-interop"
+  - "bin/host/src/interop"
+  - "bin/client/src/interop"
 
 # Make comments less noisy
 comment:
