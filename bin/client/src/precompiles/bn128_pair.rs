@@ -1,12 +1,8 @@
 //! Contains the accelerated version of the `ecPairing` precompile.
 
-use crate::{HINT_WRITER, ORACLE_READER};
+use crate::precompiles::utils::precompile_run;
 use alloc::{string::ToString, vec::Vec};
 use alloy_primitives::{keccak256, Address, Bytes};
-use kona_preimage::{
-    errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
-};
-use kona_proof::{errors::OracleProviderError, HintType};
 use revm::{
     precompile::{
         bn128::pair::{ISTANBUL_PAIR_BASE, ISTANBUL_PAIR_PER_POINT},
@@ -37,37 +33,8 @@ fn fpvm_ecpairing(input: &Bytes, gas_limit: u64) -> PrecompileResult {
         return Err(PrecompileError::Bn128PairLength.into());
     }
 
-    let result_data = kona_proof::block_on(async move {
-        // Write the hint for the ecrecover precompile run.
-        let hint_data = &[ECPAIRING_ADDRESS.as_ref(), input.as_ref()];
-        HintType::L1Precompile.with_data(hint_data).send(&HINT_WRITER).await?;
-
-        // Construct the key hash for the ecrecover precompile run.
-        let raw_key_data = hint_data.iter().copied().flatten().copied().collect::<Vec<u8>>();
-        let key_hash = keccak256(&raw_key_data);
-
-        // Fetch the result of the ecrecover precompile run from the host.
-        let result_data = ORACLE_READER
-            .get(PreimageKey::new(*key_hash, PreimageKeyType::Precompile))
-            .await
-            .map_err(OracleProviderError::Preimage)?;
-
-        // Ensure we've received valid result data.
-        if result_data.is_empty() {
-            return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
-                "Invalid result data".to_string(),
-            )));
-        }
-
-        // Ensure we've not received an error from the host.
-        if result_data[0] == 0 {
-            return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
-                "Error executing ecrecover precompile in host".to_string(),
-            )));
-        }
-
-        // Return the result data.
-        Ok(result_data[1..].to_vec())
+    let result_data = kona_proof::block_on(precompile_run! {
+        &[ECPAIRING_ADDRESS.as_ref(), input.as_ref()]
     })
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 

@@ -18,3 +18,55 @@ pub(crate) fn msm_required_gas(k: usize, discount_table: &[u16], multiplication_
 
     (k as u64 * discount * multiplication_cost) / MSM_MULTIPLIER
 }
+
+/// A macro that generates an async block that sends a hint to the host, constructs a key hash
+/// from the hint data, fetches the result of the precompile run from the host, and returns the
+/// result data.
+///
+/// The macro takes the following arguments:
+/// - `hint_data`: The hint data to send to the host.
+#[macro_export]
+macro_rules! precompile_run {
+    ($hint_data:expr) => {
+        async move {
+            use kona_preimage::{
+                errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
+            };
+            use kona_proof::{errors::OracleProviderError, HintType};
+            use $crate::{HINT_WRITER, ORACLE_READER};
+
+            // Write the hint for the precompile run.
+            let hint_data = $hint_data;
+            HintType::L1Precompile.with_data(hint_data).send(&HINT_WRITER).await?;
+
+            // Construct the key hash for the precompile run.
+            let raw_key_data = hint_data.iter().copied().flatten().copied().collect::<Vec<u8>>();
+            let key_hash = keccak256(&raw_key_data);
+
+            // Fetch the result of the precompile run from the host.
+            let result_data = ORACLE_READER
+                .get(PreimageKey::new(*key_hash, PreimageKeyType::Precompile))
+                .await
+                .map_err(OracleProviderError::Preimage)?;
+
+            // Ensure we've received valid result data.
+            if result_data.is_empty() {
+                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
+                    "Invalid result data".to_string(),
+                )));
+            }
+
+            // Ensure we've not received an error from the host.
+            if result_data[0] == 0 {
+                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
+                    "Error executing precompile in host".to_string(),
+                )));
+            }
+
+            // Return the result data.
+            Ok(result_data[1..].to_vec())
+        }
+    };
+}
+
+pub(crate) use precompile_run;
