@@ -8,13 +8,16 @@
 
 use crate::{HINT_WRITER, ORACLE_READER};
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{address, keccak256, Address, Bytes};
+use alloy_primitives::{keccak256, Address, Bytes};
 use kona_preimage::{
     errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
 };
 use kona_proof::{errors::OracleProviderError, HintType};
 use revm::{
-    precompile::{Error as PrecompileError, Precompile, PrecompileResult, PrecompileWithAddress},
+    precompile::{
+        bls12_381::pairing::PRECOMPILE, Error as PrecompileError, Precompile, PrecompileResult,
+        PrecompileWithAddress,
+    },
     primitives::PrecompileOutput,
 };
 
@@ -22,7 +25,7 @@ use revm::{
 const BLS12_MAX_PAIRING_SIZE_ISTHMUS: usize = 235_008;
 
 /// The address of the BLS12-381 pairing check precompile.
-const BLS12_PAIRING_CHECK: Address = address!("0x000000000000000000000000000000000000000f");
+const BLS12_PAIRING_CHECK: Address = PRECOMPILE.0;
 
 /// Input length of pairing operation.
 const INPUT_LENGTH: usize = 384;
