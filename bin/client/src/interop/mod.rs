@@ -68,7 +68,7 @@ where
     let oracle = Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client, hint_client));
     let boot = match BootInfo::load(oracle.as_ref()).await {
         Ok(boot) => boot,
-        Err(BootstrapError::NoOpTransition) => {
+        Err(BootstrapError::InvalidToInvalid) => {
             info!(target: "client_interop", "No-op transition, short-circuiting.");
             return Ok(());
         }
@@ -78,20 +78,36 @@ where
         }
     };
 
-    // Short-circuit the state transition if the agreed pre-state matches the claimed post-state.
-    if boot.agreed_pre_state_commitment == boot.claimed_post_state {
-        info!(target: "client_interop", "No-op transition, short-circuiting.");
-        return Ok(());
-    }
-
     // Load in the agreed pre-state from the preimage oracle in order to determine the active
     // sub-problem.
     match boot.agreed_pre_state {
-        PreState::SuperRoot(_) => {
+        PreState::SuperRoot(ref super_root) => {
+            // If the claimed L2 block timestamp is less than the super root timestamp, the
+            // post-state muust be the agreed pre-state to accommodate trace extension.
+            if super_root.timestamp >= boot.claimed_l2_timestamp {
+                if boot.agreed_pre_state_commitment == boot.claimed_post_state {
+                    return Ok(());
+                } else {
+                    return Err(FaultProofProgramError::InvalidClaim(
+                        boot.agreed_pre_state_commitment,
+                        boot.claimed_post_state,
+                    ));
+                }
+            }
+
             // If the pre-state is a super root, the first sub-problem is always selected.
             sub_transition(oracle, handle_register, boot).await
         }
         PreState::TransitionState(ref transition_state) => {
+            // If the claimed L2 block timestamp is less than the prestate timestamp, the
+            // the claim must be invalid.
+            if transition_state.pre_state.timestamp >= boot.claimed_l2_timestamp {
+                return Err(FaultProofProgramError::InvalidClaim(
+                    boot.agreed_pre_state_commitment,
+                    boot.claimed_post_state,
+                ));
+            }
+
             // If the pre-state is a transition state, the sub-problem is selected based on the
             // current step.
             if transition_state.step < TRANSITION_STATE_MAX_STEPS {

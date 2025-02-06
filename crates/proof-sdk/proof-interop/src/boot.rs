@@ -97,7 +97,7 @@ impl BootInfo {
             );
 
             if l2_post == INVALID_TRANSITION_HASH {
-                return Err(BootstrapError::NoOpTransition);
+                return Err(BootstrapError::InvalidToInvalid);
             } else {
                 return Err(BootstrapError::InvalidPostState(l2_post));
             }
@@ -160,7 +160,7 @@ pub enum BootstrapError {
     InvalidPostState(B256),
     /// The pre-state is invalid and the post-state claim is also invalid.
     #[error("No-op state transition detected; both pre and post states are `INVALID`.")]
-    NoOpTransition,
+    InvalidToInvalid,
 }
 
 /// Reads the raw pre-state from the preimage oracle.
