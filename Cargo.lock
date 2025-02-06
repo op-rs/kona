@@ -903,9 +903,9 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "aurora-engine-modexp"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aef7712851e524f35fbbb74fa6599c5cd8692056a1c36f9ca0d2001b670e7e5"
+checksum = "518bc5745a6264b5fd7b09dffb9667e400ee9e2bbe18555fac75e1fe9afa0df9"
 dependencies = [
  "hex",
  "num",
@@ -2916,9 +2916,9 @@ dependencies = [
 
 [[package]]
 name = "maili-genesis"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "750380cd9f5099090d7594b2c11e4772333c4137b94ca7997c8e152a4068238c"
+checksum = "f7eee1b92b09c03f03a49bd92866c037bd2e29e4ffb328e08e635dbd115ad189"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -2934,9 +2934,9 @@ dependencies = [
 
 [[package]]
 name = "maili-protocol"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a169e46d02a54b1a99fc6ad72b183e499da9bf7d2b368dc813d9e9e2e4bc4554"
+checksum = "339f90e890957709cee357b42496c3437fa76e29cc036fa94b7aaa26508bc793"
 dependencies = [
  "alloc-no-stdlib",
  "alloy-consensus",
@@ -2960,9 +2960,9 @@ dependencies = [
 
 [[package]]
 name = "maili-registry"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17af63d501fd85b950c9561af35761921932c2b9250ecb4384d80c32a4f08048"
+checksum = "7557be6ff8199a5076b9681681a1c67b5d4b12c6b6ab65f5ae938608edbdd524"
 dependencies = [
  "alloy-primitives",
  "lazy_static",
@@ -2975,9 +2975,9 @@ dependencies = [
 
 [[package]]
 name = "maili-rpc"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "967bb8638c4d050c95516aed6b1e47aae35beea482dad0f9357986a545996ae3"
+checksum = "5ea06103d9213bc22800a8bb0dcde5c336cf34b4a391fdf939d1158c9940dd25"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -2988,9 +2988,9 @@ dependencies = [
 
 [[package]]
 name = "maili-serde"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71eb9fdff41e2adbf68b6dd9f5741c79ed5678c04c8616df72c30d19d7ccac96"
+checksum = "fa5c844aeae91d2859472d851347004709ef2f9cc86bc6b77e750e51f81309c9"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -2999,9 +2999,9 @@ dependencies = [
 
 [[package]]
 name = "maili-superchain"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "072828e69b9eeec70bc5407ccdacfd526cbf2223d8622235cc9ccab5ac33efc5"
+checksum = "6014c188de26ea06743c22f63a0385baa63cb8864a3cf5b623df47c62c907a46"
 dependencies = [
  "alloy-primitives",
  "maili-genesis",
