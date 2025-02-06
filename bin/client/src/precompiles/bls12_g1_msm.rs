@@ -8,13 +8,16 @@
 
 use crate::{precompiles::utils::msm_required_gas, HINT_WRITER, ORACLE_READER};
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{address, keccak256, Address, Bytes};
+use alloy_primitives::{keccak256, Address, Bytes};
 use kona_preimage::{
     errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
 };
 use kona_proof::{errors::OracleProviderError, HintType};
 use revm::{
-    precompile::{Error as PrecompileError, Precompile, PrecompileResult, PrecompileWithAddress},
+    precompile::{
+        bls12_381::g1_msm::PRECOMPILE, Error as PrecompileError, Precompile, PrecompileResult,
+        PrecompileWithAddress,
+    },
     primitives::PrecompileOutput,
 };
 
@@ -26,7 +29,7 @@ const BLS12_MAX_G1_MSM_SIZE_ISTHMUS: usize = 513760;
 /// The address of the BLS12-381 g1 msm check precompile.
 ///
 /// See: <https://eips.ethereum.org/EIPS/eip-2537#constants>
-const BLS12_G1_MSM_CHECK: Address = address!("0x000000000000000000000000000000000000000c");
+const BLS12_G1_MSM_CHECK: Address = PRECOMPILE.0;
 
 /// Input length of g1 msm operation.
 const INPUT_LENGTH: usize = 160;

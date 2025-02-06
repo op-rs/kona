@@ -8,20 +8,23 @@
 
 use crate::{HINT_WRITER, ORACLE_READER};
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{address, keccak256, Address, Bytes};
+use alloy_primitives::{keccak256, Address, Bytes};
 use kona_preimage::{
     errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
 };
 use kona_proof::{errors::OracleProviderError, HintType};
 use revm::{
-    precompile::{Error as PrecompileError, Precompile, PrecompileResult, PrecompileWithAddress},
+    precompile::{
+        bls12_381::map_fp_to_g1::PRECOMPILE, Error as PrecompileError, Precompile,
+        PrecompileResult, PrecompileWithAddress,
+    },
     primitives::PrecompileOutput,
 };
 
 /// The address of the BLS12-381 map fp to g1 check precompile.
 ///
 /// See: <https://eips.ethereum.org/EIPS/eip-2537#constants>
-const BLS12_MAP_FP_CHECK: Address = address!("0x0000000000000000000000000000000000000010");
+const BLS12_MAP_FP_CHECK: Address = PRECOMPILE.0;
 
 /// Base gas fee for the BLS12-381 map fp to g1 operation.
 const MAP_FP_BASE_FEE: u64 = 5500;
