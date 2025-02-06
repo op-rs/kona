@@ -48,9 +48,9 @@ impl PreState {
         }
     }
 
-    /// Returns the active L2 output root hash of the [PreState]. This is the output root that represents
-    /// the pre-state of the chain that is to be committed to in the next transition step, or [None] if
-    /// the [PreState] has already been fully saturated.
+    /// Returns the active L2 output root hash of the [PreState]. This is the output root that
+    /// represents the pre-state of the chain that is to be committed to in the next transition
+    /// step, or [None] if the [PreState] has already been fully saturated.
     pub fn active_l2_output_root(&self) -> Option<&OutputRootWithChain> {
         match self {
             PreState::SuperRoot(super_root) => super_root.output_roots.first(),
@@ -79,8 +79,8 @@ impl PreState {
                 // If the transition state's pending progress contains the same number of states as
                 // the pre-state's output roots already, then we can either no-op
                 // the transition or finalize it.
-                if transition_state.pending_progress.len()
-                    == transition_state.pre_state.output_roots.len()
+                if transition_state.pending_progress.len() ==
+                    transition_state.pre_state.output_roots.len()
                 {
                     if transition_state.step == TRANSITION_STATE_MAX_STEPS {
                         let super_root = SuperRoot::new(
@@ -178,10 +178,10 @@ impl TransitionState {
 
     /// Returns the RLP payload length of the [TransitionState].
     pub fn payload_length(&self) -> usize {
-        Header { list: false, payload_length: self.pre_state.encoded_length() }.length()
-            + self.pre_state.encoded_length()
-            + self.pending_progress.length()
-            + self.step.length()
+        Header { list: false, payload_length: self.pre_state.encoded_length() }.length() +
+            self.pre_state.encoded_length() +
+            self.pending_progress.length() +
+            self.step.length()
     }
 }
 

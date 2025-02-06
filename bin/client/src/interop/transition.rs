@@ -72,9 +72,9 @@ where
         .map(|header| Sealed::new_unchecked(header, safe_head_hash))?;
     let disputed_l2_block_number = safe_head.number + 1;
 
-    // Check if we can no-op the transition. The Superchain STF happens once every second, but chains have
-    // a variable block time, meaning there might be no transition to process. Alternatively, if the pre
-    // state is the post state, we can short-circuit the transition.
+    // Check if we can no-op the transition. The Superchain STF happens once every second, but
+    // chains have a variable block time, meaning there might be no transition to process.
+    // Alternatively, if the pre state is the post state, we can short-circuit the transition.
     if safe_head.timestamp + rollup_config.block_time > boot.agreed_pre_state.timestamp() + 1 {
         info!(
             target: "interop_client",
