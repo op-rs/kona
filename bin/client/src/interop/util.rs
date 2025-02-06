@@ -16,20 +16,9 @@ where
     O: CommsClient,
 {
     // Fetch the output root of the safe head block for the current L2 chain.
-    let rich_output = match pre {
-        PreState::SuperRoot(super_root) => {
-            super_root.output_roots.first().ok_or(OracleProviderError::Preimage(
-                PreimageOracleError::Other("No output roots in super root".to_string()),
-            ))?
-        }
-        PreState::TransitionState(transition_state) => {
-            transition_state.pre_state.output_roots.get(transition_state.step as usize).ok_or(
-                OracleProviderError::Preimage(PreimageOracleError::Other(
-                    "No output roots in transition state's pending progress".to_string(),
-                )),
-            )?
-        }
-    };
+    let rich_output = pre
+        .active_l2_output_root()
+        .ok_or(PreimageOracleError::Other("Missing active L2 output root".to_string()))?;
 
     fetch_output_block_hash(caching_oracle, rich_output.output_root, rich_output.chain_id).await
 }

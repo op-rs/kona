@@ -5,7 +5,7 @@ use crate::interop::util::fetch_l2_safe_head_hash;
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
 use alloy_primitives::B256;
-use core::{cmp::Ordering, fmt::Debug};
+use core::fmt::Debug;
 use kona_derive::errors::{PipelineError, PipelineErrorKind};
 use kona_driver::{Driver, DriverError};
 use kona_executor::{KonaHandleRegister, TrieDBProvider};
@@ -44,7 +44,7 @@ where
                 "No derivation/execution required, transition state is already saturated."
             );
 
-            return transition_and_check(boot.agreed_pre_state, None, boot.claimed_post_state, None);
+            return transition_and_check(boot.agreed_pre_state, None, boot.claimed_post_state);
         }
     }
 
@@ -70,34 +70,27 @@ where
     let safe_head = l2_provider
         .header_by_hash(safe_head_hash)
         .map(|header| Sealed::new_unchecked(header, safe_head_hash))?;
+    let disputed_l2_block_number = safe_head.number + 1;
 
-    // Translate the claimed timestamp to an L2 block number.
-    let claimed_l2_block_number = rollup_config.genesis.l2.number +
-        ((boot.claimed_l2_timestamp - rollup_config.genesis.l2_time) / rollup_config.block_time);
+    // Check if we can no-op the transition. The Superchain STF happens once every second, but chains have
+    // a variable block time, meaning there might be no transition to process. Alternatively, if the pre
+    // state is the post state, we can short-circuit the transition.
+    if safe_head.timestamp + rollup_config.block_time > boot.agreed_pre_state.timestamp() + 1 {
+        info!(
+            target: "interop_client",
+            "No-op transition, short-circuiting."
+        );
 
-    // If the claimed L2 block number is less than the safe head of the L2 chain, the claim is
-    // invalid.
-    match claimed_l2_block_number.cmp(&safe_head.number) {
-        Ordering::Less => {
-            error!(
-                target: "interop_client",
-                "Claimed L2 block number {claimed} is less than the safe head {safe}",
-                claimed = claimed_l2_block_number,
-                safe = safe_head.number
-            );
-            return Err(FaultProofProgramError::InvalidClaim(
-                boot.agreed_pre_state_commitment,
-                boot.claimed_post_state,
-            ));
-        }
-        Ordering::Equal => {
-            info!(
-                target: "interop_client",
-                "Claimed L2 block is already safe."
-            );
-            return Ok(());
-        }
-        _ => { /* Continue */ }
+        let active_root = boot
+            .agreed_pre_state
+            .active_l2_output_root()
+            .ok_or(FaultProofProgramError::StateTransitionFailed)?;
+        let optimistic_block = OptimisticBlock::new(safe_head.hash(), active_root.output_root);
+        return transition_and_check(
+            boot.agreed_pre_state,
+            Some(optimistic_block),
+            boot.claimed_post_state,
+        );
     }
 
     // Create a new derivation driver with the given boot information and oracle.
@@ -125,14 +118,13 @@ where
 
     // Run the derivation pipeline until we are able to produce the output root of the claimed
     // L2 block.
-    match driver.advance_to_target(rollup_config.as_ref(), Some(claimed_l2_block_number)).await {
+    match driver.advance_to_target(rollup_config.as_ref(), Some(disputed_l2_block_number)).await {
         Ok((safe_head, output_root)) => {
             let optimistic_block = OptimisticBlock::new(safe_head.block_info.hash, output_root);
             transition_and_check(
                 boot.agreed_pre_state,
                 Some(optimistic_block),
                 boot.claimed_post_state,
-                Some((boot.claimed_l2_timestamp, safe_head.block_info.timestamp)),
             )?;
 
             info!(
@@ -173,7 +165,6 @@ fn transition_and_check(
     pre_state: PreState,
     optimistic_block: Option<OptimisticBlock>,
     expected_post_state: B256,
-    timestamps: Option<(u64, u64)>,
 ) -> Result<(), FaultProofProgramError> {
     let did_append = optimistic_block.is_some();
     let post_state = pre_state
@@ -188,7 +179,7 @@ fn transition_and_check(
         );
     }
 
-    if post_state_commitment != expected_post_state || timestamps.is_some_and(|(a, b)| a != b) {
+    if post_state_commitment != expected_post_state {
         error!(
             target: "interop_client",
             "Failed to validate progressed transition state. Expected post-state commitment: {expected}, actual: {actual}",

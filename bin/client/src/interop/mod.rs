@@ -78,6 +78,12 @@ where
         }
     };
 
+    // Short-circuit the state transition if the agreed pre-state matches the claimed post-state.
+    if boot.agreed_pre_state_commitment == boot.claimed_post_state {
+        info!(target: "client_interop", "No-op transition, short-circuiting.");
+        return Ok(());
+    }
+
     // Load in the agreed pre-state from the preimage oracle in order to determine the active
     // sub-problem.
     match boot.agreed_pre_state {
