@@ -204,13 +204,19 @@ where
     /// - `Ok(())` if the accounts were successfully updated.
     /// - `Err(_)` if the accounts could not be updated.
     fn update_accounts(&mut self, bundle: &BundleState) -> TrieDBResult<()> {
-        for (address, bundle_account) in bundle.state() {
+        // Sort the storage keys prior to applying the changeset, to ensure that the order of
+        // application is deterministic between runs.
+        let mut sorted_state =
+            bundle.state().iter().map(|(k, v)| (k, keccak256(*k), v)).collect::<Vec<_>>();
+        sorted_state.sort_by_key(|(_, hashed_addr, _)| *hashed_addr);
+
+        for (address, hashed_address, bundle_account) in sorted_state {
             if bundle_account.status.is_not_modified() {
                 continue;
             }
 
             // Compute the path to the account in the trie.
-            let account_path = Nibbles::unpack(keccak256(address.as_slice()));
+            let account_path = Nibbles::unpack(hashed_address.as_slice());
 
             // If the account was destroyed, delete it from the trie.
             if bundle_account.was_destroyed() {
@@ -233,8 +239,24 @@ where
                 .storage_roots
                 .entry(*address)
                 .or_insert_with(|| TrieNode::new_blinded(EMPTY_ROOT_HASH));
-            bundle_account.storage.iter().try_for_each(|(index, value)| {
-                Self::change_storage(acc_storage_root, *index, value, &self.fetcher, &self.hinter)
+
+            // Sort the hashed storage keys prior to applying the changeset, to ensure that the
+            // order of application is deterministic between runs.
+            let mut sorted_storage = bundle_account
+                .storage
+                .iter()
+                .map(|(k, v)| (keccak256(k.to_be_bytes::<32>()), v))
+                .collect::<Vec<_>>();
+            sorted_storage.sort_by_key(|(slot, _)| *slot);
+
+            sorted_storage.into_iter().try_for_each(|(hashed_key, value)| {
+                Self::change_storage(
+                    acc_storage_root,
+                    hashed_key,
+                    value,
+                    &self.fetcher,
+                    &self.hinter,
+                )
             })?;
 
             // Recompute the account storage root.
@@ -255,16 +277,18 @@ where
     /// Modifies a storage slot of an account in the Merkle Patricia Trie.
     ///
     /// ## Takes
-    /// - `address`: The address of the account.
-    /// - `index`: The index of the storage slot.
+    /// - `storage_root`: The storage root of the account.
+    /// - `hashed_key`: The hashed storage slot key.
     /// - `value`: The new value of the storage slot.
+    /// - `fetcher`: The trie node fetcher.
+    /// - `hinter`: The trie hinter.
     ///
     /// ## Returns
     /// - `Ok(())` if the storage slot was successfully modified.
     /// - `Err(_)` if the storage slot could not be modified.
     fn change_storage(
         storage_root: &mut TrieNode,
-        index: U256,
+        hashed_key: B256,
         value: &StorageSlot,
         fetcher: &F,
         hinter: &H,
@@ -278,7 +302,7 @@ where
         value.present_value.encode(&mut rlp_buf);
 
         // Insert or update the storage slot in the trie.
-        let hashed_slot_key = Nibbles::unpack(keccak256(index.to_be_bytes::<32>().as_slice()));
+        let hashed_slot_key = Nibbles::unpack(hashed_key.as_slice());
         if value.present_value.is_zero() {
             // If the storage slot is being set to zero, prune it from the trie.
             storage_root.delete(&hashed_slot_key, fetcher, hinter)?;
