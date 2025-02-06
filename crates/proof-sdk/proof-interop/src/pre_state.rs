@@ -41,7 +41,7 @@ impl PreState {
     }
 
     /// Returns the timestamp of the [PreState].
-    pub fn timestamp(&self) -> u64 {
+    pub const fn timestamp(&self) -> u64 {
         match self {
             Self::SuperRoot(super_root) => super_root.timestamp,
             Self::TransitionState(transition_state) => transition_state.pre_state.timestamp,
@@ -53,8 +53,8 @@ impl PreState {
     /// step, or [None] if the [PreState] has already been fully saturated.
     pub fn active_l2_output_root(&self) -> Option<&OutputRootWithChain> {
         match self {
-            PreState::SuperRoot(super_root) => super_root.output_roots.first(),
-            PreState::TransitionState(transition_state) => {
+            Self::SuperRoot(super_root) => super_root.output_roots.first(),
+            Self::TransitionState(transition_state) => {
                 transition_state.pre_state.output_roots.get(transition_state.step as usize)
             }
         }
