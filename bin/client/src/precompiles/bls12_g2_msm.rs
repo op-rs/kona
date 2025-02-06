@@ -6,7 +6,7 @@
 //!
 //! [revm implementation]: https://github.com/bluealloy/revm/blob/main/crates/precompile/src/bls12_381/g2_msm.rs
 
-use crate::{HINT_WRITER, ORACLE_READER};
+use crate::{precompiles::utils::msm_required_gas, HINT_WRITER, ORACLE_READER};
 use alloc::{string::ToString, vec::Vec};
 use alloy_primitives::{address, keccak256, Address, Bytes};
 use kona_preimage::{
@@ -17,23 +17,6 @@ use revm::{
     precompile::{Error as PrecompileError, Precompile, PrecompileResult, PrecompileWithAddress},
     primitives::PrecompileOutput,
 };
-
-/// Amount used to calculate the multi-scalar-multiplication discount
-const MSM_MULTIPLIER: u64 = 1000;
-
-/// Implements the gas schedule for G1/G2 Multiscalar-multiplication assuming 30
-/// MGas/second, see also: <https://eips.ethereum.org/EIPS/eip-2537#g1g2-multiexponentiation>
-#[inline]
-fn msm_required_gas(k: usize, discount_table: &[u16], multiplication_cost: u64) -> u64 {
-    if k == 0 {
-        return 0;
-    }
-
-    let index = core::cmp::min(k - 1, discount_table.len() - 1);
-    let discount = discount_table[index] as u64;
-
-    (k as u64 * discount * multiplication_cost) / MSM_MULTIPLIER
-}
 
 /// The maximum input size for the BLS12-381 g2 msm operation after the Isthmus Hardfork.
 ///

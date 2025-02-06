@@ -14,6 +14,7 @@ use revm::{
 mod bn128_pair;
 mod ecrecover;
 mod kzg_point_eval;
+pub(crate) mod utils;
 
 mod bls12_g1_add;
 mod bls12_g1_msm;
