@@ -27,7 +27,7 @@ use kona_proof::{
     l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
-    CachingOracle,
+    CachingOracle, Hint,
 };
 use kona_proof_interop::{HintType, PreState};
 use maili_protocol::BlockInfo;
@@ -44,7 +44,7 @@ impl HintHandler for InteropHintHandler {
     type Cfg = InteropHost;
 
     async fn fetch_hint(
-        hint: <Self::Cfg as OnlineHostBackendCfg>::Hint,
+        hint: Hint<<Self::Cfg as OnlineHostBackendCfg>::HintType>,
         cfg: &Self::Cfg,
         providers: &<Self::Cfg as OnlineHostBackendCfg>::Providers,
         kv: SharedKeyValueStore,

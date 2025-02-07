@@ -14,7 +14,7 @@ use clap::Parser;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
-use kona_proof::{Hint, HintType};
+use kona_proof::HintType;
 use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use maili_genesis::RollupConfig;
@@ -239,7 +239,7 @@ impl SingleChainHost {
 }
 
 impl OnlineHostBackendCfg for SingleChainHost {
-    type Hint = Hint<HintType>;
+    type HintType = HintType;
     type Providers = SingleChainProviders;
 }
 

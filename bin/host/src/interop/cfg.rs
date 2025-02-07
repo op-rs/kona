@@ -17,7 +17,6 @@ use clap::Parser;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
-use kona_proof::Hint;
 use kona_proof_interop::HintType;
 use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
@@ -136,7 +135,8 @@ impl InteropHost {
                 kv_store.clone(),
                 providers,
                 InteropHintHandler,
-            );
+            )
+            .with_proactive_hint(HintType::L2BlockData);
 
             task::spawn(
                 PreimageServer::new(
@@ -243,7 +243,7 @@ impl InteropHost {
 }
 
 impl OnlineHostBackendCfg for InteropHost {
-    type Hint = Hint<HintType>;
+    type HintType = HintType;
     type Providers = InteropProviders;
 }
 
