@@ -31,6 +31,11 @@ pub enum MessageGraphError<E> {
     /// Invalid messages were found
     #[error("Invalid messages found on chains: {0:?}")]
     InvalidMessages(Vec<u64>),
+    /// Missing a [RollupConfig] for a chain ID
+    ///
+    /// [RollupConfig]: maili_registry::RollupConfig
+    #[error("Missing a RollupConfig for chain ID {0}")]
+    MissingRollupConfig(u64),
     /// Interop provider error
     #[error("Interop provider: {0}")]
     InteropProviderError(#[from] E),

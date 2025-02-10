@@ -2684,6 +2684,8 @@ dependencies = [
  "alloy-sol-types",
  "arbitrary",
  "async-trait",
+ "maili-genesis",
+ "maili-registry",
  "op-alloy-consensus",
  "rand 0.9.0",
  "serde",

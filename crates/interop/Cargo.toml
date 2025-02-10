@@ -24,6 +24,10 @@ alloy-consensus.workspace = true
 alloy-rlp.workspace = true
 op-alloy-consensus.workspace = true
 
+# maili
+maili-genesis.workspace = true
+maili-registry.workspace = true
+
 # Arbitrary
 arbitrary = { version = "1.4", features = ["derive"], optional = true }
 

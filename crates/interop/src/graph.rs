@@ -8,7 +8,9 @@ use crate::{
 };
 use alloc::vec::Vec;
 use alloy_consensus::{Header, Sealed};
-use alloy_primitives::{hex, keccak256};
+use alloy_primitives::{hex, keccak256, map::HashMap};
+use maili_genesis::RollupConfig;
+use maili_registry::ROLLUP_CONFIGS;
 use tracing::{info, warn};
 
 /// The message graph represents a set of blocks at a given timestamp and the interop
@@ -37,6 +39,8 @@ pub struct MessageGraph<'a, P> {
     /// The data provider for the graph. Required for fetching headers, receipts and remote
     /// messages within history during resolution.
     provider: &'a P,
+    /// Backup rollup configs for each chain.
+    rollup_configs: &'a HashMap<u64, RollupConfig>,
 }
 
 impl<'a, P> MessageGraph<'a, P>
@@ -50,6 +54,7 @@ where
     pub async fn derive(
         blocks: &[(u64, Sealed<Header>)],
         provider: &'a P,
+        rollup_configs: &'a HashMap<u64, RollupConfig>,
     ) -> MessageGraphResult<Self, P> {
         info!(
             target: "message-graph",
@@ -83,7 +88,7 @@ where
             messages.len(),
             blocks.len()
         );
-        Ok(Self { horizon_timestamp, messages, provider })
+        Ok(Self { horizon_timestamp, messages, provider, rollup_configs })
     }
 
     /// Checks the validity of all messages within the graph.
@@ -162,14 +167,27 @@ where
         // ChainID Invariant: The chain id of the initiating message MUST be in the dependency set
         // This is enforced implicitly by the graph constructor and the provider.
 
+        // Attempt to fetch the rollup config for the initiating chain from the registry. If the rollup config
+        // is not found, fall back to the local rollup configs.
+        let initiating_chain_id = message.inner.id.chainId.saturating_to();
+        let rollup_config = ROLLUP_CONFIGS
+            .get(&initiating_chain_id)
+            .or_else(|| self.rollup_configs.get(&initiating_chain_id))
+            .ok_or(MessageGraphError::MissingRollupConfig(initiating_chain_id))?;
+
         // Timestamp invariant: The timestamp at the time of inclusion of the initiating message
         // MUST be less than or equal to the timestamp of the executing message as well as greater
         // than or equal to the Interop Start Timestamp.
         if message.inner.id.timestamp.saturating_to::<u64>() > self.horizon_timestamp {
-            // TODO(interop): Also need to check for the interop start timestamp. Requires
-            // `RollupConfig`s for each chain.
             return Err(MessageGraphError::MessageInFuture(
                 self.horizon_timestamp,
+                message.inner.id.timestamp.saturating_to(),
+            ));
+        } else if message.inner.id.timestamp.saturating_to::<u64>()
+            < rollup_config.interop_time.unwrap_or_default()
+        {
+            return Err(MessageGraphError::InvalidMessageTimestamp(
+                rollup_config.interop_time.unwrap_or_default(),
                 message.inner.id.timestamp.saturating_to(),
             ));
         }
@@ -236,20 +254,29 @@ where
 mod test {
     use super::MessageGraph;
     use crate::{test_util::SuperchainBuilder, MessageGraphError};
-    use alloy_primitives::{hex, keccak256, Address};
+    use alloy_primitives::{hex, keccak256, map::HashMap, Address};
+    use maili_genesis::RollupConfig;
 
     const MESSAGE: [u8; 4] = hex!("deadbeef");
+    const OP_CHAIN_ID: u64 = 10;
+    const BASE_CHAIN_ID: u64 = 8453;
 
     #[tokio::test]
     async fn test_derive_and_reduce_simple_graph() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1).add_initiating_message(MESSAGE.into());
-        superchain.chain(2).add_executing_message(keccak256(MESSAGE), 0, 1, 0);
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(
+            keccak256(MESSAGE),
+            0,
+            OP_CHAIN_ID,
+            0,
+        );
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
         graph.resolve().await.unwrap();
     }
 
@@ -257,20 +284,21 @@ mod test {
     async fn test_derive_and_reduce_cyclical_graph() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1).add_initiating_message(MESSAGE.into()).add_executing_message(
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into()).add_executing_message(
             keccak256(MESSAGE),
             1,
-            2,
+            BASE_CHAIN_ID,
             0,
         );
         superchain
-            .chain(2)
-            .add_executing_message(keccak256(MESSAGE), 0, 1, 0)
+            .chain(BASE_CHAIN_ID)
+            .add_executing_message(keccak256(MESSAGE), 0, OP_CHAIN_ID, 0)
             .add_initiating_message(MESSAGE.into());
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
         graph.resolve().await.unwrap();
     }
 
@@ -278,70 +306,130 @@ mod test {
     async fn test_derive_and_reduce_simple_graph_remote_message_not_found() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1);
-        superchain.chain(2).add_executing_message(keccak256(MESSAGE), 0, 1, 0);
+        superchain.chain(OP_CHAIN_ID);
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(
+            keccak256(MESSAGE),
+            0,
+            OP_CHAIN_ID,
+            0,
+        );
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
-        assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
     }
 
     #[tokio::test]
     async fn test_derive_and_reduce_simple_graph_invalid_chain_id() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1).add_initiating_message(MESSAGE.into());
-        superchain.chain(2).add_executing_message(keccak256(MESSAGE), 0, 2, 0);
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(
+            keccak256(MESSAGE),
+            0,
+            BASE_CHAIN_ID,
+            0,
+        );
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
-        assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
+    }
+
+    #[tokio::test]
+    async fn test_derive_and_reduce_simple_graph_message_before_interop_activation() {
+        let mut superchain = SuperchainBuilder::new(0);
+
+        superchain.chain(0xDEAD).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(keccak256(MESSAGE), 0, 0xDEAD, 0);
+
+        let (headers, provider) = superchain.build();
+
+        let cfgs = HashMap::from([(
+            0xDEAD,
+            RollupConfig { interop_time: Some(50), ..Default::default() },
+        )]);
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
     }
 
     #[tokio::test]
     async fn test_derive_and_reduce_simple_graph_invalid_log_index() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1).add_initiating_message(MESSAGE.into());
-        superchain.chain(2).add_executing_message(keccak256(MESSAGE), 1, 1, 0);
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(
+            keccak256(MESSAGE),
+            1,
+            OP_CHAIN_ID,
+            0,
+        );
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
-        assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
     }
 
     #[tokio::test]
     async fn test_derive_and_reduce_simple_graph_invalid_message_hash() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1).add_initiating_message(MESSAGE.into());
-        superchain.chain(2).add_executing_message(keccak256(hex!("0badc0de")), 0, 1, 0);
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(
+            keccak256(hex!("0badc0de")),
+            0,
+            OP_CHAIN_ID,
+            0,
+        );
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
-        assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
     }
 
     #[tokio::test]
     async fn test_derive_and_reduce_simple_graph_invalid_origin_address() {
         let mut superchain = SuperchainBuilder::new(0);
 
-        superchain.chain(1).add_initiating_message(MESSAGE.into());
-        superchain.chain(2).add_executing_message_with_origin(
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message_with_origin(
             keccak256(MESSAGE),
             Address::left_padding_from(&[0x01]),
             0,
-            1,
+            OP_CHAIN_ID,
             0,
         );
 
         let (headers, provider) = superchain.build();
 
-        let graph = MessageGraph::derive(headers.as_slice(), &provider).await.unwrap();
-        assert_eq!(graph.resolve().await.unwrap_err(), MessageGraphError::InvalidMessages(vec![2]));
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
     }
 }

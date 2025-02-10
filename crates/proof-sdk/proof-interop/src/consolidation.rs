@@ -81,7 +81,12 @@ where
     ///    and bubble up the error.
     async fn consolidate_once(&mut self) -> Result<(), ConsolidationError> {
         // Derive the message graph from the current set of block headers.
-        let graph = MessageGraph::derive(self.headers.as_slice(), &self.interop_provider).await?;
+        let graph = MessageGraph::derive(
+            self.headers.as_slice(),
+            &self.interop_provider,
+            &self.boot_info.rollup_configs,
+        )
+        .await?;
 
         // Attempt to resolve the message graph. If there were any invalid messages found, we must
         // initiate a re-execution of the original block, with only deposit transactions.
