@@ -75,11 +75,9 @@ where
             let receipts = provider.receipts_by_hash(*chain_id, header.hash()).await?;
             let executing_messages = extract_executing_messages(receipts.as_slice());
 
-            messages.extend(
-                executing_messages
-                    .into_iter()
-                    .map(|message| EnrichedExecutingMessage::new(message, *chain_id)),
-            );
+            messages.extend(executing_messages.into_iter().map(|message| {
+                EnrichedExecutingMessage::new(message, *chain_id, header.timestamp)
+            }));
         }
 
         info!(
@@ -167,9 +165,11 @@ where
         // ChainID Invariant: The chain id of the initiating message MUST be in the dependency set
         // This is enforced implicitly by the graph constructor and the provider.
 
+        let initiating_chain_id = message.inner.id.chainId.saturating_to();
+        let initiating_timestamp = message.inner.id.timestamp.saturating_to::<u64>();
+
         // Attempt to fetch the rollup config for the initiating chain from the registry. If the
         // rollup config is not found, fall back to the local rollup configs.
-        let initiating_chain_id = message.inner.id.chainId.saturating_to();
         let rollup_config = ROLLUP_CONFIGS
             .get(&initiating_chain_id)
             .or_else(|| self.rollup_configs.get(&initiating_chain_id))
@@ -178,17 +178,17 @@ where
         // Timestamp invariant: The timestamp at the time of inclusion of the initiating message
         // MUST be less than or equal to the timestamp of the executing message as well as greater
         // than or equal to the Interop Start Timestamp.
-        if message.inner.id.timestamp.saturating_to::<u64>() > self.horizon_timestamp {
+        if initiating_timestamp > self.horizon_timestamp ||
+            initiating_timestamp > message.executing_timestamp
+        {
             return Err(MessageGraphError::MessageInFuture(
                 self.horizon_timestamp,
-                message.inner.id.timestamp.saturating_to(),
+                initiating_timestamp,
             ));
-        } else if message.inner.id.timestamp.saturating_to::<u64>() <
-            rollup_config.interop_time.unwrap_or_default()
-        {
+        } else if initiating_timestamp < rollup_config.interop_time.unwrap_or_default() {
             return Err(MessageGraphError::InvalidMessageTimestamp(
                 rollup_config.interop_time.unwrap_or_default(),
-                message.inner.id.timestamp.saturating_to(),
+                initiating_timestamp,
             ));
         }
 
@@ -239,9 +239,9 @@ where
         }
 
         // Validate that the timestamp of the block header containing the log is correct.
-        if remote_header.timestamp != message.inner.id.timestamp.saturating_to::<u64>() {
+        if remote_header.timestamp != initiating_timestamp {
             return Err(MessageGraphError::InvalidMessageTimestamp(
-                message.inner.id.timestamp.saturating_to::<u64>(),
+                initiating_timestamp,
                 remote_header.timestamp,
             ));
         }

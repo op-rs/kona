@@ -90,12 +90,18 @@ pub struct EnrichedExecutingMessage {
     pub inner: ExecutingMessage,
     /// The chain ID of the chain that the message was executed on.
     pub executing_chain_id: u64,
+    /// The timestamp of the block that the executing message was included in.
+    pub executing_timestamp: u64,
 }
 
 impl EnrichedExecutingMessage {
     /// Create a new [EnrichedExecutingMessage] from an [ExecutingMessage] and a chain ID.
-    pub const fn new(inner: ExecutingMessage, executing_chain_id: u64) -> Self {
-        Self { inner, executing_chain_id }
+    pub const fn new(
+        inner: ExecutingMessage,
+        executing_chain_id: u64,
+        executing_timestamp: u64,
+    ) -> Self {
+        Self { inner, executing_chain_id, executing_timestamp }
     }
 }
 
