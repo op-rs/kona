@@ -167,8 +167,8 @@ where
         // ChainID Invariant: The chain id of the initiating message MUST be in the dependency set
         // This is enforced implicitly by the graph constructor and the provider.
 
-        // Attempt to fetch the rollup config for the initiating chain from the registry. If the rollup config
-        // is not found, fall back to the local rollup configs.
+        // Attempt to fetch the rollup config for the initiating chain from the registry. If the
+        // rollup config is not found, fall back to the local rollup configs.
         let initiating_chain_id = message.inner.id.chainId.saturating_to();
         let rollup_config = ROLLUP_CONFIGS
             .get(&initiating_chain_id)
@@ -183,8 +183,8 @@ where
                 self.horizon_timestamp,
                 message.inner.id.timestamp.saturating_to(),
             ));
-        } else if message.inner.id.timestamp.saturating_to::<u64>()
-            < rollup_config.interop_time.unwrap_or_default()
+        } else if message.inner.id.timestamp.saturating_to::<u64>() <
+            rollup_config.interop_time.unwrap_or_default()
         {
             return Err(MessageGraphError::InvalidMessageTimestamp(
                 rollup_config.interop_time.unwrap_or_default(),
