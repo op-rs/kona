@@ -4,6 +4,7 @@ language = "en"
 multilingual = false
 src = "src"
 title = "The Kona Book"
+description = "Developer documentation for the Kona project."
 
 [preprocessor.mermaid]
 command = "mdbook-mermaid"
@@ -11,6 +12,7 @@ command = "mdbook-mermaid"
 [preprocessor.template]
 
 [output.html]
+build-dir = "book"
 default-theme = "ferra"
 preferred-dark-theme = "ferra"
 git-repository-url = "https://github.com/op-rs/kona"
