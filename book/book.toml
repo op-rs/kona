@@ -12,7 +12,7 @@ command = "mdbook-mermaid"
 [preprocessor.template]
 
 [output.html]
-build-dir = "book"
+build-dir = "kona"
 default-theme = "ferra"
 preferred-dark-theme = "ferra"
 git-repository-url = "https://github.com/op-rs/kona"
