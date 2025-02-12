@@ -27,11 +27,6 @@ use tracing::{info, warn};
 /// [MessageIdentifier]: crate::MessageIdentifier
 #[derive(Debug)]
 pub struct MessageGraph<'a, P> {
-    /// The horizon timestamp is the highest timestamp of all blocks containing [ExecutingMessage]s
-    /// within the graph.
-    ///
-    /// [ExecutingMessage]: crate::ExecutingMessage
-    horizon_timestamp: u64,
     /// The edges within the graph.
     ///
     /// These are derived from the transactions within the blocks.
@@ -62,14 +57,6 @@ where
             blocks.len()
         );
 
-        // Get the highest timestamp from the blocks. This serves as the horizon timestamp for the
-        // graph.
-        let horizon_timestamp = blocks
-            .iter()
-            .map(|(_, header)| header.inner().timestamp)
-            .max()
-            .ok_or(MessageGraphError::EmptyDependencySet)?;
-
         let mut messages = Vec::with_capacity(blocks.len());
         for (chain_id, header) in blocks.iter() {
             let receipts = provider.receipts_by_hash(*chain_id, header.hash()).await?;
@@ -86,7 +73,7 @@ where
             messages.len(),
             blocks.len()
         );
-        Ok(Self { horizon_timestamp, messages, provider, rollup_configs })
+        Ok(Self { messages, provider, rollup_configs })
     }
 
     /// Checks the validity of all messages within the graph.
@@ -178,11 +165,9 @@ where
         // Timestamp invariant: The timestamp at the time of inclusion of the initiating message
         // MUST be less than or equal to the timestamp of the executing message as well as greater
         // than or equal to the Interop Start Timestamp.
-        if initiating_timestamp > self.horizon_timestamp ||
-            initiating_timestamp > message.executing_timestamp
-        {
+        if initiating_timestamp > message.executing_timestamp {
             return Err(MessageGraphError::MessageInFuture(
-                self.horizon_timestamp,
+                message.executing_timestamp,
                 initiating_timestamp,
             ));
         } else if initiating_timestamp < rollup_config.interop_time.unwrap_or_default() {
