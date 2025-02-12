@@ -11,14 +11,10 @@ exclude = ["**/target"]
 
 [workspace]
 members = [
-  "crates/derive",
-  "crates/driver",
-  "crates/executor",
-  "crates/mpt",
-  "crates/interop",
-  "crates/providers-alloy",
-  "crates/proof-sdk/*",
-  "bin/*"
+  "bin/*",
+  "crates/proof/*",
+  "crates/protocol/*",
+  "crates/services/*"
 ]
 default-members = ["bin/host", "bin/client"]
 
@@ -63,20 +59,26 @@ codegen-units = 1
 lto = "fat"
 
 [workspace.dependencies]
-# Workspace
+# Workspace Binaries
 kona-host = { path = "bin/host", version = "0.1.0", default-features = false }
 kona-client = { path = "bin/client", version = "0.1.0", default-features = false }
-kona-mpt = { path = "crates/mpt", version = "0.1.2", default-features = false }
-kona-derive = { path = "crates/derive", version = "0.2.3", default-features = false }
-kona-driver = { path = "crates/driver", version = "0.2.3", default-features = false }
-kona-providers-alloy = { path = "crates/providers-alloy", version = "0.1.0", default-features = false }
-kona-executor = { path = "crates/executor", version = "0.2.3", default-features = false }
-kona-interop = { path = "crates/interop", version = "0.1.1", default-features = false }
-kona-proof = { path = "crates/proof-sdk/proof", version = "0.2.3", default-features = false }
-kona-proof-interop = { path = "crates/proof-sdk/proof-interop", version = "0.1.1", default-features = false }
-kona-std-fpvm = { path = "crates/proof-sdk/std-fpvm", version = "0.1.2", default-features = false }
-kona-preimage = { path = "crates/proof-sdk/preimage", version = "0.2.1", default-features = false }
-kona-std-fpvm-proc = { path = "crates/proof-sdk/std-fpvm-proc", version = "0.1.2", default-features = false }
+
+# Workspace Protocol
+kona-derive = { path = "crates/protocol/derive", version = "0.2.3", default-features = false }
+kona-driver = { path = "crates/protocol/driver", version = "0.2.3", default-features = false }
+kona-interop = { path = "crates/protocol/interop", version = "0.1.1", default-features = false }
+
+# Workspace Services
+kona-providers-alloy = { path = "crates/services/providers-alloy", version = "0.1.0", default-features = false }
+
+# Workspace Proof
+kona-mpt = { path = "crates/proof/mpt", version = "0.1.2", default-features = false }
+kona-proof = { path = "crates/proof/proof", version = "0.2.3", default-features = false }
+kona-executor = { path = "crates/proof/executor", version = "0.2.3", default-features = false }
+kona-std-fpvm = { path = "crates/proof/std-fpvm", version = "0.1.2", default-features = false }
+kona-preimage = { path = "crates/proof/preimage", version = "0.2.1", default-features = false }
+kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.1.2", default-features = false }
+kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", default-features = false }
 
 # Maili
 maili-rpc = { version = "0.2.8", default-features = false }
