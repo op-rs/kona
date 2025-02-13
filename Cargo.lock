@@ -3624,6 +3624,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-serde"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "serde",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "kona-std-fpvm"
 version = "0.1.2"
 dependencies = [
