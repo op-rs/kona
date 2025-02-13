@@ -69,6 +69,7 @@ kona-driver = { path = "crates/protocol/driver", version = "0.2.3", default-feat
 kona-interop = { path = "crates/protocol/interop", version = "0.1.1", default-features = false }
 
 # Workspace Services
+kona-net = { path = "crates/services/net", version = "0.1.0", default-features = false }
 kona-providers-alloy = { path = "crates/services/providers-alloy", version = "0.1.0", default-features = false }
 
 # Workspace Proof
@@ -116,17 +117,27 @@ clap = "4.5.29"
 tokio = "1.43.0"
 cfg-if = "1.0.0"
 rstest = "0.24.0"
+futures = "0.3.31"
 reqwest = "0.12.12"
 tempfile = "3.16.0"
+arbitrary = "1.4.1"
 async-trait = "0.1.86"
 async-channel = "2.3.1"
 linked_list_allocator = "0.10.5"
+lazy_static = { version = "1.5.0", default-features = false }
 
 # General
 sha2 = { version = "0.10.8", default-features = false }
 c-kzg = { version = "2.0.0", default-features = false }
 anyhow = { version = "1.0.95", default-features = false }
 thiserror = { version = "2.0.11", default-features = false }
+
+# Networking
+snap = "1.1.1"
+discv5 = "0.9.1"
+libp2p = "0.54.1"
+openssl = "0.10.70"
+libp2p-identity = "0.2.10"
 
 # Tracing
 tracing-loki = "0.2.6"
@@ -135,6 +146,7 @@ tracing = { version = "0.1.41", default-features = false }
 
 # Testing
 pprof = "0.14.0"
+arbtest = "0.3.2"
 proptest = "1.6.0"
 criterion = "0.5.1"
 

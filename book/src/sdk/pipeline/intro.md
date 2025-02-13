@@ -95,7 +95,7 @@ the [`PipelineBuilder`][builder] to instantiate a [`DerivationPipeline`][dp].
 use std::sync::Arc;
 use maili_protocol::BlockInfo;
 use maili_genesis::RollupConfig;
-use hilo_providers_alloy::*;
+use kona_providers_alloy::*;
 
 // Use a default rollup config.
 let rollup_config = Arc::new(RollupConfig::default());
