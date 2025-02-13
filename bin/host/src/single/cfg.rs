@@ -206,7 +206,7 @@ impl SingleChainHost {
     }
 
     /// Creates the key-value store for the host backend.
-    fn create_key_value_store(&self) -> Result<SharedKeyValueStore> {
+    pub fn create_key_value_store(&self) -> Result<SharedKeyValueStore> {
         let local_kv_store = SingleChainLocalInputs::new(self.clone());
 
         let kv_store: SharedKeyValueStore = if let Some(ref data_dir) = self.data_dir {
@@ -223,7 +223,7 @@ impl SingleChainHost {
     }
 
     /// Creates the providers required for the host backend.
-    async fn create_providers(&self) -> Result<SingleChainProviders> {
+    pub async fn create_providers(&self) -> Result<SingleChainProviders> {
         let l1_provider =
             http_provider(self.l1_node_address.as_ref().ok_or(anyhow!("Provider must be set"))?);
         let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
