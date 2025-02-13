@@ -20,6 +20,7 @@ use kona_proof::{Hint, HintType};
 use maili_protocol::BlockInfo;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use std::collections::HashMap;
+use tracing::warn;
 
 /// The [HintHandler] for the [SingleChainHost].
 #[derive(Debug, Clone, Copy)]
@@ -258,6 +259,12 @@ impl HintHandler for SingleChainHintHandler {
 
                 let hash: B256 = hint.data.as_ref().try_into()?;
 
+                warn!(target: "single_hint_handler", "L2StateNode hint was sent for node hash: {}", hash);
+                warn!(
+                    target: "single_hint_handler",
+                    "`debug_executePayload` failed to return a complete witness."
+                );
+
                 // Fetch the preimage from the L2 chain provider.
                 let preimage: Bytes = providers.l2.client().request("debug_dbGet", &[hash]).await?;
 
@@ -324,7 +331,7 @@ impl HintHandler for SingleChainHintHandler {
                 let payload_attributes: OpPayloadAttributes =
                     serde_json::from_slice(&hint.data[32..])?;
 
-                let execute_payload_response: ExecutionWitness = providers
+                let Ok(execute_payload_response) = providers
                     .l2
                     .client()
                     .request::<(B256, OpPayloadAttributes), ExecutionWitness>(
@@ -332,7 +339,11 @@ impl HintHandler for SingleChainHintHandler {
                         (parent_block_hash, payload_attributes),
                     )
                     .await
-                    .map_err(|e| anyhow!("Failed to fetch preimage: {e}"))?;
+                else {
+                    // Allow this hint to fail silently, as not all execution clients support
+                    // the `debug_executePayload` method.
+                    return Ok(());
+                };
 
                 let mut merged = HashMap::<B256, Bytes>::default();
                 merged.extend(execute_payload_response.state);

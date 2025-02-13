@@ -34,6 +34,7 @@ use maili_protocol::BlockInfo;
 use maili_registry::ROLLUP_CONFIGS;
 use std::sync::Arc;
 use tokio::task;
+use tracing::warn;
 
 /// The [HintHandler] for the [InteropHost].
 #[derive(Debug, Clone, Copy)]
@@ -530,6 +531,12 @@ impl HintHandler for InteropHintHandler {
 
                 // Store tx root preimages.
                 store_ordered_trie(kv.as_ref(), raw_transactions.as_slice()).await?;
+            }
+            HintType::L2PayloadWitness => {
+                warn!(
+                    target: "interop_hint_handler",
+                    "L2PayloadWitness hint not implemented for interop hint handler, ignoring hint"
+                );
             }
         }
 

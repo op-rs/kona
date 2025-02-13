@@ -10,7 +10,7 @@ use crate::{
     },
     ExecutorError, ExecutorResult, TrieDBProvider,
 };
-use alloc::vec::Vec;
+use alloc::{string::ToString, vec::Vec};
 use alloy_consensus::{
     Header, Sealable, Sealed, Transaction, EMPTY_OMMER_ROOT_HASH, EMPTY_ROOT_HASH,
 };
@@ -136,6 +136,15 @@ where
         );
 
         let parent_block_hash: B256 = self.trie_db.parent_block_header().seal();
+
+        // Attempt to send a payload witness hint to the host. This hint instructs the host to
+        // populate its preimage store with the preimages required to statelessly execute
+        // this payload. This feature is experimental, so if the hint fails, we continue
+        // without it and fall back on on-demand preimage fetching for execution.
+        self.trie_db
+            .hinter
+            .hint_execution_witness(parent_block_hash, &payload)
+            .map_err(|e| TrieDBError::Provider(e.to_string()))?;
 
         let mut state =
             State::builder().with_database(&mut self.trie_db).with_bundle_update().build();

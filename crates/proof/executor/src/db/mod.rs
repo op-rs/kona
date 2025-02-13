@@ -86,9 +86,9 @@ where
     /// The parent block hash of the current block.
     parent_block_header: Sealed<Header>,
     /// The [TrieDBProvider]
-    fetcher: F,
+    pub fetcher: F,
     /// The [TrieHinter]
-    hinter: H,
+    pub hinter: H,
 }
 
 impl<F, H> TrieDB<F, H>
