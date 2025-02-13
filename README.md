@@ -46,25 +46,26 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ## Overview
 
-**`kona`**
+**Binaries**
 
 - [`client`](./bin/client): The bare-metal program that runs on top of a [fault proof VM][g-fault-proof-vm].
 - [`host`](./bin/host): The host program that runs natively alongside the FPVM, serving as the [Preimage Oracle][g-preimage-oracle] server.
 
 **Protocol**
-- [`mpt`](./crates/mpt): Utilities for interacting with the Merkle Patricia Trie in the client program.
-- [`executor`](./crates/executor): `no_std` stateless block executor for the [OP Stack][op-stack].
-- [`derive`](./crates/derive): `no_std` compatible implementation of the [derivation pipeline][g-derivation-pipeline].
-  - [`driver`](./crates/driver): Stateful derivation pipeline driver.
-- [`interop`](./crates/interop): Core functionality and primitives for the [Interop feature](https://specs.optimism.io/interop/overview.html) of the OP Stack.
 
-**Proof SDK**
+- [`derive`](./crates/protocol/derive): `no_std` compatible implementation of the [derivation pipeline][g-derivation-pipeline].
+  - [`driver`](./crates/protocol/driver): Stateful derivation pipeline driver.
+- [`interop`](./crates/protocol/interop): Core functionality and primitives for the [Interop feature](https://specs.optimism.io/interop/overview.html) of the OP Stack.
 
-- [`kona-proof`](./crates/proof-sdk/proof): High level OP Stack state transition proof SDK.
-- [`kona-proof-interop`](./crates/proof-sdk/proof-interop): Extension of `kona-proof` with interop support.
-- [`preimage`](./crates/proof-sdk/preimage): High level interfaces to the [`PreimageOracle`][fpp-specs] ABI.
-- [`std-fpvm`](./crates/proof-sdk/std-fpvm): Platform specific [Fault Proof VM][g-fault-proof-vm] kernel APIs.
-- [`std-fpvm-proc`](./crates/proof-sdk/std-fpvm-proc): Proc macro for [Fault Proof Program][fpp-specs] entrypoints.
+**Proof**
+
+- [`mpt`](./crates/proof/mpt): Utilities for interacting with the Merkle Patricia Trie in the client program.
+- [`executor`](./crates/proof/executor): `no_std` stateless block executor for the [OP Stack][op-stack].
+- [`kona-proof`](./crates/proof/proof): High level OP Stack state transition proof SDK.
+- [`kona-proof-interop`](./crates/proof/proof-interop): Extension of `kona-proof` with interop support.
+- [`preimage`](./crates/proof/preimage): High level interfaces to the [`PreimageOracle`][fpp-specs] ABI.
+- [`std-fpvm`](./crates/proof/std-fpvm): Platform specific [Fault Proof VM][g-fault-proof-vm] kernel APIs.
+- [`std-fpvm-proc`](./crates/proof/std-fpvm-proc): Proc macro for [Fault Proof Program][fpp-specs] entrypoints.
 
 ## Book
 
