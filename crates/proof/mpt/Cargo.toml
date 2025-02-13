@@ -21,6 +21,9 @@ alloy-rlp.workspace = true
 alloy-trie.workspace = true
 alloy-primitives = { workspace = true, features = ["rlp"] }
 
+# Op-alloy
+op-alloy-rpc-types-engine.workspace = true
+
 [dev-dependencies]
 # Alloy
 alloy-provider = { workspace = true, features = ["reqwest"] }

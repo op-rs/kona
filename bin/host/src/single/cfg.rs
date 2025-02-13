@@ -146,7 +146,8 @@ impl SingleChainHost {
                 kv_store.clone(),
                 providers,
                 SingleChainHintHandler,
-            );
+            )
+            .with_proactive_hint(HintType::L2PayloadWitness);
 
             task::spawn(
                 PreimageServer::new(
