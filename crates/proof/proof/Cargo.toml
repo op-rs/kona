@@ -1,7 +1,7 @@
 [package]
 name = "kona-proof"
 description = "OP Stack Proof SDK"
-version = "0.2.3"
+version = "0.2.4"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true

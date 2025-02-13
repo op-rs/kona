@@ -7,15 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0](https://github.com/op-rs/kona/compare/kona-interop-v0.1.1...kona-interop-v0.2.0) - 2025-02-13
+## [0.1.0](https://github.com/op-rs/kona/releases/tag/kona-net-v0.1.0) - 2025-02-13
 
 ### Other
 
 - *(services)* Networking Crate (#1032)
-- Restructure Kona to be more Extensible (#1031)
-
-## [0.1.1](https://github.com/op-rs/kona/compare/kona-interop-v0.1.0...kona-interop-v0.1.1) - 2025-01-16
-
-### Other
-
-- update Cargo.toml dependencies
