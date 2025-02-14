@@ -147,8 +147,7 @@ impl SingleChainHost {
                 providers,
                 SingleChainHintHandler,
             )
-                .with_proactive_hint(HintType::L2PayloadWitness)
-                .with_proactive_hint(HintType::L2AccountStorageProof);
+                .with_proactive_hint(HintType::L2PayloadWitness);
 
             task::spawn(
                 PreimageServer::new(
