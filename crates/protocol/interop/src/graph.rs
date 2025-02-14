@@ -9,8 +9,8 @@ use crate::{
 use alloc::vec::Vec;
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::{hex, keccak256, map::HashMap};
-use maili_genesis::RollupConfig;
-use maili_registry::ROLLUP_CONFIGS;
+use kona_genesis::RollupConfig;
+use kona_registry::ROLLUP_CONFIGS;
 use tracing::{info, warn};
 
 /// The message graph represents a set of blocks at a given timestamp and the interop
@@ -240,7 +240,7 @@ mod test {
     use super::MessageGraph;
     use crate::{test_util::SuperchainBuilder, MessageGraphError};
     use alloy_primitives::{hex, keccak256, map::HashMap, Address};
-    use maili_genesis::RollupConfig;
+    use kona_genesis::RollupConfig;
 
     const MESSAGE: [u8; 4] = hex!("deadbeef");
     const OP_CHAIN_ID: u64 = 10;

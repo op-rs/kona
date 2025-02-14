@@ -12,8 +12,8 @@ use alloy_primitives::{address, Address, Bytes, B256};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
-use maili_genesis::RollupConfig;
-use maili_protocol::{
+use kona_genesis::RollupConfig;
+use kona_protocol::{
     closing_deposit_context_tx, decode_deposit, L1BlockInfoTx, L2BlockInfo, DEPOSIT_EVENT_ABI_HASH,
 };
 use op_alloy_consensus::{Hardfork, Hardforks};
@@ -251,8 +251,8 @@ mod tests {
     use alloc::vec;
     use alloy_consensus::Header;
     use alloy_primitives::{Log, LogData, B256, U256, U64};
-    use maili_genesis::SystemConfig;
-    use maili_protocol::{BlockInfo, DepositError};
+    use kona_genesis::SystemConfig;
+    use kona_protocol::{BlockInfo, DepositError};
 
     fn generate_valid_log() -> Log {
         let deposit_contract = address!("1111111111111111111111111111111111111111");

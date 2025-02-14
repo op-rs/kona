@@ -12,11 +12,13 @@ use op_alloy_consensus::OpReceiptEnvelope;
 sol! {
     /// @notice The struct for a pointer to a message payload in a remote (or local) chain.
     #[derive(Default, Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     struct MessageIdentifier {
         address origin;
         uint256 blockNumber;
         uint256 logIndex;
         uint256 timestamp;
+        #[cfg_attr(feature = "serde", serde(rename = "chainID"))]
         uint256 chainId;
     }
 
@@ -24,6 +26,7 @@ sol! {
     /// @param msgHash Hash of message payload being executed.
     /// @param id Encoded Identifier of the message.
     #[derive(Default, Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     event ExecutingMessage(bytes32 indexed msgHash, MessageIdentifier id);
 
     /// @notice Executes a cross chain message on the destination chain.

@@ -11,8 +11,8 @@ use core::fmt::Debug;
 use kona_derive::traits::ChainProvider;
 use kona_driver::{PipelineCursor, TipCursor};
 use kona_preimage::CommsClient;
-use maili_protocol::BatchValidationProvider;
-use maili_registry::RollupConfig;
+use kona_protocol::BatchValidationProvider;
+use kona_registry::RollupConfig;
 use spin::RwLock;
 
 /// Constructs a [`PipelineCursor`] from the caching oracle, boot info, and providers.

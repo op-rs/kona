@@ -1,0 +1,46 @@
+[package]
+name = "kona-registry"
+version = "0.1.0"
+description = "A registry of superchain configs"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Workspace
+kona-genesis = { workspace = true, features = ["serde"] }
+
+# Alloy
+alloy-primitives = { workspace = true, features = ["map"] }
+
+# `serde`
+serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+
+# misc
+lazy_static = { workspace = true, features = ["spin_no_std"] }
+
+[build-dependencies]
+toml = { workspace = true, features = ["parse"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+kona-genesis = { workspace = true, features = ["serde"] }
+
+[dev-dependencies]
+alloy-eips.workspace = true
+
+[features]
+default = []
+std = [
+	"kona-genesis/std",
+	"serde_json/std",
+	"alloy-primitives/std",
+	"serde/std"
+]

@@ -12,9 +12,9 @@ use kona_derive::{
     types::Signal,
 };
 use kona_executor::ExecutionArtifacts;
-use maili_genesis::RollupConfig;
-use maili_protocol::L2BlockInfo;
-use maili_rpc::OpAttributesWithParent;
+use kona_genesis::RollupConfig;
+use kona_protocol::L2BlockInfo;
+use kona_rpc::OpAttributesWithParent;
 use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType};
 use spin::RwLock;
 

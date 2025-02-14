@@ -1,0 +1,1 @@
+This is a random text file to test collecting superchain configs.

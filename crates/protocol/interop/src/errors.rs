@@ -33,7 +33,7 @@ pub enum MessageGraphError<E> {
     InvalidMessages(Vec<u64>),
     /// Missing a [RollupConfig] for a chain ID
     ///
-    /// [RollupConfig]: maili_genesis::RollupConfig
+    /// [RollupConfig]: kona_genesis::RollupConfig
     #[error("Missing a RollupConfig for chain ID {0}")]
     MissingRollupConfig(u64),
     /// Interop provider error

@@ -9,8 +9,8 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{
+use kona_genesis::RollupConfig;
+use kona_protocol::{
     Batch, BatchValidity, BatchWithInclusionBlock, BlockInfo, L2BlockInfo, SingleBatch,
 };
 
@@ -51,7 +51,7 @@ where
     pub(crate) batches: Vec<BatchWithInclusionBlock>,
     /// A set of cached [SingleBatch]es derived from [SpanBatch]es.
     ///
-    /// [SpanBatch]: maili_protocol::SpanBatch
+    /// [SpanBatch]: kona_protocol::SpanBatch
     pub(crate) next_spans: Vec<SingleBatch>,
     /// Used to validate the batches.
     pub(crate) fetcher: BF,
@@ -468,8 +468,8 @@ mod tests {
     use alloy_eips::{eip2718::Decodable2718, BlockNumHash};
     use alloy_primitives::{address, b256, Address, Bytes, TxKind, B256, U256};
     use alloy_rlp::{BytesMut, Encodable};
-    use maili_genesis::{ChainGenesis, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
-    use maili_protocol::{BatchReader, L1BlockInfoBedrock, L1BlockInfoTx};
+    use kona_genesis::{ChainGenesis, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
+    use kona_protocol::{BatchReader, L1BlockInfoBedrock, L1BlockInfoTx};
     use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType, TxDeposit};
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;

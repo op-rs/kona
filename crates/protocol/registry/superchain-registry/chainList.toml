@@ -1,0 +1,653 @@
+[[chains]]
+  name = "Automata Mainnet"
+  identifier = "mainnet/automata"
+  chain_id = 65536
+  rpc = ["https://rpc.ata.network"]
+  explorers = ["https://explorer.ata.network"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  gas_paying_token = "0xA2120b9e674d3fC3875f415A7DF52e382F141225"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "BOB"
+  identifier = "mainnet/bob"
+  chain_id = 60808
+  rpc = ["https://rpc.gobob.xyz"]
+  explorers = ["https://explorer.gobob.xyz"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Base"
+  identifier = "mainnet/base"
+  chain_id = 8453
+  rpc = ["https://mainnet.base.org"]
+  explorers = ["https://explorer.base.org"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Binary Mainnet"
+  identifier = "mainnet/tbn"
+  chain_id = 624
+  rpc = ["https://rpc.zero.thebinaryholdings.com"]
+  explorers = ["https://explorer.thebinaryholdings.com"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  gas_paying_token = "0x04E9D7e336f79Cdab911b06133D3Ca2Cd0721ce3"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Cyber Mainnet"
+  identifier = "mainnet/cyber"
+  chain_id = 7560
+  rpc = ["https://rpc.cyber.co"]
+  explorers = ["https://cyberscan.co/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Ethernity"
+  identifier = "mainnet/ethernity"
+  chain_id = 183
+  rpc = ["https://mainnet.ethernitychain.io"]
+  explorers = ["https://ernscan.io"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Funki"
+  identifier = "mainnet/funki"
+  chain_id = 33979
+  rpc = ["https://rpc-mainnet.funkichain.com"]
+  explorers = ["https://funki.superscan.network"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "HashKey Chain"
+  identifier = "mainnet/hashkeychain"
+  chain_id = 177
+  rpc = ["https://mainnet.hsk.xyz"]
+  explorers = ["https://explorer.hsk.xyz"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  gas_paying_token = "0xE7C6BF469e97eEB0bFB74C8dbFF5BD47D4C1C98a"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Ink"
+  identifier = "mainnet/ink"
+  chain_id = 57073
+  rpc = ["https://rpc-gel.inkonchain.com"]
+  explorers = ["https://explorer.inkonchain.com"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Lisk"
+  identifier = "mainnet/lisk"
+  chain_id = 1135
+  rpc = ["https://rpc.api.lisk.com"]
+  explorers = ["https://blockscout.lisk.com"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Lyra Chain"
+  identifier = "mainnet/lyra"
+  chain_id = 957
+  rpc = ["https://rpc.lyra.finance"]
+  explorers = ["https://explorer.lyra.finance"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Metal L2"
+  identifier = "mainnet/metal"
+  chain_id = 1750
+  rpc = ["https://rpc.metall2.com"]
+  explorers = ["https://explorer.metall2.com"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Mint Mainnet"
+  identifier = "mainnet/mint"
+  chain_id = 185
+  rpc = ["https://rpc.mintchain.io"]
+  explorers = ["https://explorer.mintchain.io"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Mode"
+  identifier = "mainnet/mode"
+  chain_id = 34443
+  rpc = ["https://mainnet.mode.network"]
+  explorers = ["https://explorer.mode.network"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "OP Mainnet"
+  identifier = "mainnet/op"
+  chain_id = 10
+  rpc = ["https://mainnet.optimism.io"]
+  explorers = ["https://explorer.optimism.io"]
+  superchain_level = 2
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Orderly Mainnet"
+  identifier = "mainnet/orderly"
+  chain_id = 291
+  rpc = ["https://rpc.orderly.network"]
+  explorers = ["https://explorer.orderly.network"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Polynomial"
+  identifier = "mainnet/polynomial"
+  chain_id = 8008
+  rpc = ["https://rpc.polynomial.fi"]
+  explorers = ["https://polynomialscan.io"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "RACE Mainnet"
+  identifier = "mainnet/race"
+  chain_id = 6805
+  rpc = ["https://racemainnet.io"]
+  explorers = ["https://racescan.io/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Redstone"
+  identifier = "mainnet/redstone"
+  chain_id = 690
+  rpc = ["https://rpc.redstonechain.com"]
+  explorers = ["https://explorer.redstone.xyz"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Shape"
+  identifier = "mainnet/shape"
+  chain_id = 360
+  rpc = ["https://mainnet.shape.network/"]
+  explorers = ["https://shape-mainnet.explorer.alchemy.com/"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Soneium"
+  identifier = "mainnet/soneium"
+  chain_id = 1868
+  rpc = ["https://rpc.soneium.org"]
+  explorers = ["https://soneium.blockscout.com/"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Superseed"
+  identifier = "mainnet/sseed"
+  chain_id = 5330
+  rpc = ["https://mainnet.superseed.xyz"]
+  explorers = ["https://explorer.superseed.xyz"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Swan Chain Mainnet"
+  identifier = "mainnet/swan"
+  chain_id = 254
+  rpc = ["https://mainnet-rpc.swanchain.org"]
+  explorers = ["https://swanscan.io"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Swellchain"
+  identifier = "mainnet/swell"
+  chain_id = 1923
+  rpc = ["https://swell-mainnet.alt.technology"]
+  explorers = ["https://explorer.swellnetwork.io"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Unichain"
+  identifier = "mainnet/unichain"
+  chain_id = 130
+  rpc = ["https://mainnet.unichain.org"]
+  explorers = ["https://explorer.unichain.org"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "World Chain"
+  identifier = "mainnet/worldchain"
+  chain_id = 480
+  rpc = ["https://worldchain-mainnet.g.alchemy.com/public"]
+  explorers = ["https://worldchain-mainnet.explorer.alchemy.com/"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Xterio Chain (ETH)"
+  identifier = "mainnet/xterio-eth"
+  chain_id = 2702128
+  rpc = ["https://xterio-eth.alt.technology/"]
+  explorers = ["https://eth.xterscan.io/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Zora"
+  identifier = "mainnet/zora"
+  chain_id = 7777777
+  rpc = ["https://rpc.zora.energy"]
+  explorers = ["https://explorer.zora.energy"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "arena-z"
+  identifier = "mainnet/arena-z"
+  chain_id = 7897
+  rpc = ["https://rpc.arena-z.gg"]
+  explorers = ["https://explorer.arena-z.gg"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "mainnet"
+
+[[chains]]
+  name = "Base Sepolia Testnet"
+  identifier = "sepolia/base"
+  chain_id = 84532
+  rpc = ["https://sepolia.base.org"]
+  explorers = ["https://sepolia-explorer.base.org"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Binary Sepolia"
+  identifier = "sepolia/tbn"
+  chain_id = 625
+  rpc = ["https://rpc.testnet.thebinaryholdings.com"]
+  explorers = ["https://explorer.sepolia.thebinaryholdings.com"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  gas_paying_token = "0x46d878bf7BF62Ec542953CB89Ac0bF58d991181e"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Creator Chain Testnet"
+  identifier = "sepolia/creator-chain-testnet"
+  chain_id = 66665
+  rpc = ["https://rpc.creatorchain.io"]
+  explorers = ["https://explorer.creatorchain.io"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Cyber Testnet"
+  identifier = "sepolia/cyber"
+  chain_id = 111557560
+  rpc = ["https://rpc.testnet.cyber.co"]
+  explorers = ["https://testnet.cyberscan.co/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Ethernity Testnet"
+  identifier = "sepolia/ethernity"
+  chain_id = 233
+  rpc = ["https://testnet.ethernitychain.io"]
+  explorers = ["https://testnet.ernscan.io"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Funki Sepolia Testnet"
+  identifier = "sepolia/funki"
+  chain_id = 3397901
+  rpc = ["https://funki-testnet.alt.technology"]
+  explorers = ["https://sepolia-sandbox.funkichain.com/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "alt-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Ink Sepolia"
+  identifier = "sepolia/ink"
+  chain_id = 763373
+  rpc = ["https://rpc-gel-sepolia.inkonchain.com"]
+  explorers = ["https://explorer-sepolia.inkonchain.com"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Lisk Sepolia Testnet"
+  identifier = "sepolia/lisk"
+  chain_id = 4202
+  rpc = ["https://rpc.sepolia-api.lisk.com"]
+  explorers = ["https://sepolia-blockscout.lisk.com"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Metal L2 Testnet"
+  identifier = "sepolia/metal"
+  chain_id = 1740
+  rpc = ["https://testnet.rpc.metall2.com"]
+  explorers = ["https://testnet.explorer.metall2.com"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Mode Testnet"
+  identifier = "sepolia/mode"
+  chain_id = 919
+  rpc = ["https://sepolia.mode.network"]
+  explorers = ["https://sepolia.explorer.mode.network"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "OP Sepolia Testnet"
+  identifier = "sepolia/op"
+  chain_id = 11155420
+  rpc = ["https://sepolia.optimism.io"]
+  explorers = ["https://sepolia-optimistic.etherscan.io"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Pivotal Sepolia"
+  identifier = "sepolia/pivotal"
+  chain_id = 16481
+  rpc = ["https://sepolia.pivotalprotocol.com/"]
+  explorers = ["https://sepolia.pivotalscan.org/"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "RACE Testnet"
+  identifier = "sepolia/race"
+  chain_id = 6806
+  rpc = ["https://racetestnet.io"]
+  explorers = ["https://testnet.racescan.io/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Shape Sepolia Testnet"
+  identifier = "sepolia/shape"
+  chain_id = 11011
+  rpc = ["https://sepolia.shape.network/"]
+  explorers = ["https://shape-sepolia.explorer.alchemy.com/"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Soneium Testnet Minato"
+  identifier = "sepolia/soneium-minato"
+  chain_id = 1946
+  rpc = ["https://rpc.minato.soneium.org"]
+  explorers = ["https://soneium-minato.blockscout.com/"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Unichain Sepolia Testnet"
+  identifier = "sepolia/unichain"
+  chain_id = 1301
+  rpc = ["https://sepolia.unichain.org"]
+  explorers = ["https://sepolia.uniscan.xyz"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "World Chain Sepolia Testnet"
+  identifier = "sepolia/worldchain"
+  chain_id = 4801
+  rpc = ["https://worldchain-sepolia.g.alchemy.com/public"]
+  explorers = ["https://worldchain-sepolia.explorer.alchemy.com/"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Zora Sepolia Testnet"
+  identifier = "sepolia/zora"
+  chain_id = 999999999
+  rpc = ["https://sepolia.rpc.zora.energy"]
+  explorers = ["https://sepolia.explorer.zora.energy"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "arena-z-testnet"
+  identifier = "sepolia/arena-z-testnet"
+  chain_id = 9897
+  rpc = ["https://rpc.arena-z.t.raas.gelato.cloud"]
+  explorers = ["https://arena-z.blockscout.com"]
+  superchain_level = 1
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "Base devnet 0"
+  identifier = "sepolia-dev-0/base-devnet-0"
+  chain_id = 11763072
+  rpc = [""]
+  explorers = [""]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia-dev-0"
+
+[[chains]]
+  name = "OP Labs Sepolia devnet 0"
+  identifier = "sepolia-dev-0/oplabs-devnet-0"
+  chain_id = 11155421
+  rpc = [""]
+  explorers = [""]
+  superchain_level = 0
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia-dev-0"

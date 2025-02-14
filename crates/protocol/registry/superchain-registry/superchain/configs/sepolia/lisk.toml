@@ -1,0 +1,60 @@
+name = "Lisk Sepolia Testnet"
+public_rpc = "https://rpc.sepolia-api.lisk.com"
+sequencer_rpc = "https://rpc.sepolia-api.lisk.com"
+explorer = "https://sepolia-blockscout.lisk.com"
+superchain_level = 1
+governed_by_optimism = false
+data_availability_type = "eth-da"
+chain_id = 4202
+batch_inbox_addr = "0xff00000000000000000000000000000000004202"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 1705312994 # Mon 15 Jan 2024 10:03:14 UTC
+  delta_time = 1705312994 # Mon 15 Jan 2024 10:03:14 UTC
+  ecotone_time = 1708534800 # Wed 21 Feb 2024 17:00:00 UTC
+  fjord_time = 1716998400 # Wed 29 May 2024 16:00:00 UTC
+  granite_time = 1723478400 # Mon 12 Aug 2024 16:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 10
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1705312992
+  [genesis.l1]
+    hash = "0x7d9d6dcec39efe182119f41b1bd2aa7b35b82e43927522afea86d210a4eace4b"
+    number = 5089851
+  [genesis.l2]
+    hash = "0xead3e6ddd08ae7e27fd952b74ceb468ba889047ac96b351dd13bd55e5faf3372"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0x246E119a5BcC2875161b23E4e602e25cEcE96E37"
+    overhead = "0x0000000000000000000000000000000000000000000000000000000000000834"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000f4240"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0x19De6D30Bf43654B7244B8adA135E1AA639bF091"
+  ProxyAdminOwner = "0x465874903125F26316c730aE84862606a3326cA5"
+  Guardian = "0x7a50f00e8D05b95F98fE38d8BeE366a7324dCf7E"
+  Challenger = "0x19De6D30Bf43654B7244B8adA135E1AA639bF091"
+  Proposer = "0xBbD3a1D90B0Ef416581ACdC6a72046b38D3af9AD"
+  UnsafeBlockSigner = "0x99804980804e9EbE78db89C049fFe36ceaaEF654"
+  BatchSubmitter = "0x246E119a5BcC2875161b23E4e602e25cEcE96E37"
+
+[addresses]
+  AddressManager = "0x27Bb4A7cd8FB20cb816BF4Aac668BF841bb3D5d3"
+  L1CrossDomainMessengerProxy = "0x857824E6234f7733ecA4e9A76804fd1afa1A3A2C"
+  L1ERC721BridgeProxy = "0xb4E988CF1aD8C361D56118437502A8f11C7FaA01"
+  L1StandardBridgeProxy = "0x1Fb30e446eA791cd1f011675E5F3f5311b70faF5"
+  L2OutputOracleProxy = "0xA0E35F56C318DE1bD5D9ca6A94Fe7e37C5663348"
+  OptimismMintableERC20FactoryProxy = "0x269d632C1E518a922C30C749cFD3f82Eb5C779B0"
+  OptimismPortalProxy = "0xe3d90F21490686Ec7eF37BE788E02dfC12787264"
+  SystemConfigProxy = "0xF54791059df4a12BA461b881B4080Ae81a1d0AC0"
+  ProxyAdmin = "0x5Db9F05921d8d5a6a157F6f49c411cc0e46c6330"
+  SuperchainConfig = "0xC2Be75506d5724086DEB7245bd260Cc9753911Be"
+  DisputeGameFactoryProxy = "0x9AA3890a87E6BD2CB85Dad1A5D8B0A9D669e658a"

@@ -1,0 +1,60 @@
+name = "BOB"
+public_rpc = "https://rpc.gobob.xyz"
+sequencer_rpc = "https://rpc.gobob.xyz"
+explorer = "https://explorer.gobob.xyz"
+superchain_level = 0
+governed_by_optimism = false
+superchain_time = 0
+data_availability_type = "eth-da"
+chain_id = 60808
+batch_inbox_addr = "0x3A75346f81302aAc0333FB5DCDD407e12A6CfA83"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  fjord_time = 1720627201 # Wed 10 Jul 2024 16:00:01 UTC
+  granite_time = 1726070401 # Wed 11 Sep 2024 16:00:01 UTC
+  holocene_time = 1736445601 # Thu 9 Jan 2025 18:00:01 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1712861987
+  [genesis.l1]
+    hash = "0x218132178d65c4bc490aadd93c31535326043fe1fe8fea2d87f26c1da83d45c2"
+    number = 19634321
+  [genesis.l2]
+    hash = "0x8ed4903b7f9c3f7bb7a09374d63ae9c9852cd9aab1784b433c41dbeb47b4dba2"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0x08F9F14fF43E112B18c96f0986F28Cb1878f1D11"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000bc"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0xC91482A96e9c2A104d9298D1980eCCf8C4dc764E"
+  ProxyAdminOwner = "0xC91482A96e9c2A104d9298D1980eCCf8C4dc764E"
+  Guardian = "0xC91482A96e9c2A104d9298D1980eCCf8C4dc764E"
+  Challenger = "0xC91482A96e9c2A104d9298D1980eCCf8C4dc764E"
+  Proposer = "0x7cB1022D30b9860C36b243E7B181A1d46f618C69"
+  UnsafeBlockSigner = "0xB18AD28cB78fD2eAfAc6941c24c5135515B796f0"
+  BatchSubmitter = "0x08F9F14fF43E112B18c96f0986F28Cb1878f1D11"
+
+[addresses]
+  AddressManager = "0xF2dc77c697e892542cC53336178a78Bb313DFDC7"
+  L1CrossDomainMessengerProxy = "0xE3d981643b806FB8030CDB677D6E60892E547EdA"
+  L1ERC721BridgeProxy = "0x5fF93263D5181b2A826f8c51d54BC0da2d20D50a"
+  L1StandardBridgeProxy = "0x3F6cE1b36e5120BBc59D0cFe8A5aC8b6464ac1f7"
+  L2OutputOracleProxy = "0xdDa53E23f8a32640b04D7256e651C1db98dB11C1"
+  OptimismMintableERC20FactoryProxy = "0x5557408ab14013ce9Dbb300dE0D87D386BB09cb6"
+  OptimismPortalProxy = "0x8AdeE124447435fE03e3CD24dF3f4cAE32E65a3E"
+  SystemConfigProxy = "0xACB886b75D76d1c8d9248cFdDfA09b70C71c5393"
+  ProxyAdmin = "0x0d9f416260598313Be6FDf6B010f2FbC34957Cd0"

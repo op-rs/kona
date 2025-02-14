@@ -10,7 +10,7 @@ use crate::{
 use alloc::{boxed::Box, string::ToString, vec::Vec};
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
-use maili_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
+use kona_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use thiserror::Error;
 

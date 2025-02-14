@@ -1,0 +1,57 @@
+name = "Swan Chain Mainnet"
+public_rpc = "https://mainnet-rpc.swanchain.org"
+sequencer_rpc = "https://sequencer-mainnet.swanchain.org"
+explorer = "https://swanscan.io"
+superchain_level = 0
+governed_by_optimism = false
+data_availability_type = "eth-da"
+chain_id = 254
+batch_inbox_addr = "0xfF00000000000000000000000000000000000254"
+block_time = 5
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1718640215
+  [genesis.l1]
+    hash = "0x90dafe09640e2858bce2675c66da6b0f136215a179d49f5c9274252bd5a1f8a2"
+    number = 20112576
+  [genesis.l2]
+    hash = "0x834c39d79eb75c4c52d745e624750b817b66eb13e483b035c42ec3aa5cfa7429"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0xde794bEc196832474f2F218135bFd0f7cA7fb038"
+    overhead = "0x0000000000000000000000000000000000000000000000000000000000000834"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000f4240"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0x3FcB6E08A960EF52Ec3101A444f71A2Fd964b248"
+  ProxyAdminOwner = "0x6197f64902b9275e6815F9A5b641Ed2291A5d39c"
+  Guardian = "0x3FcB6E08A960EF52Ec3101A444f71A2Fd964b248"
+  Challenger = "0x3FcB6E08A960EF52Ec3101A444f71A2Fd964b248"
+  Proposer = "0xb2a5571C23d13Ce16EF3e993FbE8d225D3f67366"
+  UnsafeBlockSigner = "0x05a220507e8F4c73a446DbAfC5607016A7D5Eab0"
+  BatchSubmitter = "0xde794bEc196832474f2F218135bFd0f7cA7fb038"
+
+[addresses]
+  AddressManager = "0x55Aec4EE11dA7d655565cCc2EB3bF21a46C94e6f"
+  L1CrossDomainMessengerProxy = "0x15567C4FfD9109795dFf1D9A5233D10aef0738D2"
+  L1ERC721BridgeProxy = "0x1Ccf7e62889E6A93413DEAFC4e390Bd4047bDC32"
+  L1StandardBridgeProxy = "0xed7525946A09056C6AaE29941b8323017382050e"
+  L2OutputOracleProxy = "0x1c22740A0B4511E11D76434A424487862b593901"
+  OptimismMintableERC20FactoryProxy = "0xE9614162C6128ABD7790C65D711CfC43ea842153"
+  OptimismPortalProxy = "0xBa50434BC5fCC07406b1baD9AC72a4CDf776db15"
+  SystemConfigProxy = "0x504D56cf68f791B45E3A2e895B0e1562f3431328"
+  ProxyAdmin = "0xCc8c55Ec2Ea3F3001C049eC934e72b55cf52fBf3"
+  SuperchainConfig = "0xadE916De67511E5C24af4174Be67143d0dA94959"
+  DisputeGameFactoryProxy = "0x2069FC7097b7784FCA21aa459e57E95C0046EeCD"

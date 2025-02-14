@@ -8,8 +8,8 @@ use crate::{
 };
 use alloc::{sync::Arc, vec, vec::Vec};
 use alloy_primitives::Bytes;
-use maili_genesis::RollupConfig;
-use maili_protocol::{BlockInfo, Frame, DERIVATION_VERSION_0};
+use kona_genesis::RollupConfig;
+use kona_protocol::{BlockInfo, Frame, DERIVATION_VERSION_0};
 
 /// A [FrameQueue] builder.
 #[derive(Debug, Default)]

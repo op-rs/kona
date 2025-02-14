@@ -10,8 +10,8 @@ use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::Bytes;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{BlockInfo, Frame};
+use kona_genesis::RollupConfig;
+use kona_protocol::{BlockInfo, Frame};
 
 /// Provides data frames for the [FrameQueue] stage.
 #[async_trait]

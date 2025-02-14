@@ -1,0 +1,69 @@
+name = "Redstone"
+public_rpc = "https://rpc.redstonechain.com"
+sequencer_rpc = "https://rpc.redstonechain.com"
+explorer = "https://explorer.redstone.xyz"
+superchain_level = 0
+governed_by_optimism = false
+data_availability_type = "alt-da"
+chain_id = 690
+batch_inbox_addr = "0xff00000000000000000000000000000000000690"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 2
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 50
+
+[alt_da]
+  da_challenge_contract_address = "0x97A2dA87d3439b172e6DD027220e01c9Cb565B80"
+  da_challenge_window = 3600
+  da_resolve_window = 3600
+  da_commitment_type = "KeccakCommitment"
+
+[genesis]
+  l2_time = 1712185091
+  [genesis.l1]
+    hash = "0xb9ec694afdde2e2ed661ed8ec56dace5cf8723801342fa1229e693f2a98af672"
+    number = 19578374
+  [genesis.l2]
+    hash = "0xa4f55631013577464810893a05b18f07fe483885a6ef93e0060e7128bdf4ca3b"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0xA31cb9Bc414601171D4537580f98F66C03aECd43"
+    overhead = "0x0000000000000000000000000000000000000000000000000000000000000001"
+    scalar = "0x0000000000000000000000000000000000000000000000000000000000001def"
+    gasLimit = 100000000
+
+[roles]
+  SystemConfigOwner = "0xb356B146F1629c49C44344464F69BCDAfb4bb664"
+  ProxyAdminOwner = "0x70FdbCb066eD3621647Ddf61A1f40aaC6058Bc89"
+  Guardian = "0xb356B146F1629c49C44344464F69BCDAfb4bb664"
+  Challenger = "0xb356B146F1629c49C44344464F69BCDAfb4bb664"
+  Proposer = "0x4c465E58946145bb2BFC38833154f5A3B5728CF7"
+  UnsafeBlockSigner = "0xA5bdf717af725a47Fd7378d3D9C833776951efa0"
+  BatchSubmitter = "0xA31cb9Bc414601171D4537580f98F66C03aECd43"
+
+[addresses]
+  AddressManager = "0xFe27f187A9E46104a932189dDF229871E06B22F8"
+  L1CrossDomainMessengerProxy = "0x592C1299e0F8331D81A28C0FC7352Da24eDB444a"
+  L1ERC721BridgeProxy = "0x4FFB98dBC3086bA85d5E626a6EbC3D0d08533fF4"
+  L1StandardBridgeProxy = "0xc473ca7E02af24c129c2eEf51F2aDf0411c1Df69"
+  L2OutputOracleProxy = "0xa426A052f657AEEefc298b3B5c35a470e4739d69"
+  OptimismMintableERC20FactoryProxy = "0x5f962474834Cf1981Df6232e4b6431d3d10cb71D"
+  OptimismPortalProxy = "0xC7bCb0e8839a28A1cFadd1CF716de9016CdA51ae"
+  SystemConfigProxy = "0x8f2428F7189c0d92D1c4a5358903A8c80Ec6a69D"
+  ProxyAdmin = "0xCC53b447aFe07926423aB96D5496b1af30485ED2"
+  SuperchainConfig = "0x4b5b41c240173191425F5928bc6bdd0d439331BB"
+  AnchorStateRegistryProxy = "0xc51ac31BcEFB64D999AF10129Cb7693EeE7c1179"
+  DelayedWETHProxy = "0xa130523fD22e2a9D78F8aB232b01ff552845B4A9"
+  DisputeGameFactoryProxy = "0x8f68E849eaf8EB943536F9d1D49Ea9C9b5868b98"
+  MIPS = "0x66D6be83984e3F026B4a9e2D8Fb082ecDBd43648"
+  PreimageOracle = "0xE7d0fE72637B3C949cd81c63A4Ff1fb23feeF3b2"
+  DAChallengeAddress = "0x97A2dA87d3439b172e6DD027220e01c9Cb565B80"

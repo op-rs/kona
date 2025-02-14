@@ -10,8 +10,8 @@ use crate::{
 };
 use alloc::boxed::Box;
 use alloy_primitives::B256;
+use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
-use maili_genesis::RollupConfig;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{
     db::State,

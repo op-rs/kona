@@ -14,7 +14,9 @@ members = [
   "bin/*",
   "crates/proof/*",
   "crates/protocol/*",
-  "crates/services/*"
+  "crates/external/*",
+  "crates/providers/*",
+  "crates/utilities/*"
 ]
 default-members = ["bin/host", "bin/client"]
 
@@ -65,14 +67,21 @@ kona-client = { path = "bin/client", version = "0.1.0", default-features = false
 
 # Workspace Protocol
 kona-derive = { path = "crates/protocol/derive", version = "0.2.3", default-features = false }
+kona-protocol = { path = "crates/protocol/protocol", version = "0.1.0", default-features = false }
+kona-genesis = { path = "crates/protocol/genesis", version = "0.1.0", default-features = false }
+kona-registry = { path = "crates/protocol/registry", version = "0.1.0", default-features = false }
 kona-driver = { path = "crates/protocol/driver", version = "0.2.3", default-features = false }
 kona-interop = { path = "crates/protocol/interop", version = "0.1.1", default-features = false }
 
-# Workspace Services
-kona-net = { path = "crates/services/net", version = "0.1.0", default-features = false }
-kona-providers-alloy = { path = "crates/services/providers-alloy", version = "0.1.0", default-features = false }
+# External
+kona-net = { path = "crates/external/net", version = "0.1.0", default-features = false }
+kona-rpc = { path = "crates/external/rpc", version = "0.1.0", default-features = false }
 
-# Workspace Proof
+# Providers
+kona-providers-local = { path = "crates/providers/providers-local", version = "0.1.0", default-features = false }
+kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.1.0", default-features = false }
+
+# Proof
 kona-mpt = { path = "crates/proof/mpt", version = "0.1.2", default-features = false }
 kona-proof = { path = "crates/proof/proof", version = "0.2.3", default-features = false }
 kona-executor = { path = "crates/proof/executor", version = "0.2.3", default-features = false }
@@ -81,11 +90,8 @@ kona-preimage = { path = "crates/proof/preimage", version = "0.2.1", default-fea
 kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.1.2", default-features = false }
 kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", default-features = false }
 
-# Maili
-maili-rpc = { version = "0.2.8", default-features = false }
-maili-genesis = { version = "0.2.8", default-features = false }
-maili-protocol = { version = "0.2.8", default-features = false }
-maili-registry = { version = "0.2.8", default-features = false }
+# Workspace Utilities
+kona-serde = { path = "crates/utilities/serde", version = "0.1.0", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }
@@ -105,14 +111,19 @@ alloy-rpc-types-engine = { version = "0.11.1", default-features = false }
 alloy-rpc-types-beacon = { version = "0.11.1", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.10.3", default-features = false }
-op-alloy-consensus = { version = "0.10.3", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.10.3", default-features = false }
+op-alloy-flz = { version = "0.10.5", default-features = false }
+op-alloy-network = { version = "0.10.5", default-features = false }
+op-alloy-consensus = { version = "0.10.5", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.10.5", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.10.5", default-features = false }
+
+# Reth
+reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", default-features = false }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", default-features = false }
 
 # General
 lru = "0.13.0"
 spin = "0.9.8"
-rand = "0.9.0"
 clap = "4.5.29"
 tokio = "1.43.0"
 cfg-if = "1.0.0"
@@ -121,16 +132,35 @@ futures = "0.3.31"
 reqwest = "0.12.12"
 tempfile = "3.16.0"
 arbitrary = "1.4.1"
+parking_lot = "0.12.3"
 async-trait = "0.1.86"
 async-channel = "2.3.1"
 linked_list_allocator = "0.10.5"
-lazy_static = { version = "1.5.0", default-features = false }
+
+# Compression
+miniz_oxide = "0.8.3"
+alloc-no-stdlib = "2.0.4"
+brotli = { version = "7.0.0", default-features = false }
+getrandom = "0.2.15"
+
+# rpc
+jsonrpsee = { version = "0.24.8", features = [
+    "jsonrpsee-core",
+    "client-core",
+    "server-core",
+    "macros",
+] }
+jsonrpsee-core = "0.24.8"
+jsonrpsee-types = "0.24.8"
 
 # General
+rand = { version = "0.9.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 c-kzg = { version = "2.0.0", default-features = false }
 anyhow = { version = "1.0.95", default-features = false }
 thiserror = { version = "2.0.11", default-features = false }
+derive_more = { version = "2.0.1", default-features = false }
+lazy_static = { version = "1.5.0", default-features = false }
 
 # Networking
 snap = "1.1.1"
@@ -152,7 +182,9 @@ criterion = "0.5.1"
 
 # Serialization
 rkyv = "0.8.10"
+serde_repr = "0.1.19"
 serde = { version = "1.0.217", default-features = false }
+toml = { version = "0.8.19", default-features = false }
 serde_json = { version = "1.0.138", default-features = false }
 
 # Ethereum

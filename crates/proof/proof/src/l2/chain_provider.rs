@@ -10,10 +10,10 @@ use async_trait::async_trait;
 use kona_derive::traits::L2ChainProvider;
 use kona_driver::PipelineCursor;
 use kona_executor::TrieDBProvider;
+use kona_genesis::{RollupConfig, SystemConfig};
 use kona_mpt::{OrderedListWalker, TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
-use maili_genesis::{RollupConfig, SystemConfig};
-use maili_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
+use kona_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
 use op_alloy_consensus::{OpBlock, OpTxEnvelope};
 use spin::RwLock;
 

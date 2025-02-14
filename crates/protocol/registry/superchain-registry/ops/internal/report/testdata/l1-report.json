@@ -1,0 +1,48 @@
+{
+  "Release": "op-contracts/v1.6.0",
+  "GeneratedAt": "2024-12-25T19:35:56.200124-06:00",
+  "DeploymentTxHash": "0x0193884dc77ba74ca9ae23079edf91b81d49b0243c486fab5bbecd415d2dad68",
+  "DeploymentChainId": 11155111,
+  "Semvers": {
+    "SystemConfig": "2.2.0",
+    "PermissionedDisputeGame": "1.3.1-beta.3",
+    "OptimismPortal": "3.10.0",
+    "AnchorStateRegistry": "2.0.1-beta.3",
+    "DelayedWETHPermissionedDisputeGame": "1.1.0",
+    "DisputeGameFactory": "1.0.0",
+    "L1CrossDomainMessenger": "2.3.0",
+    "L1StandardBridge": "2.1.0",
+    "L1ERC721Bridge": "2.1.0",
+    "OptimismMintableERC20Factory": "1.9.0"
+  },
+  "Ownership": {
+    "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
+    "Challenger": "0xfd1d2e729ae8eee2e146c033bf4400fe75284301",
+    "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2"
+  },
+  "Proofs": {
+    "Permissioned": {
+      "GameType": 1,
+      "AbsolutePrestate": "0x038512e02c4c3f7bdaec27d00edf55b7155e0905301e1a88083e4e0a6764d54c",
+      "MaxGameDepth": 73,
+      "SplitDepth": 30,
+      "MaxClockDuration": 302400,
+      "ClockExtension": 10800
+    },
+    "Permissionless": null
+  },
+  "SystemConfig": {
+    "GasLimit": 60000000,
+    "Scalar": 801949,
+    "Overhead": 1368,
+    "BaseFeeScalar": 0,
+    "BlobBaseFeeScalar": 0,
+    "EIP1559Denominator": 0,
+    "EIP1559Elasticity": 0,
+    "IsGasPayingToken": false,
+    "GasPayingToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "GasPayingTokenDecimals": 18,
+    "GasPayingTokenName": "Ether",
+    "GasPayingTokenSymbol": "ETH"
+  }
+}

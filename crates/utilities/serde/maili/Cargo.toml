@@ -1,0 +1,22 @@
+[package]
+name = "maili-serde"
+version = "0.2.8"
+description = "Serde related helpers for Maili"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+kona-serde.workspace = true
+
+[features]
+default = ["std"]
+std = ["kona-serde/std"]

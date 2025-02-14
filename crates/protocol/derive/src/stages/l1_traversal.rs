@@ -9,8 +9,8 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::Address;
 use async_trait::async_trait;
-use maili_genesis::{RollupConfig, SystemConfig};
-use maili_protocol::BlockInfo;
+use kona_genesis::{RollupConfig, SystemConfig};
+use kona_protocol::BlockInfo;
 
 /// The [L1Traversal] stage of the derivation pipeline.
 ///
@@ -144,7 +144,7 @@ pub(crate) mod tests {
     use alloc::vec;
     use alloy_consensus::Receipt;
     use alloy_primitives::{address, b256, hex, Bytes, Log, LogData, B256};
-    use maili_genesis::{CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC};
+    use kona_genesis::{CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC};
 
     const L1_SYS_CONFIG_ADDR: Address = address!("1337000000000000000000000000000000000000");
 

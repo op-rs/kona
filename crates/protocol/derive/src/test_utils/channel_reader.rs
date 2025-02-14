@@ -11,7 +11,7 @@ use crate::{
 use alloc::{boxed::Box, vec::Vec};
 use alloy_primitives::Bytes;
 use async_trait::async_trait;
-use maili_protocol::BlockInfo;
+use kona_protocol::BlockInfo;
 
 /// A mock [ChannelReaderProvider] for testing the [ChannelReader] stage.
 ///

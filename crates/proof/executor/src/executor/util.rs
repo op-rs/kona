@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use alloy_consensus::Header;
 use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::{Bytes, B64};
-use maili_genesis::RollupConfig;
+use kona_genesis::RollupConfig;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// Parse Holocene [Header] extra data.
@@ -90,7 +90,7 @@ mod test {
     use alloy_eips::eip1559::BaseFeeParams;
     use alloy_primitives::{b64, hex, B64};
     use alloy_rpc_types_engine::PayloadAttributes;
-    use maili_genesis::RollupConfig;
+    use kona_genesis::RollupConfig;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
     fn mock_payload(eip_1559_params: Option<B64>) -> OpPayloadAttributes {

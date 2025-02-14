@@ -1,0 +1,35 @@
+# Compiler files
+cache/
+out/
+
+# test output artifacts
+superchain/**/testchain*
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# vim
+*.sw*m
+
+# jetbrains
+.idea/
+
+# Misc
+.DS_Store
+.env
+.env*
+!.env.example
+!.env.test
+*.log
+
+*/**/target
+
+# Go workspaces checksum file
+go.work.sum
+
+# editor specific config
+.vscode
+
+ops/bin

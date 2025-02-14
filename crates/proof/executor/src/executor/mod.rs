@@ -16,8 +16,8 @@ use alloy_consensus::{
 };
 use alloy_eips::eip2718::{Decodable2718, Encodable2718};
 use alloy_primitives::{keccak256, logs_bloom, Bytes, Log, B256, U256};
+use kona_genesis::RollupConfig;
 use kona_mpt::{ordered_trie_with_encoder, TrieHinter};
-use maili_genesis::RollupConfig;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{

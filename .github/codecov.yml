@@ -22,10 +22,11 @@ ignore:
   - "**/test_utils*"
   - "**/test_util*"
   - "**/tests*"
-  - "crates/providers-alloy"
-  - "crates/mpt/src/noop.rs"
+  - "crates/providers/providers-alloy"
+  - "crates/providers/providers-local"
+  - "crates/proof/mpt/src/noop.rs"
   # Interop - not yet integrated
-  - "crates/proof-sdk/proof-interop"
+  - "crates/proof/proof-interop"
   - "bin/host/src/interop"
   - "bin/client/src/interop"
 

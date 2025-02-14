@@ -5,7 +5,7 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
-#![cfg_attr(not(any(test, feature = "arbitrary")), no_std)]
+#![cfg_attr(not(feature = "arbitrary"), no_std)]
 
 extern crate alloc;
 
@@ -23,6 +23,9 @@ pub use constants::{CROSS_L2_INBOX_ADDRESS, MESSAGE_EXPIRY_WINDOW, SUPER_ROOT_VE
 
 mod traits;
 pub use traits::InteropProvider;
+
+mod safety;
+pub use safety::SafetyLevel;
 
 mod errors;
 pub use errors::{MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult};

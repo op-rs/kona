@@ -3,9 +3,9 @@
 use alloc::boxed::Box;
 use async_trait::async_trait;
 use core::iter::Iterator;
-use maili_genesis::{RollupConfig, SystemConfig};
-use maili_protocol::L2BlockInfo;
-use maili_rpc::OpAttributesWithParent;
+use kona_genesis::{RollupConfig, SystemConfig};
+use kona_protocol::L2BlockInfo;
+use kona_rpc::OpAttributesWithParent;
 
 use crate::{errors::PipelineErrorKind, traits::OriginProvider, types::StepResult};
 

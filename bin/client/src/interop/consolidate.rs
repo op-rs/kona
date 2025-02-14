@@ -9,7 +9,7 @@ use kona_proof::{l2::OracleL2ChainProvider, CachingOracle};
 use kona_proof_interop::{
     BootInfo, HintType, OracleInteropProvider, PreState, SuperchainConsolidator,
 };
-use maili_registry::{HashMap, ROLLUP_CONFIGS};
+use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use tracing::info;
 
 /// Executes the consolidation phase of the interop proof with the given [PreimageOracleClient] and

@@ -8,8 +8,8 @@ use kona_driver::Executor;
 use kona_executor::{
     ExecutionArtifacts, KonaHandleRegister, StatelessL2BlockExecutor, TrieDBProvider,
 };
+use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
-use maili_genesis::RollupConfig;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// An executor wrapper type.

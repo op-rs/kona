@@ -1,0 +1,60 @@
+name = "Zora Sepolia Testnet"
+public_rpc = "https://sepolia.rpc.zora.energy"
+sequencer_rpc = "https://sepolia.rpc.zora.energy"
+explorer = "https://sepolia.explorer.zora.energy"
+superchain_level = 1
+governed_by_optimism = true
+superchain_time = 0
+data_availability_type = "eth-da"
+chain_id = 999999999
+batch_inbox_addr = "0xCd734290E4bd0200dAC631c7D4b9E8a33234e91f"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 1699981200 # Tue 14 Nov 2023 17:00:00 UTC
+  delta_time = 1703203200 # Fri 22 Dec 2023 00:00:00 UTC
+  ecotone_time = 1708534800 # Wed 21 Feb 2024 17:00:00 UTC
+  fjord_time = 1716998400 # Wed 29 May 2024 16:00:00 UTC
+  granite_time = 1723478400 # Mon 12 Aug 2024 16:00:00 UTC
+  holocene_time = 1732633200 # Tue 26 Nov 2024 15:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1698080004
+  [genesis.l1]
+    hash = "0xf782446a2487d900addb5d466a8597c7c543b59fa9aaa154d413830238f8798a"
+    number = 4548041
+  [genesis.l2]
+    hash = "0x8b17d2d52564a5a90079d9c860e1386272579e87b17ea27a3868513f53facd74"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0x3Cd868E221A3be64B161D596A7482257a99D857f"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000bc"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0x23BA22Dd7923F3a3f2495bB32a6f3c9b9CD1EC6C"
+  ProxyAdminOwner = "0x1Eb2fFc903729a0F03966B917003800b145F56E2"
+  Guardian = "0x7a50f00e8D05b95F98fE38d8BeE366a7324dCf7E"
+  Challenger = "0x45eFFbD799Ab49122eeEAB75B78D9C56A187F9A7"
+  Proposer = "0xe8326a5839175dE7f467e66D8bB443aa70DA1c3e"
+  UnsafeBlockSigner = "0x3609513933100689bd1f84782529A99239842344"
+  BatchSubmitter = "0x3Cd868E221A3be64B161D596A7482257a99D857f"
+
+[addresses]
+  AddressManager = "0x27c9392144DFcB6dab113F737356C32435cD1D55"
+  L1CrossDomainMessengerProxy = "0x1bDBC0ae22bEc0c2f08B4dd836944b3E28fe9b7A"
+  L1ERC721BridgeProxy = "0x16B0a4f451c4CB567703367e587E15Ac108e4311"
+  L1StandardBridgeProxy = "0x5376f1D543dcbB5BD416c56C189e4cB7399fCcCB"
+  L2OutputOracleProxy = "0x2615B481Bd3E5A1C0C7Ca3Da1bdc663E8615Ade9"
+  OptimismMintableERC20FactoryProxy = "0x5F3bdd57f01e88cE2F88f00685D30D6eb51A187c"
+  OptimismPortalProxy = "0xeffE2C6cA9Ab797D418f0D91eA60807713f3536f"
+  SystemConfigProxy = "0xB54c7BFC223058773CF9b739cC5bd4095184Fb08"
+  ProxyAdmin = "0xE17071F4C216Eb189437fbDBCc16Bb79c4efD9c2"

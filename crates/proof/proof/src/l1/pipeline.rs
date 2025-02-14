@@ -17,10 +17,10 @@ use kona_derive::{
     types::{PipelineResult, Signal, StepResult},
 };
 use kona_driver::{DriverPipeline, PipelineCursor};
+use kona_genesis::{RollupConfig, SystemConfig};
 use kona_preimage::CommsClient;
-use maili_genesis::{RollupConfig, SystemConfig};
-use maili_protocol::{BlockInfo, L2BlockInfo};
-use maili_rpc::OpAttributesWithParent;
+use kona_protocol::{BlockInfo, L2BlockInfo};
+use kona_rpc::OpAttributesWithParent;
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.

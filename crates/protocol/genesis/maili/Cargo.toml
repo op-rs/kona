@@ -1,0 +1,25 @@
+[package]
+name = "maili-genesis"
+version = "0.2.8"
+description = "Genesis types for optimism"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+kona-genesis.workspace = true
+
+[features]
+default = ["serde", "std"]
+std = ["kona-genesis/std"]
+revm = ["kona-genesis/revm"]
+serde = ["kona-genesis/serde"]
+arbitrary = ["kona-genesis/arbitrary"]

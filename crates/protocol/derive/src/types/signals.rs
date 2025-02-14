@@ -4,8 +4,8 @@
 //! of the pipeline. They allow the pipeline driver to perform actions such as
 //! resetting all stages in the pipeline through message passing.
 
-use maili_genesis::SystemConfig;
-use maili_protocol::{BlockInfo, L2BlockInfo};
+use kona_genesis::SystemConfig;
+use kona_protocol::{BlockInfo, L2BlockInfo};
 
 /// A signal to send to the pipeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

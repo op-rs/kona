@@ -7,9 +7,9 @@ use crate::{
     types::PipelineResult,
 };
 use alloc::{boxed::Box, sync::Arc};
-use maili_genesis::RollupConfig;
-use maili_protocol::{BlockInfo, L2BlockInfo};
-use maili_rpc::OpAttributesWithParent;
+use kona_genesis::RollupConfig;
+use kona_protocol::{BlockInfo, L2BlockInfo};
+use kona_rpc::OpAttributesWithParent;
 
 // Re-export these types used internally to the test pipeline.
 use crate::{

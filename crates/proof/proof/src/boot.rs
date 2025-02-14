@@ -3,9 +3,9 @@
 
 use crate::errors::OracleProviderError;
 use alloy_primitives::{B256, U256};
+use kona_genesis::RollupConfig;
 use kona_preimage::{PreimageKey, PreimageOracleClient};
-use maili_genesis::RollupConfig;
-use maili_registry::ROLLUP_CONFIGS;
+use kona_registry::ROLLUP_CONFIGS;
 use serde::{Deserialize, Serialize};
 
 /// The local key ident for the L1 head hash.

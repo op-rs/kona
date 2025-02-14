@@ -9,7 +9,7 @@ use crate::{
 use alloc::boxed::Box;
 use alloy_primitives::Address;
 use async_trait::async_trait;
-use maili_protocol::BlockInfo;
+use kona_protocol::BlockInfo;
 
 /// Provides L1 blocks for the [L1Retrieval] stage.
 /// This is the previous stage in the pipeline.
@@ -23,7 +23,7 @@ pub trait L1RetrievalProvider {
     /// [L1Traversal]: crate::stages::L1Traversal
     async fn next_l1_block(&mut self) -> PipelineResult<Option<BlockInfo>>;
 
-    /// Returns the batcher [Address] from the [maili_genesis::SystemConfig].
+    /// Returns the batcher [Address] from the [kona_genesis::SystemConfig].
     fn batcher_addr(&self) -> Address;
 }
 

@@ -1,0 +1,6 @@
+lint-fix:
+    go mod tidy
+    goimports -v -w .
+
+sync:
+    go work sync

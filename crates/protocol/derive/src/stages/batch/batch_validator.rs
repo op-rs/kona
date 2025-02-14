@@ -10,8 +10,8 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{Batch, BatchValidity, BlockInfo, L2BlockInfo, SingleBatch};
+use kona_genesis::RollupConfig;
+use kona_protocol::{Batch, BatchValidity, BlockInfo, L2BlockInfo, SingleBatch};
 
 /// The [BatchValidator] stage is responsible for validating the [SingleBatch]es from
 /// the [BatchStream] [AttributesQueue]'s consumption.
@@ -319,8 +319,8 @@ mod test {
     use alloc::{sync::Arc, vec, vec::Vec};
     use alloy_eips::{BlockNumHash, NumHash};
     use alloy_primitives::B256;
-    use maili_genesis::RollupConfig;
-    use maili_protocol::{Batch, BlockInfo, L2BlockInfo, SingleBatch, SpanBatch};
+    use kona_genesis::RollupConfig;
+    use kona_protocol::{Batch, BlockInfo, L2BlockInfo, SingleBatch, SpanBatch};
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 

@@ -1,0 +1,69 @@
+name = "OP Mainnet"
+public_rpc = "https://mainnet.optimism.io"
+sequencer_rpc = "https://mainnet-sequencer.optimism.io"
+explorer = "https://explorer.optimism.io"
+superchain_level = 1
+governed_by_optimism = true
+superchain_time = 0
+data_availability_type = "eth-da"
+chain_id = 10
+batch_inbox_addr = "0xFF00000000000000000000000000000000000010"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 1704992401 # Thu 11 Jan 2024 17:00:01 UTC
+  delta_time = 1708560000 # Thu 22 Feb 2024 00:00:00 UTC
+  ecotone_time = 1710374401 # Thu 14 Mar 2024 00:00:01 UTC
+  fjord_time = 1720627201 # Wed 10 Jul 2024 16:00:01 UTC
+  granite_time = 1720627202 # Wed 10 Jul 2024 16:00:02 UTC
+  holocene_time = 1720627203 # Wed 10 Jul 2024 16:00:03 UTC
+  isthmus_time = 1720627204 # Wed 10 Jul 2024 16:00:04 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1686068903
+  [genesis.l1]
+    hash = "0x438335a20d98863a4c0c97999eb2481921ccd28553eac6f913af7c12aec04108"
+    number = 17422590
+  [genesis.l2]
+    hash = "0xdbf6a80fef073de06add9b0d14026d6e5a86c85f6d102c36d3d8e9cf89c2afd3"
+    number = 105235063
+  [genesis.system_config]
+    batcherAddress = "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000bc"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+    baseFeeScalar = 123
+    blobBaseFeeScalar = 456
+
+[roles]
+  SystemConfigOwner = "0x847B5c174615B1B7fDF770882256e2D3E95b9D92"
+  ProxyAdminOwner = "0x5a0Aae59D09fccBdDb6C6CcEB07B7279367C3d2A"
+  Guardian = "0x09f7150D8c019BeF34450d6920f6B3608ceFdAf2"
+  Challenger = "0x9BA6e03D8B90dE867373Db8cF1A58d2F7F006b3A"
+  Proposer = "0x473300df21D047806A082244b417f96b32f13A33"
+  UnsafeBlockSigner = "0xAAAA45d9549EDA09E70937013520214382Ffc4A2"
+  BatchSubmitter = "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985"
+
+[addresses]
+  AddressManager = "0xdE1FCfB0851916CA5101820A69b13a4E276bd81F"
+  L1CrossDomainMessengerProxy = "0x25ace71c97B33Cc4729CF772ae268934F7ab5fA1"
+  L1ERC721BridgeProxy = "0x5a7749f83b81B301cAb5f48EB8516B986DAef23D"
+  L1StandardBridgeProxy = "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1"
+  OptimismMintableERC20FactoryProxy = "0x75505a97BD334E7BD3C476893285569C4136Fa0F"
+  OptimismPortalProxy = "0xbEb5Fc579115071764c7423A4f12eDde41f106Ed"
+  SystemConfigProxy = "0x229047fed2591dbec1eF1118d64F7aF3dB9EB290"
+  ProxyAdmin = "0x543bA4AADBAb8f9025686Bd03993043599c6fB04"
+  AnchorStateRegistryProxy = "0x18DAc71c228D1C32c99489B7323d441E1175e443"
+  DelayedWETHProxy = "0x82511d494B5C942BE57498a70Fdd7184Ee33B975"
+  DisputeGameFactoryProxy = "0xe5965Ab5962eDc7477C8520243A95517CD252fA9"
+  FaultDisputeGame = "0xA6f3DFdbf4855a43c529bc42EDE96797252879af"
+  MIPS = "0x16e83cE5Ce29BF90AD9Da06D2fE6a15d5f344ce4"
+  PermissionedDisputeGame = "0x050ed6F6273c7D836a111E42153BC00D0380b87d"
+  PreimageOracle = "0x9c065e11870B891D214Bc2Da7EF1f9DDFA1BE277"

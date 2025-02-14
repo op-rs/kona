@@ -5,16 +5,16 @@
 //! is responsible for decoding the [Channel]s into [Batch]es, forwarding the [Batch]es to the
 //! [BatchQueue] stage.
 //!
-//! [Frame]: maili_protocol::Frame
-//! [Channel]: maili_protocol::Channel
-//! [Batch]: maili_protocol::Batch
+//! [Frame]: kona_protocol::Frame
+//! [Channel]: kona_protocol::Channel
+//! [Batch]: kona_protocol::Batch
 //! [FrameQueue]: crate::stages::FrameQueue
 //! [BatchQueue]: crate::stages::BatchQueue
 
 use crate::types::PipelineResult;
 use alloc::boxed::Box;
 use async_trait::async_trait;
-use maili_protocol::Frame;
+use kona_protocol::Frame;
 
 pub(crate) mod channel_provider;
 pub use channel_provider::ChannelProvider;

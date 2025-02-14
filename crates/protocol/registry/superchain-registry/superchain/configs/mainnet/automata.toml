@@ -1,0 +1,71 @@
+name = "Automata Mainnet"
+public_rpc = "https://rpc.ata.network"
+sequencer_rpc = "https://automata-mainnet.alt.technology/"
+explorer = "https://explorer.ata.network"
+superchain_level = 0
+governed_by_optimism = false
+data_availability_type = "alt-da"
+chain_id = 65536
+batch_inbox_addr = "0xff00000000000000000000000000000001111111"
+block_time = 2
+seq_window_size = 7200
+max_sequencer_drift = 1800
+gas_paying_token = "0xA2120b9e674d3fC3875f415A7DF52e382F141225"
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  fjord_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 10
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[alt_da]
+  da_challenge_contract_address = "0x08c5DCDD5e46d31CC1591ee15b084663507597f3"
+  da_challenge_window = 3600
+  da_resolve_window = 3600
+  da_commitment_type = "KeccakCommitment"
+
+[genesis]
+  l2_time = 1721183063
+  [genesis.l1]
+    hash = "0x2f2ea5358078fdc01d978ff85a3a8fb2efff470b624ba95c5eef0ecd75a6e81d"
+    number = 20323239
+  [genesis.l2]
+    hash = "0x11bb44203634fd85571a9971e6f09d633cbf22826681f809283081ff4e1b5192"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0x5BEF09f138921eF7985d83AAB97da1dB6E4dd190"
+    overhead = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    scalar = "0x0100000000000000000000000000000000000000000000000000000000013880"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0x49eC5Bd8C9cC35Ce26b87E534d2E36980621dDD2"
+  ProxyAdminOwner = "0x03eC1C43434E2f910A2fb984906cd2470fdb39c8"
+  Guardian = "0xa5822fb7E3Fb516E518e2629E6786e93858e41F4"
+  Challenger = "0x34Faa77b4D1686E399c96deF0de31D30572eaa9F"
+  Proposer = "0x8c6F6580C846634C5DA08c40AE308DE23006a679"
+  UnsafeBlockSigner = "0xA940a669DAe672111FD02Df597Cf7De7Cf758fAD"
+  BatchSubmitter = "0x5BEF09f138921eF7985d83AAB97da1dB6E4dd190"
+
+[addresses]
+  AddressManager = "0xF1C911e0c1E6dd08c8a7C80c9890e2037e0504c6"
+  L1CrossDomainMessengerProxy = "0x825C858149F1E775a0f4Aeb172037B970bE7B736"
+  L1ERC721BridgeProxy = "0x00bd00c5C7F60e222D9CB8040270Ba929241A280"
+  L1StandardBridgeProxy = "0xE639919b92AB6DD238aEACc6F2A8d6e355D17bd5"
+  L2OutputOracleProxy = "0xdbf381984c4515Fe3285D3C55fDfb3054C52c261"
+  OptimismMintableERC20FactoryProxy = "0xa74b7baF04867E62B7824268e96144E503A23666"
+  OptimismPortalProxy = "0xD52ba64CBE1e3B44167f810622fBef36bE24d95c"
+  SystemConfigProxy = "0x72934D7AEDC1A2d889ca89Aaf064CD9455E64d00"
+  ProxyAdmin = "0x7617f4a55d62b9EE49578D9C90593e58E607415F"
+  SuperchainConfig = "0xDf87154Ed6cF332931b70014bA3d9dF423074FfF"
+  AnchorStateRegistryProxy = "0x4dAA22Ec75406E8ea2c70610115850912A770A3a"
+  DelayedWETHProxy = "0xd015f61F3CB26560507D758a726c77d18Bf849bB"
+  DisputeGameFactoryProxy = "0xB52337F38747D6931f2976eEa24A3f3F6B7CDEA2"
+  MIPS = "0x2B0293A059a2715935fA9459C9F3a4dcE2BC6331"
+  PreimageOracle = "0x4a7bd533Be022E7a2911c3C61e7E11e7a32Ee77d"
+  DAChallengeAddress = "0x08c5DCDD5e46d31CC1591ee15b084663507597f3"

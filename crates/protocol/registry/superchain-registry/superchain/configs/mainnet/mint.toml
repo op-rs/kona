@@ -1,0 +1,60 @@
+name = "Mint Mainnet"
+public_rpc = "https://rpc.mintchain.io"
+sequencer_rpc = "https://rpc.mintchain.io"
+explorer = "https://explorer.mintchain.io"
+superchain_level = 0
+governed_by_optimism = false
+superchain_time = 0
+data_availability_type = "eth-da"
+chain_id = 185
+batch_inbox_addr = "0x4e31448a098393727b786e25B54E59DcA1b77FE1"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  fjord_time = 1720627201 # Wed 10 Jul 2024 16:00:01 UTC
+  granite_time = 1726070401 # Wed 11 Sep 2024 16:00:01 UTC
+  holocene_time = 1736445601 # Thu 9 Jan 2025 18:00:01 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1715608931
+  [genesis.l1]
+    hash = "0x12980bfeb6e787dc906b0a6ae000733f9909f6af2121bc78a77afb5ba77988a0"
+    number = 19861561
+  [genesis.l2]
+    hash = "0x88441835ca2344ea384e6f73e3d6f921cdd304e5bd6dca15590217e3911c61a3"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0x68bdFecE01535090c8f3C27ec3b1AE97E83fA4aA"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000bc"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0x4a4962275DF8C60a80d3a25faEc5AA7De116A746"
+  ProxyAdminOwner = "0x4a4962275DF8C60a80d3a25faEc5AA7De116A746"
+  Guardian = "0x4a4962275DF8C60a80d3a25faEc5AA7De116A746"
+  Challenger = "0x4a4962275DF8C60a80d3a25faEc5AA7De116A746"
+  Proposer = "0x3d53Df1e69A32F98dFCcf23CCB689763E21A78bA"
+  UnsafeBlockSigner = "0x41c4FAE5E80B9a622d8968bcd3EBbcf1F93b30Db"
+  BatchSubmitter = "0x68bdFecE01535090c8f3C27ec3b1AE97E83fA4aA"
+
+[addresses]
+  AddressManager = "0xEa4165C5CDCA155779803A113d8391b741bA5228"
+  L1CrossDomainMessengerProxy = "0xf80be9f7a74ab776b69d3F0dC5C08c39b3A0bA19"
+  L1ERC721BridgeProxy = "0xC2C908F3226d9082130D8e48378CD2eFb08B521D"
+  L1StandardBridgeProxy = "0x2b3F201543adF73160bA42E1a5b7750024F30420"
+  L2OutputOracleProxy = "0xB751A613f2Db932c6cdeF5048E6D2af05F9B98ED"
+  OptimismMintableERC20FactoryProxy = "0xF02012065Ef6121a2A59EA0C590f42803Cf101EA"
+  OptimismPortalProxy = "0x59625d1FE0Eeb8114a4d13c863978F39b3471781"
+  SystemConfigProxy = "0xC975862927797812371A9Fb631f83F8f5e2240D5"
+  ProxyAdmin = "0xc684075a7Cc997Aa2e72152c330BDAc73FeacbDF"

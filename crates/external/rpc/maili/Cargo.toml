@@ -1,0 +1,23 @@
+[package]
+name = "maili-rpc"
+version = "0.2.8"
+description = "RPC for Optimism"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+kona-rpc.workspace = true
+
+[features]
+default = ["std", "serde"]
+serde = ["kona-rpc/serde"]
+std = ["kona-rpc/std"]

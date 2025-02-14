@@ -12,23 +12,25 @@ publish = false
 workspace = true
 
 [dependencies]
-# Workspace
+# Proof
 kona-mpt.workspace = true
-kona-derive.workspace = true
-kona-std-fpvm.workspace = true
-kona-preimage = { workspace = true, features = ["std"] }
-kona-proof = { workspace = true, features = ["std"] }
-kona-proof-interop.workspace = true
 kona-client.workspace = true
-kona-providers-alloy.workspace = true
 kona-executor.workspace = true
-kona-driver.workspace = true
+kona-std-fpvm.workspace = true
+kona-proof-interop.workspace = true
+kona-proof = { workspace = true, features = ["std"] }
+kona-preimage = { workspace = true, features = ["std"] }
 
-# Maili
-maili-rpc.workspace = true
-maili-registry.workspace = true
-maili-protocol = { workspace = true, features = ["std", "serde"] }
-maili-genesis = { workspace = true, features = ["std", "serde"] }
+# Protocol
+kona-driver.workspace = true
+kona-derive.workspace = true
+kona-registry.workspace = true
+kona-protocol = { workspace = true, features = ["std", "serde"] }
+kona-genesis = { workspace = true, features = ["std", "serde"] }
+
+# Services
+kona-rpc.workspace = true
+kona-providers-alloy.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

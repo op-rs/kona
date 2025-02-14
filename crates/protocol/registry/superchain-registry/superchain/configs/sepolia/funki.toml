@@ -1,0 +1,68 @@
+name = "Funki Sepolia Testnet"
+public_rpc = "https://funki-testnet.alt.technology"
+sequencer_rpc = "https://funki-testnet.alt.technology"
+explorer = "https://sepolia-sandbox.funkichain.com/"
+superchain_level = 0
+governed_by_optimism = false
+data_availability_type = "alt-da"
+chain_id = 3397901
+batch_inbox_addr = "0xff000000000000000000000000000000000084bB"
+block_time = 2
+seq_window_size = 28800
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[alt_da]
+  da_challenge_contract_address = "0x12C6A7dB25b20347CA6F5d47E56D5E8219871C6d"
+  da_challenge_window = 1
+  da_resolve_window = 1
+  da_commitment_type = "KeccakCommitment"
+
+[genesis]
+  l2_time = 1715060436
+  [genesis.l1]
+    hash = "0x6bc7182e10df2bf35d76362989e10e2c6799c4ceff2eb32741cb804dfab9dd06"
+    number = 5853286
+  [genesis.l2]
+    hash = "0xcebbf8fc7d0fab412866fe1e7df73c721104550ec35e55d173064acb2c0aeac9"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0xDa19a4E4d1DbC69bACf13435f08F76cED9B3C245"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000b4"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0xCDAf106c5531fd27Bf27536E4696E325de9F52b8"
+  ProxyAdminOwner = "0x814973b1ec9Eb9172996931dE7BF1380bd64a824"
+  Guardian = "0xdf3d6FA42Fe4225E6A042C4eD191d7E5D8252E6f"
+  Challenger = "0x542A7142093d536Bf277FA3B0410883ac4e121dc"
+  Proposer = "0x0b8AA7c355917016496e999a80F1737ef9c0C962"
+  UnsafeBlockSigner = "0x5359050ACb96c515562896BA71089487138e4bDe"
+  BatchSubmitter = "0xDa19a4E4d1DbC69bACf13435f08F76cED9B3C245"
+
+[addresses]
+  AddressManager = "0x6ECc4a306cD20f8041d63B3Db8ecA46b713cDEcC"
+  L1CrossDomainMessengerProxy = "0x6F82D895E223Dde65DA28a8bbD14f3eF79cBF3b8"
+  L1ERC721BridgeProxy = "0x598D245Ea85FBfBceCe6c62232bbCAB688D3F68b"
+  L1StandardBridgeProxy = "0x1ba82f688eF3C5B4363Ff667254ed4DC59E97477"
+  L2OutputOracleProxy = "0xB25812386D1Cb976b50de7387F5CBc10Fec3F27c"
+  OptimismMintableERC20FactoryProxy = "0x8eE8eB6B829C382cA395D35C40Dcd2ef8AE57c68"
+  OptimismPortalProxy = "0xCeE7ef4dDF482447FE14c605Ea94B37cBE87Ca9D"
+  SystemConfigProxy = "0xd6A01f1Ef51D65F023433992a8F62fEeAD35b172"
+  ProxyAdmin = "0xB3E1F3ab2A22049Cc155ebA7089Ea20A5EAB99ca"
+  SuperchainConfig = "0x00df2E8EfbE6ad2538D940a2cCAAE65112bd0437"
+  DelayedWETHProxy = "0x31D0D1D3Fc27B3f174E544364e7Bb836980162d1"
+  DisputeGameFactoryProxy = "0xEc7C6E35f4e5361D279d5Fe7222F3F45A8A83352"
+  MIPS = "0x71483031c5D2927Ea83807d5C88bd8EccFaF292d"
+  PreimageOracle = "0x2DE051316aaD761A3eBd6fF008D714805bD02c56"
+  DAChallengeAddress = "0x12C6A7dB25b20347CA6F5d47E56D5E8219871C6d"

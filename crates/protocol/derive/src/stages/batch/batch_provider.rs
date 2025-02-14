@@ -10,8 +10,8 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
+use kona_genesis::RollupConfig;
+use kona_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
 
 /// The [BatchProvider] stage is a mux between the [BatchQueue] and [BatchValidator] stages.
 ///
@@ -182,8 +182,8 @@ mod test {
         types::ResetSignal,
     };
     use alloc::{sync::Arc, vec};
-    use maili_genesis::RollupConfig;
-    use maili_protocol::BlockInfo;
+    use kona_genesis::RollupConfig;
+    use kona_protocol::BlockInfo;
 
     #[test]
     fn test_batch_provider_validator_active() {

@@ -10,7 +10,7 @@ use crate::{
 };
 use alloc::{boxed::Box, vec::Vec};
 use async_trait::async_trait;
-use maili_protocol::{BlockInfo, Frame};
+use kona_protocol::{BlockInfo, Frame};
 
 /// A mock [NextFrameProvider] for testing the [ChannelBank] stage.
 ///

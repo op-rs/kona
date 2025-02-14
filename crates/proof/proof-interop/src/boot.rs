@@ -5,13 +5,13 @@ use crate::{HintType, PreState, INVALID_TRANSITION, INVALID_TRANSITION_HASH};
 use alloc::{string::ToString, vec::Vec};
 use alloy_primitives::{Bytes, B256, U256};
 use alloy_rlp::Decodable;
+use kona_genesis::RollupConfig;
 use kona_preimage::{
     errors::PreimageOracleError, CommsClient, HintWriterClient, PreimageKey, PreimageKeyType,
     PreimageOracleClient,
 };
 use kona_proof::errors::OracleProviderError;
-use maili_genesis::RollupConfig;
-use maili_registry::{HashMap, ROLLUP_CONFIGS};
+use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::warn;

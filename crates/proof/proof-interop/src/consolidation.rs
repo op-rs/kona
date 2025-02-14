@@ -10,7 +10,7 @@ use kona_interop::{MessageGraph, MessageGraphError};
 use kona_mpt::OrderedListWalker;
 use kona_preimage::CommsClient;
 use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider};
-use maili_registry::{HashMap, ROLLUP_CONFIGS};
+use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::OpTxType;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use thiserror::Error;

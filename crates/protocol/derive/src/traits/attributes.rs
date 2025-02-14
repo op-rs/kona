@@ -4,8 +4,8 @@ use crate::types::PipelineResult;
 use alloc::boxed::Box;
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
-use maili_protocol::{L2BlockInfo, SingleBatch};
-use maili_rpc::OpAttributesWithParent;
+use kona_protocol::{L2BlockInfo, SingleBatch};
+use kona_rpc::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// [AttributesProvider] is a trait abstraction that generalizes the [BatchQueue] stage.

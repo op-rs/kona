@@ -1,6 +1,6 @@
 //! Error types for derivation pipeline stages.
 
-use maili_protocol::MAX_SPAN_BATCH_ELEMENTS;
+use kona_protocol::MAX_SPAN_BATCH_ELEMENTS;
 use thiserror::Error;
 
 /// A frame decompression error.

@@ -8,8 +8,8 @@ use alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
 use alloy_consensus::{Header, Receipt, TxEnvelope};
 use alloy_primitives::{map::HashMap, B256};
 use async_trait::async_trait;
-use maili_genesis::{RollupConfig, SystemConfig};
-use maili_protocol::{BatchValidationProvider, BlockInfo, L2BlockInfo};
+use kona_genesis::{RollupConfig, SystemConfig};
+use kona_protocol::{BatchValidationProvider, BlockInfo, L2BlockInfo};
 use op_alloy_consensus::OpBlock;
 use thiserror::Error;
 

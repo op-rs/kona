@@ -3,8 +3,8 @@
 use crate::errors::BuilderError;
 use alloc::string::String;
 use alloy_primitives::B256;
-use maili_genesis::SystemConfigUpdateError;
-use maili_protocol::{DepositError, SpanBatchError};
+use kona_genesis::SystemConfigUpdateError;
+use kona_protocol::{DepositError, SpanBatchError};
 use thiserror::Error;
 
 /// [crate::ensure] is a short-hand for bubbling up errors in the case of a condition not being met.
@@ -83,7 +83,7 @@ pub enum PipelineError {
     InvalidBatchValidity,
     /// [SystemConfig] update error.
     ///
-    /// [SystemConfig]: maili_genesis::SystemConfig
+    /// [SystemConfig]: kona_genesis::SystemConfig
     #[error("Error updating system config: {0}")]
     SystemConfigUpdate(SystemConfigUpdateError),
     /// Attributes builder error variant, with [BuilderError].

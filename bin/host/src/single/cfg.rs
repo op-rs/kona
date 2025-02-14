@@ -11,13 +11,13 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use kona_genesis::RollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
 use kona_proof::HintType;
 use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
-use maili_genesis::RollupConfig;
 use op_alloy_network::Optimism;
 use serde::Serialize;
 use std::{path::PathBuf, sync::Arc};

@@ -18,10 +18,8 @@ kona-interop = { workspace = true, features = ["serde"] }
 kona-proof.workspace = true
 kona-mpt.workspace = true
 kona-executor.workspace = true
-
-# Maili
-maili-registry.workspace = true
-maili-genesis = { workspace = true, features = ["serde"] }
+kona-registry.workspace = true
+kona-genesis = { workspace = true, features = ["serde"] }
 
 # Alloy
 alloy-rlp.workspace = true

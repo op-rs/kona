@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use kona_derive::traits::ChainProvider;
 use kona_mpt::{OrderedListWalker, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
-use maili_protocol::BlockInfo;
+use kona_protocol::BlockInfo;
 
 /// The oracle-backed L1 chain provider for the client program.
 #[derive(Debug, Clone)]

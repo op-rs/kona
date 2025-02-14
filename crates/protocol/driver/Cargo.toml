@@ -15,11 +15,9 @@ workspace = true
 # Workspace
 kona-derive.workspace = true
 kona-executor.workspace = true
-
-# Maili
-maili-rpc.workspace = true
-maili-genesis.workspace = true
-maili-protocol.workspace = true
+kona-rpc.workspace = true
+kona-genesis.workspace = true
+kona-protocol.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

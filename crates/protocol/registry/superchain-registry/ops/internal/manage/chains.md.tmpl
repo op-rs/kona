@@ -1,0 +1,14 @@
+# Superchain Ecosystem
+
+{{ range $index, $superchain := .Superchains -}}
+### {{ $superchain }}
+
+| Chain Name | OP Governed[^1] | Superchain Hardforks[^2] | Explorer | Public RPC | Sequencer RPC
+|---|---|---|---|---|---|
+{{- range index $.ChainData $index }}
+| {{ .Name }} | {{ checkmark .GovernedByOptimism }} | {{ optedInSuperchain .SuperchainTime }} | {{ .Explorer }} | `{{ .PublicRPC }}` | `{{ .SequencerRPC }}` |
+{{- end }}
+{{ end }}
+
+[^1]: Chains are governed by Optimism if their `L1ProxyAdminOwner` is set to the value specified by the standard config and [configurability.md](https://github.com/ethereum-optimism/specs/blob/main/specs/protocol/configurability.md#l1-proxyadmin-owner).
+[^2]: Chains receive Superchain hardforks if they've specified a `superchain_time`. This means that they have opted-into Superchain-wide upgrades.

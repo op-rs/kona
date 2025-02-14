@@ -9,7 +9,7 @@ use alloc::{boxed::Box, collections::VecDeque};
 use alloy_consensus::{Transaction, TxEnvelope};
 use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
-use maili_protocol::BlockInfo;
+use kona_protocol::BlockInfo;
 
 /// A data iterator that reads from calldata.
 #[derive(Debug, Clone)]

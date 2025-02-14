@@ -23,7 +23,7 @@ required trait implementations are the providers stubbed with `todo!()`.
 
 ```rust
 use std::sync::Arc;
-use maili_genesis::RollupConfig;
+use kona_genesis::RollupConfig;
 use kona_derive::pipeline::PipelineBuilder;
 use kona_derive::attributes::StatefulAttributesBuilder;
 
@@ -67,7 +67,7 @@ let pipeline = PipelineBuilder::new()
 ```rust
 use async_trait::async_trait;
 use alloy_primitives::Bytes;
-use maili_protocol::BlockInfo;
+use kona_protocol::BlockInfo;
 use kona_derive::traits::DataAvailabilityProvider;
 use kona_derive::errors::PipelineResult;
 

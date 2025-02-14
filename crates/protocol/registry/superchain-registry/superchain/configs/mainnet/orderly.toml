@@ -1,0 +1,60 @@
+name = "Orderly Mainnet"
+public_rpc = "https://rpc.orderly.network"
+sequencer_rpc = "https://rpc.orderly.network"
+explorer = "https://explorer.orderly.network"
+superchain_level = 0
+governed_by_optimism = false
+superchain_time = 0
+data_availability_type = "alt-da"
+chain_id = 291
+batch_inbox_addr = "0x08aA34cC843CeEBcC88A627F18430294aA9780be"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 1704992401 # Thu 11 Jan 2024 17:00:01 UTC
+  delta_time = 1708560000 # Thu 22 Feb 2024 00:00:00 UTC
+  ecotone_time = 1710374401 # Thu 14 Mar 2024 00:00:01 UTC
+  fjord_time = 1720627201 # Wed 10 Jul 2024 16:00:01 UTC
+  granite_time = 1726070401 # Wed 11 Sep 2024 16:00:01 UTC
+  holocene_time = 1736445601 # Thu 9 Jan 2025 18:00:01 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1696608227
+  [genesis.l1]
+    hash = "0x787d5dd296d63bc6e7a4158d4f109e1260740ee115f5ed5124b35dece1fa3968"
+    number = 18292529
+  [genesis.l2]
+    hash = "0xe53c94ddd42714239429bd132ba2fa080c7e5cc7dca816ec6e482ec0418e6d7f"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0xf8dB8Aba597fF36cCD16fECfbb1B816B3236E9b8"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000bc"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0x4a4962275DF8C60a80d3a25faEc5AA7De116A746"
+  ProxyAdminOwner = "0x4a4962275DF8C60a80d3a25faEc5AA7De116A746"
+  Guardian = "0xcE10372313Ca39Fbf75A09e7f4c0E57F070259f4"
+  Challenger = "0xcE10372313Ca39Fbf75A09e7f4c0E57F070259f4"
+  Proposer = "0x74BaD482a7f73C8286F50D8Aa03e53b7d24A5f3B"
+  UnsafeBlockSigner = "0xceED24B1Fd4A4393f6A9D2B137D9597dd5482569"
+  BatchSubmitter = "0xf8dB8Aba597fF36cCD16fECfbb1B816B3236E9b8"
+
+[addresses]
+  AddressManager = "0x87630a802a3789463eC4b00f89b27b1e9f6b92e9"
+  L1CrossDomainMessengerProxy = "0xc76543A64666d9a073FaEF4e75F651c88e7DBC08"
+  L1ERC721BridgeProxy = "0x934Ab59Ef14b638653b1C0FEf7aB9a72186393DC"
+  L1StandardBridgeProxy = "0xe07eA0436100918F157DF35D01dCE5c11b16D1F1"
+  L2OutputOracleProxy = "0x5e76821C3c1AbB9fD6E310224804556C61D860e0"
+  OptimismMintableERC20FactoryProxy = "0x7a69a90d8ea11E9618855da55D09E6F953730686"
+  OptimismPortalProxy = "0x91493a61ab83b62943E6dCAa5475Dd330704Cc84"
+  SystemConfigProxy = "0x886B187C3D293B1449A3A0F23Ca9e2269E0f2664"
+  ProxyAdmin = "0xb570F4aD27e7De879A2E4F2F3DE27dBaBc20E9B9"

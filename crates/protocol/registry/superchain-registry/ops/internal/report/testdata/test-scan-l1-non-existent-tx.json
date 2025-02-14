@@ -1,0 +1,13 @@
+[
+  {
+    "method": "eth_chainId",
+    "result": "0x1"
+  },
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0x18c55303075270503bec79e66c444c15d943598f25fbf467044b3c5dda9e7d58"
+    ],
+    "result": null
+  }
+]

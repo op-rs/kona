@@ -12,10 +12,12 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
-# Maili
-maili-rpc.workspace = true
-maili-genesis.workspace = true
-maili-protocol.workspace = true
+# Services
+kona-rpc.workspace = true
+
+# Protocol
+kona-genesis.workspace = true
+kona-protocol.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
@@ -41,7 +43,7 @@ tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
 spin.workspace = true
 proptest.workspace = true
 serde_json.workspace = true
-maili-registry.workspace = true
+kona-registry.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 tracing = { workspace = true, features = ["std"] }
@@ -50,8 +52,8 @@ alloy-primitives = { workspace = true, features = ["rlp", "k256", "map", "arbitr
 [features]
 default = []
 serde = [
-  "maili-protocol/serde",
-  "maili-genesis/serde",
+  "kona-protocol/serde",
+  "kona-genesis/serde",
   "alloy-primitives/serde",
   "alloy-consensus/serde",
   "op-alloy-consensus/serde",

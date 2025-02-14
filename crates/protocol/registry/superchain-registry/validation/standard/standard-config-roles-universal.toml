@@ -1,0 +1,56 @@
+
+# Standard Chain Config Roles
+[l1.universal]
+AddressManager."owner()" = "ProxyAdmin"
+SystemConfigProxy."owner()" = "SystemConfigOwner"
+ProxyAdmin."owner()" = "ProxyAdminOwner"
+L1CrossDomainMessengerProxy."PORTAL()" = "OptimismPortalProxy"
+L1ERC721BridgeProxy."admin()" = "ProxyAdmin"
+L1ERC721BridgeProxy."messenger()" = "L1CrossDomainMessengerProxy"
+L1StandardBridgeProxy."getOwner()" = "ProxyAdmin"
+L1StandardBridgeProxy."messenger()" = "L1CrossDomainMessengerProxy"
+OptimismMintableERC20FactoryProxy."admin()" = "ProxyAdmin"
+OptimismMintableERC20FactoryProxy."BRIDGE()" = "L1StandardBridgeProxy"
+OptimismPortalProxy."admin()" = "ProxyAdmin"
+ProxyAdmin."addressManager()" = "AddressManager"
+SystemConfigProxy."admin()" = "ProxyAdmin"
+SystemConfigProxy."unsafeBlockSigner()" = "UnsafeBlockSigner"
+SystemConfigProxy."batcherHash()" = "BatchSubmitter"
+
+
+[l1.nonFaultProofs]
+OptimismPortalProxy."guardian()" = "Guardian"
+OptimismPortalProxy."systemConfig()" = "SystemConfigProxy"
+OptimismPortalProxy."l2Oracle()" = "L2OutputOracleProxy"
+L2OutputOracleProxy."admin()" = "ProxyAdmin"
+L2OutputOracleProxy."challenger()" = "Challenger"
+L2OutputOracleProxy."proposer()" = "Proposer"
+
+[l1.FaultProofs]
+DisputeGameFactoryProxy."admin()" = "ProxyAdmin"
+DisputeGameFactoryProxy."owner()" = "ProxyAdminOwner"
+AnchorStateRegistryProxy."admin()" = "ProxyAdmin"
+DelayedWETHProxy."admin()" = "ProxyAdmin"
+OptimismPortalProxy."guardian()" = "Guardian"
+OptimismPortalProxy."systemConfig()" = "SystemConfigProxy"
+PermissionedDisputeGame."challenger()" = "Challenger"
+PermissionedDisputeGame."proposer()" = "Proposer"
+
+[l2.universal]
+"0x4200000000000000000000000000000000000016"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000002"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000007"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000010"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000011"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000012"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000013"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x420000000000000000000000000000000000000F"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000015"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000000"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000014"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000017"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000018"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000019"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x420000000000000000000000000000000000001a"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000020"."admin()" = "0x4200000000000000000000000000000000000018"
+"0x4200000000000000000000000000000000000021"."admin()" = "0x4200000000000000000000000000000000000018"

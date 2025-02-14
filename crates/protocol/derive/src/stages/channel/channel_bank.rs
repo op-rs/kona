@@ -11,8 +11,8 @@ use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::{hex, map::HashMap, Bytes};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{BlockInfo, Channel, ChannelId, Frame};
+use kona_genesis::RollupConfig;
+use kona_protocol::{BlockInfo, Channel, ChannelId, Frame};
 
 /// The maximum size of a channel bank.
 pub(crate) const MAX_CHANNEL_BANK_SIZE: usize = 100_000_000;
@@ -429,11 +429,11 @@ mod tests {
         assert!(channel_bank.channels.is_empty());
         assert_eq!(trace_store.lock().iter().filter(|(l, _)| matches!(l, &Level::WARN)).count(), 0);
         assert_eq!(channel_bank.ingest_frame(frame.clone()), Ok(()));
-        assert_eq!(channel_bank.size(), maili_protocol::FRAME_OVERHEAD);
+        assert_eq!(channel_bank.size(), kona_protocol::FRAME_OVERHEAD);
         assert_eq!(channel_bank.channels.len(), 1);
         // This should fail since the frame is already ingested.
         assert_eq!(channel_bank.ingest_frame(frame), Ok(()));
-        assert_eq!(channel_bank.size(), maili_protocol::FRAME_OVERHEAD);
+        assert_eq!(channel_bank.size(), kona_protocol::FRAME_OVERHEAD);
         assert_eq!(channel_bank.channels.len(), 1);
         assert_eq!(trace_store.lock().iter().filter(|(l, _)| matches!(l, &Level::WARN)).count(), 1);
     }
@@ -508,8 +508,8 @@ mod tests {
         let _guard = tracing::subscriber::set_default(subscriber);
 
         let configs: [RollupConfig; 2] = [
-            maili_registry::ROLLUP_CONFIGS.get(&10).cloned().unwrap(),
-            maili_registry::ROLLUP_CONFIGS.get(&8453).cloned().unwrap(),
+            kona_registry::ROLLUP_CONFIGS.get(&10).cloned().unwrap(),
+            kona_registry::ROLLUP_CONFIGS.get(&8453).cloned().unwrap(),
         ];
 
         for cfg in configs {

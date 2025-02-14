@@ -1,0 +1,88 @@
+["op-contracts/v1.8.0"] # Holocene https://github.com/ethereum-optimism/optimism/releases/tag/op-contracts%2Fv1.8.0
+# Updated in this release
+system_config = "0x165dece6291f3a071e602c804f4a3e89977a71ec866f46c85eb21448f22f6f9a"             # version 2.3.0
+fault_dispute_game = "0x1a81c5fe9fbbf68a0f75e987451e5181c4fc3e801f5c056d38f08942cefed349"        # version "1.3.1"
+permissioned_dispute_game = "0x69bd3197f9f0248972d9518a9c220a22e326760dc8c0ffcc1612d4d0730a7a1a" # version "1.3.1"
+mips = "0xd80e53cfb3a0655e5a82b40f370b7352bd926d6d28de7f1735583fcfeba3f0fd"                      # version "1.2.1"
+# Unchanged in this release
+address_manager = ""
+l1_cross_domain_messenger = "0xc919b535f7bbbaa57f32b602f26000e3997c22c933efbb92a36e053b20b2b4b1"       # version 2.3.0
+l1_erc721_bridge = "0xa1a3ea3996797cf5035dafff9335386f8b00c58ff22aaa4c34b02c4ae7cf5e8a"                # version 2.1.0
+l1_standard_bridge = "0x6894839591ba2aa1f6ba43526113e25fd795ec5c5a48202e664c931cd170aaee"              # version 2.1.0
+optimism_mintable_erc20_factory = "0xb8ec72533005496795f8fc0c71f0312578ff626f7b94699984e1add6dc2f3b88" # version 1.9.0
+optimism_portal = "0x2b0610230634fccf9d05f4aaefceffef9e04aa99910798d42823e0068eb07eca"                 # version 3.10.0
+preimage_oracle = "0x2109eb20fb34703fe7ab0231bf0e93d972fe78423b72e7fb1f797f168217b87d"                 # version "1.0.0"
+# for the contracts below which contain immutables, the hash is calculated from the masked bytecode (not the deployed bytecode as-is).
+# sections of the bytecode that contain the immutables are masked (set to 0) before computing the hash
+anchor_state_registry = "0x46e8ecc46fd27f178ada1c5a2168c09512e7ed2f7d4ac9a7c74123af26fd850c" # version "2.0.0"
+dispute_game_factory = "0x0d25ffc72ede825443defd6dfb435f5ddeb2e9ce0e3da3e40af069f3ba6bef0f"  # version "1.0.0"
+delayed_weth = "0xc4fb1a6fa54865937fda773735938b5374d23fcf556bb4c69686f23be96b3f97"          # version "1.1.0"
+
+["op-contracts/v1.8.0-rc.4"] # Holocene https://github.com/ethereum-optimism/optimism/releases/tag/op-contracts%2Fv1.8.0-rc.4
+# Updated in this release
+system_config = "0x165dece6291f3a071e602c804f4a3e89977a71ec866f46c85eb21448f22f6f9a"             # version 2.3.0
+fault_dispute_game = "0x1a81c5fe9fbbf68a0f75e987451e5181c4fc3e801f5c056d38f08942cefed349"        # version "1.3.1"
+permissioned_dispute_game = "0x69bd3197f9f0248972d9518a9c220a22e326760dc8c0ffcc1612d4d0730a7a1a" # version "1.3.1"
+mips = "0xd80e53cfb3a0655e5a82b40f370b7352bd926d6d28de7f1735583fcfeba3f0fd"                      # version "1.2.1"
+# Unchanged in this release
+address_manager = ""
+l1_cross_domain_messenger = "0xc919b535f7bbbaa57f32b602f26000e3997c22c933efbb92a36e053b20b2b4b1"       # version 2.3.0
+l1_erc721_bridge = "0xa1a3ea3996797cf5035dafff9335386f8b00c58ff22aaa4c34b02c4ae7cf5e8a"                # version 2.1.0
+l1_standard_bridge = "0x6894839591ba2aa1f6ba43526113e25fd795ec5c5a48202e664c931cd170aaee"              # version 2.1.0
+optimism_mintable_erc20_factory = "0xb8ec72533005496795f8fc0c71f0312578ff626f7b94699984e1add6dc2f3b88" # version 1.9.0
+optimism_portal = "0x2b0610230634fccf9d05f4aaefceffef9e04aa99910798d42823e0068eb07eca"                 # version 3.10.0
+preimage_oracle = "0x2109eb20fb34703fe7ab0231bf0e93d972fe78423b72e7fb1f797f168217b87d"                 # version "1.0.0"
+# for the contracts below which contain immutables, the hash is calculated from the masked bytecode (not the deployed bytecode as-is).
+# sections of the bytecode that contain the immutables are masked (set to 0) before computing the hash
+anchor_state_registry = "0x46e8ecc46fd27f178ada1c5a2168c09512e7ed2f7d4ac9a7c74123af26fd850c" # version "2.0.0"
+dispute_game_factory = "0x0d25ffc72ede825443defd6dfb435f5ddeb2e9ce0e3da3e40af069f3ba6bef0f"  # version "1.0.0"
+delayed_weth = "0xc4fb1a6fa54865937fda773735938b5374d23fcf556bb4c69686f23be96b3f97"          # version "1.1.0"
+
+
+["op-contracts/v1.6.0"] # Fault Proof Fixes https://github.com/ethereum-optimism/optimism/releases/tag/op-contracts%2Fv1.6.0
+address_manager = ""
+l1_cross_domain_messenger = "0xc919b535f7bbbaa57f32b602f26000e3997c22c933efbb92a36e053b20b2b4b1"       # version 2.3.0
+l1_erc721_bridge = "0xa1a3ea3996797cf5035dafff9335386f8b00c58ff22aaa4c34b02c4ae7cf5e8a"                # version 2.1.0
+l1_standard_bridge = "0x6894839591ba2aa1f6ba43526113e25fd795ec5c5a48202e664c931cd170aaee"              # version 2.1.0
+optimism_mintable_erc20_factory = "0xb8ec72533005496795f8fc0c71f0312578ff626f7b94699984e1add6dc2f3b88" # version 1.9.0
+optimism_portal = "0x2b0610230634fccf9d05f4aaefceffef9e04aa99910798d42823e0068eb07eca"                 # version 3.10.0
+system_config = "0x1245886f18eada47816eba66ec353eb9a5dad795a5e36df78067f66657018e32"                   # version 2.2.0
+preimage_oracle = "0x2109eb20fb34703fe7ab0231bf0e93d972fe78423b72e7fb1f797f168217b87d"                 # version "1.0.0"
+permissioned_dispute_game = "0x666d50416294caefc6a0a9c7c3803d75dbb76e9b85384c4aaee5fc35d7b5cb34"       # version "1.2.0"
+# for the contracts below which contain immutables, the hash is calculated from the masked bytecode (not the deployed bytecode as-is).
+# sections of the bytecode that contain the immutables are masked (set to 0) before computing the hash
+anchor_state_registry = "0x46e8ecc46fd27f178ada1c5a2168c09512e7ed2f7d4ac9a7c74123af26fd850c" # version "2.0.0"
+dispute_game_factory = "0x0d25ffc72ede825443defd6dfb435f5ddeb2e9ce0e3da3e40af069f3ba6bef0f"  # version "1.0.0"
+delayed_weth = "0xc4fb1a6fa54865937fda773735938b5374d23fcf556bb4c69686f23be96b3f97"          # version "1.1.0"
+mips = "0x8f1cb311156fdc848bd99f26b08d88f0bec2c419bbca97533049907794390b4b"                  # version "1.1.0"
+fault_dispute_game = "0x94ded5b66802fe6287d2105fad9ab6c4c8f25275db55d997e07e2284c830595a"    # version "1.2.0"
+
+
+["op-contracts/v1.4.0"] # Fault Proofs https://github.com/ethereum-optimism/optimism/releases/tag/op-contracts%2Fv1.4.0
+address_manager = ""
+l1_cross_domain_messenger = "0xc919b535f7bbbaa57f32b602f26000e3997c22c933efbb92a36e053b20b2b4b1"       # version 2.3.0
+l1_erc721_bridge = "0xa1a3ea3996797cf5035dafff9335386f8b00c58ff22aaa4c34b02c4ae7cf5e8a"                # version 2.1.0
+l1_standard_bridge = "0x6894839591ba2aa1f6ba43526113e25fd795ec5c5a48202e664c931cd170aaee"              # version 2.1.0
+optimism_mintable_erc20_factory = "0xb8ec72533005496795f8fc0c71f0312578ff626f7b94699984e1add6dc2f3b88" # version 1.9.0
+optimism_portal = "0x2b0610230634fccf9d05f4aaefceffef9e04aa99910798d42823e0068eb07eca"                 # version 3.10.0
+system_config = "0x1245886f18eada47816eba66ec353eb9a5dad795a5e36df78067f66657018e32"                   # version 2.2.0
+preimage_oracle = "0x8b26e228dfe0bb4d7dee801d50756792a7f2d63ea5da42ddb120873dfe47f875"                 # version "1.0.0"
+permissioned_dispute_game = "0xb0a3aed0fb964b33445061d604e5fcfb952fb99dbff4d6f0c59aa1f24fdfd30f"       # version "1.2.0"
+# for the contracts below which contain immutables, the hash is calculated from the masked bytecode (not the deployed bytecode as-is).
+# sections of the bytecode that contain the immutables are masked (set to 0) before computing the hash
+anchor_state_registry = "0x46e8ecc46fd27f178ada1c5a2168c09512e7ed2f7d4ac9a7c74123af26fd850c" # version "2.0.0"
+dispute_game_factory = "0x0d25ffc72ede825443defd6dfb435f5ddeb2e9ce0e3da3e40af069f3ba6bef0f"  # version "1.0.0"
+delayed_weth = "0x66cb5d2c98ecd6b1e8768bdee4abd7a66775beaa50d995af1ac24f0cd837d1a3"          # version "1.0.0"
+mips = "0xce7e7ce9dc98d151ecbbb02a548534ab33a59aa4091ad52be0a703dc6c4f3d39"                  # version "1.0.0"
+fault_dispute_game = "0x875e36fd4039b580b20051d25336a7db1ea982613edcc7b83f9d6406f8c84959"    # version "1.2.0"
+
+# MCP https://github.com/ethereum-optimism/optimism/releases/tag/op-contracts%2Fv1.3.0
+["op-contracts/v1.3.0"]
+address_manager = ""
+l1_cross_domain_messenger = "0xc919b535f7bbbaa57f32b602f26000e3997c22c933efbb92a36e053b20b2b4b1"       # version 2.3.0
+l1_erc721_bridge = "0xa1a3ea3996797cf5035dafff9335386f8b00c58ff22aaa4c34b02c4ae7cf5e8a"                # version 2.1.0
+l1_standard_bridge = "0x6894839591ba2aa1f6ba43526113e25fd795ec5c5a48202e664c931cd170aaee"              # version 2.1.0
+optimism_mintable_erc20_factory = "0xb8ec72533005496795f8fc0c71f0312578ff626f7b94699984e1add6dc2f3b88" # version 1.9.0
+optimism_portal = "0x3708314c65d3949911060cd82c167a5ace2921694c2bab2d9a60814bde3412d7"                 # version 3.10.0
+system_config = "0x72ba7f6fe9ce5e4bcc7145b3f0681112f2161b025618dedb74bb3ea15bbcbe90"                   # version 2.2.0
+l2_output_oracle = "0xc7a28a1f30fa6c5c10c7e164c4cb50015f99f91ccbbaa5c156ad5e4e20be80e2"

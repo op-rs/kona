@@ -30,8 +30,8 @@ use kona_proof::{
     CachingOracle, Hint,
 };
 use kona_proof_interop::{HintType, PreState};
-use maili_protocol::BlockInfo;
-use maili_registry::ROLLUP_CONFIGS;
+use kona_protocol::BlockInfo;
+use kona_registry::ROLLUP_CONFIGS;
 use std::sync::Arc;
 use tokio::task;
 use tracing::warn;

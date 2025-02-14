@@ -24,7 +24,7 @@ pub const INVALID_TRANSITION_HASH: B256 =
 /// [TransitionState] is a super-structure of the [SuperRoot] that represents the progress of a
 /// pending superchain state transition from one [SuperRoot] to the next.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(feature = "arbitrary", test), derive(arbitrary::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum PreState {
     /// The canonical state of the superchain.
     SuperRoot(SuperRoot),
@@ -149,7 +149,7 @@ impl Decodable for PreState {
 /// The [TransitionState] is a super-structure of the [SuperRoot] that represents the progress of a
 /// pending superchain state transition from one [SuperRoot] to the next.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(feature = "arbitrary", test), derive(arbitrary::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct TransitionState {
     /// The canonical pre-state super root commitment.
     pub pre_state: SuperRoot,
@@ -238,7 +238,7 @@ impl Decodable for TransitionState {
 #[derive(
     Default, Debug, Clone, Eq, PartialEq, RlpEncodable, RlpDecodable, Serialize, Deserialize,
 )]
-#[cfg_attr(any(feature = "arbitrary", test), derive(arbitrary::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct OptimisticBlock {
     /// The block hash of the output root.
     pub block_hash: B256,
@@ -256,11 +256,10 @@ impl OptimisticBlock {
 #[cfg(test)]
 mod test {
     use super::{OptimisticBlock, SuperRoot, TransitionState};
+    use alloc::{vec, vec::Vec};
     use alloy_primitives::B256;
     use alloy_rlp::{Decodable, Encodable};
-    use arbitrary::Arbitrary;
     use kona_interop::OutputRootWithChain;
-    use rand::Rng;
 
     #[test]
     fn test_static_transition_state_roundtrip() {
@@ -283,7 +282,10 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "arbitrary")]
     fn test_arbitrary_pre_state_roundtrip() {
+        use arbitrary::Arbitrary;
+        use rand::Rng;
         let mut bytes = [0u8; 1024];
         rand::rng().fill(bytes.as_mut_slice());
         let pre_state =
@@ -295,7 +297,10 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "arbitrary")]
     fn test_arbitrary_transition_state_roundtrip() {
+        use arbitrary::Arbitrary;
+        use rand::Rng;
         let mut bytes = [0u8; 1024];
         rand::rng().fill(bytes.as_mut_slice());
         let transition_state =

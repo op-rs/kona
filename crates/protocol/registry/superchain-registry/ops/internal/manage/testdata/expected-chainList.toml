@@ -1,0 +1,25 @@
+[[chains]]
+  name = "OP Sepolia Testnet"
+  identifier = "sepolia/op"
+  chain_id = 11155420
+  rpc = ["https://sepolia.optimism.io"]
+  explorers = ["https://sepolia-optimistic.etherscan.io"]
+  superchain_level = 1
+  governed_by_optimism = true
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"
+
+[[chains]]
+  name = "TestChain"
+  identifier = "sepolia/testchain"
+  chain_id = 1952805748
+  rpc = ["https://foo.bar.net"]
+  explorers = ["https://foo.bar.net"]
+  superchain_level = 0
+  governed_by_optimism = false
+  data_availability_type = "eth-da"
+  [chains.parent]
+    type = "L2"
+    chain = "sepolia"

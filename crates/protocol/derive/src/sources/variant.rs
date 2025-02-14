@@ -42,7 +42,7 @@ where
 mod tests {
     use super::*;
     use crate::test_utils::TestChainProvider;
-    use maili_protocol::BlockInfo;
+    use kona_protocol::BlockInfo;
 
     use crate::{
         sources::{BlobData, EthereumDataSourceVariant},

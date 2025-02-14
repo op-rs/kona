@@ -1,0 +1,8 @@
+guardian = "0x09f7150D8c019BeF34450d6920f6B3608ceFdAf2"
+challenger = "0x9BA6e03D8B90dE867373Db8cF1A58d2F7F006b3A"
+l1ProxyAdminOwner = "0x5a0Aae59D09fccBdDb6C6CcEB07B7279367C3d2A"
+protocolVersionsOwner = "0x847B5c174615B1B7fDF770882256e2D3E95b9D92"
+
+# This is the ALIASED address of the L1 2/2 Safe between the Optimism Foundation and the Security Council.
+# To compute the aliased address, add 0x1111000000000000000000000000000000001111
+l2ProxyAdminOwner = "0x6B1BAE59D09fCcbdDB6C6cceb07B7279367C4E3b"

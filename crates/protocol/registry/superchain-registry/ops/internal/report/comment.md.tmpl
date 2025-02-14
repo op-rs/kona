@@ -1,0 +1,80 @@
+# Standards Compliance Report
+
+## L1 Deployment
+
+{{ if.Report.L1 -}}
+**Release**: `{{ .Report.L1.Release }}`
+
+**Deployment Transaction Hash**: {{ deploymentTxLink .Report.L1 }}
+
+<details open>
+
+<summary>Semvers</summary>
+
+| | Contract | Std Version | Got Version |
+|---|----------|-------------|-------------|
+| {{ checkmark .StdVersions.SystemConfig.Version .Report.L1.Semvers.SystemConfig }} | SystemConfig | {{ .StdVersions.SystemConfig.Version }} | {{ .Report.L1.Semvers.SystemConfig }} |
+| {{ checkmark .StdVersions.PermissionedDisputeGame.Version .Report.L1.Semvers.PermissionedDisputeGame }} | PermissionedDisputeGame | {{ .StdVersions.PermissionedDisputeGame.Version }} | {{ .Report.L1.Semvers.PermissionedDisputeGame }} |
+| {{ checkmark .StdVersions.OptimismPortal.Version .Report.L1.Semvers.OptimismPortal }} | OptimismPortal | {{ .StdVersions.OptimismPortal.Version }} | {{ .Report.L1.Semvers.OptimismPortal }} |
+| {{ checkmark .StdVersions.AnchorStateRegistry.Version .Report.L1.Semvers.AnchorStateRegistry }} | AnchorStateRegistry | {{ .StdVersions.AnchorStateRegistry.Version }} | {{ .Report.L1.Semvers.AnchorStateRegistry }} |
+| {{ checkmark .StdVersions.DisputeGameFactory.Version .Report.L1.Semvers.DisputeGameFactory }} | DisputeGameFactory | {{ .StdVersions.DisputeGameFactory.Version }} | {{ .Report.L1.Semvers.DisputeGameFactory }} |
+| {{ checkmark .StdVersions.L1CrossDomainMessenger.Version .Report.L1.Semvers.L1CrossDomainMessenger }} | L1CrossDomainMessenger | {{ .StdVersions.L1CrossDomainMessenger.Version }} | {{ .Report.L1.Semvers.L1CrossDomainMessenger }} |
+| {{ checkmark .StdVersions.L1StandardBridge.Version .Report.L1.Semvers.L1StandardBridge }} | L1StandardBridge | {{ .StdVersions.L1StandardBridge.Version }} | {{ .Report.L1.Semvers.L1StandardBridge }} |
+| {{ checkmark .StdVersions.L1ERC721Bridge.Version .Report.L1.Semvers.L1ERC721Bridge }} | L1ERC721Bridge | {{ .StdVersions.L1ERC721Bridge.Version }} | {{ .Report.L1.Semvers.L1ERC721Bridge }} |
+| {{ checkmark .StdVersions.OptimismMintableERC20Factory.Version .Report.L1.Semvers.OptimismMintableERC20Factory }} | OptimismMintableERC20Factory | {{ .StdVersions.OptimismMintableERC20Factory.Version }} | {{ .Report.L1.Semvers.OptimismMintableERC20Factory }} |
+
+</details>
+
+<details open>
+
+<summary>Ownership</summary>
+
+| | Contract | Std Address | Got Address |
+|---|----------|-------------|-------------|
+| {{ checkmarkAddr .StdRoles.Guardian .Report.L1.Ownership.Guardian }} | Guardian | `{{ .StdRoles.Guardian }}` | `{{ .Report.L1.Ownership.Guardian }}` |
+| {{ checkmarkAddr .StdRoles.Challenger .Report.L1.Ownership.Challenger }} | Challenger | `{{ .StdRoles.Challenger }}` | `{{ .Report.L1.Ownership.Challenger }}` |
+| {{ checkmarkAddr .StdRoles.L1ProxyAdminOwner .Report.L1.Ownership.ProxyAdminOwner }} | ProxyAdminOwner | `{{ .StdRoles.L1ProxyAdminOwner }}` | `{{ .Report.L1.Ownership.ProxyAdminOwner }}` |
+
+</details>
+
+<details open>
+
+<summary>Permissioned Proofs</summary>
+
+| | Contract           | Std Param                                    | Got Param                                    |
+|---|-------------------|----------------------------------------------|----------------------------------------------|
+| {{ checkmarkUint .StdConfig.Proofs.Permissioned.GameType .Report.L1.Proofs.Permissioned.GameType }} | GameType | `{{ .StdConfig.Proofs.Permissioned.GameType }}` | `{{ .Report.L1.Proofs.Permissioned.GameType }}` |
+| {{ checkmarkHash .StdPrestate.Hash .Report.L1.Proofs.Permissioned.AbsolutePrestate }} | AbsolutePrestate | `{{ .StdPrestate.Hash }}` | `{{ .Report.L1.Proofs.Permissioned.AbsolutePrestate }}` |
+| {{ checkmarkUint64 .StdConfig.Proofs.Permissioned.MaxGameDepth .Report.L1.Proofs.Permissioned.MaxGameDepth }} | MaxGameDepth | `{{ .StdConfig.Proofs.Permissioned.MaxGameDepth }}` | `{{ .Report.L1.Proofs.Permissioned.MaxGameDepth }}` |
+| {{ checkmarkUint64 .StdConfig.Proofs.Permissioned.SplitDepth .Report.L1.Proofs.Permissioned.SplitDepth }} | SplitDepth | `{{ .StdConfig.Proofs.Permissioned.SplitDepth }}` | `{{ .Report.L1.Proofs.Permissioned.SplitDepth }}` |
+| {{ checkmarkUint64 .StdConfig.Proofs.Permissioned.MaxClockDuration .Report.L1.Proofs.Permissioned.MaxClockDuration }} | MaxClockDuration | `{{ .StdConfig.Proofs.Permissioned.MaxClockDuration }}` | `{{ .Report.L1.Proofs.Permissioned.MaxClockDuration }}` |
+| {{ checkmarkUint64 .StdConfig.Proofs.Permissioned.ClockExtension .Report.L1.Proofs.Permissioned.ClockExtension }} | ClockExtension | `{{ .StdConfig.Proofs.Permissioned.ClockExtension }}` | `{{ .Report.L1.Proofs.Permissioned.ClockExtension }}` |
+
+</details>
+{{- else -}}
+> **Warning**
+> An error occurred while validating L1 data: `{{ .Report.L1Err }}`
+{{- end }}
+
+## L2 Deployment
+
+{{ if .Report.L2 -}}
+{{- if eq .Report.L2.ProvidedGenesisHash .Report.L2.StandardGenesisHash -}}
+**✅ Genesis matches standard!**
+{{ else -}}
+**⚠️ Genesis does not match standard.** The state diff is listed below:
+
+```diff
+{{- range .Report.L2.AccountDiffs }}
+{{ .AsMarkdown }}
+{{- end -}}
+```
+{{- end }}
+{{- else -}}
+> **Warning**
+> An error occurred while validating L2 data: `{{ .Report.L2Err }}`
+{{- end }}
+
+<small>Report generated on {{ formatTime .Report.GeneratedAt }} for commit `{{.GitSHA}}`</small>
+
+{{.Magic}}

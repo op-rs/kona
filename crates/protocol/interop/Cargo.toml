@@ -12,6 +12,10 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+# Workspace
+kona-genesis.workspace = true
+kona-registry.workspace = true
+
 # General
 thiserror.workspace = true
 async-trait.workspace = true
@@ -24,10 +28,6 @@ alloy-consensus.workspace = true
 alloy-rlp.workspace = true
 op-alloy-consensus.workspace = true
 
-# maili
-maili-genesis.workspace = true
-maili-registry.workspace = true
-
 # Arbitrary
 arbitrary = { version = "1.4", features = ["derive"], optional = true }
 
@@ -35,11 +35,13 @@ arbitrary = { version = "1.4", features = ["derive"], optional = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
+serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
 alloy-primitives = { workspace = true, features = ["rlp", "arbitrary"] }
 arbitrary = { version = "1.4", features = ["derive"] }
 rand.workspace = true
 
 [features]
+default = []
 arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary"]
 serde = ["dep:serde", "alloy-primitives/serde"]

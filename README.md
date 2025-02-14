@@ -3,31 +3,51 @@
 </h1>
 
 <h4 align="center">
-    A verifiable implementation of the <a href="https://github.com/ethereum-optimism/optimism">Optimism</a> rollup state transition.
+    The Monorepo for <a href="https://specs.optimism.io/">OP Stack</a> Types, Components, and Services built in Rust.
 </h4>
 
 <p align="center">
-  <a href="https://github.com/op-rs/kona/actions/workflows/rust_ci.yaml"><img src="https://github.com/op-rs/kona/actions/workflows/rust_ci.yaml/badge.svg?label=ci" alt="CI"></a>
-  <a href="https://github.com/op-rs/kona/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg?label=license&labelColor=2a2f35" alt="License"></a>
-  <a href="https://op-rs.github.io/kona"><img src="https://img.shields.io/badge/Contributor%20Book-854a15?logo=mdBook&labelColor=2a2f35" alt="Book"></a>
-  <a href="https://github.com/ethereum-optimism/monorepo"><img src="https://img.shields.io/badge/OP%20Stack-monorepo-red?labelColor=2a2f35" alt="OP Stack"></a>
-  <a href="https://img.shields.io/codecov/c/github/op-rs/kona"><img src="https://img.shields.io/codecov/c/github/op-rs/kona" alt="Codecov"></a>
+  <a href="https://github.com/op-rs/kona/releases"><img src="https://img.shields.io/github/v/release/op-rs/kona?style=flat&labelColor=1C2C2E&color=C96329&logo=GitHub&logoColor=white"></a>
+  <a href="https://docs.rs/kona-derive/"><img src="https://img.shields.io/docsrs/kona-derive?style=flat&labelColor=1C2C2E&color=C96329&logo=Rust&logoColor=white"></a>
+  <a href="https://github.com/op-rs/kona/actions/workflows/rust_ci.yaml"><img src="https://img.shields.io/github/actions/workflow/status/op-rs/kona/rust_ci.yaml?style=flat&labelColor=1C2C2E&label=ci&color=BEC5C9&logo=GitHub%20Actions&logoColor=BEC5C9" alt="CI"></a>
+  <a href="https://codecov.io/gh/op-rs/kona"><img src="https://img.shields.io/codecov/c/gh/op-rs/kona?style=flat&labelColor=1C2C2E&logo=Codecov&color=BEC5C9&logoColor=BEC5C9" alt="Codecov"></a>
+  <a href="https://github.com/op-rs/kona/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg?style=flat&labelColor=1C2C2E&color=BEC5C9&logo=googledocs&label=license&logoColor=BEC5C9" alt="License"></a>
+  <a href="https://op-rs.github.io/kona"><img src="https://img.shields.io/badge/Book-854a15?style=flat&labelColor=1C2C2E&color=BEC5C9&logo=mdBook&logoColor=BEC5C9" alt="Book"></a>
 </p>
 
 <p align="center">
   <a href="#whats-kona">What's Kona?</a> •
   <a href="#overview">Overview</a> •
+  <a href="#overview">MSRV</a> •
   <a href="https://op-rs.github.io/kona/CONTRIBUTING.html">Contributing</a> •
-  <a href="#credits">Credits</a>
+  <a href="#credits">Credits</a> •
+  <a href="#license">License</a>
 </p>
+
 
 ## What's Kona?
 
-Kona is a suite of portable implementations of the OP Stack rollup state transition, namely the [derivation pipeline][g-derivation-pipeline] and
-the block execution logic.
+Originally a suite of portable implementations of the OP Stack rollup state transition,
+Kona has been extended to be _the monorepo_ for <a href="https://specs.optimism.io/">OP Stack</a>
+types, components, and services built in Rust. Kona provides an ecosystem of extensible, low-level
+crates that compose into components and services required for the OP Stack.
 
-Built on top of these libraries, this repository also features a [fault proof program][fpp-specs] designed to deterministically execute the
-rollup state transition in order to verify an [L2 output root][g-output-root] from the L1 inputs it was [derived from][g-derivation-pipeline].
+Kona contains many foundational crates including:
+- The [derivation pipeline][g-derivation-pipeline].
+- A stateless block executor.
+
+Built on top of these libraries, this repository also features a [fault proof program][fpp-specs]
+designed to deterministically execute the rollup state transition in order to verify an
+[L2 output root][g-output-root] from the L1 inputs it was [derived from][g-derivation-pipeline].
+
+The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
+getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
+
+
+> [!IMPORTANT]
+>
+> Ethereum (Alloy) types modified for the OP Stack live in [op-alloy](https://github.com/alloy-rs/op-alloy).
+
 
 ### Alternative Backends
 
@@ -42,7 +62,9 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ### Development Status
 
-`kona` is currently in active development, and is not yet ready for use in production.
+> [!WARNING]
+>
+> `kona` is currently in active development, and is not yet ready for use in production.
 
 ## Overview
 
@@ -53,9 +75,12 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 **Protocol**
 
+- [`genesis`](./crates/protocol/genesis): Genesis types for OP Stack chains.
+- [`protocol`](./crates/protocol/protocol): Core protocol types used across OP Stack rust crates.
 - [`derive`](./crates/protocol/derive): `no_std` compatible implementation of the [derivation pipeline][g-derivation-pipeline].
-  - [`driver`](./crates/protocol/driver): Stateful derivation pipeline driver.
+- [`driver`](./crates/protocol/driver): Stateful derivation pipeline driver.
 - [`interop`](./crates/protocol/interop): Core functionality and primitives for the [Interop feature](https://specs.optimism.io/interop/overview.html) of the OP Stack.
+- [`registry`](./crates/protocol/registry): Rust bindings for the [superchain-registry][superchain-registry].
 
 **Proof**
 
@@ -67,10 +92,38 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 - [`std-fpvm`](./crates/proof/std-fpvm): Platform specific [Fault Proof VM][g-fault-proof-vm] kernel APIs.
 - [`std-fpvm-proc`](./crates/proof/std-fpvm-proc): Proc macro for [Fault Proof Program][fpp-specs] entrypoints.
 
-## Book
+**External**
 
-The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
-getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
+- [`rpc`](./crates/external/rpc): OP Stack RPC types and extensions.
+- [`net`](./crates/external/net): OP Stack Networking including P2P and Discovery.
+
+**Providers**
+
+- [`providers-alloy`](./crates/providers/providers-alloy): Provider implementations for `kona-derive` backed by [Alloy][alloy].
+- [`providers-local`](./crates/providers/providers-local): Local provider implementations for `kona-derive`.
+
+**Utilities**
+
+- [`serde`](./crates/utilities/serde): Serialization helpers.
+
+
+## MSRV
+
+The current MSRV (minimum supported rust version) is 1.81.
+
+The MSRV is not increased automatically, and will be updated
+only as part of a patch (pre-1.0) or minor (post-1.0) release.
+
+
+## Contributing
+
+`kona` is built by open source contributors like you, thank you for improving the project!
+
+A [contributing guide][contributing] is available that sets guidelines for contributing.
+
+Pull requests will not be merged unless CI passes, so please ensure that your contribution
+follows the linting rules and passes clippy.
+
 
 ## Credits
 
@@ -79,10 +132,25 @@ getting started with building your own programs, and a reference for the librari
 
 `kona` is also built on rust types in [alloy][alloy], [op-alloy][op-alloy], and [maili][maili].
 
+
+## License
+
+Licensed under the <a href="LICENSE-MIT">MIT license</a>.
+
+> [!NOTE]
+>
+> Contributions intentionally submitted for inclusion in these crates by you
+> shall be licensed as above, without any additional terms or conditions.
+
+
+<!-- Links -->
+
 [alloy]: https://github.com/alloy-rs/alloy
 [maili]: https://github.com/op-rs/maili
 [op-alloy]: https://github.com/alloy-rs/op-alloy
+[contributing]: https://op-rs.github.io/kona/CONTRIBUTING.html
 [op-stack]: https://github.com/ethereum-optimism/optimism
+[superchain-registry]: https://github.com/ethereum-optimism/superchain-registry
 [op-program]: https://github.com/ethereum-optimism/optimism/tree/develop/op-program
 [cannon]: https://github.com/ethereum-optimism/optimism/tree/develop/cannon
 [cannon-rs]: https://github.com/op-rs/cannon-rs

@@ -9,22 +9,22 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-# Workspace
+# Proof
 kona-mpt.workspace = true
-kona-derive.workspace = true
-kona-driver.workspace = true
 kona-preimage.workspace = true
 kona-executor.workspace = true
-kona-interop.workspace = true
 kona-proof.workspace = true
 kona-proof-interop.workspace = true
 kona-std-fpvm.workspace = true
 kona-std-fpvm-proc.workspace = true
 
-# Maili
-maili-protocol.workspace = true
-maili-genesis = { workspace = true, features = ["serde"] }
-maili-registry.workspace = true
+# Protocol
+kona-derive.workspace = true
+kona-driver.workspace = true
+kona-interop.workspace = true
+kona-registry.workspace = true
+kona-protocol.workspace = true
+kona-genesis = { workspace = true, features = ["serde"] }
 
 # Alloy
 alloy-rlp.workspace = true

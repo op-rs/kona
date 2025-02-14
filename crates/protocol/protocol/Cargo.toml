@@ -1,0 +1,105 @@
+[package]
+name = "kona-protocol"
+version = "0.1.0"
+description = "Optimism protocol-specific types"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Workspace
+kona-genesis.workspace = true
+
+# OP Alloy
+op-alloy-flz.workspace = true
+op-alloy-consensus.workspace = true
+
+# Alloy
+alloy-primitives = { workspace = true, features = ["map"] }
+alloy-rlp.workspace = true
+alloy-eips.workspace = true
+alloy-consensus.workspace = true
+
+# Misc
+rand = { workspace = true, features = ["small_rng"] }
+tracing.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+unsigned-varint.workspace = true
+
+# Compression
+brotli.workspace = true
+miniz_oxide.workspace = true
+alloc-no-stdlib.workspace = true
+
+# `arbitrary` feature
+arbitrary = { workspace = true, features = ["derive"], optional = true }
+
+# `serde` feature
+serde = { workspace = true, optional = true }
+alloy-serde = { workspace = true, optional = true }
+
+# `test-utils` feature
+spin = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = ["fmt"], optional = true }
+
+[dev-dependencies]
+brotli = { workspace = true, features = ["std"] }
+revm.workspace = true
+spin.workspace = true
+rand = { workspace = true, features = ["std", "std_rng"] }
+rstest.workspace = true
+proptest.workspace = true
+serde_json.workspace = true
+alloy-sol-types.workspace = true
+tokio = { workspace = true, features = ["full"] }
+arbitrary = { workspace = true, features = ["derive"] }
+tracing-subscriber = { workspace = true, features = ["fmt"] }
+alloy-primitives = { workspace = true, features = ["arbitrary"] }
+
+[features]
+default = []
+std = [
+  "kona-genesis/std",
+  "op-alloy-consensus/std",
+  "brotli/std",
+  "alloy-consensus/std",
+  "alloy-primitives/std",
+  "alloy-rlp/std",
+  "alloy-serde?/std",
+  "miniz_oxide/std",
+  "thiserror/std",
+  "unsigned-varint/std"
+]
+test-utils = [
+  "dep:spin",
+  "dep:tracing-subscriber",
+]
+arbitrary = [
+  "std",
+  "dep:arbitrary",
+  "kona-genesis/arbitrary",
+  "op-alloy-consensus/arbitrary",
+  "alloy-consensus/arbitrary",
+  "alloy-eips/arbitrary",
+  "alloy-primitives/rand",
+  "alloy-primitives/arbitrary",
+]
+serde = [
+  "dep:serde",
+  "dep:alloy-serde",
+  "kona-genesis/serde",
+  "op-alloy-consensus/serde",
+  "alloy-consensus/serde",
+  "alloy-eips/serde",
+  "alloy-primitives/serde",
+  "tracing-subscriber?/serde"
+]

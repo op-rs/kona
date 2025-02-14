@@ -5,7 +5,7 @@
 //! to iterate over data for a given (L2) [BlockInfo].
 //!
 //! [DataAvailabilityProvider]: crate::traits::DataAvailabilityProvider
-//! [BlockInfo]: maili_protocol::BlockInfo
+//! [BlockInfo]: kona_protocol::BlockInfo
 
 mod blob_data;
 pub use blob_data::BlobData;

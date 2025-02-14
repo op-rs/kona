@@ -5,8 +5,8 @@ use crate::{constants::FEE_RECIPIENT, ExecutorError, ExecutorResult, TrieDBProvi
 use alloy_consensus::Header;
 use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
 use alloy_primitives::{TxKind, U256};
+use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
-use maili_genesis::RollupConfig;
 use op_alloy_consensus::OpTxEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::primitives::{

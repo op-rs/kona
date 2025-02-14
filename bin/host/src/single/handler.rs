@@ -17,7 +17,7 @@ use anyhow::{anyhow, ensure, Result};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
-use maili_protocol::BlockInfo;
+use kona_protocol::BlockInfo;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use std::collections::HashMap;
 use tracing::warn;

@@ -1,0 +1,38 @@
+# Standard Chain Config Parameters
+[rollup_config]
+# alt_da must be nil
+seq_window_size = [3600, 3600]
+block_time = [1, 2]
+
+[optimism_portal_2]
+proof_maturity_delay_seconds = [604800, 604800]        # 7 days
+dispute_game_finality_delay_seconds = [302400, 302400] # 2.5 days
+respected_game_type = 0
+
+[resource_config]
+max_resource_limit = 20000000
+elasticity_multiplier = 10
+base_fee_max_change_denominator = 8
+minimum_base_fee = 1000000000
+system_tx_max_gas = 1000000
+maximum_base_fee = "340_282_366_920_938_463_463_374_607_431_768_211_455"
+
+[gas_price_oracle.pre-ecotone]
+decimals = [6, 6]
+overhead = [188, 2_100]
+scalar = [684_000, 1_000_000]
+
+[gas_price_oracle.ecotone]
+decimals = [6, 6]
+blob_base_fee_scalar = [0, 10_000_000]
+base_fee_scalar = [0, 10_000_000]
+
+[system_config]
+gas_limit = [1000, 60_000_000]
+
+[proofs.permissioned]
+game_type = 1
+max_game_depth = 73
+split_depth = 30
+max_clock_duration = 302400
+clock_extension = 10800

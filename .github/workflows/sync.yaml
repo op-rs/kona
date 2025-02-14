@@ -1,0 +1,43 @@
+name: Synchronize Git Submodules
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron:  '30 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  submodule-sync:
+    name: Synchronize the git submodule
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_TOKEN }}
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Update Submodule
+        run: just source && just bind
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          commit-message: Update Submodules
+          signoff: false
+          branch: bot/update-submodules
+          base: main
+          delete-branch: true
+          title: '[BOT] Update Submodules'
+          body: |
+            ### Description
+
+            Automated PR to update git submodules.
+          labels: |
+            A-submodules
+            C-bot
+          assignees: refcell
+          draft: false

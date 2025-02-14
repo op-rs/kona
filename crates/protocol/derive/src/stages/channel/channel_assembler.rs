@@ -10,17 +10,17 @@ use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::{hex, Bytes};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::{
+use kona_genesis::{
     RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
 };
-use maili_protocol::{BlockInfo, Channel};
+use kona_protocol::{BlockInfo, Channel};
 
 /// The [ChannelAssembler] stage is responsible for assembling the [Frame]s from the [FrameQueue]
 /// stage into a raw compressed [Channel].
 ///
-/// [Frame]: maili_protocol::Frame
+/// [Frame]: kona_protocol::Frame
 /// [FrameQueue]: crate::stages::FrameQueue
-/// [Channel]: maili_protocol::Channel
+/// [Channel]: kona_protocol::Channel
 #[derive(Debug)]
 pub struct ChannelAssembler<P>
 where
@@ -191,10 +191,10 @@ mod test {
         test_utils::{CollectingLayer, TestNextFrameProvider, TraceStorage},
     };
     use alloc::{sync::Arc, vec};
-    use maili_genesis::{
+    use kona_genesis::{
         RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
     };
-    use maili_protocol::BlockInfo;
+    use kona_protocol::BlockInfo;
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 

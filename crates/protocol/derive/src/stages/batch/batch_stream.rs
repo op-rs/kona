@@ -9,8 +9,8 @@ use crate::{
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{
+use kona_genesis::RollupConfig;
+use kona_protocol::{
     Batch, BatchValidity, BatchWithInclusionBlock, BlockInfo, L2BlockInfo, SingleBatch, SpanBatch,
 };
 
@@ -226,7 +226,7 @@ mod test {
     };
     use alloc::vec;
     use alloy_eips::NumHash;
-    use maili_protocol::{SingleBatch, SpanBatchElement};
+    use kona_protocol::{SingleBatch, SpanBatchElement};
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
     #[tokio::test]

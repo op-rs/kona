@@ -10,8 +10,8 @@ use crate::{
 };
 use alloc::sync::Arc;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::BlockInfo;
+use kona_genesis::RollupConfig;
+use kona_protocol::BlockInfo;
 
 type L1TraversalStage<P> = L1Traversal<P>;
 type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;

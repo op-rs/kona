@@ -5,16 +5,16 @@
 //! for streaming [SingleBatch]es from [SpanBatch]es, while the [BatchProvider] stage is responsible
 //! for ordering and validating the [Batch]es for the [AttributesQueue] stage.
 //!
-//! [Batch]: maili_protocol::Batch
-//! [SingleBatch]: maili_protocol::SingleBatch
-//! [SpanBatch]: maili_protocol::SpanBatch
+//! [Batch]: kona_protocol::Batch
+//! [SingleBatch]: kona_protocol::SingleBatch
+//! [SpanBatch]: kona_protocol::SpanBatch
 //! [ChannelReader]: crate::stages::channel::ChannelReader
 //! [AttributesQueue]: crate::stages::attributes_queue::AttributesQueue
 
 use crate::types::PipelineResult;
 use alloc::boxed::Box;
 use async_trait::async_trait;
-use maili_protocol::{Batch, BlockInfo, L2BlockInfo};
+use kona_protocol::{Batch, BlockInfo, L2BlockInfo};
 
 mod batch_stream;
 pub use batch_stream::{BatchStream, BatchStreamProvider};
@@ -47,8 +47,8 @@ pub trait NextBatchProvider {
     /// Returns the number of [SingleBatch]es that are currently buffered in the [BatchStream]
     /// from a [SpanBatch].
     ///
-    /// [SpanBatch]: maili_protocol::SpanBatch
-    /// [SingleBatch]: maili_protocol::SingleBatch
+    /// [SpanBatch]: kona_protocol::SpanBatch
+    /// [SingleBatch]: kona_protocol::SingleBatch
     fn span_buffer_size(&self) -> usize;
 
     /// Allows the stage to flush the buffer in the [crate::stages::BatchStream]

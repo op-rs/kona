@@ -3,7 +3,7 @@
 use alloc::collections::{btree_map::BTreeMap, vec_deque::VecDeque};
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::{map::HashMap, B256};
-use maili_protocol::{BlockInfo, L2BlockInfo};
+use kona_protocol::{BlockInfo, L2BlockInfo};
 
 use crate::TipCursor;
 

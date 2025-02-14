@@ -1,0 +1,141 @@
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@5.0.3
+  utils: ethereum-optimism/circleci-utils@1.0.8
+
+parameters:
+  default_docker_image:
+    type: string
+    default: cimg/base:2024.01
+
+jobs:
+  go-lint-test:
+    parameters:
+      package:
+        type: string
+    docker:
+      - image: <<pipeline.parameters.default_docker_image>>
+    steps:
+      - utils/checkout-with-mise
+      - run:
+          name: Tidy mod
+          command: |
+            go mod tidy
+            git diff --exit-code
+          working_directory: << parameters.package >>
+      - run:
+          name: Lint
+          command: golangci-lint run ./...
+          working_directory: << parameters.package >>
+      - run:
+          name: Run tests
+          command: gotestsum --format testname --junitfile test-results.xml --packages=./... -- --coverprofile coverage.out
+          working_directory: << parameters.package >>
+      - store_test_results:
+          path: << parameters.package >>/test-results.xml
+      - codecov/upload:
+          disable_search: true
+          files: ./<<parameters.package>>/coverage.out
+
+  run-tool:
+    parameters:
+      tool:
+        type: string
+      args:
+        type: string
+        default: ""
+      check_diff:
+        type: boolean
+        default: false
+    docker:
+      - image: <<pipeline.parameters.default_docker_image>>
+    steps:
+      - utils/checkout-with-mise
+      - run:
+          name: Run tool
+          command: go run ./cmd/<< parameters.tool >>/main.go << parameters.args >>
+          working_directory: ops
+      - when:
+          condition: << parameters.check_diff >>
+          steps:
+            - run:
+                name: Check diff
+                command: git diff --exit-code
+
+  check-staging-empty:
+    docker:
+      - image: <<pipeline.parameters.default_docker_image>>
+    steps:
+      - utils/checkout-with-mise
+      - run:
+          name: Check staging is empty
+          command: |
+            # Count number of files in .staging (including hidden files)
+            file_count=$(ls -la .staging | wc -l)
+            # Subtract 3 from count to account for "." and ".." and ".gitkeep"
+            actual_count=$((file_count - 3))
+
+            # Check if .gitkeep exists
+            if [ ! -f ".staging/.gitkeep" ]; then
+                echo "Error: .gitkeep file is missing"
+                exit 1
+            fi
+
+            # Nothing else should be in the directory
+            if [ $actual_count -ne 1 ]; then
+              echo "Staging directory is not empty"
+              exit 1
+            fi
+
+  run-staging-report:
+    circleci_ip_ranges: true
+    docker:
+      - image: <<pipeline.parameters.default_docker_image>>
+    steps:
+      - utils/checkout-with-mise
+      - run:
+          name: Check if PR
+          command: |
+            if [ -z "$CIRCLE_PULL_REQUEST" ]; then
+              echo "Not a PR, skipping"
+              circleci-agent step halt
+            fi
+      - run:
+          name: Run staging report
+          command: |
+            cd ops
+            go run ./cmd/print_staging_report/main.go
+
+workflows:
+  main:
+    jobs:
+      - go-lint-test:
+          name: go-lint-test-ops
+          package: ops
+      - go-lint-test:
+          name: go-lint-test-validation
+          package: validation
+      - run-tool:
+          name: check-genesis-integrity
+          tool: check_genesis_integrity
+      - run-tool:
+          name: check-codegen
+          tool: codegen
+          check_diff: true
+      - run-tool:
+          name: check-staging-synced
+          tool: sync_staging
+          check_diff: true
+      - check-staging-empty:
+          name: check-staging-empty
+      - run-tool:
+          name: check-apply-hardforks
+          tool: apply_hardforks
+          check_diff: true
+      - run-tool:
+          name: check-chainlist
+          tool: check_chainlist
+      - run-staging-report:
+          name: run-staging-report
+

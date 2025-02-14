@@ -11,9 +11,9 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use maili_genesis::RollupConfig;
-use maili_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
-use maili_rpc::OpAttributesWithParent;
+use kona_genesis::RollupConfig;
+use kona_protocol::{BlockInfo, L2BlockInfo, SingleBatch};
+use kona_rpc::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// [AttributesQueue] accepts batches from the [BatchQueue] stage

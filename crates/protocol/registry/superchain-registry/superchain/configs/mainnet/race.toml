@@ -1,0 +1,57 @@
+name = "RACE Mainnet"
+public_rpc = "https://racemainnet.io"
+sequencer_rpc = "https://racemainnet.io"
+explorer = "https://racescan.io/"
+superchain_level = 0
+governed_by_optimism = false
+data_availability_type = "eth-da"
+chain_id = 6805
+batch_inbox_addr = "0xFF00000000000000000000000000000000006805"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1720421591
+  [genesis.l1]
+    hash = "0xb6fd41e6c3515172c36d3912046264475eaad84c2c56e99d74f4abd1a75b63c9"
+    number = 20260129
+  [genesis.l2]
+    hash = "0xa864791943836c37b40ea688f3853f2198afb683a3e168d48bfa76c9896e3e65"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0x8CDa8351236199AF7532baD53D683Ddd9B275d89"
+    overhead = "0x00000000000000000000000000000000000000000000000000000000000000bc"
+    scalar = "0x00000000000000000000000000000000000000000000000000000000000a6fe0"
+    gasLimit = 30000000
+
+[roles]
+  SystemConfigOwner = "0xBac1ad52745162c0aA3711fe88Df1Cc67034a3B9"
+  ProxyAdminOwner = "0x5A669B2193718F189b0576c0cdcedfEd6f40F9Ea"
+  Guardian = "0x2E7B9465B25C081c07274A31DbD05C6146f67961"
+  Challenger = "0x2E7B9465B25C081c07274A31DbD05C6146f67961"
+  Proposer = "0x88D58BFbCD70c25409b67117fC1CDfeFDA113a78"
+  UnsafeBlockSigner = "0x9b5639D472D6764b70F5046Ac0B13438718398E0"
+  BatchSubmitter = "0x8CDa8351236199AF7532baD53D683Ddd9B275d89"
+
+[addresses]
+  AddressManager = "0x3d2BdE87466Cae97011702D2C305fd40EEBbbF0a"
+  L1CrossDomainMessengerProxy = "0xf54B2BAEF894cfF5511A5722Acaac0409F2F2d89"
+  L1ERC721BridgeProxy = "0x0f33D824d74180598311b3025095727BeA61f219"
+  L1StandardBridgeProxy = "0x680969A6c58183987c8126ca4DE6b59C6540Cd2a"
+  L2OutputOracleProxy = "0x8bF8442d49d52377d735a90F19657a29f29aA83c"
+  OptimismMintableERC20FactoryProxy = "0x1d1c4C89AD5FF486c3C67E3DD84A22CF05420711"
+  OptimismPortalProxy = "0x0485Ca8A73682B3D3f5ae98cdca1E5b512E728e9"
+  SystemConfigProxy = "0xCf6A32dB8b3313b3d439CE6909511c2c3415fa32"
+  ProxyAdmin = "0x9B3C6D1d33F1fd82Ebb8dFbE38dA162B329De191"
+  SuperchainConfig = "0xCB73B7348705a9F925643150Eb00350719380FF8"

@@ -1,0 +1,64 @@
+name = "Swellchain"
+public_rpc = "https://swell-mainnet.alt.technology"
+sequencer_rpc = "https://swell-mainnet.alt.technology"
+explorer = "https://explorer.swellnetwork.io"
+superchain_level = 1
+governed_by_optimism = true
+data_availability_type = "eth-da"
+chain_id = 1923
+batch_inbox_addr = "0x005dE5857e38dFD703a1725c0900E9C6f24cbdE0"
+block_time = 2
+seq_window_size = 3600
+max_sequencer_drift = 600
+
+[hardforks]
+  canyon_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  delta_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  ecotone_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  fjord_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+  granite_time = 0 # Thu 1 Jan 1970 00:00:00 UTC
+
+[optimism]
+  eip1559_elasticity = 6
+  eip1559_denominator = 50
+  eip1559_denominator_canyon = 250
+
+[genesis]
+  l2_time = 1732696703
+  [genesis.l1]
+    hash = "0xd904f8475cc7b74a9ef4749d0ee9aeca3b233aa3dc143667e8a20ffe43789a26"
+    number = 21277945
+  [genesis.l2]
+    hash = "0x92379973a1576876b7337a9ce89e2a7a9cb99887f55e6045ed2069d5d98d9319"
+    number = 0
+  [genesis.system_config]
+    batcherAddress = "0xf854cd5B26bfd73d51236c0122798907Ed65B1f2"
+    overhead = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    scalar = "0x010000000000000000000000000000000000000000000000000c5fc500000558"
+    gasLimit = 60000000
+
+[roles]
+  SystemConfigOwner = "0x06F7fB1C74147e34Fce04a6828c7BF809B038d0E"
+  ProxyAdminOwner = "0x5a0Aae59D09fccBdDb6C6CcEB07B7279367C3d2A"
+  Guardian = "0x09f7150D8c019BeF34450d6920f6B3608ceFdAf2"
+  Challenger = "0x9BA6e03D8B90dE867373Db8cF1A58d2F7F006b3A"
+  Proposer = "0xfE5dD32c3799249dC6A5D637CCB2f28e0ec227e3"
+  UnsafeBlockSigner = "0x6967D304E9b7E26b5eb3f5A1FD1239DaAD3215E6"
+  BatchSubmitter = "0xf854cd5B26bfd73d51236c0122798907Ed65B1f2"
+
+[addresses]
+  AddressManager = "0xa54a84f17c2180148c762D79bC57BdfF7FdAFC8A"
+  L1CrossDomainMessengerProxy = "0xe6a99Ef12995DeFC5ff47EC0e13252f0E6903759"
+  L1ERC721BridgeProxy = "0xfd7618330E63B493070DC8C491Ad4aD26144Bc1e"
+  L1StandardBridgeProxy = "0x7aA4960908B13D104bf056B23E2C76B43c5AACc8"
+  OptimismMintableERC20FactoryProxy = "0xc2b228cd433eBaE788DE287EDE2abE55B3F3F603"
+  OptimismPortalProxy = "0x758E0EE66102816F5C3Ec9ECc1188860fbb87812"
+  SystemConfigProxy = "0xD3d4c6B703978a5d24FecF3a70a51127667Ff1A4"
+  ProxyAdmin = "0x4C4710a4Ec3F514A492CC6460818C4A6A6269dd6"
+  SuperchainConfig = "0x95703e0982140D16f8ebA6d158FccEde42f04a4C"
+  AnchorStateRegistryProxy = "0x14387438EE964e826A4EAeB95B2BCe7754174dD1"
+  DelayedWETHProxy = "0x89c98736A806176Fe85283c1cB727ffBdeaf37A9"
+  DisputeGameFactoryProxy = "0x87690676786cDc8cCA75A472e483AF7C8F2f0F57"
+  MIPS = "0x16e83cE5Ce29BF90AD9Da06D2fE6a15d5f344ce4"
+  PermissionedDisputeGame = "0xa0cFbe3402d6E0a74e96D3C360F74D5ea4Fa6893"
+  PreimageOracle = "0x9c065e11870B891D214Bc2Da7EF1f9DDFA1BE277"
