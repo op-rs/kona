@@ -297,7 +297,7 @@ impl HintHandler for InteropHintHandler {
 
                 ensure!(hint.data.len() == 40, "Invalid hint data length");
 
-                let hash: B256 = hint.data[..32].as_ref().try_into()?;
+                let hash: B256 = B256::from_slice(&hint.data[0..32]);
                 let chain_id = u64::from_be_bytes(hint.data[32..40].try_into()?);
                 let l2_provider = providers.l2(&chain_id)?;
 
