@@ -2708,6 +2708,7 @@ dependencies = [
  "alloy-transport-http",
  "alloy-trie",
  "criterion",
+ "op-alloy-rpc-types-engine",
  "pprof",
  "proptest",
  "rand 0.9.0",

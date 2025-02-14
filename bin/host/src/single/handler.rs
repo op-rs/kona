@@ -16,7 +16,7 @@ use alloy_rpc_types::{debug::ExecutionWitness, Block, BlockTransactionsKind};
 use anyhow::{anyhow, ensure, Result};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
-use kona_proof::{Hint, HintType};
+use kona_proof::{Hint, HintType, PayloadWitnessHint};
 use maili_protocol::BlockInfo;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use std::collections::HashMap;
@@ -320,16 +320,15 @@ impl HintHandler for SingleChainHintHandler {
             HintType::L2PayloadWitness => {
                 ensure!(hint.data.len() >= 32, "Invalid hint data length");
 
-                let parent_block_hash = B256::from_slice(&hint.data.as_ref()[..32]);
-                let payload_attributes: OpPayloadAttributes =
-                    serde_json::from_slice(&hint.data[32..])?;
+                let hint_payload: PayloadWitnessHint =
+                    serde_json::from_slice(&hint.data)?;
 
                 let execute_payload_response: ExecutionWitness = providers
                     .l2
                     .client()
                     .request::<(B256, OpPayloadAttributes), ExecutionWitness>(
                         "debug_executePayload",
-                        (parent_block_hash, payload_attributes),
+                        (hint_payload.parent_block_hash, hint_payload.payload_attributes),
                     )
                     .await
                     .map_err(|e| anyhow!("Failed to fetch preimage: {e}"))?;

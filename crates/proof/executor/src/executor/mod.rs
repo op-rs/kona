@@ -79,6 +79,7 @@ where
         db: &mut TrieDB<F, H>,
         block_number: u64,
     ) -> Result<B256, TrieDBError> {
+        db.hinter.hint_account_proof(L2_TO_L1_BRIDGE, block_number).map_err(|_err| TrieDBError::MissingAccountInfo)?;
         match db.storage_roots().get(&L2_TO_L1_BRIDGE) {
             Some(storage_root) => Ok(storage_root.blind()),
             None => Ok(db
@@ -136,6 +137,8 @@ where
         );
 
         let parent_block_hash: B256 = self.trie_db.parent_block_header().seal();
+
+        self.trie_db.hinter.hint_payload_execution(parent_block_hash, &payload).map_err(|_err| TrieDBError::MissingAccountInfo)?;
 
         let mut state =
             State::builder().with_database(&mut self.trie_db).with_bundle_update().build();

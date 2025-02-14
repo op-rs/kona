@@ -1,6 +1,6 @@
 //! Contains the concrete implementation of the [L2ChainProvider] trait for the client program.
 
-use crate::{errors::OracleProviderError, HintType};
+use crate::{errors::OracleProviderError, HintType, PayloadWitnessHint};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{BlockBody, Header};
 use alloy_eips::eip2718::Decodable2718;
@@ -15,6 +15,7 @@ use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use maili_genesis::{RollupConfig, SystemConfig};
 use maili_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
 use op_alloy_consensus::{OpBlock, OpTxEnvelope};
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use spin::RwLock;
 
 /// The oracle-backed L2 chain provider for the client program.
@@ -236,6 +237,27 @@ impl<T: CommsClient> TrieHinter for OracleL2ChainProvider<T> {
                     block_number.to_be_bytes().as_ref(),
                     address.as_slice(),
                     slot.to_be_bytes::<32>().as_ref(),
+                ])
+                .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
+                .send(self.oracle.as_ref())
+                .await
+        })
+    }
+
+    fn hint_payload_execution(
+        &self,
+        parent_block_hash: B256,
+        payload_attributes: &OpPayloadAttributes,
+    ) -> Result<(), Self::Error> {
+        crate::block_on(async move {
+            HintType::L2PayloadWitness
+                .with_data(&[
+                    &serde_json::to_vec(&PayloadWitnessHint{
+                        parent_block_hash: parent_block_hash,
+                        payload_attributes: payload_attributes.clone(),
+                        chain_id: None,
+                    }).map_err(OracleProviderError::Serde)?
+                    
                 ])
                 .with_data(self.chain_id.map_or_else(Vec::new, |id| id.to_be_bytes().to_vec()))
                 .send(self.oracle.as_ref())

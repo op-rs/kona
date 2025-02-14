@@ -2,7 +2,7 @@
 
 use alloc::{string::ToString, vec::Vec};
 use core::{fmt::Display, str::FromStr};
-use kona_proof::{errors::HintParsingError, Hint};
+use kona_proof::{errors::HintParsingError, EncodableHint, Hint, HintEncodingType};
 
 /// The [HintType] enum is used to specify the type of hint that was received.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -105,5 +105,11 @@ impl Display for HintType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s: &str = (*self).into();
         write!(f, "{}", s)
+    }
+}
+
+impl EncodableHint for HintType {
+    fn encoding_type(&self) -> HintEncodingType {
+        HintEncodingType::Hex
     }
 }

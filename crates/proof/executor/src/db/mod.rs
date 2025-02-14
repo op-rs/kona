@@ -88,7 +88,7 @@ where
     /// The [TrieDBProvider]
     fetcher: F,
     /// The [TrieHinter]
-    hinter: H,
+    pub hinter: H,
 }
 
 impl<F, H> TrieDB<F, H>

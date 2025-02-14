@@ -7,7 +7,7 @@ use kona_preimage::{
     errors::{PreimageOracleError, PreimageOracleResult},
     HintRouter, PreimageFetcher, PreimageKey,
 };
-use kona_proof::{errors::HintParsingError, Hint};
+use kona_proof::{errors::HintParsingError, EncodableHint, Hint};
 use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{debug, error, trace};
@@ -16,7 +16,7 @@ use tracing::{debug, error, trace};
 /// [OnlineHostBackend].
 pub trait OnlineHostBackendCfg {
     /// The hint type describing the range of hints that can be received.
-    type HintType: FromStr<Err = HintParsingError> + Hash + Eq + PartialEq + Clone + Send + Sync;
+    type HintType: FromStr<Err = HintParsingError> + EncodableHint + Hash + Eq + PartialEq + Clone + Send + Sync;
 
     /// The providers that are used to fetch data in response to hints.
     type Providers: Send + Sync;

@@ -20,6 +20,7 @@ serde = { workspace = true, optional = true, features = ["derive", "alloc"] }
 alloy-rlp.workspace = true
 alloy-trie.workspace = true
 alloy-primitives = { workspace = true, features = ["rlp"] }
+op-alloy-rpc-types-engine.workspace = true
 
 [dev-dependencies]
 # Alloy

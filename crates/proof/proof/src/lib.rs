@@ -21,7 +21,7 @@ pub mod errors;
 pub mod executor;
 
 mod hint;
-pub use hint::{Hint, HintType};
+pub use hint::{Hint, HintType, HintEncodingType, EncodableHint, PayloadWitnessHint};
 
 pub mod boot;
 pub use boot::BootInfo;

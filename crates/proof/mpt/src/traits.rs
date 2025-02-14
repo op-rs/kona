@@ -5,6 +5,7 @@ use crate::TrieNode;
 use alloc::string::ToString;
 use alloy_primitives::{Address, B256, U256};
 use core::fmt::Display;
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// The [TrieProvider] trait defines the synchronous interface for fetching trie node preimages.
 pub trait TrieProvider {
@@ -64,5 +65,21 @@ pub trait TrieHinter {
         address: Address,
         slot: U256,
         block_number: u64,
+    ) -> Result<(), Self::Error>;
+
+    /// Hints the host to fetch all trie nodes required for the execution of the given payload
+    /// attributes.
+    ///
+    /// ## Takes
+    /// - `parent_block_hash` - the block hash to build the payload on
+    /// - `payload_attributes` - payload data including transactions
+    ///
+    /// ## Returns
+    /// - Ok(()): If the hint was successful.
+    /// - Err(Self::Error): If the hint was unsuccessful.
+    fn hint_payload_execution(
+        &self,
+        parent_block_hash: B256,
+        payload_attributes: &OpPayloadAttributes,
     ) -> Result<(), Self::Error>;
 }

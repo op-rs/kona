@@ -4,6 +4,7 @@
 use crate::{TrieHinter, TrieNode, TrieProvider};
 use alloc::string::String;
 use alloy_primitives::{Address, B256, U256};
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// The default, no-op implementation of the [TrieProvider] trait, used for testing.
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +38,14 @@ impl TrieHinter for NoopTrieHinter {
         _address: Address,
         _slot: U256,
         _block_number: u64,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn hint_payload_execution(
+        &self,
+        _parent_block_hash: B256,
+        _payload_attributes: &OpPayloadAttributes,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
