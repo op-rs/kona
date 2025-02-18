@@ -1,8 +1,9 @@
 # Summary
 
 - [Introduction](./intro.md)
-- [Proposals](./proposals/intro.md)
-  - [Monorepo](./proposals/monorepo.md)
+- [RFC](./rfc/intro.md)
+  - [Monorepo](./rfc/monorepo.md)
+- [Archives](./archives/intro.md)
 - [Fault Proof Program Development](./fpp-dev/intro.md)
   - [Environment](./fpp-dev/env.md)
     - [Supported Targets](./fpp-dev/targets.md)

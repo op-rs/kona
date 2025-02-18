@@ -1,7 +1,7 @@
-# Monorepo Project Proposal
+# [RFC] Monorepo Project
 
-This is a proposal to merge multiple external repositories into
-`kona` to create a rust monorepo for Optimism.
+This is an RFC (request for comment) to merge multiple external
+repositories into `kona` to create a rust monorepo for Optimism.
 
 ## Provenance
 
