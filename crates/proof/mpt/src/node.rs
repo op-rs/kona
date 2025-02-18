@@ -145,7 +145,8 @@ impl TrieNode {
     ///
     /// ## Returns
     /// - `Err(_)` - Could not retrieve the node with the given key from the trie.
-    /// - `Ok((_, _))` - The key and value of the node
+    /// - `Ok(None)` - The node with the given key does not exist in the trie.
+    /// - `Ok(Some(_))` - The value of the node
     pub fn open<'a, F: TrieProvider>(
         &'a mut self,
         path: &Nibbles,
