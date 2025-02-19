@@ -173,6 +173,7 @@ libp2p-identity = "0.2.10"
 tracing-loki = "0.2.6"
 tracing-subscriber = "0.3.19"
 tracing = { version = "0.1.41", default-features = false }
+metrics-exporter-prometheus = { version = "0.16.0", default-features = false }
 
 # Testing
 pprof = "0.14.0"
