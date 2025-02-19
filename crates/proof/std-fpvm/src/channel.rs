@@ -69,6 +69,7 @@ struct ReadFuture<'a> {
 
 impl<'a> ReadFuture<'a> {
     /// Create a new [ReadFuture] from a channel and a buffer.
+    #[allow(clippy::missing_const_for_fn)]
     fn new(channel: FileChannel, buf: &'a mut [u8]) -> Self {
         Self { channel, buf: RefCell::new(buf), read: 0 }
     }

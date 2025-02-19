@@ -69,7 +69,6 @@ lint-native: fmt-native-check lint-docs
 lint-cannon:
   docker run \
     --rm \
-    --platform linux/amd64 \
     -v `pwd`/:/workdir \
     -w="/workdir" \
     ghcr.io/op-rs/kona/cannon-builder:main cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
@@ -78,7 +77,6 @@ lint-cannon:
 lint-asterisc:
   docker run \
     --rm \
-    --platform linux/amd64 \
     -v `pwd`/:/workdir \
     -w="/workdir" \
     ghcr.io/op-rs/kona/asterisc-builder:main cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
@@ -102,7 +100,6 @@ build-native *args='':
 build-cannon *args='':
   docker run \
     --rm \
-    --platform linux/amd64 \
     -v `pwd`/:/workdir \
     -w="/workdir" \
     ghcr.io/op-rs/kona/cannon-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-providers-alloy --exclude kona-net
@@ -111,7 +108,6 @@ build-cannon *args='':
 build-asterisc *args='':
   docker run \
     --rm \
-    --platform linux/amd64 \
     -v `pwd`/:/workdir \
     -w="/workdir" \
     ghcr.io/op-rs/kona/asterisc-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-providers-alloy --exclude kona-net
