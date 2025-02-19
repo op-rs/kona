@@ -2,7 +2,7 @@
   "arch": "mips64",
   "cpu": "mips64",
   "llvm-target": "mips64-unknown-none",
-  "data-layout": "E-m:e-i8:8:32-i16:16:32-i64:64-n32:64-S128",
+  "data-layout": "E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128",
   "target-endian": "big",
   "target-pointer-width": "64",
   "target-c-int-width": "32",
