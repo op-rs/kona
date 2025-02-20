@@ -7,6 +7,7 @@ use crate::SystemConfig;
 /// Chain genesis information.
 #[derive(Debug, Copy, Clone, Default, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct ChainGenesis {
     /// L1 genesis block
     pub l1: BlockNumHash,

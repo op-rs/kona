@@ -36,6 +36,7 @@ const fn default_interop_message_expiry_window() -> u64 {
 /// The Rollup configuration.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct RollupConfig {
     /// The genesis state of the rollup.
     pub genesis: ChainGenesis,

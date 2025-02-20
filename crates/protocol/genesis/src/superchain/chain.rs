@@ -6,6 +6,7 @@ use alloc::{string::String, vec::Vec};
 /// A superchain configuration.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct Superchain {
     /// Superchain identifier, without capitalization or display changes.
     pub name: String,
@@ -21,6 +22,36 @@ mod tests {
     use super::*;
     use crate::{HardForkConfiguration, SuperchainConfig, SuperchainL1Info};
     use alloc::{string::ToString, vec};
+
+    #[test]
+    fn test_deny_unknown_fields_superchain() {
+        let raw: &str = r#"
+        {
+            "name": "Mainnet",
+            "config": {
+                "name": "Mainnet",
+                "l1": {
+                    "chainId": 10,
+                    "publicRPC": "https://mainnet.rpc",
+                    "explorer": "https://mainnet.explorer"
+                },
+                "hardforks": {
+                    "canyon_time": 1699981200,
+                    "delta_time": 1703203200,
+                    "ecotone_time": 1708534800,
+                    "fjord_time": 1716998400,
+                    "granite_time": 1723478400,
+                    "holocene_time": 1732633200
+                }
+            },
+            "chains": [],
+            "other": "test"
+        }
+        "#;
+
+        let err = serde_json::from_str::<Superchain>(raw).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
+    }
 
     #[test]
     fn test_superchain_serde() {

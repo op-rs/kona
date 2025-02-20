@@ -11,8 +11,9 @@ use crate::{
 /// System configuration.
 #[derive(Debug, Copy, Clone, Default, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct SystemConfig {
     /// Batcher address
     #[cfg_attr(feature = "serde", serde(rename = "batcherAddress", alias = "batcherAddr"))]
@@ -35,6 +36,61 @@ pub struct SystemConfig {
     pub operator_fee_scalar: Option<u32>,
     /// The operator fee constant (isthmus hardfork)
     pub operator_fee_constant: Option<u64>,
+}
+
+/// Custom EIP-1559 parameter decoding is needed here for holocene encoding.
+///
+/// This is used by the Optimism monorepo [here][here].
+///
+/// [here]: https://github.com/ethereum-optimism/optimism/blob/cf28bffc7d880292794f53bb76bfc4df7898307b/op-service/eth/types.go#L519
+
+#[cfg(feature = "serde")]
+impl<'a> serde::Deserialize<'a> for SystemConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        // An alias struct that is identical to `SystemConfig`.
+        // We use the alias to decode the eip1559 params as their u32 values.
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        #[serde(deny_unknown_fields)]
+        struct SystemConfigAlias {
+            #[serde(rename = "batcherAddress", alias = "batcherAddr")]
+            batcher_address: Address,
+            overhead: U256,
+            scalar: U256,
+            gas_limit: u64,
+            base_fee_scalar: Option<u64>,
+            blob_base_fee_scalar: Option<u64>,
+            eip1559_params: Option<B64>,
+            eip1559_denominator: Option<u32>,
+            eip1559_elasticity: Option<u32>,
+            operator_fee_scalar: Option<u32>,
+            operator_fee_constant: Option<u64>,
+        }
+
+        let mut alias = SystemConfigAlias::deserialize(deserializer)?;
+        if let Some(params) = alias.eip1559_params {
+            alias.eip1559_denominator =
+                Some(u32::from_be_bytes(params.as_slice().get(0..4).unwrap().try_into().unwrap()));
+            alias.eip1559_elasticity =
+                Some(u32::from_be_bytes(params.as_slice().get(4..8).unwrap().try_into().unwrap()));
+        }
+
+        Ok(Self {
+            batcher_address: alias.batcher_address,
+            overhead: alias.overhead,
+            scalar: alias.scalar,
+            gas_limit: alias.gas_limit,
+            base_fee_scalar: alias.base_fee_scalar,
+            blob_base_fee_scalar: alias.blob_base_fee_scalar,
+            eip1559_denominator: alias.eip1559_denominator,
+            eip1559_elasticity: alias.eip1559_elasticity,
+            operator_fee_scalar: alias.operator_fee_scalar,
+            operator_fee_constant: alias.operator_fee_constant,
+        })
+    }
 }
 
 impl SystemConfig {

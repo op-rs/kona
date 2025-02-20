@@ -9,6 +9,7 @@ use alloy_primitives::Address;
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "PascalCase"))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct AddressList {
     /// The address manager
     pub address_manager: Address,

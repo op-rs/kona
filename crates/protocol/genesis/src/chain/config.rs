@@ -26,6 +26,7 @@ use crate::{
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct ChainConfig {
     /// Chain name (e.g. "Base")
     #[cfg_attr(feature = "serde", serde(rename = "Name", alias = "name"))]

@@ -9,6 +9,7 @@ use alloy_primitives::Address;
 #[derive(Debug, Clone, Default, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct AltDAConfig {
     /// AltDA challenge address
     #[cfg_attr(feature = "serde", serde(alias = "da_challenge_contract_address"))]
