@@ -18,6 +18,6 @@ workspace = true
 kona-rpc.workspace = true
 
 [features]
-default = ["std", "serde"]
+default = []
 serde = ["kona-rpc/serde"]
 std = ["kona-rpc/std"]

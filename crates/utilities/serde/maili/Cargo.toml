@@ -18,5 +18,5 @@ workspace = true
 kona-serde.workspace = true
 
 [features]
-default = ["std"]
+default = []
 std = ["kona-serde/std"]
