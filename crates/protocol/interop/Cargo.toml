@@ -20,7 +20,7 @@ kona-registry.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
-derive_more = { workspace = true, default-features = false, features = ["from", "as_ref"] }
+derive_more = { workspace = true, features = ["from", "as_ref"] }
 
 # Alloy
 alloy-rlp.workspace = true
@@ -50,32 +50,33 @@ rand.workspace = true
 [features]
 default = []
 std = [
-	"alloy-consensus/std",
-	"alloy-eips/std",
-	"alloy-primitives/std",
-	"alloy-rlp/std",
-	"alloy-sol-types/std",
-	"derive_more/std",
-	"serde?/std",
-	"thiserror/std",
-	"kona-protocol?/std",
+  "alloy-consensus/std",
+  "alloy-eips/std",
+  "alloy-primitives/std",
+  "alloy-rlp/std",
+  "alloy-sol-types/std",
+  "derive_more/std",
+  "serde?/std",
+  "thiserror/std",
+  "kona-protocol?/std",
 ]
 arbitrary = [
   "std",
   "dep:arbitrary",
   "alloy-primitives/arbitrary",
-	"alloy-consensus/arbitrary",
-	"alloy-eips/arbitrary",
+  "alloy-consensus/arbitrary",
+  "alloy-eips/arbitrary",
 ]
 serde = [
   "dep:serde",
-	"alloy-eips/serde",
+  "alloy-eips/serde",
   "alloy-primitives/serde",
-	"kona-protocol?/serde",
+  "kona-protocol?/serde",
 ]
 interop = [
-	"std",
-	"serde",
-	"dep:kona-protocol",
-	"dep:alloy-rpc-client",
+  "std",
+  "serde",
+  "dep:kona-protocol",
+  "dep:alloy-rpc-client",
+  "derive_more/display",
 ]

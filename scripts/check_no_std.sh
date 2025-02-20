@@ -25,6 +25,14 @@ no_std_packages=(
 
   # utilities
   kona-serde
+
+  # Maili Shadows
+  maili-serde
+  maili-rpc
+  maili-genesis
+  maili-protocol
+  maili-registry
+  maili-interop
 )
 
 for package in "${no_std_packages[@]}"; do
