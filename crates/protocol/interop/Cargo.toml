@@ -20,13 +20,19 @@ kona-registry.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
+derive_more = { workspace = true, default-features = false, features = ["from", "as_ref"] }
 
 # Alloy
-alloy-primitives = { workspace = true, features = ["rlp"] }
+alloy-rlp.workspace = true
+alloy-eips.workspace = true
 alloy-sol-types.workspace = true
 alloy-consensus.workspace = true
-alloy-rlp.workspace = true
+alloy-primitives = { workspace = true, features = ["rlp"] }
 op-alloy-consensus.workspace = true
+
+# `interop` feature
+kona-protocol = { workspace = true, optional = true }
+alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
 
 # Arbitrary
 arbitrary = { version = "1.4", features = ["derive"], optional = true }
@@ -43,5 +49,33 @@ rand.workspace = true
 
 [features]
 default = []
-arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary"]
-serde = ["dep:serde", "alloy-primitives/serde"]
+std = [
+	"alloy-consensus/std",
+	"alloy-eips/std",
+	"alloy-primitives/std",
+	"alloy-rlp/std",
+	"alloy-sol-types/std",
+	"derive_more/std",
+	"serde?/std",
+	"thiserror/std",
+	"kona-protocol?/std",
+]
+arbitrary = [
+  "std",
+  "dep:arbitrary",
+  "alloy-primitives/arbitrary",
+	"alloy-consensus/arbitrary",
+	"alloy-eips/arbitrary",
+]
+serde = [
+  "dep:serde",
+	"alloy-eips/serde",
+  "alloy-primitives/serde",
+	"kona-protocol?/serde",
+]
+interop = [
+	"std",
+	"serde",
+	"dep:kona-protocol",
+	"dep:alloy-rpc-client",
+]

@@ -2,17 +2,14 @@
 //!
 //! Represents a snapshot of the state of the superchain at a given integer timestamp.
 
-use crate::{
-    errors::{SuperRootError, SuperRootResult},
-    SUPER_ROOT_VERSION,
-};
+use crate::{SuperRootError, SuperRootResult, SUPER_ROOT_VERSION};
 use alloc::vec::Vec;
-use alloy_primitives::{keccak256, B256, U256};
+use alloy_primitives::{keccak256, Bytes, B256, U256};
 use alloy_rlp::{Buf, BufMut};
 
 /// The [SuperRoot] is the snapshot of the superchain at a given timestamp.
 #[derive(Debug, Clone, Eq, PartialEq)]
-#[cfg_attr(any(feature = "arbitrary", test), derive(arbitrary::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SuperRoot {
     /// The timestamp of the superchain snapshot, in seconds.
@@ -87,9 +84,43 @@ impl SuperRoot {
     }
 }
 
+/// Chain Root Info
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct ChainRootInfo {
+    /// The chain ID.
+    #[cfg_attr(feature = "serde", serde(rename = "chainID"))]
+    pub chain_id: u64,
+    /// The canonical output root of the latest canonical block at a particular timestamp.
+    pub canonical: B256,
+    /// The pending output root.
+    ///
+    /// This is the output root preimage for the latest block at a particular timestamp prior to
+    /// validation of executing messages. If the original block was valid, this will be the
+    /// preimage of the output root from the `canonical` array. If it was invalid, it will be
+    /// the output root preimage from the optimistic block deposited transaction added to the
+    /// deposit-only block.
+    pub pending: Bytes,
+}
+
+/// The super root response type.
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct SuperRootResponse {
+    /// The timestamp of the super root.
+    pub timestamp: u64,
+    /// The super root hash.
+    pub super_root: B256,
+    /// The chain root info for each chain in the dependency set.
+    /// It represents the state of the chain at or before the timestamp.
+    pub chains: Vec<ChainRootInfo>,
+}
+
 /// A wrapper around an output root hash with the chain ID it belongs to.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(any(feature = "arbitrary", test), derive(arbitrary::Arbitrary))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OutputRootWithChain {
     /// The chain ID of the output root.
@@ -111,8 +142,6 @@ mod test {
 
     use super::{OutputRootWithChain, SuperRoot};
     use alloy_primitives::{b256, B256};
-    use arbitrary::Arbitrary;
-    use rand::Rng;
 
     #[test]
     fn test_super_root_sorts_outputs() {
@@ -196,6 +225,9 @@ mod test {
 
     #[test]
     fn test_arbitrary_super_root_roundtrip() {
+        use arbitrary::Arbitrary;
+        use rand::Rng;
+
         let mut bytes = [0u8; 1024];
         rand::rng().fill(bytes.as_mut_slice());
         let super_root = SuperRoot::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap();

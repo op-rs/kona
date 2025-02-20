@@ -7,6 +7,7 @@ use crate::constants::CROSS_L2_INBOX_ADDRESS;
 use alloc::{vec, vec::Vec};
 use alloy_primitives::{keccak256, Bytes, Log};
 use alloy_sol_types::{sol, SolEvent};
+use derive_more::{AsRef, From};
 use op_alloy_consensus::OpReceiptEnvelope;
 
 sol! {
@@ -41,7 +42,7 @@ sol! {
 }
 
 /// A [RawMessagePayload] is the raw payload of an initiating message.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, From, AsRef, PartialEq, Eq)]
 pub struct RawMessagePayload(Bytes);
 
 impl From<&Log> for RawMessagePayload {
@@ -58,24 +59,6 @@ impl From<&Log> for RawMessagePayload {
 impl From<Vec<u8>> for RawMessagePayload {
     fn from(data: Vec<u8>) -> Self {
         Self(Bytes::from(data))
-    }
-}
-
-impl From<Bytes> for RawMessagePayload {
-    fn from(bytes: Bytes) -> Self {
-        Self(bytes)
-    }
-}
-
-impl From<RawMessagePayload> for Bytes {
-    fn from(payload: RawMessagePayload) -> Self {
-        payload.0
-    }
-}
-
-impl AsRef<[u8]> for RawMessagePayload {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
     }
 }
 
