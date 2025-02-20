@@ -7,4 +7,4 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use kona_genesis::*;
+pub use kona_protocol::*;

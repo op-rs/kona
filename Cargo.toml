@@ -16,7 +16,14 @@ members = [
   "crates/protocol/*",
   "crates/external/*",
   "crates/providers/*",
-  "crates/utilities/*"
+  "crates/utilities/*",
+
+  # Shadow Crates
+  "crates/external/rpc/maili",
+  "crates/utilities/serde/maili",
+  "crates/protocol/genesis/maili",
+  "crates/protocol/protocol/maili",
+  "crates/protocol/registry/maili",
 ]
 default-members = ["bin/host", "bin/client"]
 
@@ -92,6 +99,13 @@ kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", d
 
 # Workspace Utilities
 kona-serde = { path = "crates/utilities/serde", version = "0.1.0", default-features = false }
+
+# Maili Shadow Crates
+maili-rpc = { path = "crates/protocol/rpc/maili", version = "0.1.0", default-features = false }
+maili-serde = { path = "crates/utilities/serde/maili", version = "0.1.0", default-features = false }
+maili-registry = { path = "crates/protocol/registry/maili", version = "0.1.0", default-features = false }
+maili-genesis = { path = "crates/protocol/genesis/maili", version = "0.1.0", default-features = false }
+maili-protocol = { path = "crates/protocol/protocol/maili", version = "0.1.0", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }

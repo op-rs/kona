@@ -18,7 +18,7 @@ workspace = true
 kona-genesis.workspace = true
 
 [features]
-default = ["serde", "std"]
+default = []
 std = ["kona-genesis/std"]
 revm = ["kona-genesis/revm"]
 serde = ["kona-genesis/serde"]

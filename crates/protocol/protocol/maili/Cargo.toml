@@ -1,7 +1,7 @@
 [package]
-name = "maili-registry"
+name = "maili-protocol"
 version = "0.2.8"
-description = "Registry for Optimism"
+description = "Protocol types for the OP Stack"
 
 edition.workspace = true
 rust-version.workspace = true
@@ -15,8 +15,8 @@ exclude.workspace = true
 workspace = true
 
 [dependencies]
-kona-registry.workspace = true
+kona-protocol.workspace = true
 
 [features]
 default = []
-std = ["kona-registry/std"]
+std = ["kona-protocol/std"]
