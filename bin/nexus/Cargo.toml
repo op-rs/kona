@@ -1,5 +1,5 @@
 [package]
-name = "net"
+name = "kona-nexus"
 version = "0.1.0"
 description = "Kona Networking Component Runner"
 

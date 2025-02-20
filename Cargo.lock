@@ -4205,6 +4205,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-nexus"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-net",
+ "kona-registry",
+ "metrics-exporter-prometheus",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "kona-preimage"
 version = "0.2.1"
 dependencies = [
@@ -5252,20 +5266,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "net"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "kona-net",
- "kona-registry",
- "metrics-exporter-prometheus",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

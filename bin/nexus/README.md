@@ -1,4 +1,4 @@
-# `net`
+# `kona-nexus`
 
 A binary that runs isolated components.
 
