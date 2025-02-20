@@ -4093,6 +4093,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-hardforks"
+version = "0.1.0"
+dependencies = [
+ "alloy-eips 0.11.1",
+ "alloy-primitives",
+ "op-alloy-consensus 0.10.5",
+ "rand 0.9.0",
+ "tokio",
+]
+
+[[package]]
 name = "kona-host"
 version = "0.1.0"
 dependencies = [

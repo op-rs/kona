@@ -67,6 +67,7 @@ kona-client = { path = "bin/client", version = "0.1.0", default-features = false
 
 # Workspace Protocol
 kona-derive = { path = "crates/protocol/derive", version = "0.2.3", default-features = false }
+kona-hardforks = { path = "crates/protocol/hardforks", version = "0.1.0", default-features = false }
 kona-protocol = { path = "crates/protocol/protocol", version = "0.1.0", default-features = false }
 kona-genesis = { path = "crates/protocol/genesis", version = "0.1.0", default-features = false }
 kona-registry = { path = "crates/protocol/registry", version = "0.1.0", default-features = false }
