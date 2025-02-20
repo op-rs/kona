@@ -115,6 +115,12 @@ The MSRV is not increased automatically, and will be updated
 only as part of a patch (pre-1.0) or minor (post-1.0) release.
 
 
+## Crate Releases
+
+`kona` releases are done using the [`cargo-release`](https://crates.io/crates/cargo-release) crate.
+A detailed guide is available in [./RELEASES.md](./RELEASES.md).
+
+
 ## Contributing
 
 `kona` is built by open source contributors like you, thank you for improving the project!
