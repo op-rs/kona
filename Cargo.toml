@@ -71,7 +71,7 @@ kona-protocol = { path = "crates/protocol/protocol", version = "0.1.0", default-
 kona-genesis = { path = "crates/protocol/genesis", version = "0.1.0", default-features = false }
 kona-registry = { path = "crates/protocol/registry", version = "0.1.0", default-features = false }
 kona-driver = { path = "crates/protocol/driver", version = "0.2.3", default-features = false }
-kona-interop = { path = "crates/protocol/interop", version = "0.1.1", default-features = false }
+kona-interop = { path = "crates/protocol/interop", version = "0.1.2", default-features = false }
 
 # External
 kona-net = { path = "crates/external/net", version = "0.1.0", default-features = false }
