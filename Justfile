@@ -124,8 +124,8 @@ update-monorepo:
 
 # Updates the git submodule source
 source:
-  @just --justfile ./crates/registry/Justfile source
+  @just --justfile ./crates/protocol/registry/Justfile source
 
 # Generate file bindings for super-registry
 bind:
-  @just --justfile ./crates/registry/Justfile bind
+  @just --justfile ./crates/protocol/registry/Justfile bind
