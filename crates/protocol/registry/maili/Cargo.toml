@@ -1,6 +1,9 @@
+[workspace]
+members = []
+
 [package]
 name = "maili-registry"
-version = "0.2.8"
+version = "0.2.9"
 description = "Registry for Optimism"
 edition = "2021"
 license = "MIT"

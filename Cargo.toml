@@ -7,16 +7,7 @@ homepage = "https://github.com/op-rs/kona"
 repository = "https://github.com/op-rs/kona"
 keywords = ["ethereum", "optimism", "crypto"]
 categories = ["cryptography", "cryptography::cryptocurrencies"]
-exclude = [
-  "**/target",
-  # Maili shadow crates must be explicitly excluded for `cargo metadata` to work
-  "crates/external/rpc/maili",
-  "crates/protocol/protocol/maili",
-  "crates/protocol/interop/maili",
-  "crates/protocol/registry/maili",
-  "crates/protocol/genesis/maili",
-  "crates/utilities/serde/maili",
-]
+exclude = ["**/target"]
 
 [workspace]
 members = [

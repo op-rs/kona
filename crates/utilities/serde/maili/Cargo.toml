@@ -1,6 +1,9 @@
+[workspace]
+members = []
+
 [package]
 name = "maili-serde"
-version = "0.2.8"
+version = "0.2.9"
 description = "Serde related helpers for Maili"
 edition = "2021"
 license = "MIT"

@@ -1,6 +1,9 @@
+[workspace]
+members = []
+
 [package]
 name = "maili-genesis"
-version = "0.2.8"
+version = "0.2.9"
 description = "Genesis types for optimism"
 edition = "2021"
 license = "MIT"

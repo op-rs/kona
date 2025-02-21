@@ -1,6 +1,9 @@
+[workspace]
+members = []
+
 [package]
 name = "maili-interop"
-version = "0.2.8"
+version = "0.2.9"
 description = "Interop types for the OP Stack"
 edition = "2021"
 license = "MIT"
@@ -17,4 +20,4 @@ kona-interop = "0.1.2"
 
 [features]
 default = []
-std = ["kona-interop/std"]
+# std = ["kona-interop/std"]

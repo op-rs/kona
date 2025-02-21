@@ -1,6 +1,9 @@
+[workspace]
+members = []
+
 [package]
 name = "maili-rpc"
-version = "0.2.8"
+version = "0.2.9"
 description = "RPC for Optimism"
 edition = "2021"
 license = "MIT"
