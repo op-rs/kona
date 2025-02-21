@@ -2,20 +2,18 @@
 name = "maili-genesis"
 version = "0.2.8"
 description = "Genesis types for optimism"
-
-edition.workspace = true
-rust-version.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-exclude.workspace = true
-
-[lints]
-workspace = true
+edition = "2021"
+license = "MIT"
+rust-version = "1.81"
+authors = ["clabby", "refcell"]
+homepage = "https://github.com/op-rs/kona"
+repository = "https://github.com/op-rs/kona"
+keywords = ["ethereum", "optimism", "crypto"]
+categories = ["cryptography", "cryptography::cryptocurrencies"]
+exclude = ["**/target"]
 
 [dependencies]
-kona-genesis.workspace = true
+kona-genesis = "0.1.0"
 
 [features]
 default = []
