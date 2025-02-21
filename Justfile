@@ -22,6 +22,11 @@ test *args="-E '!test(test_online)'":
 test-online:
   just test "-E 'test(test_online)'"
 
+# Installs the latest version of foundry using the monorepo
+install-foundry:
+  just monorepo
+  foundryup -i $(grep -m 1 'forge = "[^"]*"' ./monorepo/mise.toml | awk -F'"' '{print $2}')
+
 # Run action tests for the client program on the native target
 action-tests test_name='Test_ProgramAction' *args='':
   #!/bin/bash
