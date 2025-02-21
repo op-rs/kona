@@ -22,6 +22,6 @@ pub enum OpBlockConversionError {
     #[error("Empty transactions in payload. Block hash: {0}")]
     EmptyTransactions(B256),
     /// EIP-1559 parameter decoding error.
-    #[error("Failed to decode EIP-1559 parameters from header's `nonce` field.")]
+    #[error("Failed to decode EIP-1559 parameters from header's `extraData` field.")]
     Eip1559DecodeError,
 }

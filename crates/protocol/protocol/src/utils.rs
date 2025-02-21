@@ -92,14 +92,22 @@ pub fn to_system_config(
 
     // After holocene's activation, the EIP-1559 parameters are stored in the block header's nonce.
     if rollup_config.is_holocene_active(block.header.timestamp) {
-        let eip1559_params = block.header.nonce;
+        let eip1559_params = &block.header.extra_data;
+
+        if eip1559_params.len() != 9 {
+            return Err(OpBlockConversionError::Eip1559DecodeError);
+        }
+        if eip1559_params[0] != 0 {
+            return Err(OpBlockConversionError::Eip1559DecodeError);
+        }
+
         cfg.eip1559_denominator = Some(u32::from_be_bytes(
-            eip1559_params[0..4]
+            eip1559_params[1..5]
                 .try_into()
                 .map_err(|_| OpBlockConversionError::Eip1559DecodeError)?,
         ));
         cfg.eip1559_elasticity = Some(u32::from_be_bytes(
-            eip1559_params[4..8]
+            eip1559_params[5..9]
                 .try_into()
                 .map_err(|_| OpBlockConversionError::Eip1559DecodeError)?,
         ));
@@ -156,7 +164,7 @@ mod tests {
     use crate::test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX};
     use alloc::vec;
     use alloy_eips::eip1898::BlockNumHash;
-    use alloy_primitives::{address, hex, uint, U256};
+    use alloy_primitives::{address, bytes, uint, U256};
     use kona_genesis::ChainGenesis;
 
     #[test]
@@ -300,8 +308,8 @@ mod tests {
         let block = OpBlock {
             header: alloy_consensus::Header {
                 number: 1,
-                // Holocene EIP1559 parameters stored in the nonce.
-                nonce: hex!("0000beef0000babe").into(),
+                // Holocene EIP1559 parameters stored in the extra data.
+                extra_data: bytes!("000000beef0000babe"),
                 ..Default::default()
             },
             body: alloy_consensus::BlockBody {
@@ -347,8 +355,8 @@ mod tests {
         let block = OpBlock {
             header: alloy_consensus::Header {
                 number: 1,
-                // Holocene EIP1559 parameters stored in the nonce.
-                nonce: hex!("0000beef0000babe").into(),
+                // Holocene EIP1559 parameters stored in the extra data.
+                extra_data: bytes!("000000beef0000babe"),
                 ..Default::default()
             },
             body: alloy_consensus::BlockBody {
