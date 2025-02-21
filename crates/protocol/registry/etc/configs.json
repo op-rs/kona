@@ -2062,7 +2062,7 @@
           "Explorer": "https://explorer.inkonchain.com",
           "SuperchainLevel": 1,
           "GovernedByOptimism": true,
-          "SuperchainTime": 1740582000,
+          "SuperchainTime": 1742396400,
           "DataAvailabilityType": "eth-da",
           "l2_chain_id": 57073,
           "batch_inbox_address": "0x005969bf0ecbf6edb6c47e5e94693b1c3651be97",
@@ -2076,7 +2076,7 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 0,
-            "holocene_time": 1740582000,
+            "holocene_time": 1742396400,
             "isthmus_time": null,
             "interop_time": null
           },
@@ -3937,9 +3937,9 @@
             "AnchorStateRegistryProxy": "0x218cd9489199f321e1177b56385d333c5b598629",
             "DelayedWethProxy": "0xcdfdc692a53b4ae9f81e0aebd26107da4a71db84",
             "DisputeGameFactoryProxy": "0x05f9613adb30026ffd634f38e5c4dfd30a197fa1",
-            "FaultDisputeGame": "0xd9d616e4a03a8e7cc962396c9f8d4e3d306097d3",
+            "FaultDisputeGame": "0xf3ccf0c4b51d42cfe6073f0278c19a8d1900e856",
             "Mips": "0x47b0e34c1054009e696babaad56165e1e994144d",
-            "PermissionedDisputeGame": "0x98e3f752c7224f8322afa935a4caec3832bb25c9",
+            "PermissionedDisputeGame": "0xbbdbdfe37c02439764de0e41c906e4396b5b3914",
             "PreimageOracle": "0x92240135b46fc1142da181f550ae8f595b858854",
             "DataAvailabilityChallenge": null
           }
