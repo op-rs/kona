@@ -1,0 +1,25 @@
+[package]
+name = "kona-nexus"
+version = "0.1.0"
+description = "Kona Networking Component Runner"
+
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Workspace
+kona-net.workspace = true
+kona-registry.workspace = true
+
+# Workspace
+anyhow.workspace = true
+tracing.workspace = true
+clap = { workspace = true, features = ["derive", "env"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }

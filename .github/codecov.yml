@@ -29,6 +29,13 @@ ignore:
   - "crates/proof/proof-interop"
   - "bin/host/src/interop"
   - "bin/client/src/interop"
+  # Ignore maili shadows
+  - "crates/external/rpc/maili"
+  - "crates/protocol/genesis/maili"
+  - "crates/protocol/protocol/maili"
+  - "crates/protocol/registry/maili"
+  - "crates/protocol/interop/maili"
+  - "crates/utilities/serde/maili"
 
 # Make comments less noisy
 comment:

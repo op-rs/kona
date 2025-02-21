@@ -67,6 +67,7 @@ kona-client = { path = "bin/client", version = "0.1.0", default-features = false
 
 # Workspace Protocol
 kona-derive = { path = "crates/protocol/derive", version = "0.2.3", default-features = false }
+kona-hardforks = { path = "crates/protocol/hardforks", version = "0.1.0", default-features = false }
 kona-protocol = { path = "crates/protocol/protocol", version = "0.1.0", default-features = false }
 kona-genesis = { path = "crates/protocol/genesis", version = "0.1.0", default-features = false }
 kona-registry = { path = "crates/protocol/registry", version = "0.1.0", default-features = false }
@@ -92,6 +93,14 @@ kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", d
 
 # Workspace Utilities
 kona-serde = { path = "crates/utilities/serde", version = "0.1.0", default-features = false }
+
+# Maili Shadow Crates
+maili-rpc = { path = "crates/protocol/rpc/maili", version = "0.2.8", default-features = false }
+maili-serde = { path = "crates/utilities/serde/maili", version = "0.2.8", default-features = false }
+maili-registry = { path = "crates/protocol/registry/maili", version = "0.2.8", default-features = false }
+maili-genesis = { path = "crates/protocol/genesis/maili", version = "0.2.8", default-features = false }
+maili-protocol = { path = "crates/protocol/protocol/maili", version = "0.2.8", default-features = false }
+maili-interop = { path = "crates/protocol/interop/maili", version = "0.2.8", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }
@@ -173,6 +182,7 @@ libp2p-identity = "0.2.10"
 tracing-loki = "0.2.6"
 tracing-subscriber = "0.3.19"
 tracing = { version = "0.1.41", default-features = false }
+metrics-exporter-prometheus = { version = "0.16.0", default-features = false }
 
 # Testing
 pprof = "0.14.0"
