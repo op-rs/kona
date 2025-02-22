@@ -66,53 +66,9 @@ pub struct RollupConfig {
     /// Base fee params post-canyon hardfork
     #[cfg_attr(feature = "serde", serde(default = "BaseFeeParams::optimism_canyon"))]
     pub canyon_base_fee_params: BaseFeeParams,
-    /// `regolith_time` sets the activation time of the Regolith network-upgrade:
-    /// a pre-mainnet Bedrock change that addresses findings of the Sherlock contest related to
-    /// deposit attributes. "Regolith" is the loose deposited rock that sits on top of Bedrock.
-    /// Active if regolith_time != None && L2 block timestamp >= Some(regolith_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub regolith_time: Option<u64>,
-    /// `canyon_time` sets the activation time of the Canyon network upgrade.
-    /// Active if `canyon_time` != None && L2 block timestamp >= Some(canyon_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub canyon_time: Option<u64>,
-    /// `delta_time` sets the activation time of the Delta network upgrade.
-    /// Active if `delta_time` != None && L2 block timestamp >= Some(delta_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub delta_time: Option<u64>,
-    /// `ecotone_time` sets the activation time of the Ecotone network upgrade.
-    /// Active if `ecotone_time` != None && L2 block timestamp >= Some(ecotone_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub ecotone_time: Option<u64>,
-    /// `fjord_time` sets the activation time of the Fjord network upgrade.
-    /// Active if `fjord_time` != None && L2 block timestamp >= Some(fjord_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub fjord_time: Option<u64>,
-    /// `granite_time` sets the activation time for the Granite network upgrade.
-    /// Active if `granite_time` != None && L2 block timestamp >= Some(granite_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub granite_time: Option<u64>,
-    /// `holocene_time` sets the activation time for the Holocene network upgrade.
-    /// Active if `holocene_time` != None && L2 block timestamp >= Some(holocene_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub holocene_time: Option<u64>,
-    /// `isthmus_time` sets the activation time for the Isthmus network upgrade.
-    /// Active if `isthmus_time` != None && L2 block timestamp >= Some(isthmus_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub isthmus_time: Option<u64>,
-    /// `interop_time` sets the activation time for the Interop network upgrade.
-    /// Active if `interop_time` != None && L2 block timestamp >= Some(interop_time), inactive
-    /// otherwise.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    pub interop_time: Option<u64>,
+    /// Hardfork timestamps.
+    #[cfg_attr(feature = "serde", serde(flatten))]
+    pub hardforks: HardForkConfig,
     /// `batch_inbox_address` is the L1 address that batches are sent to.
     pub batch_inbox_address: Address,
     /// `deposit_contract_address` is the L1 address that deposits are sent to.
@@ -166,15 +122,7 @@ impl<'a> arbitrary::Arbitrary<'a> for RollupConfig {
             l2_chain_id: u.arbitrary()?,
             base_fee_params,
             canyon_base_fee_params,
-            regolith_time: Option::<u64>::arbitrary(u)?,
-            canyon_time: Option::<u64>::arbitrary(u)?,
-            delta_time: Option::<u64>::arbitrary(u)?,
-            ecotone_time: Option::<u64>::arbitrary(u)?,
-            fjord_time: Option::<u64>::arbitrary(u)?,
-            granite_time: Option::<u64>::arbitrary(u)?,
-            holocene_time: Option::<u64>::arbitrary(u)?,
-            isthmus_time: Option::<u64>::arbitrary(u)?,
-            interop_time: Option::<u64>::arbitrary(u)?,
+            hardforks: HardForkConfig::arbitrary(u)?,
             batch_inbox_address: Address::arbitrary(u)?,
             deposit_contract_address: Address::arbitrary(u)?,
             l1_system_config_address: Address::arbitrary(u)?,
@@ -201,15 +149,7 @@ impl Default for RollupConfig {
             l2_chain_id: 0,
             base_fee_params: base_fee_params(OP_MAINNET_CHAIN_ID),
             canyon_base_fee_params: base_fee_params_canyon(OP_MAINNET_CHAIN_ID),
-            regolith_time: None,
-            canyon_time: None,
-            delta_time: None,
-            ecotone_time: None,
-            fjord_time: None,
-            granite_time: None,
-            holocene_time: None,
-            isthmus_time: None,
-            interop_time: None,
+            hardforks: HardForkConfig::default(),
             batch_inbox_address: Address::ZERO,
             deposit_contract_address: Address::ZERO,
             l1_system_config_address: Address::ZERO,
@@ -253,47 +193,55 @@ impl RollupConfig {
 impl RollupConfig {
     /// Returns true if Regolith is active at the given timestamp.
     pub fn is_regolith_active(&self, timestamp: u64) -> bool {
-        self.regolith_time.is_some_and(|t| timestamp >= t) || self.is_canyon_active(timestamp)
+        self.hardforks.regolith_time.is_some_and(|t| timestamp >= t) ||
+            self.is_canyon_active(timestamp)
     }
 
     /// Returns true if Canyon is active at the given timestamp.
     pub fn is_canyon_active(&self, timestamp: u64) -> bool {
-        self.canyon_time.is_some_and(|t| timestamp >= t) || self.is_delta_active(timestamp)
+        self.hardforks.canyon_time.is_some_and(|t| timestamp >= t) ||
+            self.is_delta_active(timestamp)
     }
 
     /// Returns true if Delta is active at the given timestamp.
     pub fn is_delta_active(&self, timestamp: u64) -> bool {
-        self.delta_time.is_some_and(|t| timestamp >= t) || self.is_ecotone_active(timestamp)
+        self.hardforks.delta_time.is_some_and(|t| timestamp >= t) ||
+            self.is_ecotone_active(timestamp)
     }
 
     /// Returns true if Ecotone is active at the given timestamp.
     pub fn is_ecotone_active(&self, timestamp: u64) -> bool {
-        self.ecotone_time.is_some_and(|t| timestamp >= t) || self.is_fjord_active(timestamp)
+        self.hardforks.ecotone_time.is_some_and(|t| timestamp >= t) ||
+            self.is_fjord_active(timestamp)
     }
 
     /// Returns true if Fjord is active at the given timestamp.
     pub fn is_fjord_active(&self, timestamp: u64) -> bool {
-        self.fjord_time.is_some_and(|t| timestamp >= t) || self.is_granite_active(timestamp)
+        self.hardforks.fjord_time.is_some_and(|t| timestamp >= t) ||
+            self.is_granite_active(timestamp)
     }
 
     /// Returns true if Granite is active at the given timestamp.
     pub fn is_granite_active(&self, timestamp: u64) -> bool {
-        self.granite_time.is_some_and(|t| timestamp >= t) || self.is_holocene_active(timestamp)
+        self.hardforks.granite_time.is_some_and(|t| timestamp >= t) ||
+            self.is_holocene_active(timestamp)
     }
 
     /// Returns true if Holocene is active at the given timestamp.
     pub fn is_holocene_active(&self, timestamp: u64) -> bool {
-        self.holocene_time.is_some_and(|t| timestamp >= t) || self.is_isthmus_active(timestamp)
+        self.hardforks.holocene_time.is_some_and(|t| timestamp >= t) ||
+            self.is_isthmus_active(timestamp)
     }
 
     /// Returns true if Isthmus is active at the given timestamp.
     pub fn is_isthmus_active(&self, timestamp: u64) -> bool {
-        self.isthmus_time.is_some_and(|t| timestamp >= t) || self.is_interop_active(timestamp)
+        self.hardforks.isthmus_time.is_some_and(|t| timestamp >= t) ||
+            self.is_interop_active(timestamp)
     }
 
     /// Returns true if Interop is active at the given timestamp.
     pub fn is_interop_active(&self, timestamp: u64) -> bool {
-        self.interop_time.is_some_and(|t| timestamp >= t)
+        self.hardforks.interop_time.is_some_and(|t| timestamp >= t)
     }
 
     /// Returns true if a DA Challenge proxy Address is provided in the rollup config and the
@@ -330,17 +278,9 @@ impl RollupConfig {
     }
 
     /// Returns the [HardForkConfig] using [RollupConfig] timestamps.
+    #[deprecated(since = "0.1.0", note = "Use the `hardforks` field instead.")]
     pub const fn hardfork_config(&self) -> HardForkConfig {
-        HardForkConfig {
-            canyon_time: self.canyon_time,
-            delta_time: self.delta_time,
-            ecotone_time: self.ecotone_time,
-            fjord_time: self.fjord_time,
-            granite_time: self.granite_time,
-            holocene_time: self.holocene_time,
-            isthmus_time: self.isthmus_time,
-            interop_time: self.interop_time,
-        }
+        self.hardforks
     }
 
     /// Checks the scalar value in Ecotone.
@@ -392,18 +332,21 @@ mod tests {
     #[cfg(feature = "revm")]
     fn test_revm_spec_id() {
         // By default, the spec ID should be BEDROCK.
-        let mut config = RollupConfig { regolith_time: Some(10), ..Default::default() };
+        let mut config = RollupConfig {
+            hardforks: HardForkConfig { regolith_time: Some(10), ..Default::default() },
+            ..Default::default()
+        };
         assert_eq!(config.spec_id(0), revm::primitives::SpecId::BEDROCK);
         assert_eq!(config.spec_id(10), revm::primitives::SpecId::REGOLITH);
-        config.canyon_time = Some(20);
+        config.hardforks.canyon_time = Some(20);
         assert_eq!(config.spec_id(20), revm::primitives::SpecId::CANYON);
-        config.ecotone_time = Some(30);
+        config.hardforks.ecotone_time = Some(30);
         assert_eq!(config.spec_id(30), revm::primitives::SpecId::ECOTONE);
-        config.fjord_time = Some(40);
+        config.hardforks.fjord_time = Some(40);
         assert_eq!(config.spec_id(40), revm::primitives::SpecId::FJORD);
-        config.holocene_time = Some(50);
+        config.hardforks.holocene_time = Some(50);
         assert_eq!(config.spec_id(50), revm::primitives::SpecId::HOLOCENE);
-        config.isthmus_time = Some(60);
+        config.hardforks.isthmus_time = Some(60);
         assert_eq!(config.spec_id(60), revm::primitives::SpecId::ISTHMUS);
     }
 
@@ -411,7 +354,7 @@ mod tests {
     fn test_regolith_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_regolith_active(0));
-        config.regolith_time = Some(10);
+        config.hardforks.regolith_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(!config.is_regolith_active(9));
     }
@@ -420,7 +363,7 @@ mod tests {
     fn test_canyon_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_canyon_active(0));
-        config.canyon_time = Some(10);
+        config.hardforks.canyon_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(!config.is_canyon_active(9));
@@ -430,7 +373,7 @@ mod tests {
     fn test_delta_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_delta_active(0));
-        config.delta_time = Some(10);
+        config.hardforks.delta_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -441,7 +384,7 @@ mod tests {
     fn test_ecotone_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_ecotone_active(0));
-        config.ecotone_time = Some(10);
+        config.hardforks.ecotone_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -453,7 +396,7 @@ mod tests {
     fn test_fjord_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_fjord_active(0));
-        config.fjord_time = Some(10);
+        config.hardforks.fjord_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -466,7 +409,7 @@ mod tests {
     fn test_granite_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_granite_active(0));
-        config.granite_time = Some(10);
+        config.hardforks.granite_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -480,7 +423,7 @@ mod tests {
     fn test_holocene_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_holocene_active(0));
-        config.holocene_time = Some(10);
+        config.hardforks.holocene_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -495,7 +438,7 @@ mod tests {
     fn test_isthmus_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_isthmus_active(0));
-        config.isthmus_time = Some(10);
+        config.hardforks.isthmus_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -511,7 +454,7 @@ mod tests {
     fn test_interop_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_interop_active(0));
-        config.interop_time = Some(10);
+        config.hardforks.interop_time = Some(10);
         assert!(config.is_regolith_active(10));
         assert!(config.is_canyon_active(10));
         assert!(config.is_delta_active(10));
@@ -536,11 +479,14 @@ mod tests {
 
     #[test]
     fn test_granite_channel_timeout() {
-        let mut config =
-            RollupConfig { channel_timeout: 100, granite_time: Some(10), ..Default::default() };
+        let mut config = RollupConfig {
+            channel_timeout: 100,
+            hardforks: HardForkConfig { granite_time: Some(10), ..Default::default() },
+            ..Default::default()
+        };
         assert_eq!(config.channel_timeout(0), 100);
         assert_eq!(config.channel_timeout(10), GRANITE_CHANNEL_TIMEOUT);
-        config.granite_time = None;
+        config.hardforks.granite_time = None;
         assert_eq!(config.channel_timeout(10), 100);
     }
 
@@ -548,7 +494,7 @@ mod tests {
     fn test_max_sequencer_drift() {
         let mut config = RollupConfig { max_sequencer_drift: 100, ..Default::default() };
         assert_eq!(config.max_sequencer_drift(0), 100);
-        config.fjord_time = Some(10);
+        config.hardforks.fjord_time = Some(10);
         assert_eq!(config.max_sequencer_drift(0), 100);
         assert_eq!(config.max_sequencer_drift(10), FJORD_MAX_SEQUENCER_DRIFT);
     }
@@ -626,15 +572,14 @@ mod tests {
             l2_chain_id: 1337,
             base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
             canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
-            regolith_time: Some(0),
-            canyon_time: Some(0),
-            delta_time: Some(0),
-            ecotone_time: Some(0),
-            fjord_time: Some(0),
-            granite_time: None,
-            holocene_time: None,
-            isthmus_time: None,
-            interop_time: None,
+            hardforks: HardForkConfig {
+                regolith_time: Some(0),
+                canyon_time: Some(0),
+                delta_time: Some(0),
+                ecotone_time: Some(0),
+                fjord_time: Some(0),
+                ..Default::default()
+            },
             batch_inbox_address: address!("ff00000000000000000000000000000000042069"),
             deposit_contract_address: address!("08073dc48dde578137b8af042bcbc1c2491f1eb2"),
             l1_system_config_address: address!("94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710"),

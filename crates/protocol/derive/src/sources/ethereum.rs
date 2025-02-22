@@ -38,7 +38,7 @@ where
         calldata_source: CalldataSource<C>,
         cfg: &RollupConfig,
     ) -> Self {
-        Self { ecotone_timestamp: cfg.ecotone_time, blob_source, calldata_source }
+        Self { ecotone_timestamp: cfg.hardforks.ecotone_time, blob_source, calldata_source }
     }
 
     /// Instantiates a new [EthereumDataSource] from parts.
@@ -46,7 +46,7 @@ where
         let signer =
             cfg.genesis.system_config.as_ref().map(|sc| sc.batcher_address).unwrap_or_default();
         Self {
-            ecotone_timestamp: cfg.ecotone_time,
+            ecotone_timestamp: cfg.hardforks.ecotone_time,
             blob_source: BlobSource::new(provider.clone(), blobs, cfg.batch_inbox_address, signer),
             calldata_source: CalldataSource::new(provider, cfg.batch_inbox_address, signer),
         }

@@ -96,7 +96,9 @@ impl BatchReader {
 #[cfg(test)]
 mod test {
     use super::*;
-    use kona_genesis::{MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
+    use kona_genesis::{
+        HardForkConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+    };
 
     fn new_compressed_batch_data() -> Bytes {
         let file_contents =
@@ -120,7 +122,12 @@ mod test {
         let raw = new_compressed_batch_data();
         let decompressed_len = decompress_to_vec_zlib(&raw).unwrap().len();
         let mut reader = BatchReader::new(raw, MAX_RLP_BYTES_PER_CHANNEL_FJORD as usize);
-        reader.next_batch(&RollupConfig { fjord_time: Some(0), ..Default::default() }).unwrap();
+        reader
+            .next_batch(&RollupConfig {
+                hardforks: HardForkConfig { fjord_time: Some(0), ..Default::default() },
+                ..Default::default()
+            })
+            .unwrap();
         assert_eq!(reader.cursor, decompressed_len);
     }
 }

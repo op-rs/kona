@@ -80,7 +80,7 @@ mod tests {
             governed_by_optimism: false,
             superchain_time: Some(0),
             batch_inbox_addr: address!("ff00000000000000000000000000000000008453"),
-            hardfork_config: crate::test_utils::BASE_MAINNET_CONFIG.hardfork_config(),
+            hardfork_config: crate::test_utils::BASE_MAINNET_CONFIG.hardforks,
             block_time: 2,
             seq_window_size: 3600,
             max_sequencer_drift: 600,

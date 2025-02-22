@@ -179,6 +179,7 @@ mod tests {
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEip7702, TxEnvelope};
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
     use alloy_primitives::{Address, PrimitiveSignature, Sealed, TxKind, U256};
+    use kona_genesis::HardForkConfig;
     use op_alloy_consensus::{OpTxEnvelope, TxDeposit};
 
     #[test]
@@ -243,7 +244,10 @@ mod tests {
 
     #[test]
     fn test_check_batch_timestamp_holocene_active_drop() {
-        let cfg = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let l2_safe_head = L2BlockInfo {
             block_info: BlockInfo { timestamp: 1, ..Default::default() },
             ..Default::default()
@@ -258,7 +262,10 @@ mod tests {
 
     #[test]
     fn test_check_batch_timestamp_holocene_active_past() {
-        let cfg = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let l2_safe_head = L2BlockInfo {
             block_info: BlockInfo { timestamp: 2, ..Default::default() },
             ..Default::default()
@@ -482,8 +489,11 @@ mod tests {
             SingleBatch { parent_hash, epoch_num, epoch_hash, timestamp, transactions };
 
         // Notice: Isthmus is active.
-        let cfg =
-            RollupConfig { max_sequencer_drift: 1, isthmus_time: Some(0), ..Default::default() };
+        let cfg = RollupConfig {
+            max_sequencer_drift: 1,
+            hardforks: HardForkConfig { isthmus_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let l1_blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let l2_safe_head = L2BlockInfo {
             block_info: BlockInfo { timestamp: 1, ..Default::default() },

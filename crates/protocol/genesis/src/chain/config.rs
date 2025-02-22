@@ -139,15 +139,7 @@ impl ChainConfig {
             seq_window_size: self.seq_window_size,
             max_sequencer_drift: self.max_sequencer_drift,
             canyon_base_fee_params: self.canyon_base_fee_params(),
-            regolith_time: Some(0),
-            canyon_time: self.hardfork_config.canyon_time,
-            delta_time: self.hardfork_config.delta_time,
-            ecotone_time: self.hardfork_config.ecotone_time,
-            fjord_time: self.hardfork_config.fjord_time,
-            granite_time: self.hardfork_config.granite_time,
-            holocene_time: self.hardfork_config.holocene_time,
-            isthmus_time: self.hardfork_config.isthmus_time,
-            interop_time: self.hardfork_config.interop_time,
+            hardforks: self.hardfork_config,
             batch_inbox_address: self.batch_inbox_addr,
             deposit_contract_address: self
                 .addresses

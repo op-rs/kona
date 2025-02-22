@@ -95,6 +95,7 @@ mod tests {
                         explorer: "https://mainnet.explorer".to_string(),
                     },
                     hardforks: HardForkConfig {
+                        regolith_time: None,
                         canyon_time: Some(1699981200),
                         delta_time: Some(1703203200),
                         ecotone_time: Some(1708534800),

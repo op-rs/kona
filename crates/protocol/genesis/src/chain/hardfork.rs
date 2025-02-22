@@ -8,21 +8,52 @@
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct HardForkConfig {
-    /// Canyon hardfork activation time
+    /// `regolith_time` sets the activation time of the Regolith network-upgrade:
+    /// a pre-mainnet Bedrock change that addresses findings of the Sherlock contest related to
+    /// deposit attributes. "Regolith" is the loose deposited rock that sits on top of Bedrock.
+    /// Active if regolith_time != None && L2 block timestamp >= Some(regolith_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub regolith_time: Option<u64>,
+    /// `canyon_time` sets the activation time of the Canyon network upgrade.
+    /// Active if `canyon_time` != None && L2 block timestamp >= Some(canyon_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub canyon_time: Option<u64>,
-    /// Delta hardfork activation time
+    /// `delta_time` sets the activation time of the Delta network upgrade.
+    /// Active if `delta_time` != None && L2 block timestamp >= Some(delta_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub delta_time: Option<u64>,
-    /// Ecotone hardfork activation time
+    /// `ecotone_time` sets the activation time of the Ecotone network upgrade.
+    /// Active if `ecotone_time` != None && L2 block timestamp >= Some(ecotone_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub ecotone_time: Option<u64>,
-    /// Fjord hardfork activation time
+    /// `fjord_time` sets the activation time of the Fjord network upgrade.
+    /// Active if `fjord_time` != None && L2 block timestamp >= Some(fjord_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub fjord_time: Option<u64>,
-    /// Granite hardfork activation time
+    /// `granite_time` sets the activation time for the Granite network upgrade.
+    /// Active if `granite_time` != None && L2 block timestamp >= Some(granite_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub granite_time: Option<u64>,
-    /// Holocene hardfork activation time
+    /// `holocene_time` sets the activation time for the Holocene network upgrade.
+    /// Active if `holocene_time` != None && L2 block timestamp >= Some(holocene_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub holocene_time: Option<u64>,
-    /// Isthmus hardfork activation time
+    /// `isthmus_time` sets the activation time for the Isthmus network upgrade.
+    /// Active if `isthmus_time` != None && L2 block timestamp >= Some(isthmus_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub isthmus_time: Option<u64>,
-    /// Interop hardfork activation time
+    /// `interop_time` sets the activation time for the Interop network upgrade.
+    /// Active if `interop_time` != None && L2 block timestamp >= Some(interop_time), inactive
+    /// otherwise.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub interop_time: Option<u64>,
 }
 
@@ -45,6 +76,7 @@ mod tests {
         "#;
 
         let hardforks = HardForkConfig {
+            regolith_time: None,
             canyon_time: Some(1699981200),
             delta_time: Some(1703203200),
             ecotone_time: Some(1708534800),
@@ -89,6 +121,7 @@ mod tests {
         "#;
 
         let hardforks = HardForkConfig {
+            regolith_time: None,
             canyon_time: Some(1699981200),
             delta_time: Some(1703203200),
             ecotone_time: Some(1708534800),

@@ -180,7 +180,7 @@ impl SystemConfig {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::CONFIG_UPDATE_EVENT_VERSION_0;
+    use crate::{HardForkConfig, CONFIG_UPDATE_EVENT_VERSION_0};
     use alloc::vec;
     use alloy_primitives::{address, b256, hex, LogData, B256};
 
@@ -253,7 +253,10 @@ mod test {
 
     #[test]
     fn test_eip_1559_params_from_system_config_some() {
-        let rollup_config = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: Some(1),
             eip1559_elasticity: None,
@@ -265,7 +268,10 @@ mod test {
 
     #[test]
     fn test_eip_1559_params_from_system_config() {
-        let rollup_config = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: Some(1),
             eip1559_elasticity: Some(2),
@@ -277,7 +283,10 @@ mod test {
 
     #[test]
     fn test_default_eip_1559_params_from_system_config() {
-        let rollup_config = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: None,
             eip1559_elasticity: None,
@@ -300,7 +309,10 @@ mod test {
 
     #[test]
     fn test_default_eip_1559_params_first_block_holocene() {
-        let rollup_config = RollupConfig { holocene_time: Some(2), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: Some(1),
             eip1559_elasticity: Some(2),
