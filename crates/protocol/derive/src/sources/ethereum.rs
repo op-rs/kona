@@ -87,7 +87,7 @@ mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
     use alloy_primitives::{address, Address};
-    use kona_genesis::{RollupConfig, SystemConfig};
+    use kona_genesis::{HardForkConfiguration, RollupConfig, SystemConfig};
     use kona_protocol::BlockInfo;
 
     fn default_test_blob_source() -> BlobSource<TestChainProvider, TestBlobProvider> {
@@ -125,7 +125,10 @@ mod tests {
         blob.open = true;
         blob.data.push(BlobData { data: None, calldata: Some(Bytes::default()) });
         let calldata = CalldataSource::new(chain.clone(), Address::ZERO, Address::ZERO);
-        let cfg = RollupConfig { ecotone_time: Some(0), ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfiguration { ecotone_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
 
         // Should successfully retrieve a blob batch from the block
         let mut data_source = EthereumDataSource::new(blob, calldata, &cfg);

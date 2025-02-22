@@ -542,7 +542,7 @@ mod tests {
         // Construct a future single batch.
         let cfg = Arc::new(RollupConfig {
             max_sequencer_drift: 700,
-            holocene_time: Some(0),
+            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         assert!(cfg.is_holocene_active(0));
