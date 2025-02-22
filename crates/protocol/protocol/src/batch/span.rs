@@ -699,7 +699,7 @@ mod tests {
         tracing_subscriber::Registry::default().with(layer).init();
 
         let cfg = RollupConfig {
-            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { delta_time: Some(10), ..Default::default() },
             ..Default::default()
         };
         let block = BlockInfo { number: 10, timestamp: 9, ..Default::default() };

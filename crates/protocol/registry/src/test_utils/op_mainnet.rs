@@ -43,7 +43,7 @@ pub const OP_MAINNET_CONFIG: RollupConfig = RollupConfig {
     base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
     canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
     hardforks: HardForkConfig {
-        regolith_time: Some(0_u64),
+        regolith_time: None,
         canyon_time: Some(1_704_992_401_u64),
         delta_time: Some(1_708_560_000_u64),
         ecotone_time: Some(1_710_374_401_u64),

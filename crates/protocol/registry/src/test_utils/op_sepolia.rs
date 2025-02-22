@@ -43,7 +43,7 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
     base_fee_params: OP_SEPOLIA_BASE_FEE_PARAMS,
     canyon_base_fee_params: OP_SEPOLIA_BASE_FEE_PARAMS_CANYON,
     hardforks: HardForkConfig {
-        regolith_time: Some(0),
+        regolith_time: None,
         canyon_time: Some(1699981200),
         delta_time: Some(1703203200),
         ecotone_time: Some(1708534800),
