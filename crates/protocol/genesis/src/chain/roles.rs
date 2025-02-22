@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn test_roles_serde() {
-        let json_roles: &'static str = r#"{
+        let json_roles: &str = r#"{
             "SystemConfigOwner": "0x8c20c40180751d93E939DDDee3517AE0d1EBeAd2",
             "ProxyAdminOwner": "0x4377BB0F0103992b31eC12b4d796a8687B8dC8E9",
             "Guardian": "0x8c20c40180751d93E939DDDee3517AE0d1EBeAd2",
@@ -61,5 +61,22 @@ mod tests {
         let deserialized: Roles = serde_json::from_str(json_roles).unwrap();
 
         assert_eq!(expected, deserialized);
+    }
+
+    #[test]
+    fn test_roles_unknown_field_json() {
+        let json_roles: &str = r#"{
+            "SystemConfigOwner": "0x8c20c40180751d93E939DDDee3517AE0d1EBeAd2",
+            "ProxyAdminOwner": "0x4377BB0F0103992b31eC12b4d796a8687B8dC8E9",
+            "Guardian": "0x8c20c40180751d93E939DDDee3517AE0d1EBeAd2",
+            "Challenger": "0x8c20c40180751d93E939DDDee3517AE0d1EBeAd2",
+            "Proposer": "0x95014c45078354Ff839f14192228108Eac82E00A",
+            "UnsafeBlockSigner": "0xa95B83e39AA78B00F12fe431865B563793D97AF5",
+            "BatchSubmitter": "0x19CC7073150D9f5888f09E0e9016d2a39667df14",
+            "UnknownField": "unknown"
+        }"#;
+
+        let err = serde_json::from_str::<Roles>(json_roles).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
     }
 }

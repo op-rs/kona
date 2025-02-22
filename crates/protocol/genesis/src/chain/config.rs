@@ -182,3 +182,176 @@ impl ChainConfig {
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "serde")]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chain_config_json() {
+        let raw: &str = r#"
+        {
+            "Name": "Base",
+            "PublicRPC": "https://mainnet.base.org",
+            "SequencerRPC": "https://mainnet-sequencer.base.org",
+            "Explorer": "https://explorer.base.org",
+            "SuperchainLevel": 1,
+            "GovernedByOptimism": false,
+            "SuperchainTime": 0,
+            "DataAvailabilityType": "eth-da",
+            "l2_chain_id": 8453,
+            "batch_inbox_address": "0xff00000000000000000000000000000000008453",
+            "block_time": 2,
+            "seq_window_size": 3600,
+            "max_sequencer_drift": 600,
+            "GasPayingToken": null,
+            "hardfork_configuration": {
+                "canyon_time": 1704992401,
+                "delta_time": 1708560000,
+                "ecotone_time": 1710374401,
+                "fjord_time": 1720627201,
+                "granite_time": 1726070401,
+                "holocene_time": 1736445601
+            },
+            "optimism": {
+            "eip1559Elasticity": "0x6",
+            "eip1559Denominator": "0x32",
+            "eip1559DenominatorCanyon": "0xfa"
+            },
+            "alt_da": null,
+            "genesis": {
+                "l1": {
+                  "number": 17481768,
+                  "hash": "0x5c13d307623a926cd31415036c8b7fa14572f9dac64528e857a470511fc30771"
+                },
+                "l2": {
+                  "number": 0,
+                  "hash": "0xf712aa9241cc24369b143cf6dce85f0902a9731e70d66818a3a5845b296c73dd"
+                },
+                "l2_time": 1686789347,
+                "system_config": {
+                  "batcherAddress": "0x5050f69a9786f081509234f1a7f4684b5e5b76c9",
+                  "overhead": "0xbc",
+                  "scalar": "0xa6fe0",
+                  "gasLimit": 30000000
+                }
+            },
+            "Roles": {
+                "SystemConfigOwner": "0x14536667cd30e52c0b458baaccb9fada7046e056",
+                "ProxyAdminOwner": "0x7bb41c3008b3f03fe483b28b8db90e19cf07595c",
+                "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
+                "Challenger": "0x6f8c5ba3f59ea3e76300e3becdc231d656017824",
+                "Proposer": "0x642229f238fb9de03374be34b0ed8d9de80752c5",
+                "UnsafeBlockSigner": "0xaf6e19be0f9ce7f8afd49a1824851023a8249e8a",
+                "BatchSubmitter": "0x5050f69a9786f081509234f1a7f4684b5e5b76c9"
+            },
+            "Addresses": {
+                "AddressManager": "0x8efb6b5c4767b09dc9aa6af4eaa89f749522bae2",
+                "L1CrossDomainMessengerProxy": "0x866e82a600a1414e583f7f13623f1ac5d58b0afa",
+                "L1Erc721BridgeProxy": "0x608d94945a64503e642e6370ec598e519a2c1e53",
+                "L1StandardBridgeProxy": "0x3154cf16ccdb4c6d922629664174b904d80f2c35",
+                "L2OutputOracleProxy": "0x56315b90c40730925ec5485cf004d835058518a0",
+                "OptimismMintableErc20FactoryProxy": "0x05cc379ebd9b30bba19c6fa282ab29218ec61d84",
+                "OptimismPortalProxy": "0x49048044d57e1c92a77f79988d21fa8faf74e97e",
+                "SystemConfigProxy": "0x73a79fab69143498ed3712e519a88a918e1f4072",
+                "ProxyAdmin": "0x0475cbcaebd9ce8afa5025828d5b98dfb67e059e",
+                "AnchorStateRegistryProxy": "0xdb9091e48b1c42992a1213e6916184f9ebdbfedf",
+                "DelayedWethProxy": "0xa2f2ac6f5af72e494a227d79db20473cf7a1ffe8",
+                "DisputeGameFactoryProxy": "0x43edb88c4b80fdd2adff2412a7bebf9df42cb40e",
+                "FaultDisputeGame": "0xcd3c0194db74c23807d4b90a5181e1b28cf7007c",
+                "Mips": "0x16e83ce5ce29bf90ad9da06d2fe6a15d5f344ce4",
+                "PermissionedDisputeGame": "0x19009debf8954b610f207d5925eede827805986e",
+                "PreimageOracle": "0x9c065e11870b891d214bc2da7ef1f9ddfa1be277"
+            }
+        }
+        "#;
+
+        let deserialized: ChainConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(deserialized.name, "Base");
+    }
+
+    #[test]
+    fn test_chain_config_unknown_field_json() {
+        let raw: &str = r#"
+        {
+            "Name": "Base",
+            "PublicRPC": "https://mainnet.base.org",
+            "SequencerRPC": "https://mainnet-sequencer.base.org",
+            "Explorer": "https://explorer.base.org",
+            "SuperchainLevel": 1,
+            "GovernedByOptimism": false,
+            "SuperchainTime": 0,
+            "DataAvailabilityType": "eth-da",
+            "l2_chain_id": 8453,
+            "batch_inbox_address": "0xff00000000000000000000000000000000008453",
+            "block_time": 2,
+            "seq_window_size": 3600,
+            "max_sequencer_drift": 600,
+            "GasPayingToken": null,
+            "hardfork_configuration": {
+                "canyon_time": 1704992401,
+                "delta_time": 1708560000,
+                "ecotone_time": 1710374401,
+                "fjord_time": 1720627201,
+                "granite_time": 1726070401,
+                "holocene_time": 1736445601
+            },
+            "optimism": {
+            "eip1559Elasticity": "0x6",
+            "eip1559Denominator": "0x32",
+            "eip1559DenominatorCanyon": "0xfa"
+            },
+            "alt_da": null,
+            "genesis": {
+                "l1": {
+                  "number": 17481768,
+                  "hash": "0x5c13d307623a926cd31415036c8b7fa14572f9dac64528e857a470511fc30771"
+                },
+                "l2": {
+                  "number": 0,
+                  "hash": "0xf712aa9241cc24369b143cf6dce85f0902a9731e70d66818a3a5845b296c73dd"
+                },
+                "l2_time": 1686789347,
+                "system_config": {
+                  "batcherAddress": "0x5050f69a9786f081509234f1a7f4684b5e5b76c9",
+                  "overhead": "0xbc",
+                  "scalar": "0xa6fe0",
+                  "gasLimit": 30000000
+                }
+            },
+            "Roles": {
+                "SystemConfigOwner": "0x14536667cd30e52c0b458baaccb9fada7046e056",
+                "ProxyAdminOwner": "0x7bb41c3008b3f03fe483b28b8db90e19cf07595c",
+                "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
+                "Challenger": "0x6f8c5ba3f59ea3e76300e3becdc231d656017824",
+                "Proposer": "0x642229f238fb9de03374be34b0ed8d9de80752c5",
+                "UnsafeBlockSigner": "0xaf6e19be0f9ce7f8afd49a1824851023a8249e8a",
+                "BatchSubmitter": "0x5050f69a9786f081509234f1a7f4684b5e5b76c9"
+            },
+            "Addresses": {
+                "AddressManager": "0x8efb6b5c4767b09dc9aa6af4eaa89f749522bae2",
+                "L1CrossDomainMessengerProxy": "0x866e82a600a1414e583f7f13623f1ac5d58b0afa",
+                "L1Erc721BridgeProxy": "0x608d94945a64503e642e6370ec598e519a2c1e53",
+                "L1StandardBridgeProxy": "0x3154cf16ccdb4c6d922629664174b904d80f2c35",
+                "L2OutputOracleProxy": "0x56315b90c40730925ec5485cf004d835058518a0",
+                "OptimismMintableErc20FactoryProxy": "0x05cc379ebd9b30bba19c6fa282ab29218ec61d84",
+                "OptimismPortalProxy": "0x49048044d57e1c92a77f79988d21fa8faf74e97e",
+                "SystemConfigProxy": "0x73a79fab69143498ed3712e519a88a918e1f4072",
+                "ProxyAdmin": "0x0475cbcaebd9ce8afa5025828d5b98dfb67e059e",
+                "AnchorStateRegistryProxy": "0xdb9091e48b1c42992a1213e6916184f9ebdbfedf",
+                "DelayedWethProxy": "0xa2f2ac6f5af72e494a227d79db20473cf7a1ffe8",
+                "DisputeGameFactoryProxy": "0x43edb88c4b80fdd2adff2412a7bebf9df42cb40e",
+                "FaultDisputeGame": "0xcd3c0194db74c23807d4b90a5181e1b28cf7007c",
+                "Mips": "0x16e83ce5ce29bf90ad9da06d2fe6a15d5f344ce4",
+                "PermissionedDisputeGame": "0x19009debf8954b610f207d5925eede827805986e",
+                "PreimageOracle": "0x9c065e11870b891d214bc2da7ef1f9ddfa1be277"
+            },
+            "unknown_field": "unknown"
+        }
+        "#;
+
+        let err = serde_json::from_str::<ChainConfig>(raw).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
+    }
+}
