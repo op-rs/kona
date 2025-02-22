@@ -556,56 +556,52 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn test_deserialize_reference_rollup_config() {
-        // Reference serialized rollup config from the `op-node`.
-        let ser_cfg = r#"
-{
-  "genesis": {
-    "l1": {
-      "hash": "0x481724ee99b1f4cb71d826e2ec5a37265f460e9b112315665c977f4050b0af54",
-      "number": 10
-    },
-    "l2": {
-      "hash": "0x88aedfbf7dea6bfa2c4ff315784ad1a7f145d8f650969359c003bbed68c87631",
-      "number": 0
-    },
-    "l2_time": 1725557164,
-    "system_config": {
-      "batcherAddr": "0xc81f87a644b41e49b3221f41251f15c6cb00ce03",
-      "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "scalar": "0x00000000000000000000000000000000000000000000000000000000000f4240",
-      "gasLimit": 30000000
-    }
-  },
-  "block_time": 2,
-  "max_sequencer_drift": 600,
-  "seq_window_size": 3600,
-  "channel_timeout": 300,
-  "l1_chain_id": 3151908,
-  "l2_chain_id": 1337,
-  "regolith_time": 0,
-  "canyon_time": 0,
-  "delta_time": 0,
-  "ecotone_time": 0,
-  "fjord_time": 0,
-  "batch_inbox_address": "0xff00000000000000000000000000000000042069",
-  "deposit_contract_address": "0x08073dc48dde578137b8af042bcbc1c2491f1eb2",
-  "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
-  "protocol_versions_address": "0x0000000000000000000000000000000000000000"
-}
+        let raw: &str = r#"
+        {
+          "genesis": {
+            "l1": {
+              "hash": "0x481724ee99b1f4cb71d826e2ec5a37265f460e9b112315665c977f4050b0af54",
+              "number": 10
+            },
+            "l2": {
+              "hash": "0x88aedfbf7dea6bfa2c4ff315784ad1a7f145d8f650969359c003bbed68c87631",
+              "number": 0
+            },
+            "l2_time": 1725557164,
+            "system_config": {
+              "batcherAddr": "0xc81f87a644b41e49b3221f41251f15c6cb00ce03",
+              "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "scalar": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+              "gasLimit": 30000000
+            }
+          },
+          "block_time": 2,
+          "max_sequencer_drift": 600,
+          "seq_window_size": 3600,
+          "channel_timeout": 300,
+          "l1_chain_id": 3151908,
+          "l2_chain_id": 1337,
+          "regolith_time": 0,
+          "canyon_time": 0,
+          "delta_time": 0,
+          "ecotone_time": 0,
+          "fjord_time": 0,
+          "batch_inbox_address": "0xff00000000000000000000000000000000042069",
+          "deposit_contract_address": "0x08073dc48dde578137b8af042bcbc1c2491f1eb2",
+          "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
+          "protocol_versions_address": "0x0000000000000000000000000000000000000000"
+        }
         "#;
-        let config: RollupConfig = serde_json::from_str(ser_cfg).unwrap();
 
-        // Validate standard fields.
-        assert_eq!(
-            config.genesis,
-            ChainGenesis {
+        let expected = RollupConfig {
+            genesis: ChainGenesis {
                 l1: BlockNumHash {
                     hash: b256!("481724ee99b1f4cb71d826e2ec5a37265f460e9b112315665c977f4050b0af54"),
-                    number: 10
+                    number: 10,
                 },
                 l2: BlockNumHash {
                     hash: b256!("88aedfbf7dea6bfa2c4ff315784ad1a7f145d8f650969359c003bbed68c87631"),
-                    number: 0
+                    number: 0,
                 },
                 l2_time: 1725557164,
                 system_config: Some(SystemConfig {
@@ -619,38 +615,81 @@ mod tests {
                     eip1559_elasticity: None,
                     operator_fee_scalar: None,
                     operator_fee_constant: None,
-                })
-            }
-        );
-        assert_eq!(config.block_time, 2);
-        assert_eq!(config.max_sequencer_drift, 600);
-        assert_eq!(config.seq_window_size, 3600);
-        assert_eq!(config.channel_timeout, 300);
-        assert_eq!(config.l1_chain_id, 3151908);
-        assert_eq!(config.l2_chain_id, 1337);
-        assert_eq!(config.regolith_time, Some(0));
-        assert_eq!(config.canyon_time, Some(0));
-        assert_eq!(config.delta_time, Some(0));
-        assert_eq!(config.ecotone_time, Some(0));
-        assert_eq!(config.fjord_time, Some(0));
-        assert_eq!(
-            config.batch_inbox_address,
-            address!("ff00000000000000000000000000000000042069")
-        );
-        assert_eq!(
-            config.deposit_contract_address,
-            address!("08073dc48dde578137b8af042bcbc1c2491f1eb2")
-        );
-        assert_eq!(
-            config.l1_system_config_address,
-            address!("94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710")
-        );
-        assert_eq!(config.protocol_versions_address, Address::ZERO);
+                }),
+            },
+            block_time: 2,
+            max_sequencer_drift: 600,
+            seq_window_size: 3600,
+            channel_timeout: 300,
+            granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
+            l1_chain_id: 3151908,
+            l2_chain_id: 1337,
+            base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
+            canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
+            regolith_time: Some(0),
+            canyon_time: Some(0),
+            delta_time: Some(0),
+            ecotone_time: Some(0),
+            fjord_time: Some(0),
+            granite_time: None,
+            holocene_time: None,
+            isthmus_time: None,
+            interop_time: None,
+            batch_inbox_address: address!("ff00000000000000000000000000000000042069"),
+            deposit_contract_address: address!("08073dc48dde578137b8af042bcbc1c2491f1eb2"),
+            l1_system_config_address: address!("94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710"),
+            protocol_versions_address: Address::ZERO,
+            superchain_config_address: None,
+            blobs_enabled_l1_timestamp: None,
+            da_challenge_address: None,
+            interop_message_expiry_window: DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
+        };
 
-        // Validate non-standard fields.
-        assert_eq!(config.granite_channel_timeout, GRANITE_CHANNEL_TIMEOUT);
-        assert_eq!(config.base_fee_params, OP_MAINNET_BASE_FEE_PARAMS);
-        assert_eq!(config.canyon_base_fee_params, OP_MAINNET_BASE_FEE_PARAMS_CANYON);
-        assert_eq!(config.interop_message_expiry_window, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW);
+        let deserialized: RollupConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(deserialized, expected);
+    }
+
+    #[test]
+    fn test_rollup_config_unknown_field() {
+        let raw: &str = r#"
+        {
+          "genesis": {
+            "l1": {
+              "hash": "0x481724ee99b1f4cb71d826e2ec5a37265f460e9b112315665c977f4050b0af54",
+              "number": 10
+            },
+            "l2": {
+              "hash": "0x88aedfbf7dea6bfa2c4ff315784ad1a7f145d8f650969359c003bbed68c87631",
+              "number": 0
+            },
+            "l2_time": 1725557164,
+            "system_config": {
+              "batcherAddr": "0xc81f87a644b41e49b3221f41251f15c6cb00ce03",
+              "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "scalar": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+              "gasLimit": 30000000
+            }
+          },
+          "block_time": 2,
+          "max_sequencer_drift": 600,
+          "seq_window_size": 3600,
+          "channel_timeout": 300,
+          "l1_chain_id": 3151908,
+          "l2_chain_id": 1337,
+          "regolith_time": 0,
+          "canyon_time": 0,
+          "delta_time": 0,
+          "ecotone_time": 0,
+          "fjord_time": 0,
+          "batch_inbox_address": "0xff00000000000000000000000000000000042069",
+          "deposit_contract_address": "0x08073dc48dde578137b8af042bcbc1c2491f1eb2",
+          "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
+          "protocol_versions_address": "0x0000000000000000000000000000000000000000",
+          "unknown_field": "unknown"
+        }
+        "#;
+
+        let err = serde_json::from_str::<RollupConfig>(raw).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
     }
 }
