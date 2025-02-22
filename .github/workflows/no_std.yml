@@ -1,4 +1,4 @@
-name: no_std checks
+name: Compat
 
 on:
   push:
