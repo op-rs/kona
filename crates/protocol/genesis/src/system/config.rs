@@ -186,24 +186,52 @@ mod test {
 
     #[test]
     #[cfg(feature = "serde")]
-    fn test_system_config_alias() {
-        let sc_str: &'static str = r#"{
+    fn test_system_config_eip1559_params() {
+        let raw = r#"{
           "batcherAddress": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
+          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
+          "gasLimit": 30000000,
+          "eip1559Params": "0x000000ab000000cd"
+        }"#;
+        let system_config: SystemConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(system_config.eip1559_denominator, Some(0xab_u32), "eip1559_denominator");
+        assert_eq!(system_config.eip1559_elasticity, Some(0xcd_u32), "eip1559_elasticity");
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn test_system_config_serde() {
+        let raw = r#"{
+          "batcherAddr": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
           "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
           "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
           "gasLimit": 30000000
         }"#;
-        let system_config: SystemConfig = serde_json::from_str(sc_str).unwrap();
-        assert_eq!(
-            system_config,
-            SystemConfig {
-                batcher_address: address!("6887246668a3b87F54DeB3b94Ba47a6f63F32985"),
-                overhead: U256::from(0xbc),
-                scalar: U256::from(0xa6fe0),
-                gas_limit: 30000000,
-                ..Default::default()
-            }
-        );
+        let expected = SystemConfig {
+            batcher_address: address!("6887246668a3b87F54DeB3b94Ba47a6f63F32985"),
+            overhead: U256::from(0xbc),
+            scalar: U256::from(0xa6fe0),
+            gas_limit: 30000000,
+            ..Default::default()
+        };
+
+        let deserialized: SystemConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(deserialized, expected);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn test_system_config_unknown_field() {
+        let raw = r#"{
+          "batcherAddr": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
+          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
+          "gasLimit": 30000000,
+          "unknown": 0
+        }"#;
+        let err = serde_json::from_str::<SystemConfig>(raw).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
     }
 
     #[test]
@@ -279,25 +307,6 @@ mod test {
             ..Default::default()
         };
         assert_eq!(sys_config.eip_1559_params(&rollup_config, 0, 2), Some(B64::ZERO));
-    }
-
-    #[test]
-    #[cfg(feature = "serde")]
-    fn test_system_config_serde() {
-        let sc_str = r#"{
-          "batcherAddr": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
-          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
-          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
-          "gasLimit": 30000000
-        }"#;
-        let system_config: SystemConfig = serde_json::from_str(sc_str).unwrap();
-        assert_eq!(
-            system_config.batcher_address,
-            address!("6887246668a3b87F54DeB3b94Ba47a6f63F32985")
-        );
-        assert_eq!(system_config.overhead, U256::from(0xbc));
-        assert_eq!(system_config.scalar, U256::from(0xa6fe0));
-        assert_eq!(system_config.gas_limit, 30000000);
     }
 
     #[test]
