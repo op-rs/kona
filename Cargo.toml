@@ -66,30 +66,30 @@ kona-host = { path = "bin/host", version = "0.1.0", default-features = false }
 kona-client = { path = "bin/client", version = "0.1.0", default-features = false }
 
 # Workspace Protocol
-kona-derive = { path = "crates/protocol/derive", version = "0.2.3", default-features = false }
+kona-derive = { path = "crates/protocol/derive", version = "0.2.4", default-features = false }
 kona-hardforks = { path = "crates/protocol/hardforks", version = "0.1.0", default-features = false }
 kona-protocol = { path = "crates/protocol/protocol", version = "0.1.0", default-features = false }
 kona-genesis = { path = "crates/protocol/genesis", version = "0.1.0", default-features = false }
 kona-registry = { path = "crates/protocol/registry", version = "0.1.0", default-features = false }
-kona-driver = { path = "crates/protocol/driver", version = "0.2.3", default-features = false }
+kona-driver = { path = "crates/protocol/driver", version = "0.2.4", default-features = false }
 kona-interop = { path = "crates/protocol/interop", version = "0.1.2", default-features = false }
 
 # External
-kona-net = { path = "crates/external/net", version = "0.1.0", default-features = false }
+kona-net = { path = "crates/external/net", version = "0.1.1", default-features = false }
 kona-rpc = { path = "crates/external/rpc", version = "0.1.0", default-features = false }
 
 # Providers
 kona-providers-local = { path = "crates/providers/providers-local", version = "0.1.0", default-features = false }
-kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.1.0", default-features = false }
+kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.1.1", default-features = false }
 
 # Proof
-kona-mpt = { path = "crates/proof/mpt", version = "0.1.2", default-features = false }
-kona-proof = { path = "crates/proof/proof", version = "0.2.3", default-features = false }
-kona-executor = { path = "crates/proof/executor", version = "0.2.3", default-features = false }
-kona-std-fpvm = { path = "crates/proof/std-fpvm", version = "0.1.2", default-features = false }
-kona-preimage = { path = "crates/proof/preimage", version = "0.2.1", default-features = false }
-kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.1.2", default-features = false }
-kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", default-features = false }
+kona-mpt = { path = "crates/proof/mpt", version = "0.2.0", default-features = false }
+kona-proof = { path = "crates/proof/proof", version = "0.2.4", default-features = false }
+kona-executor = { path = "crates/proof/executor", version = "0.3.0", default-features = false }
+kona-std-fpvm = { path = "crates/proof/std-fpvm", version = "0.1.3", default-features = false }
+kona-preimage = { path = "crates/proof/preimage", version = "0.2.2", default-features = false }
+kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.1.3", default-features = false }
+kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.2", default-features = false }
 
 # Workspace Utilities
 kona-serde = { path = "crates/utilities/serde", version = "0.1.0", default-features = false }
