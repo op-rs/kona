@@ -12,6 +12,7 @@ exclude = ["**/target"]
 [workspace]
 members = [
   "bin/*",
+  "crates/umbrella",
   "crates/proof/*",
   "crates/protocol/*",
   "crates/external/*",

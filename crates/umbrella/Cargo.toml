@@ -1,0 +1,129 @@
+[package]
+name = "kona"
+version = "0.1.0"
+description = "Collection of Extensible OP Stack Services and Components"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# Workspace Proofs
+kona-mpt = { workspace = true, optional = true }
+kona-proof = { workspace = true, optional = true }
+kona-executor = { workspace = true, optional = true }
+kona-std-fpvm = { workspace = true, optional = true }
+kona-preimage = { workspace = true, optional = true }
+kona-proof-interop = { workspace = true, optional = true }
+
+# Workspace External
+kona-net = { workspace = true, optional = true }
+kona-rpc = { workspace = true, optional = true }
+
+# Workspace Protocol
+kona-protocol = { workspace = true, optional = true }
+kona-derive = { workspace = true, optional = true }
+kona-driver = { workspace = true, optional = true }
+kona-registry = { workspace = true, optional = true }
+kona-genesis  = { workspace = true, optional = true }
+kona-interop = { workspace = true, optional = true }
+
+# Workspace Providers
+kona-providers-local = { workspace = true, optional = true }
+kona-providers-alloy = { workspace = true, optional = true }
+
+[features]
+default = []
+
+full = [
+  "proof",
+  "protocol",
+  "external",
+  "providers"
+]
+
+proof = [
+  "mpt",
+  "proof2",
+  "executor",
+  "preimage",
+  "proof-interop"
+]
+
+protocol = [
+  "derive",
+  "driver",
+  "registry",
+  "genesis",
+  "interop",
+  "protocol2"
+]
+
+external = ["rpc"]
+
+providers = [
+  "std",
+  "alloy",
+  "local",
+]
+
+std = [
+  "std-fpvm",
+  "net",
+  "alloy",
+  "local",
+
+  "kona-proof?/std",
+  "kona-preimage?/std",
+
+  "kona-registry?/std",
+  "kona-genesis?/std",
+  "kona-protocol?/std",
+
+  "kona-rpc?/std",
+]
+
+serde = [
+  "kona-derive?/serde",
+  "kona-genesis?/serde",
+  "kona-interop?/serde",
+  "kona-protocol?/serde",
+
+  "kona-mpt?/serde",
+  "kona-preimage?/serde",
+
+  "kona-rpc?/serde",
+]
+
+# `no_std` crates
+rpc = ["dep:kona-rpc"]
+
+mpt = ["dep:kona-mpt"]
+proof2 = ["dep:kona-proof"]
+executor = ["dep:kona-executor"]
+preimage = ["dep:kona-preimage"]
+proof-interop = ["dep:kona-proof-interop"]
+
+derive = ["dep:kona-derive"]
+driver = ["dep:kona-driver"]
+registry = ["dep:kona-registry"]
+genesis = ["dep:kona-genesis"]
+interop = ["dep:kona-interop"]
+protocol2 = ["dep:kona-protocol"]
+
+# `std` crates
+net = ["dep:kona-net"]
+alloy = ["dep:kona-providers-alloy"]
+local = ["dep:kona-providers-local"]
+std-fpvm = ["dep:kona-std-fpvm"]

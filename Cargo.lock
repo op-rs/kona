@@ -3962,6 +3962,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona"
+version = "0.1.0"
+dependencies = [
+ "kona-derive",
+ "kona-driver",
+ "kona-executor",
+ "kona-genesis",
+ "kona-interop",
+ "kona-mpt",
+ "kona-net",
+ "kona-preimage",
+ "kona-proof",
+ "kona-proof-interop",
+ "kona-protocol",
+ "kona-providers-alloy",
+ "kona-providers-local",
+ "kona-registry",
+ "kona-rpc",
+ "kona-std-fpvm",
+]
+
+[[package]]
 name = "kona-client"
 version = "0.1.0"
 dependencies = [
