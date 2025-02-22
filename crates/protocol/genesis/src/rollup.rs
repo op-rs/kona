@@ -4,8 +4,7 @@ use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
 use crate::{
-    base_fee_params, base_fee_params_canyon, ChainGenesis, HardForkConfiguration,
-    OP_MAINNET_CHAIN_ID,
+    base_fee_params, base_fee_params_canyon, ChainGenesis, HardForkConfig, OP_MAINNET_CHAIN_ID,
 };
 
 /// The max rlp bytes per channel for the Bedrock hardfork.
@@ -330,9 +329,9 @@ impl RollupConfig {
         }
     }
 
-    /// Returns the [HardForkConfiguration] using [RollupConfig] timestamps.
-    pub const fn hardfork_config(&self) -> HardForkConfiguration {
-        HardForkConfiguration {
+    /// Returns the [HardForkConfig] using [RollupConfig] timestamps.
+    pub const fn hardfork_config(&self) -> HardForkConfig {
+        HardForkConfig {
             canyon_time: self.canyon_time,
             delta_time: self.delta_time,
             ecotone_time: self.ecotone_time,

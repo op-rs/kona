@@ -6,8 +6,8 @@ use alloy_primitives::Address;
 
 use crate::{
     base_fee_params, base_fee_params_canyon, rollup::DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
-    AddressList, AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfiguration, Roles,
-    RollupConfig, SuperchainLevel, GRANITE_CHANNEL_TIMEOUT,
+    AddressList, AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, Roles, RollupConfig,
+    SuperchainLevel, GRANITE_CHANNEL_TIMEOUT,
 };
 
 /// Defines core blockchain settings per block.
@@ -86,9 +86,9 @@ pub struct ChainConfig {
     /// Gas paying token metadata. Not consumed by downstream OPStack components.
     #[cfg_attr(feature = "serde", serde(rename = "GasPayingToken", alias = "gas_paying_token"))]
     pub gas_paying_token: Option<Address>,
-    /// Hardfork Configuration. These values may override the superchain-wide defaults.
-    #[cfg_attr(feature = "serde", serde(alias = "hardforks"))]
-    pub hardfork_configuration: HardForkConfiguration,
+    /// Hardfork Config. These values may override the superchain-wide defaults.
+    #[cfg_attr(feature = "serde", serde(rename = "hardfork_configuration", alias = "hardforks"))]
+    pub hardfork_config: HardForkConfig,
     /// Optimism configuration
     #[cfg_attr(feature = "serde", serde(rename = "optimism"))]
     pub optimism: Option<BaseFeeConfig>,
@@ -140,14 +140,14 @@ impl ChainConfig {
             max_sequencer_drift: self.max_sequencer_drift,
             canyon_base_fee_params: self.canyon_base_fee_params(),
             regolith_time: Some(0),
-            canyon_time: self.hardfork_configuration.canyon_time,
-            delta_time: self.hardfork_configuration.delta_time,
-            ecotone_time: self.hardfork_configuration.ecotone_time,
-            fjord_time: self.hardfork_configuration.fjord_time,
-            granite_time: self.hardfork_configuration.granite_time,
-            holocene_time: self.hardfork_configuration.holocene_time,
-            isthmus_time: self.hardfork_configuration.isthmus_time,
-            interop_time: self.hardfork_configuration.interop_time,
+            canyon_time: self.hardfork_config.canyon_time,
+            delta_time: self.hardfork_config.delta_time,
+            ecotone_time: self.hardfork_config.ecotone_time,
+            fjord_time: self.hardfork_config.fjord_time,
+            granite_time: self.hardfork_config.granite_time,
+            holocene_time: self.hardfork_config.holocene_time,
+            isthmus_time: self.hardfork_config.isthmus_time,
+            interop_time: self.hardfork_config.interop_time,
             batch_inbox_address: self.batch_inbox_addr,
             deposit_contract_address: self
                 .addresses

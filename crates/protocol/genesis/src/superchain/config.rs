@@ -1,6 +1,6 @@
 //! Contains the `SuperchainConfig` type.
 
-use crate::{HardForkConfiguration, SuperchainL1Info};
+use crate::{HardForkConfig, SuperchainL1Info};
 use alloc::string::String;
 use alloy_primitives::Address;
 
@@ -14,7 +14,7 @@ pub struct SuperchainConfig {
     /// Superchain L1 anchor information
     pub l1: SuperchainL1Info,
     /// Default hardforks timestamps.
-    pub hardforks: HardForkConfiguration,
+    pub hardforks: HardForkConfig,
     /// Optional addresses for the superchain-wide default protocol versions contract.
     #[cfg_attr(feature = "serde", serde(alias = "protocolVersionsAddr"))]
     pub protocol_versions_addr: Option<Address>,
@@ -30,7 +30,7 @@ pub struct SuperchainConfig {
 #[cfg(feature = "serde")]
 mod tests {
     use super::*;
-    use crate::{HardForkConfiguration, SuperchainL1Info};
+    use crate::{HardForkConfig, SuperchainL1Info};
     use alloc::string::ToString;
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
                 public_rpc: "https://mainnet.rpc".to_string(),
                 explorer: "https://mainnet.explorer".to_string(),
             },
-            hardforks: HardForkConfiguration {
+            hardforks: HardForkConfig {
                 canyon_time: Some(1699981200),
                 delta_time: Some(1703203200),
                 ecotone_time: Some(1708534800),

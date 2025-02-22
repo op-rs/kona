@@ -1,4 +1,4 @@
-# Configuration file for [`cargo-release`](https://github.com/crate-ci/cargo-release)
+# Config file for [`cargo-release`](https://github.com/crate-ci/cargo-release)
 # See: https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md
 
 allow-branch = ["main"]

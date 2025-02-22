@@ -7,7 +7,7 @@
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-pub struct HardForkConfiguration {
+pub struct HardForkConfig {
     /// Canyon hardfork activation time
     pub canyon_time: Option<u64>,
     /// Delta hardfork activation time

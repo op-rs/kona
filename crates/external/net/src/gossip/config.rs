@@ -1,4 +1,4 @@
-//! Gossipsub Configuration
+//! Gossipsub Config
 
 use lazy_static::lazy_static;
 use libp2p::gossipsub::{Config, ConfigBuilder, ConfigBuilderError, Message, MessageId};
