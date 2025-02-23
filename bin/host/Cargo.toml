@@ -62,6 +62,7 @@ tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
+thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
