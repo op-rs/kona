@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   pkg-config
 
 # Install rust
-ENV RUST_VERSION=1.81.0
+ENV RUST_VERSION=1.82.0
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src
 ENV PATH="/root/.cargo/bin:${PATH}"
 
