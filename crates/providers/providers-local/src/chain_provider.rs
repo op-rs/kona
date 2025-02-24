@@ -1,4 +1,4 @@
-//! Chain Provider
+//! L1 Chain Provider
 
 use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync::Arc, vec::Vec};
 use alloy_primitives::{map::HashMap, B256};
@@ -20,7 +20,7 @@ use parking_lot::RwLock;
 use reth_execution_types::Chain;
 use reth_ethereum_primitives::{Transaction, TransactionSigned};
 
-/// An in-memory [ChainProvider] that stores chain data,
+/// An in-memory [ChainProvider] that stores L1 chain data,
 /// meant to be shared between multiple readers.
 ///
 /// This provider uses a ring buffer to limit capacity
