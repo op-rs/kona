@@ -27,8 +27,8 @@ alloy-primitives = { workspace = true, features = ["map"] }
 op-alloy-consensus.workspace = true
 
 # Reth
-reth-provider = { workspace = true, default-features = false }
-reth-primitives = { workspace = true, default-features = false }
+reth-execution-types.workspace = true
+reth-primitives.workspace = true
 
 # Misc
 async-trait.workspace = true
