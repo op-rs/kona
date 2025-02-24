@@ -134,8 +134,8 @@ op-alloy-rpc-jsonrpsee = { version = "0.10.5", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.10.5", default-features = false }
 
 # Reth
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", default-features = false }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", default-features = false }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 
 # General
 url = "2.5.4"
