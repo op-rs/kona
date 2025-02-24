@@ -1,12 +1,14 @@
 //! Chain Provider
 
 use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync::Arc, vec::Vec};
-use alloy_primitives::{map::HashMap, PrimitiveSignature, B256};
+use alloy_primitives::{map::HashMap, B256};
 
 use alloy_consensus::{
     Header, Receipt, Signed, TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant, TxEnvelope,
     TxLegacy,
 };
+use alloy_consensus::SignableTransaction;
+use alloy_consensus::BlockHeader;
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
 use kona_derive::{
@@ -16,7 +18,7 @@ use kona_derive::{
 use kona_protocol::BlockInfo;
 use parking_lot::RwLock;
 use reth_execution_types::Chain;
-use reth_primitives::Transaction;
+use reth_ethereum_primitives::{Transaction, TransactionSigned};
 
 /// An in-memory [ChainProvider] that stores chain data,
 /// meant to be shared between multiple readers.
@@ -136,7 +138,7 @@ impl InMemoryChainProviderInner {
                     blob_gas_used: header.blob_gas_used,
                     excess_blob_gas: header.excess_blob_gas,
                     parent_beacon_block_root: header.parent_beacon_block_root,
-                    requests_hash: header.requests_root,
+                    requests_hash: header.requests_hash(),
                 },
             );
         }
@@ -172,19 +174,19 @@ impl InMemoryChainProviderInner {
 
     /// Commits [Receipt]s to the provider.
     fn commit_receipts(&mut self, chain: &Arc<Chain>) {
-        for (b, receipt) in chain.blocks_and_receipts() {
+        for (b, receipts) in chain.blocks_and_receipts() {
             self.hash_to_receipts.insert(
                 b.hash(),
-                receipt
-                    .iter()
-                    .flat_map(|r| {
-                        r.as_ref().map(|r| Receipt {
-                            cumulative_gas_used: r.cumulative_gas_used,
-                            logs: r.logs.clone(),
-                            status: alloy_consensus::Eip658Value::Eip658(r.success),
-                        })
-                    })
-                    .collect(),
+                receipts
+                .iter()
+                .map(|r| {
+                    Receipt {
+                        cumulative_gas_used: r.cumulative_gas_used,
+                        logs: r.logs.clone(),
+                        status: alloy_consensus::Eip658Value::Eip658(r.success),
+                    }
+                })
+                .collect(),
             );
         }
     }
@@ -192,7 +194,7 @@ impl InMemoryChainProviderInner {
     /// Commits [TxEnvelope]s to the provider.
     fn commit_txs(&mut self, chain: &Arc<Chain>) {
         for b in chain.blocks_iter() {
-            let txs = b.transactions().flat_map(reth_to_alloy_tx).collect();
+            let txs = b.body().transactions().map(reth_to_alloy_tx).collect();
             self.hash_to_txs.insert(b.hash(), txs);
         }
     }
@@ -304,10 +306,10 @@ impl ChainProvider for InMemoryChainProvider {
     }
 }
 
-pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnvelope> {
-    let sig = PrimitiveSignature::try_from(tx.signature.as_bytes().as_slice()).ok()?;
+pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
+    let sig = *tx.signature();
 
-    let new = match &tx.transaction {
+    let new = match &tx.transaction() {
         Transaction::Legacy(l) => {
             let legacy_tx = TxLegacy {
                 chain_id: l.chain_id,
@@ -399,5 +401,5 @@ pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnv
         }
         Transaction::Eip7702(_) => unimplemented!("EIP-7702 not implemented"),
     };
-    Some(new)
+    new
 }
