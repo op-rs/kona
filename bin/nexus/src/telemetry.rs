@@ -11,5 +11,6 @@ pub fn init_stack(verbosity: u8, metrics_port: u16) -> anyhow::Result<()> {
 
     // Start the Prometheus metrics server.
     init_prometheus_server(metrics_port)?;
+
     Ok(())
 }
