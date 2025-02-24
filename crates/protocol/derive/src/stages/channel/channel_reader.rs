@@ -168,7 +168,7 @@ mod test {
         errors::PipelineErrorKind, test_utils::TestChannelReaderProvider, types::ResetSignal,
     };
     use alloc::vec;
-    use kona_genesis::HardForkConfiguration;
+    use kona_genesis::HardForkConfig;
 
     fn new_compressed_batch_data() -> Bytes {
         let file_contents =
@@ -247,7 +247,7 @@ mod test {
     async fn test_flush_post_holocene() {
         let raw = new_compressed_batch_data();
         let config = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let mock = TestChannelReaderProvider::new(vec![Ok(Some(raw))]);

@@ -13,7 +13,7 @@ for a new Hardfork.
 ## Required Genesis Updates
 
 The first updates that need to be made are to [`maili-genesis`][genesis]
-types, namely the [`RollupConfig`][rc] and [`HardForkConfiguration`][hfc].
+types, namely the [`RollupConfig`][rc] and [`HardForkConfig`][hfc].
 
 First, add a timestamp field to the [`RollupConfig`][rc]. Let's use the
 hardfork name "Glacier" as an example.
@@ -46,10 +46,10 @@ accessor to call this method (let's use "Isthmus" as the prior hardfork).
     }
 ```
 
-Lastly, add the "Glacier" timestamp to the [`HardForkConfiguration`][hfc].
+Lastly, add the "Glacier" timestamp to the [`HardForkConfig`][hfc].
 
 ```rust
-pub struct HardForkConfiguration {
+pub struct HardForkConfig {
     ...
     /// Glacier hardfork activation time
     pub glacier_time: Option<u64>,
@@ -109,5 +109,5 @@ Some new error variants to the [`BlockInfoError`][bie] are needed as well.
 [info-mod]: https://github.com/op-rs/maili/blob/main/crates/protocol/src/info/mod.rs
 [genesis]: https://docs.rs/maili-genesis/latest/maili_genesis/index.html
 [rc]: https://docs.rs/maili-genesis/latest/maili_genesis/struct.RollupConfig.html
-[hfc]: https://docs.rs/maili-genesis/latest/maili_genesis/struct.HardForkConfiguration.html
+[hfc]: https://docs.rs/maili-genesis/latest/maili_genesis/struct.HardForkConfig.html
 [info-tx]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.L1BlockInfoTx.html

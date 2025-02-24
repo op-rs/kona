@@ -468,7 +468,7 @@ mod tests {
     use alloy_eips::{eip2718::Decodable2718, BlockNumHash};
     use alloy_primitives::{address, b256, Address, Bytes, TxKind, B256, U256};
     use alloy_rlp::{BytesMut, Encodable};
-    use kona_genesis::{ChainGenesis, HardForkConfiguration, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
+    use kona_genesis::{ChainGenesis, HardForkConfig, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
     use kona_protocol::{BatchReader, L1BlockInfoBedrock, L1BlockInfoTx};
     use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType, TxDeposit};
     use tracing::Level;
@@ -542,7 +542,7 @@ mod tests {
         // Construct a future single batch.
         let cfg = Arc::new(RollupConfig {
             max_sequencer_drift: 700,
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         assert!(cfg.is_holocene_active(0));
@@ -579,7 +579,7 @@ mod tests {
     async fn test_holocene_add_batch_future() {
         // Construct a future single batch.
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         assert!(cfg.is_holocene_active(0));
@@ -648,7 +648,7 @@ mod tests {
         // Construct a single batch with BatchValidity::Past.
         let cfg = Arc::new(RollupConfig {
             block_time: 2,
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         assert!(cfg.is_holocene_active(0));
@@ -833,7 +833,7 @@ mod tests {
 
         // Construct a future single batch.
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         assert!(cfg.is_holocene_active(0));
@@ -961,7 +961,7 @@ mod tests {
         let payload_block_hash =
             b256!("4444444444444444444444444444444444444444444444444444444444444444");
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { delta_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 100,
             max_sequencer_drift: 10000000,
             seq_window_size: 10000000,

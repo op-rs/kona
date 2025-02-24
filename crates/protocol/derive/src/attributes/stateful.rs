@@ -251,7 +251,7 @@ mod tests {
     use alloc::vec;
     use alloy_consensus::Header;
     use alloy_primitives::{Log, LogData, B256, U256, U64};
-    use kona_genesis::{HardForkConfiguration, SystemConfig};
+    use kona_genesis::{HardForkConfig, SystemConfig};
     use kona_protocol::{BlockInfo, DepositError};
 
     fn generate_valid_log() -> Log {
@@ -484,7 +484,7 @@ mod tests {
         let timestamp = 100;
         let cfg = Arc::new(RollupConfig {
             block_time,
-            hardforks: HardForkConfiguration { canyon_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { canyon_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let l2_number = 1;
@@ -534,7 +534,7 @@ mod tests {
         let timestamp = 100;
         let cfg = Arc::new(RollupConfig {
             block_time,
-            hardforks: HardForkConfiguration { ecotone_time: Some(102), ..Default::default() },
+            hardforks: HardForkConfig { ecotone_time: Some(102), ..Default::default() },
             ..Default::default()
         });
         let l2_number = 1;
@@ -585,7 +585,7 @@ mod tests {
         let timestamp = 100;
         let cfg = Arc::new(RollupConfig {
             block_time,
-            hardforks: HardForkConfiguration { fjord_time: Some(102), ..Default::default() },
+            hardforks: HardForkConfig { fjord_time: Some(102), ..Default::default() },
             ..Default::default()
         });
         let l2_number = 1;

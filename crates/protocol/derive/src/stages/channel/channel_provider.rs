@@ -163,14 +163,14 @@ mod test {
         types::ResetSignal,
     };
     use alloc::{sync::Arc, vec};
-    use kona_genesis::{HardForkConfiguration, RollupConfig};
+    use kona_genesis::{HardForkConfig, RollupConfig};
     use kona_protocol::BlockInfo;
 
     #[test]
     fn test_channel_provider_assembler_active() {
         let provider = TestNextFrameProvider::new(vec![]);
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
@@ -220,7 +220,7 @@ mod test {
     fn test_channel_provider_retain_current_assembler() {
         let provider = TestNextFrameProvider::new(vec![]);
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
@@ -246,7 +246,7 @@ mod test {
     fn test_channel_provider_transition_stage() {
         let provider = TestNextFrameProvider::new(vec![]);
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(2), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
             ..Default::default()
         });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
@@ -271,7 +271,7 @@ mod test {
     fn test_channel_provider_transition_stage_backwards() {
         let provider = TestNextFrameProvider::new(vec![]);
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(2), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
             ..Default::default()
         });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
@@ -339,7 +339,7 @@ mod test {
         ];
         let provider = TestNextFrameProvider::new(frames.into_iter().rev().map(Ok).collect());
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { holocene_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let mut channel_provider = ChannelProvider::new(cfg.clone(), provider);

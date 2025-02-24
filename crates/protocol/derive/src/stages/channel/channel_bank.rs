@@ -248,7 +248,7 @@ mod tests {
         types::ResetSignal,
     };
     use alloc::{vec, vec::Vec};
-    use kona_genesis::HardForkConfiguration;
+    use kona_genesis::HardForkConfig;
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 
@@ -360,7 +360,7 @@ mod tests {
     fn test_read_channel_active() {
         let mock = TestNextFrameProvider::new(vec![]);
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { canyon_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { canyon_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let mut channel_bank = ChannelBank::new(cfg, mock);
@@ -472,7 +472,7 @@ mod tests {
         let mut frames = crate::frames!(0xFF, 0, vec![0xDD; 50], 100000);
         let mock = TestNextFrameProvider::new(vec![]);
         let cfg = Arc::new(RollupConfig {
-            hardforks: HardForkConfiguration { fjord_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { fjord_time: Some(0), ..Default::default() },
             ..Default::default()
         });
         let mut channel_bank = ChannelBank::new(cfg, mock);

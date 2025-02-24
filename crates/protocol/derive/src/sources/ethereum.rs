@@ -87,7 +87,7 @@ mod tests {
     use alloy_consensus::TxEnvelope;
     use alloy_eips::eip2718::Decodable2718;
     use alloy_primitives::{address, Address};
-    use kona_genesis::{HardForkConfiguration, RollupConfig, SystemConfig};
+    use kona_genesis::{HardForkConfig, RollupConfig, SystemConfig};
     use kona_protocol::BlockInfo;
 
     fn default_test_blob_source() -> BlobSource<TestChainProvider, TestBlobProvider> {
@@ -126,7 +126,7 @@ mod tests {
         blob.data.push(BlobData { data: None, calldata: Some(Bytes::default()) });
         let calldata = CalldataSource::new(chain.clone(), Address::ZERO, Address::ZERO);
         let cfg = RollupConfig {
-            hardforks: HardForkConfiguration { ecotone_time: Some(0), ..Default::default() },
+            hardforks: HardForkConfig { ecotone_time: Some(0), ..Default::default() },
             ..Default::default()
         };
 
