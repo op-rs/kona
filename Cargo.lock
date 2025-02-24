@@ -3967,6 +3967,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "clap",
+ "metrics-exporter-prometheus",
  "tracing",
  "tracing-subscriber",
 ]
@@ -4240,7 +4241,6 @@ dependencies = [
  "kona-cli",
  "kona-net",
  "kona-registry",
- "metrics-exporter-prometheus",
  "tokio",
  "tracing",
  "tracing-subscriber",

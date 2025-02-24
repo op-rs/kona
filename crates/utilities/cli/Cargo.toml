@@ -19,3 +19,4 @@ alloy-primitives = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
+metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }

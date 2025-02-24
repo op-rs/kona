@@ -9,7 +9,10 @@
 mod clap;
 pub use clap::cli_styles;
 
+pub mod cli_parsers;
+
 mod tracing;
 pub use tracing::init_tracing_subscriber;
 
-pub mod cli_parsers;
+mod prometheus;
+pub use prometheus::init_prometheus_server;

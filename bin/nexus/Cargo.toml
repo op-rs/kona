@@ -23,4 +23,3 @@ tracing.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
-metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
