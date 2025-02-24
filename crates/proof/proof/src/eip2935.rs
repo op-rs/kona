@@ -64,12 +64,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{vec, vec::Vec};
     use alloy_primitives::Bytes;
     use alloy_rlp::Encodable;
     use alloy_trie::{proof::ProofRetainer, HashBuilder};
     use kona_mpt::NoopTrieHinter;
+    use kona_registry::HashMap;
     use rstest::rstest;
-    use std::collections::HashMap;
 
     // Mock TrieProvider implementation for testing EIP-2935 history lookup
     #[derive(Default, Clone)]
