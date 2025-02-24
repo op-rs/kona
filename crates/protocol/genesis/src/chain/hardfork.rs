@@ -44,7 +44,7 @@ mod tests {
         }
         "#;
 
-        let hardforks = HardForkConfiguration {
+        let hardforks = HardForkConfig {
             canyon_time: Some(1699981200),
             delta_time: Some(1703203200),
             ecotone_time: Some(1708534800),
@@ -55,7 +55,7 @@ mod tests {
             interop_time: None,
         };
 
-        let deserialized: HardForkConfiguration = serde_json::from_str(raw).unwrap();
+        let deserialized: HardForkConfig = serde_json::from_str(raw).unwrap();
         assert_eq!(hardforks, deserialized);
     }
 
@@ -73,7 +73,7 @@ mod tests {
         }
         "#;
 
-        let err = serde_json::from_str::<HardForkConfiguration>(raw).unwrap_err();
+        let err = serde_json::from_str::<HardForkConfig>(raw).unwrap_err();
         assert_eq!(err.classify(), serde_json::error::Category::Data);
     }
 
@@ -88,7 +88,7 @@ mod tests {
         holocene_time = 1732633200 # Tue Nov 26 15:00:00 UTC 2024
         "#;
 
-        let hardforks = HardForkConfiguration {
+        let hardforks = HardForkConfig {
             canyon_time: Some(1699981200),
             delta_time: Some(1703203200),
             ecotone_time: Some(1708534800),
@@ -99,7 +99,7 @@ mod tests {
             interop_time: None,
         };
 
-        let deserialized: HardForkConfiguration = toml::from_str(raw).unwrap();
+        let deserialized: HardForkConfig = toml::from_str(raw).unwrap();
         assert_eq!(hardforks, deserialized);
     }
 
@@ -114,6 +114,6 @@ mod tests {
         holocene_time = 1732633200 # Tue Nov 26 15:00:00 UTC 2024
         new_field_time = 1732633200 # Tue Nov 26 15:00:00 UTC 2024
         "#;
-        toml::from_str::<HardForkConfiguration>(raw).unwrap_err();
+        toml::from_str::<HardForkConfig>(raw).unwrap_err();
     }
 }

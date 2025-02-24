@@ -57,7 +57,7 @@ mod tests {
                 public_rpc: "https://mainnet.rpc".to_string(),
                 explorer: "https://mainnet.explorer".to_string(),
             },
-            hardforks: HardForkConfiguration {
+            hardforks: HardForkConfig {
                 canyon_time: Some(1699981200),
                 delta_time: Some(1703203200),
                 ecotone_time: Some(1708534800),
