@@ -34,7 +34,7 @@ run-client-asterisc block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc ver
   cd $(git rev-parse --show-toplevel)
 
   echo "Building client program for RISC-V target..."
-  just build-asterisc --bin kona --profile release-client-lto
+  just build-asterisc-client
 
   echo "Loading client program into Asterisc state format..."
   asterisc load-elf --path=$CLIENT_BIN_PATH
@@ -157,7 +157,7 @@ run-client-asterisc-offline block_number l2_claim l2_output_root l2_head l1_head
   cd $(git rev-parse --show-toplevel)
 
   echo "Building client program for RISC-V target..."
-  just build-asterisc --bin kona --profile release-client-lto
+  just build-asterisc-client
 
   echo "Loading client program into Asterisc state format..."
   asterisc load-elf --path=$CLIENT_BIN_PATH
@@ -213,7 +213,7 @@ run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc verbo
   cd $(git rev-parse --show-toplevel)
 
   echo "Building client program for MIPS64 target..."
-  just build-cannon --bin kona --profile release-client-lto
+  just build-cannon-client
 
   echo "Loading client program into Cannon state format..."
   cannon load-elf --path=$CLIENT_BIN_PATH --type multithreaded64-3
@@ -245,30 +245,30 @@ run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc verbo
 # Run the client program on cannon with the host program detached, in offline mode.
 run-client-cannon-offline block_number l2_claim l2_output_root l2_head l1_head l2_chain_id verbosity='':
   #!/usr/bin/env bash
-  
+
   HOST_BIN_PATH="./target/debug/kona-host"
   CLIENT_BIN_PATH="./target/mips64-unknown-none/release-client-lto/kona"
   STATE_PATH="./state.bin.gz"
-  
+
   CLAIMED_L2_BLOCK_NUMBER={{block_number}}
   CLAIMED_L2_OUTPUT_ROOT={{l2_claim}}
   AGREED_L2_OUTPUT_ROOT={{l2_output_root}}
   AGREED_L2_HEAD_HASH={{l2_head}}
   L1_HEAD={{l1_head}}
   L2_CHAIN_ID={{l2_chain_id}}
-  
+
   # Move to the workspace root
   cd $(git rev-parse --show-toplevel)
 
   echo "Building client program for MIPS64 target..."
-  just build-cannon --bin kona --profile release-client-lto
-  
+  just build-cannon-client
+
   echo "Loading client program into Cannon state format..."
   cannon load-elf --path=$CLIENT_BIN_PATH --type multithreaded64-3
-  
+
   echo "Building host program for native target..."
   cargo build --bin kona-host
-  
+
   echo "Running cannon"
   cannon run \
     --info-at '%10000000' \

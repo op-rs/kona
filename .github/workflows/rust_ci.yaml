@@ -87,7 +87,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        target: ["native", "cannon", "asterisc"]
+        target: ["native", "cannon-client", "asterisc-client"]
     name: build-${{ matrix.target }}
     continue-on-error: true
     steps:

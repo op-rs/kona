@@ -4,7 +4,7 @@ alias la := lint-all
 alias l := lint-native
 alias lint := lint-native
 alias f := fmt-native-fix
-alias b := build
+alias b := build-native
 alias h := hack
 
 # default recipe to display help information
@@ -94,28 +94,25 @@ lint-docs:
 test-docs:
   cargo test --doc --all --locked
 
-# Build the workspace for all available targets
-build: build-native build-cannon build-asterisc
-
 # Build for the native target
 build-native *args='':
   cargo build --workspace $@
 
-# Build for the `cannon` target. Any crates that require the stdlib are excluded from the build for this target.
-build-cannon *args='':
+# Build `kona-client` for the `cannon` target.
+build-cannon-client:
   docker run \
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/cannon-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-nexus --exclude kona-cli --exclude kona-net --exclude kona-providers-alloy --exclude kona-providers-local
+    ghcr.io/op-rs/kona/cannon-builder:main cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
 
-# Build for the `asterisc` target. Any crates that require the stdlib are excluded from the build for this target.
-build-asterisc *args='':
+# Build `kona-client` for the `asterisc` target.
+build-asterisc-client:
   docker run \
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/asterisc-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-nexus --exclude kona-cli --exclude kona-net --exclude kona-providers-alloy --exclude kona-providers-local
+    ghcr.io/op-rs/kona/asterisc-builder:main cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
 
 # Clones and checks out the monorepo at the commit present in `.monorepo`
 monorepo:
