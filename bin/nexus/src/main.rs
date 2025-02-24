@@ -4,7 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 
 mod disc;
 mod globals;
@@ -15,6 +15,9 @@ mod telemetry;
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
 pub(crate) struct NetArgs {
+    /// Verbosity level (0-2)
+    #[arg(long, short, action = ArgAction::Count)]
+    pub v: u8,
     /// Global arguments for the CLI.
     #[clap(flatten)]
     pub global: globals::GlobalArgs,
@@ -39,7 +42,7 @@ async fn main() -> Result<()> {
     let args = NetArgs::parse();
 
     // Initialize the telemetry stack.
-    telemetry::init_stack(args.global.metrics_port)?;
+    telemetry::init_stack(args.v, args.global.metrics_port)?;
 
     // Dispatch on subcommand.
     match args.subcommand {

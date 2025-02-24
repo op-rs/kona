@@ -4237,6 +4237,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "kona-bin-utils",
  "kona-net",
  "kona-registry",
  "metrics-exporter-prometheus",

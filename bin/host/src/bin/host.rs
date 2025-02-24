@@ -9,6 +9,7 @@ use clap::{ArgAction, Parser, Subcommand};
 use kona_cli::{cli_styles, init_tracing_subscriber};
 use serde::Serialize;
 use tracing::info;
+use tracing_subscriber::EnvFilter;
 
 const ABOUT: &str = "
 kona-host is a CLI application that runs the Kona pre-image server and client program. The host
@@ -45,7 +46,7 @@ pub enum HostMode {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     let cfg = HostCli::parse();
-    init_tracing_subscriber(cfg.v)?;
+    init_tracing_subscriber(cfg.v, None::<EnvFilter>)?;
 
     match cfg.mode {
         #[cfg(feature = "single")]

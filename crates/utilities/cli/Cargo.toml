@@ -18,4 +18,4 @@ alloy-primitives = { workspace = true, features = ["serde"] }
 # General
 clap = { workspace = true, features = ["derive", "env"] }
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["fmt"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }

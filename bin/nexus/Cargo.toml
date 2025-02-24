@@ -13,6 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 # Workspace
+kona-bin-utils.workspace = true
 kona-net.workspace = true
 kona-registry.workspace = true
 
@@ -21,5 +22,5 @@ anyhow.workspace = true
 tracing.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
