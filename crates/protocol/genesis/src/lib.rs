@@ -43,9 +43,13 @@ pub use system::{
     CONFIG_UPDATE_TOPIC,
 };
 
+/// An alias for the hardfork configuration.
+#[deprecated(note = "Use `HardForkConfig` instead")]
+pub type HardForkConfiguration = HardForkConfig;
+
 mod chain;
 pub use chain::{
-    AddressList, AltDAConfig, ChainConfig, HardForkConfiguration, Roles, BASE_MAINNET_CHAIN_ID,
+    AddressList, AltDAConfig, ChainConfig, HardForkConfig, Roles, BASE_MAINNET_CHAIN_ID,
     BASE_SEPOLIA_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID,
 };
 

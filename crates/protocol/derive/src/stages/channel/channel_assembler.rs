@@ -192,7 +192,8 @@ mod test {
     };
     use alloc::{sync::Arc, vec};
     use kona_genesis::{
-        RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+        HardForkConfig, RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK,
+        MAX_RLP_BYTES_PER_CHANNEL_FJORD,
     };
     use kona_protocol::BlockInfo;
     use tracing::Level;
@@ -348,7 +349,10 @@ mod test {
         ];
         frames[1].data = vec![0; MAX_RLP_BYTES_PER_CHANNEL_FJORD as usize];
         let mock = TestNextFrameProvider::new(frames.into_iter().rev().map(Ok).collect());
-        let cfg = Arc::new(RollupConfig { fjord_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { fjord_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
 
         let mut assembler = ChannelAssembler::new(cfg, mock);
 

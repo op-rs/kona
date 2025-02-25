@@ -53,7 +53,7 @@ impl L1BlockInfoTx {
         // upgrade transactions being placed after the L1 info transaction. Because of this,
         // for the first block of Ecotone, we send a Bedrock style L1 block info transaction
         let is_first_ecotone_block =
-            rollup_config.ecotone_time.unwrap_or_default() == l2_block_time;
+            rollup_config.hardforks.ecotone_time.unwrap_or_default() == l2_block_time;
 
         // If ecotone is *not* active or this is the first block of ecotone, use Bedrock block info.
         if !rollup_config.is_ecotone_active(l2_block_time) || is_first_ecotone_block {
@@ -85,7 +85,7 @@ impl L1BlockInfoTx {
         );
 
         if rollup_config.is_interop_active(l2_block_time) &&
-            rollup_config.interop_time.unwrap_or_default() != l2_block_time
+            rollup_config.hardforks.interop_time.unwrap_or_default() != l2_block_time
         {
             return Ok(Self::Interop(L1BlockInfoInterop {
                 number: l1_header.number,
@@ -101,7 +101,7 @@ impl L1BlockInfoTx {
         }
 
         if rollup_config.is_isthmus_active(l2_block_time) &&
-            rollup_config.isthmus_time.unwrap_or_default() != l2_block_time
+            rollup_config.hardforks.isthmus_time.unwrap_or_default() != l2_block_time
         {
             let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
             let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();
@@ -339,6 +339,7 @@ mod test {
     };
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
+    use kona_genesis::HardForkConfig;
 
     #[test]
     fn test_l1_block_info_missing_selector() {
@@ -831,7 +832,10 @@ mod test {
 
     #[test]
     fn test_try_new_ecotone() {
-        let rollup_config = RollupConfig { ecotone_time: Some(1), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { ecotone_time: Some(1), ..Default::default() },
+            ..Default::default()
+        };
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header::default();
@@ -874,7 +878,10 @@ mod test {
 
     #[test]
     fn test_try_new_interop() {
-        let rollup_config = RollupConfig { interop_time: Some(1), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { interop_time: Some(1), ..Default::default() },
+            ..Default::default()
+        };
         let system_config = SystemConfig::default();
         let sequence_number = 0;
         let l1_header = Header::default();
@@ -917,7 +924,10 @@ mod test {
 
     #[test]
     fn test_try_new_isthmus() {
-        let rollup_config = RollupConfig { isthmus_time: Some(1), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
+            ..Default::default()
+        };
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),
@@ -975,7 +985,10 @@ mod test {
 
     #[test]
     fn test_try_new_with_deposit_tx() {
-        let rollup_config = RollupConfig { isthmus_time: Some(1), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
+            ..Default::default()
+        };
         let system_config = SystemConfig {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
             operator_fee_scalar: Some(0xabcd),

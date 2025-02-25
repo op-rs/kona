@@ -505,7 +505,7 @@ mod tests {
     use alloy_consensus::{constants::EIP1559_TX_TYPE_ID, Header};
     use alloy_eips::BlockNumHash;
     use alloy_primitives::{b256, Bytes};
-    use kona_genesis::ChainGenesis;
+    use kona_genesis::{ChainGenesis, HardForkConfig};
     use op_alloy_consensus::OpBlock;
     use tracing::Level;
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -698,7 +698,10 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(10), ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(10), ..Default::default() },
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 9, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo::default();
@@ -726,7 +729,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo {
@@ -754,7 +761,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo {
@@ -781,7 +792,7 @@ mod tests {
         tracing_subscriber::Registry::default().with(layer).init();
 
         let cfg = RollupConfig {
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             max_sequencer_drift: 1000,
             ..Default::default()
@@ -850,7 +861,7 @@ mod tests {
         tracing_subscriber::Registry::default().with(layer).init();
 
         let cfg = RollupConfig {
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             max_sequencer_drift: 1000,
             ..Default::default()
@@ -931,7 +942,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let l1_block = BlockInfo { number: 10, timestamp: 20, ..Default::default() };
         let l1_blocks = vec![l1_block];
         let l2_safe_head = L2BlockInfo {
@@ -964,7 +979,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo {
@@ -991,7 +1010,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo {
@@ -1018,7 +1041,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo {
@@ -1046,7 +1073,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let l2_safe_head = L2BlockInfo {
@@ -1087,7 +1118,11 @@ mod tests {
         let layer = CollectingLayer::new(trace_store.clone());
         tracing_subscriber::Registry::default().with(layer).init();
 
-        let cfg = RollupConfig { delta_time: Some(0), block_time: 10, ..Default::default() };
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
+            block_time: 10,
+            ..Default::default()
+        };
         let block = BlockInfo { number: 10, timestamp: 10, ..Default::default() };
         let l1_blocks = vec![block];
         let parent_hash = b256!("1111111111111111111111111111111111111111000000000000000000000000");
@@ -1132,7 +1167,7 @@ mod tests {
 
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1183,7 +1218,7 @@ mod tests {
 
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1244,7 +1279,7 @@ mod tests {
 
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1297,7 +1332,7 @@ mod tests {
 
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1355,7 +1390,7 @@ mod tests {
         let cfg = RollupConfig {
             seq_window_size: 100,
             max_sequencer_drift: 0,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1411,7 +1446,7 @@ mod tests {
         let cfg = RollupConfig {
             seq_window_size: 100,
             max_sequencer_drift: 0,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1470,7 +1505,7 @@ mod tests {
         let cfg = RollupConfig {
             seq_window_size: 100,
             max_sequencer_drift: 0,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1539,7 +1574,7 @@ mod tests {
         let cfg = RollupConfig {
             seq_window_size: 100,
             max_sequencer_drift: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1604,7 +1639,7 @@ mod tests {
         let cfg = RollupConfig {
             seq_window_size: 100,
             max_sequencer_drift: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1671,7 +1706,7 @@ mod tests {
         let cfg = RollupConfig {
             seq_window_size: 100,
             max_sequencer_drift: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1739,7 +1774,7 @@ mod tests {
 
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1792,7 +1827,7 @@ mod tests {
 
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             ..Default::default()
         };
@@ -1862,7 +1897,7 @@ mod tests {
             b256!("0e2ee9abe94ee4514b170d7039d8151a7469d434a8575dbab5bd4187a27732dd");
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             genesis: ChainGenesis {
                 l2: BlockNumHash { number: 41, hash: payload_block_hash },
@@ -1932,7 +1967,7 @@ mod tests {
             b256!("0e2ee9abe94ee4514b170d7039d8151a7469d434a8575dbab5bd4187a27732dd");
         let cfg = RollupConfig {
             seq_window_size: 100,
-            delta_time: Some(0),
+            hardforks: HardForkConfig { delta_time: Some(0), ..Default::default() },
             block_time: 10,
             genesis: ChainGenesis {
                 l2: BlockNumHash { number: 41, hash: payload_block_hash },

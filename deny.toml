@@ -12,6 +12,8 @@ ignore = [
     "RUSTSEC-2024-0384",
     # Can be removed once reth version is updated
     "RUSTSEC-2024-0370",
+    # Ring is unmaintained - used in upstream libs
+    "RUSTSEC-2025-0007",
 ]
 
 [licenses]

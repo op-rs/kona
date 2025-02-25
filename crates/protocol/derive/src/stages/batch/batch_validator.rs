@@ -319,7 +319,7 @@ mod test {
     use alloc::{sync::Arc, vec, vec::Vec};
     use alloy_eips::{BlockNumHash, NumHash};
     use alloy_primitives::B256;
-    use kona_genesis::RollupConfig;
+    use kona_genesis::{HardForkConfig, RollupConfig};
     use kona_protocol::{Batch, BlockInfo, L2BlockInfo, SingleBatch, SpanBatch};
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
@@ -497,7 +497,7 @@ mod test {
     #[tokio::test]
     async fn test_batch_validator_next_batch_valid() {
         let cfg = Arc::new(RollupConfig {
-            holocene_time: Some(0),
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             block_time: 2,
             max_sequencer_drift: 700,
             ..Default::default()
