@@ -18,6 +18,7 @@ coverage:
         only_pulls: true
 
 ignore:
+  - "bin/nexus"
   - "**/test_utils/*"
   - "**/test_utils*"
   - "**/test_util*"
