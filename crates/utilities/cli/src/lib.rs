@@ -13,3 +13,5 @@ mod tracing;
 pub use tracing::init_tracing_subscriber;
 
 pub mod cli_parsers;
+
+pub mod sigsegv_handler;

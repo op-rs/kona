@@ -7,50 +7,17 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-use anyhow::Result;
-use clap::{ArgAction, Parser, Subcommand};
-
-mod disc;
-mod globals;
-mod gossip;
-mod telemetry;
-
-/// The CLI Arguments.
-#[derive(Parser, Clone, Debug)]
-#[command(author, version, about, long_about = None)]
-pub(crate) struct NexusArgs {
-    /// Verbosity level (0-2)
-    #[arg(long, short, action = ArgAction::Count)]
-    pub v: u8,
-    /// Global arguments for the CLI.
-    #[clap(flatten)]
-    pub global: globals::GlobalArgs,
-    /// The subcommand to run.
-    #[clap(subcommand)]
-    pub subcommand: NexusSubcommand,
-}
-
-/// Subcommands for the CLI.
-#[derive(Debug, Clone, Subcommand)]
-#[allow(clippy::large_enum_variant)]
-pub(crate) enum NexusSubcommand {
-    /// Discovery service command.
-    Disc(disc::DiscCommand),
-    /// Gossip service command.
-    Gossip(gossip::GossipCommand),
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Parse arguments.
-    let args = NexusArgs::parse();
+    kona_cli::sigsegv_handler::install();
 
-    // Initialize the telemetry stack.
-    telemetry::init_stack(args.v, args.global.metrics_port)?;
+    // Enable backtraces unless a RUST_BACKTRACE value has already been explicitly provided.
+    if std::env::var_os("RUST_BACKTRACE").is_none() {
+        std::env::set_var("RUST_BACKTRACE", "1");
+    }
 
-    // Dispatch on subcommand.
-    match args.subcommand {
-        NexusSubcommand::Disc(disc) => disc.run(&args.global).await,
-        NexusSubcommand::Gossip(gossip) => gossip.run(&args.global).await,
+    if let Err(err) = nexus::Cli::parse().run().await {
+        eprintln!("Error: {err:?}");
+        std::process::exit(1);
     }
 }
