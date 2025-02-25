@@ -6,11 +6,7 @@ use alloc::sync::Arc;
 use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind},
-    traits::{L2ChainProvider, SignalReceiver},
-    types::ResetSignal,
-};
+use kona_derive::errors::{PipelineError, PipelineErrorKind};
 use kona_driver::{Driver, DriverError};
 use kona_executor::{KonaHandleRegister, TrieDBProvider};
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
@@ -102,31 +98,15 @@ where
             .await?;
     l2_provider.set_cursor(cursor.clone());
 
-    let mut pipeline = OraclePipeline::new(
+    let pipeline = OraclePipeline::new(
         rollup_config.clone(),
         cursor.clone(),
         oracle.clone(),
         beacon,
         l1_provider.clone(),
         l2_provider.clone(),
-    );
-
-    // Reset the pipeline to populate the initial system configuration in L1 Traversal.
-    let l2_safe_head = *cursor.read().l2_safe_head();
-    pipeline
-        .signal(
-            ResetSignal {
-                l2_safe_head,
-                l1_origin: cursor.read().origin(),
-                system_config: l2_provider
-                    .system_config_by_number(l2_safe_head.block_info.number, rollup_config.clone())
-                    .await
-                    .ok(),
-            }
-            .signal(),
-        )
-        .await?;
-
+    )
+    .await?;
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
         l2_provider.clone(),
