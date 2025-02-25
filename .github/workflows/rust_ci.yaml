@@ -145,7 +145,7 @@ jobs:
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.82
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
