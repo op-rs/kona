@@ -4059,7 +4059,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
- "alloy-trie 0.7.9",
+ "alloy-trie",
  "async-trait",
  "kona-derive",
  "kona-driver",
