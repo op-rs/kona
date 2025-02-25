@@ -26,8 +26,6 @@ where
     pub blob_fetcher: B,
     /// The address of the batcher contract.
     pub batcher_address: Address,
-    /// The L1 Signer.
-    pub signer: Address,
     /// Data.
     pub data: Vec<BlobData>,
     /// Whether the source is open.
@@ -40,23 +38,15 @@ where
     B: BlobProvider + Send,
 {
     /// Creates a new blob source.
-    pub const fn new(
-        chain_provider: F,
-        blob_fetcher: B,
-        batcher_address: Address,
-        signer: Address,
-    ) -> Self {
-        Self {
-            chain_provider,
-            blob_fetcher,
-            batcher_address,
-            signer,
-            data: Vec::new(),
-            open: false,
-        }
+    pub const fn new(chain_provider: F, blob_fetcher: B, batcher_address: Address) -> Self {
+        Self { chain_provider, blob_fetcher, batcher_address, data: Vec::new(), open: false }
     }
 
-    fn extract_blob_data(&self, txs: Vec<TxEnvelope>) -> (Vec<BlobData>, Vec<IndexedBlobHash>) {
+    fn extract_blob_data(
+        &self,
+        txs: Vec<TxEnvelope>,
+        batcher_address: Address,
+    ) -> (Vec<BlobData>, Vec<IndexedBlobHash>) {
         let mut index: u64 = 0;
         let mut data = Vec::new();
         let mut hashes = Vec::new();
@@ -82,7 +72,7 @@ where
                 index += blob_hashes.map_or(0, |h| h.len() as u64);
                 continue;
             }
-            if tx.recover_signer().unwrap_or_default() != self.signer {
+            if tx.recover_signer().unwrap_or_default() != batcher_address {
                 index += blob_hashes.map_or(0, |h| h.len() as u64);
                 continue;
             }
@@ -117,7 +107,11 @@ where
     }
 
     /// Loads blob data into the source if it is not open.
-    async fn load_blobs(&mut self, block_ref: &BlockInfo) -> Result<(), BlobProviderError> {
+    async fn load_blobs(
+        &mut self,
+        block_ref: &BlockInfo,
+        batcher_address: Address,
+    ) -> Result<(), BlobProviderError> {
         if self.open {
             return Ok(());
         }
@@ -128,7 +122,7 @@ where
             .await
             .map_err(|e| BlobProviderError::Backend(e.to_string()))?;
 
-        let (mut data, blob_hashes) = self.extract_blob_data(info.1);
+        let (mut data, blob_hashes) = self.extract_blob_data(info.1, batcher_address);
 
         // If there are no hashes, set the calldata and return.
         if blob_hashes.is_empty() {
@@ -180,8 +174,12 @@ where
 {
     type Item = Bytes;
 
-    async fn next(&mut self, block_ref: &BlockInfo) -> PipelineResult<Self::Item> {
-        self.load_blobs(block_ref).await?;
+    async fn next(
+        &mut self,
+        block_ref: &BlockInfo,
+        batcher_address: Address,
+    ) -> PipelineResult<Self::Item> {
+        self.load_blobs(block_ref, batcher_address).await?;
 
         let next_data = match self.next_data() {
             Ok(d) => d,
@@ -197,7 +195,7 @@ where
             Ok(d) => Ok(d),
             Err(_) => {
                 warn!(target: "blob-source", "Failed to decode blob data, skipping");
-                self.next(block_ref).await
+                self.next(block_ref, batcher_address).await
             }
         }
     }
@@ -221,8 +219,7 @@ pub(crate) mod tests {
         let chain_provider = TestChainProvider::default();
         let blob_fetcher = TestBlobProvider::default();
         let batcher_address = Address::default();
-        let signer = Address::default();
-        BlobSource::new(chain_provider, blob_fetcher, batcher_address, signer)
+        BlobSource::new(chain_provider, blob_fetcher, batcher_address)
     }
 
     pub(crate) fn valid_blob_txs() -> Vec<TxEnvelope> {
@@ -236,14 +233,14 @@ pub(crate) mod tests {
     async fn test_load_blobs_open() {
         let mut source = default_test_blob_source();
         source.open = true;
-        assert!(source.load_blobs(&BlockInfo::default()).await.is_ok());
+        assert!(source.load_blobs(&BlockInfo::default(), Address::ZERO).await.is_ok());
     }
 
     #[tokio::test]
     async fn test_load_blobs_chain_provider_err() {
         let mut source = default_test_blob_source();
         assert!(matches!(
-            source.load_blobs(&BlockInfo::default()).await,
+            source.load_blobs(&BlockInfo::default(), Address::ZERO).await,
             Err(BlobProviderError::Backend(_))
         ));
     }
@@ -254,7 +251,7 @@ pub(crate) mod tests {
         let block_info = BlockInfo::default();
         source.chain_provider.insert_block_with_transactions(0, block_info, Vec::new());
         assert!(!source.open); // Source is not open by default.
-        assert!(source.load_blobs(&BlockInfo::default()).await.is_ok());
+        assert!(source.load_blobs(&BlockInfo::default(), Address::ZERO).await.is_ok());
         assert!(source.data.is_empty());
         assert!(source.open);
     }
@@ -263,14 +260,15 @@ pub(crate) mod tests {
     async fn test_load_blobs_chain_provider_4844_txs_blob_fetch_error() {
         let mut source = default_test_blob_source();
         let block_info = BlockInfo::default();
-        source.signer = alloy_primitives::address!("A83C816D4f9b2783761a22BA6FADB0eB0606D7B2");
+        let batcher_address =
+            alloy_primitives::address!("A83C816D4f9b2783761a22BA6FADB0eB0606D7B2");
         source.batcher_address =
             alloy_primitives::address!("11E9CA82A3a762b4B5bd264d4173a242e7a77064");
         let txs = valid_blob_txs();
         source.blob_fetcher.should_error = true;
         source.chain_provider.insert_block_with_transactions(1, block_info, txs);
         assert!(matches!(
-            source.load_blobs(&BlockInfo::default()).await,
+            source.load_blobs(&BlockInfo::default(), batcher_address).await,
             Err(BlobProviderError::Backend(_))
         ));
     }
@@ -281,7 +279,8 @@ pub(crate) mod tests {
 
         let mut source = default_test_blob_source();
         let block_info = BlockInfo::default();
-        source.signer = alloy_primitives::address!("A83C816D4f9b2783761a22BA6FADB0eB0606D7B2");
+        let batcher_address =
+            alloy_primitives::address!("A83C816D4f9b2783761a22BA6FADB0eB0606D7B2");
         source.batcher_address =
             alloy_primitives::address!("11E9CA82A3a762b4B5bd264d4173a242e7a77064");
         let txs = valid_blob_txs();
@@ -306,7 +305,7 @@ pub(crate) mod tests {
         for hash in hashes {
             source.blob_fetcher.insert_blob(hash, Blob::with_last_byte(1u8));
         }
-        source.load_blobs(&BlockInfo::default()).await.unwrap();
+        source.load_blobs(&BlockInfo::default(), batcher_address).await.unwrap();
         assert!(source.open);
         assert!(!source.data.is_empty());
     }
@@ -316,7 +315,7 @@ pub(crate) mod tests {
         let mut source = default_test_blob_source();
         source.open = true;
 
-        let err = source.next(&BlockInfo::default()).await.unwrap_err();
+        let err = source.next(&BlockInfo::default(), Address::ZERO).await.unwrap_err();
         assert!(matches!(err, PipelineErrorKind::Temporary(PipelineError::Eof)));
     }
 
@@ -326,7 +325,7 @@ pub(crate) mod tests {
         source.open = true;
         source.data.push(BlobData { data: None, calldata: Some(Bytes::default()) });
 
-        let data = source.next(&BlockInfo::default()).await.unwrap();
+        let data = source.next(&BlockInfo::default(), Address::ZERO).await.unwrap();
         assert_eq!(data, Bytes::default());
     }
 
@@ -336,14 +335,14 @@ pub(crate) mod tests {
         source.open = true;
         source.data.push(BlobData { data: Some(Bytes::from(&[1; 32])), calldata: None });
 
-        let err = source.next(&BlockInfo::default()).await.unwrap_err();
+        let err = source.next(&BlockInfo::default(), Address::ZERO).await.unwrap_err();
         assert!(matches!(err, PipelineErrorKind::Temporary(PipelineError::Eof)));
     }
 
     #[tokio::test]
     async fn test_blob_source_pipeline_error() {
         let mut source = default_test_blob_source();
-        let err = source.next(&BlockInfo::default()).await.unwrap_err();
+        let err = source.next(&BlockInfo::default(), Address::ZERO).await.unwrap_err();
         assert!(matches!(err, PipelineErrorKind::Temporary(PipelineError::Provider(_))));
     }
 }
