@@ -105,7 +105,8 @@ where
         beacon,
         l1_provider.clone(),
         l2_provider.clone(),
-    );
+    )
+    .await?;
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
         l2_provider.clone(),

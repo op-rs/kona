@@ -115,7 +115,7 @@ jobs:
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
-  cargo-doc:
+  cargo-doc-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -133,6 +133,22 @@ jobs:
           cache-on-failure: true
       - name: doclint
         run: just lint-docs
+  cargo-doc-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: taiki-e/install-action@just
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.81
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: doctest
         run: just test-docs
   cargo-hack:
