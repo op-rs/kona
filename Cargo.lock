@@ -3967,6 +3967,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "clap",
+ "libc",
  "metrics-exporter-prometheus",
  "tracing",
  "tracing-subscriber",
@@ -4233,7 +4234,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kona-nexus"
+name = "kona-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",

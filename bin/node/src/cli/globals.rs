@@ -4,7 +4,7 @@ use clap::Parser;
 
 /// Global arguments for the CLI.
 #[derive(Parser, Clone, Debug)]
-pub(crate) struct GlobalArgs {
+pub struct GlobalArgs {
     /// The L2 chain ID to use.
     #[clap(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
