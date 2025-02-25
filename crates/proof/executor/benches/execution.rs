@@ -8,7 +8,9 @@ use alloy_rlp::Decodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use kona_executor::{StatelessL2BlockExecutor, TrieDBProvider};
-use kona_genesis::{RollupConfig, OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON};
+use kona_genesis::{
+    HardForkConfig, RollupConfig, OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON,
+};
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use pprof::criterion::{Output, PProfProfiler};
@@ -82,10 +84,13 @@ fn op_mainnet_exec_bench(
     // Make a mock rollup config for OP mainnet, with Ecotone activated at timestamp = 0.
     let rollup_config = RollupConfig {
         l2_chain_id: 10,
-        regolith_time: Some(0),
-        canyon_time: Some(0),
-        delta_time: Some(0),
-        ecotone_time: Some(0),
+        hardforks: HardForkConfig {
+            regolith_time: Some(0),
+            canyon_time: Some(0),
+            delta_time: Some(0),
+            ecotone_time: Some(0),
+            ..Default::default()
+        },
         base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
         canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
         ..Default::default()

@@ -3,8 +3,9 @@
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
-    ChainGenesis, RollupConfig, SystemConfig, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
-    OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON,
+    ChainGenesis, HardForkConfig, RollupConfig, SystemConfig,
+    DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, OP_MAINNET_BASE_FEE_PARAMS,
+    OP_MAINNET_BASE_FEE_PARAMS_CANYON,
 };
 
 /// The [RollupConfig] for OP Mainnet.
@@ -41,15 +42,17 @@ pub const OP_MAINNET_CONFIG: RollupConfig = RollupConfig {
     l2_chain_id: 10_u64,
     base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
     canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
-    regolith_time: Some(0_u64),
-    canyon_time: Some(1_704_992_401_u64),
-    delta_time: Some(1_708_560_000_u64),
-    ecotone_time: Some(1_710_374_401_u64),
-    fjord_time: Some(1_720_627_201_u64),
-    granite_time: Some(1_726_070_401_u64),
-    holocene_time: Some(1736445601),
-    isthmus_time: None,
-    interop_time: None,
+    hardforks: HardForkConfig {
+        regolith_time: None,
+        canyon_time: Some(1_704_992_401_u64),
+        delta_time: Some(1_708_560_000_u64),
+        ecotone_time: Some(1_710_374_401_u64),
+        fjord_time: Some(1_720_627_201_u64),
+        granite_time: Some(1_726_070_401_u64),
+        holocene_time: Some(1736445601),
+        isthmus_time: None,
+        interop_time: None,
+    },
     batch_inbox_address: address!("ff00000000000000000000000000000000000010"),
     deposit_contract_address: address!("beb5fc579115071764c7423a4f12edde41f106ed"),
     l1_system_config_address: address!("229047fed2591dbec1ef1118d64f7af3db9eb290"),

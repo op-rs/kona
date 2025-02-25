@@ -182,14 +182,17 @@ mod test {
         types::ResetSignal,
     };
     use alloc::{sync::Arc, vec};
-    use kona_genesis::RollupConfig;
+    use kona_genesis::{HardForkConfig, RollupConfig};
     use kona_protocol::BlockInfo;
 
     #[test]
     fn test_batch_provider_validator_active() {
         let provider = TestNextBatchProvider::new(vec![]);
         let l2_provider = TestL2ChainProvider::default();
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut batch_provider = BatchProvider::new(cfg, provider, l2_provider);
 
         assert!(batch_provider.attempt_update().is_ok());
@@ -215,7 +218,10 @@ mod test {
     fn test_batch_provider_transition_stage() {
         let provider = TestNextBatchProvider::new(vec![]);
         let l2_provider = TestL2ChainProvider::default();
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(2), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
+            ..Default::default()
+        });
         let mut batch_provider = BatchProvider::new(cfg, provider, l2_provider);
 
         batch_provider.attempt_update().unwrap();
@@ -238,7 +244,10 @@ mod test {
     fn test_batch_provider_transition_stage_backwards() {
         let provider = TestNextBatchProvider::new(vec![]);
         let l2_provider = TestL2ChainProvider::default();
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(2), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
+            ..Default::default()
+        });
         let mut batch_provider = BatchProvider::new(cfg, provider, l2_provider);
 
         batch_provider.attempt_update().unwrap();
@@ -285,7 +294,10 @@ mod test {
     async fn test_batch_provider_reset_validator() {
         let provider = TestNextBatchProvider::new(vec![]);
         let l2_provider = TestL2ChainProvider::default();
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut batch_provider = BatchProvider::new(cfg, provider, l2_provider);
 
         // Reset the batch provider.

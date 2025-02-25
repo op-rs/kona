@@ -22,7 +22,7 @@ mod altda;
 pub use altda::AltDAConfig;
 
 mod hardfork;
-pub use hardfork::HardForkConfiguration;
+pub use hardfork::HardForkConfig;
 
 mod roles;
 pub use roles::Roles;

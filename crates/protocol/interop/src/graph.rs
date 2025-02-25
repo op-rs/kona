@@ -170,9 +170,9 @@ where
                 message.executing_timestamp,
                 initiating_timestamp,
             ));
-        } else if initiating_timestamp < rollup_config.interop_time.unwrap_or_default() {
+        } else if initiating_timestamp < rollup_config.hardforks.interop_time.unwrap_or_default() {
             return Err(MessageGraphError::InvalidMessageTimestamp(
-                rollup_config.interop_time.unwrap_or_default(),
+                rollup_config.hardforks.interop_time.unwrap_or_default(),
                 initiating_timestamp,
             ));
         }
@@ -240,7 +240,7 @@ mod test {
     use super::MessageGraph;
     use crate::{test_util::SuperchainBuilder, MessageGraphError};
     use alloy_primitives::{hex, keccak256, map::HashMap, Address};
-    use kona_genesis::RollupConfig;
+    use kona_genesis::{HardForkConfig, RollupConfig};
 
     const MESSAGE: [u8; 4] = hex!("deadbeef");
     const OP_CHAIN_ID: u64 = 10;
@@ -341,7 +341,13 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let mut cfgs = HashMap::default();
-        cfgs.insert(0xDEAD, RollupConfig { interop_time: Some(50), ..Default::default() });
+        cfgs.insert(
+            0xDEAD,
+            RollupConfig {
+                hardforks: HardForkConfig { interop_time: Some(50), ..Default::default() },
+                ..Default::default()
+            },
+        );
         let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),

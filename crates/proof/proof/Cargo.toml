@@ -28,6 +28,7 @@ alloy-rlp.workspace = true
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
 alloy-primitives.workspace = true
+alloy-trie.workspace = true
 
 # Op Alloy
 op-alloy-consensus.workspace = true
@@ -44,6 +45,10 @@ thiserror.workspace = true
 
 # `std` feature dependencies
 tokio = { workspace = true, features = ["full"], optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+rstest.workspace = true
 
 [features]
 std = ["dep:tokio"]

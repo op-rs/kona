@@ -27,7 +27,7 @@ where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
 {
-    let provider = OracleInteropProvider::new(oracle.clone(), boot.agreed_pre_state.clone());
+    let provider = OracleInteropProvider::new(oracle.clone(), boot.clone());
 
     info!(target: "client_interop", "Deriving local-safe headers from prestate");
 

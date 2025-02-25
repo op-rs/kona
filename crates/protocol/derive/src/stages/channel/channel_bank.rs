@@ -248,6 +248,7 @@ mod tests {
         types::ResetSignal,
     };
     use alloc::{vec, vec::Vec};
+    use kona_genesis::HardForkConfig;
     use tracing::Level;
     use tracing_subscriber::layer::SubscriberExt;
 
@@ -358,7 +359,10 @@ mod tests {
     #[test]
     fn test_read_channel_active() {
         let mock = TestNextFrameProvider::new(vec![]);
-        let cfg = Arc::new(RollupConfig { canyon_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { canyon_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_bank = ChannelBank::new(cfg, mock);
         let id: ChannelId = [0xFF; 16];
         channel_bank.channel_queue.push_back(id);
@@ -467,7 +471,10 @@ mod tests {
     fn test_ingest_and_prune_channel_bank_fjord() {
         let mut frames = crate::frames!(0xFF, 0, vec![0xDD; 50], 100000);
         let mock = TestNextFrameProvider::new(vec![]);
-        let cfg = Arc::new(RollupConfig { fjord_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { fjord_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_bank = ChannelBank::new(cfg, mock);
         // Ingest frames until the channel bank is full and it stops increasing in size
         let mut current_size = 0;

@@ -251,7 +251,7 @@ mod tests {
     use alloc::vec;
     use alloy_consensus::Header;
     use alloy_primitives::{Log, LogData, B256, U256, U64};
-    use kona_genesis::SystemConfig;
+    use kona_genesis::{HardForkConfig, SystemConfig};
     use kona_protocol::{BlockInfo, DepositError};
 
     fn generate_valid_log() -> Log {
@@ -482,7 +482,11 @@ mod tests {
     async fn test_prepare_payload_with_canyon() {
         let block_time = 10;
         let timestamp = 100;
-        let cfg = Arc::new(RollupConfig { block_time, canyon_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            block_time,
+            hardforks: HardForkConfig { canyon_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -528,8 +532,11 @@ mod tests {
     async fn test_prepare_payload_with_ecotone() {
         let block_time = 2;
         let timestamp = 100;
-        let cfg =
-            Arc::new(RollupConfig { block_time, ecotone_time: Some(102), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            block_time,
+            hardforks: HardForkConfig { ecotone_time: Some(102), ..Default::default() },
+            ..Default::default()
+        });
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());
@@ -576,8 +583,11 @@ mod tests {
     async fn test_prepare_payload_with_fjord() {
         let block_time = 2;
         let timestamp = 100;
-        let cfg =
-            Arc::new(RollupConfig { block_time, fjord_time: Some(102), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            block_time,
+            hardforks: HardForkConfig { fjord_time: Some(102), ..Default::default() },
+            ..Default::default()
+        });
         let l2_number = 1;
         let mut fetcher = TestSystemConfigL2Fetcher::default();
         fetcher.insert(l2_number, SystemConfig::default());

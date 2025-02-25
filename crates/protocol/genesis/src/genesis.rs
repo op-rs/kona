@@ -89,4 +89,29 @@ mod tests {
         let genesis: ChainGenesis = serde_json::from_str(genesis_str).unwrap();
         assert_eq!(genesis, ref_genesis());
     }
+
+    #[test]
+    fn test_genesis_unknown_field_json() {
+        let raw: &str = r#"{
+            "l1": {
+              "hash": "0x438335a20d98863a4c0c97999eb2481921ccd28553eac6f913af7c12aec04108",
+              "number": 17422590
+            },
+            "l2": {
+              "hash": "0xdbf6a80fef073de06add9b0d14026d6e5a86c85f6d102c36d3d8e9cf89c2afd3",
+              "number": 105235063
+            },
+            "l2_time": 1686068903,
+            "system_config": {
+              "batcherAddress": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
+              "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+              "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
+              "gasLimit": 30000000
+            },
+            "unknown_field": "unknown"
+        }"#;
+
+        let err = serde_json::from_str::<ChainGenesis>(raw).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
+    }
 }
