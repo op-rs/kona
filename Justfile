@@ -107,7 +107,7 @@ build-cannon *args='':
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/cannon-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-nexus --exclude kona-net --exclude kona-providers-alloy --exclude kona-providers-local
+    ghcr.io/op-rs/kona/cannon-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-nexus --exclude kona-cli --exclude kona-net --exclude kona-providers-alloy --exclude kona-providers-local
 
 # Build for the `asterisc` target. Any crates that require the stdlib are excluded from the build for this target.
 build-asterisc *args='':
@@ -115,7 +115,7 @@ build-asterisc *args='':
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/asterisc-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-nexus --exclude kona-net --exclude kona-providers-alloy --exclude kona-providers-local
+    ghcr.io/op-rs/kona/asterisc-builder:main cargo build --workspace -Zbuild-std=core,alloc $@ --exclude kona-host --exclude kona-nexus --exclude kona-cli --exclude kona-net --exclude kona-providers-alloy --exclude kona-providers-local
 
 # Clones and checks out the monorepo at the commit present in `.monorepo`
 monorepo:

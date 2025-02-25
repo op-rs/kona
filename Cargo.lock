@@ -3962,6 +3962,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-cli"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "clap",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "kona-client"
 version = "0.1.0"
 dependencies = [
@@ -4122,6 +4132,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
+ "kona-cli",
  "kona-client",
  "kona-derive",
  "kona-driver",
@@ -4226,6 +4237,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "kona-cli",
  "kona-net",
  "kona-registry",
  "metrics-exporter-prometheus",

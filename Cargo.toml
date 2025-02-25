@@ -92,6 +92,7 @@ kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.1.2", d
 kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", default-features = false }
 
 # Workspace Utilities
+kona-cli = { path = "crates/utilities/cli", version = "0.1.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.1.0", default-features = false }
 
 # Maili Shadow Crates

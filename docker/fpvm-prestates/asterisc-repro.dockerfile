@@ -44,7 +44,7 @@ RUN git clone https://github.com/op-rs/kona
 # Build kona-client on the selected tag
 RUN cd kona && \
   git checkout $CLIENT_TAG && \
-  cargo build -Zbuild-std=core,alloc --workspace --bin kona --locked --profile release-client-lto --exclude kona-host --exclude kona-nexus --exclude kona-providers-alloy --exclude kona-providers-local --exclude kona-net && \
+  cargo build -Zbuild-std=core,alloc --workspace --bin kona --locked --profile release-client-lto --exclude kona-host --exclude kona-nexus --exclude kona-cli --exclude kona-providers-alloy --exclude kona-providers-local --exclude kona-net && \
   mv ./target/riscv64imac-unknown-none-elf/release-client-lto/kona /kona-client-elf
 
 ################################################################
