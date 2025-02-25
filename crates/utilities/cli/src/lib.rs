@@ -16,3 +16,5 @@ pub use tracing::init_tracing_subscriber;
 
 mod prometheus;
 pub use prometheus::init_prometheus_server;
+
+pub mod sigsegv_handler;

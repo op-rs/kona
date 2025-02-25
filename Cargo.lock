@@ -3968,6 +3968,7 @@ dependencies = [
  "alloy-primitives",
  "clap",
  "metrics-exporter-prometheus",
+ "libc",
  "tracing",
  "tracing-subscriber",
 ]

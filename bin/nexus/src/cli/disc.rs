@@ -1,6 +1,6 @@
 //! Discovery subcommand for Hilo.
 
-use crate::globals::GlobalArgs;
+use crate::cli::globals::GlobalArgs;
 use clap::Args;
 use kona_net::discovery::builder::DiscoveryBuilder;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
