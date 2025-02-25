@@ -10,7 +10,7 @@ use alloy_primitives::{Bytes, B256};
 use alloy_provider::{Provider, RootProvider};
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use kona_bin_utils::{
+use kona_cli::{
     cli_parsers::{parse_b256, parse_bytes},
     cli_styles,
 };

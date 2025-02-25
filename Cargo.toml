@@ -64,7 +64,6 @@ lto = "fat"
 # Workspace Binaries
 kona-host = { path = "bin/host", version = "0.1.0", default-features = false }
 kona-client = { path = "bin/client", version = "0.1.0", default-features = false }
-kona-bin-utils = { path = "bin/bin-utils", version = "0.1.0", default-features = false }
 
 # Workspace Protocol
 kona-derive = { path = "crates/protocol/derive", version = "0.2.3", default-features = false }
@@ -93,6 +92,7 @@ kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.1.2", d
 kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.1.1", default-features = false }
 
 # Workspace Utilities
+kona-cli = { path = "crates/utilities/cli", version = "0.1.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.1.0", default-features = false }
 
 # Maili Shadow Crates

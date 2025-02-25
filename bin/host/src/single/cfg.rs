@@ -10,7 +10,7 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use kona_bin_utils::{cli_parsers::parse_b256, cli_styles};
+use kona_cli::{cli_parsers::parse_b256, cli_styles};
 use kona_genesis::RollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
