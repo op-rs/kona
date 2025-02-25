@@ -3962,7 +3962,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kona-bin-utils"
+name = "kona-cli"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
@@ -4132,7 +4132,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
- "kona-bin-utils",
+ "kona-cli",
  "kona-client",
  "kona-derive",
  "kona-driver",
