@@ -1,4 +1,4 @@
-use kona_bin_utils::init_tracing_subscriber;
+use kona_cli::init_tracing_subscriber;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::net::SocketAddr;
 use tracing::info;

@@ -13,7 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 # Workspace
-kona-bin-utils.workspace = true
+kona-cli.workspace = true
 kona-net.workspace = true
 kona-registry.workspace = true
 
