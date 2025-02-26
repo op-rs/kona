@@ -15,8 +15,8 @@ use kona_derive::{
 };
 use kona_protocol::BlockInfo;
 use parking_lot::RwLock;
+use reth_execution_types::Chain;
 use reth_primitives::Transaction;
-use reth_provider::Chain;
 
 /// An in-memory [ChainProvider] that stores chain data,
 /// meant to be shared between multiple readers.
