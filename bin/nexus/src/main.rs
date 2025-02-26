@@ -4,11 +4,10 @@
     html_favicon_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/favicon.ico",
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
-#![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() {
+    use clap::Parser;
     kona_cli::sigsegv_handler::install();
 
     // Enable backtraces unless a RUST_BACKTRACE value has already been explicitly provided.
@@ -16,7 +15,7 @@ async fn main() -> Result<()> {
         std::env::set_var("RUST_BACKTRACE", "1");
     }
 
-    if let Err(err) = nexus::Cli::parse().run().await {
+    if let Err(err) = kona_nexus::Cli::parse().run() {
         eprintln!("Error: {err:?}");
         std::process::exit(1);
     }

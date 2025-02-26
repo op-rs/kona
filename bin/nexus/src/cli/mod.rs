@@ -35,13 +35,28 @@ pub struct Cli {
 
 impl Cli {
     /// Runs the CLI.
-    pub async fn run(self) -> Result<()> {
+    pub fn run(self) -> Result<()> {
         // Initialize the telemetry stack.
         telemetry::init_stack(self.v, self.global.metrics_port)?;
 
         match self.subcommand {
-            Commands::Disc(disc) => disc.run(&self.global).await,
-            Commands::Gossip(gossip) => gossip.run(&self.global).await,
+            Commands::Disc(disc) => Self::run_until_ctrl_c(disc.run(&self.global)),
+            Commands::Gossip(gossip) => Self::run_until_ctrl_c(gossip.run(&self.global)),
         }
+    }
+
+    /// Run until ctrl-c is pressed.
+    pub fn run_until_ctrl_c<F>(fut: F) -> Result<()>
+    where
+        F: std::future::Future<Output = Result<()>>,
+    {
+        let rt = Self::tokio_runtime().map_err(|e| anyhow::anyhow!(e))?;
+        rt.block_on(fut)
+    }
+
+    /// Creates a new default tokio multi-thread [Runtime](tokio::runtime::Runtime) with all
+    /// features enabled
+    pub fn tokio_runtime() -> Result<tokio::runtime::Runtime, std::io::Error> {
+        tokio::runtime::Builder::new_multi_thread().enable_all().build()
     }
 }
