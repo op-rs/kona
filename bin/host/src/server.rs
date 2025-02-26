@@ -19,8 +19,9 @@ pub struct PreimageServer<P, H, B> {
     backend: Arc<B>,
 }
 
+/// An error that can occur when handling preimage requests
 #[derive(Debug, thiserror::Error)]
-enum PreimageServerError {
+pub enum PreimageServerError {
     #[error("Failed to serve preimage request: {0}")]
     PreimageRequestFailed(PreimageOracleError),
     #[error("Failed to route hint: {0}")]
