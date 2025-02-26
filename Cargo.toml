@@ -60,6 +60,9 @@ panic = "abort"
 codegen-units = 1
 lto = "fat"
 
+[patch.crates-io]
+revm = { git = "https://github.com/bluealloy/revm", branch = "main" }
+
 [workspace.dependencies]
 # Workspace Binaries
 kona-host = { path = "bin/host", version = "0.1.0", default-features = false }

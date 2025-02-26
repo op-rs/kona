@@ -8,16 +8,19 @@
 
 use crate::precompiles::utils::precompile_run;
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{address, keccak256, Address, Bytes};
+use alloy_primitives::{keccak256, Address, Bytes};
 use revm::{
-    precompile::{Error as PrecompileError, Precompile, PrecompileResult, PrecompileWithAddress},
+    precompile::{
+        bls12_381::g1_add::PRECOMPILE, Error as PrecompileError, Precompile, PrecompileResult,
+        PrecompileWithAddress,
+    },
     primitives::PrecompileOutput,
 };
 
 /// The address of the BLS12-381 g1 addition check precompile.
 ///
 /// See: <https://eips.ethereum.org/EIPS/eip-2537#constants>
-const BLS12_G1_ADD_CHECK: Address = address!("0x000000000000000000000000000000000000000b");
+const BLS12_G1_ADD_CHECK: Address = PRECOMPILE.0;
 
 /// Input length of G1 Addition operation.
 const INPUT_LENGTH: usize = 256;

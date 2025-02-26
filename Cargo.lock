@@ -9901,3 +9901,8 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "revm"
+version = "20.0.0-alpha.1"
+source = "git+https://github.com/bluealloy/revm?branch=main#1967753677ab6f394a5b77f9432ebb734488d927"
