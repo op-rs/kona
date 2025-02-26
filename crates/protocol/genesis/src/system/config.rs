@@ -43,7 +43,6 @@ pub struct SystemConfig {
 /// This is used by the Optimism monorepo [here][here].
 ///
 /// [here]: https://github.com/ethereum-optimism/optimism/blob/cf28bffc7d880292794f53bb76bfc4df7898307b/op-service/eth/types.go#L519
-
 #[cfg(feature = "serde")]
 impl<'a> serde::Deserialize<'a> for SystemConfig {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

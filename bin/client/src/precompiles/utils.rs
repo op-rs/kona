@@ -27,7 +27,7 @@ pub(crate) fn msm_required_gas(k: usize, discount_table: &[u16], multiplication_
 /// - `hint_data`: The hint data to send to the host.
 #[macro_export]
 macro_rules! precompile_run {
-    ($hint_data:expr) => {
+    ($hint_data:expr_2021) => {
         async move {
             use kona_preimage::{
                 errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
