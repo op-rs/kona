@@ -1,0 +1,22 @@
+[package]
+name = "kona-cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+# Alloy
+alloy-primitives = { workspace = true, features = ["serde"] }
+
+# General
+clap = { workspace = true, features = ["derive", "env"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
+metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }

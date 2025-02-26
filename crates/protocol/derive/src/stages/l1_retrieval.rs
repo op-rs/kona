@@ -92,7 +92,7 @@ where
         // SAFETY: The above check ensures that `next` is not None.
         let next = self.next.as_ref().expect("infallible");
 
-        match self.provider.next(next).await {
+        match self.provider.next(next, self.prev.batcher_addr()).await {
             Ok(data) => Ok(data),
             Err(e) => {
                 if let PipelineErrorKind::Temporary(PipelineError::Eof) = e {

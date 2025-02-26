@@ -1,11 +1,6 @@
-//! This module contains all CLI-specific code for the host binary.
+//! Clap utilities.
 
 use clap::builder::styling::{AnsiColor, Color, Style};
-
-pub mod parser;
-
-mod tracing_util;
-pub use tracing_util::init_tracing_subscriber;
 
 /// Styles for the CLI application.
 pub const fn cli_styles() -> clap::builder::Styles {

@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
 use core::fmt::Debug;
+use kona_derive::errors::PipelineErrorKind;
 use kona_driver::DriverError;
 use kona_executor::{ExecutorError, KonaHandleRegister};
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
@@ -31,6 +32,9 @@ pub enum FaultProofProgramError {
     /// An error occurred in the driver.
     #[error(transparent)]
     Driver(#[from] DriverError<ExecutorError>),
+    /// An error occurred in the derivation pipeline.
+    #[error(transparent)]
+    PipelineError(#[from] PipelineErrorKind),
     /// Consolidation error.
     #[error(transparent)]
     Consolidation(#[from] ConsolidationError),

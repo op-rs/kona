@@ -43,7 +43,6 @@ designed to deterministically execute the rollup state transition in order to ve
 The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
 getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
 
-
 > [!IMPORTANT]
 >
 > Ethereum (Alloy) types modified for the OP Stack live in [op-alloy](https://github.com/alloy-rs/op-alloy).

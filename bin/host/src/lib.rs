@@ -12,8 +12,6 @@ pub use kv::{
 mod backend;
 pub use backend::{HintHandler, OfflineHostBackend, OnlineHostBackend, OnlineHostBackendCfg};
 
-pub mod cli;
-
 pub mod eth;
 
 #[cfg(feature = "single")]

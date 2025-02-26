@@ -4,7 +4,7 @@
 use crate::{errors::PipelineErrorKind, types::PipelineResult};
 use alloc::{boxed::Box, fmt::Debug, string::ToString, vec::Vec};
 use alloy_eips::eip4844::{Blob, IndexedBlobHash};
-use alloy_primitives::Bytes;
+use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
 use core::fmt::Display;
 use kona_protocol::BlockInfo;
@@ -29,9 +29,14 @@ pub trait DataAvailabilityProvider {
     /// The item type of the data iterator.
     type Item: Send + Sync + Debug + Into<Bytes>;
 
-    /// Returns the next data for the given [BlockInfo].
-    /// Returns a `PipelineError::Eof` if there is no more data for the given block ref.
-    async fn next(&mut self, block_ref: &BlockInfo) -> PipelineResult<Self::Item>;
+    /// Returns the next data for the given [BlockInfo], looking for transactions sent by the
+    /// `batcher_addr`. Returns a `PipelineError::Eof` if there is no more data for the given
+    /// block ref.
+    async fn next(
+        &mut self,
+        block_ref: &BlockInfo,
+        batcher_addr: Address,
+    ) -> PipelineResult<Self::Item>;
 
     /// Clears the data source for the next block ref.
     fn clear(&mut self);
