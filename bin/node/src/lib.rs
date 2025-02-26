@@ -1,6 +1,4 @@
 //! OP Stack Consensus Binary
-//!
-//! todo(docs)
 
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/square.png",
@@ -10,5 +8,11 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+#[macro_use]
+extern crate tracing;
+
 pub mod cli;
 pub use cli::Cli;
+
+pub mod engine;
+pub mod pilot;

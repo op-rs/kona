@@ -3,10 +3,11 @@
 pub mod disc;
 pub mod globals;
 pub mod gossip;
+pub mod node;
 pub mod telemetry;
 
 use anyhow::Result;
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 /// Subcommands for the CLI.
 #[derive(Debug, Clone, Subcommand)]
@@ -16,15 +17,14 @@ pub enum Commands {
     Disc(disc::DiscCommand),
     /// Gossip service command.
     Gossip(gossip::GossipCommand),
+    /// Runs the consensus node.
+    Node(node::NodeCommand),
 }
 
 /// The node CLI.
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Verbosity level (0-2)
-    #[arg(long, short, action = ArgAction::Count)]
-    pub v: u8,
     /// Global arguments for the CLI.
     #[clap(flatten)]
     pub global: globals::GlobalArgs,
@@ -37,11 +37,12 @@ impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
         // Initialize the telemetry stack.
-        telemetry::init_stack(self.v, self.global.metrics_port)?;
+        telemetry::init_stack(self.global.v, self.global.metrics_port)?;
 
         match self.subcommand {
             Commands::Disc(disc) => Self::run_until_ctrl_c(disc.run(&self.global)),
             Commands::Gossip(gossip) => Self::run_until_ctrl_c(gossip.run(&self.global)),
+            Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
         }
     }
 
