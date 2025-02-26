@@ -3967,8 +3967,8 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "clap",
- "metrics-exporter-prometheus",
  "libc",
+ "metrics-exporter-prometheus",
  "tracing",
  "tracing-subscriber",
 ]
