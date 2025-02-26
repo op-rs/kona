@@ -15,7 +15,7 @@ fn main() {
         std::env::set_var("RUST_BACKTRACE", "1");
     }
 
-    if let Err(err) = kona_nexus::Cli::parse().run() {
+    if let Err(err) = kona_node::Cli::parse().run() {
         eprintln!("Error: {err:?}");
         std::process::exit(1);
     }

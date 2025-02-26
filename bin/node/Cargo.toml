@@ -1,7 +1,7 @@
 [package]
-name = "kona-nexus"
+name = "kona-node"
 version = "0.1.0"
-description = "Kona Networking Component Runner"
+description = "Kona Consensus Node"
 
 edition.workspace = true
 authors.workspace = true
