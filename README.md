@@ -108,7 +108,7 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ## MSRV
 
-The current MSRV (minimum supported rust version) is `1.82`.
+The current MSRV (minimum supported rust version) is `1.85`.
 
 The MSRV is not increased automatically, and will be updated
 only as part of a patch (pre-1.0) or minor (post-1.0) release.
