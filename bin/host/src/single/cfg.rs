@@ -157,7 +157,7 @@ impl SingleChainHost {
                 )
                 .start()
                 .await
-                .map_err(|e| SingleChainHostError::from(e))
+                .map_err(SingleChainHostError::from)
             })
         } else {
             let providers = self.create_providers().await?;
@@ -177,7 +177,7 @@ impl SingleChainHost {
                 )
                 .start()
                 .await
-                .map_err(|e| SingleChainHostError::from(e))
+                .map_err(SingleChainHostError::from)
             })
         };
 
@@ -223,7 +223,7 @@ impl SingleChainHost {
         let ser_config = std::fs::read_to_string(path)?;
 
         // Deserialize the config and return it.
-        serde_json::from_str(&ser_config).map_err(|e| SingleChainHostError::ParseError(e))
+        serde_json::from_str(&ser_config).map_err(SingleChainHostError::ParseError)
     }
 
     /// Creates the key-value store for the host backend.

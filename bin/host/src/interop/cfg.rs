@@ -150,7 +150,7 @@ impl InteropHost {
                 )
                 .start()
                 .await
-                .map_err(|e| InteropHostError::from(e))
+                .map_err(InteropHostError::from)
             })
         } else {
             let providers = self.create_providers().await?;
@@ -170,7 +170,7 @@ impl InteropHost {
                 )
                 .start()
                 .await
-                .map_err(|e| InteropHostError::from(e))
+                .map_err(InteropHostError::from)
             })
         };
 
@@ -290,6 +290,6 @@ pub struct InteropProviders {
 impl InteropProviders {
     /// Returns the L2 [RootProvider] for the given chain ID.
     pub fn l2(&self, chain_id: &u64) -> Result<&RootProvider<Optimism>, InteropHostError> {
-        self.l2s.get(chain_id).ok_or_else(|| InteropHostError::RootProviderError(chain_id.clone()))
+        self.l2s.get(chain_id).ok_or_else(|| InteropHostError::RootProviderError(*chain_id))
     }
 }
