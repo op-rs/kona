@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
+use kona_derive::errors::PipelineErrorKind;
 use kona_driver::{Driver, DriverError};
 use kona_executor::{ExecutorError, KonaHandleRegister, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
@@ -27,6 +28,9 @@ pub enum FaultProofProgramError {
     /// An error occurred in the Oracle provider.
     #[error(transparent)]
     OracleProviderError(#[from] OracleProviderError),
+    /// An error occurred in the derivation pipeline.
+    #[error(transparent)]
+    PipelineError(#[from] PipelineErrorKind),
     /// An error occurred in the driver.
     #[error(transparent)]
     Driver(#[from] DriverError<ExecutorError>),
@@ -111,7 +115,8 @@ where
         beacon,
         l1_provider.clone(),
         l2_provider.clone(),
-    );
+    )
+    .await?;
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
         l2_provider.clone(),
