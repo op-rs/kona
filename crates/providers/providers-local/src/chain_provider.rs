@@ -4,11 +4,9 @@ use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync
 use alloy_primitives::{map::HashMap, B256};
 
 use alloy_consensus::{
-    Header, Receipt, Signed, TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant, TxEnvelope,
-    TxLegacy,
+    BlockHeader, Header, Receipt, SignableTransaction, Signed, TxEip1559, TxEip2930, TxEip4844,
+    TxEip4844Variant, TxEnvelope, TxLegacy,
 };
-use alloy_consensus::SignableTransaction;
-use alloy_consensus::BlockHeader;
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
 use kona_derive::{
@@ -17,8 +15,8 @@ use kona_derive::{
 };
 use kona_protocol::BlockInfo;
 use parking_lot::RwLock;
-use reth_execution_types::Chain;
 use reth_ethereum_primitives::{Transaction, TransactionSigned};
+use reth_execution_types::Chain;
 
 /// An in-memory [ChainProvider] that stores L1 chain data,
 /// meant to be shared between multiple readers.
@@ -178,15 +176,13 @@ impl InMemoryChainProviderInner {
             self.hash_to_receipts.insert(
                 b.hash(),
                 receipts
-                .iter()
-                .map(|r| {
-                    Receipt {
+                    .iter()
+                    .map(|r| Receipt {
                         cumulative_gas_used: r.cumulative_gas_used,
                         logs: r.logs.clone(),
                         status: alloy_consensus::Eip658Value::Eip658(r.success),
-                    }
-                })
-                .collect(),
+                    })
+                    .collect(),
             );
         }
     }
