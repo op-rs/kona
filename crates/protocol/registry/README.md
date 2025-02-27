@@ -16,7 +16,7 @@ as a dependency to a `Cargo.toml`.
 kona-registry = "0.1.0"
 ```
 
-[`kona-registry`][sc] declares lazy evaluated statics that expose `ChainConfig`s, `RollupConfig`s,
+[`kona-registry`][sc] declares lazy evaluated statistics that expose `ChainConfig`s, `RollupConfig`s,
 and `Chain` objects for all chains with static definitions in the superchain registry. The way this works
 is the golang side of the superchain registry contains an "internal code generation" script that has
 been modified to output configuration files to the [`crates/registry`][s] directory in the
@@ -25,7 +25,7 @@ contain an up-to-date list of all superchain configurations with their chain con
 that if the commit hash of the [`superchain-registry`][osr] pulled in as a git submodule has breaking
 changes, the tests in this crate (`kona-registry`) will break and updates will need to be made.
 
-There are three core statics exposed by the [`kona-registry`][sc].
+There are three core statistics exposed by the [`kona-registry`][sc].
 - `CHAINS`: A list of chain objects containing the superchain metadata for this chain.
 - `OPCHAINS`: A map from chain id to `ChainConfig`.
 - `ROLLUP_CONFIGS`: A map from chain id to `RollupConfig`.
