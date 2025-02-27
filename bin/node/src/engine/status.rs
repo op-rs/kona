@@ -38,6 +38,16 @@ impl SyncStatus {
     pub fn has_started(&self) -> bool {
         matches!(self, SyncStatus::ExecutionLayerStarted)
     }
+
+    /// Returns if syncing is in progress.
+    pub fn is_syncing(&self) -> bool {
+        matches!(
+            self,
+            SyncStatus::ExecutionLayerWillStart |
+                SyncStatus::ExecutionLayerStarted |
+                SyncStatus::ExecutionLayerNotFinalized
+        )
+    }
 }
 
 impl From<crate::sync::SyncMode> for SyncStatus {

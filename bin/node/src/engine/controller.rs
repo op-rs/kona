@@ -50,7 +50,15 @@ impl EngineController {
         }
     }
 
+    /// Returns if the engine is syncing.
+    pub fn is_syncing(&self) -> bool {
+        self.sync_status.is_syncing()
+    }
+
     /// Checks if the payload status is acceptable.
+    ///
+    /// This is the returned status of `engine_newPayloadV1` request
+    /// to check for the next payload.
     ///
     /// If the consensus node is currently syncing via execution layer sync,
     /// and the payload is valid, ensure the sync status is updated to finalized.
@@ -66,6 +74,17 @@ impl EngineController {
         status.status.is_valid() ||
             status.status.is_syncing() ||
             status.status == PayloadStatusEnum::Accepted
+    }
+
+    /// Check the returned status of `engine_forkchoiceUpdatedV1` request.
+    pub fn check_forkchoice_updated_status(&mut self, status: PayloadStatus) -> bool {
+        if self.sync_status == SyncStatus::ConsensusLayer {
+            return status.status.is_valid();
+        }
+        if status.status.is_valid() && self.sync_status.has_started() {
+            self.sync_status = SyncStatus::ExecutionLayerNotFinalized;
+        }
+        status.status.is_valid() || status.status.is_syncing()
     }
 }
 
@@ -136,5 +155,34 @@ mod tests {
         let status = PayloadStatus { status: PayloadStatusEnum::Valid, latest_valid_hash: None };
         assert!(controller.check_payload_status(status));
         assert_eq!(controller.sync_status, SyncStatus::ExecutionLayerNotFinalized);
+    }
+
+    #[test]
+    fn test_check_forkchoice_updated_status_cl_sync() {
+        let mut controller = test_controller(SyncMode::ConsensusLayer);
+
+        let status = PayloadStatus { status: PayloadStatusEnum::Valid, latest_valid_hash: None };
+        assert!(controller.check_forkchoice_updated_status(status));
+
+        let status = PayloadStatus { status: PayloadStatusEnum::Syncing, latest_valid_hash: None };
+        assert!(!controller.check_forkchoice_updated_status(status));
+    }
+
+    #[test]
+    fn test_check_forkchoice_updated_status_el_sync() {
+        let mut controller = test_controller(SyncMode::ExecutionLayer);
+        assert_eq!(controller.sync_status, SyncStatus::ExecutionLayerWillStart);
+
+        let status = PayloadStatus { status: PayloadStatusEnum::Valid, latest_valid_hash: None };
+        assert!(controller.check_forkchoice_updated_status(status));
+
+        let status = PayloadStatus { status: PayloadStatusEnum::Syncing, latest_valid_hash: None };
+        assert!(controller.check_forkchoice_updated_status(status));
+
+        let status = PayloadStatus {
+            status: PayloadStatusEnum::Invalid { validation_error: Default::default() },
+            latest_valid_hash: None,
+        };
+        assert!(!controller.check_forkchoice_updated_status(status));
     }
 }
