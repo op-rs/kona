@@ -35,6 +35,7 @@ kona-providers-alloy.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true
+alloy-transport.workspace = true
 alloy-eips = { workspace = true, features = ["kzg"] }
 alloy-serde.workspace = true
 alloy-provider = { workspace = true, features = ["reqwest"] }
@@ -63,6 +64,7 @@ tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
+thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
