@@ -1,6 +1,6 @@
 //! Gossip subcommand.
 
-use crate::globals::GlobalArgs;
+use crate::cli::globals::GlobalArgs;
 use clap::Args;
 use kona_net::driver::NetworkDriver;
 use kona_registry::ROLLUP_CONFIGS;

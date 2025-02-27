@@ -397,6 +397,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-pubsub",
  "alloy-rpc-client",
+ "alloy-rpc-types-engine 0.11.1",
  "alloy-rpc-types-eth 0.11.1",
  "alloy-sol-types",
  "alloy-transport",
@@ -580,6 +581,8 @@ dependencies = [
  "derive_more 1.0.0",
  "ethereum_ssz",
  "ethereum_ssz_derive",
+ "jsonwebtoken",
+ "rand 0.8.5",
  "serde",
  "strum 0.26.3",
 ]
@@ -754,7 +757,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20819c4cb978fb39ce6ac31991ba90f386d595f922f42ef888b4a18be190713e"
 dependencies = [
  "alloy-json-rpc",
+ "alloy-rpc-types-engine 0.11.1",
  "alloy-transport",
+ "http-body-util",
+ "hyper 1.6.0",
+ "hyper-util",
+ "jsonwebtoken",
  "reqwest",
  "serde_json",
  "tower 0.5.2",
@@ -3929,6 +3937,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonwebtoken"
+version = "9.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
+dependencies = [
+ "base64 0.22.1",
+ "js-sys",
+ "pem",
+ "ring 0.17.11",
+ "serde",
+ "serde_json",
+ "simple_asn1",
+]
+
+[[package]]
 name = "k256"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3967,6 +3990,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "clap",
+ "libc",
  "metrics-exporter-prometheus",
  "tracing",
  "tracing-subscriber",
@@ -4233,17 +4257,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "kona-nexus"
+name = "kona-node"
 version = "0.1.0"
 dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "alloy-rpc-types-engine 0.11.1",
+ "alloy-transport-http",
  "anyhow",
  "clap",
+ "http-body-util",
  "kona-cli",
+ "kona-genesis",
  "kona-net",
+ "kona-providers-alloy",
  "kona-registry",
+ "op-alloy-provider",
+ "op-alloy-rpc-types-engine 0.10.5",
+ "serde_json",
  "tokio",
+ "tower 0.5.2",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -5683,6 +5721,21 @@ dependencies = [
  "op-alloy-consensus 0.4.0",
  "op-alloy-genesis",
  "serde",
+]
+
+[[package]]
+name = "op-alloy-provider"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "856cb419b9c6baf19a022259eaad84171593e533192031b056d4ca9b3ae1c634"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types-engine 0.11.1",
+ "alloy-transport",
+ "async-trait",
+ "op-alloy-rpc-types-engine 0.10.5",
 ]
 
 [[package]]
@@ -8189,6 +8242,18 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "simple_asn1"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297f631f50729c8c99b84667867963997ec0b50f32b2a7dbcab828ef0541e8bb"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+ "thiserror 2.0.11",
+ "time",
+]
 
 [[package]]
 name = "sketches-ddsketch"

@@ -18,7 +18,11 @@ members = [
   "crates/providers/*",
   "crates/utilities/*",
 ]
-default-members = ["bin/host", "bin/client"]
+default-members = [
+  "bin/host",
+  "bin/client",
+  "bin/node",
+]
 
 # Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021
 # https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
@@ -108,6 +112,7 @@ alloy-rlp = { version = "0.3.11", default-features = false }
 alloy-trie = { version = "0.7.9", default-features = false }
 alloy-eips = { version = "0.11.1", default-features = false }
 alloy-serde = { version = "0.11.1", default-features = false }
+alloy-network = { version = "0.11.1", default-features = false }
 alloy-provider = { version = "0.11.1", default-features = false }
 alloy-sol-types = { version = "0.8.20", default-features = false }
 alloy-consensus = { version = "0.11.1", default-features = false }
@@ -123,6 +128,7 @@ alloy-rpc-types-beacon = { version = "0.11.1", default-features = false }
 # OP Alloy
 op-alloy-flz = { version = "0.10.5", default-features = false }
 op-alloy-network = { version = "0.10.5", default-features = false }
+op-alloy-provider = { version = "0.10.5", default-features = false }
 op-alloy-consensus = { version = "0.10.5", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.10.5", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.10.5", default-features = false }
@@ -132,9 +138,11 @@ reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", d
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.1.0", default-features = false }
 
 # General
+url = "2.5.4"
 lru = "0.13.0"
 spin = "0.9.8"
 clap = "4.5.29"
+tower = "0.5.1"
 tokio = "1.43.0"
 cfg-if = "1.0.0"
 rstest = "0.24.0"
@@ -145,6 +153,7 @@ arbitrary = "1.4.1"
 parking_lot = "0.12.3"
 async-trait = "0.1.86"
 async-channel = "2.3.1"
+http-body-util = "0.1.2"
 linked_list_allocator = "0.10.5"
 
 # Compression

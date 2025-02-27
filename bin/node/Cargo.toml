@@ -1,0 +1,43 @@
+[package]
+name = "kona-node"
+version = "0.1.0"
+description = "Kona Consensus Node"
+
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# workspace
+kona-cli.workspace = true
+kona-net.workspace = true
+kona-genesis.workspace = true
+kona-registry.workspace = true
+kona-providers-alloy.workspace = true
+
+# alloy
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-provider = { workspace = true, features = ["ipc", "reqwest", "engine-api"] }
+alloy-rpc-client.workspace = true
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
+alloy-transport-http = { workspace = true, features = ["reqwest", "hyper", "jwt-auth"] }
+
+# op-alloy
+op-alloy-provider.workspace = true
+op-alloy-rpc-types-engine.workspace = true
+
+# general
+url.workspace = true
+tower.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+http-body-util.workspace = true
+serde_json = { workspace = true, features = ["std"] }
+clap = { workspace = true, features = ["derive", "env"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }

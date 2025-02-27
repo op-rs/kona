@@ -1,7 +1,7 @@
-# `kona-nexus`
+# `kona-node`
 
-A binary that runs consensus components of the OP Stack.
+A binary that runs OP Stack consensus.
 
-These include:
+Subcommands include:
 - gossip using [`kona-net`](https://crates.io/crates/kona-net)
 - discovery using [`kona-net`](https://crates.io/crates/kona-net)
