@@ -99,7 +99,7 @@ All notable changes to this project will be documented in this file.
 - *(client)* Precompile Run Macro (#1014)
 - *(ci)* Bump `codecov-action` to v5 (#1020)
 - Use Updated Maili and op-alloy Deps (#1023)
-- *(book)* Adherance to devdocs (#1026)
+- *(book)* Adherence to devdocs (#1026)
 - *(book)* Devdocs subdirectory (#1027)
 
 ## [kona-providers-alloy-v0.1.0] - 2025-01-26
@@ -298,7 +298,7 @@ All notable changes to this project will be documented in this file.
 
 - *(client)* SyncStart Refactor (#797)
 - Mdbook version (#810)
-- *(mpt)* Remove unnused collapse (#808)
+- *(mpt)* Remove unused collapse (#808)
 - Imports (#829)
 
 ### 📚 Documentation
@@ -605,7 +605,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
-- *(primitives)* Re-use op-alloy frame type (#492)
+- *(primitives)* Reuse op-alloy frame type (#492)
 - *(mpt)* Empty list walker (#493)
 - *(ci)* Remove `PAT_TOKEN` ref (#494)
 - *(primitives)* Use consensus hardforks (#497)
