@@ -33,6 +33,13 @@ pub enum SyncStatus {
     ExecutionLayerFinished = 4,
 }
 
+impl SyncStatus {
+    /// Returns if the execution layer sync has started.
+    pub fn has_started(&self) -> bool {
+        matches!(self, SyncStatus::ExecutionLayerStarted)
+    }
+}
+
 impl From<crate::sync::SyncMode> for SyncStatus {
     fn from(mode: crate::sync::SyncMode) -> Self {
         match mode {
