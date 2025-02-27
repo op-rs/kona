@@ -274,7 +274,7 @@ was built.
 > - Bard XVIII of the Logic Gates
 
 The kona project spawned out of the need to build a secondary fault proof for the OP Stack.
-Initially, we sought to re-use [magi][magi]'s derivation pipeline, but the ethereum-rust
+Initially, we sought to reuse [magi][magi]'s derivation pipeline, but the ethereum-rust
 ecosystem moves quickly and [magi][magi] was behind by a generation of types - using
 [ethers-rs] instead of new [alloy][alloy] types. Additionally, [magi][magi]'s derivation
 pipeline was not `no_std` compatible - a hard requirement for running a rust fault proof
