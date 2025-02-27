@@ -14,6 +14,7 @@ rust-version.workspace = true
 [dependencies]
 # workspace
 kona-cli.workspace = true
+kona-rpc.workspace = true
 kona-net.workspace = true
 kona-genesis.workspace = true
 kona-registry.workspace = true
@@ -22,6 +23,7 @@ kona-providers-alloy.workspace = true
 # alloy
 alloy-network.workspace = true
 alloy-primitives.workspace = true
+# alloy-consensus.workspace = true
 alloy-provider = { workspace = true, features = ["ipc", "reqwest", "engine-api"] }
 alloy-rpc-client.workspace = true
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }

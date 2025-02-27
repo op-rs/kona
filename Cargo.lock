@@ -4274,6 +4274,7 @@ dependencies = [
  "kona-net",
  "kona-providers-alloy",
  "kona-registry",
+ "kona-rpc",
  "op-alloy-provider",
  "op-alloy-rpc-types-engine 0.10.5",
  "serde_json",
