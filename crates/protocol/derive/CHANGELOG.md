@@ -162,7 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(client)* Channel reader error handling ([#539](https://github.com/op-rs/kona/pull/539))
 - *(derive)* Sequence window expiry ([#532](https://github.com/op-rs/kona/pull/532))
 - *(primitives)* use consensus hardforks ([#497](https://github.com/op-rs/kona/pull/497))
-- *(primitives)* re-use op-alloy frame type ([#492](https://github.com/op-rs/kona/pull/492))
+- *(primitives)* reuse op-alloy frame type ([#492](https://github.com/op-rs/kona/pull/492))
 
 ### Other
 
