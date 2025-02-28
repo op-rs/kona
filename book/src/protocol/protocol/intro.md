@@ -46,8 +46,8 @@ type.
 
 #### Other Critical Protocol Types
 
-- [BlockInfo and L2BlockInfo Types](./block-info.md)
-- [L1BlockInfo Types](./l1-block-info.md)
+- [BlockInfo](./block-info.md)
+- [L2BlockInfo](./l2-block-info.md)
 
 
 <!-- Links -->
