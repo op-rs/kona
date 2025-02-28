@@ -47,7 +47,7 @@ to wind up with the example's desired [`Batch`][batch].
 - Run: `cargo run --example frames_to_batch`
 
 ```rust
-{{#include ../../../crates/protocol/examples/frames_to_batch.rs}}
+{{#include ../../../crates/protocol/protocol/examples/frames_to_batch.rs}}
 ```
 
 <!-- Links -->

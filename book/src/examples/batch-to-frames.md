@@ -52,7 +52,7 @@ ready to be batch-submitted to the data-availability layer.
 - Run: `cargo run --example batch_to_frames`
 
 ```rust
-{{#include ../../../crates/protocol/examples/batch_to_frames.rs}}
+{{#include ../../../crates/protocol/protocol/examples/batch_to_frames.rs}}
 ```
 
 <!-- Links -->
