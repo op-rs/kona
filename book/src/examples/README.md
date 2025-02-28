@@ -1,6 +1,6 @@
 # Examples
 
-Examples for working with `maili` crates.
+Examples for working with `kona` crates.
 
 - [Load a Rollup Config for a Chain ID](./load-a-rollup-config.md)
 - [Create a new L1BlockInfoTx Hardfork Variant](./new-l1-block-info-tx-hardfork.md)
