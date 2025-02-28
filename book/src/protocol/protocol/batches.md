@@ -90,20 +90,20 @@ more functionality.
 <!-- Links -->
 
 [holocene]: https://specs.optimism.io/protocol/holocene/overview.html
-[check-batch-prefix]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.SpanBatch.html#method.check_batch_prefix
-[check-batch-span]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.SpanBatch.html#method.check_batch
-[span-batch-element]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.SpanBatchElement.html
-[check-batch-single]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.SingleBatch.html#method.check_batch
+[check-batch-prefix]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.SpanBatch.html#method.check_batch_prefix
+[check-batch-span]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.SpanBatch.html#method.check_batch
+[span-batch-element]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.SpanBatchElement.html
+[check-batch-single]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.SingleBatch.html#method.check_batch
 [bytes]: https://docs.rs/alloy-primitives/latest/alloy_primitives/struct.Bytes.html
 [block-hash]: https://docs.rs/alloy-primitives/latest/alloy_primitives/aliases/type.BlockHash.html
 [epoch]: https://specs.optimism.io/glossary.html?highlight=Epoch#sequencing-epoch
-[decode]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.Batch.html#method.decode
-[timestamp]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.Batch.html#method.timestamp
+[decode]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.Batch.html#method.decode
+[timestamp]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.Batch.html#method.timestamp
 [specs]: https://specs.optimism.io/protocol/derivation.html#batch-format
-[derived]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.RawSpanBatch.html#method.derive
-[batch-type]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.BatchType.html
-[channel]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.Channel.html
-[batch]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.Batch.html
-[span-batch]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.SpanBatch.html
-[single-batch]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.SingleBatch.html
+[derived]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.RawSpanBatch.html#method.derive
+[batch-type]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.BatchType.html
+[channel]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.Channel.html
+[batch]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.Batch.html
+[span-batch]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.SpanBatch.html
+[single-batch]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.SingleBatch.html
 [delta]: https://specs.optimism.io/protocol/delta/overview.html

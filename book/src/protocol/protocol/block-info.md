@@ -22,6 +22,6 @@ construct the [`L2BlockInfo`][lbi] from a block and `ChainGenesis`.
 
 <!-- Links -->
 
-[bi]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.BlockInfo.html
-[lbi]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.L2BlockInfo.html
-[fbg]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.L2BlockInfo.html#method.from_block_and_genesis
+[bi]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.BlockInfo.html
+[lbi]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.L2BlockInfo.html
+[fbg]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.L2BlockInfo.html#method.from_block_and_genesis

@@ -10,7 +10,7 @@ into the System Config, visit the
 ## `SystemConfig` Type
 
 The [`SystemConfig`][system-config] type is defined in
-[`maili-genesis`][genesis].
+[`kona-genesis`][genesis].
 
 Parameters defined in the [`SystemConfig`][system-config] are expected to be
 updated through L1 receipts, using the [`update_with_receipts`][update] method.
@@ -20,7 +20,7 @@ updated through L1 receipts, using the [`update_with_receipts`][update] method.
 The [Holocene Hardfork][holocene] introduced an update to the
 [`SystemConfig`][system-config] type, adding EIP-1559 parameters to the config.
 
-The [`SystemConfig`][system-config] type in [`maili-genesis`][genesis] provides
+The [`SystemConfig`][system-config] type in [`kona-genesis`][genesis] provides
 a method called [`eip_1559_params`][eip] that returns the EIP-1559 parameters
 encoded as a [`B64`][b64].
 

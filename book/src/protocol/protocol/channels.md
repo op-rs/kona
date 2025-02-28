@@ -61,7 +61,7 @@ expected to be populated with [`Frame`][frame]s using its
 a minimal [`Channel`][channel] using a few frames.
 
 ```rust
-use maili_protocol::{Channel, Frame};
+use kona_protocol::{Channel, Frame};
 
 // Construct a channel at the given L1 block.
 let id = [0xee; 16];
@@ -94,16 +94,16 @@ still open, and the frame hasn't already been added.
 
 <!-- Links -->
 
-[is-ready]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.Channel.html#method.is_ready
-[add-frame]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.Channel.html#method.add_frame
+[is-ready]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.Channel.html#method.is_ready
+[add-frame]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.Channel.html#method.add_frame
 
-[block-info]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.BlockInfo.html
+[block-info]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.BlockInfo.html
 
 [frame-docs]: ./frames.md
 [specs]: https://specs.optimism.io/protocol/derivation.html#batch-submission-wire-format
 [seq-batch]: https://specs.optimism.io/glossary.html#sequencer-batch
 
 
-[channel]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.Channel.html
-[cid]: https://docs.rs/maili-protocol/latest/maili_protocol/type.ChannelId.html
-[frame]: https://docs.rs/maili-protocol/latest/maili_protocol/struct.Frame.html
+[channel]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.Channel.html
+[cid]: https://docs.rs/kona-protocol/latest/kona_protocol/type.ChannelId.html
+[frame]: https://docs.rs/kona-protocol/latest/kona_protocol/struct.Frame.html

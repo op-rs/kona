@@ -6,14 +6,14 @@ certain consensus parameters can be configured. These parameters are defined in 
 [OP Stack specs][spec-configurability].
 
 Consensus parameters are consumed by OP Stack software through the `RollupConfig` type defined in the
-[`maili-genesis`][genesis] crate.
+[`kona-genesis`][genesis] crate.
 
 ## `RollupConfig` Type
 
-The [`RollupConfig`][rc] type is defined in [`maili-genesis`][genesis].
+The [`RollupConfig`][rc] type is defined in [`kona-genesis`][genesis].
 
-Rollup configs can be loaded for a given chain id using [`maili-registry`][registry].
-The `ROLLUP_CONFIG` mapping in the `maili-registry` provides a mapping from chain ids
+Rollup configs can be loaded for a given chain id using [`kona-registry`][registry].
+The `ROLLUP_CONFIG` mapping in the `kona-registry` provides a mapping from chain ids
 to rollup config.
 
 <!-- Links -->
