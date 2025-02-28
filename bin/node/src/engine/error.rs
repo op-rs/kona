@@ -12,4 +12,7 @@ pub enum EngineUpdateError {
     /// The forkchoice state is invalid.
     #[display("Invalid forkchoice state, unsafe head {_0} is behind finalized head {_1}.")]
     InvalidForkchoiceState(u64, u64),
+    /// The forkchoice update failed.
+    #[display("The forkchoice update failed.")]
+    ForkchoiceUpdateFailed,
 }

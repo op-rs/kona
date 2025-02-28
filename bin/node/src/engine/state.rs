@@ -1,5 +1,6 @@
 //! The internal state of the engine controller.
 
+use alloy_rpc_types_engine::ForkchoiceState;
 use kona_rpc::L2BlockRef;
 
 /// The chain state viewed by the engine controller.
@@ -56,6 +57,18 @@ impl EngineState {
             backup_unsafe_head: finalized,
             forkchoice_update_needed: false,
             need_fcu_call_backup_unsafe_reorg: false,
+        }
+    }
+
+    /// Creates a `ForkchoiceState`:
+    /// - `head_block` = `unsafe_head`
+    /// - `safe_block` = `safe_head`
+    /// - `finalized_block` = `finalized_head`
+    pub fn create_forkchoice_state(&self) -> ForkchoiceState {
+        ForkchoiceState {
+            head_block_hash: self.unsafe_head.l1_block_info.hash,
+            safe_block_hash: self.safe_head.l1_block_info.hash,
+            finalized_block_hash: self.finalized_head.l1_block_info.hash,
         }
     }
 

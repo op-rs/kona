@@ -90,7 +90,7 @@ impl EngineController {
     /// Attempts to update the engine with the current forkchoice state of the rollup node.
     ///
     /// This is a no-op if the nodes already agree on the forkchoice state.
-    pub fn try_update_engine(&mut self) -> Result<(), EngineUpdateError> {
+    pub async fn try_update_engine(&mut self) -> Result<(), EngineUpdateError> {
         if !self.state.forkchoice_update_needed {
             return Err(EngineUpdateError::NoForkchoiceUpdateNeeded);
         }
@@ -98,6 +98,8 @@ impl EngineController {
         // if self.is_syncing() {
         // TODO: log attempt to update forkchoice state while EL syncing
         // }
+
+        // TODO: initialize unknowns
 
         if self.state.unsafe_head().l1_block_info.number <
             self.state.finalized_head().l1_block_info.number
@@ -108,7 +110,32 @@ impl EngineController {
             ));
         }
 
-        todo!()
+        let forkchoice = self.state.create_forkchoice_state();
+        let update = self
+            .client
+            .try_forkchoice_update(forkchoice, None)
+            .await
+            .map_err(|_| EngineUpdateError::ForkchoiceUpdateFailed)?;
+        // TODO: match on error and return reset, temporary errors based on returned error.
+
+        if update.payload_status.is_valid() {
+            // Send pilot a fork choice update message.
+        }
+
+        if self.state.unsafe_head() == self.state.safe_head() &&
+            self.state.safe_head() == self.state.pending_safe_head()
+        {
+            self.state.set_backup_unsafe_head(
+                L2BlockRef {
+                    l1_block_info: Default::default(),
+                    l1_origin: Default::default(),
+                    sequence_number: 0,
+                },
+                false,
+            )
+        }
+        self.state.forkchoice_update_needed = false;
+        Ok(())
     }
 }
 
