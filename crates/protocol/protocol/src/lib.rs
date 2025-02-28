@@ -22,7 +22,7 @@ pub use batch::{
 };
 
 mod sync;
-pub use sync::{L2BlockRef, SyncStatus};
+pub use sync::SyncStatus;
 
 mod errors;
 pub use errors::OpBlockConversionError;

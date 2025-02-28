@@ -1,25 +1,6 @@
 //! Common sync types
 
-use crate::BlockInfo;
-use alloy_eips::BlockNumHash;
-
-/// The block reference for an L2 block.
-///
-/// See: <https://github.com/ethereum-optimism/optimism/blob/develop/op-service/eth/id.go#L33>
-#[derive(Clone, Default, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct L2BlockRef {
-    /// The L2 block details.
-    #[cfg_attr(feature = "serde", serde(flatten))]
-    pub block_info: BlockInfo,
-    /// The origin on L1.
-    #[cfg_attr(feature = "serde", serde(rename = "l1origin"))]
-    pub l1_origin: BlockNumHash,
-    /// The sequence number.
-    /// This is the distance to the first block of the epoch.
-    pub sequence_number: u64,
-}
+use crate::{BlockInfo, L2BlockInfo};
 
 /// The [`SyncStatus`][ss] of an Optimism Rollup Node.
 ///
@@ -38,11 +19,11 @@ pub struct SyncStatus {
     /// The finalized L1 block ref.
     pub finalized_l1: BlockInfo,
     /// The unsafe L2 block ref.
-    pub unsafe_l2: L2BlockRef,
+    pub unsafe_l2: L2BlockInfo,
     /// The safe L2 block ref.
-    pub safe_l2: L2BlockRef,
+    pub safe_l2: L2BlockInfo,
     /// The finalized L2 block ref.
-    pub finalized_l2: L2BlockRef,
+    pub finalized_l2: L2BlockInfo,
     /// The pending safe L2 block ref.
-    pub pending_safe_l2: L2BlockRef,
+    pub pending_safe_l2: L2BlockInfo,
 }
