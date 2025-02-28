@@ -1,7 +1,7 @@
 //! Output Types
 
-use crate::{L2BlockRef, SyncStatus};
 use alloy_primitives::B256;
+use kona_protocol::{L2BlockRef, SyncStatus};
 
 /// An [output response][or] for Optimism Rollup.
 ///

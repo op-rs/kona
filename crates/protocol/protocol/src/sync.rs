@@ -1,7 +1,7 @@
 //! Common sync types
 
+use crate::BlockInfo;
 use alloy_eips::BlockNumHash;
-use kona_protocol::BlockInfo;
 
 /// The block reference for an L2 block.
 ///
@@ -10,7 +10,7 @@ use kona_protocol::BlockInfo;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct L2BlockRef {
-    /// The l1 block info.
+    /// The L2 block details.
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub block_info: BlockInfo,
     /// The origin on L1.

@@ -21,6 +21,9 @@ pub use batch::{
     SPAN_BATCH_TYPE,
 };
 
+mod sync;
+pub use sync::{L2BlockRef, SyncStatus};
+
 mod errors;
 pub use errors::OpBlockConversionError;
 
