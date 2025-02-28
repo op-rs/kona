@@ -9,5 +9,8 @@ pub use status::SyncStatus;
 pub mod controller;
 pub use controller::EngineController;
 
+pub mod error;
+pub use error::EngineUpdateError;
+
 pub mod state;
 pub use state::EngineState;

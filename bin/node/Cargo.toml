@@ -34,6 +34,8 @@ op-alloy-provider.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
 # general
+thiserror.workspace = true
+derive_more.workspace = true
 url.workspace = true
 tower.workspace = true
 anyhow.workspace = true

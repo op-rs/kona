@@ -7,7 +7,7 @@ use kona_genesis::RollupConfig;
 use kona_rpc::L2BlockRef;
 
 use crate::{
-    engine::{EngineClient, EngineState, SyncStatus},
+    engine::{EngineClient, EngineState, EngineUpdateError, SyncStatus},
     sync::SyncConfig,
 };
 
@@ -85,6 +85,30 @@ impl EngineController {
             self.sync_status = SyncStatus::ExecutionLayerNotFinalized;
         }
         status.status.is_valid() || status.status.is_syncing()
+    }
+
+    /// Attempts to update the engine with the current forkchoice state of the rollup node.
+    ///
+    /// This is a no-op if the nodes already agree on the forkchoice state.
+    pub fn try_update_engine(&mut self) -> Result<(), EngineUpdateError> {
+        if !self.state.forkchoice_update_needed {
+            return Err(EngineUpdateError::NoForkchoiceUpdateNeeded);
+        }
+
+        // if self.is_syncing() {
+        // TODO: log attempt to update forkchoice state while EL syncing
+        // }
+
+        if self.state.unsafe_head().l1_block_info.number <
+            self.state.finalized_head().l1_block_info.number
+        {
+            return Err(EngineUpdateError::InvalidForkchoiceState(
+                self.state.unsafe_head().l1_block_info.number,
+                self.state.finalized_head().l1_block_info.number,
+            ));
+        }
+
+        todo!()
     }
 }
 
