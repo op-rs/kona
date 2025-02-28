@@ -380,8 +380,8 @@ dependencies = [
  "alloy-primitives",
  "alloy-pubsub",
  "alloy-rpc-client",
- "alloy-rpc-types-engine 0.11.1",
- "alloy-rpc-types-eth 0.11.1",
+ "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -695,7 +695,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20819c4cb978fb39ce6ac31991ba90f386d595f922f42ef888b4a18be190713e"
 dependencies = [
  "alloy-json-rpc",
- "alloy-rpc-types-engine 0.11.1",
+ "alloy-rpc-types-engine",
  "alloy-transport",
  "http-body-util",
  "hyper 1.6.0",
@@ -1525,8 +1525,6 @@ checksum = "1a7964611d71df112cb1730f2ee67324fcf4d0fc6606acbbe9bfe06df124637c"
 dependencies = [
  "num-traits",
  "serde",
- "wasm-bindgen",
- "windows-link",
 ]
 
 [[package]]
@@ -3989,7 +3987,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-client",
- "alloy-rpc-types-engine 0.11.1",
+ "alloy-rpc-types-engine",
  "alloy-transport-http",
  "anyhow",
  "clap",
@@ -4002,7 +4000,7 @@ dependencies = [
  "kona-providers-alloy",
  "kona-registry",
  "op-alloy-provider",
- "op-alloy-rpc-types-engine 0.10.5",
+ "op-alloy-rpc-types-engine",
  "serde_json",
  "thiserror 2.0.11",
  "tokio",
@@ -4046,8 +4044,8 @@ dependencies = [
  "kona-registry",
  "kona-rpc",
  "lru 0.13.0",
- "op-alloy-consensus 0.10.5",
- "op-alloy-rpc-types-engine 0.10.5",
+ "op-alloy-consensus",
+ "op-alloy-rpc-types-engine",
  "rstest",
  "serde",
  "serde_json",
@@ -5307,23 +5305,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "op-alloy-protocol"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "310873e4fbfc41986716c4fb6000a8b49d025d932d2c261af58271c434b05288"
-dependencies = [
- "alloy-consensus 0.4.2",
- "alloy-eips 0.4.2",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-serde 0.4.2",
- "derive_more 1.0.0",
- "op-alloy-consensus 0.4.0",
- "op-alloy-genesis",
- "serde",
-]
-
-[[package]]
 name = "op-alloy-provider"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5332,10 +5313,10 @@ dependencies = [
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types-engine 0.11.1",
+ "alloy-rpc-types-engine",
  "alloy-transport",
  "async-trait",
- "op-alloy-rpc-types-engine 0.10.5",
+ "op-alloy-rpc-types-engine",
 ]
 
 [[package]]
@@ -8393,46 +8374,6 @@ dependencies = [
  "windows-result 0.1.2",
  "windows-targets 0.52.6",
 ]
-
-[[package]]
-name = "windows-core"
-version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ed2439a290666cd67ecce2b0ffaad89c2a56b976b736e6ece670297897832d"
-dependencies = [
- "windows-implement",
- "windows-interface",
- "windows-result 0.1.2",
- "windows-targets 0.52.6",
-]
-
-[[package]]
-name = "windows-implement"
-version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9107ddc059d5b6fbfbffdfa7a7fe3e22a226def0b2608f72e9d552763d3e1ad7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.98",
-]
-
-[[package]]
-name = "windows-interface"
-version = "0.57.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29bee4b38ea3cde66011baa44dba677c432a78593e202392d1e9070cf2a7fca7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.98",
-]
-
-[[package]]
-name = "windows-link"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dccfd733ce2b1753b03b6d3c65edf020262ea35e20ccdf3e288043e6dd620e3"
 
 [[package]]
 name = "windows-registry"
