@@ -14,10 +14,10 @@ rust-version.workspace = true
 [dependencies]
 # workspace
 kona-cli.workspace = true
-kona-rpc.workspace = true
 kona-net.workspace = true
 kona-genesis.workspace = true
 kona-registry.workspace = true
+kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
 
 # alloy

@@ -4,7 +4,7 @@
 
 use alloy_rpc_types_engine::payload::{PayloadStatus, PayloadStatusEnum};
 use kona_genesis::RollupConfig;
-use kona_rpc::L2BlockRef;
+use kona_protocol::L2BlockInfo;
 
 use crate::{
     engine::{EngineClient, EngineState, EngineUpdateError, SyncStatus},
@@ -39,11 +39,7 @@ impl EngineController {
         Self {
             client,
             sync_status,
-            state: EngineState::new(L2BlockRef {
-                l1_block_info: Default::default(),
-                l1_origin: Default::default(),
-                sequence_number: 0,
-            }),
+            state: EngineState::new(L2BlockInfo::default()),
             blocktime: config.block_time,
             ecotone_timestamp: config.hardforks.ecotone_time,
             canyon_timestamp: config.hardforks.canyon_time,
@@ -101,12 +97,12 @@ impl EngineController {
 
         // TODO: initialize unknowns
 
-        if self.state.unsafe_head().l1_block_info.number <
-            self.state.finalized_head().l1_block_info.number
+        if self.state.unsafe_head().block_info.number <
+            self.state.finalized_head().block_info.number
         {
             return Err(EngineUpdateError::InvalidForkchoiceState(
-                self.state.unsafe_head().l1_block_info.number,
-                self.state.finalized_head().l1_block_info.number,
+                self.state.unsafe_head().block_info.number,
+                self.state.finalized_head().block_info.number,
             ));
         }
 
@@ -125,14 +121,7 @@ impl EngineController {
         if self.state.unsafe_head() == self.state.safe_head() &&
             self.state.safe_head() == self.state.pending_safe_head()
         {
-            self.state.set_backup_unsafe_head(
-                L2BlockRef {
-                    l1_block_info: Default::default(),
-                    l1_origin: Default::default(),
-                    sequence_number: 0,
-                },
-                false,
-            )
+            self.state.set_backup_unsafe_head(L2BlockInfo::default(), false)
         }
         self.state.forkchoice_update_needed = false;
         Ok(())
