@@ -46,7 +46,7 @@ pub fn client_entry(attr: TokenStream, input: TokenStream) -> TokenStream {
                 const HEAP_SIZE: usize = #heap_size;
 
                 #[doc = "Program entry point"]
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 pub extern "C" fn _start() {
                     kona_std_fpvm::alloc_heap!(HEAP_SIZE);
                     let _ = #fn_name();
