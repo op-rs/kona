@@ -32,11 +32,12 @@ impl ChainList {
     }
 }
 
-impl Iterator for ChainList {
+impl IntoIterator for ChainList {
     type Item = Chain;
+    type IntoIter = alloc::vec::IntoIter<Self::Item>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.chains.pop()
+    fn into_iter(self) -> Self::IntoIter {
+        self.chains.into_iter()
     }
 }
 
