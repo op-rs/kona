@@ -2,9 +2,9 @@
 
 use super::{InteropHintHandler, InteropLocalInputs};
 use crate::{
-    eth::http_provider, server::PreimageServerError, DiskKeyValueStore, MemoryKeyValueStore,
-    OfflineHostBackend, OnlineHostBackend, OnlineHostBackendCfg, PreimageServer,
-    SharedKeyValueStore, SplitKeyValueStore,
+    DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
+    OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
+    eth::http_provider, server::PreimageServerError,
 };
 use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
