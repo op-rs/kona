@@ -15,10 +15,13 @@ pub use graph::MessageGraph;
 mod traits;
 pub use traits::InteropProvider;
 
-#[cfg(feature = "std")]
 mod supervisor;
-#[cfg(feature = "std")]
-pub use supervisor::{Supervisor, SupervisorClient, SupervisorError};
+pub use supervisor::Supervisor;
+
+#[cfg(feature = "client")]
+mod client;
+#[cfg(feature = "client")]
+pub use client::{SupervisorClient, SupervisorError};
 
 mod safety;
 pub use safety::SafetyLevel;
