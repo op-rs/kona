@@ -50,6 +50,9 @@ rand.workspace = true
 [features]
 default = []
 std = [
+  "dep:kona-protocol",
+  "dep:alloy-rpc-client",
+  "derive_more/display",
   "alloy-consensus/std",
   "alloy-eips/std",
   "alloy-primitives/std",
@@ -72,11 +75,4 @@ serde = [
   "alloy-eips/serde",
   "alloy-primitives/serde",
   "kona-protocol?/serde",
-]
-interop = [
-  "std",
-  "serde",
-  "dep:kona-protocol",
-  "dep:alloy-rpc-client",
-  "derive_more/display",
 ]
