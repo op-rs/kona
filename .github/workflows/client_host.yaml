@@ -8,12 +8,15 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   host-client-offline-runs:
-    name: ${{ matrix.target}} | ${{ matrix.name }}
+    name: ${{ matrix.target}} | ${{ matrix.container }} | ${{ matrix.name }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         target: ["native", "asterisc"]
         name: ["OP Sepolia (Holocene) - Block #22012816"]
-    runs-on: ubuntu-latest
+        container: ["ubuntu:latest", "i386/ubuntu:latest"]
+    container:
+      image: ${{ matrix.container }}
     timeout-minutes: 20
     steps:
       - name: Checkout sources
