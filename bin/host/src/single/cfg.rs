@@ -2,9 +2,9 @@
 
 use super::{SingleChainHintHandler, SingleChainLocalInputs};
 use crate::{
-    eth::http_provider, server::PreimageServerError, DiskKeyValueStore, MemoryKeyValueStore,
-    OfflineHostBackend, OnlineHostBackend, OnlineHostBackendCfg, PreimageServer,
-    SharedKeyValueStore, SplitKeyValueStore,
+    DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
+    OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
+    eth::http_provider, server::PreimageServerError,
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
