@@ -85,8 +85,8 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 - [`mpt`](./crates/proof/mpt): Utilities for interacting with the Merkle Patricia Trie in the client program.
 - [`executor`](./crates/proof/executor): `no_std` stateless block executor for the [OP Stack][op-stack].
-- [`kona-proof`](./crates/proof/proof): High level OP Stack state transition proof SDK.
-- [`kona-proof-interop`](./crates/proof/proof-interop): Extension of `kona-proof` with interop support.
+- [`proof`](./crates/proof/proof): High level OP Stack state transition proof SDK.
+- [`proof-interop`](./crates/proof/proof-interop): Extension of `kona-proof` with interop support.
 - [`preimage`](./crates/proof/preimage): High level interfaces to the [`PreimageOracle`][fpp-specs] ABI.
 - [`std-fpvm`](./crates/proof/std-fpvm): Platform specific [Fault Proof VM][g-fault-proof-vm] kernel APIs.
 - [`std-fpvm-proc`](./crates/proof/std-fpvm-proc): Proc macro for [Fault Proof Program][fpp-specs] entrypoints.
