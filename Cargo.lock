@@ -112,6 +112,7 @@ checksum = "996564c1782285d4e0299c29b318bc74f24b1d7f456cef3e040810b061ee3256"
 dependencies = [
  "alloy-primitives",
  "num_enum",
+ "serde",
  "strum 0.27.1",
 ]
 
@@ -4188,6 +4189,7 @@ dependencies = [
 name = "kona-registry"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-eips",
  "alloy-primitives",
  "kona-genesis",
