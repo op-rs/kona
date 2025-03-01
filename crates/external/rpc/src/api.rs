@@ -33,7 +33,7 @@ pub trait RollupNode {
     /// Get the output root at a specific block.
     #[method(name = "outputAtBlock")]
     async fn op_output_at_block(&self, block_number: BlockNumberOrTag)
-        -> RpcResult<OutputResponse>;
+    -> RpcResult<OutputResponse>;
 
     /// Gets the safe head at an L1 block height.
     #[method(name = "safeHeadAtL1Block")]

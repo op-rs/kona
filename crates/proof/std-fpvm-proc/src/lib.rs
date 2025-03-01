@@ -3,8 +3,9 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
+    ItemFn, LitInt, Result,
     parse::{Parse, ParseStream},
-    parse_macro_input, ItemFn, LitInt, Result,
+    parse_macro_input,
 };
 
 /// The arguments for the `#[client_entry]` attribute proc macro

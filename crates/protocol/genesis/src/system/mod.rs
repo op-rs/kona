@@ -1,6 +1,6 @@
 //! Contains types related to the [`SystemConfig`].
 
-use alloy_primitives::{b256, B256};
+use alloy_primitives::{B256, b256};
 
 /// `keccak256("ConfigUpdate(uint256,uint8,bytes)")`
 pub const CONFIG_UPDATE_TOPIC: B256 =

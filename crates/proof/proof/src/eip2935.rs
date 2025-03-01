@@ -3,7 +3,7 @@
 use crate::errors::OracleProviderError;
 use alloc::string::ToString;
 use alloy_consensus::Header;
-use alloy_primitives::{address, b256, keccak256, Address, B256, U256};
+use alloy_primitives::{Address, B256, U256, address, b256, keccak256};
 use alloy_rlp::Decodable;
 use alloy_trie::TrieAccount;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError, TrieProvider};
@@ -67,7 +67,7 @@ mod tests {
     use alloc::{vec, vec::Vec};
     use alloy_primitives::Bytes;
     use alloy_rlp::Encodable;
-    use alloy_trie::{proof::ProofRetainer, HashBuilder};
+    use alloy_trie::{HashBuilder, proof::ProofRetainer};
     use kona_mpt::NoopTrieHinter;
     use kona_registry::HashMap;
     use rstest::rstest;

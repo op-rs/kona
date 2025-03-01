@@ -2,13 +2,13 @@
 
 use super::{InteropHintHandler, InteropLocalInputs};
 use crate::{
-    eth::http_provider, DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend,
-    OnlineHostBackend, OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore,
-    SplitKeyValueStore,
+    DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
+    OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
+    eth::http_provider,
 };
-use alloy_primitives::{Bytes, B256};
+use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use kona_cli::{
     cli_parsers::{parse_b256, parse_bytes},

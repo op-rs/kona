@@ -13,12 +13,12 @@ extern crate alloc;
 mod batch;
 pub use batch::{
     Batch, BatchDecodingError, BatchEncodingError, BatchReader, BatchTransaction, BatchType,
-    BatchValidationProvider, BatchValidity, BatchWithInclusionBlock, RawSpanBatch, SingleBatch,
-    SpanBatch, SpanBatchBits, SpanBatchEip1559TransactionData, SpanBatchEip2930TransactionData,
+    BatchValidationProvider, BatchValidity, BatchWithInclusionBlock, MAX_SPAN_BATCH_ELEMENTS,
+    RawSpanBatch, SINGLE_BATCH_TYPE, SPAN_BATCH_TYPE, SingleBatch, SpanBatch, SpanBatchBits,
+    SpanBatchEip1559TransactionData, SpanBatchEip2930TransactionData,
     SpanBatchEip7702TransactionData, SpanBatchElement, SpanBatchError,
     SpanBatchLegacyTransactionData, SpanBatchPayload, SpanBatchPrefix, SpanBatchTransactionData,
-    SpanBatchTransactions, SpanDecodingError, MAX_SPAN_BATCH_ELEMENTS, SINGLE_BATCH_TYPE,
-    SPAN_BATCH_TYPE,
+    SpanBatchTransactions, SpanDecodingError,
 };
 
 mod sync;
@@ -32,18 +32,18 @@ pub use block::{BlockInfo, FromBlockError, L2BlockInfo};
 
 mod frame;
 pub use frame::{
-    Frame, FrameDecodingError, FrameParseError, DERIVATION_VERSION_0, FRAME_OVERHEAD, MAX_FRAME_LEN,
+    DERIVATION_VERSION_0, FRAME_OVERHEAD, Frame, FrameDecodingError, FrameParseError, MAX_FRAME_LEN,
 };
 
 mod compression;
-pub use compression::{
-    compress_zlib, decompress_brotli, decompress_zlib, BrotliDecompressionError, BrotliLevel,
-    ChannelCompressor, CompressionAlgo, CompressorError, CompressorResult, CompressorType,
-    CompressorWriter, Config, ZlibCompressor,
-};
 #[cfg(feature = "std")]
 pub use compression::{
     BrotliCompressionError, BrotliCompressor, RatioCompressor, ShadowCompressor, VariantCompressor,
+};
+pub use compression::{
+    BrotliDecompressionError, BrotliLevel, ChannelCompressor, CompressionAlgo, CompressorError,
+    CompressorResult, CompressorType, CompressorWriter, Config, ZlibCompressor, compress_zlib,
+    decompress_brotli, decompress_zlib,
 };
 
 mod iter;
@@ -57,20 +57,20 @@ pub use channel_out::{ChannelOut, ChannelOutError};
 
 mod channel;
 pub use channel::{
-    Channel, ChannelError, ChannelId, CHANNEL_ID_LENGTH, FJORD_MAX_RLP_BYTES_PER_CHANNEL,
+    CHANNEL_ID_LENGTH, Channel, ChannelError, ChannelId, FJORD_MAX_RLP_BYTES_PER_CHANNEL,
     MAX_RLP_BYTES_PER_CHANNEL,
 };
 
 mod deposits;
 pub use deposits::{
-    decode_deposit, DepositError, DEPOSIT_EVENT_ABI, DEPOSIT_EVENT_ABI_HASH,
-    DEPOSIT_EVENT_VERSION_0,
+    DEPOSIT_EVENT_ABI, DEPOSIT_EVENT_ABI_HASH, DEPOSIT_EVENT_VERSION_0, DepositError,
+    decode_deposit,
 };
 
 mod info;
 pub use info::{
-    closing_deposit_context_tx, BlockInfoError, DecodeError, L1BlockInfoBedrock,
-    L1BlockInfoEcotone, L1BlockInfoInterop, L1BlockInfoIsthmus, L1BlockInfoTx,
+    BlockInfoError, DecodeError, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoInterop,
+    L1BlockInfoIsthmus, L1BlockInfoTx, closing_deposit_context_tx,
 };
 
 mod fee;

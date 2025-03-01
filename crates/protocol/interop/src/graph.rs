@@ -1,10 +1,10 @@
 //! Interop [MessageGraph].
 
 use crate::{
-    errors::{MessageGraphError, MessageGraphResult},
-    message::{extract_executing_messages, EnrichedExecutingMessage},
-    traits::InteropProvider,
     RawMessagePayload,
+    errors::{MessageGraphError, MessageGraphResult},
+    message::{EnrichedExecutingMessage, extract_executing_messages},
+    traits::InteropProvider,
 };
 use alloc::vec::Vec;
 use alloy_consensus::{Header, Sealed};
@@ -238,8 +238,8 @@ where
 #[cfg(test)]
 mod test {
     use super::MessageGraph;
-    use crate::{test_util::SuperchainBuilder, MessageGraphError};
-    use alloy_primitives::{hex, keccak256, map::HashMap, Address};
+    use crate::{MessageGraphError, test_util::SuperchainBuilder};
+    use alloy_primitives::{Address, hex, keccak256, map::HashMap};
     use kona_genesis::{HardForkConfig, RollupConfig};
 
     const MESSAGE: [u8; 4] = hex!("deadbeef");

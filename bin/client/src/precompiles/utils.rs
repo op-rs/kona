@@ -30,9 +30,9 @@ macro_rules! precompile_run {
     ($hint_data:expr_2021) => {
         async move {
             use kona_preimage::{
-                errors::PreimageOracleError, PreimageKey, PreimageKeyType, PreimageOracleClient,
+                PreimageKey, PreimageKeyType, PreimageOracleClient, errors::PreimageOracleError,
             };
-            use kona_proof::{errors::OracleProviderError, HintType};
+            use kona_proof::{HintType, errors::OracleProviderError};
             use $crate::{HINT_WRITER, ORACLE_READER};
 
             // Write the hint for the precompile run.

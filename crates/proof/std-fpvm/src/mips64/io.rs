@@ -1,4 +1,4 @@
-use crate::{errors::IOResult, mips64::syscall, BasicKernelInterface, FileDescriptor};
+use crate::{BasicKernelInterface, FileDescriptor, errors::IOResult, mips64::syscall};
 
 /// Concrete implementation of the [BasicKernelInterface] trait for the `MIPS64r2` target
 /// architecture. Exposes a safe interface for performing IO operations within the kernel.

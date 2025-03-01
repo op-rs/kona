@@ -465,8 +465,8 @@ mod tests {
     };
     use alloc::vec;
     use alloy_consensus::Header;
-    use alloy_eips::{eip2718::Decodable2718, BlockNumHash};
-    use alloy_primitives::{address, b256, Address, Bytes, TxKind, B256, U256};
+    use alloy_eips::{BlockNumHash, eip2718::Decodable2718};
+    use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, b256};
     use alloy_rlp::{BytesMut, Encodable};
     use kona_genesis::{ChainGenesis, HardForkConfig, MAX_RLP_BYTES_PER_CHANNEL_FJORD};
     use kona_protocol::{BatchReader, L1BlockInfoBedrock, L1BlockInfoTx};

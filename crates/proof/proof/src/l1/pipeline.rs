@@ -1,6 +1,6 @@
 //! Contains an oracle-backed pipeline.
 
-use crate::{l1::OracleL1ChainProvider, l2::OracleL2ChainProvider, FlushableCache};
+use crate::{FlushableCache, l1::OracleL1ChainProvider, l2::OracleL2ChainProvider};
 use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;

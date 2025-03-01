@@ -3,7 +3,7 @@
 
 use alloc::string::String;
 use alloy_consensus::Header;
-use alloy_primitives::{Bytes, B256};
+use alloy_primitives::{B256, Bytes};
 use kona_mpt::{TrieNode, TrieProvider};
 
 /// The [TrieDBProvider] trait defines the synchronous interface for fetching EVM bytecode hash

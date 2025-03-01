@@ -2,19 +2,19 @@
 
 use super::InteropHost;
 use crate::{
-    backend::util::store_ordered_trie, HintHandler, OnlineHostBackend, OnlineHostBackendCfg,
-    PreimageServer, SharedKeyValueStore,
+    HintHandler, OnlineHostBackend, OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore,
+    backend::util::store_ordered_trie,
 };
 use alloy_consensus::{Header, Sealed};
 use alloy_eips::{
     eip2718::Encodable2718,
-    eip4844::{IndexedBlobHash, FIELD_ELEMENTS_PER_BLOB},
+    eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
-use alloy_primitives::{address, keccak256, Address, Bytes, B256};
+use alloy_primitives::{Address, B256, Bytes, address, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::{Block, BlockTransactionsKind};
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_driver::Driver;
 use kona_executor::TrieDBProvider;
@@ -23,11 +23,11 @@ use kona_preimage::{
     PreimageKeyType,
 };
 use kona_proof::{
+    CachingOracle, Hint,
     executor::KonaExecutor,
     l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
-    CachingOracle, Hint,
 };
 use kona_proof_interop::{HintType, PreState};
 use kona_protocol::BlockInfo;

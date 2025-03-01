@@ -3,9 +3,8 @@
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
-    ChainGenesis, HardForkConfig, RollupConfig, SystemConfig,
-    DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, OP_MAINNET_BASE_FEE_PARAMS,
-    OP_MAINNET_BASE_FEE_PARAMS_CANYON,
+    ChainGenesis, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, HardForkConfig,
+    OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON, RollupConfig, SystemConfig,
 };
 
 /// The [RollupConfig] for Base Mainnet.

@@ -1,5 +1,5 @@
 [workspace.package]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 rust-version = "1.85"
 authors = ["clabby", "refcell"]

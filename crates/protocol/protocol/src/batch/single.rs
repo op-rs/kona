@@ -1,6 +1,6 @@
 //! This module contains the [SingleBatch] type.
 
-use crate::{starts_with_2718_deposit, starts_with_7702_tx, BatchValidity, BlockInfo, L2BlockInfo};
+use crate::{BatchValidity, BlockInfo, L2BlockInfo, starts_with_2718_deposit, starts_with_7702_tx};
 use alloc::vec::Vec;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{BlockHash, Bytes};

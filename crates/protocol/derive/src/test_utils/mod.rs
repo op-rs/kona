@@ -2,9 +2,9 @@
 
 mod pipeline;
 pub use pipeline::{
-    new_test_pipeline, TestAttributesQueue, TestBatchProvider, TestBatchStream,
-    TestChannelProvider, TestChannelReader, TestFrameQueue, TestL1Retrieval, TestL1Traversal,
-    TestNextAttributes, TestPipeline,
+    TestAttributesQueue, TestBatchProvider, TestBatchStream, TestChannelProvider,
+    TestChannelReader, TestFrameQueue, TestL1Retrieval, TestL1Traversal, TestNextAttributes,
+    TestPipeline, new_test_pipeline,
 };
 
 mod blob_provider;
@@ -21,8 +21,8 @@ pub use batch_provider::TestNextBatchProvider;
 
 mod attributes_queue;
 pub use attributes_queue::{
-    new_test_attributes_provider, TestAttributesBuilder, TestAttributesBuilderError,
-    TestAttributesProvider,
+    TestAttributesBuilder, TestAttributesBuilderError, TestAttributesProvider,
+    new_test_attributes_provider,
 };
 
 mod batch_stream;

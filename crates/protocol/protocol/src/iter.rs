@@ -1,6 +1,6 @@
 //! An iterator over encoded frames.
 
-use crate::frame::{Frame, FrameParseError, DERIVATION_VERSION_0};
+use crate::frame::{DERIVATION_VERSION_0, Frame, FrameParseError};
 
 /// An iterator over encoded frames.
 #[derive(Debug, Clone)]

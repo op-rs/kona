@@ -5,8 +5,8 @@
 
 use crate::constants::CROSS_L2_INBOX_ADDRESS;
 use alloc::{vec, vec::Vec};
-use alloy_primitives::{keccak256, Bytes, Log};
-use alloy_sol_types::{sol, SolEvent};
+use alloy_primitives::{Bytes, Log, keccak256};
+use alloy_sol_types::{SolEvent, sol};
 use derive_more::{AsRef, From};
 use op_alloy_consensus::OpReceiptEnvelope;
 

@@ -2,12 +2,12 @@
 
 use std::time::Duration;
 use tokio::{
-    sync::mpsc::{channel, Receiver},
+    sync::mpsc::{Receiver, channel},
     time::sleep,
 };
 use tracing::{info, warn};
 
-use discv5::{enr::NodeId, Discv5};
+use discv5::{Discv5, enr::NodeId};
 
 use crate::{
     discovery::{bootnodes::BOOTNODES, builder::DiscoveryBuilder},

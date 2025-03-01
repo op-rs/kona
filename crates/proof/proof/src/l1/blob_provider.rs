@@ -1,9 +1,9 @@
 //! Contains the concrete implementation of the [BlobProvider] trait for the client program.
 
-use crate::{errors::OracleProviderError, HintType};
+use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::Blob;
-use alloy_eips::eip4844::{IndexedBlobHash, FIELD_ELEMENTS_PER_BLOB};
+use alloy_eips::eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash};
 use alloy_primitives::keccak256;
 use async_trait::async_trait;
 use kona_derive::traits::BlobProvider;

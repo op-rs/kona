@@ -1,8 +1,8 @@
 //! This module contains the [PreimageServer] struct and its implementation.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use kona_preimage::{
-    errors::PreimageOracleError, HintReaderServer, PreimageOracleServer, PreimageServerBackend,
+    HintReaderServer, PreimageOracleServer, PreimageServerBackend, errors::PreimageOracleError,
 };
 use std::sync::Arc;
 use tokio::spawn;

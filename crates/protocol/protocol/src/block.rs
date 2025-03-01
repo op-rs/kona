@@ -2,7 +2,7 @@
 
 use crate::{DecodeError, L1BlockInfoTx};
 use alloy_consensus::{Block, Transaction, Typed2718};
-use alloy_eips::{eip2718::Eip2718Error, BlockNumHash};
+use alloy_eips::{BlockNumHash, eip2718::Eip2718Error};
 use alloy_primitives::B256;
 use kona_genesis::ChainGenesis;
 use op_alloy_consensus::OpBlock;

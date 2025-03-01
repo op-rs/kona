@@ -235,15 +235,21 @@ impl SpanBatch {
                     // allowed.
                     if !origin_advanced {
                         if origin_index + 1 >= l1_blocks.len() {
-                            info!("without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid");
+                            info!(
+                                "without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid"
+                            );
                             return BatchValidity::Undecided;
                         }
                         if block_timestamp >= l1_blocks[origin_index + 1].timestamp {
                             // check if the next L1 origin could have been adopted
-                            info!("batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid");
+                            info!(
+                                "batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid"
+                            );
                             return BatchValidity::Drop;
                         } else {
-                            info!("continuing with empty batch before late L1 block to preserve L2 time invariant");
+                            info!(
+                                "continuing with empty batch before late L1 block to preserve L2 time invariant"
+                            );
                         }
                     }
                 } else {
@@ -268,7 +274,10 @@ impl SpanBatch {
                     return BatchValidity::Drop;
                 }
                 if tx_bytes.0[0] == DEPOSIT_TX_TYPE_ID {
-                    warn!("sequencers may not embed any deposits into batch data, but found tx that has one, tx_index: {}", tx_index);
+                    warn!(
+                        "sequencers may not embed any deposits into batch data, but found tx that has one, tx_index: {}",
+                        tx_index
+                    );
                     return BatchValidity::Drop;
                 }
 
@@ -328,7 +337,10 @@ impl SpanBatch {
                 ) {
                     Ok(r) => r,
                     Err(e) => {
-                        warn!("failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}", safe_block_payload.header.hash_slow());
+                        warn!(
+                            "failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}",
+                            safe_block_payload.header.hash_slow()
+                        );
                         return BatchValidity::Drop;
                     }
                 };
@@ -373,7 +385,10 @@ impl SpanBatch {
         let mut batch_origin = epoch;
         if starting_epoch_num == batch_origin.number + 1 {
             if l1_origins.len() < 2 {
-                info!("eager batch wants to advance current epoch {:?}, but could not without more L1 blocks", epoch.id());
+                info!(
+                    "eager batch wants to advance current epoch {:?}, but could not without more L1 blocks",
+                    epoch.id()
+                );
                 return (BatchValidity::Undecided, None);
             }
             batch_origin = l1_origins[1];
@@ -442,9 +457,7 @@ impl SpanBatch {
         if !self.check_parent_hash(parent_block.block_info.hash) {
             warn!(
                 "parent block mismatch, expected: {parent_num}, received: {}. parent hash: {}, parent hash check: {}",
-                parent_block.block_info.number,
-                parent_block.block_info.hash,
-                self.parent_check,
+                parent_block.block_info.number, parent_block.block_info.hash, self.parent_check,
             );
             return (BatchValidity::Drop, None);
         }
@@ -502,9 +515,9 @@ mod tests {
     use super::*;
     use crate::test_utils::{CollectingLayer, TestBatchValidator, TraceStorage};
     use alloc::vec;
-    use alloy_consensus::{constants::EIP1559_TX_TYPE_ID, Header};
+    use alloy_consensus::{Header, constants::EIP1559_TX_TYPE_ID};
     use alloy_eips::BlockNumHash;
-    use alloy_primitives::{b256, Bytes};
+    use alloy_primitives::{Bytes, b256};
     use kona_genesis::{ChainGenesis, HardForkConfig};
     use op_alloy_consensus::OpBlock;
     use tracing::Level;

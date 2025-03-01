@@ -3,7 +3,7 @@
 
 use super::InteropHost;
 use crate::KeyValueStore;
-use alloy_primitives::{keccak256, B256};
+use alloy_primitives::{B256, keccak256};
 use anyhow::Result;
 use kona_preimage::PreimageKey;
 use kona_proof_interop::boot::{

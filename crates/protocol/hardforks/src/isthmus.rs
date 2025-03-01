@@ -6,7 +6,7 @@
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{address, hex, Address, Bytes, TxKind, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -69,10 +69,11 @@ mod tests {
         let isthmus_upgrade_tx = Isthmus.txs().collect::<Vec<_>>();
         assert_eq!(isthmus_upgrade_tx.len(), 1);
 
-        let expected_txs: Vec<Bytes> =
-            vec![hex::decode(include_str!("./bytecode/isthmus_tx_1.hex").replace("\n", ""))
+        let expected_txs: Vec<Bytes> = vec![
+            hex::decode(include_str!("./bytecode/isthmus_tx_1.hex").replace("\n", ""))
                 .unwrap()
-                .into()];
+                .into(),
+        ];
         for (i, expected) in expected_txs.iter().enumerate() {
             assert_eq!(isthmus_upgrade_tx[i], *expected);
         }

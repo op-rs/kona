@@ -2,8 +2,8 @@
 
 use crate::{discovery::driver::DiscoveryDriver, types::enr::OpStackEnr};
 use discv5::{
-    enr::{CombinedKey, Enr},
     Config, ConfigBuilder, Discv5, ListenConfig,
+    enr::{CombinedKey, Enr},
 };
 use std::net::SocketAddr;
 

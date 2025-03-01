@@ -2,13 +2,13 @@
 
 use super::{SingleChainHintHandler, SingleChainLocalInputs};
 use crate::{
-    eth::http_provider, DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend,
-    OnlineHostBackend, OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore,
-    SplitKeyValueStore,
+    DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
+    OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
+    eth::http_provider,
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use kona_cli::{cli_parsers::parse_b256, cli_styles};
 use kona_genesis::RollupConfig;

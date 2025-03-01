@@ -9,7 +9,7 @@ use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use kona_interop::InteropProvider;
 use kona_mpt::{OrderedListWalker, TrieHinter, TrieNode, TrieProvider};
-use kona_preimage::{errors::PreimageOracleError, CommsClient, PreimageKey, PreimageKeyType};
+use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType, errors::PreimageOracleError};
 use kona_proof::{eip_2935_history_lookup, errors::OracleProviderError};
 use kona_registry::HashMap;
 use op_alloy_consensus::OpReceiptEnvelope;

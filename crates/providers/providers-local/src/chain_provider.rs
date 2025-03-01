@@ -1,7 +1,7 @@
 //! L1 Chain Provider
 
 use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync::Arc, vec::Vec};
-use alloy_primitives::{map::HashMap, B256};
+use alloy_primitives::{B256, map::HashMap};
 
 use alloy_consensus::{
     BlockHeader, Header, Receipt, SignableTransaction, Signed, TxEip1559, TxEip2930, TxEip4844,

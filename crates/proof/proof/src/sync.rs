@@ -1,8 +1,8 @@
 //! Sync Start
 
 use crate::{
-    errors::OracleProviderError, l1::OracleL1ChainProvider, l2::OracleL2ChainProvider,
-    FlushableCache,
+    FlushableCache, errors::OracleProviderError, l1::OracleL1ChainProvider,
+    l2::OracleL2ChainProvider,
 };
 use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};

@@ -1,6 +1,6 @@
 //! Protocol constants for the executor.
 
-use alloy_primitives::{address, b256, Address, B256};
+use alloy_primitives::{Address, B256, address, b256};
 
 /// The address of the fee recipient.
 pub(crate) const FEE_RECIPIENT: Address = address!("4200000000000000000000000000000000000011");

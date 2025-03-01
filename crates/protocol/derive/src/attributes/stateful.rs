@@ -7,14 +7,14 @@ use crate::{
 };
 use alloc::{boxed::Box, fmt::Debug, string::ToString, sync::Arc, vec, vec::Vec};
 use alloy_consensus::{Eip658Value, Receipt};
-use alloy_eips::{eip2718::Encodable2718, BlockNumHash};
-use alloy_primitives::{address, Address, Bytes, B256};
+use alloy_eips::{BlockNumHash, eip2718::Encodable2718};
+use alloy_primitives::{Address, B256, Bytes, address};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{
-    closing_deposit_context_tx, decode_deposit, L1BlockInfoTx, L2BlockInfo, DEPOSIT_EVENT_ABI_HASH,
+    DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, closing_deposit_context_tx, decode_deposit,
 };
 use op_alloy_consensus::{Hardfork, Hardforks};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -250,7 +250,7 @@ mod tests {
     };
     use alloc::vec;
     use alloy_consensus::Header;
-    use alloy_primitives::{Log, LogData, B256, U256, U64};
+    use alloy_primitives::{B256, Log, LogData, U64, U256};
     use kona_genesis::{HardForkConfig, SystemConfig};
     use kona_protocol::{BlockInfo, DepositError};
 

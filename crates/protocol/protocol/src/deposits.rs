@@ -2,7 +2,7 @@
 
 use alloc::vec::Vec;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{b256, Address, Bytes, Log, TxKind, B256, U256, U64};
+use alloy_primitives::{Address, B256, Bytes, Log, TxKind, U64, U256, b256};
 use op_alloy_consensus::{TxDeposit, UserDepositSource};
 
 /// Deposit log event abi signature.
@@ -244,7 +244,7 @@ pub(crate) fn unmarshal_deposit_version0(
 mod test {
     use super::*;
     use alloc::vec;
-    use alloy_primitives::{address, b256, hex, LogData};
+    use alloy_primitives::{LogData, address, b256, hex};
 
     #[test]
     fn test_decode_deposit_invalid_first_topic() {
@@ -401,7 +401,9 @@ mod test {
             ),
         };
         let tx = decode_deposit(B256::default(), 0, &log).unwrap();
-        let raw_hex = hex!("7ef887a0ed428e1c45e1d9561b62834e1a2d3015a0caae3bfdc16b4da059ac885b01a14594ffffffffffffffffffffffffffffffffffffffff94bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb80808080b700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        let raw_hex = hex!(
+            "7ef887a0ed428e1c45e1d9561b62834e1a2d3015a0caae3bfdc16b4da059ac885b01a14594ffffffffffffffffffffffffffffffffffffffff94bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb80808080b700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        );
         let expected = Bytes::from(raw_hex);
         assert_eq!(tx, expected);
     }
@@ -443,7 +445,9 @@ mod test {
             ),
         };
         let tx = decode_deposit(B256::default(), 0, &log).unwrap();
-        let raw_hex = hex!("7ef875a0ed428e1c45e1d9561b62834e1a2d3015a0caae3bfdc16b4da059ac885b01a145941111111111111111111111111111111111111111800a648203e880b700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        let raw_hex = hex!(
+            "7ef875a0ed428e1c45e1d9561b62834e1a2d3015a0caae3bfdc16b4da059ac885b01a145941111111111111111111111111111111111111111800a648203e880b700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        );
         let expected = Bytes::from(raw_hex);
         assert_eq!(tx, expected);
     }

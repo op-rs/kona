@@ -1,10 +1,10 @@
 //! Testing utilities for `kona-mpt`
 
-use crate::{ordered_trie_with_encoder, TrieNode, TrieProvider};
+use crate::{TrieNode, TrieProvider, ordered_trie_with_encoder};
 use alloc::{collections::BTreeMap, vec::Vec};
 use alloy_consensus::{Receipt, ReceiptEnvelope, ReceiptWithBloom, TxEnvelope, TxType};
-use alloy_primitives::{keccak256, Bytes, Log, B256};
-use alloy_provider::{network::eip2718::Encodable2718, Provider, ProviderBuilder};
+use alloy_primitives::{B256, Bytes, Log, keccak256};
+use alloy_provider::{Provider, ProviderBuilder, network::eip2718::Encodable2718};
 use alloy_rlp::Decodable;
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
 use reqwest::Url;
@@ -16,8 +16,8 @@ const RPC_URL: &str = "https://docs-demo.quiknode.pro/";
 pub(crate) struct TestTrieProviderError(&'static str);
 
 /// Grabs a live merkleized receipts list within a block header.
-pub(crate) async fn get_live_derivable_receipts_list(
-) -> Result<(B256, BTreeMap<B256, Bytes>, Vec<ReceiptEnvelope>), TestTrieProviderError> {
+pub(crate) async fn get_live_derivable_receipts_list()
+-> Result<(B256, BTreeMap<B256, Bytes>, Vec<ReceiptEnvelope>), TestTrieProviderError> {
     // Initialize the provider.
     let provider = ProviderBuilder::new().on_http(Url::parse(RPC_URL).expect("invalid rpc url"));
 
@@ -84,8 +84,8 @@ pub(crate) async fn get_live_derivable_receipts_list(
 }
 
 /// Grabs a live merkleized transactions list within a block header.
-pub(crate) async fn get_live_derivable_transactions_list(
-) -> Result<(B256, BTreeMap<B256, Bytes>, Vec<TxEnvelope>), TestTrieProviderError> {
+pub(crate) async fn get_live_derivable_transactions_list()
+-> Result<(B256, BTreeMap<B256, Bytes>, Vec<TxEnvelope>), TestTrieProviderError> {
     // Initialize the provider.
     let provider = ProviderBuilder::new().on_http(Url::parse(RPC_URL).expect("invalid rpc url"));
 

@@ -5,9 +5,9 @@ use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
 use crate::{
-    base_fee_params, base_fee_params_canyon, rollup::DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
-    AddressList, AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, Roles, RollupConfig,
-    SuperchainLevel, GRANITE_CHANNEL_TIMEOUT,
+    AddressList, AltDAConfig, BaseFeeConfig, ChainGenesis, GRANITE_CHANNEL_TIMEOUT, HardForkConfig,
+    Roles, RollupConfig, SuperchainLevel, base_fee_params, base_fee_params_canyon,
+    rollup::DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
 };
 
 /// Defines core blockchain settings per block.

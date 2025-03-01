@@ -3,7 +3,7 @@
 use crate::{DriverError, DriverPipeline, DriverResult, Executor, PipelineCursor, TipCursor};
 use alloc::{sync::Arc, vec::Vec};
 use alloy_consensus::BlockBody;
-use alloy_primitives::{Bytes, B256};
+use alloy_primitives::{B256, Bytes};
 use alloy_rlp::Decodable;
 use core::fmt::Debug;
 use kona_derive::{

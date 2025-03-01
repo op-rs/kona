@@ -7,7 +7,7 @@ use alloy_sol_types::SolEvent;
 use async_trait::async_trait;
 use core::time::Duration;
 use jsonrpsee::core::ClientError;
-use kona_interop::{ExecutingMessage, SafetyLevel, CROSS_L2_INBOX_ADDRESS};
+use kona_interop::{CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel};
 use tokio::time::error::Elapsed;
 
 /// Failures occurring during validation of [`ExecutingMessage`]s.

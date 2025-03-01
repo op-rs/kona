@@ -3,13 +3,13 @@
 #![allow(missing_docs)]
 
 use alloy_consensus::{Header, Sealable};
-use alloy_primitives::{address, b256, hex, Bytes, B256};
+use alloy_primitives::{B256, Bytes, address, b256, hex};
 use alloy_rlp::Decodable;
 use alloy_rpc_types_engine::PayloadAttributes;
-use criterion::{criterion_group, criterion_main, Bencher, Criterion};
+use criterion::{Bencher, Criterion, criterion_group, criterion_main};
 use kona_executor::{StatelessL2BlockExecutor, TrieDBProvider};
 use kona_genesis::{
-    HardForkConfig, RollupConfig, OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON,
+    HardForkConfig, OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON, RollupConfig,
 };
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;

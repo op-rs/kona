@@ -2,7 +2,7 @@
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{address, hex, Address, Bytes, TxKind, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;

@@ -5,7 +5,7 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use alloy_primitives::{hex, Bytes};
+use alloy_primitives::{Bytes, hex};
 use core::{fmt::Display, str::FromStr};
 use kona_preimage::HintWriterClient;
 

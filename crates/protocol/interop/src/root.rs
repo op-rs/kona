@@ -2,9 +2,9 @@
 //!
 //! Represents a snapshot of the state of the superchain at a given integer timestamp.
 
-use crate::{SuperRootError, SuperRootResult, SUPER_ROOT_VERSION};
+use crate::{SUPER_ROOT_VERSION, SuperRootError, SuperRootResult};
 use alloc::vec::Vec;
-use alloy_primitives::{keccak256, Bytes, B256, U256};
+use alloy_primitives::{B256, Bytes, U256, keccak256};
 use alloy_rlp::{Buf, BufMut};
 
 /// The [SuperRoot] is the snapshot of the superchain at a given timestamp.
@@ -138,10 +138,10 @@ impl OutputRootWithChain {
 
 #[cfg(test)]
 mod test {
-    use crate::{errors::SuperRootError, SUPER_ROOT_VERSION};
+    use crate::{SUPER_ROOT_VERSION, errors::SuperRootError};
 
     use super::{OutputRootWithChain, SuperRoot};
-    use alloy_primitives::{b256, B256};
+    use alloy_primitives::{B256, b256};
 
     #[test]
     fn test_super_root_sorts_outputs() {

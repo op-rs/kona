@@ -1,11 +1,11 @@
 //! Contains the [`SystemConfig`] type.
 
 use alloy_consensus::{Eip658Value, Receipt};
-use alloy_primitives::{Address, Log, B64, U256};
+use alloy_primitives::{Address, B64, Log, U256};
 
 use crate::{
-    RollupConfig, SystemConfigLog, SystemConfigUpdateError, SystemConfigUpdateKind,
-    CONFIG_UPDATE_TOPIC,
+    CONFIG_UPDATE_TOPIC, RollupConfig, SystemConfigLog, SystemConfigUpdateError,
+    SystemConfigUpdateKind,
 };
 
 /// System configuration.
@@ -179,9 +179,9 @@ impl SystemConfig {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{HardForkConfig, CONFIG_UPDATE_EVENT_VERSION_0};
+    use crate::{CONFIG_UPDATE_EVENT_VERSION_0, HardForkConfig};
     use alloc::vec;
-    use alloy_primitives::{address, b256, hex, LogData, B256};
+    use alloy_primitives::{B256, LogData, address, b256, hex};
 
     #[test]
     #[cfg(feature = "serde")]

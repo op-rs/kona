@@ -1,6 +1,6 @@
 //! Parser functions for CLI arguments.
 
-use alloy_primitives::{hex, Bytes, B256};
+use alloy_primitives::{B256, Bytes, hex};
 use std::str::FromStr;
 
 /// Parse a string slice into [B256].

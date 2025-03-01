@@ -1,9 +1,9 @@
 //! Types for the pre-state claims used in the interop proof.
 
 use alloc::vec::Vec;
-use alloy_primitives::{b256, keccak256, Bytes, B256};
+use alloy_primitives::{B256, Bytes, b256, keccak256};
 use alloy_rlp::{Buf, Decodable, Encodable, Header, RlpDecodable, RlpEncodable};
-use kona_interop::{OutputRootWithChain, SuperRoot, SUPER_ROOT_VERSION};
+use kona_interop::{OutputRootWithChain, SUPER_ROOT_VERSION, SuperRoot};
 use serde::{Deserialize, Serialize};
 
 /// The current [TransitionState] encoding format version.

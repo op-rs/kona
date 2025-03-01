@@ -1,6 +1,7 @@
 //! A stateless block executor for the OP Stack.
 
 use crate::{
+    ExecutorError, ExecutorResult, TrieDBProvider,
     constants::{L2_TO_L1_BRIDGE, OUTPUT_ROOT_VERSION, SHA256_EMPTY},
     db::TrieDB,
     errors::TrieDBError,
@@ -8,22 +9,21 @@ use crate::{
         ensure_create2_deployer_canyon, pre_block_beacon_root_contract_call,
         pre_block_block_hash_contract_call,
     },
-    ExecutorError, ExecutorResult, TrieDBProvider,
 };
 use alloc::{string::ToString, vec::Vec};
 use alloy_consensus::{
-    Header, Sealable, Sealed, Transaction, EMPTY_OMMER_ROOT_HASH, EMPTY_ROOT_HASH,
+    EMPTY_OMMER_ROOT_HASH, EMPTY_ROOT_HASH, Header, Sealable, Sealed, Transaction,
 };
 use alloy_eips::eip2718::{Decodable2718, Encodable2718};
-use alloy_primitives::{keccak256, logs_bloom, Bytes, Log, B256, U256};
+use alloy_primitives::{B256, Bytes, Log, U256, keccak256, logs_bloom};
 use kona_genesis::RollupConfig;
-use kona_mpt::{ordered_trie_with_encoder, TrieHinter};
+use kona_mpt::{TrieHinter, ordered_trie_with_encoder};
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{
-    db::{states::bundle_state::BundleRetention, State},
-    primitives::{calc_excess_blob_gas, EnvWithHandlerCfg},
     Evm,
+    db::{State, states::bundle_state::BundleRetention},
+    primitives::{EnvWithHandlerCfg, calc_excess_blob_gas},
 };
 
 mod builder;

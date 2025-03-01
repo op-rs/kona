@@ -1,6 +1,6 @@
 //! [tracing_subscriber] utilities.
 
-use tracing::{subscriber::SetGlobalDefaultError, Level};
+use tracing::{Level, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::EnvFilter;
 
 /// Initializes the tracing subscriber

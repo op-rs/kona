@@ -6,7 +6,7 @@ use alloc::{
 };
 use core::array::TryFromSliceError;
 
-use alloy_primitives::{B256, B64};
+use alloy_primitives::{B64, B256};
 use derive_more::derive::{Display, From};
 
 /// Superchain Signal information.

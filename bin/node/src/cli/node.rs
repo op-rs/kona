@@ -2,7 +2,7 @@
 
 use crate::{cli::globals::GlobalArgs, pilot::Pilot};
 use alloy_rpc_types_engine::JwtSecret;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Args;
 use kona_genesis::RollupConfig;
 use kona_registry::ROLLUP_CONFIGS;

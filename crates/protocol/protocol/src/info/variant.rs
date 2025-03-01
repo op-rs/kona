@@ -2,8 +2,8 @@
 //! transaction.
 
 use alloy_consensus::Header;
-use alloy_eips::{eip7840::BlobParams, BlockNumHash};
-use alloy_primitives::{address, Address, Bytes, Sealable, Sealed, TxKind, B256, U256};
+use alloy_eips::{BlockNumHash, eip7840::BlobParams};
+use alloy_primitives::{Address, B256, Bytes, Sealable, Sealed, TxKind, U256, address};
 use kona_genesis::{RollupConfig, SystemConfig};
 use op_alloy_consensus::{DepositSourceDomain, L1InfoDepositSource, TxDeposit};
 
@@ -209,10 +209,10 @@ impl L1BlockInfoTx {
     /// Returns the block hash for the [L1BlockInfoTx].
     pub const fn block_hash(&self) -> B256 {
         match self {
-            Self::Bedrock(ref tx) => tx.block_hash,
-            Self::Ecotone(ref tx) => tx.block_hash,
-            Self::Interop(ref tx) => tx.block_hash,
-            Self::Isthmus(ref tx) => tx.block_hash,
+            Self::Bedrock(tx) => tx.block_hash,
+            Self::Ecotone(tx) => tx.block_hash,
+            Self::Interop(tx) => tx.block_hash,
+            Self::Isthmus(tx) => tx.block_hash,
         }
     }
 

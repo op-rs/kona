@@ -1,6 +1,6 @@
 //! Contains the [BatchReader] which is used to iteratively consume batches from raw data.
 
-use crate::{decompress_brotli, Batch};
+use crate::{Batch, decompress_brotli};
 use alloc::vec::Vec;
 use alloy_primitives::Bytes;
 use alloy_rlp::Decodable;

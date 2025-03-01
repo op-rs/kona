@@ -1,7 +1,7 @@
 //! This module contains a rudamentary channel between two file descriptors, using [crate::io]
 //! for reading and writing from the file descriptors.
 
-use crate::{io, FileDescriptor};
+use crate::{FileDescriptor, io};
 use alloc::boxed::Box;
 use async_trait::async_trait;
 use core::{
@@ -12,8 +12,8 @@ use core::{
     task::{Context, Poll},
 };
 use kona_preimage::{
-    errors::{ChannelError, ChannelResult},
     Channel,
+    errors::{ChannelError, ChannelResult},
 };
 
 /// [FileChannel] is a handle for one end of a bidirectional channel.

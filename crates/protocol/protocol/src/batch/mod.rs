@@ -37,7 +37,7 @@ mod transactions;
 pub use transactions::SpanBatchTransactions;
 
 mod element;
-pub use element::{SpanBatchElement, MAX_SPAN_BATCH_ELEMENTS};
+pub use element::{MAX_SPAN_BATCH_ELEMENTS, SpanBatchElement};
 
 mod validity;
 pub use validity::BatchValidity;

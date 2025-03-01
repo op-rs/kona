@@ -6,11 +6,11 @@ use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::{ForkchoiceState, ForkchoiceUpdated, JwtSecret};
 use alloy_transport_http::{
+    AuthLayer, AuthService, Http, HyperClient,
     hyper_util::{
-        client::legacy::{connect::HttpConnector, Client},
+        client::legacy::{Client, connect::HttpConnector},
         rt::TokioExecutor,
     },
-    AuthLayer, AuthService, Http, HyperClient,
 };
 use anyhow::Result;
 use http_body_util::Full;
