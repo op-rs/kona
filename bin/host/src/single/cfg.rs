@@ -4,11 +4,10 @@ use super::{SingleChainHintHandler, SingleChainLocalInputs};
 use crate::{
     DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
     OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
-    eth::http_provider,
+    eth::http_provider, server::PreimageServerError,
 };
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
-use anyhow::{Result, anyhow};
 use clap::Parser;
 use kona_cli::{cli_parsers::parse_b256, cli_styles};
 use kona_genesis::RollupConfig;
@@ -109,9 +108,29 @@ pub struct SingleChainHost {
     pub rollup_config_path: Option<PathBuf>,
 }
 
+/// An error that can occur when handling single chain hosts
+#[derive(Debug, thiserror::Error)]
+pub enum SingleChainHostError {
+    /// An error when handling preimage requests.
+    #[error("Error handling preimage request: {0}")]
+    PreimageServerError(#[from] PreimageServerError),
+    /// An IO error.
+    #[error("IO error: {0}")]
+    IOError(#[from] std::io::Error),
+    /// A JSON parse error.
+    #[error("Failed deserializing RollupConfig: {0}")]
+    ParseError(#[from] serde_json::Error),
+    /// Task failed to execute to completion.
+    #[error("Join error: {0}")]
+    ExecutionError(#[from] tokio::task::JoinError),
+    /// Any other error.
+    #[error("Error: {0}")]
+    Other(&'static str),
+}
+
 impl SingleChainHost {
     /// Starts the [SingleChainHost] application.
-    pub async fn start(self) -> Result<()> {
+    pub async fn start(self) -> Result<(), SingleChainHostError> {
         if self.server {
             let hint = FileChannel::new(FileDescriptor::HintRead, FileDescriptor::HintWrite);
             let preimage =
@@ -124,21 +143,27 @@ impl SingleChainHost {
     }
 
     /// Starts the preimage server, communicating with the client over the provided channels.
-    pub async fn start_server<C>(&self, hint: C, preimage: C) -> Result<JoinHandle<Result<()>>>
+    pub async fn start_server<C>(
+        &self,
+        hint: C,
+        preimage: C,
+    ) -> Result<JoinHandle<Result<(), SingleChainHostError>>, SingleChainHostError>
     where
         C: Channel + Send + Sync + 'static,
     {
         let kv_store = self.create_key_value_store()?;
 
         let task_handle = if self.is_offline() {
-            task::spawn(
+            task::spawn(async {
                 PreimageServer::new(
                     OracleServer::new(preimage),
                     HintReader::new(hint),
                     Arc::new(OfflineHostBackend::new(kv_store)),
                 )
-                .start(),
-            )
+                .start()
+                .await
+                .map_err(SingleChainHostError::from)
+            })
         } else {
             let providers = self.create_providers().await?;
             let backend = OnlineHostBackend::new(
@@ -149,14 +174,16 @@ impl SingleChainHost {
             )
             .with_proactive_hint(HintType::L2PayloadWitness);
 
-            task::spawn(
+            task::spawn(async {
                 PreimageServer::new(
                     OracleServer::new(preimage),
                     HintReader::new(hint),
                     Arc::new(backend),
                 )
-                .start(),
-            )
+                .start()
+                .await
+                .map_err(SingleChainHostError::from)
+            })
         };
 
         Ok(task_handle)
@@ -164,7 +191,7 @@ impl SingleChainHost {
 
     /// Starts the host in native mode, running both the client and preimage server in the same
     /// process.
-    async fn start_native(&self) -> Result<()> {
+    async fn start_native(&self) -> Result<(), SingleChainHostError> {
         let hint = BidirectionalChannel::new()?;
         let preimage = BidirectionalChannel::new()?;
 
@@ -190,24 +217,22 @@ impl SingleChainHost {
     }
 
     /// Reads the [RollupConfig] from the file system and returns it as a string.
-    pub fn read_rollup_config(&self) -> Result<RollupConfig> {
+    pub fn read_rollup_config(&self) -> Result<RollupConfig, SingleChainHostError> {
         let path = self.rollup_config_path.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No rollup config path provided. Please provide a path to the rollup config."
+            SingleChainHostError::Other(
+                "No rollup config path provided. Please provide a path to the rollup config.",
             )
         })?;
 
         // Read the serialized config from the file system.
-        let ser_config = std::fs::read_to_string(path)
-            .map_err(|e| anyhow!("Error reading RollupConfig file: {e}"))?;
+        let ser_config = std::fs::read_to_string(path)?;
 
         // Deserialize the config and return it.
-        serde_json::from_str(&ser_config)
-            .map_err(|e| anyhow!("Error deserializing RollupConfig: {e}"))
+        serde_json::from_str(&ser_config).map_err(SingleChainHostError::ParseError)
     }
 
     /// Creates the key-value store for the host backend.
-    pub fn create_key_value_store(&self) -> Result<SharedKeyValueStore> {
+    pub fn create_key_value_store(&self) -> Result<SharedKeyValueStore, SingleChainHostError> {
         let local_kv_store = SingleChainLocalInputs::new(self.clone());
 
         let kv_store: SharedKeyValueStore = if let Some(ref data_dir) = self.data_dir {
@@ -224,15 +249,22 @@ impl SingleChainHost {
     }
 
     /// Creates the providers required for the host backend.
-    pub async fn create_providers(&self) -> Result<SingleChainProviders> {
-        let l1_provider =
-            http_provider(self.l1_node_address.as_ref().ok_or(anyhow!("Provider must be set"))?);
+    pub async fn create_providers(&self) -> Result<SingleChainProviders, SingleChainHostError> {
+        let l1_provider = http_provider(
+            self.l1_node_address
+                .as_ref()
+                .ok_or(SingleChainHostError::Other("Provider must be set"))?,
+        );
         let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
-            self.l1_beacon_address.clone().ok_or(anyhow!("Beacon API URL must be set"))?,
+            self.l1_beacon_address
+                .clone()
+                .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
         ))
         .await;
         let l2_provider = http_provider::<Optimism>(
-            self.l2_node_address.as_ref().ok_or(anyhow!("L2 node address must be set"))?,
+            self.l2_node_address
+                .as_ref()
+                .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
         );
 
         Ok(SingleChainProviders { l1: l1_provider, blobs: blob_provider, l2: l2_provider })
