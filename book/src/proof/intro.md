@@ -1,22 +1,28 @@
-# Kona SDK
+# Kona Proof SDK
 
-Welcome to the Kona SDK, a powerful set of libraries designed to revolutionize the way developers build proofs for the
-OP Stack STF on top of the OP Stack's FPVMs and other verifiable backends like [SP-1][sp-1], [Risc0][rzero],
-[Intel TDX][tdx], and [AMD SEV-SNP][sev-snp]. At its core, Kona is built on the principles of modularity, extensibility,
+Welcome to the Kona Proof SDK, a powerful set of libraries designed
+from first principles to build proofs with the OP Stack STF on top
+of the OP Stack's FPVMs and other verifiable backends like [SP-1][sp-1],
+[Risc0][rzero], [Intel TDX][tdx], and [AMD SEV-SNP][sev-snp]. At its
+core, Kona is built on the principles of modularity, extensibility,
 and developer empowerment.
 
 ## A Foundation of Flexibility
 
-The kona repository is more than a fault proof program for the OP Stack — it's an ecosystem of interoperable components,
-each crafted with reusability and extensibility as primary goals. While we provide
+The kona repository is more than a fault proof program for the OP Stack
+— it's an ecosystem of interoperable components, each crafted with
+reusability and extensibility as primary goals. While we provide
 {{#template ../../templates/glossary-link.md root=./ ref=fault-proof-vm text=Fault Proof VM}} and "online" backends
-for key components like `kona-derive` and `kona-executor`, the true power of `kona` lies in its adaptability.
+for key components like `kona-derive` and `kona-executor`, the true
+power of `kona` lies in its adaptability.
 
 ## Extend Without Forking
 
-One of Kona's standout features is its ability to support custom features and data sources without requiring you to fork
-the entire project. Through careful use of Rust's powerful trait system and abstract interfaces, we've created a
-framework that allows you to plug in your own features and ideas seamlessly.
+One of Kona's standout features is its ability to support custom
+features and data sources without requiring you to fork the entire
+project. Through careful use of Rust's powerful trait system and
+abstract interfaces, we've created a framework that allows you to
+plug in your own features and ideas seamlessly.
 
 ## What You'll Learn
 
