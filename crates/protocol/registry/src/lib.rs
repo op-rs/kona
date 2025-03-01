@@ -10,6 +10,7 @@
 
 extern crate alloc;
 
+use alloc::{string::String, vec::Vec};
 pub use alloy_primitives::map::{DefaultHashBuilder, HashMap};
 pub use kona_genesis::{ChainConfig, RollupConfig};
 
@@ -27,13 +28,29 @@ lazy_static::lazy_static! {
     static ref _INIT: Registry = Registry::from_chain_list();
 
     /// Chain configurations exported from the registry
-    pub static ref CHAINS: alloc::vec::Vec<Chain> = _INIT.chains.clone();
+    pub static ref CHAINS: ChainList = _INIT.chain_list.clone();
 
     /// OP Chain configurations exported from the registry
     pub static ref OPCHAINS: HashMap<u64, ChainConfig, DefaultHashBuilder> = _INIT.op_chains.clone();
 
     /// Rollup configurations exported from the registry
     pub static ref ROLLUP_CONFIGS: HashMap<u64, RollupConfig, DefaultHashBuilder> = _INIT.rollup_configs.clone();
+}
+
+/// Returns all available [Chain] identifiers.
+pub fn chain_idents() -> Vec<String> {
+    CHAINS.chains.iter().map(|c| c.identifier.clone()).collect()
+}
+
+/// Returns a [Chain] by its identifier.
+pub fn chain_by_ident(ident: &str) -> Option<&Chain> {
+    CHAINS.get_chain_by_ident(ident)
+}
+
+/// Returns a [RollupConfig] by its identifier.
+pub fn rollup_config_by_ident(ident: &str) -> Option<&RollupConfig> {
+    let chain_id = chain_by_ident(ident)?.chain_id;
+    ROLLUP_CONFIGS.get(&chain_id)
 }
 
 #[cfg(test)]
@@ -54,5 +71,19 @@ mod tests {
             let derived = super::ROLLUP_CONFIGS.get(&chain_id).unwrap();
             assert_eq!(expected, *derived);
         }
+    }
+
+    #[test]
+    fn test_chain_by_ident() {
+        let chain_by_ident = chain_by_ident("mainnet/base").unwrap();
+        let chain_by_id = CHAINS.get_chain_by_id(8453).unwrap();
+        assert_eq!(chain_by_ident, chain_by_id);
+    }
+
+    #[test]
+    fn test_rollup_config_by_ident() {
+        let rollup_config_by_ident = rollup_config_by_ident("mainnet/base").unwrap();
+        let rollup_config_by_id = ROLLUP_CONFIGS.get(&8453).unwrap();
+        assert_eq!(rollup_config_by_ident, rollup_config_by_id);
     }
 }

@@ -4,9 +4,40 @@ use alloc::{string::String, vec::Vec};
 
 /// List of Chains.
 #[derive(Debug, Clone, Default, Hash, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct ChainList {
     /// List of Chains.
     pub chains: Vec<Chain>,
+}
+
+impl ChainList {
+    /// Fetch a [Chain] by its identifier.
+    pub fn get_chain_by_ident(&self, identifier: &str) -> Option<&Chain> {
+        self.chains.iter().find(|c| c.identifier.eq_ignore_ascii_case(identifier))
+    }
+
+    /// Fetch a [Chain] by its chain id.
+    pub fn get_chain_by_id(&self, chain_id: u64) -> Option<&Chain> {
+        self.chains.iter().find(|c| c.chain_id == chain_id)
+    }
+
+    /// Returns the number of chains.
+    pub fn len(&self) -> usize {
+        self.chains.len()
+    }
+
+    /// Returns true if the list is empty.
+    pub fn is_empty(&self) -> bool {
+        self.chains.is_empty()
+    }
+}
+
+impl Iterator for ChainList {
+    type Item = Chain;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.chains.pop()
+    }
 }
 
 /// A Chain Definition.
