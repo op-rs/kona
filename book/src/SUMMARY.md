@@ -31,6 +31,7 @@
     - [Frames](./protocol/protocol/frames.md)
     - [Channels](./protocol/protocol/channels.md)
     - [Batches](./protocol/protocol/batches.md)
+- [Rollup Node](./node/intro.md)
 - [Examples](./examples/intro.md)
   - [Load a Rollup Config](./examples/load-a-rollup-config.md)
   - [Transform Frames to a Batch](./examples/frames-to-batch.md)
