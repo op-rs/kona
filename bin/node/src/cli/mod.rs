@@ -1,5 +1,6 @@
 //! Contains the node CLI.
 
+pub mod config;
 pub mod disc;
 pub mod globals;
 pub mod gossip;
