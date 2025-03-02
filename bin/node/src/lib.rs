@@ -16,4 +16,5 @@ pub use cli::Cli;
 
 pub mod engine;
 pub mod pilot;
+pub mod rpc;
 pub mod sync;

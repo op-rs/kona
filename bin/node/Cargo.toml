@@ -45,3 +45,5 @@ serde_json = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
+jsonrpsee = {workspace = true,features = ["server","client"]}
+jsonrpsee-core={workspace = true}
