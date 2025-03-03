@@ -17,6 +17,11 @@ impl ChainList {
         self.chains.iter().find(|c| c.identifier.eq_ignore_ascii_case(identifier))
     }
 
+    /// Returns all available [Chain] identifiers.
+    pub fn chain_idents(&self) -> Vec<String> {
+        self.chains.iter().map(|c| c.identifier.clone()).collect()
+    }
+
     /// Fetch a [Chain] by its chain id.
     pub fn get_chain_by_id(&self, chain_id: u64) -> Option<&Chain> {
         self.chains.iter().find(|c| c.chain_id == chain_id)
@@ -35,15 +40,6 @@ impl ChainList {
     /// Returns true if the list is empty.
     pub fn is_empty(&self) -> bool {
         self.chains.is_empty()
-    }
-}
-
-impl IntoIterator for ChainList {
-    type Item = Chain;
-    type IntoIter = alloc::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.chains.into_iter()
     }
 }
 
