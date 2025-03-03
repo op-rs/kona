@@ -10,8 +10,8 @@
 pub mod client;
 pub use client::EngineClient;
 
-pub mod status;
-pub use status::SyncStatus;
+mod sync;
+pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
 pub mod controller;
 pub use controller::EngineController;

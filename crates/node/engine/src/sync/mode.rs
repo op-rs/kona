@@ -1,6 +1,6 @@
 //! Contains the `SyncMode`.
 
-use std::fmt::Display;
+use core::fmt::Display;
 
 /// Sync Mode
 ///
@@ -24,14 +24,14 @@ pub enum SyncMode {
 impl AsRef<str> for SyncMode {
     fn as_ref(&self) -> &str {
         match self {
-            SyncMode::ConsensusLayer => "consensus-layer",
-            SyncMode::ExecutionLayer => "execution-layer",
+            Self::ConsensusLayer => "consensus-layer",
+            Self::ExecutionLayer => "execution-layer",
         }
     }
 }
 
 impl Display for SyncMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.as_ref())
     }
 }
