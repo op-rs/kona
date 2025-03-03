@@ -9,6 +9,8 @@ use kona_derive::traits::{OriginAdvancer, Pipeline, SignalReceiver};
 /// This actor is responsible for receiving messages from [NodeProducer]s and stepping the
 /// derivation pipeline forward to produce new payload attributes. The actor then sends the payload
 /// to the [NodeActor] responsible for the execution sub-routine.
+///
+/// [NodeProducer]: crate::node::NodeProducer
 pub struct DerivationActor<P>
 where
     P: Pipeline + OriginAdvancer + SignalReceiver,
