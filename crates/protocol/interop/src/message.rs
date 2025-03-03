@@ -24,8 +24,12 @@ sol! {
     }
 
     /// @notice Emitted when a cross chain message is being executed.
-    /// @param msgHash Hash of message payload being executed.
-    /// @param id Encoded Identifier of the message.
+    /// @param payloadHash Hash of message payload being executed.
+    /// @param identifier Encoded Identifier of the message.
+    ///
+    /// Parameter names are derived from the `op-supervisor` JSON field names.
+    /// See the relevant definition in the Optimism repository:
+    /// [Ethereum-Optimism/op-supervisor](https://github.com/ethereum-optimism/optimism/blob/4ba2eb00eafc3d7de2c8ceb6fd83913a8c0a2c0d/op-supervisor/supervisor/types/types.go#L61-L64).
     #[derive(Default, Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     event ExecutingMessage(bytes32 indexed payloadHash, MessageIdentifier identifier);
