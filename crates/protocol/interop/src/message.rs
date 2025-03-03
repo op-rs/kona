@@ -28,7 +28,7 @@ sol! {
     /// @param id Encoded Identifier of the message.
     #[derive(Default, Debug, PartialEq, Eq)]
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    event ExecutingMessage(bytes32 indexed msgHash, MessageIdentifier id);
+    event ExecutingMessage(bytes32 indexed payloadHash, MessageIdentifier identifier);
 
     /// @notice Executes a cross chain message on the destination chain.
     /// @param _id      Identifier of the message.
@@ -64,7 +64,7 @@ impl From<Vec<u8>> for RawMessagePayload {
 
 impl From<executeMessageCall> for ExecutingMessage {
     fn from(call: executeMessageCall) -> Self {
-        Self { id: call._id, msgHash: keccak256(call._message.as_ref()) }
+        Self { identifier: call._id, payloadHash: keccak256(call._message.as_ref()) }
     }
 }
 

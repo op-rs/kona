@@ -124,7 +124,7 @@ where
                     target: "message-graph",
                     "Invalid ExecutingMessage found - relayed on chain {} with message hash {}.",
                     message.executing_chain_id,
-                    hex::encode(message.inner.msgHash)
+                    hex::encode(message.inner.payloadHash)
                 );
                 warn!("Invalid message error: {}", e);
                 invalid_messages.push(message);
@@ -152,8 +152,8 @@ where
         // ChainID Invariant: The chain id of the initiating message MUST be in the dependency set
         // This is enforced implicitly by the graph constructor and the provider.
 
-        let initiating_chain_id = message.inner.id.chainId.saturating_to();
-        let initiating_timestamp = message.inner.id.timestamp.saturating_to::<u64>();
+        let initiating_chain_id = message.inner.identifier.chainId.saturating_to();
+        let initiating_timestamp = message.inner.identifier.timestamp.saturating_to::<u64>();
 
         // Attempt to fetch the rollup config for the initiating chain from the registry. If the
         // rollup config is not found, fall back to the local rollup configs.
@@ -181,15 +181,15 @@ where
         let remote_header = self
             .provider
             .header_by_number(
-                message.inner.id.chainId.saturating_to(),
-                message.inner.id.blockNumber.saturating_to(),
+                message.inner.identifier.chainId.saturating_to(),
+                message.inner.identifier.blockNumber.saturating_to(),
             )
             .await?;
         let remote_receipts = self
             .provider
             .receipts_by_number(
-                message.inner.id.chainId.saturating_to(),
-                message.inner.id.blockNumber.saturating_to(),
+                message.inner.identifier.chainId.saturating_to(),
+                message.inner.identifier.blockNumber.saturating_to(),
             )
             .await?;
 
@@ -199,16 +199,16 @@ where
         let remote_log = remote_receipts
             .iter()
             .flat_map(|receipt| receipt.logs())
-            .nth(message.inner.id.logIndex.saturating_to())
+            .nth(message.inner.identifier.logIndex.saturating_to())
             .ok_or(MessageGraphError::RemoteMessageNotFound(
-                message.inner.id.chainId.to(),
-                message.inner.msgHash,
+                message.inner.identifier.chainId.to(),
+                message.inner.payloadHash,
             ))?;
 
         // Validate the message's origin is correct.
-        if remote_log.address != message.inner.id.origin {
+        if remote_log.address != message.inner.identifier.origin {
             return Err(MessageGraphError::InvalidMessageOrigin(
-                message.inner.id.origin,
+                message.inner.identifier.origin,
                 remote_log.address,
             ));
         }
@@ -216,9 +216,9 @@ where
         // Validate that the message hash is correct.
         let remote_message = RawMessagePayload::from(remote_log);
         let remote_message_hash = keccak256(remote_message.as_ref());
-        if remote_message_hash != message.inner.msgHash {
+        if remote_message_hash != message.inner.payloadHash {
             return Err(MessageGraphError::InvalidMessageHash(
-                message.inner.msgHash,
+                message.inner.payloadHash,
                 remote_message_hash,
             ));
         }
