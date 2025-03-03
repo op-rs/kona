@@ -1,7 +1,7 @@
 //! Message safety level for interoperability.
 
 /// The safety level of a message.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum SafetyLevel {
@@ -17,6 +17,35 @@ pub enum SafetyLevel {
     Unsafe,
     /// The message is invalid.
     Invalid,
+}
+
+impl TryFrom<&str> for SafetyLevel {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "finalized" => Ok(Self::Finalized),
+            "safesafe" => Ok(Self::Safe),
+            "local-safe" => Ok(Self::LocalSafe),
+            "cross-unsafe" => Ok(Self::CrossUnsafe),
+            "unsafe" => Ok(Self::Unsafe),
+            "invalid" => Ok(Self::Invalid),
+            _ => Err(()),
+        }
+    }
+}
+
+impl core::fmt::Display for SafetyLevel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Finalized => write!(f, "finalized"),
+            Self::Safe => write!(f, "Safe"),
+            Self::LocalSafe => write!(f, "local-safe"),
+            Self::CrossUnsafe => write!(f, "cross-unsafe"),
+            Self::Unsafe => write!(f, "unsafe"),
+            Self::Invalid => write!(f, "invalid"),
+        }
+    }
 }
 
 #[cfg(test)]
