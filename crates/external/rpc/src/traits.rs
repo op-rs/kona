@@ -139,3 +139,50 @@ impl From<ErrorObjectOwned> for ExecutingMessageValidatorError {
         Self::SupervisorServerError(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_op_supervisor_error_parsing() {
+        let min_safety_error = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe"}"#;
+        let invalid_chain = r#"{"code":-32000,"message":"failed to check message: failed to check log: unknown chain: 14417"}"#;
+        let invalid_level = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe"}"#;
+        let random_error = r#"{"code":-32000,"message":"gibberish error"}"#;
+
+        assert!(matches!(
+            ExecutingMessageValidatorError::from(
+                serde_json::from_str::<ErrorObjectOwned>(min_safety_error).unwrap()
+            ),
+            ExecutingMessageValidatorError::MinimumSafety {
+                expected: SafetyLevel::CrossUnsafe,
+                got: SafetyLevel::Unsafe
+            }
+        ));
+
+        assert!(matches!(
+            ExecutingMessageValidatorError::from(
+                serde_json::from_str::<ErrorObjectOwned>(invalid_chain).unwrap()
+            ),
+            ExecutingMessageValidatorError::UnknownChain(14417)
+        ));
+
+        assert!(matches!(
+            ExecutingMessageValidatorError::from(
+                serde_json::from_str::<ErrorObjectOwned>(invalid_level).unwrap()
+            ),
+            ExecutingMessageValidatorError::MinimumSafety {
+                expected: SafetyLevel::Unsafe,
+                got: SafetyLevel::Invalid
+            }
+        ));
+
+        assert!(matches!(
+            ExecutingMessageValidatorError::from(
+                serde_json::from_str::<ErrorObjectOwned>(random_error).unwrap()
+            ),
+            ExecutingMessageValidatorError::SupervisorServerError(_)
+        ));
+    }
+}
