@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use core::time::Duration;
 use jsonrpsee::{core::ClientError, types::ErrorObjectOwned};
 use kona_interop::{
-    parse_logs_to_executing_msgs, ExecutingMessage, SafetyLevel, CROSS_L2_INBOX_ADDRESS,
+    CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel, parse_logs_to_executing_msgs,
 };
 use tokio::time::error::Elapsed;
 
