@@ -12,6 +12,7 @@ use kona_derive::{
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
 use op_alloy_consensus::OpBlock;
+use op_alloy_network::Optimism;
 use std::sync::Arc;
 
 /// The [AlloyL2ChainProvider] is a concrete implementation of the [L2ChainProvider] trait,
@@ -23,14 +24,14 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct AlloyL2ChainProvider {
     /// The inner Ethereum JSON-RPC provider.
-    inner: RootProvider,
+    inner: RootProvider<Optimism>,
     /// The rollup configuration.
     rollup_config: Arc<RollupConfig>,
 }
 
 impl AlloyL2ChainProvider {
     /// Creates a new [AlloyL2ChainProvider] with the given alloy provider and [RollupConfig].
-    pub fn new(inner: RootProvider, rollup_config: Arc<RollupConfig>) -> Self {
+    pub fn new(inner: RootProvider<Optimism>, rollup_config: Arc<RollupConfig>) -> Self {
         Self { inner, rollup_config }
     }
 

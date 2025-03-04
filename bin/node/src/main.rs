@@ -6,8 +6,9 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+use clap::Parser;
+
 fn main() {
-    use clap::Parser;
     kona_cli::sigsegv_handler::install();
 
     // Enable backtraces unless a RUST_BACKTRACE value has already been explicitly provided.

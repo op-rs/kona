@@ -1,31 +1,75 @@
 //! Core module for the [RollupNode] and child tasks.
 //!
-//! The architecture of the rollup node is event-driven, using [NodeProducer]s to watch external
-//! data sources and emit events for [NodeActor]s to consume and process. The [RollupNode]
-//! orchestrates all of these components, and is itself a [NodeActor] that processes incoming events
-//! to update relevant state.
+//! The architecture of the rollup node is event-driven, with [NodeActor]s to drive syncing the L2
+//! chain. The [RollupNode] orchestrates all of these components.
+//!
+//! ```text
+//! ┌────────────┐
+//! │L2 Sequencer│
+//! │            ├───┐
+//! │   Gossip   │   │   ┌────────────┐   ┌────────────┐   ┌────────────┐
+//! └────────────┘   │   │            │   │            │   │            │
+//!                  ├──►│ Derivation │──►│ Engine API │──►│   State    │
+//! ┌────────────┐   │   │            │   │            │   │            │
+//! │  L1 Chain  │   │   └────────────┘   └┬───────────┘   └┬───────────┘
+//! │            ├───┘              ▲      │                │
+//! │  Watcher   │                  └──────┴────────────────┘
+//! └────────────┘
+//! ```
+
+#![allow(unused)]
 
 use alloy_provider::RootProvider;
 use kona_genesis::RollupConfig;
-use kona_providers_alloy::OnlineBeaconClient;
+use kona_providers_alloy::{
+    AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
+    OnlinePipeline,
+};
 use op_alloy_network::Optimism;
-use tokio::{sync::broadcast, task::JoinSet};
+use std::sync::Arc;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
-
-mod producers;
-pub use producers::L1WatcherRpc;
+use tracing::info;
 
 mod actors;
+pub use actors::{DerivationActor, L1WatcherRpc};
 
 mod builder;
 pub use builder::RollupNodeBuilder;
 
 mod traits;
-pub use traits::{NodeActor, NodeProducer};
+pub use traits::NodeActor;
 
 mod events;
 pub use events::NodeEvent;
+
+/// Spawns a set of parallel actors in a [JoinSet], and cancels all actors if any of them fail. The
+/// type of the error in the [NodeActor]s is erased to avoid having to specify a common error type
+/// between actors.
+///
+/// [JoinSet]: tokio::task::JoinSet
+macro_rules! spawn_actors {
+    ($cancellation:expr, actors = [$($actor:expr$(,)?)*]) => {
+        let mut task_handles = tokio::task::JoinSet::new();
+
+        $(
+            task_handles.spawn(async move {
+                if let Err(e) = $actor.start().await {
+                    tracing::error!(target: "rollup_node", "{e}");
+                }
+            });
+        )*
+
+        while let Some(result) = task_handles.join_next().await {
+            if let Err(e) = result {
+                tracing::error!(target: "rollup_node", "Error joining subroutine: {e}");
+
+                // Cancel all tasks and gracefully shutdown.
+                $cancellation.cancel();
+            }
+        }
+    };
+}
 
 /// The [RollupNode] service orchestrates the various sub-components of the rollup node. It itself
 /// is a [NodeActor], and it receives events emitted by other actors in the system in order to track
@@ -33,7 +77,7 @@ pub use events::NodeEvent;
 #[allow(unused)]
 pub struct RollupNode {
     /// The rollup configuration.
-    config: RollupConfig,
+    config: Arc<RollupConfig>,
     /// The L1 EL provider.
     l1_provider: RootProvider,
     /// The L1 beacon API.
@@ -57,37 +101,36 @@ impl RollupNode {
     /// TODO: Ensure external shutdown signals are intercepted and respect the graceful cancellation
     /// of subroutines, to ensure that the node can be stopped cleanly.
     pub async fn start(self) {
-        info!(target: "rollup_node", "Starting node...");
+        info!(target: "rollup_node", "Starting node services...");
 
         // Create a global broadcast channel for communication between producers and actors, as well
         // as a cancellation token for graceful shutdown.
-        let (s, _) = broadcast::channel::<NodeEvent>(1024);
+        let (s, r) = broadcast::channel::<NodeEvent>(1024);
         let cancellation = CancellationToken::new();
 
-        // Create a set to manage all spawned tasks.
-        let mut task_handles = JoinSet::new();
-
-        // Create the producers.
+        // Create the actors.
         let l1_watcher_rpc =
             L1WatcherRpc::new(self.l1_provider.clone(), s.clone(), cancellation.clone());
-        // TODO: Sequencer block gossip producer, if not running in sequencer mode.
+        let derivation_actor = {
+            let pipeline = OnlinePipeline::new(
+                self.config.clone(),
+                todo!(), // Need sync start
+                todo!(), // Need sync start
+                OnlineBlobProvider::init(self.l1_beacon).await,
+                AlloyChainProvider::new(self.l1_provider),
+                AlloyL2ChainProvider::new(self.l2_provider.clone(), self.config.clone()),
+            )
+            .await;
 
-        // Create the actors.
-        // TODO: Derivation actor.
-        // TODO: Engine controller actor.
-        // TODO: Sequencer actor, if running in sequencer mode.
-
-        // Spawn the producers.
-        task_handles.spawn(l1_watcher_rpc.start());
-
-        // Wait for all tasks to complete.
-        while let Some(result) = task_handles.join_next().await {
-            if let Err(e) = result {
-                error!(target: "rollup_node", "Error joining subroutine: {e}");
-
-                // Cancel all tasks and gracefully shutdown.
-                cancellation.cancel();
+            match pipeline {
+                Ok(p) => DerivationActor::new(p, todo!(), s, r, cancellation.clone()),
+                Err(e) => {
+                    tracing::error!(target: "rollup_node", "Failed to initialize derivation pipeline: {e}");
+                    return;
+                }
             }
-        }
+        };
+
+        spawn_actors!(cancellation, actors = [l1_watcher_rpc, derivation_actor]);
     }
 }
