@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use core::error;
 use kona_interop::InvalidExecutingMessage;
 
-/// Failures occurring during validation of [`ExecutingMessage`]s.
+/// Failures occurring during validation of [`ExecutingMessage`](kona_interop::ExecutingMessage)s.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutingMessageValidatorError {
     /// Error validating interop event.

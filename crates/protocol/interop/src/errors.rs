@@ -72,7 +72,7 @@ pub enum SuperRootError {
 /// A [Result] alias for the [SuperRootError] type.
 pub type SuperRootResult<T> = core::result::Result<T, SuperRootError>;
 
-/// Failures occurring during validation of [`ExecutingMessage`]s.
+/// Invalidation [`ExecutingMessage`] error.
 #[derive(Error, Debug)]
 pub enum InvalidExecutingMessage {
     /// Message does not meet minimum safety level
