@@ -10,13 +10,17 @@ use jsonrpsee::{core::ClientError, types::ErrorObjectOwned};
 use kona_interop::{CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel};
 use tokio::time::error::Elapsed;
 
+/// Derived from op-supervisor
+// todo: rm once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
 const UNKNOWN_CHAIN_MSG: &str = "unknown chain: ";
+/// Derived from [op-supervisor](https://github.com/ethereum-optimism/optimism/blob/4ba2eb00eafc3d7de2c8ceb6fd83913a8c0a2c0d/op-supervisor/supervisor/backend/backend.go#L479)
+// todo: rm once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
 const MINIMUM_SAFETY_MSG: &str = "does not meet the minimum safety";
 /// Failures occurring during validation of [`ExecutingMessage`]s.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutingMessageValidatorError {
     /// Message does not minimum safety level
-    #[error("message does not meet safety level. expected: {expected}, Got: {got}")]
+    #[error("message does not meet safety level, got: {got}, expected: {expected}")]
     MinimumSafety {
         /// Actual level of the message
         got: SafetyLevel,
@@ -28,15 +32,15 @@ pub enum ExecutingMessageValidatorError {
     UnknownChain(u64),
     /// Failure from the [`SupervisorApiClient`] when validating messages.
     #[error("supervisor determined messages are invalid: {0}")]
-    SupervisorRpcError(#[from] ClientError),
+    RpcClientError(ClientError),
 
     /// Message validation against the Supervisor took longer than allowed.
     #[error("message validation timed out: {0}")]
     ValidationTimeout(#[from] Elapsed),
 
-    /// Catch-all variant for other supervisor errors.
+    /// Catch-all variant for other supervisor server errors.
     #[error("unexpected error from supervisor: {0}")]
-    Other(#[from] ErrorObjectOwned),
+    SupervisorServerError(ErrorObjectOwned),
 }
 
 /// Interacts with a Supervisor to validate [`ExecutingMessage`]s.
@@ -76,52 +80,62 @@ pub trait ExecutingMessageValidator {
             .map_err(ExecutingMessageValidatorError::ValidationTimeout)?
         {
             Ok(_) => Ok(()),
-            Err(err) => {
-                match err {
-                    ClientError::Call(err) => {
-                        // Check if it's invalid message call, message example:
-                        // `failed to check message: failed to check log: unknown chain: 14417`
-                        if err.message().contains(UNKNOWN_CHAIN_MSG) {
-                            if let Ok(chain_id) = err
-                                .message()
-                                .split(' ')
-                                .last()
-                                .expect("message contains chain id")
-                                .parse::<u64>()
-                            {
-                                return Err(ExecutingMessageValidatorError::UnknownChain(chain_id));
-                            }
-                        // Check if it's `does not meet the minimum safety` error, message example:
-                        // `message {0x4200000000000000000000000000000000000023 4 1 1728507701 901}
-                        // (safety level: unsafe) does not meet the minimum safety cross-unsafe"`
-                        } else if err.message().contains(MINIMUM_SAFETY_MSG) {
-                            let message_safety =
-                                if err.message().contains("safety level: finalized") {
-                                    SafetyLevel::Finalized
-                                } else if err.message().contains("safety level: safe") {
-                                    SafetyLevel::Safe
-                                } else if err.message().contains("safety level: local-safe") {
-                                    SafetyLevel::LocalSafe
-                                } else if err.message().contains("safety level: cross-unsafe") {
-                                    SafetyLevel::CrossUnsafe
-                                } else if err.message().contains("safety level: unsafe") {
-                                    SafetyLevel::Unsafe
-                                } else if err.message().contains("safety level: invalid") {
-                                    SafetyLevel::Invalid
-                                } else {
-                                    // Unexpected level name, return generic error
-                                    return Err(ExecutingMessageValidatorError::Other(err));
-                                };
-                            return Err(ExecutingMessageValidatorError::MinimumSafety {
-                                expected: safety,
-                                got: message_safety,
-                            });
-                        }
-                        Err(ExecutingMessageValidatorError::Other(err))
-                    }
-                    _ => Err(ExecutingMessageValidatorError::SupervisorRpcError(err)),
-                }
-            }
+            Err(err) => match err {
+                ClientError::Call(err) => Err(err.into()),
+                _ => Err(ExecutingMessageValidatorError::RpcClientError(err)),
+            },
         }
+    }
+}
+
+impl From<ErrorObjectOwned> for ExecutingMessageValidatorError {
+    fn from(value: ErrorObjectOwned) -> Self {
+        // todo: match on error code instead of message string once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
+        // Check if it's invalid message call, message example:
+        // `failed to check message: failed to check log: unknown chain: 14417`
+        if value.message().contains(UNKNOWN_CHAIN_MSG) {
+            if let Ok(chain_id) =
+                value.message().split(' ').last().expect("message contains chain id").parse::<u64>()
+            {
+                return Self::UnknownChain(chain_id);
+            }
+        // Check if it's `does not meet the minimum safety` error, message example:
+        // `message {0x4200000000000000000000000000000000000023 4 1 1728507701 901}
+        // (safety level: unsafe) does not meet the minimum safety cross-unsafe"`
+        } else if value.message().contains(MINIMUM_SAFETY_MSG) {
+            let message_safety = if value.message().contains("safety level: safe") {
+                SafetyLevel::Safe
+            } else if value.message().contains("safety level: local-safe") {
+                SafetyLevel::LocalSafe
+            } else if value.message().contains("safety level: cross-unsafe") {
+                SafetyLevel::CrossUnsafe
+            } else if value.message().contains("safety level: unsafe") {
+                SafetyLevel::Unsafe
+            } else if value.message().contains("safety level: invalid") {
+                SafetyLevel::Invalid
+            } else {
+                // Unexpected level name, return generic error
+                return Self::SupervisorServerError(value);
+            };
+            let expected_safety = if value.message().contains("safety finalized") {
+                SafetyLevel::Finalized
+            } else if value.message().contains("safety safe") {
+                SafetyLevel::Safe
+            } else if value.message().contains("safety local-safe") {
+                SafetyLevel::LocalSafe
+            } else if value.message().contains("safety cross-unsafe") {
+                SafetyLevel::CrossUnsafe
+            } else if value.message().contains("safety unsafe") {
+                SafetyLevel::Unsafe
+            } else if value.message().contains("safety invalid") {
+                SafetyLevel::Invalid
+            } else {
+                // Unexpected level name, return generic error
+                return Self::SupervisorServerError(value);
+            };
+
+            return Self::MinimumSafety { expected: expected_safety, got: message_safety };
+        }
+        Self::SupervisorServerError(value)
     }
 }

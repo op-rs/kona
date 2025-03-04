@@ -39,7 +39,6 @@ arbitrary = { version = "1.4", features = ["derive"], optional = true }
 
 # Serde
 serde = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
@@ -78,7 +77,6 @@ arbitrary = [
 serde = [
   "dep:serde",
   "alloy-eips/serde",
-  "serde_json",
   "alloy-primitives/serde",
   "kona-protocol/serde",
 ]
