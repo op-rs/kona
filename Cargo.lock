@@ -3970,7 +3970,6 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
- "alloy-rpc-client",
  "alloy-sol-types",
  "arbitrary",
  "async-trait",

@@ -30,9 +30,6 @@ alloy-consensus.workspace = true
 alloy-primitives = { workspace = true, features = ["rlp"] }
 op-alloy-consensus.workspace = true
 
-# `client` feature
-alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
-
 # Arbitrary
 arbitrary = { version = "1.4", features = ["derive"], optional = true }
 
@@ -58,12 +55,6 @@ std = [
   "derive_more/std",
   "serde?/std",
   "thiserror/std",
-]
-client = [
-  "std",
-  "serde",
-  "dep:alloy-rpc-client",
-  "derive_more/display",
 ]
 arbitrary = [
   "std",
