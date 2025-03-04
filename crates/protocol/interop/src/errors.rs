@@ -173,6 +173,6 @@ mod tests {
             }
         ));
 
-        assert!(matches!(InvalidExecutingMessage::parse_err_msg(RANDOM_ERROR), None));
+        assert!(InvalidExecutingMessage::parse_err_msg(RANDOM_ERROR).is_none());
     }
 }
