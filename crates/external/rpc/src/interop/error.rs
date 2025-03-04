@@ -59,6 +59,7 @@ impl From<jsonrpsee::types::ErrorObjectOwned> for ExecutingMessageValidatorError
 mod tests {
     use super::*;
     use jsonrpsee::types::ErrorObjectOwned;
+    use kona_interop::{InvalidExecutingMessage, SafetyLevel};
 
     const MIN_SAFETY_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe"}"#;
     const INVALID_CHAIN: &str = r#"{"code":-32000,"message":"failed to check message: failed to check log: unknown chain: 14417"}"#;
@@ -72,27 +73,33 @@ mod tests {
             ExecutingMessageValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_ERROR).unwrap()
             ),
-            ExecutingMessageValidatorError::MinimumSafety {
-                expected: SafetyLevel::CrossUnsafe,
-                got: SafetyLevel::Unsafe
-            }
+            ExecutingMessageValidatorError::InvalidExecutingMessage(
+                InvalidExecutingMessage::MinimumSafety {
+                    expected: SafetyLevel::CrossUnsafe,
+                    got: SafetyLevel::Unsafe
+                }
+            )
         ));
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(INVALID_CHAIN).unwrap()
             ),
-            ExecutingMessageValidatorError::UnknownChain(14417)
+            ExecutingMessageValidatorError::InvalidExecutingMessage(
+                InvalidExecutingMessage::UnknownChain(14417)
+            )
         ));
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(INVALID_LEVEL).unwrap()
             ),
-            ExecutingMessageValidatorError::MinimumSafety {
-                expected: SafetyLevel::Unsafe,
-                got: SafetyLevel::Invalid
-            }
+            ExecutingMessageValidatorError::InvalidExecutingMessage(
+                InvalidExecutingMessage::MinimumSafety {
+                    expected: SafetyLevel::Unsafe,
+                    got: SafetyLevel::Invalid
+                }
+            )
         ));
 
         assert!(matches!(
