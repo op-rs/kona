@@ -29,8 +29,8 @@ impl From<TransportError> for EngineUpdateError {
     fn from(e: TransportError) -> Self {
         match e {
             // See: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L345
-            TransportError::ErrorResp(_) => EngineUpdateError::Reset,
-            _ => EngineUpdateError::Temporary(e.to_string()),
+            TransportError::ErrorResp(_) => Self::Reset,
+            _ => Self::Temporary(e.to_string()),
         }
     }
 }

@@ -19,7 +19,7 @@ use kona_protocol::L2BlockInfo;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
-use crate::{ControllerBuilder, EngineState, EngineUpdateError, SyncStatus};
+use crate::{ControllerBuilder, EngineClient, EngineState, EngineUpdateError, SyncStatus};
 
 /// A Hyper HTTP client with a JWT authentication layer.
 type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
@@ -28,7 +28,7 @@ type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpCo
 #[derive(Debug, Clone)]
 pub struct EngineController {
     /// The internal engine client.
-    pub client: RootProvider<AnyNetwork>,
+    pub client: EngineClient,
     /// The sync status.
     pub sync_status: SyncStatus,
     /// The engine state.
@@ -47,7 +47,7 @@ pub struct EngineController {
 
 impl EngineController {
     /// Returns the [`ControllerBuilder`] that is used to construct the [`EngineController`].
-    pub const fn builder(client: RootProvider<AnyNetwork>) -> ControllerBuilder {
+    pub const fn builder(client: EngineClient) -> ControllerBuilder {
         ControllerBuilder::new(client)
     }
 
@@ -100,7 +100,7 @@ impl EngineController {
                 Http<HyperAuthClient>,
             >>::fork_choice_updated_v3(&self.client, forkchoice, None)
                 .await
-                .map_err(|e| EngineUpdateError::from(e));
+                .map_err(EngineUpdateError::from);
         }
         let ts = attributes.as_ref().map_or(0, |a| a.payload_attributes.timestamp);
         let ecotone_active = self.ecotone_timestamp.is_some_and(|e| ts >= e);
@@ -112,7 +112,7 @@ impl EngineController {
                 Http<HyperAuthClient>,
             >>::fork_choice_updated_v3(&self.client, forkchoice, attributes)
                 .await
-                .map_err(|e| EngineUpdateError::from(e))
+                .map_err(EngineUpdateError::from)
         } else if canyon_active {
             // Shanghai
             <RootProvider<AnyNetwork> as OpEngineApi<
@@ -120,14 +120,14 @@ impl EngineController {
                 Http<HyperAuthClient>,
             >>::fork_choice_updated_v2(&self.client, forkchoice, attributes)
                 .await
-                .map_err(|e| EngineUpdateError::from(e))
+                .map_err(EngineUpdateError::from)
         } else {
             // According to Ethereum engine API spec, we can use fcuV2 here,
             // but Geth v1.13.11 does not accept V2 before Shanghai.
             self.client
                 .fork_choice_updated_v1(forkchoice, attributes.map(|a| a.payload_attributes))
                 .await
-                .map_err(|e| EngineUpdateError::from(e))
+                .map_err(EngineUpdateError::from)
         }
     }
 
@@ -172,24 +172,17 @@ impl EngineController {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_rpc_client::RpcClient;
     use alloy_rpc_types_engine::JwtSecret;
-    use alloy_transport_http::{AuthLayer, hyper_util::rt::TokioExecutor};
-    use tower::ServiceBuilder;
+    use kona_genesis::RollupConfig;
+    use std::sync::Arc;
 
-    fn test_provider() -> RootProvider<AnyNetwork> {
+    fn test_provider() -> EngineClient {
         let jwt = JwtSecret::random();
+        let cfg = Arc::new(RollupConfig::default());
         let engine: url::Url = "http://localhost:8080".parse().unwrap();
-        // let rpc: url::Url = "http://localhost:8080".parse().unwrap();
+        let rpc: url::Url = "http://localhost:8080".parse().unwrap();
 
-        let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
-        let auth_layer = AuthLayer::new(jwt);
-        let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
-        let layer_transport = HyperClient::with_service(service);
-        let http_hyper = Http::with_client(layer_transport, engine);
-        let rpc_client = RpcClient::new(http_hyper, true);
-
-        RootProvider::<AnyNetwork>::new(rpc_client)
+        EngineClient::new_http(engine, rpc, cfg, jwt)
     }
 
     fn test_controller(sync_status: SyncStatus) -> EngineController {
