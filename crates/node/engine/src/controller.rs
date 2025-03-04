@@ -95,7 +95,7 @@ impl EngineController {
         let forkchoice = self.state.create_forkchoice_state();
         let update = self
             .client
-            .try_forkchoice_update(forkchoice, None)
+            .forkchoice_updated_v2(forkchoice, None)
             .await
             .map_err(|_| EngineUpdateError::ForkchoiceUpdateFailed)?;
         // TODO: match on error and return reset, temporary errors based on returned error.

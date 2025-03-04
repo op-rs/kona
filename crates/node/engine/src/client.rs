@@ -6,7 +6,8 @@ use alloy_primitives::{B256, Bytes};
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::{
-    ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
+    ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2, ExecutionPayloadV1, ExecutionPayloadV2,
+    ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
 };
 use alloy_transport_http::{
     AuthLayer, AuthService, Http, HyperClient,
@@ -18,7 +19,9 @@ use alloy_transport_http::{
 use anyhow::Result;
 use http_body_util::Full;
 use op_alloy_provider::ext::engine::OpEngineApi;
-use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use op_alloy_rpc_types_engine::{
+    OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpPayloadAttributes,
+};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use url::Url;
@@ -62,31 +65,29 @@ impl EngineClient {
     }
 
     /// Attempts to update the engine forkchoice state with the given attributes.
-    pub async fn try_forkchoice_update(
+    pub async fn forkchoice_updated_v2(
         &self,
         forkchoice: ForkchoiceState,
         attributes: Option<OpPayloadAttributes>,
     ) -> Result<ForkchoiceUpdated> {
-        let forkchoice = <RootProvider<AnyNetwork> as OpEngineApi<
+        <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
         >>::fork_choice_updated_v2(&self.engine, forkchoice, attributes)
-        .await?;
-        Ok(forkchoice)
+        .await.map_err(|e| anyhow::anyhow!(e))
     }
 
-    /// Gets the payload by the given payload id.
-    pub async fn get_payload<T>(&self, _payload_id: PayloadId) -> Result<T> {
-        unimplemented!("get_payload_v3 not implemented")
-    }
-
-    /// Returns the status of the given payload.
-    pub async fn new_payload<P>(
+    /// Attempts to update the engine forkchoice state with the given attributes.
+    pub async fn forkchoice_updated_v3(
         &self,
-        _payload: P,
-        _parent_beacon_block_root: B256,
-    ) -> Result<PayloadStatus> {
-        unimplemented!("new_payload_v3 not implemented")
+        forkchoice: ForkchoiceState,
+        attributes: Option<OpPayloadAttributes>,
+    ) -> Result<ForkchoiceUpdated> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::fork_choice_updated_v3(&self.engine, forkchoice, attributes)
+        .await.map_err(|e| anyhow::anyhow!(e))
     }
 
     /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].
@@ -95,6 +96,69 @@ impl EngineClient {
         _numtag: BlockNumberOrTag,
     ) -> Result<L2BlockInfo> {
         unimplemented!("L2BlockInfo by label not implemented")
+    }
+
+    /// Gets the V2 execution payload envelope for the given payload id.
+    pub async fn get_payload_v2(
+        &self,
+        payload_id: PayloadId,
+    ) -> Result<ExecutionPayloadEnvelopeV2> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::get_payload_v2(&self.engine, payload_id).await.map_err(|e| anyhow::anyhow!(e))
+    }
+
+    /// Gets the V3 execution payload envelope for the given payload id.
+    pub async fn get_payload_v3(
+        &self,
+        payload_id: PayloadId,
+    ) -> Result<OpExecutionPayloadEnvelopeV3> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::get_payload_v3(&self.engine, payload_id).await.map_err(|e| anyhow::anyhow!(e))
+    }
+
+    /// Gets the V4 execution payload envelope for the given payload id.
+    pub async fn get_payload_v4(
+        &self,
+        payload_id: PayloadId,
+    ) -> Result<OpExecutionPayloadEnvelopeV4> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::get_payload_v4(&self.engine, payload_id).await.map_err(|e| anyhow::anyhow!(e))
+    }
+
+    /// Returns the status of the V1 execution payload.
+    pub async fn new_payload_v1(&self, _: ExecutionPayloadV1) -> Result<PayloadStatus> {
+        unimplemented!("v1 not supported by the optimism engine api")
+    }
+
+    /// Returns the status of the V2 execution payload.
+    pub async fn new_payload_v2(&self, payload: ExecutionPayloadV2) -> Result<PayloadStatus> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::new_payload_v2(&self.engine, ExecutionPayloadInputV2 {
+                execution_payload: payload.payload_inner,
+                withdrawals: Some(payload.withdrawals),
+            })
+            .await.map_err(|e| anyhow::anyhow!(e))
+    }
+
+    /// Returns the status of V3 execution payload.
+    pub async fn new_payload_v3(
+        &self,
+        payload: ExecutionPayloadV3,
+        parent_beacon_block_root: B256,
+    ) -> Result<PayloadStatus> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::new_payload_v3(&self.engine, payload, parent_beacon_block_root)
+            .await.map_err(|e| anyhow::anyhow!(e))
     }
 }
 
