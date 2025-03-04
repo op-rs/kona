@@ -1,9 +1,16 @@
 //! Error types for the `kona-interop` crate.
 
-use crate::InteropProvider;
+use crate::{InteropProvider, SafetyLevel};
 use alloc::vec::Vec;
 use alloy_primitives::{Address, B256};
 use thiserror::Error;
+
+/// Derived from op-supervisor
+// todo: rm once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
+const UNKNOWN_CHAIN_MSG: &str = "unknown chain: ";
+/// Derived from [op-supervisor](https://github.com/ethereum-optimism/optimism/blob/4ba2eb00eafc3d7de2c8ceb6fd83913a8c0a2c0d/op-supervisor/supervisor/backend/backend.go#L479)
+// todo: rm once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
+const MINIMUM_SAFETY_MSG: &str = "does not meet the minimum safety";
 
 /// An error type for the [MessageGraph] struct.
 ///
@@ -64,3 +71,108 @@ pub enum SuperRootError {
 
 /// A [Result] alias for the [SuperRootError] type.
 pub type SuperRootResult<T> = core::result::Result<T, SuperRootError>;
+
+/// Failures occurring during validation of [`ExecutingMessage`]s.
+#[derive(Error, Debug)]
+pub enum InvalidExecutingMessage {
+    /// Message does not meet minimum safety level
+    #[error("message does not meet min safety level, got: {got}, expected: {expected}")]
+    MinimumSafety {
+        /// Actual level of the message
+        got: SafetyLevel,
+        /// Minimum acceptable level that was passed to supervisor
+        expected: SafetyLevel,
+    },
+    /// Invalid chain
+    #[error("unsupported chain id: {0}")]
+    UnknownChain(u64),
+}
+
+impl InvalidExecutingMessage {
+    /// Parses error message. Returns `None`, if message is not recognized.
+    // todo: match on error code instead of message string once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
+    pub fn parse_err_msg(err_msg: &str) -> Option<Self> {
+        // Check if it's invalid message call, message example:
+        // `failed to check message: failed to check log: unknown chain: 14417`
+        if err_msg.contains(UNKNOWN_CHAIN_MSG) {
+            if let Ok(chain_id) =
+                err_msg.split(' ').last().expect("message contains chain id").parse::<u64>()
+            {
+                return Some(Self::UnknownChain(chain_id))
+            }
+        // Check if it's `does not meet the minimum safety` error, message example:
+        // `message {0x4200000000000000000000000000000000000023 4 1 1728507701 901}
+        // (safety level: unsafe) does not meet the minimum safety cross-unsafe"`
+        } else if err_msg.contains(MINIMUM_SAFETY_MSG) {
+            let message_safety = if err_msg.contains("safety level: safe") {
+                SafetyLevel::Safe
+            } else if err_msg.contains("safety level: local-safe") {
+                SafetyLevel::LocalSafe
+            } else if err_msg.contains("safety level: cross-unsafe") {
+                SafetyLevel::CrossUnsafe
+            } else if err_msg.contains("safety level: unsafe") {
+                SafetyLevel::Unsafe
+            } else if err_msg.contains("safety level: invalid") {
+                SafetyLevel::Invalid
+            } else {
+                // Unexpected level name
+                return None
+            };
+            let expected_safety = if err_msg.contains("safety finalized") {
+                SafetyLevel::Finalized
+            } else if err_msg.contains("safety safe") {
+                SafetyLevel::Safe
+            } else if err_msg.contains("safety local-safe") {
+                SafetyLevel::LocalSafe
+            } else if err_msg.contains("safety cross-unsafe") {
+                SafetyLevel::CrossUnsafe
+            } else if err_msg.contains("safety unsafe") {
+                SafetyLevel::Unsafe
+            } else {
+                // Unexpected level name
+                return None
+            };
+
+            return Some(Self::MinimumSafety { expected: expected_safety, got: message_safety })
+        }
+
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MIN_SAFETY_ERROR: &str = "message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe";
+    const INVALID_CHAIN: &str =
+        "failed to check message: failed to check log: unknown chain: 14417";
+    const INVALID_LEVEL: &str = "message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe";
+    const RANDOM_ERROR: &str = "gibberish error";
+
+    #[test]
+    fn test_op_supervisor_error_parsing() {
+        assert!(matches!(
+            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_ERROR).unwrap(),
+            InvalidExecutingMessage::MinimumSafety {
+                expected: SafetyLevel::CrossUnsafe,
+                got: SafetyLevel::Unsafe
+            }
+        ));
+
+        assert!(matches!(
+            InvalidExecutingMessage::parse_err_msg(INVALID_CHAIN).unwrap(),
+            InvalidExecutingMessage::UnknownChain(14417)
+        ));
+
+        assert!(matches!(
+            InvalidExecutingMessage::parse_err_msg(INVALID_LEVEL).unwrap(),
+            InvalidExecutingMessage::MinimumSafety {
+                expected: SafetyLevel::Unsafe,
+                got: SafetyLevel::Invalid
+            }
+        ));
+
+        assert!(matches!(InvalidExecutingMessage::parse_err_msg(RANDOM_ERROR), None));
+    }
+}

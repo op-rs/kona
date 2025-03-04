@@ -1,4 +1,4 @@
-//! The Optimism RPC API.
+//! The Optimism RPC API using `jsonrpsee`
 
 use alloc::{boxed::Box, string::String, vec::Vec};
 use core::net::IpAddr;
@@ -159,13 +159,24 @@ pub trait SupervisorApi {
 }
 
 #[cfg(all(feature = "interop", feature = "client"))]
-#[async_trait::async_trait]
-impl<T: SupervisorApiClient> kona_interop::CheckMessages for T {
+impl<T> crate::CheckMessages for T
+where
+    T: SupervisorApiClient + Send + Sync,
+{
     async fn check_messages(
         &self,
         messages: &[ExecutingMessage],
         min_safety: SafetyLevel,
-    ) -> Result<(), Self::Error> {
-        T::check_messages(self, messages.to_vec(), min_safety)
+    ) -> Result<(), crate::ExecutingMessageValidatorError> {
+        use crate::ExecutingMessageValidatorError;
+        use jsonrpsee::core::ClientError;
+        use kona_interop::InvalidExecutingMessage;
+
+        T::check_messages(self, messages.to_vec(), min_safety).await.map_err(|err| match err {
+            ClientError::Call(err) => InvalidExecutingMessage::parse_err_msg(err.message())
+                .map(ExecutingMessageValidatorError::InvalidExecutingMessage)
+                .unwrap_or(ExecutingMessageValidatorError::server_unexpected(err)),
+            _ => ExecutingMessageValidatorError::client(err),
+        })
     }
 }
