@@ -9,6 +9,9 @@
 
 extern crate alloc;
 
+mod actor;
+pub use actor::{EngineActor, EngineActorError, EngineActorMessage, EngineEvent};
+
 mod tasks;
 pub use tasks::{EngineTask, ForkchoiceMessage, ForkchoiceTask, ForkchoiceTaskError};
 

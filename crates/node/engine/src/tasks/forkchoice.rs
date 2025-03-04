@@ -64,6 +64,14 @@ pub struct ForkchoiceTask {
 }
 
 impl ForkchoiceTask {
+    /// Creates a new forkchoice task.
+    pub const fn new(
+        receiver: Receiver<ForkchoiceMessage>,
+        sender: Sender<ForkchoiceMessage>,
+    ) -> Self {
+        Self { receiver, sender }
+    }
+
     /// Fetches a state snapshot through the external API.
     pub async fn fetch_state(&mut self) -> Result<EngineState, ForkchoiceTaskError> {
         self.sender
