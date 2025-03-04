@@ -16,11 +16,12 @@ const UNKNOWN_CHAIN_MSG: &str = "unknown chain: ";
 /// Derived from [op-supervisor](https://github.com/ethereum-optimism/optimism/blob/4ba2eb00eafc3d7de2c8ceb6fd83913a8c0a2c0d/op-supervisor/supervisor/backend/backend.go#L479)
 // todo: rm once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
 const MINIMUM_SAFETY_MSG: &str = "does not meet the minimum safety";
+
 /// Failures occurring during validation of [`ExecutingMessage`]s.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutingMessageValidatorError {
     /// Message does not meet minimum safety level
-    #[error("message does not meet safety level, got: {got}, expected: {expected}")]
+    #[error("message does not meet min safety level, got: {got}, expected: {expected}")]
     MinimumSafety {
         /// Actual level of the message
         got: SafetyLevel,
@@ -127,8 +128,6 @@ impl From<ErrorObjectOwned> for ExecutingMessageValidatorError {
                 SafetyLevel::CrossUnsafe
             } else if value.message().contains("safety unsafe") {
                 SafetyLevel::Unsafe
-            } else if value.message().contains("safety invalid") {
-                SafetyLevel::Invalid
             } else {
                 // Unexpected level name, return generic error
                 return Self::SupervisorServerError(value);
@@ -144,16 +143,16 @@ impl From<ErrorObjectOwned> for ExecutingMessageValidatorError {
 mod tests {
     use super::*;
 
+    const MIN_SAFETY_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe"}"#;
+    const INVALID_CHAIN: &str = r#"{"code":-32000,"message":"failed to check message: failed to check log: unknown chain: 14417"}"#;
+    const INVALID_LEVEL: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe"}"#;
+    const RANDOM_ERROR: &str = r#"{"code":-32000,"message":"gibberish error"}"#;
+
     #[test]
     fn test_op_supervisor_error_parsing() {
-        let min_safety_error = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe"}"#;
-        let invalid_chain = r#"{"code":-32000,"message":"failed to check message: failed to check log: unknown chain: 14417"}"#;
-        let invalid_level = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe"}"#;
-        let random_error = r#"{"code":-32000,"message":"gibberish error"}"#;
-
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(min_safety_error).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_ERROR).unwrap()
             ),
             ExecutingMessageValidatorError::MinimumSafety {
                 expected: SafetyLevel::CrossUnsafe,
@@ -163,14 +162,14 @@ mod tests {
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(invalid_chain).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(INVALID_CHAIN).unwrap()
             ),
             ExecutingMessageValidatorError::UnknownChain(14417)
         ));
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(invalid_level).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(INVALID_LEVEL).unwrap()
             ),
             ExecutingMessageValidatorError::MinimumSafety {
                 expected: SafetyLevel::Unsafe,
@@ -180,7 +179,7 @@ mod tests {
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(random_error).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(RANDOM_ERROR).unwrap()
             ),
             ExecutingMessageValidatorError::SupervisorServerError(_)
         ));
