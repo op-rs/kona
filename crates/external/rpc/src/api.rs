@@ -157,3 +157,15 @@ pub trait SupervisorApi {
         min_safety: SafetyLevel,
     ) -> RpcResult<()>;
 }
+
+#[cfg(all(feature = "interop", feature = "client"))]
+#[async_trait::async_trait]
+impl<T: SupervisorApiClient> CheckMessages for T {
+    async fn check_messages(
+        &self,
+        messages: &[ExecutingMessage],
+        min_safety: SafetyLevel,
+    ) -> Result<(), Self::Error> {
+        T::check_messages(self, messages.to_vec(), min_safety)
+    }
+}

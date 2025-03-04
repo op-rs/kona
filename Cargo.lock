@@ -3976,7 +3976,6 @@ dependencies = [
  "async-trait",
  "derive_more 2.0.1",
  "kona-genesis",
- "kona-protocol",
  "kona-registry",
  "op-alloy-consensus",
  "rand 0.9.0",

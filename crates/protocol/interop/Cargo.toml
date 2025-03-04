@@ -15,7 +15,6 @@ workspace = true
 # Workspace
 kona-genesis.workspace = true
 kona-registry.workspace = true
-kona-protocol.workspace = true
 
 # General
 thiserror.workspace = true
@@ -59,7 +58,6 @@ std = [
   "derive_more/std",
   "serde?/std",
   "thiserror/std",
-  "kona-protocol/std",
 ]
 client = [
   "std",
@@ -78,5 +76,4 @@ serde = [
   "dep:serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",
-  "kona-protocol/serde",
 ]

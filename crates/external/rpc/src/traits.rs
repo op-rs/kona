@@ -7,7 +7,7 @@ use alloy_sol_types::SolEvent;
 use async_trait::async_trait;
 use core::time::Duration;
 use jsonrpsee::core::ClientError;
-use kona_interop::{CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel};
+use kona_interop::{CROSS_L2_INBOX_ADDRESS, CheckMessages, ExecutingMessage, SafetyLevel};
 use tokio::time::error::Elapsed;
 
 /// Failures occurring during validation of [`ExecutingMessage`]s.
@@ -26,10 +26,13 @@ pub enum ExecutingMessageValidatorError {
 #[async_trait]
 pub trait ExecutingMessageValidator {
     /// The supervisor client type.
-    type SupervisorClient: SupervisorApiClient + Send + Sync;
+    type SupervisorClient: CheckMessages + Send + Sync + Clone;
 
     /// Default duration that message validation is not allowed to exceed.
     const DEFAULT_TIMEOUT: Duration;
+
+    /// Returns reference to supervisor client. Used in default trait method implementations.
+    fn supervisor_client(&self) -> &Self::SupervisorClient;
 
     /// Extracts [`ExecutingMessage`]s from the [`Log`] if there are any.
     fn parse_messages(logs: &[Log]) -> impl Iterator<Item = Option<ExecutingMessage>> {
@@ -42,17 +45,18 @@ pub trait ExecutingMessageValidator {
 
     /// Validates a list of [`ExecutingMessage`]s against a Supervisor.
     async fn validate_messages(
-        supervisor: &Self::SupervisorClient,
+        &self,
         messages: &[ExecutingMessage],
         safety: SafetyLevel,
         timeout: Option<Duration>,
     ) -> Result<(), ExecutingMessageValidatorError> {
         // Set timeout duration based on input if provided.
-        let timeout = timeout.map_or(Self::DEFAULT_TIMEOUT, |t| t);
+        let timeout = timeout.unwrap_or(Self::DEFAULT_TIMEOUT);
 
         // Construct the future to validate all messages using supervisor.
+        let client = self.supervisor_client().clone();
         let fut = async {
-            supervisor
+            client
                 .check_messages(messages.to_vec(), safety)
                 .await
                 .map_err(ExecutingMessageValidatorError::SupervisorRpcError)

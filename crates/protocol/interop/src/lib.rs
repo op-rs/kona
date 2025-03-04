@@ -16,7 +16,7 @@ mod traits;
 pub use traits::InteropProvider;
 
 mod supervisor;
-pub use supervisor::Supervisor;
+pub use supervisor::CheckMessages;
 
 #[cfg(feature = "client")]
 mod client;
