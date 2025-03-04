@@ -9,6 +9,9 @@
 
 extern crate alloc;
 
+mod tasks;
+pub use tasks::{EngineTask, ForkchoiceMessage, ForkchoiceTask, ForkchoiceTaskError};
+
 mod client;
 pub use client::EngineClient;
 
