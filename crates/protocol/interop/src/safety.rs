@@ -19,6 +19,7 @@ pub enum SafetyLevel {
     Invalid,
 }
 
+#[cfg(feature = "serde")]
 impl core::fmt::Display for SafetyLevel {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", serde_json::to_string(self).unwrap())

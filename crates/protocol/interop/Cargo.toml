@@ -65,7 +65,6 @@ std = [
 client = [
   "std",
   "serde",
-  "serde_json",
   "dep:alloy-rpc-client",
   "derive_more/display",
 ]
@@ -79,6 +78,7 @@ arbitrary = [
 serde = [
   "dep:serde",
   "alloy-eips/serde",
+  "serde_json",
   "alloy-primitives/serde",
   "kona-protocol/serde",
 ]
