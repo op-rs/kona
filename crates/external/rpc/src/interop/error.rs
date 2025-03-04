@@ -1,12 +1,8 @@
-//! Defines the supervisor API and Client.
+//! Interop supervisor RPC client errors.
 
 use alloc::boxed::Box;
-use alloy_primitives::Log;
-use alloy_sol_types::SolEvent;
-use core::{error, time::Duration};
-use kona_interop::{
-    CROSS_L2_INBOX_ADDRESS, ExecutingMessage, InvalidExecutingMessage, SafetyLevel,
-};
+use core::error;
+use kona_interop::InvalidExecutingMessage;
 
 /// Failures occurring during validation of [`ExecutingMessage`]s.
 #[derive(thiserror::Error, Debug)]
@@ -56,56 +52,6 @@ impl From<jsonrpsee::types::ErrorObjectOwned> for ExecutingMessageValidatorError
         InvalidExecutingMessage::parse_err_msg(err.message())
             .map(Self::InvalidExecutingMessage)
             .unwrap_or(Self::server_unexpected(err))
-    }
-}
-
-/// Subset of `op-supervisor` API, used for validating interop events.
-///
-/// <https://github.com/ethereum-optimism/optimism/blob/develop/op-supervisor/supervisor/frontend/frontend.go#L18-L28>
-pub trait CheckMessages {
-    /// Returns if the messages meet the minimum safety level.
-    fn check_messages(
-        &self,
-        messages: &[ExecutingMessage],
-        min_safety: SafetyLevel,
-    ) -> impl Future<Output = Result<(), ExecutingMessageValidatorError>> + Send;
-}
-
-/// Interacts with a Supervisor to validate [`ExecutingMessage`]s.
-#[async_trait::async_trait]
-pub trait ExecutingMessageValidator {
-    /// The supervisor client type.
-    type SupervisorClient: CheckMessages + Send + Sync;
-
-    /// Default duration that message validation is not allowed to exceed.
-    const DEFAULT_TIMEOUT: Duration;
-
-    /// Returns reference to supervisor client. Used in default trait method implementations.
-    fn supervisor_client(&self) -> &Self::SupervisorClient;
-
-    /// Extracts [`ExecutingMessage`]s from the [`Log`] if there are any.
-    fn parse_messages(logs: &[Log]) -> impl Iterator<Item = Option<ExecutingMessage>> {
-        logs.iter().map(|log| {
-            (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
-                .then(|| ExecutingMessage::decode_log_data(&log.data, true).ok())
-                .flatten()
-        })
-    }
-
-    /// Validates a list of [`ExecutingMessage`]s against a Supervisor.
-    async fn validate_messages(
-        &self,
-        messages: &[ExecutingMessage],
-        safety: SafetyLevel,
-        timeout: Option<Duration>,
-    ) -> Result<(), ExecutingMessageValidatorError> {
-        // Set timeout duration based on input if provided.
-        let timeout = timeout.unwrap_or(Self::DEFAULT_TIMEOUT);
-
-        // Validate messages against supervisor with timeout.
-        tokio::time::timeout(timeout, self.supervisor_client().check_messages(messages, safety))
-            .await
-            .map_err(|_| ExecutingMessageValidatorError::ValidationTimeout(timeout.as_secs()))?
     }
 }
 
