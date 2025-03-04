@@ -160,7 +160,7 @@ pub trait SupervisorApi {
 
 #[cfg(all(feature = "interop", feature = "client"))]
 #[async_trait::async_trait]
-impl<T: SupervisorApiClient> CheckMessages for T {
+impl<T: SupervisorApiClient> kona_interop::CheckMessages for T {
     async fn check_messages(
         &self,
         messages: &[ExecutingMessage],
