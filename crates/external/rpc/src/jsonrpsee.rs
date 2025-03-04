@@ -168,15 +168,6 @@ where
         messages: &[ExecutingMessage],
         min_safety: SafetyLevel,
     ) -> Result<(), crate::ExecutingMessageValidatorError> {
-        use crate::ExecutingMessageValidatorError;
-        use jsonrpsee::core::ClientError;
-        use kona_interop::InvalidExecutingMessage;
-
-        T::check_messages(self, messages.to_vec(), min_safety).await.map_err(|err| match err {
-            ClientError::Call(err) => InvalidExecutingMessage::parse_err_msg(err.message())
-                .map(ExecutingMessageValidatorError::InvalidExecutingMessage)
-                .unwrap_or(ExecutingMessageValidatorError::server_unexpected(err)),
-            _ => ExecutingMessageValidatorError::client(err),
-        })
+        Ok(T::check_messages(self, messages.to_vec(), min_safety).await?)
     }
 }
