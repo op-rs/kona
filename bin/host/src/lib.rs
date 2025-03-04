@@ -2,7 +2,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 mod server;
-pub use server::PreimageServer;
+pub use server::{PreimageServer, PreimageServerError};
 
 mod kv;
 pub use kv::{
@@ -11,8 +11,6 @@ pub use kv::{
 
 mod backend;
 pub use backend::{HintHandler, OfflineHostBackend, OnlineHostBackend, OnlineHostBackendCfg};
-
-pub mod cli;
 
 pub mod eth;
 

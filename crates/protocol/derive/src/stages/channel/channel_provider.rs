@@ -163,13 +163,16 @@ mod test {
         types::ResetSignal,
     };
     use alloc::{sync::Arc, vec};
-    use kona_genesis::RollupConfig;
+    use kona_genesis::{HardForkConfig, RollupConfig};
     use kona_protocol::BlockInfo;
 
     #[test]
     fn test_channel_provider_assembler_active() {
         let provider = TestNextFrameProvider::new(vec![]);
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
 
         assert!(channel_provider.attempt_update().is_ok());
@@ -216,7 +219,10 @@ mod test {
     #[test]
     fn test_channel_provider_retain_current_assembler() {
         let provider = TestNextFrameProvider::new(vec![]);
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
 
         // Assert the multiplexer hasn't been initialized.
@@ -239,7 +245,10 @@ mod test {
     #[test]
     fn test_channel_provider_transition_stage() {
         let provider = TestNextFrameProvider::new(vec![]);
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(2), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
 
         channel_provider.attempt_update().unwrap();
@@ -261,7 +270,10 @@ mod test {
     #[test]
     fn test_channel_provider_transition_stage_backwards() {
         let provider = TestNextFrameProvider::new(vec![]);
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(2), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_provider = ChannelProvider::new(cfg, provider);
 
         channel_provider.attempt_update().unwrap();
@@ -326,7 +338,10 @@ mod test {
             crate::frame!(0xFF, 1, vec![0xDD; 50], true),
         ];
         let provider = TestNextFrameProvider::new(frames.into_iter().rev().map(Ok).collect());
-        let cfg = Arc::new(RollupConfig { holocene_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mut channel_provider = ChannelProvider::new(cfg.clone(), provider);
 
         // Load in the first frame.

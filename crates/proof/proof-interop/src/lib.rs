@@ -1,16 +1,19 @@
 #![doc = include_str!("../README.md")]
-#![warn(missing_debug_implementations, missing_docs, unreachable_pub, rustdoc::all)]
-#![deny(unused_must_use, rust_2018_idioms)]
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/square.png",
+    html_favicon_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/favicon.ico",
+    issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
+)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(feature = "arbitrary"), no_std)]
 
 extern crate alloc;
 
 mod pre_state;
 pub use pre_state::{
-    OptimisticBlock, PreState, TransitionState, INVALID_TRANSITION, INVALID_TRANSITION_HASH,
-    TRANSITION_STATE_MAX_STEPS,
+    INVALID_TRANSITION, INVALID_TRANSITION_HASH, OptimisticBlock, PreState,
+    TRANSITION_STATE_MAX_STEPS, TransitionState,
 };
 
 mod hint;

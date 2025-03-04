@@ -43,7 +43,6 @@ designed to deterministically execute the rollup state transition in order to ve
 The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
 getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
 
-
 > [!IMPORTANT]
 >
 > Ethereum (Alloy) types modified for the OP Stack live in [op-alloy](https://github.com/alloy-rs/op-alloy).
@@ -109,10 +108,16 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ## MSRV
 
-The current MSRV (minimum supported rust version) is 1.81.
+The current MSRV (minimum supported rust version) is `1.85`.
 
 The MSRV is not increased automatically, and will be updated
 only as part of a patch (pre-1.0) or minor (post-1.0) release.
+
+
+## Crate Releases
+
+`kona` releases are done using the [`cargo-release`](https://crates.io/crates/cargo-release) crate.
+A detailed guide is available in [./RELEASES.md](./RELEASES.md).
 
 
 ## Contributing

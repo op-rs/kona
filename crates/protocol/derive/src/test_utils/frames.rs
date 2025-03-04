@@ -9,7 +9,7 @@ use crate::{
 use alloc::{sync::Arc, vec, vec::Vec};
 use alloy_primitives::Bytes;
 use kona_genesis::RollupConfig;
-use kona_protocol::{BlockInfo, Frame, DERIVATION_VERSION_0};
+use kona_protocol::{BlockInfo, DERIVATION_VERSION_0, Frame};
 
 /// A [FrameQueue] builder.
 #[derive(Debug, Default)]

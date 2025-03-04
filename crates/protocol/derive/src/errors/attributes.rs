@@ -22,7 +22,9 @@ pub enum BuilderError {
     #[error("System config update failed")]
     SystemConfigUpdate,
     /// Broken time invariant between L2 and L1.
-    #[error("Time invariant broken. L1 origin: {0:?} | Next L2 time: {1} | L1 block: {2:?} | L1 timestamp {3:?}")]
+    #[error(
+        "Time invariant broken. L1 origin: {0:?} | Next L2 time: {1} | L1 block: {2:?} | L1 timestamp {3:?}"
+    )]
     BrokenTimeInvariant(BlockNumHash, u64, BlockNumHash, u64),
     /// Attributes unavailable.
     #[error("Attributes unavailable")]

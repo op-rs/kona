@@ -1,7 +1,7 @@
 //! Providers that use alloy provider types on the backend.
 
 use alloy_consensus::{Block, Header, Receipt, ReceiptWithBloom, TxEnvelope, TxType};
-use alloy_primitives::{Bytes, B256, U64};
+use alloy_primitives::{B256, Bytes, U64};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rlp::{Buf, Decodable};
 use alloy_transport::{RpcError, TransportErrorKind};

@@ -1,22 +1,23 @@
+[workspace]
+members = []
+
 [package]
 name = "maili-serde"
-version = "0.2.8"
+version = "0.2.9"
 description = "Serde related helpers for Maili"
-
-edition.workspace = true
-rust-version.workspace = true
-authors.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-exclude.workspace = true
-
-[lints]
-workspace = true
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+authors = ["clabby", "refcell"]
+homepage = "https://github.com/op-rs/kona"
+repository = "https://github.com/op-rs/kona"
+keywords = ["ethereum", "optimism", "crypto"]
+categories = ["cryptography", "cryptography::cryptocurrencies"]
+exclude = ["**/target"]
 
 [dependencies]
-kona-serde.workspace = true
+kona-serde = "0.1.0"
 
 [features]
-default = ["std"]
+default = []
 std = ["kona-serde/std"]

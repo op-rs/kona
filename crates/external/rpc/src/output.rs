@@ -1,7 +1,7 @@
 //! Output Types
 
-use crate::{L2BlockRef, SyncStatus};
 use alloy_primitives::B256;
+use kona_protocol::{L2BlockInfo, SyncStatus};
 
 /// An [output response][or] for Optimism Rollup.
 ///
@@ -15,7 +15,7 @@ pub struct OutputResponse {
     /// The output root hash.
     pub output_root: B256,
     /// A reference to the L2 block.
-    pub block_ref: L2BlockRef,
+    pub block_ref: L2BlockInfo,
     /// The withdrawal storage root.
     pub withdrawal_storage_root: B256,
     /// The state root.

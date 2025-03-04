@@ -3,7 +3,7 @@
 //! This module contains the addresses of various predeploy contracts in the OP Stack.
 //! See the complete set of predeploys at <https://specs.optimism.io/protocol/predeploys.html#predeploys>
 
-use alloy_primitives::{address, Address};
+use alloy_primitives::{Address, address};
 
 /// Container for all predeploy contract addresses
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

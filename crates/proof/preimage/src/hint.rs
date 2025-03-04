@@ -1,7 +1,7 @@
 use crate::{
+    Channel, HintReaderServer,
     errors::{PreimageOracleError, PreimageOracleResult},
     traits::{HintRouter, HintWriterClient},
-    Channel, HintReaderServer,
 };
 use alloc::{boxed::Box, format, string::String, vec};
 use async_trait::async_trait;

@@ -1,7 +1,7 @@
 //! Channel Types
 
 use alloc::vec::Vec;
-use alloy_primitives::{map::HashMap, Bytes};
+use alloy_primitives::{Bytes, map::HashMap};
 
 use crate::{BlockInfo, Frame};
 

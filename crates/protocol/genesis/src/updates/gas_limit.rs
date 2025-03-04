@@ -1,7 +1,7 @@
 //! The gas limit update type.
 
-use alloy_primitives::{U256, U64};
-use alloy_sol_types::{sol, SolType};
+use alloy_primitives::{U64, U256};
+use alloy_sol_types::{SolType, sol};
 
 use crate::{GasLimitUpdateError, SystemConfig, SystemConfigLog};
 
@@ -61,7 +61,7 @@ mod tests {
     use super::*;
     use crate::{CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC};
     use alloc::vec;
-    use alloy_primitives::{hex, Address, Bytes, Log, LogData, B256};
+    use alloy_primitives::{Address, B256, Bytes, Log, LogData, hex};
 
     #[test]
     fn test_gas_limit_update_try_from() {

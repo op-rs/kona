@@ -1,16 +1,16 @@
 //! Types for the pre-state claims used in the interop proof.
 
 use alloc::vec::Vec;
-use alloy_primitives::{b256, keccak256, Bytes, B256};
+use alloy_primitives::{B256, Bytes, b256, keccak256};
 use alloy_rlp::{Buf, Decodable, Encodable, Header, RlpDecodable, RlpEncodable};
-use kona_interop::{OutputRootWithChain, SuperRoot, SUPER_ROOT_VERSION};
+use kona_interop::{OutputRootWithChain, SUPER_ROOT_VERSION, SuperRoot};
 use serde::{Deserialize, Serialize};
 
 /// The current [TransitionState] encoding format version.
 pub(crate) const TRANSITION_STATE_VERSION: u8 = 255;
 
 /// The maximum number of steps allowed in a [TransitionState].
-pub const TRANSITION_STATE_MAX_STEPS: u64 = 2u64.pow(10) - 1;
+pub const TRANSITION_STATE_MAX_STEPS: u64 = 2u64.pow(7) - 1;
 
 /// The [Bytes] representation of the string "invalid".
 pub const INVALID_TRANSITION: Bytes = Bytes::from_static(b"invalid");

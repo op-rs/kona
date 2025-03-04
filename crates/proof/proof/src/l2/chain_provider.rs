@@ -1,10 +1,10 @@
 //! Contains the concrete implementation of the [L2ChainProvider] trait for the client program.
 
-use crate::{errors::OracleProviderError, HintType};
+use crate::{HintType, eip2935::eip_2935_history_lookup, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{BlockBody, Header};
 use alloy_eips::eip2718::Decodable2718;
-use alloy_primitives::{Address, Bytes, B256};
+use alloy_primitives::{Address, B256, Bytes};
 use alloy_rlp::Decodable;
 use async_trait::async_trait;
 use kona_derive::traits::L2ChainProvider;
@@ -13,7 +13,7 @@ use kona_executor::TrieDBProvider;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_mpt::{OrderedListWalker, TrieHinter, TrieNode, TrieProvider};
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
-use kona_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
+use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
 use op_alloy_consensus::{OpBlock, OpTxEnvelope};
 use spin::RwLock;
 
@@ -69,9 +69,28 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
             return Err(OracleProviderError::BlockNumberPastHead(block_number, header.number));
         }
 
-        // Walk back the block headers to the desired block number.
+        let mut linear_fallback = false;
         while header.number > block_number {
-            header = self.header_by_hash(header.parent_hash)?;
+            if self.rollup_config.is_isthmus_active(header.timestamp) && !linear_fallback {
+                // If Isthmus is active, the EIP-2935 contract is used to perform leaping lookbacks
+                // through consulting the ring buffer within the contract. If this
+                // lookup fails for any reason, we fall back to linear walk back.
+                let block_hash =
+                    match eip_2935_history_lookup(&header, block_number, self, self).await {
+                        Ok(hash) => hash,
+                        Err(_) => {
+                            // If the EIP-2935 lookup fails for any reason, attempt fallback to
+                            // linear walk back.
+                            linear_fallback = true;
+                            continue;
+                        }
+                    };
+
+                header = self.header_by_hash(block_hash)?;
+            } else {
+                // Walk back the block headers one-by-one until the desired block number is reached.
+                header = self.header_by_hash(header.parent_hash)?;
+            }
         }
 
         Ok(header)

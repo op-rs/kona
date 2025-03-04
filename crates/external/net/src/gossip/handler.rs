@@ -1,7 +1,7 @@
 //! Block Handler
 
 use std::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     time::SystemTime,
 };
 
@@ -131,7 +131,7 @@ impl BlockHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{Address, Bloom, Bytes, PrimitiveSignature, B256, U256};
+    use alloy_primitives::{Address, B256, Bloom, Bytes, PrimitiveSignature, U256};
     use alloy_rpc_types_engine::ExecutionPayloadV1;
     use op_alloy_rpc_types_engine::PayloadHash;
 

@@ -1,7 +1,7 @@
 //! Defines the [BasicKernelInterface] trait, which describes the functionality of several system
 //! calls inside of the kernel.
 
-use crate::{errors::IOResult, FileDescriptor};
+use crate::{FileDescriptor, errors::IOResult};
 
 /// The [BasicKernelInterface] trait describes the functionality of several core system calls inside
 /// of the kernel.

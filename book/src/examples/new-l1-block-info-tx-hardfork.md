@@ -12,8 +12,8 @@ for a new Hardfork.
 
 ## Required Genesis Updates
 
-The first updates that need to be made are to [`maili-genesis`][genesis]
-types, namely the [`RollupConfig`][rc] and [`HardForkConfiguration`][hfc].
+The first updates that need to be made are to [`kona-genesis`][genesis]
+types, namely the [`RollupConfig`][rc] and [`HardForkConfig`][hfc].
 
 First, add a timestamp field to the [`RollupConfig`][rc]. Let's use the
 hardfork name "Glacier" as an example.
@@ -46,10 +46,10 @@ accessor to call this method (let's use "Isthmus" as the prior hardfork).
     }
 ```
 
-Lastly, add the "Glacier" timestamp to the [`HardForkConfiguration`][hfc].
+Lastly, add the "Glacier" timestamp to the [`HardForkConfig`][hfc].
 
 ```rust
-pub struct HardForkConfiguration {
+pub struct HardForkConfig {
     ...
     /// Glacier hardfork activation time
     pub glacier_time: Option<u64>,
@@ -60,7 +60,7 @@ pub struct HardForkConfiguration {
 ## Protocol Changes
 
 Introduce a new `glacier.rs` module containing a `L1BlockInfoGlacier` type
-in [`maili_genesis::info` module][info-mod].
+in [`kona_genesis::info` module][info-mod].
 
 This should include a few methods used in the `L1BlockInfoTx` later.
 
@@ -101,13 +101,13 @@ Some new error variants to the [`BlockInfoError`][bie] are needed as well.
 
 <!-- Links -->
 
-[bie]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.BlockInfoError.html
+[bie]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.BlockInfoError.html
 [pr-diff]: https://github.com/alloy-rs/op-alloy/pull/130/files
-[decode-calldata]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.L1BlockInfoTx.html#method.decode_calldata
-[try-new]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.L1BlockInfoTx.html#method.try_new
-[ecotone]: https://github.com/op-rs/maili/blob/main/crates/protocol/src/info/ecotone.rs
-[info-mod]: https://github.com/op-rs/maili/blob/main/crates/protocol/src/info/mod.rs
-[genesis]: https://docs.rs/maili-genesis/latest/maili_genesis/index.html
-[rc]: https://docs.rs/maili-genesis/latest/maili_genesis/struct.RollupConfig.html
-[hfc]: https://docs.rs/maili-genesis/latest/maili_genesis/struct.HardForkConfiguration.html
-[info-tx]: https://docs.rs/maili-protocol/latest/maili_protocol/enum.L1BlockInfoTx.html
+[decode-calldata]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.L1BlockInfoTx.html#method.decode_calldata
+[try-new]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.L1BlockInfoTx.html#method.try_new
+[ecotone]: https://github.com/op-rs/kona/blob/main/crates/protocol/src/info/ecotone.rs
+[info-mod]: https://github.com/op-rs/kona/blob/main/crates/protocol/src/info/mod.rs
+[genesis]: https://docs.rs/kona-genesis/latest/kona_genesis/index.html
+[rc]: https://docs.rs/kona-genesis/latest/kona_genesis/struct.RollupConfig.html
+[hfc]: https://docs.rs/kona-genesis/latest/kona_genesis/struct.HardForkConfig.html
+[info-tx]: https://docs.rs/kona-protocol/latest/kona_protocol/enum.L1BlockInfoTx.html

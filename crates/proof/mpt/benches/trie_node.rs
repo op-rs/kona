@@ -2,10 +2,10 @@
 //! Contains benchmarks for the [TrieNode].
 
 use alloy_trie::Nibbles;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use kona_mpt::{NoopTrieHinter, NoopTrieProvider, TrieNode};
 use pprof::criterion::{Output, PProfProfiler};
-use rand::{rngs::StdRng, seq::IteratorRandom, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng, seq::IteratorRandom};
 
 fn trie(c: &mut Criterion) {
     let mut g = c.benchmark_group("execution");

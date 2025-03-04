@@ -226,12 +226,16 @@ mod test {
     };
     use alloc::vec;
     use alloy_eips::NumHash;
+    use kona_genesis::HardForkConfig;
     use kona_protocol::{SingleBatch, SpanBatchElement};
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
     #[tokio::test]
     async fn test_batch_stream_flush() {
-        let config = Arc::new(RollupConfig { holocene_time: Some(0), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let prev = TestBatchStreamProvider::new(vec![]);
         let mut stream = BatchStream::new(prev, config, TestL2ChainProvider::default());
         stream.buffer.push_back(SingleBatch::default());
@@ -245,7 +249,10 @@ mod test {
 
     #[tokio::test]
     async fn test_batch_stream_reset() {
-        let config = Arc::new(RollupConfig { holocene_time: Some(0), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let prev = TestBatchStreamProvider::new(vec![]);
         let mut stream = BatchStream::new(prev, config.clone(), TestL2ChainProvider::default());
         stream.buffer.push_back(SingleBatch::default());
@@ -259,7 +266,10 @@ mod test {
 
     #[tokio::test]
     async fn test_batch_stream_flush_channel() {
-        let config = Arc::new(RollupConfig { holocene_time: Some(0), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let prev = TestBatchStreamProvider::new(vec![]);
         let mut stream = BatchStream::new(prev, config.clone(), TestL2ChainProvider::default());
         stream.buffer.push_back(SingleBatch::default());
@@ -278,7 +288,10 @@ mod test {
         tracing_subscriber::Registry::default().with(layer).init();
 
         let data = vec![Ok(Batch::Single(SingleBatch::default()))];
-        let config = Arc::new(RollupConfig { holocene_time: Some(100), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(100), ..Default::default() },
+            ..Default::default()
+        });
         let prev = TestBatchStreamProvider::new(data);
         let mut stream = BatchStream::new(prev, config.clone(), TestL2ChainProvider::default());
 
@@ -307,10 +320,13 @@ mod test {
 
         let data = vec![Ok(Batch::Span(mock_batch.clone()))];
         let config = Arc::new(RollupConfig {
-            delta_time: Some(0),
-            holocene_time: Some(0),
             block_time: 2,
-            ..RollupConfig::default()
+            hardforks: HardForkConfig {
+                delta_time: Some(0),
+                holocene_time: Some(0),
+                ..Default::default()
+            },
+            ..Default::default()
         });
         let prev = TestBatchStreamProvider::new(data);
         let provider = TestL2ChainProvider::default();
@@ -370,7 +386,10 @@ mod test {
     #[tokio::test]
     async fn test_single_batch_pass_through() {
         let data = vec![Ok(Batch::Single(SingleBatch::default()))];
-        let config = Arc::new(RollupConfig { holocene_time: Some(0), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let prev = TestBatchStreamProvider::new(data);
         let mut stream = BatchStream::new(prev, config.clone(), TestL2ChainProvider::default());
 
@@ -396,7 +415,10 @@ mod test {
         let mock_origins = [BlockInfo { number: 1, timestamp: 12, ..Default::default() }];
         let data = vec![Ok(Batch::Span(mock_batch))];
 
-        let config = Arc::new(RollupConfig { holocene_time: Some(0), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let prev = TestBatchStreamProvider::new(data);
         let mut stream = BatchStream::new(prev, config.clone(), TestL2ChainProvider::default());
 

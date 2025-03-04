@@ -1,0 +1,44 @@
+[package]
+name = "kona-hardforks"
+version = "0.1.0"
+description = "Consensus hardfork types for the OP Stack"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Alloy
+alloy-eips.workspace = true
+alloy-primitives = { workspace = true, features = ["rlp"] }
+
+# OP Alloy
+op-alloy-consensus.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+tokio = { workspace = true, features = ["macros"] }
+alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
+
+[features]
+default = []
+std = [
+  "alloy-eips/std",
+  "op-alloy-consensus/std",
+]
+k256 = [
+  "alloy-primitives/k256",
+  "op-alloy-consensus/k256",
+]
+kzg = [
+  "std",
+  "alloy-eips/kzg",
+  "op-alloy-consensus/kzg",
+]

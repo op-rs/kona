@@ -2,10 +2,10 @@
 //! channel primitives.
 
 use crate::{
-    errors::{ChannelError, ChannelResult},
     Channel,
+    errors::{ChannelError, ChannelResult},
 };
-use async_channel::{unbounded, Receiver, Sender};
+use async_channel::{Receiver, Sender, unbounded};
 use async_trait::async_trait;
 use std::io::Result;
 

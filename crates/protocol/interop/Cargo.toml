@@ -1,7 +1,7 @@
 [package]
 name = "kona-interop"
 description = "Core functionality and primitives for the Interop feature of the OP Stack."
-version = "0.1.1"
+version = "0.1.2"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -15,18 +15,24 @@ workspace = true
 # Workspace
 kona-genesis.workspace = true
 kona-registry.workspace = true
+kona-protocol.workspace = true
 
 # General
 thiserror.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
+derive_more = { workspace = true, features = ["from", "as_ref"] }
 
 # Alloy
-alloy-primitives = { workspace = true, features = ["rlp"] }
+alloy-rlp.workspace = true
+alloy-eips.workspace = true
 alloy-sol-types.workspace = true
 alloy-consensus.workspace = true
-alloy-rlp.workspace = true
+alloy-primitives = { workspace = true, features = ["rlp"] }
 op-alloy-consensus.workspace = true
+
+# `client` feature
+alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
 
 # Arbitrary
 arbitrary = { version = "1.4", features = ["derive"], optional = true }
@@ -43,5 +49,34 @@ rand.workspace = true
 
 [features]
 default = []
-arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary"]
-serde = ["dep:serde", "alloy-primitives/serde"]
+std = [
+  "derive_more/display",
+  "alloy-consensus/std",
+  "alloy-eips/std",
+  "alloy-primitives/std",
+  "alloy-rlp/std",
+  "alloy-sol-types/std",
+  "derive_more/std",
+  "serde?/std",
+  "thiserror/std",
+  "kona-protocol/std",
+]
+client = [
+  "std",
+  "serde",
+  "dep:alloy-rpc-client",
+  "derive_more/display",
+]
+arbitrary = [
+  "std",
+  "dep:arbitrary",
+  "alloy-primitives/arbitrary",
+  "alloy-consensus/arbitrary",
+  "alloy-eips/arbitrary",
+]
+serde = [
+  "dep:serde",
+  "alloy-eips/serde",
+  "alloy-primitives/serde",
+  "kona-protocol/serde",
+]

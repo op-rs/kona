@@ -9,8 +9,8 @@ use std::{
 use tokio::sync::watch::channel;
 
 use libp2p::{
-    gossipsub::Config as GossipConfig, multiaddr::Protocol, noise::Config as NoiseConfig,
-    tcp::Config as TcpConfig, yamux::Config as YamuxConfig, Multiaddr, SwarmBuilder,
+    Multiaddr, SwarmBuilder, gossipsub::Config as GossipConfig, multiaddr::Protocol,
+    noise::Config as NoiseConfig, tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
 };
 use libp2p_identity::Keypair;
 
@@ -191,7 +191,7 @@ impl NetworkDriverBuilder {
     /// ## Example
     ///
     /// ```rust
-    /// use alloy_primitives::{address, Address};
+    /// use alloy_primitives::{Address, address};
     /// use discv5::{ConfigBuilder, ListenConfig};
     /// use kona_net::builder::NetworkDriverBuilder;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};

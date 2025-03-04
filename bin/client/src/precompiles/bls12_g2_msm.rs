@@ -8,7 +8,7 @@
 
 use crate::precompiles::utils::{msm_required_gas, precompile_run};
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{address, keccak256, Address, Bytes};
+use alloy_primitives::{Address, Bytes, address, keccak256};
 use revm::{
     precompile::{Error as PrecompileError, Precompile, PrecompileResult, PrecompileWithAddress},
     primitives::PrecompileOutput,

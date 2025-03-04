@@ -2,10 +2,12 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    labels: [ "F-deps" ]
     schedule:
       interval: daily
   - package-ecosystem: cargo
     directory: /
+    labels: [ "F-deps" ]
     schedule:
       interval: daily
     ignore:

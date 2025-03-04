@@ -4,6 +4,7 @@
 use crate::{TrieHinter, TrieNode, TrieProvider};
 use alloc::string::String;
 use alloy_primitives::{Address, B256, U256};
+use core::fmt::Debug;
 
 /// The default, no-op implementation of the [TrieProvider] trait, used for testing.
 #[derive(Debug, Clone, Copy)]

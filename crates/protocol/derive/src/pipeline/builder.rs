@@ -13,14 +13,29 @@ use core::fmt::Debug;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 
-type L1TraversalStage<P> = L1Traversal<P>;
-type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;
-type FrameQueueStage<DAP, P> = FrameQueue<L1RetrievalStage<DAP, P>>;
-type ChannelProviderStage<DAP, P> = ChannelProvider<FrameQueueStage<DAP, P>>;
-type ChannelReaderStage<DAP, P> = ChannelReader<ChannelProviderStage<DAP, P>>;
-type BatchStreamStage<DAP, P, T> = BatchStream<ChannelReaderStage<DAP, P>, T>;
-type BatchProviderStage<DAP, P, T> = BatchProvider<BatchStreamStage<DAP, P, T>, T>;
-type AttributesQueueStage<DAP, P, T, B> = AttributesQueue<BatchProviderStage<DAP, P, T>, B>;
+/// Type alias for the [L1Traversal] stage.
+pub type L1TraversalStage<P> = L1Traversal<P>;
+
+/// Type alias for the [L1Retrieval] stage.
+pub type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;
+
+/// Type alias for the [FrameQueue] stage.
+pub type FrameQueueStage<DAP, P> = FrameQueue<L1RetrievalStage<DAP, P>>;
+
+/// Type alias for the [ChannelProvider] stage.
+pub type ChannelProviderStage<DAP, P> = ChannelProvider<FrameQueueStage<DAP, P>>;
+
+/// Type alias for the [ChannelReader] stage.
+pub type ChannelReaderStage<DAP, P> = ChannelReader<ChannelProviderStage<DAP, P>>;
+
+/// Type alias for the [BatchStream] stage.
+pub type BatchStreamStage<DAP, P, T> = BatchStream<ChannelReaderStage<DAP, P>, T>;
+
+/// Type alias for the [BatchProvider] stage.
+pub type BatchProviderStage<DAP, P, T> = BatchProvider<BatchStreamStage<DAP, P, T>, T>;
+
+/// Type alias for the [AttributesQueue] stage.
+pub type AttributesQueueStage<DAP, P, T, B> = AttributesQueue<BatchProviderStage<DAP, P, T>, B>;
 
 /// The `PipelineBuilder` constructs a [DerivationPipeline] using a builder pattern.
 #[derive(Debug)]

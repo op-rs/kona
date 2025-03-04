@@ -4,10 +4,10 @@ use crate::SharedKeyValueStore;
 use anyhow::Result;
 use async_trait::async_trait;
 use kona_preimage::{
-    errors::{PreimageOracleError, PreimageOracleResult},
     HintRouter, PreimageFetcher, PreimageKey,
+    errors::{PreimageOracleError, PreimageOracleResult},
 };
-use kona_proof::{errors::HintParsingError, Hint};
+use kona_proof::{Hint, errors::HintParsingError};
 use std::{collections::HashSet, hash::Hash, str::FromStr, sync::Arc};
 use tokio::sync::RwLock;
 use tracing::{debug, error, trace};

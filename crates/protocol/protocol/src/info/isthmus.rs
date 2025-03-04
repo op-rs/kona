@@ -1,7 +1,7 @@
 //! Isthmus L1 Bl{format, ock Info transaction types.
 
 use alloc::vec::Vec;
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256};
 
 use crate::DecodeError;
 

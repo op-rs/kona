@@ -1,18 +1,19 @@
 //! Contains the [`SystemConfig`] type.
 
 use alloy_consensus::{Eip658Value, Receipt};
-use alloy_primitives::{Address, Log, B64, U256};
+use alloy_primitives::{Address, B64, Log, U256};
 
 use crate::{
-    RollupConfig, SystemConfigLog, SystemConfigUpdateError, SystemConfigUpdateKind,
-    CONFIG_UPDATE_TOPIC,
+    CONFIG_UPDATE_TOPIC, RollupConfig, SystemConfigLog, SystemConfigUpdateError,
+    SystemConfigUpdateKind,
 };
 
 /// System configuration.
 #[derive(Debug, Copy, Clone, Default, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct SystemConfig {
     /// Batcher address
     #[cfg_attr(feature = "serde", serde(rename = "batcherAddress", alias = "batcherAddr"))]
@@ -35,6 +36,60 @@ pub struct SystemConfig {
     pub operator_fee_scalar: Option<u32>,
     /// The operator fee constant (isthmus hardfork)
     pub operator_fee_constant: Option<u64>,
+}
+
+/// Custom EIP-1559 parameter decoding is needed here for holocene encoding.
+///
+/// This is used by the Optimism monorepo [here][here].
+///
+/// [here]: https://github.com/ethereum-optimism/optimism/blob/cf28bffc7d880292794f53bb76bfc4df7898307b/op-service/eth/types.go#L519
+#[cfg(feature = "serde")]
+impl<'a> serde::Deserialize<'a> for SystemConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        // An alias struct that is identical to `SystemConfig`.
+        // We use the alias to decode the eip1559 params as their u32 values.
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        #[serde(deny_unknown_fields)]
+        struct SystemConfigAlias {
+            #[serde(rename = "batcherAddress", alias = "batcherAddr")]
+            batcher_address: Address,
+            overhead: U256,
+            scalar: U256,
+            gas_limit: u64,
+            base_fee_scalar: Option<u64>,
+            blob_base_fee_scalar: Option<u64>,
+            eip1559_params: Option<B64>,
+            eip1559_denominator: Option<u32>,
+            eip1559_elasticity: Option<u32>,
+            operator_fee_scalar: Option<u32>,
+            operator_fee_constant: Option<u64>,
+        }
+
+        let mut alias = SystemConfigAlias::deserialize(deserializer)?;
+        if let Some(params) = alias.eip1559_params {
+            alias.eip1559_denominator =
+                Some(u32::from_be_bytes(params.as_slice().get(0..4).unwrap().try_into().unwrap()));
+            alias.eip1559_elasticity =
+                Some(u32::from_be_bytes(params.as_slice().get(4..8).unwrap().try_into().unwrap()));
+        }
+
+        Ok(Self {
+            batcher_address: alias.batcher_address,
+            overhead: alias.overhead,
+            scalar: alias.scalar,
+            gas_limit: alias.gas_limit,
+            base_fee_scalar: alias.base_fee_scalar,
+            blob_base_fee_scalar: alias.blob_base_fee_scalar,
+            eip1559_denominator: alias.eip1559_denominator,
+            eip1559_elasticity: alias.eip1559_elasticity,
+            operator_fee_scalar: alias.operator_fee_scalar,
+            operator_fee_constant: alias.operator_fee_constant,
+        })
+    }
 }
 
 impl SystemConfig {
@@ -124,30 +179,58 @@ impl SystemConfig {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::CONFIG_UPDATE_EVENT_VERSION_0;
+    use crate::{CONFIG_UPDATE_EVENT_VERSION_0, HardForkConfig};
     use alloc::vec;
-    use alloy_primitives::{address, b256, hex, LogData, B256};
+    use alloy_primitives::{B256, LogData, address, b256, hex};
 
     #[test]
     #[cfg(feature = "serde")]
-    fn test_system_config_alias() {
-        let sc_str: &'static str = r#"{
+    fn test_system_config_eip1559_params() {
+        let raw = r#"{
           "batcherAddress": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
+          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
+          "gasLimit": 30000000,
+          "eip1559Params": "0x000000ab000000cd"
+        }"#;
+        let system_config: SystemConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(system_config.eip1559_denominator, Some(0xab_u32), "eip1559_denominator");
+        assert_eq!(system_config.eip1559_elasticity, Some(0xcd_u32), "eip1559_elasticity");
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn test_system_config_serde() {
+        let raw = r#"{
+          "batcherAddr": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
           "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
           "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
           "gasLimit": 30000000
         }"#;
-        let system_config: SystemConfig = serde_json::from_str(sc_str).unwrap();
-        assert_eq!(
-            system_config,
-            SystemConfig {
-                batcher_address: address!("6887246668a3b87F54DeB3b94Ba47a6f63F32985"),
-                overhead: U256::from(0xbc),
-                scalar: U256::from(0xa6fe0),
-                gas_limit: 30000000,
-                ..Default::default()
-            }
-        );
+        let expected = SystemConfig {
+            batcher_address: address!("6887246668a3b87F54DeB3b94Ba47a6f63F32985"),
+            overhead: U256::from(0xbc),
+            scalar: U256::from(0xa6fe0),
+            gas_limit: 30000000,
+            ..Default::default()
+        };
+
+        let deserialized: SystemConfig = serde_json::from_str(raw).unwrap();
+        assert_eq!(deserialized, expected);
+    }
+
+    #[test]
+    #[cfg(feature = "serde")]
+    fn test_system_config_unknown_field() {
+        let raw = r#"{
+          "batcherAddr": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
+          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
+          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
+          "gasLimit": 30000000,
+          "unknown": 0
+        }"#;
+        let err = serde_json::from_str::<SystemConfig>(raw).unwrap_err();
+        assert_eq!(err.classify(), serde_json::error::Category::Data);
     }
 
     #[test]
@@ -169,7 +252,10 @@ mod test {
 
     #[test]
     fn test_eip_1559_params_from_system_config_some() {
-        let rollup_config = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: Some(1),
             eip1559_elasticity: None,
@@ -181,7 +267,10 @@ mod test {
 
     #[test]
     fn test_eip_1559_params_from_system_config() {
-        let rollup_config = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: Some(1),
             eip1559_elasticity: Some(2),
@@ -193,7 +282,10 @@ mod test {
 
     #[test]
     fn test_default_eip_1559_params_from_system_config() {
-        let rollup_config = RollupConfig { holocene_time: Some(0), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: None,
             eip1559_elasticity: None,
@@ -216,32 +308,16 @@ mod test {
 
     #[test]
     fn test_default_eip_1559_params_first_block_holocene() {
-        let rollup_config = RollupConfig { holocene_time: Some(2), ..Default::default() };
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(2), ..Default::default() },
+            ..Default::default()
+        };
         let sys_config = SystemConfig {
             eip1559_denominator: Some(1),
             eip1559_elasticity: Some(2),
             ..Default::default()
         };
         assert_eq!(sys_config.eip_1559_params(&rollup_config, 0, 2), Some(B64::ZERO));
-    }
-
-    #[test]
-    #[cfg(feature = "serde")]
-    fn test_system_config_serde() {
-        let sc_str = r#"{
-          "batcherAddr": "0x6887246668a3b87F54DeB3b94Ba47a6f63F32985",
-          "overhead": "0x00000000000000000000000000000000000000000000000000000000000000bc",
-          "scalar": "0x00000000000000000000000000000000000000000000000000000000000a6fe0",
-          "gasLimit": 30000000
-        }"#;
-        let system_config: SystemConfig = serde_json::from_str(sc_str).unwrap();
-        assert_eq!(
-            system_config.batcher_address,
-            address!("6887246668a3b87F54DeB3b94Ba47a6f63F32985")
-        );
-        assert_eq!(system_config.overhead, U256::from(0xbc));
-        assert_eq!(system_config.scalar, U256::from(0xa6fe0));
-        assert_eq!(system_config.gas_limit, 30000000);
     }
 
     #[test]

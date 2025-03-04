@@ -11,6 +11,7 @@ no_std_packages=(
 
   # protocol crates
   kona-genesis
+  kona-hardforks
   kona-registry
   kona-protocol
   kona-derive

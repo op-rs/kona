@@ -2,14 +2,18 @@
 
 use alloy_consensus::{SignableTransaction, TxEip1559, TxEnvelope};
 use alloy_eips::eip2718::{Decodable2718, Encodable2718};
-use alloy_primitives::{hex, Address, BlockHash, Bytes, PrimitiveSignature, U256};
+use alloy_primitives::{Address, BlockHash, Bytes, PrimitiveSignature, U256, hex};
 use kona_genesis::RollupConfig;
-use kona_protocol::{decompress_brotli, Batch, BlockInfo, Channel, Frame, SingleBatch};
+use kona_protocol::{Batch, BlockInfo, Channel, Frame, SingleBatch, decompress_brotli};
 
 fn main() {
     // Raw frame data taken from the `encode_channel` example.
-    let first_frame = hex!("60d54f49b71978b1b09288af847b11d200000000004d1b1301f82f0f6c3734f4821cd090ef3979d71a98e7e483b1dccdd525024c0ef16f425c7b4976a7acc0c94a0514b72c096d4dcc52f0b22dae193c70c86d0790a304a08152c8250031d091063ea000");
-    let second_frame = hex!("60d54f49b71978b1b09288af847b11d2000100000046b00d00005082edde7ccf05bded2004462b5e80e1c42cd08e307f5baac723b22864cc6cd01ddde84efc7c018d7ada56c2fa8e3c5bedd494c3a7a884439d5771afcecaf196cb3801");
+    let first_frame = hex!(
+        "60d54f49b71978b1b09288af847b11d200000000004d1b1301f82f0f6c3734f4821cd090ef3979d71a98e7e483b1dccdd525024c0ef16f425c7b4976a7acc0c94a0514b72c096d4dcc52f0b22dae193c70c86d0790a304a08152c8250031d091063ea000"
+    );
+    let second_frame = hex!(
+        "60d54f49b71978b1b09288af847b11d2000100000046b00d00005082edde7ccf05bded2004462b5e80e1c42cd08e307f5baac723b22864cc6cd01ddde84efc7c018d7ada56c2fa8e3c5bedd494c3a7a884439d5771afcecaf196cb3801"
+    );
 
     // Decode the raw frames.
     let decoded_first = Frame::decode(&first_frame).expect("decodes frame").1;

@@ -21,12 +21,14 @@ use core::arch::asm;
 #[inline]
 pub(crate) unsafe fn syscall1(syscall_number: usize, arg1: usize) -> usize {
     let mut ret: usize;
-    asm!(
-        "ecall",
-        in("a7") syscall_number,
-        inlateout("a0") arg1 => ret,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "ecall",
+            in("a7") syscall_number,
+            inlateout("a0") arg1 => ret,
+            options(nostack, preserves_flags)
+        );
+    }
     ret
 }
 
@@ -39,13 +41,15 @@ pub(crate) unsafe fn syscall3(
     arg3: usize,
 ) -> usize {
     let mut ret: usize;
-    asm!(
-        "ecall",
-        in("a7") syscall_number,
-        inlateout("a0") arg1 => ret,
-        in("a1") arg2,
-        in("a2") arg3,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "ecall",
+            in("a7") syscall_number,
+            inlateout("a0") arg1 => ret,
+            in("a1") arg2,
+            in("a2") arg3,
+            options(nostack, preserves_flags)
+        );
+    }
     ret
 }

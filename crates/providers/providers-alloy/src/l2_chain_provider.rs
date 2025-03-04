@@ -10,7 +10,7 @@ use kona_derive::{
     traits::L2ChainProvider,
 };
 use kona_genesis::{RollupConfig, SystemConfig};
-use kona_protocol::{to_system_config, BatchValidationProvider, L2BlockInfo};
+use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
 use op_alloy_consensus::OpBlock;
 use std::sync::Arc;
 

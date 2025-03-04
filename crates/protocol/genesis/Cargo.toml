@@ -37,6 +37,7 @@ serde_repr = { workspace = true, optional = true }
 kona-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
+toml = { workspace = true, features = ["parse"] }
 rand = { workspace = true, features = ["thread_rng"] }
 serde_json.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }

@@ -2,7 +2,7 @@
 
 use crate::{CompressionAlgo, CompressorType};
 
-/// Configuration for the compressor itself.
+/// Config for the compressor itself.
 #[derive(Debug, Clone)]
 pub struct Config {
     /// TargetOutputSize is the target size that the compressed data should reach.

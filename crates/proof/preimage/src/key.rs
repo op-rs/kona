@@ -1,7 +1,7 @@
 //! Contains the [PreimageKey] type, which is used to identify preimages that may be fetched from
 //! the preimage oracle.
 
-use alloy_primitives::{Keccak256, B256, U256};
+use alloy_primitives::{B256, Keccak256, U256};
 #[cfg(feature = "rkyv")]
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 #[cfg(feature = "serde")]

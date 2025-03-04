@@ -62,7 +62,7 @@ impl Decodable for OpStackEnr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{bytes, Bytes};
+    use alloy_primitives::{Bytes, bytes};
 
     #[test]
     #[cfg(feature = "arbitrary")]
