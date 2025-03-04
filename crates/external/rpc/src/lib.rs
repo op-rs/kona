@@ -45,7 +45,7 @@ pub use jsonrpsee::{
     EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeServer,
 };
 
-#[cfg(feature = "reqwest")]
+#[cfg(all(feature = "reqwest", feature = "interop"))]
 pub mod reqwest;
 #[cfg(all(feature = "reqwest", feature = "interop", feature = "client"))]
 pub use reqwest::SupervisorClient;
