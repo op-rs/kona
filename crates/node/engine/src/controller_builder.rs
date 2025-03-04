@@ -19,7 +19,7 @@ pub struct ControllerBuilder {
 }
 
 impl ControllerBuilder {
-    /// Instantiates a new [ControllerBuilder] from the provided [EngineClient].
+    /// Instantiates a new [ControllerBuilder] from the provided client.
     pub const fn new(client: EngineClient) -> Self {
         Self { client, state: None, config: None, sync: None }
     }

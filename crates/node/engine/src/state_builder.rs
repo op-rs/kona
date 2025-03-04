@@ -11,7 +11,7 @@ use crate::{EngineClient, EngineState};
 /// When the [EngineState] is first created, only the finalized
 /// block is specified. The `StateBuilder` constructs the
 /// [EngineState] by fetching the remaining block info via the
-/// [EngineClient].
+/// client.
 #[derive(Debug, Clone)]
 pub struct StateBuilder {
     /// The engine client.
@@ -35,7 +35,7 @@ pub struct StateBuilder {
 }
 
 impl StateBuilder {
-    /// Constructs a new [StateBuilder] from the provided [EngineClient].
+    /// Constructs a new [StateBuilder] from the provided client.
     pub const fn new(client: EngineClient) -> Self {
         Self {
             client,

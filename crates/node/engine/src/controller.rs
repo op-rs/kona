@@ -2,10 +2,27 @@
 //!
 //! See: <https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L46>
 
-use alloy_rpc_types_engine::payload::{PayloadStatus, PayloadStatusEnum};
+use alloy_network::AnyNetwork;
+use alloy_primitives::Bytes;
+use alloy_provider::{RootProvider, ext::EngineApi};
+use alloy_rpc_types_engine::{
+    ForkchoiceState, ForkchoiceUpdated,
+    payload::{PayloadStatus, PayloadStatusEnum},
+};
+use alloy_transport_http::{
+    AuthService, Http, HyperClient,
+    hyper_util::client::legacy::{Client, connect::HttpConnector},
+};
+
+use http_body_util::Full;
 use kona_protocol::L2BlockInfo;
+use op_alloy_provider::ext::engine::OpEngineApi;
+use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 use crate::{ControllerBuilder, EngineClient, EngineState, EngineUpdateError, SyncStatus};
+
+/// A Hyper HTTP client with a JWT authentication layer.
+type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
 
 /// The engine controller.
 #[derive(Debug, Clone)]
@@ -60,7 +77,7 @@ impl EngineController {
             status.status == PayloadStatusEnum::Accepted
     }
 
-    /// Check the returned status of `engine_forkchoiceUpdatedV1` request.
+    /// Check the returned status of a forkchoice updated request.
     pub fn check_forkchoice_updated_status(&mut self, status: PayloadStatus) -> bool {
         if self.sync_status == SyncStatus::ConsensusLayer {
             return status.status.is_valid();
@@ -71,6 +88,49 @@ impl EngineController {
         status.status.is_valid() || status.status.is_syncing()
     }
 
+    /// Calls the right forkchoice updated method based on the timestamp
+    async fn forkchoice_update(
+        &mut self,
+        forkchoice: ForkchoiceState,
+        attributes: Option<OpPayloadAttributes>,
+    ) -> Result<ForkchoiceUpdated, EngineUpdateError> {
+        if attributes.is_none() {
+            return <RootProvider<AnyNetwork> as OpEngineApi<
+                AnyNetwork,
+                Http<HyperAuthClient>,
+            >>::fork_choice_updated_v3(&self.client, forkchoice, None)
+                .await
+                .map_err(EngineUpdateError::from);
+        }
+        let ts = attributes.as_ref().map_or(0, |a| a.payload_attributes.timestamp);
+        let ecotone_active = self.ecotone_timestamp.is_some_and(|e| ts >= e);
+        let canyon_active = self.canyon_timestamp.is_some_and(|e| ts >= e);
+        if ecotone_active {
+            // Cancun
+            <RootProvider<AnyNetwork> as OpEngineApi<
+                AnyNetwork,
+                Http<HyperAuthClient>,
+            >>::fork_choice_updated_v3(&self.client, forkchoice, attributes)
+                .await
+                .map_err(EngineUpdateError::from)
+        } else if canyon_active {
+            // Shanghai
+            <RootProvider<AnyNetwork> as OpEngineApi<
+                AnyNetwork,
+                Http<HyperAuthClient>,
+            >>::fork_choice_updated_v2(&self.client, forkchoice, attributes)
+                .await
+                .map_err(EngineUpdateError::from)
+        } else {
+            // According to Ethereum engine API spec, we can use fcuV2 here,
+            // but Geth v1.13.11 does not accept V2 before Shanghai.
+            self.client
+                .fork_choice_updated_v1(forkchoice, attributes.map(|a| a.payload_attributes))
+                .await
+                .map_err(EngineUpdateError::from)
+        }
+    }
+
     /// Attempts to update the engine with the current forkchoice state of the rollup node.
     ///
     /// This is a no-op if the nodes already agree on the forkchoice state.
@@ -79,9 +139,9 @@ impl EngineController {
             return Err(EngineUpdateError::NoForkchoiceUpdateNeeded);
         }
 
-        // if self.is_syncing() {
-        // TODO: log attempt to update forkchoice state while EL syncing
-        // }
+        if self.is_syncing() {
+            tracing::warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
+        }
 
         if self.state.unsafe_head().block_info.number <
             self.state.finalized_head().block_info.number
@@ -93,15 +153,10 @@ impl EngineController {
         }
 
         let forkchoice = self.state.create_forkchoice_state();
-        let update = self
-            .client
-            .forkchoice_updated_v2(forkchoice, None)
-            .await
-            .map_err(|_| EngineUpdateError::ForkchoiceUpdateFailed)?;
-        // TODO: match on error and return reset, temporary errors based on returned error.
+        let update = self.forkchoice_update(forkchoice, None).await?;
 
         if update.payload_status.is_valid() {
-            // Send pilot a fork choice update message.
+            // TODO: Send a fork choice update message.
         }
 
         if self.state.unsafe_head() == self.state.safe_head() &&
@@ -121,18 +176,17 @@ mod tests {
     use kona_genesis::RollupConfig;
     use std::sync::Arc;
 
-    fn test_controller(sync_status: SyncStatus) -> EngineController {
-        let rollup_config = RollupConfig { block_time: 0, ..Default::default() };
-        let engine_url: url::Url = "http://localhost:8080".parse().unwrap();
-        let rpc_url: url::Url = "http://localhost:8080".parse().unwrap();
+    fn test_provider() -> EngineClient {
+        let jwt = JwtSecret::random();
+        let cfg = Arc::new(RollupConfig::default());
+        let engine: url::Url = "http://localhost:8080".parse().unwrap();
+        let rpc: url::Url = "http://localhost:8080".parse().unwrap();
 
-        let rollup_config = Arc::new(rollup_config);
-        let client = EngineClient::new_http(
-            engine_url,
-            rpc_url,
-            Arc::clone(&rollup_config),
-            JwtSecret::random(),
-        );
+        EngineClient::new_http(engine, rpc, cfg, jwt)
+    }
+
+    fn test_controller(sync_status: SyncStatus) -> EngineController {
+        let client = test_provider();
         let state = EngineState {
             unsafe_head: L2BlockInfo::default(),
             cross_unsafe_head: L2BlockInfo::default(),
