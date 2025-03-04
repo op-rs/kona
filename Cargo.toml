@@ -128,6 +128,7 @@ alloy-node-bindings = { version = "0.11.1", default-features = false }
 alloy-transport-http = { version = "0.11.1", default-features = false }
 alloy-rpc-types-engine = { version = "0.11.1", default-features = false }
 alloy-rpc-types-beacon = { version = "0.11.1", default-features = false }
+alloy-chains = { version = "0.1", default-features = false }
 
 # OP Alloy
 op-alloy-flz = { version = "0.10.5", default-features = false }

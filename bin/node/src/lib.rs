@@ -15,4 +15,3 @@ pub mod cli;
 pub use cli::Cli;
 
 pub mod node;
-pub mod sync;

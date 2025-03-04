@@ -3,8 +3,8 @@
 #![allow(unused)]
 
 use super::RollupNode;
-use crate::sync::SyncConfig;
 use alloy_rpc_types_engine::JwtSecret;
+use kona_engine::SyncConfig;
 use url::Url;
 
 /// The [RollupNodeBuilder] is used to construct a [RollupNode] service.
