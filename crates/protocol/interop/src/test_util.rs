@@ -2,9 +2,9 @@
 
 #![allow(missing_docs, unreachable_pub)]
 
-use crate::{traits::InteropProvider, ExecutingMessage, MessageIdentifier, CROSS_L2_INBOX_ADDRESS};
+use crate::{CROSS_L2_INBOX_ADDRESS, ExecutingMessage, MessageIdentifier, traits::InteropProvider};
 use alloy_consensus::{Header, Receipt, ReceiptWithBloom, Sealed};
-use alloy_primitives::{map::HashMap, Address, Bytes, Log, LogData, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, Log, LogData, U256, map::HashMap};
 use alloy_sol_types::{SolEvent, SolValue};
 use async_trait::async_trait;
 use op_alloy_consensus::OpReceiptEnvelope;

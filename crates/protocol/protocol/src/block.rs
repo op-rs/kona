@@ -2,7 +2,7 @@
 
 use crate::{DecodeError, L1BlockInfoTx};
 use alloy_consensus::{Block, Transaction, Typed2718};
-use alloy_eips::{eip2718::Eip2718Error, BlockNumHash};
+use alloy_eips::{BlockNumHash, eip2718::Eip2718Error};
 use alloy_primitives::B256;
 use kona_genesis::ChainGenesis;
 use op_alloy_consensus::OpBlock;
@@ -70,11 +70,16 @@ impl core::fmt::Display for BlockInfo {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct L2BlockInfo {
     /// The base [BlockInfo]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub block_info: BlockInfo,
     /// The L1 origin [BlockNumHash]
+    #[cfg_attr(feature = "serde", serde(rename = "l1origin", alias = "l1Origin"))]
     pub l1_origin: BlockNumHash,
     /// The sequence number of the L2 block
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "alloy_serde::quantity", rename = "sequenceNumber", alias = "seqNum")
+    )]
     pub seq_num: u64,
 }
 
@@ -352,17 +357,15 @@ mod tests {
         };
 
         let json = r#"{
-            "blockInfo": {
-                "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-                "number": 1,
-                "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-                "timestamp": 1
-            },
-            "l1Origin": {
+            "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
+            "number": 1,
+            "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
+            "timestamp": 1,
+            "l1origin": {
                 "hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
                 "number": 2
             },
-            "seqNum": 3
+            "sequenceNumber": 3
         }"#;
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();
@@ -384,17 +387,15 @@ mod tests {
         };
 
         let json = r#"{
-            "blockInfo": {
-                "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-                "number": "0x1",
-                "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-                "timestamp": "0x1"
-            },
-            "l1Origin": {
+            "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
+            "number": "0x1",
+            "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
+            "timestamp": "0x1",
+            "l1origin": {
                 "hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
                 "number": 2
             },
-            "seqNum": "0x3"
+            "sequenceNumber": "0x3"
         }"#;
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();

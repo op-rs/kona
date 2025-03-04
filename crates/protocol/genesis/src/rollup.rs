@@ -4,7 +4,7 @@ use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
 use crate::{
-    base_fee_params, base_fee_params_canyon, ChainGenesis, HardForkConfig, OP_MAINNET_CHAIN_ID,
+    ChainGenesis, HardForkConfig, OP_MAINNET_CHAIN_ID, base_fee_params, base_fee_params_canyon,
 };
 
 /// The max rlp bytes per channel for the Bedrock hardfork.
@@ -311,12 +311,12 @@ impl RollupConfig {
 mod tests {
     use super::*;
     #[cfg(feature = "serde")]
-    use crate::{SystemConfig, OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON};
+    use crate::{OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON, SystemConfig};
     #[cfg(feature = "serde")]
     use alloy_eips::BlockNumHash;
     use alloy_primitives::address;
     #[cfg(feature = "serde")]
-    use alloy_primitives::{b256, U256};
+    use alloy_primitives::{U256, b256};
 
     #[test]
     #[cfg(feature = "arbitrary")]

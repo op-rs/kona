@@ -3,10 +3,10 @@
 //! [eip-2935]: https://eips.ethereum.org/EIPS/eip-2935
 
 use crate::{
+    TrieDBProvider,
     db::TrieDB,
     errors::{ExecutorError, ExecutorResult},
     syscalls::fill_tx_env_for_contract_call,
-    TrieDBProvider,
 };
 use alloc::boxed::Box;
 use alloy_primitives::B256;
@@ -14,9 +14,9 @@ use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{
+    DatabaseCommit, Evm,
     db::State,
     primitives::{BlockEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg},
-    DatabaseCommit, Evm,
 };
 
 /// Execute the [EIP-2935][EIP-2935] pre-block block hash contract call.

@@ -2,7 +2,7 @@
 
 use alloc::{string::ToString, vec::Vec};
 use core::{fmt::Display, str::FromStr};
-use kona_proof::{errors::HintParsingError, Hint};
+use kona_proof::{Hint, errors::HintParsingError};
 
 /// The [HintType] enum is used to specify the type of hint that was received.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

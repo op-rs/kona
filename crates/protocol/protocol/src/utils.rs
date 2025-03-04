@@ -164,7 +164,7 @@ mod tests {
     use crate::test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX};
     use alloc::vec;
     use alloy_eips::eip1898::BlockNumHash;
-    use alloy_primitives::{address, bytes, uint, U256};
+    use alloy_primitives::{U256, address, bytes, uint};
     use kona_genesis::{ChainGenesis, HardForkConfig};
 
     #[test]

@@ -8,7 +8,7 @@ use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use async_trait::async_trait;
 use core::num::NonZeroUsize;
 use kona_preimage::{
-    errors::PreimageOracleResult, HintWriterClient, PreimageKey, PreimageOracleClient,
+    HintWriterClient, PreimageKey, PreimageOracleClient, errors::PreimageOracleResult,
 };
 use lru::LruCache;
 use spin::Mutex;

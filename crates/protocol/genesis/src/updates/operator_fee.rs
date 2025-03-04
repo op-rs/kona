@@ -1,6 +1,6 @@
 //! The Operator Fee update type.
 
-use alloy_sol_types::{sol, SolType};
+use alloy_sol_types::{SolType, sol};
 
 use crate::{OperatorFeeUpdateError, SystemConfig, SystemConfigLog};
 
@@ -70,7 +70,7 @@ mod tests {
     use super::*;
     use crate::{CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC};
     use alloc::vec;
-    use alloy_primitives::{hex, Address, Bytes, Log, LogData, B256};
+    use alloy_primitives::{Address, B256, Bytes, Log, LogData, hex};
 
     #[test]
     fn test_operator_fee_update_try_from() {

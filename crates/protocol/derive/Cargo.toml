@@ -18,6 +18,7 @@ kona-rpc.workspace = true
 # Protocol
 kona-genesis.workspace = true
 kona-protocol.workspace = true
+kona-hardforks.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
@@ -28,7 +29,6 @@ alloy-primitives = { workspace = true, features = ["rlp", "k256", "map"] }
 
 # Op Alloy
 op-alloy-rpc-types-engine.workspace = true
-op-alloy-consensus = { workspace = true, features = ["k256"] }
 
 # General
 tracing.workspace = true
@@ -38,6 +38,7 @@ thiserror.workspace = true
 # `test-utils` feature dependencies
 spin = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
+op-alloy-consensus = { workspace = true, optional = true, features = ["k256"] }
 
 [dev-dependencies]
 spin.workspace = true
@@ -48,6 +49,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 tracing = { workspace = true, features = ["std"] }
 alloy-primitives = { workspace = true, features = ["rlp", "k256", "map", "arbitrary"] }
+op-alloy-consensus = { workspace = true, features = ["k256"] }
 
 [features]
 default = []
@@ -56,10 +58,10 @@ serde = [
   "kona-genesis/serde",
   "alloy-primitives/serde",
   "alloy-consensus/serde",
-  "op-alloy-consensus/serde",
   "op-alloy-rpc-types-engine/serde",
 ]
 test-utils = [
   "dep:spin",
   "dep:tracing-subscriber",
+  "dep:op-alloy-consensus",
 ]

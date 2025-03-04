@@ -1,7 +1,7 @@
 //! Peer Types
 
 use discv5::enr::{CombinedKey, Enr};
-use libp2p::{multiaddr::Protocol, Multiaddr};
+use libp2p::{Multiaddr, multiaddr::Protocol};
 use std::net::{IpAddr, SocketAddr};
 
 /// A wrapper around a peer's [SocketAddr].

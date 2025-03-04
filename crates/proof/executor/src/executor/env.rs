@@ -1,7 +1,7 @@
 //! Environment preparation for the executor.
 
-use super::{util::decode_holocene_eip_1559_params, StatelessL2BlockExecutor};
-use crate::{constants::FEE_RECIPIENT, ExecutorError, ExecutorResult, TrieDBProvider};
+use super::{StatelessL2BlockExecutor, util::decode_holocene_eip_1559_params};
+use crate::{ExecutorError, ExecutorResult, TrieDBProvider, constants::FEE_RECIPIENT};
 use alloy_consensus::Header;
 use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
 use alloy_primitives::{TxKind, U256};

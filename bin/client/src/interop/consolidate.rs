@@ -5,7 +5,7 @@ use crate::interop::util::fetch_output_block_hash;
 use alloc::{sync::Arc, vec::Vec};
 use core::fmt::Debug;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
-use kona_proof::{l2::OracleL2ChainProvider, CachingOracle};
+use kona_proof::{CachingOracle, l2::OracleL2ChainProvider};
 use kona_proof_interop::{
     BootInfo, HintType, OracleInteropProvider, PreState, SuperchainConsolidator,
 };

@@ -11,13 +11,13 @@ use kona_driver::{Driver, DriverError};
 use kona_executor::{KonaHandleRegister, TrieDBProvider};
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use kona_proof::{
+    CachingOracle,
     executor::KonaExecutor,
     l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
-    CachingOracle,
 };
-use kona_proof_interop::{BootInfo, OptimisticBlock, PreState, INVALID_TRANSITION_HASH};
+use kona_proof_interop::{BootInfo, INVALID_TRANSITION_HASH, OptimisticBlock, PreState};
 use tracing::{error, info, warn};
 
 /// Executes a sub-transition of the interop proof with the given [PreimageOracleClient] and

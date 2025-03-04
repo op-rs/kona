@@ -7,8 +7,8 @@ use crate::gossip::{
 };
 use futures::stream::StreamExt;
 use libp2p::{
-    swarm::{DialError, SwarmEvent},
     Multiaddr, Swarm, TransportError,
+    swarm::{DialError, SwarmEvent},
 };
 use tracing::{debug, error, info};
 

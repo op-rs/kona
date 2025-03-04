@@ -9,12 +9,12 @@ use kona_driver::{Driver, DriverError};
 use kona_executor::{ExecutorError, KonaHandleRegister, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
+    BootInfo, CachingOracle, HintType,
     errors::OracleProviderError,
     executor::KonaExecutor,
     l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
-    BootInfo, CachingOracle, HintType,
 };
 use thiserror::Error;
 use tracing::{error, info};

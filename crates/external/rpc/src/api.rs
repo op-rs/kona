@@ -7,13 +7,14 @@ use alloy_eips::BlockNumberOrTag;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use kona_genesis::RollupConfig;
 use kona_interop::{ExecutingMessage, SafetyLevel};
+use kona_protocol::SyncStatus;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
 
 use crate::{
     OutputResponse, PeerDump, PeerInfo, PeerStats, ProtocolVersion, SafeHeadResponse,
-    SuperchainSignal, SyncStatus,
+    SuperchainSignal,
 };
 
 // Re-export apis defined in upstream `op-alloy-rpc-jsonrpsee`
@@ -32,7 +33,7 @@ pub trait RollupNode {
     /// Get the output root at a specific block.
     #[method(name = "outputAtBlock")]
     async fn op_output_at_block(&self, block_number: BlockNumberOrTag)
-        -> RpcResult<OutputResponse>;
+    -> RpcResult<OutputResponse>;
 
     /// Gets the safe head at an L1 block height.
     #[method(name = "safeHeadAtL1Block")]

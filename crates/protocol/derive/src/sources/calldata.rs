@@ -98,7 +98,7 @@ mod tests {
     use crate::{errors::PipelineErrorKind, test_utils::TestChainProvider};
     use alloc::{vec, vec::Vec};
     use alloy_consensus::{Signed, TxEip2930, TxEip4844, TxEip4844Variant, TxEip7702, TxLegacy};
-    use alloy_primitives::{address, Address, PrimitiveSignature as Signature, TxKind};
+    use alloy_primitives::{Address, PrimitiveSignature as Signature, TxKind, address};
 
     pub(crate) fn test_legacy_tx(to: Address) -> TxEnvelope {
         let sig = Signature::test_signature();
@@ -210,10 +210,9 @@ mod tests {
         let block_info = BlockInfo::default();
         source.chain_provider.insert_block_with_transactions(0, block_info, vec![tx.clone()]);
         assert!(!source.open); // Source is not open by default.
-        assert!(source
-            .load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap())
-            .await
-            .is_ok());
+        assert!(
+            source.load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap()).await.is_ok()
+        );
         assert!(!source.calldata.is_empty()); // Calldata is NOT empty.
         assert!(source.open);
     }
@@ -227,10 +226,9 @@ mod tests {
         let block_info = BlockInfo::default();
         source.chain_provider.insert_block_with_transactions(0, block_info, vec![tx.clone()]);
         assert!(!source.open); // Source is not open by default.
-        assert!(source
-            .load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap())
-            .await
-            .is_ok());
+        assert!(
+            source.load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap()).await.is_ok()
+        );
         assert!(!source.calldata.is_empty()); // Calldata is NOT empty.
         assert!(source.open);
     }
@@ -244,10 +242,9 @@ mod tests {
         let block_info = BlockInfo::default();
         source.chain_provider.insert_block_with_transactions(0, block_info, vec![tx.clone()]);
         assert!(!source.open); // Source is not open by default.
-        assert!(source
-            .load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap())
-            .await
-            .is_ok());
+        assert!(
+            source.load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap()).await.is_ok()
+        );
         assert!(source.calldata.is_empty());
         assert!(source.open);
     }
@@ -261,10 +258,9 @@ mod tests {
         let block_info = BlockInfo::default();
         source.chain_provider.insert_block_with_transactions(0, block_info, vec![tx.clone()]);
         assert!(!source.open); // Source is not open by default.
-        assert!(source
-            .load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap())
-            .await
-            .is_ok());
+        assert!(
+            source.load_calldata(&BlockInfo::default(), tx.recover_signer().unwrap()).await.is_ok()
+        );
         assert!(source.calldata.is_empty());
         assert!(source.open);
     }

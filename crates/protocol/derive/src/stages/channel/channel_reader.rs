@@ -11,7 +11,7 @@ use alloy_primitives::Bytes;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_genesis::{
-    RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+    MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD, RollupConfig,
 };
 use kona_protocol::{Batch, BatchReader, BlockInfo};
 use tracing::{debug, warn};

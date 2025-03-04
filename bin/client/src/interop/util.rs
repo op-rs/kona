@@ -2,7 +2,7 @@
 
 use alloc::string::ToString;
 use alloy_primitives::B256;
-use kona_preimage::{errors::PreimageOracleError, CommsClient, PreimageKey};
+use kona_preimage::{CommsClient, PreimageKey, errors::PreimageOracleError};
 use kona_proof::errors::OracleProviderError;
 use kona_proof_interop::{HintType, PreState};
 

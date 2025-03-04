@@ -3,8 +3,8 @@
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
-    ChainGenesis, HardForkConfig, RollupConfig, SystemConfig, BASE_SEPOLIA_BASE_FEE_PARAMS,
-    BASE_SEPOLIA_BASE_FEE_PARAMS_CANYON, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
+    BASE_SEPOLIA_BASE_FEE_PARAMS, BASE_SEPOLIA_BASE_FEE_PARAMS_CANYON, ChainGenesis,
+    DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, HardForkConfig, RollupConfig, SystemConfig,
 };
 
 /// The [RollupConfig] for Base Sepolia.

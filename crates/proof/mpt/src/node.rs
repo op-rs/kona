@@ -2,14 +2,14 @@
 //! Patricia Trie.
 
 use crate::{
+    TrieHinter, TrieNodeError, TrieProvider,
     errors::TrieNodeResult,
     util::{rlp_list_element_length, unpack_path_to_nibbles},
-    TrieHinter, TrieNodeError, TrieProvider,
 };
 use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
-use alloy_primitives::{keccak256, Bytes, B256};
-use alloy_rlp::{length_of_length, Buf, Decodable, Encodable, Header, EMPTY_STRING_CODE};
-use alloy_trie::{Nibbles, EMPTY_ROOT_HASH};
+use alloy_primitives::{B256, Bytes, keccak256};
+use alloy_rlp::{Buf, Decodable, EMPTY_STRING_CODE, Encodable, Header, length_of_length};
+use alloy_trie::{EMPTY_ROOT_HASH, Nibbles};
 
 /// The length of the branch list when RLP encoded
 const BRANCH_LIST_LENGTH: usize = 17;
@@ -153,7 +153,7 @@ impl TrieNode {
         fetcher: &F,
     ) -> TrieNodeResult<Option<&'a mut Bytes>> {
         match self {
-            Self::Branch { ref mut stack } => {
+            Self::Branch { stack } => {
                 let branch_nibble = path[0] as usize;
                 stack
                     .get_mut(branch_nibble)
@@ -514,11 +514,7 @@ impl TrieNode {
     ///   than a [B256].
     fn blinded_length(&self) -> usize {
         let encoded_len = self.length();
-        if encoded_len >= B256::ZERO.len() {
-            B256::ZERO.length()
-        } else {
-            encoded_len
-        }
+        if encoded_len >= B256::ZERO.len() { B256::ZERO.length() } else { encoded_len }
     }
 }
 
@@ -626,12 +622,12 @@ impl Decodable for TrieNode {
 mod test {
     use super::*;
     use crate::{
-        ordered_trie_with_encoder, test_util::TrieNodeProvider, NoopTrieHinter, NoopTrieProvider,
-        TrieNode,
+        NoopTrieHinter, NoopTrieProvider, TrieNode, ordered_trie_with_encoder,
+        test_util::TrieNodeProvider,
     };
     use alloc::{collections::BTreeMap, vec, vec::Vec};
     use alloy_primitives::{b256, bytes, hex, keccak256};
-    use alloy_rlp::{Decodable, Encodable, EMPTY_STRING_CODE};
+    use alloy_rlp::{Decodable, EMPTY_STRING_CODE, Encodable};
     use alloy_trie::{HashBuilder, Nibbles};
     use rand::prelude::IteratorRandom;
 
@@ -643,7 +639,9 @@ mod test {
 
     #[test]
     fn test_decode_branch() {
-        const BRANCH_RLP: [u8; 83] = hex!("f851a0eb08a66a94882454bec899d3e82952dcc918ba4b35a09a84acd98019aef4345080808080808080a05d87a81d9bbf5aee61a6bfeab3a5643347e2c751b36789d988a5b6b163d496518080808080808080");
+        const BRANCH_RLP: [u8; 83] = hex!(
+            "f851a0eb08a66a94882454bec899d3e82952dcc918ba4b35a09a84acd98019aef4345080808080808080a05d87a81d9bbf5aee61a6bfeab3a5643347e2c751b36789d988a5b6b163d496518080808080808080"
+        );
         let expected = TrieNode::Branch {
             stack: vec![
                 TrieNode::new_blinded(b256!(

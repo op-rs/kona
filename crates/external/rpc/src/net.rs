@@ -3,7 +3,7 @@
 use alloc::{string::String, vec::Vec};
 use core::net::IpAddr;
 
-use alloy_primitives::{map::HashMap, ChainId};
+use alloy_primitives::{ChainId, map::HashMap};
 
 /// Topic scores
 ///

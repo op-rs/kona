@@ -1,19 +1,19 @@
 //! [HintHandler] for the [SingleChainHost].
 
 use crate::{
-    backend::util::store_ordered_trie, kv::SharedKeyValueStore, single::cfg::SingleChainHost,
-    HintHandler, OnlineHostBackendCfg,
+    HintHandler, OnlineHostBackendCfg, backend::util::store_ordered_trie, kv::SharedKeyValueStore,
+    single::cfg::SingleChainHost,
 };
 use alloy_consensus::Header;
 use alloy_eips::{
     eip2718::Encodable2718,
-    eip4844::{IndexedBlobHash, FIELD_ELEMENTS_PER_BLOB},
+    eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
-use alloy_primitives::{address, keccak256, Address, Bytes, B256};
+use alloy_primitives::{Address, B256, Bytes, address, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::Decodable;
-use alloy_rpc_types::{debug::ExecutionWitness, Block, BlockTransactionsKind};
-use anyhow::{anyhow, ensure, Result};
+use alloy_rpc_types::{Block, BlockTransactionsKind, debug::ExecutionWitness};
+use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};

@@ -1,10 +1,10 @@
 //! Contains utilities for the L2 executor.
 
-use crate::{constants::HOLOCENE_EXTRA_DATA_VERSION, ExecutorError, ExecutorResult};
+use crate::{ExecutorError, ExecutorResult, constants::HOLOCENE_EXTRA_DATA_VERSION};
 use alloc::vec::Vec;
 use alloy_consensus::Header;
 use alloy_eips::eip1559::BaseFeeParams;
-use alloy_primitives::{Bytes, B64};
+use alloy_primitives::{B64, Bytes};
 use kona_genesis::RollupConfig;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
@@ -88,7 +88,7 @@ mod test {
     use crate::executor::util::{encode_canyon_base_fee_params, encode_holocene_eip_1559_params};
     use alloy_consensus::Header;
     use alloy_eips::eip1559::BaseFeeParams;
-    use alloy_primitives::{b64, hex, B64};
+    use alloy_primitives::{B64, b64, hex};
     use alloy_rpc_types_engine::PayloadAttributes;
     use kona_genesis::RollupConfig;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;

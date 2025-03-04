@@ -1,7 +1,7 @@
 //! Accelerated precompile runner for the host program.
 
 use alloy_primitives::{Address, Bytes};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use revm::{
     precompile::{self, PrecompileWithAddress},
     primitives::{Env, Precompile},

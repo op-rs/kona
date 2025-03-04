@@ -11,6 +11,8 @@ command = "mdbook-mermaid"
 
 [preprocessor.template]
 
+[preprocessor.alerts]
+
 [output.html]
 build-dir = "kona"
 default-theme = "ferra"

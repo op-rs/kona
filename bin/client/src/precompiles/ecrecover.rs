@@ -2,9 +2,9 @@
 
 use crate::precompiles::utils::precompile_run;
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{keccak256, Address, Bytes};
+use alloy_primitives::{Address, Bytes, keccak256};
 use revm::{
-    precompile::{u64_to_address, Error as PrecompileError, PrecompileWithAddress},
+    precompile::{Error as PrecompileError, PrecompileWithAddress, u64_to_address},
     primitives::{Precompile, PrecompileOutput, PrecompileResult},
 };
 

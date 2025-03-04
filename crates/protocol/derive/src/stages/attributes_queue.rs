@@ -198,11 +198,11 @@ mod tests {
     use super::*;
     use crate::{
         errors::{BuilderError, PipelineErrorKind},
-        test_utils::{new_test_attributes_provider, TestAttributesBuilder, TestAttributesProvider},
+        test_utils::{TestAttributesBuilder, TestAttributesProvider, new_test_attributes_provider},
         types::ResetSignal,
     };
     use alloc::{sync::Arc, vec, vec::Vec};
-    use alloy_primitives::{b256, Address, Bytes, B256};
+    use alloy_primitives::{Address, B256, Bytes, b256};
     use alloy_rpc_types_engine::PayloadAttributes;
 
     fn default_optimism_payload_attributes() -> OpPayloadAttributes {

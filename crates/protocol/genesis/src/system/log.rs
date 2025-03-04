@@ -3,9 +3,9 @@
 use alloy_primitives::Log;
 
 use crate::{
-    BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, LogProcessingError,
-    OperatorFeeUpdate, SystemConfigUpdate, SystemConfigUpdateError, SystemConfigUpdateKind,
-    CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC,
+    BatcherUpdate, CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC, Eip1559Update,
+    GasConfigUpdate, GasLimitUpdate, LogProcessingError, OperatorFeeUpdate, SystemConfigUpdate,
+    SystemConfigUpdateError, SystemConfigUpdateKind,
 };
 
 /// The system config log is an EVM log entry emitted

@@ -2,12 +2,12 @@
 
 #![allow(missing_docs, unused)]
 
-use crate::{constants::FEE_RECIPIENT, StatelessL2BlockExecutor, TrieDBProvider};
+use crate::{StatelessL2BlockExecutor, TrieDBProvider, constants::FEE_RECIPIENT};
 use alloy_consensus::Header;
-use alloy_primitives::{Bytes, Sealable, B256};
+use alloy_primitives::{B256, Bytes, Sealable};
 use alloy_provider::{
-    network::primitives::{BlockTransactions, BlockTransactionsKind},
     Provider, RootProvider,
+    network::primitives::{BlockTransactions, BlockTransactionsKind},
 };
 use alloy_rlp::Decodable;
 use alloy_rpc_client::RpcClient;

@@ -1,0 +1,39 @@
+[package]
+name = "kona-engine"
+description = "An implementation of the OP Stack engine client"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# workspace
+kona-genesis.workspace = true
+kona-protocol.workspace = true
+kona-providers-alloy.workspace = true
+
+# alloy
+alloy-eips.workspace = true
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-provider = { workspace = true, features = ["ipc", "reqwest", "engine-api"] }
+alloy-rpc-client.workspace = true
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
+alloy-transport-http = { workspace = true, features = ["reqwest", "hyper", "jwt-auth"] }
+
+# op-alloy
+op-alloy-provider.workspace = true
+op-alloy-rpc-types-engine.workspace = true
+
+# general
+thiserror.workspace = true
+derive_more.workspace = true
+url.workspace = true
+tower.workspace = true
+anyhow.workspace = true
+http-body-util.workspace = true

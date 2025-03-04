@@ -5,7 +5,7 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
-#![cfg_attr(not(any(feature = "std", feature = "interop")), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 
@@ -15,10 +15,13 @@ pub use graph::MessageGraph;
 mod traits;
 pub use traits::InteropProvider;
 
-#[cfg(feature = "interop")]
 mod supervisor;
-#[cfg(feature = "interop")]
-pub use supervisor::{Supervisor, SupervisorClient, SupervisorError};
+pub use supervisor::Supervisor;
+
+#[cfg(feature = "client")]
+mod client;
+#[cfg(feature = "client")]
+pub use client::{SupervisorClient, SupervisorError};
 
 mod safety;
 pub use safety::SafetyLevel;

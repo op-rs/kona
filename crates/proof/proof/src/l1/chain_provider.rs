@@ -1,6 +1,6 @@
 //! Contains the concrete implementation of the [ChainProvider] trait for the proof.
 
-use crate::{errors::OracleProviderError, HintType};
+use crate::{HintType, errors::OracleProviderError};
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{Header, Receipt, ReceiptEnvelope, TxEnvelope};
 use alloy_eips::eip2718::Decodable2718;

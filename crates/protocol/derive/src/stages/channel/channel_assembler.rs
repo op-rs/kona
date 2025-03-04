@@ -7,11 +7,11 @@ use crate::{
     types::{PipelineResult, Signal},
 };
 use alloc::{boxed::Box, sync::Arc};
-use alloy_primitives::{hex, Bytes};
+use alloy_primitives::{Bytes, hex};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_genesis::{
-    RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+    MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD, RollupConfig,
 };
 use kona_protocol::{BlockInfo, Channel};
 
@@ -192,8 +192,8 @@ mod test {
     };
     use alloc::{sync::Arc, vec};
     use kona_genesis::{
-        HardForkConfig, RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK,
-        MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+        HardForkConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+        RollupConfig,
     };
     use kona_protocol::BlockInfo;
     use tracing::Level;

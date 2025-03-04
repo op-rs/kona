@@ -1,14 +1,14 @@
 //! This module contains the prologue phase of the client program, pulling in the boot information
 //! through the `PreimageOracle` ABI as local keys.
 
-use crate::{HintType, PreState, INVALID_TRANSITION, INVALID_TRANSITION_HASH};
+use crate::{HintType, INVALID_TRANSITION, INVALID_TRANSITION_HASH, PreState};
 use alloc::{string::ToString, vec::Vec};
-use alloy_primitives::{Bytes, B256, U256};
+use alloy_primitives::{B256, Bytes, U256};
 use alloy_rlp::Decodable;
 use kona_genesis::RollupConfig;
 use kona_preimage::{
-    errors::PreimageOracleError, CommsClient, HintWriterClient, PreimageKey, PreimageKeyType,
-    PreimageOracleClient,
+    CommsClient, HintWriterClient, PreimageKey, PreimageKeyType, PreimageOracleClient,
+    errors::PreimageOracleError,
 };
 use kona_proof::errors::OracleProviderError;
 use kona_registry::{HashMap, ROLLUP_CONFIGS};

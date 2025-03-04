@@ -15,6 +15,7 @@ workspace = true
 # Workspace
 kona-genesis.workspace = true
 kona-registry.workspace = true
+kona-protocol.workspace = true
 
 # General
 thiserror.workspace = true
@@ -30,8 +31,7 @@ alloy-consensus.workspace = true
 alloy-primitives = { workspace = true, features = ["rlp"] }
 op-alloy-consensus.workspace = true
 
-# `interop` feature
-kona-protocol = { workspace = true, optional = true }
+# `client` feature
 alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
 
 # Arbitrary
@@ -50,6 +50,7 @@ rand.workspace = true
 [features]
 default = []
 std = [
+  "derive_more/display",
   "alloy-consensus/std",
   "alloy-eips/std",
   "alloy-primitives/std",
@@ -58,7 +59,13 @@ std = [
   "derive_more/std",
   "serde?/std",
   "thiserror/std",
-  "kona-protocol?/std",
+  "kona-protocol/std",
+]
+client = [
+  "std",
+  "serde",
+  "dep:alloy-rpc-client",
+  "derive_more/display",
 ]
 arbitrary = [
   "std",
@@ -71,12 +78,5 @@ serde = [
   "dep:serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",
-  "kona-protocol?/serde",
-]
-interop = [
-  "std",
-  "serde",
-  "dep:kona-protocol",
-  "dep:alloy-rpc-client",
-  "derive_more/display",
+  "kona-protocol/serde",
 ]
