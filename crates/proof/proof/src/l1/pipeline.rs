@@ -8,11 +8,8 @@ use kona_derive::{
     attributes::StatefulAttributesBuilder,
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
+    prelude::AttributesQueueStage,
     sources::EthereumDataSource,
-    stages::{
-        AttributesQueue, BatchProvider, BatchStream, ChannelProvider, ChannelReader, FrameQueue,
-        L1Retrieval, L1Traversal,
-    },
     traits::{BlobProvider, L2ChainProvider, OriginProvider, Pipeline, SignalReceiver},
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
@@ -25,7 +22,12 @@ use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.
 pub type OracleDerivationPipeline<O, B> = DerivationPipeline<
-    OracleAttributesQueue<OracleDataProvider<O, B>, O>,
+    AttributesQueueStage<
+        OracleDataProvider<O, B>,
+        OracleL1ChainProvider<O>,
+        OracleL2ChainProvider<O>,
+        OracleAttributesBuilder<O>,
+    >,
     OracleL2ChainProvider<O>,
 >;
 
@@ -36,22 +38,6 @@ pub type OracleDataProvider<O, B> = EthereumDataSource<OracleL1ChainProvider<O>,
 /// pipeline.
 pub type OracleAttributesBuilder<O> =
     StatefulAttributesBuilder<OracleL1ChainProvider<O>, OracleL2ChainProvider<O>>;
-
-/// An oracle-backed attributes queue for the derivation pipeline.
-pub type OracleAttributesQueue<DAP, O> = AttributesQueue<
-    BatchProvider<
-        BatchStream<
-            ChannelReader<
-                ChannelProvider<
-                    FrameQueue<L1Retrieval<DAP, L1Traversal<OracleL1ChainProvider<O>>>>,
-                >,
-            >,
-            OracleL2ChainProvider<O>,
-        >,
-        OracleL2ChainProvider<O>,
-    >,
-    OracleAttributesBuilder<O>,
->;
 
 /// An oracle-backed derivation pipeline.
 #[derive(Debug)]

@@ -13,8 +13,8 @@ pub use client::EngineClient;
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
-pub mod status;
-pub use status::SyncStatus;
+mod sync;
+pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
 pub mod controller;
 pub use controller::EngineController;

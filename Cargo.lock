@@ -112,6 +112,7 @@ checksum = "996564c1782285d4e0299c29b318bc74f24b1d7f456cef3e040810b061ee3256"
 dependencies = [
  "alloy-primitives",
  "num_enum",
+ "serde",
  "strum 0.27.1",
 ]
 
@@ -4036,17 +4037,25 @@ dependencies = [
 name = "kona-node"
 version = "0.1.0"
 dependencies = [
+ "alloy-network",
  "alloy-primitives",
+ "alloy-provider",
  "alloy-rpc-types-engine",
  "anyhow",
+ "async-trait",
  "clap",
+ "derive_more 2.0.1",
  "kona-cli",
+ "kona-derive",
  "kona-engine",
  "kona-genesis",
  "kona-net",
+ "kona-protocol",
  "kona-registry",
  "serde_json",
+ "thiserror 2.0.11",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -4203,6 +4212,7 @@ dependencies = [
 name = "kona-registry"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-eips",
  "alloy-primitives",
  "kona-genesis",

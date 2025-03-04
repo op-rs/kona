@@ -1,6 +1,6 @@
 //! The sync config.
 
-use crate::sync::SyncMode;
+use crate::SyncMode;
 
 /// The sync config.
 #[derive(Debug, Clone, PartialEq, Eq)]

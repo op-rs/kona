@@ -14,5 +14,4 @@ extern crate tracing;
 pub mod cli;
 pub use cli::Cli;
 
-pub mod pilot;
-pub mod sync;
+pub mod node;

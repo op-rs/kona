@@ -1,13 +1,13 @@
 //! Node Subcommand.
 
-use crate::{cli::globals::GlobalArgs, pilot::Pilot};
+use crate::cli::globals::GlobalArgs;
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Args;
 use kona_genesis::RollupConfig;
 use kona_registry::ROLLUP_CONFIGS;
 use serde_json::from_reader;
-use std::{fs::File, path::PathBuf, sync::Arc};
+use std::{fs::File, path::PathBuf};
 use url::Url;
 
 /// The Node subcommand.
@@ -38,15 +38,10 @@ pub struct NodeCommand {
 impl NodeCommand {
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
-        let cfg = self.get_l2_config(args)?;
-        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
-        let pilot = Pilot::new(
-            self.l2_engine_rpc.clone(),
-            self.l2_provider_rpc.clone(),
-            Arc::new(cfg),
-            jwt_secret,
-        );
-        pilot.sync().await
+        let _cfg = self.get_l2_config(args)?;
+        let _jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+
+        todo!("NodeBuilder + task startup")
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.

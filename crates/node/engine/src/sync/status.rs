@@ -50,11 +50,11 @@ impl SyncStatus {
     }
 }
 
-// impl From<crate::sync::SyncMode> for SyncStatus {
-//     fn from(mode: crate::sync::SyncMode) -> Self {
-//         match mode {
-//             crate::sync::SyncMode::ConsensusLayer => SyncStatus::ConsensusLayer,
-//             crate::sync::SyncMode::ExecutionLayer => SyncStatus::ExecutionLayerWillStart,
-//         }
-//     }
-// }
+impl From<crate::SyncMode> for SyncStatus {
+    fn from(mode: crate::SyncMode) -> Self {
+        match mode {
+            crate::SyncMode::ConsensusLayer => Self::ConsensusLayer,
+            crate::SyncMode::ExecutionLayer => Self::ExecutionLayerWillStart,
+        }
+    }
+}
