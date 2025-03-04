@@ -89,9 +89,8 @@ pub trait ExecutingMessageValidator {
                             if let Some(msg_start) = err.message().find(SAFETY_START_MSG) {
                                 let safety_start = msg_start + SAFETY_START_MSG.len();
                                 if let Some(safety_end) = &err.message()[safety_start..].find(")") {
-                                    if let Ok(got_safety_level) = (&err.message()
+                                    if let Ok(got_safety_level) = serde_json::from_str(&&err.message()
                                         [safety_start..safety_start + safety_end])
-                                        .try_into()
                                     {
                                         return Err(ExecutingMessageValidatorError::MinimumSafety(
                                             safety,

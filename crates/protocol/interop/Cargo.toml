@@ -39,6 +39,7 @@ arbitrary = { version = "1.4", features = ["derive"], optional = true }
 
 # Serde
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
@@ -64,6 +65,7 @@ std = [
 client = [
   "std",
   "serde",
+  "serde_json",
   "dep:alloy-rpc-client",
   "derive_more/display",
 ]
