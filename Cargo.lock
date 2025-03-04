@@ -4153,6 +4153,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
+ "alloy-rpc-types-eth",
  "alloy-serde",
  "alloy-sol-types",
  "arbitrary",
@@ -4162,6 +4163,7 @@ dependencies = [
  "miniz_oxide",
  "op-alloy-consensus",
  "op-alloy-flz",
+ "op-alloy-rpc-types",
  "proptest",
  "rand 0.9.0",
  "revm",
@@ -5330,8 +5332,7 @@ checksum = "b410bbe7e14ab526a0e86877eb47c6996a2bd7746f027ba551028c925390e4e9"
 [[package]]
 name = "op-alloy-consensus"
 version = "0.10.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dd7996e3990e0f36a4c8cdea60aaf342b80d2cf10e2bf48f5e43cb555b4daff"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fas-ref-tx-env#106400183dbe04f3902d5faa1b378e822e6f894b"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
