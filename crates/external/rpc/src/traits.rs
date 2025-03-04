@@ -15,12 +15,12 @@ const MINIMUM_SAFETY_MSG: &str = "does not meet the minimum safety";
 /// Failures occurring during validation of [`ExecutingMessage`]s.
 #[derive(thiserror::Error, Debug)]
 pub enum ExecutingMessageValidatorError {
-    /// Message does not minimum safety level
-    #[error("message does not meet safety level. expected: {expected}, Got: {got}")]
+    /// Message does not meet minimum safety level
+    #[error("message does not meet safety level, got: {got}, expected: {expected}")]
     MinimumSafety {
         /// Actual level of the message
         got: SafetyLevel,
-        /// Level that was passed to supervisor
+        /// Minimum acceptable level that was passed to supervisor
         expected: SafetyLevel,
     },
     /// Invalid chain
