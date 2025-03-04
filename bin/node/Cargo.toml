@@ -15,6 +15,7 @@ rust-version.workspace = true
 # workspace
 kona-cli.workspace = true
 kona-net.workspace = true
+kona-engine.workspace = true
 kona-genesis.workspace = true
 kona-registry.workspace = true
 kona-derive.workspace = true
