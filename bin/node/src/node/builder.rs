@@ -3,7 +3,7 @@
 #![allow(unused)]
 
 use super::RollupNode;
-use crate::sync::SyncConfig;
+use kona_engine::SyncConfig;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use kona_genesis::RollupConfig;
