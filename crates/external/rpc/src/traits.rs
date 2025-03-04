@@ -7,7 +7,9 @@ use alloy_sol_types::SolEvent;
 use async_trait::async_trait;
 use core::time::Duration;
 use jsonrpsee::core::ClientError;
-use kona_interop::{ExecutingMessage, SafetyLevel, CROSS_L2_INBOX_ADDRESS};
+use kona_interop::{
+    parse_logs_to_executing_msgs, ExecutingMessage, SafetyLevel, CROSS_L2_INBOX_ADDRESS,
+};
 use tokio::time::error::Elapsed;
 
 /// Failures occurring during validation of [`ExecutingMessage`]s.
@@ -33,11 +35,7 @@ pub trait ExecutingMessageValidator {
 
     /// Extracts [`ExecutingMessage`]s from the [`Log`] if there are any.
     fn parse_messages(logs: &[Log]) -> impl Iterator<Item = Option<ExecutingMessage>> {
-        logs.iter().map(|log| {
-            (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
-                .then(|| ExecutingMessage::decode_log_data(&log.data, true).ok())
-                .flatten()
-        })
+        parse_logs_to_executing_msgs(logs.iter())
     }
 
     /// Validates a list of [`ExecutingMessage`]s against a Supervisor.
