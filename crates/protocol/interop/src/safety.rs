@@ -1,7 +1,7 @@
 //! Message safety level for interoperability.
-
+use derive_more::Display;
 /// The safety level of a message.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum SafetyLevel {
