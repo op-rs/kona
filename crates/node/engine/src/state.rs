@@ -1,9 +1,11 @@
 //! The internal state of the engine controller.
 
+use alloy_network::AnyNetwork;
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 
-use crate::{EngineClient, StateBuilder};
+use crate::StateBuilder;
 
 /// The chain state viewed by the engine controller.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -42,7 +44,7 @@ pub struct EngineState {
 
 impl EngineState {
     /// Returns the [StateBuilder] that should be used to construct the [EngineState].
-    pub const fn builder(client: EngineClient) -> StateBuilder {
+    pub const fn builder(client: RootProvider<AnyNetwork>) -> StateBuilder {
         StateBuilder::new(client)
     }
 

@@ -1,21 +1,23 @@
 //! An [EngineState] builder.
 
 use alloy_eips::eip1898::BlockNumberOrTag;
+use alloy_network::AnyNetwork;
+use alloy_provider::RootProvider;
 use anyhow::{Result, bail};
 use kona_protocol::L2BlockInfo;
 
-use crate::{EngineClient, EngineState};
+use crate::EngineState;
 
 /// A builder for the [EngineState].
 ///
 /// When the [EngineState] is first created, only the finalized
 /// block is specified. The `StateBuilder` constructs the
 /// [EngineState] by fetching the remaining block info via the
-/// [EngineClient].
+/// client.
 #[derive(Debug, Clone)]
 pub struct StateBuilder {
     /// The engine client.
-    client: EngineClient,
+    client: RootProvider<AnyNetwork>,
     /// Most recent block found on the p2p network
     unsafe_head: Option<L2BlockInfo>,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
@@ -35,8 +37,8 @@ pub struct StateBuilder {
 }
 
 impl StateBuilder {
-    /// Constructs a new [StateBuilder] from the provided [EngineClient].
-    pub const fn new(client: EngineClient) -> Self {
+    /// Constructs a new [StateBuilder] from the provided client.
+    pub const fn new(client: RootProvider<AnyNetwork>) -> Self {
         Self {
             client,
             unsafe_head: None,

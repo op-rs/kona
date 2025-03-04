@@ -1,15 +1,17 @@
 //! An [EngineController] builder.
 
+use alloy_network::AnyNetwork;
+use alloy_provider::RootProvider;
 use anyhow::{Result, bail};
 use kona_genesis::RollupConfig;
 
-use crate::{EngineClient, EngineController, EngineState, SyncStatus};
+use crate::{EngineController, EngineState, SyncStatus};
 
 /// A builder for the [EngineController].
 #[derive(Debug, Clone)]
 pub struct ControllerBuilder {
     /// The engine client.
-    client: EngineClient,
+    client: RootProvider<AnyNetwork>,
     /// The engine state.
     state: Option<EngineState>,
     /// The rollup config.
@@ -19,8 +21,8 @@ pub struct ControllerBuilder {
 }
 
 impl ControllerBuilder {
-    /// Instantiates a new [ControllerBuilder] from the provided [EngineClient].
-    pub const fn new(client: EngineClient) -> Self {
+    /// Instantiates a new [ControllerBuilder] from the provided client.
+    pub const fn new(client: RootProvider<AnyNetwork>) -> Self {
         Self { client, state: None, config: None, sync: None }
     }
 
