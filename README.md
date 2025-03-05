@@ -51,6 +51,7 @@ getting started with building your own programs, and a reference for the librari
 
 - [`client`](./bin/client): The bare-metal program that executes the state transition, to be ran on a prover.
 - [`host`](./bin/host): The host program that runs natively alongside the prover, serving as the [Preimage Oracle][g-preimage-oracle] server.
+- [`node`](./bin/node): [WIP] A [Rollup Node][rollup-node-spec] implementation, backed by [`kona-derive`](./crates/protocol/derive).
 
 **Protocol**
 
@@ -85,6 +86,7 @@ getting started with building your own programs, and a reference for the librari
 **Utilities**
 
 - [`serde`](./crates/utilities/serde): Serialization helpers.
+- [`cli`](./crates/utilities/cli): Standard CLI utilities, used across `kona`'s binaries.
 
 ### Proof
 
@@ -154,6 +156,7 @@ Licensed under the <a href="LICENSE-MIT">MIT license</a>.
 [op-go-monorepo]: https://github.com/ethereum-optimism/optimism/tree/develop
 [cannon]: https://github.com/ethereum-optimism/optimism/tree/develop/cannon
 [cannon-rs]: https://github.com/op-rs/cannon-rs
+[rollup-node-spec]: https://specs.optimism.io/protocol/rollup-node.html
 [badboi-cannon-rs]: https://github.com/BadBoiLabs/cannon-rs
 [asterisc]: https://github.com/etheruem-optimism/asterisc
 [fpp-specs]: https://specs.optimism.io/fault-proof/index.html
