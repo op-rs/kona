@@ -112,7 +112,7 @@ impl L1BlockInfoTx {
                 block_hash: l1_header.hash_slow(),
                 sequence_number,
                 batcher_address: system_config.batcher_address,
-                blob_base_fee: l1_header.blob_fee(BlobParams::cancun()).unwrap_or(1),
+                blob_base_fee: l1_header.blob_fee(BlobParams::prague()).unwrap_or(1),
                 blob_base_fee_scalar,
                 base_fee_scalar,
                 operator_fee_scalar,
@@ -120,6 +120,10 @@ impl L1BlockInfoTx {
             }));
         }
 
+        // Use the `requests_hash` presence in the L1 header to determine if pectra has activated on
+        // L1.
+        let blob_fee_config =
+            l1_header.requests_hash.map(|_| BlobParams::prague()).unwrap_or(BlobParams::cancun());
         Ok(Self::Ecotone(L1BlockInfoEcotone {
             number: l1_header.number,
             time: l1_header.timestamp,
@@ -127,7 +131,7 @@ impl L1BlockInfoTx {
             block_hash: l1_header.hash_slow(),
             sequence_number,
             batcher_address: system_config.batcher_address,
-            blob_base_fee: l1_header.blob_fee(BlobParams::cancun()).unwrap_or(1),
+            blob_base_fee: l1_header.blob_fee(blob_fee_config).unwrap_or(1),
             blob_base_fee_scalar,
             base_fee_scalar,
             empty_scalars: false,
