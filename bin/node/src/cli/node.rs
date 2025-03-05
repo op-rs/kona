@@ -1,9 +1,9 @@
 //! Node Subcommand.
 
-use crate::cli::globals::GlobalArgs;
+use crate::{cli::globals::GlobalArgs, node::RollupNode};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
-use clap::Args;
+use clap::Parser;
 use kona_genesis::RollupConfig;
 use kona_registry::ROLLUP_CONFIGS;
 use serde_json::from_reader;
@@ -11,37 +11,53 @@ use std::{fs::File, path::PathBuf};
 use url::Url;
 
 /// The Node subcommand.
-#[derive(Debug, Clone, Args)]
-#[non_exhaustive]
+///
+/// For compatibility with the [op-node], relevant flags retain an alias that matches that
+/// of the [op-node] CLI.
+///
+/// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
+    /// URL of the L1 execution client RPC API.
+    #[clap(long, visible_alias = "l1", env = "L1_ETH_RPC")]
+    pub l1_eth_rpc: Url,
+    /// URL of the L1 beacon API.
+    #[clap(long, visible_alias = "l1.beacon", env = "L1_BEACON")]
+    pub l1_beacon: Url,
     /// URL of the engine API endpoint of an L2 execution client.
-    ///
-    /// This argument is read in as the `--l2` flag or the `L2_ENGINE_RPC`
-    /// environment variable, simplifying compatibility with the [op-node][op-node].
-    ///
-    /// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
-    #[clap(long = "l2", env = "L2_ENGINE_RPC")]
+    #[clap(long, visible_alias = "l2", env = "L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
     /// An L2 RPC Url.
-    #[clap(long = "l2-provider", env = "L2_PROVIDER_RPC")]
+    #[clap(long, visible_alias = "l2.provider", env = "L2_ETH_RPC")]
     pub l2_provider_rpc: Url,
-    /// Path to a custom L2 rollup configuration file
-    /// (overrides the default rollup configuration from the registry)
-    #[clap(long = "l2-config-file")]
-    pub l2_config_file: Option<PathBuf>,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    #[clap(long = "l2-engine-jwt-secret", env = "L2_ENGINE_JWT_SECRET")]
+    #[clap(long, visible_alias = "l2.jwt-secret", env = "L2_ENGINE_AUTH")]
     pub l2_engine_jwt_secret: Option<PathBuf>,
+    /// Path to a custom L2 rollup configuration file
+    /// (overrides the default rollup configuration from the registry)
+    #[clap(long, visible_alias = "rollup-cfg")]
+    pub l2_config_file: Option<PathBuf>,
 }
 
 impl NodeCommand {
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
-        let _cfg = self.get_l2_config(args)?;
-        let _jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let cfg = self.get_l2_config(args)?;
+        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
 
-        todo!("NodeBuilder + task startup")
+        RollupNode::builder(cfg)
+            .with_jwt_secret(jwt_secret)
+            .with_l1_provider_rpc_url(self.l1_eth_rpc)
+            .with_l1_beacon_api_url(self.l1_beacon)
+            .with_l2_provider_rpc_url(self.l2_provider_rpc)
+            .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .build()
+            .start()
+            .await;
+
+        Ok(())
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.

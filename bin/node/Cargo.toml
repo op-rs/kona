@@ -20,12 +20,16 @@ kona-genesis.workspace = true
 kona-registry.workspace = true
 kona-derive.workspace = true
 kona-protocol.workspace = true
+kona-providers-alloy.workspace = true
 
 # alloy
 alloy-primitives.workspace = true
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 alloy-provider.workspace = true
 alloy-network.workspace = true
+
+# op-alloy
+op-alloy-network.workspace = true
 
 # general
 url.workspace = true
