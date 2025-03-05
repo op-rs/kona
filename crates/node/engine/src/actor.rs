@@ -10,6 +10,7 @@
 
 use crate::{EngineClient, EngineTask, ForkchoiceMessage, ForkchoiceTask, SyncStatus};
 use kona_genesis::RollupConfig;
+use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tracing::{trace, warn};
@@ -24,8 +25,14 @@ pub enum EngineEvent {
 /// A message from the engine actor to the consensus node.
 #[derive(Debug, Clone)]
 pub enum EngineActorMessage {
-    /// The forkchoice task is already running.
-    ForkchoiceTaskAlreadyRunning,
+    /// A request for a snapshot of the state.
+    StateSnapshot,
+    /// Request the sync status.
+    SyncStatus,
+    /// Instruct the state to update the backup unsafe head.
+    UpdateBackupUnsafeHead,
+    /// Instruct the state that a forkchoice update is not needed.
+    ForkchoiceNotNeeded,
 }
 
 /// An error that occurs when running the engine actor.
@@ -65,7 +72,7 @@ impl EngineActor {
     /// Runs the engine actor.
     pub async fn start(mut self) -> Result<(), EngineActorError> {
         loop {
-            match self.receiver.recv().await {
+            match self.receiver.try_recv() {
                 Ok(msg) => self.process(msg).await?,
                 Err(_) => warn!(target: "engine", "Failed to receive message from consensus node."),
             }
@@ -90,6 +97,63 @@ impl EngineActor {
                 self.forkchoice_task = Some((a_receiver, a_sender));
                 let mut task = ForkchoiceTask::new(t_receiver, t_sender);
                 tokio::spawn(async move { task.execute().await });
+            }
+        }
+        Ok(())
+    }
+
+    /// Process a [ForkchoiceMessage] received from the forkchoice task.
+    pub async fn process_forkchoice_message(
+        &mut self,
+        msg: ForkchoiceMessage,
+    ) -> Result<(), EngineActorError> {
+        match msg {
+            ForkchoiceMessage::StateSnapshot => {
+                if let Err(e) = self.sender.send(EngineActorMessage::StateSnapshot) {
+                    warn!(target: "engine", "Failed to send message to consensus node: {:?}", e);
+                }
+            }
+            ForkchoiceMessage::SyncStatus => {
+                if let Err(e) = self.sender.send(EngineActorMessage::SyncStatus) {
+                    warn!(target: "engine", "Failed to send message to consensus node: {:?}", e);
+                }
+            }
+            ForkchoiceMessage::StateResponse(_) => {
+                warn!(target: "engine", "Unexpected state response from forkchoice task")
+            }
+            ForkchoiceMessage::SyncStatusResponse(_) => {
+                warn!(target: "engine", "Unexpected sync status response from forkchoice task")
+            }
+            ForkchoiceMessage::ForkchoiceUpdated(_) => {
+                warn!(target: "engine", "Unexpected forkchoice task to send forkchoice updated response")
+            }
+            ForkchoiceMessage::ExecuteForkchoiceUpdate(_, s, p) => {
+                // TODO: this will need to be spun into another thread to unblock the actor.
+                match self.client.fork_choice_updated_v3(s, p).await {
+                    Ok(update) => {
+                        // Send the update to the forkchoice task.
+                        if let Some((_, ref sender)) = self.forkchoice_task {
+                            if let Err(e) =
+                                sender.send(ForkchoiceMessage::ForkchoiceUpdated(update))
+                            {
+                                warn!(target: "engine", "Failed to send message to forkchoice task: {:?}", e);
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // TODO: will we need to tell the engine actor that the update failed?
+                    }
+                }
+            }
+            ForkchoiceMessage::UpdateBackupUnsafeHead => {
+                if let Err(e) = self.sender.send(EngineActorMessage::UpdateBackupUnsafeHead) {
+                    warn!(target: "engine", "Failed to send message to consensus node: {:?}", e);
+                }
+            }
+            ForkchoiceMessage::ForkchoiceNotNeeded => {
+                if let Err(e) = self.sender.send(EngineActorMessage::ForkchoiceNotNeeded) {
+                    warn!(target: "engine", "Failed to send message to consensus node: {:?}", e);
+                }
             }
         }
         Ok(())

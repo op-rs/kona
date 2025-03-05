@@ -7,8 +7,6 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-extern crate alloc;
-
 mod actor;
 pub use actor::{EngineActor, EngineActorError, EngineActorMessage, EngineEvent};
 
@@ -24,17 +22,5 @@ pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPa
 mod sync;
 pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
-mod controller;
-pub use controller::EngineController;
-
-mod controller_builder;
-pub use controller_builder::ControllerBuilder;
-
-mod error;
-pub use error::EngineUpdateError;
-
 mod state;
-pub use state::EngineState;
-
-mod state_builder;
-pub use state_builder::StateBuilder;
+pub use state::{EngineState, StateBuilder};
