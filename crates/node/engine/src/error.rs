@@ -1,5 +1,7 @@
 //! Errors that can occur from engine operations.
 
+use alloc::string::String;
+use alloy_transport::TransportError;
 use derive_more::{Display, From};
 use thiserror::Error;
 
@@ -15,4 +17,20 @@ pub enum EngineUpdateError {
     /// The forkchoice update failed.
     #[display("The forkchoice update failed.")]
     ForkchoiceUpdateFailed,
+    /// A reset is needed.
+    #[display("A reset is needed.")]
+    Reset,
+    /// A temporary error
+    #[display("Temporary error: {_0}")]
+    Temporary(String),
+}
+
+impl From<TransportError> for EngineUpdateError {
+    fn from(e: TransportError) -> Self {
+        match e {
+            // See: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L345
+            TransportError::ErrorResp(_) => Self::Reset,
+            _ => Self::Temporary(e.to_string()),
+        }
+    }
 }

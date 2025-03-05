@@ -7,23 +7,28 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-pub mod client;
+extern crate alloc;
+
+mod client;
 pub use client::EngineClient;
+
+mod versions;
+pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
 mod sync;
 pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
-pub mod controller;
+mod controller;
 pub use controller::EngineController;
 
-pub mod controller_builder;
+mod controller_builder;
 pub use controller_builder::ControllerBuilder;
 
-pub mod error;
+mod error;
 pub use error::EngineUpdateError;
 
-pub mod state;
+mod state;
 pub use state::EngineState;
 
-pub mod state_builder;
+mod state_builder;
 pub use state_builder::StateBuilder;
