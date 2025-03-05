@@ -61,17 +61,17 @@ mod tests {
     use jsonrpsee::types::ErrorObjectOwned;
     use kona_interop::{InvalidExecutingMessage, SafetyLevel};
 
-    const MIN_SAFETY_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe"}"#;
+    const MIN_SAFETY_LOCAL_SAFE_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: cross-unsafe) does not meet the minimum safety local-safe"}"#;
+    const MIN_SAFETY_SAFE_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: local-safe) does not meet the minimum safety safe"}"#;
     const INVALID_CHAIN: &str = r#"{"code":-32000,"message":"failed to check message: failed to check log: unknown chain: 14417"}"#;
-    const INVALID_LEVEL: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe"}"#;
-    const RANDOM_ERROR: &str = r#"{"code":-32000,"message":"gibberish error"}"#;
+    const RANDOM_VALIDATION_ERROR: &str = r#"{"code":-32000,"message":"gibberish error"}"#;
 
     #[test]
     #[cfg(feature = "jsonrpsee")]
     fn test_jsonrpsee_client_error_parsing() {
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_ERROR).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_LOCAL_SAFE_ERROR).unwrap()
             ),
             ExecutingMessageValidatorError::InvalidExecutingMessage(
                 InvalidExecutingMessage::MinimumSafety {
@@ -92,7 +92,7 @@ mod tests {
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(INVALID_LEVEL).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_SAFE_ERROR).unwrap()
             ),
             ExecutingMessageValidatorError::InvalidExecutingMessage(
                 InvalidExecutingMessage::MinimumSafety {
@@ -104,7 +104,7 @@ mod tests {
 
         assert!(matches!(
             ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(RANDOM_ERROR).unwrap()
+                serde_json::from_str::<ErrorObjectOwned>(RANDOM_VALIDATION_ERROR).unwrap()
             ),
             ExecutingMessageValidatorError::SupervisorServerError(_)
         ));

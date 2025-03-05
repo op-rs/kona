@@ -144,16 +144,17 @@ impl InvalidExecutingMessage {
 mod tests {
     use super::*;
 
-    const MIN_SAFETY_ERROR: &str = "message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe";
+    const MIN_SAFETY_CROSS_UNSAFE_ERROR: &str = "message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: unsafe) does not meet the minimum safety cross-unsafe";
+    const MIN_SAFETY_UNSAFE_ERROR: &str = "message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe";
+    const MIN_SAFETY_FINALIZED_ERROR: &str = "message {0x4200000000000000000000000000000000000023 1091600001 215 1170 901} (safety level: safe) does not meet the minimum safety finalized";
     const INVALID_CHAIN: &str =
         "failed to check message: failed to check log: unknown chain: 14417";
-    const INVALID_LEVEL: &str = "message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: invalid) does not meet the minimum safety unsafe";
     const RANDOM_ERROR: &str = "gibberish error";
 
     #[test]
     fn test_op_supervisor_error_parsing() {
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_ERROR).unwrap(),
+            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_CROSS_UNSAFE_ERROR).unwrap(),
             InvalidExecutingMessage::MinimumSafety {
                 expected: SafetyLevel::CrossUnsafe,
                 got: SafetyLevel::Unsafe
@@ -166,10 +167,18 @@ mod tests {
         ));
 
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(INVALID_LEVEL).unwrap(),
+            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_UNSAFE_ERROR).unwrap(),
             InvalidExecutingMessage::MinimumSafety {
                 expected: SafetyLevel::Unsafe,
                 got: SafetyLevel::Invalid
+            }
+        ));
+
+        assert!(matches!(
+            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_FINALIZED_ERROR).unwrap(),
+            InvalidExecutingMessage::MinimumSafety {
+                expected: SafetyLevel::Safe,
+                got: SafetyLevel::Finalized,
             }
         ));
 
