@@ -33,10 +33,10 @@ op-alloy-provider.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
 # general
+tokio.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
 thiserror.workspace = true
-derive_more.workspace = true
 url.workspace = true
 tower.workspace = true
 anyhow.workspace = true

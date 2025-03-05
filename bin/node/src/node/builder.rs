@@ -8,6 +8,7 @@ use alloy_rpc_types_engine::JwtSecret;
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
 use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
+use std::sync::Arc;
 use url::Url;
 
 /// The [RollupNodeBuilder] is used to construct a [RollupNode] service.
@@ -82,6 +83,12 @@ impl RollupNodeBuilder {
         let l2_provider =
             RootProvider::new_http(self.l2_provider_rpc_url.expect("l2 provider rpc url not set"));
 
-        RollupNode { config: self.config, l1_provider, l1_beacon, l2_provider, l2_engine: () }
+        RollupNode {
+            config: Arc::new(self.config),
+            l1_provider,
+            l1_beacon,
+            l2_provider,
+            l2_engine: (),
+        }
     }
 }

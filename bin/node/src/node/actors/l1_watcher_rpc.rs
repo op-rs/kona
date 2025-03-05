@@ -1,6 +1,6 @@
-//! L1 head watcher over RPC.
+//! [NodeActor] implementation for an L1 chain watcher that checks for L1 head updates over RPC.
 
-use crate::node::{NodeEvent, NodeProducer};
+use crate::node::{NodeActor, NodeEvent};
 use alloy_network::primitives::BlockTransactionsKind;
 use alloy_provider::{Provider, RootProvider};
 use async_trait::async_trait;
@@ -71,7 +71,7 @@ impl L1WatcherRpc {
 }
 
 #[async_trait]
-impl NodeProducer for L1WatcherRpc {
+impl NodeActor for L1WatcherRpc {
     type Event = NodeEvent;
     type Error = L1WatcherRpcError<Self::Event>;
 
@@ -111,6 +111,11 @@ impl NodeProducer for L1WatcherRpc {
             // Send the head update event to all consumers.
             self.sender.send(NodeEvent::L1HeadUpdate(head_block_info))?;
         }
+    }
+
+    async fn process(&mut self, _msg: Self::Event) -> Result<(), Self::Error> {
+        // The L1 watcher does not process any incoming messages.
+        Ok(())
     }
 }
 

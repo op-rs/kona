@@ -35,9 +35,10 @@ crates/
      -> preimage/
      -> std-fpvm/
      -> std-fpvm-proc/
-  -> external/
+  -> node/
      -> net/
      -> rpc/
+     -> engine/
   -> providers/
      -> providers-alloy/
      -> providers-local/
@@ -45,7 +46,7 @@ crates/
      -> serde/
 ```
 
-Within crates, the `protocol`, `proof`, `external`, `providers`, and `utilities`
+Within crates, the `protocol`, `proof`, `node`, `providers`, and `utilities`
 directories all contain crates, and are not crates themselves - only directories.
 
 #### Publishing Crates
