@@ -95,16 +95,35 @@ impl EnrichedExecutingMessage {
     }
 }
 
-/// Extracts all [ExecutingMessage] logs from a list of [OpReceiptEnvelope]s.
+/// Extracts all [ExecutingMessage] events from list of [OpReceiptEnvelope]s.
+///
+/// See [`parse_log_to_executing_message`].
+///
+/// Note: filters out logs that don't contain executing message events.
 pub fn extract_executing_messages(receipts: &[OpReceiptEnvelope]) -> Vec<ExecutingMessage> {
     receipts.iter().fold(Vec::new(), |mut acc, envelope| {
-        let executing_messages = envelope.logs().iter().filter_map(|log| {
-            (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
-                .then(|| ExecutingMessage::decode_log_data(&log.data, true).ok())
-                .flatten()
-        });
+        let executing_messages = envelope.logs().iter().filter_map(parse_log_to_executing_message);
 
         acc.extend(executing_messages);
         acc
     })
+}
+
+/// Parses [`Log`]s to [`ExecutingMessage`]s.
+///
+/// See [`parse_log_to_executing_message`] for more details. Return iterator maps 1-1 with input.
+pub fn parse_logs_to_executing_msgs<'a>(
+    logs: impl Iterator<Item = &'a Log>,
+) -> impl Iterator<Item = Option<ExecutingMessage>> {
+    logs.map(parse_log_to_executing_message)
+}
+
+/// Parse [`Log`] to [`ExecutingMessage`], if any.
+///
+/// Max one [`ExecutingMessage`] event can exist per log. Returns `None` if log doesn't contain
+/// executing message event.
+pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
+    (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
+        .then(|| ExecutingMessage::decode_log_data(&log.data, true).ok())
+        .flatten()
 }

@@ -13,7 +13,9 @@ use alloc::boxed::Box;
 use alloy_primitives::Log;
 use alloy_sol_types::SolEvent;
 use core::time::Duration;
-use kona_interop::{CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel};
+use kona_interop::{
+    CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel, parse_logs_to_executing_msgs,
+};
 
 /// Interacts with a Supervisor to validate [`ExecutingMessage`]s.
 #[async_trait::async_trait]
@@ -29,11 +31,7 @@ pub trait ExecutingMessageValidator {
 
     /// Extracts [`ExecutingMessage`]s from the [`Log`] if there are any.
     fn parse_messages(logs: &[Log]) -> impl Iterator<Item = Option<ExecutingMessage>> {
-        logs.iter().map(|log| {
-            (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
-                .then(|| ExecutingMessage::decode_log_data(&log.data, true).ok())
-                .flatten()
-        })
+        parse_logs_to_executing_msgs(logs.iter())
     }
 
     /// Validates a list of [`ExecutingMessage`]s against a Supervisor.

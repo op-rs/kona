@@ -39,7 +39,6 @@ serde = { workspace = true, optional = true }
 jsonrpsee = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, features = ["js"] } # req for wasm32-unknown-unknown
 kona-genesis = { workspace = true, optional = true }
-alloy-sol-types = { workspace = true, optional = true }
 op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
 
 # `reqwest` feature
@@ -100,6 +99,5 @@ interop = [
     "dep:thiserror",
     "dep:kona-interop",
     "dep:async-trait",
-    "dep:alloy-sol-types",
 ]
 
