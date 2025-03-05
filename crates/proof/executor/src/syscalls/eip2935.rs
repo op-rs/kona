@@ -43,7 +43,7 @@ where
     F: TrieDBProvider,
     H: TrieHinter,
 {
-    // apply pre-block EIP-4788 contract call
+    // apply pre-block EIP-2935 contract call
     let mut evm_pre_block = Evm::builder()
         .with_db(db)
         .with_env_with_handler_cfg(EnvWithHandlerCfg::new_with_cfg_env(
@@ -63,7 +63,7 @@ where
     )
 }
 
-/// Apply the EIP-4788 pre-block beacon root contract call to a given EVM instance.
+/// Apply the EIP-2935 pre-block block hash accumulator contract call to a given EVM instance.
 fn apply_block_hash_contract_call<F, H>(
     config: &RollupConfig,
     timestamp: u64,
