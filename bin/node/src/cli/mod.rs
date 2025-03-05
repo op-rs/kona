@@ -8,6 +8,7 @@ pub mod telemetry;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use kona_cli::cli_styles;
 
 /// Subcommands for the CLI.
 #[derive(Debug, Clone, Subcommand)]
@@ -23,7 +24,7 @@ pub enum Commands {
 
 /// The node CLI.
 #[derive(Parser, Clone, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, styles = cli_styles(), long_about = None)]
 pub struct Cli {
     /// Global arguments for the CLI.
     #[clap(flatten)]
