@@ -7,11 +7,16 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+#[macro_use]
+extern crate tracing;
+
 mod actor;
 pub use actor::{EngineActor, EngineActorError, EngineActorMessage, EngineEvent};
 
 mod tasks;
-pub use tasks::{EngineTask, ForkchoiceMessage, ForkchoiceTask, ForkchoiceTaskError};
+pub use tasks::{
+    EngineTask, ForkchoiceTask, ForkchoiceTaskError, ForkchoiceTaskInput, ForkchoiceTaskOut,
+};
 
 mod client;
 pub use client::EngineClient;
@@ -24,3 +29,5 @@ pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
 mod state;
 pub use state::{EngineState, StateBuilder};
+
+pub(crate) mod macros;
