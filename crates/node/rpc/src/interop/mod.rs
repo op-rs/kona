@@ -11,11 +11,8 @@ pub use error::ExecutingMessageValidatorError;
 
 use alloc::boxed::Box;
 use alloy_primitives::Log;
-use alloy_sol_types::SolEvent;
 use core::time::Duration;
-use kona_interop::{
-    CROSS_L2_INBOX_ADDRESS, ExecutingMessage, SafetyLevel, parse_logs_to_executing_msgs,
-};
+use kona_interop::{ExecutingMessage, SafetyLevel, parse_logs_to_executing_msgs};
 
 /// Interacts with a Supervisor to validate [`ExecutingMessage`]s.
 #[async_trait::async_trait]
