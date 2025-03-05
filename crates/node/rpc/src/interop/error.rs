@@ -75,8 +75,20 @@ mod tests {
             ),
             ExecutingMessageValidatorError::InvalidExecutingMessage(
                 InvalidExecutingMessage::MinimumSafety {
-                    expected: SafetyLevel::CrossUnsafe,
-                    got: SafetyLevel::Unsafe
+                    expected: SafetyLevel::LocalSafe,
+                    got: SafetyLevel::CrossUnsafe
+                }
+            )
+        ));
+
+        assert!(matches!(
+            ExecutingMessageValidatorError::from(
+                serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_SAFE_ERROR).unwrap()
+            ),
+            ExecutingMessageValidatorError::InvalidExecutingMessage(
+                InvalidExecutingMessage::MinimumSafety {
+                    expected: SafetyLevel::Safe,
+                    got: SafetyLevel::LocalSafe
                 }
             )
         ));
@@ -87,18 +99,6 @@ mod tests {
             ),
             ExecutingMessageValidatorError::InvalidExecutingMessage(
                 InvalidExecutingMessage::UnknownChain(14417)
-            )
-        ));
-
-        assert!(matches!(
-            ExecutingMessageValidatorError::from(
-                serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_SAFE_ERROR).unwrap()
-            ),
-            ExecutingMessageValidatorError::InvalidExecutingMessage(
-                InvalidExecutingMessage::MinimumSafety {
-                    expected: SafetyLevel::Unsafe,
-                    got: SafetyLevel::Invalid
-                }
             )
         ));
 

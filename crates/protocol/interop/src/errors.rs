@@ -162,11 +162,6 @@ mod tests {
         ));
 
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(INVALID_CHAIN).unwrap(),
-            InvalidExecutingMessage::UnknownChain(14417)
-        ));
-
-        assert!(matches!(
             InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_UNSAFE_ERROR).unwrap(),
             InvalidExecutingMessage::MinimumSafety {
                 expected: SafetyLevel::Unsafe,
@@ -177,9 +172,14 @@ mod tests {
         assert!(matches!(
             InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_FINALIZED_ERROR).unwrap(),
             InvalidExecutingMessage::MinimumSafety {
-                expected: SafetyLevel::Safe,
-                got: SafetyLevel::Finalized,
+                expected: SafetyLevel::Finalized,
+                got: SafetyLevel::Safe,
             }
+        ));
+
+        assert!(matches!(
+            InvalidExecutingMessage::parse_err_msg(INVALID_CHAIN).unwrap(),
+            InvalidExecutingMessage::UnknownChain(14417)
         ));
 
         assert!(InvalidExecutingMessage::parse_err_msg(RANDOM_ERROR).is_none());
