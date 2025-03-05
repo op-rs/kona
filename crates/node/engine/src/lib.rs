@@ -15,7 +15,8 @@ pub use actor::{EngineActor, EngineActorError, EngineActorMessage, EngineEvent};
 
 mod tasks;
 pub use tasks::{
-    EngineTask, ForkchoiceTask, ForkchoiceTaskError, ForkchoiceTaskInput, ForkchoiceTaskOut,
+    EngineTask, ForkchoiceTask, ForkchoiceTaskError, ForkchoiceTaskExt, ForkchoiceTaskInput,
+    ForkchoiceTaskOut, InsertTask, InsertTaskError, InsertTaskInput, InsertTaskOut,
 };
 
 mod client;

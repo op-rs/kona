@@ -8,9 +8,7 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L46
 
-use crate::{
-    EngineClient, EngineTask, ForkchoiceTask, ForkchoiceTaskInput, ForkchoiceTaskOut, SyncStatus,
-};
+use crate::{EngineClient, ForkchoiceTaskExt, ForkchoiceTaskInput, ForkchoiceTaskOut, SyncStatus};
 use kona_genesis::RollupConfig;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
@@ -49,8 +47,8 @@ pub struct EngineActor {
     /// A sender channel to send messages to the rollup node.
     pub sender: Sender<EngineActorMessage>,
 
-    /// A handle to receiver and sender channels for the forkchoice task.
-    pub forkchoice_task: Option<(Receiver<ForkchoiceTaskOut>, Sender<ForkchoiceTaskInput>)>,
+    /// The external communication handle to the forkchoice task.
+    pub forkchoice_task: Option<ForkchoiceTaskExt>,
 }
 
 impl EngineActor {
@@ -72,7 +70,8 @@ impl EngineActor {
                 Ok(msg) => self.process(msg).await?,
                 Err(_) => warn!(target: "engine", "Failed to receive message from consensus node."),
             }
-            if let Some((ref mut receiver, ref _sender)) = self.forkchoice_task {
+            if let Some(ref mut ext) = self.forkchoice_task {
+                let receiver = &mut ext.receiver;
                 if let Ok(msg) = receiver.try_recv() {
                     trace!(target: "engine", "Received message from forkchoice task: {:?}", msg);
                     self.process_forkchoice_message(msg).await;
@@ -89,11 +88,7 @@ impl EngineActor {
                     warn!(target: "engine", "Forkchoice task already running.");
                     return Ok(());
                 }
-                let (a_sender, t_receiver) = tokio::sync::broadcast::channel(1);
-                let (t_sender, a_receiver) = tokio::sync::broadcast::channel(1);
-                self.forkchoice_task = Some((a_receiver, a_sender));
-                let mut task = ForkchoiceTask::new(t_receiver, t_sender);
-                tokio::spawn(async move { task.execute().await });
+                self.forkchoice_task = Some(ForkchoiceTaskExt::spawn());
             }
         }
         Ok(())
@@ -105,12 +100,12 @@ impl EngineActor {
             ForkchoiceTaskOut::ExecuteForkchoiceUpdate(_, s, p) => {
                 match self.client.fork_choice_updated_v3(s, p).await {
                     Ok(update) => {
-                        let sender = self.forkchoice_task.as_ref().map(|(_, s)| s);
+                        let sender = self.forkchoice_task.as_ref().map(|ext| ext.sender.clone());
                         let msg = ForkchoiceTaskInput::ForkchoiceUpdated(update);
                         crate::send_until_success_opt!("engine", sender, msg);
                     }
                     Err(_) => {
-                        let sender = self.forkchoice_task.as_ref().map(|(_, s)| s);
+                        let sender = self.forkchoice_task.as_ref().map(|ext| ext.sender.clone());
                         crate::send_until_success_opt!(
                             "engine",
                             sender,
