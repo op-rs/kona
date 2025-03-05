@@ -91,10 +91,11 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 - [`std-fpvm`](./crates/proof/std-fpvm): Platform specific [Fault Proof VM][g-fault-proof-vm] kernel APIs.
 - [`std-fpvm-proc`](./crates/proof/std-fpvm-proc): Proc macro for [Fault Proof Program][fpp-specs] entrypoints.
 
-**External**
+**Node**
 
-- [`rpc`](./crates/external/rpc): OP Stack RPC types and extensions.
-- [`net`](./crates/external/net): OP Stack Networking including P2P and Discovery.
+- [`engine`](./crates/node/engine): An extensible implementation of the [OP Stack][op-stack] rollup node engine client
+- [`rpc`](./crates/node/rpc): OP Stack RPC types and extensions.
+- [`net`](./crates/node/net): OP Stack Networking including P2P and Discovery.
 
 **Providers**
 
