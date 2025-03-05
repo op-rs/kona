@@ -1,7 +1,7 @@
 //! Contains the full superchain data.
 
 use super::ChainList;
-use alloy_primitives::map::{DefaultHashBuilder, HashMap};
+use alloy_primitives::map::HashMap;
 use kona_genesis::{ChainConfig, RollupConfig, Superchains};
 
 /// The registry containing all the superchain configurations.
@@ -11,9 +11,9 @@ pub struct Registry {
     /// The list of chains.
     pub chain_list: ChainList,
     /// Map of chain IDs to their chain configuration.
-    pub op_chains: HashMap<u64, ChainConfig, DefaultHashBuilder>,
+    pub op_chains: HashMap<u64, ChainConfig>,
     /// Map of chain IDs to their rollup configurations.
-    pub rollup_configs: HashMap<u64, RollupConfig, DefaultHashBuilder>,
+    pub rollup_configs: HashMap<u64, RollupConfig>,
 }
 
 impl Registry {
