@@ -3,17 +3,24 @@
 #![allow(unused)]
 
 use super::RollupNode;
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use kona_engine::SyncConfig;
+use kona_genesis::RollupConfig;
+use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use url::Url;
 
 /// The [RollupNodeBuilder] is used to construct a [RollupNode] service.
 #[derive(Debug, Default)]
 pub struct RollupNodeBuilder {
+    /// The rollup configuration.
+    config: RollupConfig,
     /// The sync configuration.
     sync_config: Option<SyncConfig>,
     /// The L1 EL provider RPC URL.
     l1_provider_rpc_url: Option<Url>,
+    /// The L1 beacon API URL.
+    l1_beacon_api_url: Option<Url>,
     /// The L2 engine RPC URL.
     l2_engine_rpc_url: Option<Url>,
     /// The L2 EL provider RPC URL.
@@ -23,6 +30,11 @@ pub struct RollupNodeBuilder {
 }
 
 impl RollupNodeBuilder {
+    /// Creates a new [RollupNodeBuilder] with the given [RollupConfig].
+    pub fn new(config: RollupConfig) -> Self {
+        Self { config, ..Self::default() }
+    }
+
     /// Appends a [SyncConfig] to the builder.
     pub fn with_sync_config(self, sync_config: SyncConfig) -> Self {
         Self { sync_config: Some(sync_config), ..self }
@@ -31,6 +43,11 @@ impl RollupNodeBuilder {
     /// Appends an L1 EL provider RPC URL to the builder.
     pub fn with_l1_provider_rpc_url(self, l1_provider_rpc_url: Url) -> Self {
         Self { l1_provider_rpc_url: Some(l1_provider_rpc_url), ..self }
+    }
+
+    /// Appends an L1 beacon API URL to the builder.
+    pub fn with_l1_beacon_api_url(self, l1_beacon_api_url: Url) -> Self {
+        Self { l1_beacon_api_url: Some(l1_beacon_api_url), ..self }
     }
 
     /// Appends an L2 engine RPC URL to the builder.
@@ -49,7 +66,22 @@ impl RollupNodeBuilder {
     }
 
     /// Assembles the [RollupNode] service.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if:
+    /// - The L1 provider RPC URL is not set.
+    /// - The L1 beacon API URL is not set.
+    /// - The L2 provider RPC URL is not set.
     pub fn build(self) -> RollupNode {
-        todo!()
+        let l1_provider =
+            RootProvider::new_http(self.l1_provider_rpc_url.expect("l1 provider rpc url not set"));
+        let l1_beacon = OnlineBeaconClient::new_http(
+            self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
+        );
+        let l2_provider =
+            RootProvider::new_http(self.l2_provider_rpc_url.expect("l2 provider rpc url not set"));
+
+        RollupNode { config: self.config, l1_provider, l1_beacon, l2_provider, l2_engine: () }
     }
 }

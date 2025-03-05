@@ -35,7 +35,7 @@ pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootResponse}
 mod message;
 pub use message::{
     EnrichedExecutingMessage, ExecutingMessage, MessageIdentifier, RawMessagePayload,
-    extract_executing_messages,
+    extract_executing_messages, parse_log_to_executing_message, parse_logs_to_executing_msgs,
 };
 
 mod derived;

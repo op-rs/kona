@@ -18,7 +18,7 @@ no_std_packages=(
   kona-driver
   kona-interop
 
-  # externals
+  # node crates
   kona-rpc
 
   # providers

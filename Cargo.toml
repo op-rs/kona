@@ -15,7 +15,6 @@ members = [
   "crates/proof/*",
   "crates/node/*",
   "crates/protocol/*",
-  "crates/external/*",
   "crates/providers/*",
   "crates/utilities/*",
 ]
@@ -81,10 +80,8 @@ kona-interop = { path = "crates/protocol/interop", version = "0.1.2", default-fe
 
 # Node
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
-
-# External
-kona-net = { path = "crates/external/net", version = "0.1.0", default-features = false }
-kona-rpc = { path = "crates/external/rpc", version = "0.1.0", default-features = false }
+kona-net = { path = "crates/node/net", version = "0.1.0", default-features = false }
+kona-rpc = { path = "crates/node/rpc", version = "0.1.0", default-features = false }
 
 # Providers
 kona-providers-local = { path = "crates/providers/providers-local", version = "0.1.0", default-features = false }
