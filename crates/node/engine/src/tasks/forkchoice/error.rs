@@ -15,9 +15,6 @@ pub enum ForkchoiceTaskError {
     /// The sync status response is invalid.
     #[error("Invalid sync status response")]
     InvalidSyncStatusResponse,
-    /// Failed to send a message to the engine actor.
-    #[error("Failed to send message to engine actor")]
-    FailedToSend,
     /// A receive error occurred.
     #[error("Receive error")]
     ReceiveError,

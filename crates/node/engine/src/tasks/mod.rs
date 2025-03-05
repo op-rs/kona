@@ -1,7 +1,7 @@
 //! Tasks to update the engine state.
 
 mod insert;
-pub use insert::{InsertTask, InsertTaskError, InsertTaskInput, InsertTaskOut};
+pub use insert::{InsertTask, InsertTaskError, InsertTaskExt, InsertTaskInput, InsertTaskOut};
 
 mod traits;
 pub use traits::EngineTask;

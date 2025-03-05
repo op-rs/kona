@@ -25,7 +25,7 @@ impl ForkchoiceTaskExt {
         let (sender, task_receiver) = tokio::sync::broadcast::channel(1);
         let (task_sender, receiver) = tokio::sync::broadcast::channel(1);
         let mut task = ForkchoiceTask::new(task_receiver, task_sender);
-        let handle = tokio::spawn(async move { task.execute().await });
+        let handle = tokio::spawn(async move { task.execute(()).await });
         Self { receiver, sender, handle }
     }
 }
@@ -53,9 +53,7 @@ impl ForkchoiceTask {
 
     /// Fetches a state snapshot through the external API.
     pub async fn fetch_state(&mut self) -> Result<EngineState, ForkchoiceTaskError> {
-        self.sender
-            .send(ForkchoiceTaskOut::StateSnapshot)
-            .map_err(|_| ForkchoiceTaskError::FailedToSend)?;
+        crate::send_until_success!("fcu", self.sender, ForkchoiceTaskOut::StateSnapshot);
         let response = self.receiver.recv().await.map_err(|_| ForkchoiceTaskError::ReceiveError)?;
         if let ForkchoiceTaskInput::StateResponse(response) = response {
             Ok(*response)
@@ -66,9 +64,7 @@ impl ForkchoiceTask {
 
     /// Fetches the sync status through the external API.
     pub async fn fetch_sync_status(&mut self) -> Result<SyncStatus, ForkchoiceTaskError> {
-        self.sender
-            .send(ForkchoiceTaskOut::SyncStatus)
-            .map_err(|_| ForkchoiceTaskError::FailedToSend)?;
+        crate::send_until_success!("fcu", self.sender, ForkchoiceTaskOut::SyncStatus);
         let response = self.receiver.recv().await.map_err(|_| ForkchoiceTaskError::ReceiveError)?;
         if let ForkchoiceTaskInput::SyncStatusResponse(response) = response {
             Ok(response)
@@ -81,8 +77,9 @@ impl ForkchoiceTask {
 #[async_trait::async_trait]
 impl EngineTask for ForkchoiceTask {
     type Error = ForkchoiceTaskError;
+    type Input = ();
 
-    async fn execute(&mut self) -> Result<(), Self::Error> {
+    async fn execute(&mut self, _: Self::Input) -> Result<(), Self::Error> {
         // Check if a forkchoice update is not needed, return early.
         let state = self.fetch_state().await?;
         if !state.forkchoice_update_needed {
@@ -110,7 +107,7 @@ impl EngineTask for ForkchoiceTask {
             forkchoice,
             None,
         );
-        self.sender.send(msg).map_err(|_| ForkchoiceTaskError::FailedToSend)?;
+        crate::send_until_success!("fcu", self.sender, msg);
         let response = self.receiver.recv().await.map_err(|_| ForkchoiceTaskError::ReceiveError)?;
         let update = match response {
             ForkchoiceTaskInput::ForkchoiceUpdated(update) => update,
@@ -121,19 +118,14 @@ impl EngineTask for ForkchoiceTask {
         };
 
         if update.payload_status.is_valid() {
-            self.sender
-                .send(ForkchoiceTaskOut::ForkchoiceUpdated(update))
-                .map_err(|_| ForkchoiceTaskError::FailedToSend)?;
+            let msg = ForkchoiceTaskOut::ForkchoiceUpdated(update);
+            crate::send_until_success!("fcu", self.sender, msg);
         }
 
         // TODO: The state actor will need to handle this update.
         // TODO: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L360-L363
-        self.sender
-            .send(ForkchoiceTaskOut::UpdateBackupUnsafeHead)
-            .map_err(|_| ForkchoiceTaskError::FailedToSend)?;
-        self.sender
-            .send(ForkchoiceTaskOut::ForkchoiceNotNeeded)
-            .map_err(|_| ForkchoiceTaskError::FailedToSend)?;
+        crate::send_until_success!("fcu", self.sender, ForkchoiceTaskOut::UpdateBackupUnsafeHead);
+        crate::send_until_success!("fcu", self.sender, ForkchoiceTaskOut::ForkchoiceNotNeeded);
 
         Ok(())
     }

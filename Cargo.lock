@@ -3845,6 +3845,7 @@ dependencies = [
  "http-body-util",
  "kona-genesis",
  "kona-protocol",
+ "kona-rpc",
  "op-alloy-network",
  "op-alloy-provider",
  "op-alloy-rpc-types-engine",

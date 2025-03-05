@@ -5,9 +5,11 @@ use async_trait::async_trait;
 /// An Engine Task.
 #[async_trait]
 pub trait EngineTask {
-    /// An error type.
+    /// The error returned by the task if execution fails.
     type Error;
+    /// An input type to the execution method.
+    type Input;
 
     /// Executes the task.
-    async fn execute(&mut self) -> Result<(), Self::Error>;
+    async fn execute(&mut self, input: Self::Input) -> Result<(), Self::Error>;
 }
