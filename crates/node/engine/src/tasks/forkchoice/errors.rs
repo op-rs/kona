@@ -21,4 +21,7 @@ pub enum ForkchoiceTaskError {
     /// A receive error occurred.
     #[error("Receive error")]
     ReceiveError,
+    /// The forkchoice update call to the engine api failed.
+    #[error("Forkchoice update engine api call failed")]
+    ForkchoiceUpdateFailed,
 }

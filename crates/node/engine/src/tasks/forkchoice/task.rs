@@ -89,6 +89,9 @@ impl EngineTask for ForkchoiceTask {
         let response = self.receiver.recv().await.map_err(|_| ForkchoiceTaskError::ReceiveError)?;
         let update = match response {
             ForkchoiceTaskInput::ForkchoiceUpdated(update) => update,
+            ForkchoiceTaskInput::ForkchoiceUpdateFailed => {
+                return Err(ForkchoiceTaskError::ForkchoiceUpdateFailed)
+            }
             _ => return Err(ForkchoiceTaskError::InvalidForkchoiceResponse),
         };
 
