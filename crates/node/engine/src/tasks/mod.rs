@@ -4,4 +4,4 @@ mod traits;
 pub use traits::EngineTask;
 
 mod forkchoice;
-pub use forkchoice::{ForkchoiceMessage, ForkchoiceTask, ForkchoiceTaskError};
+pub use forkchoice::{ForkchoiceTask, ForkchoiceTaskError, ForkchoiceTaskInput, ForkchoiceTaskOut};
