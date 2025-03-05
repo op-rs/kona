@@ -4230,8 +4230,6 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
- "alloy-rpc-client",
- "alloy-sol-types",
  "async-trait",
  "derive_more 2.0.1",
  "getrandom 0.2.15",
