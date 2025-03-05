@@ -32,32 +32,8 @@ Kona has been extended to be _the monorepo_ for <a href="https://specs.optimism.
 types, components, and services built in Rust. Kona provides an ecosystem of extensible, low-level
 crates that compose into components and services required for the OP Stack.
 
-Kona contains many foundational crates including:
-- The [derivation pipeline][g-derivation-pipeline].
-- A stateless block executor.
-
-Built on top of these libraries, this repository also features a [fault proof program][fpp-specs]
-designed to deterministically execute the rollup state transition in order to verify an
-[L2 output root][g-output-root] from the L1 inputs it was [derived from][g-derivation-pipeline].
-
 The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
 getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
-
-> [!IMPORTANT]
->
-> Ethereum (Alloy) types modified for the OP Stack live in [op-alloy](https://github.com/alloy-rs/op-alloy).
-
-
-### Alternative Backends
-
-Kona's libraries were built with alternative backend support and extensibility in mind - it is not just a fault proof
-program! Kona is also used by:
-
-- [`op-succinct`][op-succinct]
-- [`kailua`][kailua]
-
-To build your own backend for kona, or build a new application on top of its libraries,
-see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ### Development Status
 
@@ -67,10 +43,14 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ## Overview
 
+> [!NOTE]
+>
+> Ethereum (Alloy) types modified for the OP Stack live in [op-alloy](https://github.com/alloy-rs/op-alloy).
+
 **Binaries**
 
-- [`client`](./bin/client): The bare-metal program that runs on top of a [fault proof VM][g-fault-proof-vm].
-- [`host`](./bin/host): The host program that runs natively alongside the FPVM, serving as the [Preimage Oracle][g-preimage-oracle] server.
+- [`client`](./bin/client): The bare-metal program that executes the state transition, to be ran on a prover.
+- [`host`](./bin/host): The host program that runs natively alongside the prover, serving as the [Preimage Oracle][g-preimage-oracle] server.
 
 **Protocol**
 
@@ -106,6 +86,21 @@ see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 - [`serde`](./crates/utilities/serde): Serialization helpers.
 
+### Proof
+
+Built on top of these libraries, this repository also features a [proof program][fpp-specs]
+designed to deterministically execute the rollup state transition in order to verify an
+[L2 output root][g-output-root] from the L1 inputs it was [derived from][g-derivation-pipeline].
+
+Kona's libraries were built with alternative backend support and extensibility in mind - the repository features
+a fault proof virtual machine backend for use in the governance-approved OP Stack, but it's portable across
+provers! Kona is also used by:
+
+- [`op-succinct`][op-succinct]
+- [`kailua`][kailua]
+
+To build your own backend for kona, or build a new application on top of its libraries,
+see the [SDK section of the book](https://op-rs.github.io/kona/sdk/intro.html).
 
 ## MSRV
 
@@ -134,10 +129,9 @@ follows the linting rules and passes clippy.
 ## Credits
 
 `kona` is inspired by the work of several teams, namely [OP Labs][op-labs] and other contributors' work on the
-[`op-program`][op-program] and [BadBoiLabs][bad-boi-labs]'s work on [Cannon-rs][badboi-cannon-rs].
+[Optimism monorepo][op-go-monorepo] and [BadBoiLabs][bad-boi-labs]'s work on [Cannon-rs][badboi-cannon-rs].
 
 `kona` is also built on rust types in [alloy][alloy], [op-alloy][op-alloy], and [maili][maili].
-
 
 ## License
 
@@ -157,7 +151,7 @@ Licensed under the <a href="LICENSE-MIT">MIT license</a>.
 [contributing]: https://op-rs.github.io/kona/CONTRIBUTING.html
 [op-stack]: https://github.com/ethereum-optimism/optimism
 [superchain-registry]: https://github.com/ethereum-optimism/superchain-registry
-[op-program]: https://github.com/ethereum-optimism/optimism/tree/develop/op-program
+[op-go-monorepo]: https://github.com/ethereum-optimism/optimism/tree/develop
 [cannon]: https://github.com/ethereum-optimism/optimism/tree/develop/cannon
 [cannon-rs]: https://github.com/op-rs/cannon-rs
 [badboi-cannon-rs]: https://github.com/BadBoiLabs/cannon-rs
