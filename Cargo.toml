@@ -116,7 +116,7 @@ alloy-eips = { version = "0.11.1", default-features = false }
 alloy-serde = { version = "0.11.1", default-features = false }
 alloy-network = { version = "0.11.1", default-features = false }
 alloy-provider = { version = "0.11.1", default-features = false }
-alloy-sol-types = { version = "0.8.20", default-features = false }
+alloy-sol-types = { version = "0.8.22", default-features = false }
 alloy-consensus = { version = "0.11.1", default-features = false }
 alloy-transport = { version = "0.11.1", default-features = false }
 alloy-rpc-types = { version = "0.11.1", default-features = false }
@@ -129,12 +129,12 @@ alloy-rpc-types-beacon = { version = "0.11.1", default-features = false }
 alloy-network-primitives = { version = "0.11.1", default-features = false }
 
 # OP Alloy
-op-alloy-flz = { version = "0.10.7", default-features = false }
-op-alloy-network = { version = "0.10.7", default-features = false }
-op-alloy-provider = { version = "0.10.7", default-features = false }
-op-alloy-consensus = { version = "0.10.7", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.10.7", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.10.7", default-features = false }
+op-alloy-flz = { version = "0.10.8", default-features = false }
+op-alloy-network = { version = "0.10.8", default-features = false }
+op-alloy-provider = { version = "0.10.8", default-features = false }
+op-alloy-consensus = { version = "0.10.8", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.10.8", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.10.8", default-features = false }
 
 # Reth
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
