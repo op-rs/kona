@@ -6,7 +6,6 @@ use std::{
 };
 
 use alloy_primitives::Address;
-use alloy_rpc_types_engine::ExecutionPayload;
 use libp2p::gossipsub::{IdentTopic, Message, MessageAcceptance, TopicHash};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::sync::watch;
@@ -31,7 +30,7 @@ pub struct BlockHandler {
     /// blockchains.
     pub chain_id: u64,
     /// A channel sender to forward new blocks to other modules
-    pub block_sender: Sender<ExecutionPayload>,
+    pub block_sender: Sender<OpNetworkPayloadEnvelope>,
     /// A [Receiver] to monitor changes to the unsafe block signer.
     pub unsafe_signer_recv: watch::Receiver<Address>,
     /// The libp2p topic for pre Canyon/Shangai blocks.
@@ -64,7 +63,7 @@ impl Handler for BlockHandler {
         match decoded {
             Ok(envelope) => {
                 if self.block_valid(&envelope) {
-                    _ = self.block_sender.send(envelope.payload);
+                    _ = self.block_sender.send(envelope);
                     MessageAcceptance::Accept
                 } else {
                     tracing::warn!("invalid unsafe block");
@@ -89,7 +88,7 @@ impl BlockHandler {
     pub fn new(
         chain_id: u64,
         unsafe_recv: watch::Receiver<Address>,
-    ) -> (Self, Receiver<ExecutionPayload>) {
+    ) -> (Self, Receiver<OpNetworkPayloadEnvelope>) {
         let (sender, recv) = channel();
 
         let handler = Self {
@@ -132,7 +131,7 @@ impl BlockHandler {
 mod tests {
     use super::*;
     use alloy_primitives::{Address, B256, Bloom, Bytes, PrimitiveSignature, U256};
-    use alloy_rpc_types_engine::ExecutionPayloadV1;
+    use alloy_rpc_types_engine::{ExecutionPayload, ExecutionPayloadV1};
     use op_alloy_rpc_types_engine::PayloadHash;
 
     #[test]

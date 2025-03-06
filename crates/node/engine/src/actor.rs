@@ -37,7 +37,7 @@ pub enum EngineActorError {}
 #[derive(Debug)]
 pub struct EngineActor {
     /// The internal engine client.
-    pub client: EngineClient,
+    pub client: Arc<EngineClient>,
     /// The sync status.
     pub sync_status: SyncStatus,
     /// A reference to the rollup config.
@@ -54,7 +54,7 @@ pub struct EngineActor {
 impl EngineActor {
     /// Creates a new engine actor.
     pub const fn new(
-        client: EngineClient,
+        client: Arc<EngineClient>,
         sync_status: SyncStatus,
         rollup_config: Arc<RollupConfig>,
         receiver: Receiver<EngineEvent>,
@@ -88,7 +88,7 @@ impl EngineActor {
                     warn!(target: "engine", "Forkchoice task already running.");
                     return Ok(());
                 }
-                self.forkchoice_task = Some(ForkchoiceTaskExt::spawn());
+                self.forkchoice_task = Some(ForkchoiceTaskExt::spawn(self.client.clone()));
             }
         }
         Ok(())

@@ -35,6 +35,9 @@ pub struct AlloyChainProvider {
 
 impl AlloyChainProvider {
     /// Creates a new [AlloyChainProvider] with the given alloy provider.
+    ///
+    /// ## Panics
+    /// - Panics if `cache_size` is zero.
     pub fn new(inner: RootProvider, cache_size: usize) -> Self {
         Self {
             inner,

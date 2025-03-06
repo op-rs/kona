@@ -20,7 +20,6 @@ kona-derive.workspace = true
 kona-rpc.workspace = true
 
 # Alloy
-alloy-rlp.workspace = true
 alloy-serde.workspace = true
 alloy-eips = { workspace = true, features = ["kzg"] }
 alloy-transport.workspace = true
