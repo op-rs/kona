@@ -49,6 +49,7 @@ pub const OP_MAINNET_CONFIG: RollupConfig = RollupConfig {
         fjord_time: Some(1_720_627_201_u64),
         granite_time: Some(1_726_070_401_u64),
         holocene_time: Some(1736445601),
+        pectra_blob_schedule_time: None,
         isthmus_time: None,
         interop_time: None,
     },
