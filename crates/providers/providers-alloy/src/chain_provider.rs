@@ -1,9 +1,9 @@
 //! Providers that use alloy provider types on the backend.
 
-use alloy_consensus::{Block, Header, Receipt, ReceiptWithBloom, TxEnvelope, TxType};
-use alloy_primitives::{B256, Bytes, U64};
+use alloy_consensus::{Header, Receipt, TxEnvelope};
+use alloy_eips::BlockId;
+use alloy_primitives::B256;
 use alloy_provider::{Provider, RootProvider};
-use alloy_rlp::{Buf, Decodable};
 use alloy_transport::{RpcError, TransportErrorKind};
 use async_trait::async_trait;
 use kona_derive::{
@@ -12,9 +12,8 @@ use kona_derive::{
 };
 use kona_protocol::BlockInfo;
 use lru::LruCache;
+use op_alloy_network::primitives::BlockTransactionsKind;
 use std::{boxed::Box, num::NonZeroUsize, vec::Vec};
-
-const CACHE_SIZE: usize = 16;
 
 /// The [AlloyChainProvider] is a concrete implementation of the [ChainProvider] trait, providing
 /// data over Ethereum JSON-RPC using an alloy provider as the backend.
@@ -36,21 +35,21 @@ pub struct AlloyChainProvider {
 
 impl AlloyChainProvider {
     /// Creates a new [AlloyChainProvider] with the given alloy provider.
-    pub fn new(inner: RootProvider) -> Self {
+    pub fn new(inner: RootProvider, cache_size: usize) -> Self {
         Self {
             inner,
-            header_by_hash_cache: LruCache::new(NonZeroUsize::new(CACHE_SIZE).unwrap()),
-            receipts_by_hash_cache: LruCache::new(NonZeroUsize::new(CACHE_SIZE).unwrap()),
+            header_by_hash_cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
+            receipts_by_hash_cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
             block_info_and_transactions_by_hash_cache: LruCache::new(
-                NonZeroUsize::new(CACHE_SIZE).unwrap(),
+                NonZeroUsize::new(cache_size).unwrap(),
             ),
         }
     }
 
     /// Creates a new [AlloyChainProvider] from the provided [reqwest::Url].
-    pub fn new_http(url: reqwest::Url) -> Self {
+    pub fn new_http(url: reqwest::Url, cache_size: usize) -> Self {
         let inner = RootProvider::new_http(url);
-        Self::new(inner)
+        Self::new(inner, cache_size)
     }
 
     /// Returns the latest L2 block number.
@@ -68,35 +67,31 @@ impl AlloyChainProvider {
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, thiserror::Error)]
 pub enum AlloyChainProviderError {
-    /// Failed to fetch the raw header.
-    #[error("Failed to fetch raw header for hash {0}")]
-    RawHeaderFetch(B256),
-    /// Failed to decode the raw header.
-    #[error("Failed to decode raw header for hash {0}")]
-    RawHeaderDecoding(B256),
-    /// Failed to fetch the raw receipts.
-    #[error("Failed to fetch raw receipts for hash {0}")]
-    RawReceiptsFetch(B256),
-    /// Failed to decode the raw receipts.
-    #[error("Failed to decode raw receipts for hash {0}")]
-    RawReceiptsDecoding(B256),
+    /// Transport error
+    #[error(transparent)]
+    Transport(#[from] RpcError<TransportErrorKind>),
+    /// Block not found.
+    #[error("Block not found: {0}")]
+    BlockNotFound(BlockId),
+    /// Failed to convert RPC receipts into consensus receipts.
+    #[error("Failed to convert RPC receipts into consensus receipts {0}")]
+    ReceiptsConversion(B256),
 }
 
 impl From<AlloyChainProviderError> for PipelineErrorKind {
     fn from(e: AlloyChainProviderError) -> Self {
         match e {
-            AlloyChainProviderError::RawHeaderFetch(_) => PipelineErrorKind::Temporary(
-                PipelineError::Provider("Failed to fetch raw header".to_string()),
+            AlloyChainProviderError::Transport(e) => PipelineErrorKind::Temporary(
+                PipelineError::Provider(format!("Transport error: {e}")),
             ),
-            AlloyChainProviderError::RawHeaderDecoding(_) => PipelineErrorKind::Temporary(
-                PipelineError::Provider("Failed to decode raw header".to_string()),
-            ),
-            AlloyChainProviderError::RawReceiptsFetch(_) => PipelineErrorKind::Temporary(
-                PipelineError::Provider("Failed to fetch raw receipts".to_string()),
-            ),
-            AlloyChainProviderError::RawReceiptsDecoding(_) => PipelineErrorKind::Temporary(
-                PipelineError::Provider("Failed to decode raw receipts".to_string()),
-            ),
+            AlloyChainProviderError::BlockNotFound(_) => {
+                PipelineErrorKind::Temporary(PipelineError::Provider("Block not found".to_string()))
+            }
+            AlloyChainProviderError::ReceiptsConversion(_) => {
+                PipelineErrorKind::Temporary(PipelineError::Provider(
+                    "Failed to convert RPC receipts into consensus receipts".to_string(),
+                ))
+            }
         }
     }
 }
@@ -110,27 +105,25 @@ impl ChainProvider for AlloyChainProvider {
             return Ok(header.clone());
         }
 
-        let raw_header: Bytes = self
+        let block = self
             .inner
-            .raw_request("debug_getRawHeader".into(), [hash])
-            .await
-            .map_err(|_| AlloyChainProviderError::RawHeaderFetch(hash))?;
+            .get_block_by_hash(hash, BlockTransactionsKind::Hashes)
+            .await?
+            .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?;
+        let header = block.header.into_consensus();
 
-        let header = Header::decode(&mut raw_header.as_ref())
-            .map_err(|_| AlloyChainProviderError::RawHeaderDecoding(hash))?;
         self.header_by_hash_cache.put(hash, header.clone());
 
         Ok(header)
     }
 
     async fn block_info_by_number(&mut self, number: u64) -> Result<BlockInfo, Self::Error> {
-        let raw_header: Bytes = self
+        let block = self
             .inner
-            .raw_request("debug_getRawHeader".into(), [U64::from(number)])
-            .await
-            .map_err(|_| AlloyChainProviderError::RawHeaderFetch(B256::default()))?;
-        let header = Header::decode(&mut raw_header.as_ref())
-            .map_err(|_| AlloyChainProviderError::RawHeaderDecoding(B256::default()))?;
+            .get_block_by_number(number.into(), BlockTransactionsKind::Hashes)
+            .await?
+            .ok_or(AlloyChainProviderError::BlockNotFound(number.into()))?;
+        let header = block.header.into_consensus();
 
         let block_info = BlockInfo {
             hash: header.hash_slow(),
@@ -146,29 +139,19 @@ impl ChainProvider for AlloyChainProvider {
             return Ok(receipts.clone());
         }
 
-        let raw_receipts: Vec<Bytes> = self
+        let receipts = self
             .inner
-            .raw_request("debug_getRawReceipts".into(), [hash])
-            .await
-            .map_err(|_| AlloyChainProviderError::RawReceiptsFetch(hash))?;
+            .get_block_receipts(hash.into())
+            .await?
+            .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?;
+        let consensus_receipts = receipts
+            .into_iter()
+            .map(|r| r.inner.into_primitives_receipt().as_receipt().cloned())
+            .collect::<Option<Vec<_>>>()
+            .ok_or(AlloyChainProviderError::ReceiptsConversion(hash))?;
 
-        let receipts = raw_receipts
-            .iter()
-            .map(|r| {
-                let r = &mut r.as_ref();
-
-                // Skip the transaction type byte if it exists
-                if !r.is_empty() && r[0] <= TxType::Eip7702 as u8 {
-                    r.advance(1);
-                }
-
-                Ok(ReceiptWithBloom::decode(r)
-                    .map_err(|_| AlloyChainProviderError::RawReceiptsDecoding(hash))?
-                    .receipt)
-            })
-            .collect::<Result<Vec<_>, Self::Error>>()?;
-        self.receipts_by_hash_cache.put(hash, receipts.clone());
-        Ok(receipts)
+        self.receipts_by_hash_cache.put(hash, consensus_receipts.clone());
+        Ok(consensus_receipts)
     }
 
     async fn block_info_and_transactions_by_hash(
@@ -180,13 +163,13 @@ impl ChainProvider for AlloyChainProvider {
             return Ok(block_info_and_txs.clone());
         }
 
-        let raw_block: Bytes = self
+        let block = self
             .inner
-            .raw_request("debug_getRawBlock".into(), [hash])
-            .await
-            .map_err(|_| AlloyChainProviderError::RawHeaderFetch(hash))?;
-        let block: Block<TxEnvelope> = Block::decode(&mut raw_block.as_ref())
-            .map_err(|_| AlloyChainProviderError::RawHeaderDecoding(hash))?;
+            .get_block_by_hash(hash, BlockTransactionsKind::Hashes)
+            .await?
+            .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?
+            .into_consensus()
+            .map_transactions(|t| t.inner);
 
         let block_info = BlockInfo {
             hash: block.header.hash_slow(),
