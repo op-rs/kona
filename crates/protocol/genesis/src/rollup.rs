@@ -225,6 +225,12 @@ impl RollupConfig {
     /// Returns true if Holocene is active at the given timestamp.
     pub fn is_holocene_active(&self, timestamp: u64) -> bool {
         self.hardforks.holocene_time.is_some_and(|t| timestamp >= t) ||
+            self.is_pectra_blob_schedule_active(timestamp)
+    }
+
+    /// Returns true if the pectra blob schedule is active at the given timestamp.
+    pub fn is_pectra_blob_schedule_active(&self, timestamp: u64) -> bool {
+        self.hardforks.pectra_blob_schedule_time.is_some_and(|t| timestamp >= t) ||
             self.is_isthmus_active(timestamp)
     }
 
@@ -428,6 +434,21 @@ mod tests {
     }
 
     #[test]
+    fn test_pectra_blob_schedule_active() {
+        let mut config = RollupConfig::default();
+        assert!(!config.is_holocene_active(0));
+        config.hardforks.pectra_blob_schedule_time = Some(10);
+        assert!(config.is_regolith_active(10));
+        assert!(config.is_canyon_active(10));
+        assert!(config.is_delta_active(10));
+        assert!(config.is_ecotone_active(10));
+        assert!(config.is_fjord_active(10));
+        assert!(config.is_granite_active(10));
+        assert!(config.is_pectra_blob_schedule_active(10));
+        assert!(!config.is_pectra_blob_schedule_active(9));
+    }
+
+    #[test]
     fn test_isthmus_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_isthmus_active(0));
@@ -439,6 +460,7 @@ mod tests {
         assert!(config.is_fjord_active(10));
         assert!(config.is_granite_active(10));
         assert!(config.is_holocene_active(10));
+        assert!(config.is_pectra_blob_schedule_active(10));
         assert!(config.is_isthmus_active(10));
         assert!(!config.is_isthmus_active(9));
     }
@@ -455,6 +477,7 @@ mod tests {
         assert!(config.is_fjord_active(10));
         assert!(config.is_granite_active(10));
         assert!(config.is_holocene_active(10));
+        assert!(config.is_pectra_blob_schedule_active(10));
         assert!(config.is_isthmus_active(10));
         assert!(config.is_interop_active(10));
         assert!(!config.is_interop_active(9));

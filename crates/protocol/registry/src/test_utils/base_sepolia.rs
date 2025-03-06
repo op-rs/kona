@@ -49,6 +49,7 @@ pub const BASE_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
         fjord_time: Some(1716998400),
         granite_time: Some(1723478400),
         holocene_time: Some(1732633200),
+        pectra_blob_schedule_time: None,
         isthmus_time: None,
         interop_time: None,
     },
