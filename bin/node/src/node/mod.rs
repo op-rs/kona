@@ -43,6 +43,8 @@ pub use traits::NodeActor;
 mod events;
 pub use events::NodeEvent;
 
+const PROVIDER_CACHE_SIZE: usize = 1024;
+
 /// Spawns a set of parallel actors in a [JoinSet], and cancels all actors if any of them fail. The
 /// type of the error in the [NodeActor]s is erased to avoid having to specify a common error type
 /// between actors.
@@ -117,7 +119,7 @@ impl RollupNode {
                 todo!(), // Need sync start
                 todo!(), // Need sync start
                 OnlineBlobProvider::init(self.l1_beacon).await,
-                AlloyChainProvider::new(self.l1_provider),
+                AlloyChainProvider::new(self.l1_provider, PROVIDER_CACHE_SIZE),
                 AlloyL2ChainProvider::new(self.l2_provider.clone(), self.config.clone()),
             )
             .await;
