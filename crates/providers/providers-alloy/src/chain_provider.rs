@@ -87,9 +87,9 @@ impl From<AlloyChainProviderError> for PipelineErrorKind {
             AlloyChainProviderError::Transport(e) => PipelineErrorKind::Temporary(
                 PipelineError::Provider(format!("Transport error: {e}")),
             ),
-            AlloyChainProviderError::BlockNotFound(_) => {
-                PipelineErrorKind::Temporary(PipelineError::Provider("Block not found".to_string()))
-            }
+            AlloyChainProviderError::BlockNotFound(id) => PipelineErrorKind::Temporary(
+                PipelineError::Provider(format!("L1 Block not found: {id}")),
+            ),
             AlloyChainProviderError::ReceiptsConversion(_) => {
                 PipelineErrorKind::Temporary(PipelineError::Provider(
                     "Failed to convert RPC receipts into consensus receipts".to_string(),
@@ -168,7 +168,7 @@ impl ChainProvider for AlloyChainProvider {
 
         let block = self
             .inner
-            .get_block_by_hash(hash, BlockTransactionsKind::Hashes)
+            .get_block_by_hash(hash, BlockTransactionsKind::Full)
             .await?
             .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?
             .into_consensus()
@@ -180,8 +180,10 @@ impl ChainProvider for AlloyChainProvider {
             parent_hash: block.header.parent_hash,
             timestamp: block.header.timestamp,
         };
+
         self.block_info_and_transactions_by_hash_cache
             .put(hash, (block_info, block.body.transactions.clone()));
+
         Ok((block_info, block.body.transactions))
     }
 }

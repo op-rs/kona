@@ -20,13 +20,16 @@
 #![allow(unused)]
 
 use alloy_provider::RootProvider;
+use kona_derive::traits::{ChainProvider, L2ChainProvider};
 use kona_genesis::RollupConfig;
+use kona_protocol::BatchValidationProvider;
 use kona_providers_alloy::{
-    AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
-    OnlinePipeline,
+    AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
+    OnlineBlobProvider, OnlinePipeline,
 };
 use op_alloy_network::Optimism;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
@@ -43,6 +46,9 @@ pub use traits::NodeActor;
 mod events;
 pub use events::NodeEvent;
 
+mod sync_start;
+pub use sync_start::{L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
+
 const PROVIDER_CACHE_SIZE: usize = 1024;
 
 /// Spawns a set of parallel actors in a [JoinSet], and cancels all actors if any of them fail. The
@@ -50,7 +56,7 @@ const PROVIDER_CACHE_SIZE: usize = 1024;
 /// between actors.
 ///
 /// [JoinSet]: tokio::task::JoinSet
-macro_rules! spawn_actors {
+macro_rules! spawn_and_wait {
     ($cancellation:expr, actors = [$($actor:expr$(,)?)*]) => {
         let mut task_handles = tokio::task::JoinSet::new();
 
@@ -102,41 +108,78 @@ impl RollupNode {
     ///
     /// TODO: Ensure external shutdown signals are intercepted and respect the graceful cancellation
     /// of subroutines, to ensure that the node can be stopped cleanly.
-    pub async fn start(self) {
+    pub async fn start(self) -> Result<(), RollupNodeError> {
         info!(target: "rollup_node", "Starting node services...");
 
         // Create a global broadcast channel for communication between producers and actors, as well
         // as a cancellation token for graceful shutdown.
-        let (s, r) = broadcast::channel::<NodeEvent>(1024);
+        let (sender, receiver) = broadcast::channel::<NodeEvent>(1024);
         let cancellation = CancellationToken::new();
 
+        // Create the caching L1/L2 EL providers for derivation.
+        let mut l1_derivation_provider =
+            AlloyChainProvider::new(self.l1_provider.clone(), PROVIDER_CACHE_SIZE);
+        let mut l2_derivation_provider = AlloyL2ChainProvider::new(
+            self.l2_provider.clone(),
+            self.config.clone(),
+            PROVIDER_CACHE_SIZE,
+        );
+
+        // Find the starting forkchoice state.
+        let starting_forkchoice = find_starting_forkchoice(
+            self.config.as_ref(),
+            &mut l1_derivation_provider,
+            &mut l2_derivation_provider,
+        )
+        .await?;
+
         // Create the actors.
-        let l1_watcher_rpc =
-            L1WatcherRpc::new(self.l1_provider.clone(), s.clone(), cancellation.clone());
+        let l1_watcher_actor =
+            L1WatcherRpc::new(self.l1_provider.clone(), sender.clone(), cancellation.clone());
         let derivation_actor = {
+            let starting_origin_num = starting_forkchoice.safe.l1_origin.number -
+                self.config.channel_timeout(starting_forkchoice.safe.block_info.timestamp);
+            let starting_origin =
+                l1_derivation_provider.block_info_by_number(starting_origin_num).await?;
+
             let pipeline = OnlinePipeline::new(
                 self.config.clone(),
-                todo!(), // Need sync start
-                todo!(), // Need sync start
+                starting_forkchoice.safe,
+                starting_origin,
                 OnlineBlobProvider::init(self.l1_beacon).await,
-                AlloyChainProvider::new(self.l1_provider, PROVIDER_CACHE_SIZE),
-                AlloyL2ChainProvider::new(
-                    self.l2_provider.clone(),
-                    self.config.clone(),
-                    PROVIDER_CACHE_SIZE,
-                ),
+                l1_derivation_provider,
+                l2_derivation_provider,
             )
             .await;
 
             match pipeline {
-                Ok(p) => DerivationActor::new(p, todo!(), s, r, cancellation.clone()),
+                Ok(p) => DerivationActor::new(
+                    p,
+                    starting_forkchoice.safe,
+                    sender,
+                    receiver,
+                    cancellation.clone(),
+                ),
                 Err(e) => {
                     tracing::error!(target: "rollup_node", "Failed to initialize derivation pipeline: {e}");
-                    return;
+                    return Ok(());
                 }
             }
         };
 
-        spawn_actors!(cancellation, actors = [l1_watcher_rpc, derivation_actor]);
+        spawn_and_wait!(cancellation, actors = [l1_watcher_actor, derivation_actor]);
+
+        Ok(())
     }
+}
+
+/// Errors that can occur during the operation of the [RollupNode].
+#[derive(Error, Debug)]
+pub enum RollupNodeError {
+    /// An error occurred while finding the sync starting point.
+    #[error(transparent)]
+    SyncStart(#[from] SyncStartError),
+    /// An error occurred while initializing the derivation pipeline.
+    #[error(transparent)]
+    AlloyChainProvider(#[from] AlloyChainProviderError),
 }

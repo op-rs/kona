@@ -55,9 +55,8 @@ impl NodeCommand {
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .build()
             .start()
-            .await;
-
-        Ok(())
+            .await
+            .map_err(Into::into)
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.

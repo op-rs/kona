@@ -1,5 +1,6 @@
 //! Providers that use alloy provider types on the backend.
 
+use alloy_eips::BlockId;
 use alloy_provider::{Provider, RootProvider};
 use alloy_transport::{RpcError, TransportErrorKind};
 use async_trait::async_trait;
@@ -55,6 +56,40 @@ impl AlloyL2ChainProvider {
     /// Returns the latest L2 block number.
     pub async fn latest_block_number(&mut self) -> Result<u64, RpcError<TransportErrorKind>> {
         self.inner.get_block_number().await
+    }
+
+    /// Returns the [L2BlockInfo] for the given [BlockId]. [None] is returned if the block
+    /// does not exist.
+    pub async fn block_info_by_id(
+        &mut self,
+        id: BlockId,
+    ) -> Result<Option<L2BlockInfo>, RpcError<TransportErrorKind>> {
+        let block = match id {
+            BlockId::Number(num) => {
+                self.inner.get_block_by_number(num, BlockTransactionsKind::Full).await?
+            }
+            BlockId::Hash(hash) => {
+                self.inner.get_block_by_hash(hash.block_hash, BlockTransactionsKind::Full).await?
+            }
+        };
+
+        match block {
+            Some(block) => {
+                let consensus_block = block.into_consensus().map_transactions(|t| t.inner.inner);
+
+                let l2_block = L2BlockInfo::from_block_and_genesis(
+                    &consensus_block,
+                    &self.rollup_config.genesis,
+                )
+                .map_err(|_| {
+                    RpcError::local_usage_str(
+                        "failed to construct L2BlockInfo from block and genesis",
+                    )
+                })?;
+                Ok(Some(l2_block))
+            }
+            None => Ok(None),
+        }
     }
 
     /// Creates a new [AlloyL2ChainProvider] from the provided [reqwest::Url].

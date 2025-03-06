@@ -17,10 +17,10 @@ mod blobs;
 pub use blobs::{BlobSidecarProvider, OnlineBlobProvider};
 
 mod chain_provider;
-pub use chain_provider::AlloyChainProvider;
+pub use chain_provider::{AlloyChainProvider, AlloyChainProviderError};
 
 mod l2_chain_provider;
-pub use l2_chain_provider::AlloyL2ChainProvider;
+pub use l2_chain_provider::{AlloyL2ChainProvider, AlloyL2ChainProviderError};
 
 mod pipeline;
 pub use pipeline::OnlinePipeline;
