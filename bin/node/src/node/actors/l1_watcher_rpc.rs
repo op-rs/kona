@@ -2,8 +2,10 @@
 
 use crate::node::{NodeActor, NodeEvent};
 use alloy_network::primitives::BlockTransactionsKind;
+use alloy_primitives::B256;
 use alloy_provider::{Provider, RootProvider};
 use async_trait::async_trait;
+use futures::StreamExt;
 use kona_protocol::BlockInfo;
 use thiserror::Error;
 use tokio::{
@@ -16,8 +18,6 @@ use tokio_util::sync::CancellationToken;
 pub struct L1WatcherRpc {
     /// The L1 provider.
     l1_provider: RootProvider,
-    /// The last observed L1 head.
-    last_head: Option<BlockInfo>,
     /// The outbound event sender.
     sender: Sender<NodeEvent>,
     /// The cancellation token, shared between all tasks.
@@ -31,40 +31,30 @@ impl L1WatcherRpc {
         sender: Sender<NodeEvent>,
         cancellation: CancellationToken,
     ) -> Self {
-        Self { l1_provider, last_head: None, sender, cancellation }
+        Self { l1_provider, sender, cancellation }
     }
 
-    /// Attempts to update the latest observed L1 head.
-    async fn update_head(&mut self) -> Result<BlockInfo, L1WatcherRpcError<NodeEvent>> {
-        // Fetch the block number of the current unsafe L1 head.
-        let head_number = self.l1_provider.get_block_number().await.unwrap();
-
-        // If the head number is the same as the last observed head, skip the update.
-        if let Some(block_info) = self.last_head.as_ref() {
-            if block_info.number == head_number {
-                return Err(L1WatcherRpcError::NothingToUpdate);
-            }
-        }
-
+    /// Fetches the block info for the current L1 head.
+    async fn block_info_by_hash(
+        &mut self,
+        block_hash: B256,
+    ) -> Result<BlockInfo, L1WatcherRpcError<NodeEvent>> {
         // Fetch the block of the current unsafe L1 head.
         let block = self
             .l1_provider
-            .get_block_by_number(head_number.into(), BlockTransactionsKind::Hashes)
+            .get_block_by_hash(block_hash, BlockTransactionsKind::Hashes)
             .await
             .map_err(|e| L1WatcherRpcError::Transport(e.to_string()))?
-            .ok_or(L1WatcherRpcError::L1BlockNotFound(head_number))?;
+            .ok_or(L1WatcherRpcError::L1BlockNotFound(block_hash))?;
 
         // Update the last observed head. The producer does not care about re-orgs, as this is
         // handled downstream by receivers of the head update signal.
         let head_block_info = BlockInfo {
             hash: block.header.hash,
-            number: head_number,
+            number: block.header.number,
             parent_hash: block.header.parent_hash,
             timestamp: block.header.timestamp,
         };
-
-        // Update the last observed head.
-        self.last_head = Some(head_block_info);
 
         Ok(head_block_info)
     }
@@ -76,15 +66,16 @@ impl NodeActor for L1WatcherRpc {
     type Error = L1WatcherRpcError<Self::Event>;
 
     async fn start(mut self) -> Result<(), Self::Error> {
-        // TODO: We can use an exponential backoff strategy here, rather than coupling the ticker
-        // to an assumed L1 slot time. This will allow the watcher to be more resilient to network
-        // issues and other transient failures.
-        let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(12));
+        let mut unsafe_head_stream = self
+            .l1_provider
+            .watch_blocks()
+            .await
+            .map_err(|e| L1WatcherRpcError::Transport(e.to_string()))?
+            .into_stream()
+            .flat_map(futures::stream::iter);
 
         loop {
-            // Wait for the next tick, or exit early if a shutdown signal has been received.
             select! {
-                _ = ticker.tick() => { /* continue */ },
                 _ = self.cancellation.cancelled() => {
                     // Exit the task on cancellation.
                     info!(
@@ -93,24 +84,23 @@ impl NodeActor for L1WatcherRpc {
                     );
                     return Ok(());
                 }
-            };
-
-            // Attempt to update the L1 head. If for any reason this fails, log the error and
-            // continue.
-            let head_block_info = match self.update_head().await {
-                Ok(head_block_info) => head_block_info,
-                Err(e) => {
-                    warn!(
-                        target: "l1_watcher",
-                        "Failed to update L1 head: {e}"
-                    );
-                    continue;
+                new_head = unsafe_head_stream.next() => match new_head {
+                    None => {
+                        // The stream ended, which should never happen.
+                        return Err(L1WatcherRpcError::Transport(
+                            "L1 block stream ended unexpectedly".to_string(),
+                        ));
+                    }
+                    Some(new_head) => {
+                        // Send the head update event to all consumers.
+                        let head_block_info = self.block_info_by_hash(new_head).await?;
+                        self.sender.send(NodeEvent::L1HeadUpdate(head_block_info))?;
+                    },
                 }
-            };
-
-            // Send the head update event to all consumers.
-            self.sender.send(NodeEvent::L1HeadUpdate(head_block_info))?;
+            }
         }
+
+        Ok(())
     }
 
     async fn process(&mut self, _msg: Self::Event) -> Result<(), Self::Error> {
@@ -130,7 +120,7 @@ pub enum L1WatcherRpcError<E> {
     Transport(String),
     /// The L1 block was not found.
     #[error("L1 block not found: {0}")]
-    L1BlockNotFound(u64),
+    L1BlockNotFound(B256),
     /// Nothing to update.
     #[error("Nothing to update; L1 head is the same as the last observed head")]
     NothingToUpdate,

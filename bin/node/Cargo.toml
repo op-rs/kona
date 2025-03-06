@@ -43,4 +43,5 @@ serde_json = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tokio-util.workspace = true
+futures.workspace = true
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }

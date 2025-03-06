@@ -4049,6 +4049,7 @@ dependencies = [
  "async-trait",
  "clap",
  "derive_more 2.0.1",
+ "futures",
  "kona-cli",
  "kona-derive",
  "kona-engine",
