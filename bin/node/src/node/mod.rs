@@ -120,7 +120,11 @@ impl RollupNode {
                 todo!(), // Need sync start
                 OnlineBlobProvider::init(self.l1_beacon).await,
                 AlloyChainProvider::new(self.l1_provider, PROVIDER_CACHE_SIZE),
-                AlloyL2ChainProvider::new(self.l2_provider.clone(), self.config.clone()),
+                AlloyL2ChainProvider::new(
+                    self.l2_provider.clone(),
+                    self.config.clone(),
+                    PROVIDER_CACHE_SIZE,
+                ),
             )
             .await;
 

@@ -4183,7 +4183,6 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rlp",
  "alloy-rpc-types-beacon",
  "alloy-serde",
  "alloy-transport",
