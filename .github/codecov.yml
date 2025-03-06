@@ -18,7 +18,6 @@ coverage:
         only_pulls: true
 
 ignore:
-  - "bin/node"
   - "**/test_utils/*"
   - "**/test_utils*"
   - "**/test_util*"
@@ -37,6 +36,10 @@ ignore:
   - "crates/protocol/registry/maili"
   - "crates/protocol/interop/maili"
   - "crates/utilities/serde/maili"
+  # Node - Work in Progress
+  - "bin/node"
+  - "crates/node/engine"
+
 
 # Make comments less noisy
 comment:

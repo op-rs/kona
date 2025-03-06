@@ -1,6 +1,5 @@
 //! This module contains the [PreimageServer] struct and its implementation.
 
-use anyhow::{Result, anyhow};
 use kona_preimage::{
     HintReaderServer, PreimageOracleServer, PreimageServerBackend, errors::PreimageOracleError,
 };
@@ -20,6 +19,20 @@ pub struct PreimageServer<P, H, B> {
     backend: Arc<B>,
 }
 
+/// An error that can occur when handling preimage requests
+#[derive(Debug, thiserror::Error)]
+pub enum PreimageServerError {
+    /// A preimage request error.
+    #[error("Failed to serve preimage request: {0}")]
+    PreimageRequestFailed(PreimageOracleError),
+    /// An error when failed to serve route hint.
+    #[error("Failed to route hint: {0}")]
+    RouteHintFailed(PreimageOracleError),
+    /// Task failed to execute to completion.
+    #[error("Join error: {0}")]
+    ExecutionError(#[from] tokio::task::JoinError),
+}
+
 impl<P, H, B> PreimageServer<P, H, B>
 where
     P: PreimageOracleServer + Send + Sync + 'static,
@@ -33,21 +46,24 @@ where
     }
 
     /// Starts the [PreimageServer] and waits for incoming requests.
-    pub async fn start(self) -> Result<()> {
+    pub async fn start(self) -> Result<(), PreimageServerError> {
         // Create the futures for the oracle server and hint router.
         let server = spawn(Self::start_oracle_server(self.oracle_server, self.backend.clone()));
         let hint_router = spawn(Self::start_hint_router(self.hint_reader, self.backend.clone()));
 
         // Race the two futures to completion, returning the result of the first one to finish.
         tokio::select! {
-            s = server => s.map_err(|e| anyhow!(e))?,
-            h = hint_router => h.map_err(|e| anyhow!(e))?,
+            s = server => s?,
+            h = hint_router => h?,
         }
     }
 
     /// Starts the oracle server, which waits for incoming preimage requests and serves them to the
     /// client.
-    async fn start_oracle_server(oracle_server: P, backend: Arc<B>) -> Result<()> {
+    async fn start_oracle_server(
+        oracle_server: P,
+        backend: Arc<B>,
+    ) -> Result<(), PreimageServerError> {
         info!(target: "host-server", "Starting oracle server");
         loop {
             // Serve the next preimage request. This `await` will yield to the runtime
@@ -57,7 +73,7 @@ where
                 Err(PreimageOracleError::IOError(_)) => return Ok(()),
                 Err(e) => {
                     error!("Failed to serve preimage request: {e}");
-                    return Err(anyhow!("Failed to serve preimage request: {e}"));
+                    return Err(PreimageServerError::PreimageRequestFailed(e));
                 }
             }
         }
@@ -65,7 +81,7 @@ where
 
     /// Starts the hint router, which waits for incoming hints and routes them to the appropriate
     /// handler.
-    async fn start_hint_router(hint_reader: H, backend: Arc<B>) -> Result<()> {
+    async fn start_hint_router(hint_reader: H, backend: Arc<B>) -> Result<(), PreimageServerError> {
         info!(target: "host-server", "Starting hint router");
         loop {
             // Route the next hint. This `await` will yield to the runtime if no progress can be
@@ -75,7 +91,7 @@ where
                 Err(PreimageOracleError::IOError(_)) => return Ok(()),
                 Err(e) => {
                     error!("Failed to serve route hint: {e}");
-                    return Err(anyhow!("Failed to route hint: {e}"));
+                    return Err(PreimageServerError::RouteHintFailed(e));
                 }
             }
         }

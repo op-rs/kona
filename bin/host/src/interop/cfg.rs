@@ -4,11 +4,10 @@ use super::{InteropHintHandler, InteropLocalInputs};
 use crate::{
     DiskKeyValueStore, MemoryKeyValueStore, OfflineHostBackend, OnlineHostBackend,
     OnlineHostBackendCfg, PreimageServer, SharedKeyValueStore, SplitKeyValueStore,
-    eth::http_provider,
+    eth::http_provider, server::PreimageServerError,
 };
 use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
-use anyhow::{Result, anyhow};
 use clap::Parser;
 use kona_cli::{
     cli_parsers::{parse_b256, parse_bytes},
@@ -98,9 +97,35 @@ pub struct InteropHost {
     pub rollup_config_paths: Option<Vec<PathBuf>>,
 }
 
+/// An error that can occur when handling interop hosts
+#[derive(Debug, thiserror::Error)]
+pub enum InteropHostError {
+    /// An error when handling preimage requests.
+    #[error("Error handling preimage request: {0}")]
+    PreimageServerError(#[from] PreimageServerError),
+    /// An IO error.
+    #[error("IO error: {0}")]
+    IOError(#[from] std::io::Error),
+    /// A JSON parse error.
+    #[error("Failed deserializing RollupConfig: {0}")]
+    ParseError(#[from] serde_json::Error),
+    /// Task failed to execute to completion.
+    #[error("Join error: {0}")]
+    ExecutionError(#[from] tokio::task::JoinError),
+    /// A RPC error.
+    #[error("Rpc Error: {0}")]
+    RcpError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
+    /// An error when no provider found for chain ID.
+    #[error("No provider found for chain ID: {0}")]
+    RootProviderError(u64),
+    /// Any other error.
+    #[error("Error: {0}")]
+    Other(&'static str),
+}
+
 impl InteropHost {
     /// Starts the [InteropHost] application.
-    pub async fn start(self) -> Result<()> {
+    pub async fn start(self) -> Result<(), InteropHostError> {
         if self.server {
             let hint = FileChannel::new(FileDescriptor::HintRead, FileDescriptor::HintWrite);
             let preimage =
@@ -113,21 +138,27 @@ impl InteropHost {
     }
 
     /// Starts the preimage server, communicating with the client over the provided channels.
-    async fn start_server<C>(&self, hint: C, preimage: C) -> Result<JoinHandle<Result<()>>>
+    async fn start_server<C>(
+        &self,
+        hint: C,
+        preimage: C,
+    ) -> Result<JoinHandle<Result<(), InteropHostError>>, InteropHostError>
     where
         C: Channel + Send + Sync + 'static,
     {
         let kv_store = self.create_key_value_store()?;
 
         let task_handle = if self.is_offline() {
-            task::spawn(
+            task::spawn(async {
                 PreimageServer::new(
                     OracleServer::new(preimage),
                     HintReader::new(hint),
                     Arc::new(OfflineHostBackend::new(kv_store)),
                 )
-                .start(),
-            )
+                .start()
+                .await
+                .map_err(InteropHostError::from)
+            })
         } else {
             let providers = self.create_providers().await?;
             let backend = OnlineHostBackend::new(
@@ -138,14 +169,16 @@ impl InteropHost {
             )
             .with_proactive_hint(HintType::L2BlockData);
 
-            task::spawn(
+            task::spawn(async {
                 PreimageServer::new(
                     OracleServer::new(preimage),
                     HintReader::new(hint),
                     Arc::new(backend),
                 )
-                .start(),
-            )
+                .start()
+                .await
+                .map_err(InteropHostError::from)
+            })
         };
 
         Ok(task_handle)
@@ -153,7 +186,7 @@ impl InteropHost {
 
     /// Starts the host in native mode, running both the client and preimage server in the same
     /// process.
-    async fn start_native(&self) -> Result<()> {
+    async fn start_native(&self) -> Result<(), InteropHostError> {
         let hint = BidirectionalChannel::new()?;
         let preimage = BidirectionalChannel::new()?;
 
@@ -180,21 +213,19 @@ impl InteropHost {
 
     /// Reads the [RollupConfig]s from the file system and returns a map of L2 chain ID ->
     /// [RollupConfig]s.
-    pub fn read_rollup_configs(&self) -> Result<HashMap<u64, RollupConfig>> {
+    pub fn read_rollup_configs(&self) -> Result<HashMap<u64, RollupConfig>, InteropHostError> {
         let rollup_config_paths = self.rollup_config_paths.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "No rollup config paths provided. Please provide a path to the rollup configs."
+            InteropHostError::Other(
+                "No rollup config paths provided. Please provide a path to the rollup configs.",
             )
         })?;
 
         rollup_config_paths.iter().try_fold(HashMap::default(), |mut acc, path| {
             // Read the serialized config from the file system.
-            let ser_config = std::fs::read_to_string(path)
-                .map_err(|e| anyhow!("Error reading RollupConfig file: {e}"))?;
+            let ser_config = std::fs::read_to_string(path)?;
 
             // Deserialize the config and return it.
-            let cfg: RollupConfig = serde_json::from_str(&ser_config)
-                .map_err(|e| anyhow!("Error deserializing RollupConfig: {e}"))?;
+            let cfg: RollupConfig = serde_json::from_str(&ser_config)?;
 
             acc.insert(cfg.l2_chain_id, cfg);
             Ok(acc)
@@ -202,7 +233,7 @@ impl InteropHost {
     }
 
     /// Creates the key-value store for the host backend.
-    fn create_key_value_store(&self) -> Result<SharedKeyValueStore> {
+    fn create_key_value_store(&self) -> Result<SharedKeyValueStore, InteropHostError> {
         let local_kv_store = InteropLocalInputs::new(self.clone());
 
         let kv_store: SharedKeyValueStore = if let Some(ref data_dir) = self.data_dir {
@@ -219,18 +250,23 @@ impl InteropHost {
     }
 
     /// Creates the providers required for the preimage server backend.
-    async fn create_providers(&self) -> Result<InteropProviders> {
-        let l1_provider =
-            http_provider(self.l1_node_address.as_ref().ok_or(anyhow!("Provider must be set"))?);
+    async fn create_providers(&self) -> Result<InteropProviders, InteropHostError> {
+        let l1_provider = http_provider(
+            self.l1_node_address.as_ref().ok_or(InteropHostError::Other("Provider must be set"))?,
+        );
 
         let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
-            self.l1_beacon_address.clone().ok_or(anyhow!("Beacon API URL must be set"))?,
+            self.l1_beacon_address
+                .clone()
+                .ok_or(InteropHostError::Other("Beacon API URL must be set"))?,
         ))
         .await;
 
         // Resolve all chain IDs to their corresponding providers.
-        let l2_node_addresses =
-            self.l2_node_addresses.as_ref().ok_or(anyhow!("L2 node addresses must be set"))?;
+        let l2_node_addresses = self
+            .l2_node_addresses
+            .as_ref()
+            .ok_or(InteropHostError::Other("L2 node addresses must be set"))?;
         let mut l2_providers = HashMap::default();
         for l2_node_address in l2_node_addresses {
             let l2_provider = http_provider::<Optimism>(l2_node_address);
@@ -260,9 +296,7 @@ pub struct InteropProviders {
 
 impl InteropProviders {
     /// Returns the L2 [RootProvider] for the given chain ID.
-    pub fn l2(&self, chain_id: &u64) -> Result<&RootProvider<Optimism>> {
-        self.l2s
-            .get(chain_id)
-            .ok_or_else(|| anyhow!("No provider found for chain ID: {}", chain_id))
+    pub fn l2(&self, chain_id: &u64) -> Result<&RootProvider<Optimism>, InteropHostError> {
+        self.l2s.get(chain_id).ok_or_else(|| InteropHostError::RootProviderError(*chain_id))
     }
 }

@@ -1,8 +1,7 @@
 //! Contains the full superchain data.
 
-use super::Chain;
-use alloc::vec::Vec;
-use alloy_primitives::map::{DefaultHashBuilder, HashMap};
+use super::ChainList;
+use alloy_primitives::map::HashMap;
 use kona_genesis::{ChainConfig, RollupConfig, Superchains};
 
 /// The registry containing all the superchain configurations.
@@ -10,16 +9,16 @@ use kona_genesis::{ChainConfig, RollupConfig, Superchains};
 #[serde(rename_all = "camelCase")]
 pub struct Registry {
     /// The list of chains.
-    pub chains: Vec<Chain>,
+    pub chain_list: ChainList,
     /// Map of chain IDs to their chain configuration.
-    pub op_chains: HashMap<u64, ChainConfig, DefaultHashBuilder>,
+    pub op_chains: HashMap<u64, ChainConfig>,
     /// Map of chain IDs to their rollup configurations.
-    pub rollup_configs: HashMap<u64, RollupConfig, DefaultHashBuilder>,
+    pub rollup_configs: HashMap<u64, RollupConfig>,
 }
 
 impl Registry {
     /// Read the chain list.
-    pub fn read_chain_list() -> Vec<Chain> {
+    pub fn read_chain_list() -> ChainList {
         let chain_list = include_str!("../etc/chainList.json");
         serde_json::from_str(chain_list).expect("Failed to read chain list")
     }
@@ -32,7 +31,7 @@ impl Registry {
 
     /// Initialize the superchain configurations from the chain list.
     pub fn from_chain_list() -> Self {
-        let chains = Self::read_chain_list();
+        let chain_list = Self::read_chain_list();
         let superchains = Self::read_superchain_configs();
         let mut op_chains = HashMap::default();
         let mut rollup_configs = HashMap::default();
@@ -54,7 +53,7 @@ impl Registry {
             }
         }
 
-        Self { chains, op_chains, rollup_configs }
+        Self { chain_list, op_chains, rollup_configs }
     }
 }
 
@@ -68,7 +67,7 @@ mod tests {
     #[test]
     fn test_read_chain_configs() {
         let superchains = Registry::from_chain_list();
-        assert!(superchains.chains.len() > 1);
+        assert!(superchains.chain_list.len() > 1);
         let base_config = ChainConfig {
             name: String::from("Base"),
             chain_id: 8453,

@@ -8,9 +8,7 @@ use alloy_rlp::Decodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use criterion::{Bencher, Criterion, criterion_group, criterion_main};
 use kona_executor::{StatelessL2BlockExecutor, TrieDBProvider};
-use kona_genesis::{
-    HardForkConfig, OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON, RollupConfig,
-};
+use kona_genesis::{HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG, RollupConfig};
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use pprof::criterion::{Output, PProfProfiler};
@@ -91,8 +89,7 @@ fn op_mainnet_exec_bench(
             ecotone_time: Some(0),
             ..Default::default()
         },
-        base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
-        canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
+        chain_op_config: OP_MAINNET_BASE_FEE_CONFIG,
         ..Default::default()
     };
 

@@ -21,6 +21,7 @@ pub struct SuperchainL1Info {
 #[cfg(feature = "serde")]
 mod tests {
     use super::*;
+    use crate::alloc::string::ToString;
 
     #[test]
     fn test_deny_unknown_fields_sc_l1_info() {

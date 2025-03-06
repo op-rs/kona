@@ -74,7 +74,7 @@ pub(crate) fn encode_holocene_eip_1559_params(
 ///
 /// <https://specs.optimism.io/protocol/holocene/exec-engine.html#eip1559params-encoding>
 pub(crate) fn encode_canyon_base_fee_params(config: &RollupConfig) -> B64 {
-    let params = config.canyon_base_fee_params;
+    let params = config.chain_op_config.as_canyon_base_fee_params();
 
     let mut buf = B64::ZERO;
     buf[..4].copy_from_slice(&(params.max_change_denominator as u32).to_be_bytes());
@@ -87,10 +87,9 @@ mod test {
     use super::decode_holocene_eip_1559_params;
     use crate::executor::util::{encode_canyon_base_fee_params, encode_holocene_eip_1559_params};
     use alloy_consensus::Header;
-    use alloy_eips::eip1559::BaseFeeParams;
     use alloy_primitives::{B64, b64, hex};
     use alloy_rpc_types_engine::PayloadAttributes;
-    use kona_genesis::RollupConfig;
+    use kona_genesis::{BaseFeeConfig, RollupConfig};
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
     fn mock_payload(eip_1559_params: Option<B64>) -> OpPayloadAttributes {
@@ -143,9 +142,10 @@ mod test {
     #[test]
     fn test_encode_holocene_eip_1559_params_missing() {
         let cfg = RollupConfig {
-            canyon_base_fee_params: BaseFeeParams {
-                max_change_denominator: 32,
-                elasticity_multiplier: 64,
+            chain_op_config: BaseFeeConfig {
+                eip1559_denominator: 32,
+                eip1559_elasticity: 64,
+                eip1559_denominator_canyon: 32,
             },
             ..Default::default()
         };
@@ -157,9 +157,10 @@ mod test {
     #[test]
     fn test_encode_holocene_eip_1559_params_default() {
         let cfg = RollupConfig {
-            canyon_base_fee_params: BaseFeeParams {
-                max_change_denominator: 32,
-                elasticity_multiplier: 64,
+            chain_op_config: BaseFeeConfig {
+                eip1559_denominator: 32,
+                eip1559_elasticity: 64,
+                eip1559_denominator_canyon: 32,
             },
             ..Default::default()
         };
@@ -174,9 +175,10 @@ mod test {
     #[test]
     fn test_encode_holocene_eip_1559_params() {
         let cfg = RollupConfig {
-            canyon_base_fee_params: BaseFeeParams {
-                max_change_denominator: 32,
-                elasticity_multiplier: 64,
+            chain_op_config: BaseFeeConfig {
+                eip1559_denominator: 32,
+                eip1559_elasticity: 64,
+                eip1559_denominator_canyon: 32,
             },
             ..Default::default()
         };
@@ -191,9 +193,10 @@ mod test {
     #[test]
     fn test_encode_canyon_1559_params() {
         let cfg = RollupConfig {
-            canyon_base_fee_params: BaseFeeParams {
-                max_change_denominator: 32,
-                elasticity_multiplier: 64,
+            chain_op_config: BaseFeeConfig {
+                eip1559_denominator: 32,
+                eip1559_elasticity: 64,
+                eip1559_denominator_canyon: 32,
             },
             ..Default::default()
         };

@@ -34,6 +34,26 @@ pub const OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 6;
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
 pub const BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 10;
 
+/// Base fee max change denominator for Base Sepolia as defined in the Optimism Canyon
+/// hardfork.
+pub const BASE_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u128 = 50;
+
+/// Base fee max change denominator for Base Sepolia as defined in the Optimism Canyon
+/// hardfork.
+pub const BASE_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u128 = 250;
+
+/// Base fee max change denominator for Base Mainnet as defined in the Optimism
+/// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
+pub const BASE_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 6;
+
+/// Base fee max change denominator for Base Mainnet as defined in the Optimism Canyon
+/// hardfork.
+pub const BASE_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u128 = 50;
+
+/// Base fee max change denominator for Base Mainnet as defined in the Optimism Canyon
+/// hardfork.
+pub const BASE_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u128 = 250;
+
 /// Get the base fee parameters for Optimism Sepolia.
 pub const OP_SEPOLIA_BASE_FEE_PARAMS: BaseFeeParams = BaseFeeParams {
     max_change_denominator: OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
@@ -92,6 +112,17 @@ pub const fn base_fee_params_canyon(chain_id: u64) -> BaseFeeParams {
     }
 }
 
+/// Returns the [`BaseFeeConfig`] for the given chain id.
+pub const fn base_fee_config(chain_id: u64) -> BaseFeeConfig {
+    match chain_id {
+        OP_MAINNET_CHAIN_ID => OP_MAINNET_BASE_FEE_CONFIG,
+        OP_SEPOLIA_CHAIN_ID => OP_SEPOLIA_BASE_FEE_CONFIG,
+        BASE_MAINNET_CHAIN_ID => BASE_MAINNET_BASE_FEE_CONFIG,
+        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_BASE_FEE_CONFIG,
+        _ => OP_MAINNET_BASE_FEE_CONFIG,
+    }
+}
+
 /// Get the base fee parameters for Optimism Sepolia.
 pub const OP_SEPOLIA_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
     eip1559_elasticity: OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
@@ -102,8 +133,8 @@ pub const OP_SEPOLIA_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
 /// Get the base fee parameters for Base Sepolia.
 pub const BASE_SEPOLIA_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
     eip1559_elasticity: BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
-    eip1559_denominator: OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
-    eip1559_denominator_canyon: OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
+    eip1559_denominator: BASE_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
+    eip1559_denominator_canyon: BASE_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
 };
 
 /// Get the base fee parameters for Optimism Mainnet.
@@ -111,6 +142,13 @@ pub const OP_MAINNET_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
     eip1559_elasticity: OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
     eip1559_denominator: OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
     eip1559_denominator_canyon: OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
+};
+
+/// Get the base fee parameters for Base Mainnet.
+pub const BASE_MAINNET_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
+    eip1559_elasticity: BASE_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    eip1559_denominator: BASE_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
+    eip1559_denominator_canyon: BASE_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
 };
 
 /// Optimism Base Fee Config
@@ -142,6 +180,15 @@ pub struct BaseFeeConfig {
 }
 
 impl BaseFeeConfig {
+    /// Get the base fee parameters for Optimism Mainnet
+    pub const fn optimism() -> Self {
+        Self {
+            eip1559_elasticity: OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+            eip1559_denominator: OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
+            eip1559_denominator_canyon: OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
+        }
+    }
+
     /// Returns the inner [BaseFeeParams].
     pub const fn as_base_fee_params(&self) -> BaseFeeParams {
         BaseFeeParams {

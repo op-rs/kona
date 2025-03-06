@@ -4,7 +4,7 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
     ChainGenesis, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, HardForkConfig,
-    OP_SEPOLIA_BASE_FEE_PARAMS, OP_SEPOLIA_BASE_FEE_PARAMS_CANYON, RollupConfig, SystemConfig,
+    OP_SEPOLIA_BASE_FEE_CONFIG, RollupConfig, SystemConfig,
 };
 
 /// The [RollupConfig] for OP Sepolia.
@@ -39,8 +39,8 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
     granite_channel_timeout: 50,
     l1_chain_id: 11155111,
     l2_chain_id: 11155420,
-    base_fee_params: OP_SEPOLIA_BASE_FEE_PARAMS,
-    canyon_base_fee_params: OP_SEPOLIA_BASE_FEE_PARAMS_CANYON,
+    chain_op_config: OP_SEPOLIA_BASE_FEE_CONFIG,
+    alt_da_config: None,
     hardforks: HardForkConfig {
         regolith_time: None,
         canyon_time: Some(1699981200),
@@ -49,6 +49,7 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
         fjord_time: Some(1716998400),
         granite_time: Some(1723478400),
         holocene_time: Some(1732633200),
+        pectra_blob_schedule_time: None,
         isthmus_time: None,
         interop_time: None,
     },

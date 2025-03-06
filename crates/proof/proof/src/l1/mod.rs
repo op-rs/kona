@@ -2,8 +2,7 @@
 
 mod pipeline;
 pub use pipeline::{
-    OracleAttributesBuilder, OracleAttributesQueue, OracleDataProvider, OracleDerivationPipeline,
-    OraclePipeline,
+    OracleAttributesBuilder, OracleDataProvider, OracleDerivationPipeline, OraclePipeline,
 };
 
 mod blob_provider;

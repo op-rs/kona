@@ -17,6 +17,7 @@ rust-version.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 kona-derive.workspace = true
+kona-rpc.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true
@@ -30,6 +31,7 @@ alloy-primitives = { workspace = true, features = ["map"] }
 
 # Op Alloy
 op-alloy-consensus.workspace = true
+op-alloy-network.workspace = true
 
 # Misc
 lru.workspace = true

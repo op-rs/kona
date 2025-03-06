@@ -1,11 +1,8 @@
 //! Rollup Config Types
 
-use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
-use crate::{
-    ChainGenesis, HardForkConfig, OP_MAINNET_CHAIN_ID, base_fee_params, base_fee_params_canyon,
-};
+use crate::{AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG};
 
 /// The max rlp bytes per channel for the Bedrock hardfork.
 pub const MAX_RLP_BYTES_PER_CHANNEL_BEDROCK: u64 = 10_000_000;
@@ -60,12 +57,6 @@ pub struct RollupConfig {
     pub l1_chain_id: u64,
     /// The L2 chain ID
     pub l2_chain_id: u64,
-    /// Base Fee Params
-    #[cfg_attr(feature = "serde", serde(default = "BaseFeeParams::optimism"))]
-    pub base_fee_params: BaseFeeParams,
-    /// Base fee params post-canyon hardfork
-    #[cfg_attr(feature = "serde", serde(default = "BaseFeeParams::optimism_canyon"))]
-    pub canyon_base_fee_params: BaseFeeParams,
     /// Hardfork timestamps.
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub hardforks: HardForkConfig,
@@ -95,20 +86,24 @@ pub struct RollupConfig {
     /// can be referenced on a remote chain before it expires.
     #[cfg_attr(feature = "serde", serde(default = "default_interop_message_expiry_window"))]
     pub interop_message_expiry_window: u64,
+    /// `alt_da_config` is the chain-specific DA config for the rollup.
+    #[cfg_attr(feature = "serde", serde(rename = "alt_da"))]
+    pub alt_da_config: Option<AltDAConfig>,
+    /// `chain_op_config` is the chain-specific EIP1559 config for the rollup.
+    #[cfg_attr(feature = "serde", serde(default = "BaseFeeConfig::optimism"))]
+    pub chain_op_config: BaseFeeConfig,
 }
 
 #[cfg(feature = "arbitrary")]
 impl<'a> arbitrary::Arbitrary<'a> for RollupConfig {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         use crate::{
-            BASE_SEPOLIA_BASE_FEE_PARAMS, BASE_SEPOLIA_BASE_FEE_PARAMS_CANYON,
-            OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON,
-            OP_SEPOLIA_BASE_FEE_PARAMS, OP_SEPOLIA_BASE_FEE_PARAMS_CANYON,
+            BASE_SEPOLIA_BASE_FEE_CONFIG, OP_MAINNET_BASE_FEE_CONFIG, OP_SEPOLIA_BASE_FEE_CONFIG,
         };
-        let (base_fee_params, canyon_base_fee_params) = match u32::arbitrary(u)? % 3 {
-            0 => (OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON),
-            1 => (OP_SEPOLIA_BASE_FEE_PARAMS, OP_SEPOLIA_BASE_FEE_PARAMS_CANYON),
-            _ => (BASE_SEPOLIA_BASE_FEE_PARAMS, BASE_SEPOLIA_BASE_FEE_PARAMS_CANYON),
+        let chain_op_config = match u32::arbitrary(u)? % 3 {
+            0 => OP_MAINNET_BASE_FEE_CONFIG,
+            1 => OP_SEPOLIA_BASE_FEE_CONFIG,
+            _ => BASE_SEPOLIA_BASE_FEE_CONFIG,
         };
 
         Ok(Self {
@@ -120,8 +115,6 @@ impl<'a> arbitrary::Arbitrary<'a> for RollupConfig {
             granite_channel_timeout: u.arbitrary()?,
             l1_chain_id: u.arbitrary()?,
             l2_chain_id: u.arbitrary()?,
-            base_fee_params,
-            canyon_base_fee_params,
             hardforks: HardForkConfig::arbitrary(u)?,
             batch_inbox_address: Address::arbitrary(u)?,
             deposit_contract_address: Address::arbitrary(u)?,
@@ -131,6 +124,8 @@ impl<'a> arbitrary::Arbitrary<'a> for RollupConfig {
             blobs_enabled_l1_timestamp: Option::<u64>::arbitrary(u)?,
             da_challenge_address: Option::<Address>::arbitrary(u)?,
             interop_message_expiry_window: u.arbitrary()?,
+            chain_op_config,
+            alt_da_config: Option::<AltDAConfig>::arbitrary(u)?,
         })
     }
 }
@@ -147,8 +142,6 @@ impl Default for RollupConfig {
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 0,
             l2_chain_id: 0,
-            base_fee_params: base_fee_params(OP_MAINNET_CHAIN_ID),
-            canyon_base_fee_params: base_fee_params_canyon(OP_MAINNET_CHAIN_ID),
             hardforks: HardForkConfig::default(),
             batch_inbox_address: Address::ZERO,
             deposit_contract_address: Address::ZERO,
@@ -158,6 +151,8 @@ impl Default for RollupConfig {
             blobs_enabled_l1_timestamp: None,
             da_challenge_address: None,
             interop_message_expiry_window: DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
+            alt_da_config: None,
+            chain_op_config: OP_MAINNET_BASE_FEE_CONFIG,
         }
     }
 }
@@ -230,6 +225,12 @@ impl RollupConfig {
     /// Returns true if Holocene is active at the given timestamp.
     pub fn is_holocene_active(&self, timestamp: u64) -> bool {
         self.hardforks.holocene_time.is_some_and(|t| timestamp >= t) ||
+            self.is_pectra_blob_schedule_active(timestamp)
+    }
+
+    /// Returns true if the pectra blob schedule is active at the given timestamp.
+    pub fn is_pectra_blob_schedule_active(&self, timestamp: u64) -> bool {
+        self.hardforks.pectra_blob_schedule_time.is_some_and(|t| timestamp >= t) ||
             self.is_isthmus_active(timestamp)
     }
 
@@ -310,8 +311,6 @@ impl RollupConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "serde")]
-    use crate::{OP_MAINNET_BASE_FEE_PARAMS, OP_MAINNET_BASE_FEE_PARAMS_CANYON, SystemConfig};
     #[cfg(feature = "serde")]
     use alloy_eips::BlockNumHash;
     use alloy_primitives::address;
@@ -435,6 +434,21 @@ mod tests {
     }
 
     #[test]
+    fn test_pectra_blob_schedule_active() {
+        let mut config = RollupConfig::default();
+        assert!(!config.is_holocene_active(0));
+        config.hardforks.pectra_blob_schedule_time = Some(10);
+        assert!(config.is_regolith_active(10));
+        assert!(config.is_canyon_active(10));
+        assert!(config.is_delta_active(10));
+        assert!(config.is_ecotone_active(10));
+        assert!(config.is_fjord_active(10));
+        assert!(config.is_granite_active(10));
+        assert!(config.is_pectra_blob_schedule_active(10));
+        assert!(!config.is_pectra_blob_schedule_active(9));
+    }
+
+    #[test]
     fn test_isthmus_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_isthmus_active(0));
@@ -446,6 +460,7 @@ mod tests {
         assert!(config.is_fjord_active(10));
         assert!(config.is_granite_active(10));
         assert!(config.is_holocene_active(10));
+        assert!(config.is_pectra_blob_schedule_active(10));
         assert!(config.is_isthmus_active(10));
         assert!(!config.is_isthmus_active(9));
     }
@@ -462,6 +477,7 @@ mod tests {
         assert!(config.is_fjord_active(10));
         assert!(config.is_granite_active(10));
         assert!(config.is_holocene_active(10));
+        assert!(config.is_pectra_blob_schedule_active(10));
         assert!(config.is_isthmus_active(10));
         assert!(config.is_interop_active(10));
         assert!(!config.is_interop_active(9));
@@ -502,6 +518,8 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn test_deserialize_reference_rollup_config() {
+        use crate::{OP_MAINNET_BASE_FEE_CONFIG, SystemConfig};
+
         let raw: &str = r#"
         {
           "genesis": {
@@ -535,7 +553,13 @@ mod tests {
           "batch_inbox_address": "0xff00000000000000000000000000000000042069",
           "deposit_contract_address": "0x08073dc48dde578137b8af042bcbc1c2491f1eb2",
           "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
-          "protocol_versions_address": "0x0000000000000000000000000000000000000000"
+          "protocol_versions_address": "0x0000000000000000000000000000000000000000",
+          "chain_op_config": {
+            "eip1559Elasticity": "0x6",
+            "eip1559Denominator": "0x32",
+            "eip1559DenominatorCanyon": "0xfa"
+            },
+          "alt_da": null
         }
         "#;
 
@@ -570,8 +594,6 @@ mod tests {
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 3151908,
             l2_chain_id: 1337,
-            base_fee_params: OP_MAINNET_BASE_FEE_PARAMS,
-            canyon_base_fee_params: OP_MAINNET_BASE_FEE_PARAMS_CANYON,
             hardforks: HardForkConfig {
                 regolith_time: Some(0),
                 canyon_time: Some(0),
@@ -588,6 +610,8 @@ mod tests {
             blobs_enabled_l1_timestamp: None,
             da_challenge_address: None,
             interop_message_expiry_window: DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
+            chain_op_config: OP_MAINNET_BASE_FEE_CONFIG,
+            alt_da_config: None,
         };
 
         let deserialized: RollupConfig = serde_json::from_str(raw).unwrap();
@@ -630,6 +654,11 @@ mod tests {
           "deposit_contract_address": "0x08073dc48dde578137b8af042bcbc1c2491f1eb2",
           "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
           "protocol_versions_address": "0x0000000000000000000000000000000000000000",
+          "chain_op_config": {
+            "eip1559_elasticity": 100,
+            "eip1559_denominator": 100,
+            "eip1559_denominator_canyon": 100
+          },
           "unknown_field": "unknown"
         }
         "#;
