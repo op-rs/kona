@@ -160,8 +160,7 @@ impl L2BlockInfo {
                 return Err(FromBlockError::MissingL1InfoDeposit(block_info.hash));
             }
 
-            let tx = &block.body.transactions[0];
-            let tx: &OpTxEnvelope = tx.as_ref();
+            let tx = block.body.transactions[0].as_ref();
             let Some(tx) = tx.as_deposit() else {
                 return Err(FromBlockError::FirstTxNonDeposit(tx.ty()));
             };

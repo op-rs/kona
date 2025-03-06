@@ -75,8 +75,8 @@ impl EngineClient {
         )
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
-        let block = block.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let block = block.into_consensus();
+        let block =
+            block.map(|b| b.into_consensus()).ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)
             .map_err(|e| anyhow::anyhow!(e))
     }
