@@ -28,9 +28,6 @@ default-members = [
 # https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
 resolver = "2"
 
-[patch.crates-io]
-op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "main" }
-
 [workspace.lints.rust]
 missing-debug-implementations = "warn"
 missing-docs = "warn"
@@ -133,13 +130,13 @@ alloy-rpc-types-beacon = { version = "0.11.1", default-features = false }
 alloy-network-primitives = { version = "0.11.1", default-features = false }
 
 # OP Alloy
-op-alloy-flz = { version = "0.10.8", default-features = false }
-op-alloy-network = { version = "0.10.8", default-features = false }
-op-alloy-provider = { version = "0.10.8", default-features = false }
-op-alloy-consensus = { version = "0.10.8", default-features = false }
-op-alloy-rpc-types = { version = "0.10.8", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.10.8", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.10.8", default-features = false }
+op-alloy-flz = { version = "0.10.9", default-features = false }
+op-alloy-network = { version = "0.10.9", default-features = false }
+op-alloy-provider = { version = "0.10.9", default-features = false }
+op-alloy-consensus = { version = "0.10.9", default-features = false }
+op-alloy-rpc-types = { version = "0.10.9", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.10.9", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.10.9", default-features = false }
 
 # Reth
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
