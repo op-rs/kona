@@ -29,7 +29,7 @@ default-members = [
 resolver = "2"
 
 [patch.crates-io]
-op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/as-ref-tx-env" }
+op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "main" }
 
 [workspace.lints.rust]
 missing-debug-implementations = "warn"
