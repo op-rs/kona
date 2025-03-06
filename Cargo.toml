@@ -147,13 +147,13 @@ spin = "0.9.8"
 clap = "4.5.31"
 tower = "0.5.2"
 tokio = "1.43.0"
-tokio-util = "0.7"
 cfg-if = "1.0.0"
-rstest = "0.24.0"
+rstest = "0.25.0"
 futures = "0.3.31"
 reqwest = "0.12.12"
-tempfile = "3.17.1"
+tempfile = "3.18.0"
 arbitrary = "1.4.1"
+tokio-util = "0.7.13"
 parking_lot = "0.12.3"
 async-trait = "0.1.87"
 async-channel = "2.3.1"
@@ -161,20 +161,13 @@ http-body-util = "0.1.2"
 linked_list_allocator = "0.10.5"
 
 # Compression
+getrandom = "0.3.1"
 miniz_oxide = "0.8.5"
 alloc-no-stdlib = "2.0.4"
 brotli = { version = "7.0.0", default-features = false }
-getrandom = "0.2.15"
 
 # rpc
-jsonrpsee = { version = "0.24.8", features = [
-    "jsonrpsee-core",
-    "client-core",
-    "server-core",
-    "macros",
-] }
-jsonrpsee-core = "0.24.8"
-jsonrpsee-types = "0.24.8"
+jsonrpsee = "0.24.8"
 
 # General
 rand = { version = "0.9.0", default-features = false }

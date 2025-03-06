@@ -33,7 +33,7 @@ serde = { workspace = true, optional = true }
 
 # `jsonrpsee`
 jsonrpsee = { workspace = true, optional = true }
-getrandom = { workspace = true, optional = true, features = ["js"] } # req for wasm32-unknown-unknown
+getrandom = { workspace = true, optional = true, features = ["wasm_js"] } # req for wasm32-unknown-unknown
 kona-genesis = { workspace = true, optional = true }
 op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
 
@@ -57,7 +57,6 @@ std = [
     "alloy-primitives/std",
     "op-alloy-rpc-types-engine/std",
     "derive_more/std",
-    # "kona-interop?/std",
     "serde?/std",
 ]
 serde = [
