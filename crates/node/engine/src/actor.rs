@@ -8,18 +8,24 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L46
 
-use crate::{EngineClient, ForkchoiceTaskExt, ForkchoiceTaskInput, ForkchoiceTaskOut, SyncStatus};
 use kona_genesis::RollupConfig;
-use op_alloy_provider::ext::engine::OpEngineApi;
+use kona_protocol::L2BlockInfo;
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::sync::broadcast::{Receiver, Sender};
-use tracing::{trace, warn};
+
+use crate::{
+    EngineClient, EngineForkchoiceVersion, ForkchoiceTaskExt, ForkchoiceTaskOut, InsertTaskExt,
+    InsertTaskOut, SyncConfig, SyncStatus,
+};
 
 /// A stub event from the consensus node to the engine actor.
 #[derive(Debug, Clone)]
 pub enum EngineEvent {
     /// Try to update the forkchoice.
     TryUpdateForkchoice,
+    /// A message to insert an unsafe payload.
+    InsertUnsafePayload(OpNetworkPayloadEnvelope, L2BlockInfo),
 }
 
 /// A message from the engine actor to the consensus node.
@@ -27,6 +33,8 @@ pub enum EngineEvent {
 pub enum EngineActorMessage {
     /// A message from the Forkchoice Task.
     ForkchoiceTask(ForkchoiceTaskOut),
+    /// A message from the Insert Unsafe Payload Task.
+    InsertTask(InsertTaskOut),
 }
 
 /// An error that occurs when running the engine actor.
@@ -40,6 +48,8 @@ pub struct EngineActor {
     pub client: Arc<EngineClient>,
     /// The sync status.
     pub sync_status: SyncStatus,
+    /// The sync configuration.
+    pub sync_config: Arc<SyncConfig>,
     /// A reference to the rollup config.
     pub rollup_config: Arc<RollupConfig>,
     /// A receiver channel to receive messages from the rollup node.
@@ -49,6 +59,8 @@ pub struct EngineActor {
 
     /// The external communication handle to the forkchoice task.
     pub forkchoice_task: Option<ForkchoiceTaskExt>,
+    /// The external communication handle to the insert task.
+    pub insert_task: Option<InsertTaskExt>,
 }
 
 impl EngineActor {
@@ -56,11 +68,21 @@ impl EngineActor {
     pub const fn new(
         client: Arc<EngineClient>,
         sync_status: SyncStatus,
+        sync_config: Arc<SyncConfig>,
         rollup_config: Arc<RollupConfig>,
         receiver: Receiver<EngineEvent>,
         sender: Sender<EngineActorMessage>,
     ) -> Self {
-        Self { client, sync_status, rollup_config, receiver, sender, forkchoice_task: None }
+        Self {
+            client,
+            sync_status,
+            sync_config,
+            rollup_config,
+            receiver,
+            sender,
+            forkchoice_task: None,
+            insert_task: None,
+        }
     }
 
     /// Runs the engine actor.
@@ -74,7 +96,16 @@ impl EngineActor {
                 let receiver = &mut ext.receiver;
                 if let Ok(msg) = receiver.try_recv() {
                     trace!(target: "engine", "Received message from forkchoice task: {:?}", msg);
-                    self.process_forkchoice_message(msg).await;
+                    let msg = EngineActorMessage::ForkchoiceTask(msg);
+                    crate::send_until_success!("engine", self.sender, msg);
+                }
+            }
+            if let Some(ref mut ext) = self.insert_task {
+                let receiver = &mut ext.receiver;
+                if let Ok(msg) = receiver.try_recv() {
+                    trace!(target: "engine", "Received message from insert task: {:?}", msg);
+                    let msg = EngineActorMessage::InsertTask(msg);
+                    crate::send_until_success!("engine", self.sender, msg);
                 }
             }
         }
@@ -90,34 +121,26 @@ impl EngineActor {
                 }
                 self.forkchoice_task = Some(ForkchoiceTaskExt::spawn(self.client.clone()));
             }
+            EngineEvent::InsertUnsafePayload(envelope, info) => {
+                if self.insert_task.is_some() {
+                    warn!(target: "engine", "Insert task already running.");
+                    return Ok(());
+                }
+                let version = EngineForkchoiceVersion::from_cfg(
+                    &self.rollup_config,
+                    info.block_info.timestamp,
+                );
+                let input = (
+                    self.client.clone(),
+                    self.sync_config.clone(),
+                    self.rollup_config.genesis.l2.hash,
+                    version,
+                    envelope,
+                    info,
+                );
+                self.insert_task = Some(InsertTaskExt::spawn(input));
+            }
         }
         Ok(())
-    }
-
-    /// Process a [ForkchoiceTaskOut] message received from the forkchoice task.
-    pub async fn process_forkchoice_message(&mut self, msg: ForkchoiceTaskOut) {
-        match msg {
-            ForkchoiceTaskOut::ExecuteForkchoiceUpdate(_, s, p) => {
-                match self.client.fork_choice_updated_v3(s, p).await {
-                    Ok(update) => {
-                        let sender = self.forkchoice_task.as_ref().map(|ext| ext.sender.clone());
-                        let msg = ForkchoiceTaskInput::ForkchoiceUpdated(update);
-                        crate::send_until_success_opt!("engine", sender, msg);
-                    }
-                    Err(_) => {
-                        let sender = self.forkchoice_task.as_ref().map(|ext| ext.sender.clone());
-                        crate::send_until_success_opt!(
-                            "engine",
-                            sender,
-                            ForkchoiceTaskInput::ForkchoiceUpdateFailed
-                        );
-                    }
-                }
-            }
-            _ => {
-                let msg = EngineActorMessage::ForkchoiceTask(msg);
-                crate::send_until_success!("engine", self.sender, msg);
-            }
-        }
     }
 }

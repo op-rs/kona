@@ -18,7 +18,7 @@ use crate::{
 /// The third argument is the genesis l2 hash expected to be provided by the rollup config.
 type Input = (
     Arc<EngineClient>,
-    SyncConfig,
+    Arc<SyncConfig>,
     B256,
     EngineForkchoiceVersion,
     OpNetworkPayloadEnvelope,
