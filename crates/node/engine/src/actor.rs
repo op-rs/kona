@@ -10,14 +10,13 @@
 
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::sync::broadcast::{Receiver, Sender};
 
 use crate::{
-    EngineClient, EngineForkchoiceVersion, ForkchoiceTaskExt, ForkchoiceTaskInput,
-    ForkchoiceTaskOut, InsertTaskExt, InsertTaskOut, SyncConfig, SyncStatus,
+    EngineClient, EngineForkchoiceVersion, ForkchoiceTaskExt, ForkchoiceTaskOut, InsertTaskExt,
+    InsertTaskOut, SyncConfig, SyncStatus,
 };
 
 /// A stub event from the consensus node to the engine actor.
@@ -97,14 +96,16 @@ impl EngineActor {
                 let receiver = &mut ext.receiver;
                 if let Ok(msg) = receiver.try_recv() {
                     trace!(target: "engine", "Received message from forkchoice task: {:?}", msg);
-                    self.process_forkchoice_message(msg).await;
+                    let msg = EngineActorMessage::ForkchoiceTask(msg);
+                    crate::send_until_success!("engine", self.sender, msg);
                 }
             }
             if let Some(ref mut ext) = self.insert_task {
                 let receiver = &mut ext.receiver;
                 if let Ok(msg) = receiver.try_recv() {
                     trace!(target: "engine", "Received message from insert task: {:?}", msg);
-                    self.process_insert_message(msg).await;
+                    let msg = EngineActorMessage::InsertTask(msg);
+                    crate::send_until_success!("engine", self.sender, msg);
                 }
             }
         }
@@ -141,37 +142,5 @@ impl EngineActor {
             }
         }
         Ok(())
-    }
-
-    /// Process an [InsertTaskOut] message received from the insert task.
-    pub async fn process_insert_message(&mut self, _msg: InsertTaskOut) {
-        unimplemented!()
-    }
-
-    /// Process a [ForkchoiceTaskOut] message received from the forkchoice task.
-    pub async fn process_forkchoice_message(&mut self, msg: ForkchoiceTaskOut) {
-        match msg {
-            ForkchoiceTaskOut::ExecuteForkchoiceUpdate(_, s, p) => {
-                match self.client.fork_choice_updated_v3(s, p).await {
-                    Ok(update) => {
-                        let sender = self.forkchoice_task.as_ref().map(|ext| ext.sender.clone());
-                        let msg = ForkchoiceTaskInput::ForkchoiceUpdated(update);
-                        crate::send_until_success_opt!("engine", sender, msg);
-                    }
-                    Err(_) => {
-                        let sender = self.forkchoice_task.as_ref().map(|ext| ext.sender.clone());
-                        crate::send_until_success_opt!(
-                            "engine",
-                            sender,
-                            ForkchoiceTaskInput::ForkchoiceUpdateFailed
-                        );
-                    }
-                }
-            }
-            _ => {
-                let msg = EngineActorMessage::ForkchoiceTask(msg);
-                crate::send_until_success!("engine", self.sender, msg);
-            }
-        }
     }
 }
