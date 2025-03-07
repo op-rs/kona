@@ -2,7 +2,142 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.2] - 2025-02-20
+## [0.2.4] - 2025-03-07
+
+### 🚀 Features
+
+- *(proof)* EIP-2935 lookback (#1088)
+- *(bin-utils)* Add prometheus server initializer (#1100)
+- *(node)* Engine Controller (#1136)
+- *(node)* Initial orchestration logic (#1166)
+- *(registry)* Lookup `Chain` + `RollupConfig` by identifier (#1156)
+- *(engine)* Version Providers (#1168)
+- *(interop)* Dedup logic for parsing `Log` to `ExecutingMessage` (#1171)
+- *(node)* Hook up `RollupNodeBuilder` to CLI (#1179)
+- *(book)* Umbrella Crate RFC (#1063)
+- *(node)* Derivation actor (#1180)
+- *(engine)* Actor + Task Model (#1177)
+- *(engine)* FCU Task Updates (#1191)
+- *(protocol)* Update `RollupConfig` (#1170)
+- *(engine)* Engine Task Cleanup + Insert Payload Task Stub (#1193)
+- *(engine)* Insert Task Updates (#1194)
+- *(providers-alloy)* Refactor `AlloyChainProvider` (#1203)
+- *(providers-alloy)* Refactor `AlloyL2ChainProvider` (#1204)
+- *(engine)* Insert New Payload (#1197)
+- *(engine)* Wire up Insert Task (#1202)
+- *(node)* Add `sync_start` module (#1207)
+- *(interop)* Clean up interop validator RPC component (#1172)
+
+### 🐛 Bug Fixes
+
+- *(genesis)* System Config Tests (#1090)
+- *(derive)* Use `SystemConfig` batcher key for DAP (#1106)
+- *(derive)* Hardfork Deps (#1151)
+- 2021 Edition Fragment Specifier (#1155)
+- *(ci)* Cargo Deny Checks (#1163)
+- *(engine)* Engine Client (#1169)
+- *(protocol)* Use `Prague` blob fee calculation for L1 info tx (#1192)
+- *(protocol)* Add optional pectra blob fee schedule fork (#1195)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Dependabot Label Update (#1077)
+- Crate Shields (#1078)
+- *(genesis)* Rename HardForkConfiguration (#1091)
+- *(genesis)* Serde Test Types (#1089)
+- *(genesis)* Flatten Hardforks in Rollup Config (#1092)
+- *(workspace)* Bump MSRV to `1.82` (#1097)
+- *(ci)* Split doc lint + doc test jobs
+- *(bin)* Split up bin utilities (#1098)
+- *(nexus)* Use `kona-bin-utils` (#1099)
+- *(workspace)* Adjust build recipes (#1101)
+- Cleanup Crate Docs (#1116)
+- *(bin)* Rework Node Binary (#1120)
+- *(proof-interop)* Adjust `TRANSITION_STATE_MAX_STEPS` (#1144)
+- *(rpc)* Remove L2BlockRef (#1140)
+- *(book)* Book Cleanup for Node Docs (#1143)
+- *(book)* Maili Rename (#1145)
+- *(book)* Update Protocol Crate Docs (#1146)
+- *(hardforks)* Fix Alloy Reference (#1147)
+- *(book)* Cleanup Protocol Docs (#1149)
+- *(interop)* Replace Interop Feat Flag (#1150)
+- *(workspace)* Bump `rustc` edition to 2024 (#1152)
+- *(host)* Replace anyhow with thiserror (#1093)
+- *(node)* Move Engine into Crate (#1164)
+- *(engine)* Sync Types (#1167)
+- *(engine)* Fixup EngineClient (#1173)
+- *(workspace)* Updates op-alloy Dependencies (#1174)
+- *(engine)* Remove pub mod Visibility Idents (#1175)
+- *(workspace)* Move `external` crates to `node` (#1182)
+- *(book)* Teeny Update (#1184)
+- *(executor)* Fix comments in EIP-2935 syscall module (#1181)
+- *(docs)* Update `README.md` (#1186)
+- *(registry)* Remove Default Hasher (#1185)
+- *(preimage)* Add labels to `README.md` (#1187)
+- *(executor)* Add labels to `README.md` (#1188)
+- *(host)* Update `README.md` (#1189)
+- *(workspace)* Update `README.md` (#1190)
+- *(node)* Simplify L1 watcher (#1196)
+- Scr updates (#1199)
+- Bump op-alloy Deps (#1205)
+- Cleanup Other Deps (#1206)
+- *(protocol)* RPC Block -> L2BlockInfo (#1176)
+- Fix Deny Config (#1212)
+- *(node-rpc)* Delete dead code (#1213)
+- *(protocol)* Update Sepolia-only fork to activate on L1 blocktime (#1210)
+- *(rpc)* Rename `RollupNode` -> `RollupNodeApi`, export (#1215)
+- Bump alloy 0.12 (#1208)
+- *(genesis)* Update `SystemConfig` ser (#1217)
+- Release 0.2.4
+
+### Release
+
+- *(maili)* 0.2.9 (#1087)
+- 0.2.4
+
+## [kona-host/v0.1.0-beta.11] - 2025-02-21
+
+### 🚀 Features
+
+- *(genesis)* Deny Unknown Fields (#1060)
+
+### 🐛 Bug Fixes
+
+- *(registry)* Use `superchain-registry` as a submodule (#1075)
+- *(workspace)* Exclude Maili Shadows (#1076)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(workspace)* Foundry Install Target (#1074)
+
+## [kona-host/v0.1.0-beta.10] - 2025-02-21
+
+### 🐛 Bug Fixes
+
+- Maili Shadows (#1071)
+- Remove Maili Shadows from Workspace (#1072)
+
+### 📚 Documentation
+
+- Release Guide (#1067)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Remove Release Plz (#1068)
+
+## [kona-hardforks-v0.1.0] - 2025-02-21
+
+### 🚀 Features
+
+- *(protocol)* Introduce Hardforks Crate (#1065)
+
+## [kona-nexus-v0.1.0] - 2025-02-20
+
+### 🚀 Features
+
+- *(bin)* Network Component Runner (#1058)
+
+## [kona-rpc-v0.1.0] - 2025-02-20
 
 ### 🐛 Bug Fixes
 
@@ -11,6 +146,10 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - *(book)* Move the Monorepo Doc to Archives (#1062)
+
+### Release
+
+- *(kona-interop)* 0.1.2 (#1066)
 
 ## [kona-serde-v0.1.0] - 2025-02-20
 
