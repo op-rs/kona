@@ -180,9 +180,9 @@
             "DelayedWethProxy": "0xc9edb4e340f4e9683b4557bd9db8f9d932177c86",
             "DisputeGameFactoryProxy": "0x2f12d621a16e2d3285929c9996f478508951dfe4",
             "FaultDisputeGame": "0x08f0f8f4e792d21e16289db7a80759323c446f61",
-            "Mips": null,
+            "Mips": "0x16e83ce5ce29bf90ad9da06d2fe6a15d5f344ce4",
             "PermissionedDisputeGame": "0xc457172937ffa9306099ec4f2317903254bf7223",
-            "PreimageOracle": null,
+            "PreimageOracle": "0x9c065e11870b891d214bc2da7ef1f9ddfa1be277",
             "DataAvailabilityChallenge": null
           }
         },
@@ -2417,7 +2417,8 @@
           "ecotone_time": 1708534800,
           "fjord_time": 1716998400,
           "granite_time": 1723478400,
-          "holocene_time": 1732633200
+          "holocene_time": 1732633200,
+          "pectra_blob_schedule_time": 1742486400
         },
         "protocol_versions_addr": "0x79add5713b383daa0a138d3c4780c7a1804a8090",
         "superchain_config_addr": "0xc2be75506d5724086deb7245bd260cc9753911be",
@@ -2445,7 +2446,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2608,7 +2610,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2690,7 +2693,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 0,
-            "holocene_time": 1734559200
+            "holocene_time": 1734559200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2772,7 +2776,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2854,7 +2859,8 @@
             "ecotone_time": 0,
             "fjord_time": 1730106000,
             "granite_time": 1730106000,
-            "holocene_time": 1734685200
+            "holocene_time": 1734685200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -3420,7 +3426,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -3502,7 +3509,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0xa",
@@ -3584,7 +3592,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -3750,7 +3759,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -3911,7 +3921,8 @@
             "ecotone_time": 1708534800,
             "fjord_time": 1716998400,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -3989,7 +4000,8 @@
           "ecotone_time": 1706634000,
           "fjord_time": 1715961600,
           "granite_time": 1723046400,
-          "holocene_time": 1731682800
+          "holocene_time": 1731682800,
+          "pectra_blob_schedule_time": 1742486400
         },
         "protocol_versions_addr": "0x252cbe9517f731c618961d890d534183822dcc8d",
         "superchain_config_addr": "0x02d91cf852423640d93920be0cadcec0e7a00fa7",
@@ -4017,7 +4029,8 @@
             "ecotone_time": 1706634000,
             "fjord_time": 1715961600,
             "granite_time": 1723046400,
-            "holocene_time": 1731682800
+            "holocene_time": 1731682800,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -4099,7 +4112,8 @@
             "ecotone_time": 1706634000,
             "fjord_time": 1715961600,
             "granite_time": 1723046400,
-            "holocene_time": 1731682800
+            "holocene_time": 1731682800,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
