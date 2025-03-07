@@ -6,7 +6,7 @@ use alloy_consensus::{Receipt, ReceiptEnvelope, ReceiptWithBloom, TxEnvelope, Tx
 use alloy_primitives::{B256, Bytes, Log, keccak256};
 use alloy_provider::{Provider, ProviderBuilder, network::eip2718::Encodable2718};
 use alloy_rlp::Decodable;
-use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind};
+use alloy_rpc_types::BlockTransactions;
 use reqwest::Url;
 
 const RPC_URL: &str = "https://docs-demo.quiknode.pro/";
@@ -23,7 +23,8 @@ pub(crate) async fn get_live_derivable_receipts_list()
 
     let block_number = 19005266;
     let block = provider
-        .get_block(block_number.into(), BlockTransactionsKind::Full)
+        .get_block(block_number.into())
+        .full()
         .await
         .map_err(|_| TestTrieProviderError("Missing block"))?
         .ok_or(TestTrieProviderError("Missing block"))?;
@@ -91,7 +92,8 @@ pub(crate) async fn get_live_derivable_transactions_list()
 
     let block_number = 19005266;
     let block = provider
-        .get_block(block_number.into(), BlockTransactionsKind::Full)
+        .get_block(block_number.into())
+        .full()
         .await
         .map_err(|_| TestTrieProviderError("Missing block"))?
         .ok_or(TestTrieProviderError("Missing block"))?;
