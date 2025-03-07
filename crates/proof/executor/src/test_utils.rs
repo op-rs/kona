@@ -14,10 +14,10 @@ use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::PayloadAttributes;
 use alloy_transport_http::{Client, Http};
 use kona_genesis::RollupConfig;
-use kona_host::{DiskKeyValueStore, KeyValueStore};
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use kona_registry::ROLLUP_CONFIGS;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use rocksdb::{DB, Options};
 use serde::{Deserialize, Serialize};
 use std::{env::temp_dir, path::PathBuf, sync::Arc};
 use tokio::{fs, runtime::Handle, sync::Mutex};
@@ -51,7 +51,7 @@ pub(crate) struct ExecutorTestFixtureCreator {
     /// The block number to create the test fixture for.
     pub(crate) block_number: u64,
     /// The key value store for the test fixture.
-    pub(crate) kv_store: Arc<Mutex<DiskKeyValueStore>>,
+    pub(crate) kv_store: Arc<Mutex<rocksdb::DB>>,
     /// The data directory for the test fixture.
     pub(crate) data_dir: PathBuf,
 }
@@ -68,12 +68,13 @@ impl ExecutorTestFixtureCreator {
         let http = Http::<Client>::new(url);
         let provider = RootProvider::new(RpcClient::new(http, false));
 
-        Self {
-            provider,
-            block_number,
-            kv_store: Arc::new(Mutex::new(DiskKeyValueStore::new(base.join("kv")))),
-            data_dir: base,
-        }
+        let mut options = Options::default();
+        options.set_compression_type(rocksdb::DBCompressionType::Snappy);
+        options.create_if_missing(true);
+        let db = DB::open(&options, base.join("kv").as_path())
+            .unwrap_or_else(|e| panic!("Failed to open database at {base:?}: {e}"));
+
+        Self { provider, block_number, kv_store: Arc::new(Mutex::new(db)), data_dir: base }
     }
 }
 
@@ -190,7 +191,7 @@ impl TrieProvider for ExecutorTestFixtureCreator {
                 self.kv_store
                     .lock()
                     .await
-                    .set(key, preimage.clone().into())
+                    .put(key, preimage.clone())
                     .map_err(|_| TestTrieNodeProviderError::KVStore)?;
 
                 Ok(preimage)
@@ -233,7 +234,7 @@ impl TrieDBProvider for ExecutorTestFixtureCreator {
                 self.kv_store
                     .lock()
                     .await
-                    .set(hash, code.clone().into())
+                    .put(hash, code.clone())
                     .map_err(|_| TestTrieNodeProviderError::KVStore)?;
 
                 Ok(code)
@@ -256,7 +257,7 @@ impl TrieDBProvider for ExecutorTestFixtureCreator {
                 self.kv_store
                     .lock()
                     .await
-                    .set(hash, preimage.clone().into())
+                    .put(hash, preimage.clone())
                     .map_err(|_| TestTrieNodeProviderError::KVStore)?;
 
                 Ok(preimage)
@@ -269,11 +270,11 @@ impl TrieDBProvider for ExecutorTestFixtureCreator {
 }
 
 struct DiskTrieNodeProvider {
-    kv_store: DiskKeyValueStore,
+    kv_store: DB,
 }
 
 impl DiskTrieNodeProvider {
-    pub(crate) const fn new(kv_store: DiskKeyValueStore) -> Self {
+    pub(crate) const fn new(kv_store: DB) -> Self {
         Self { kv_store }
     }
 }
@@ -286,6 +287,7 @@ impl TrieProvider for DiskTrieNodeProvider {
             &mut self
                 .kv_store
                 .get(key)
+                .map_err(|_| TestTrieNodeProviderError::PreimageNotFound)?
                 .ok_or(TestTrieNodeProviderError::PreimageNotFound)?
                 .as_slice(),
         )
@@ -297,8 +299,9 @@ impl TrieDBProvider for DiskTrieNodeProvider {
     fn bytecode_by_hash(&self, code_hash: B256) -> Result<Bytes, Self::Error> {
         self.kv_store
             .get(code_hash)
-            .ok_or(TestTrieNodeProviderError::PreimageNotFound)
+            .map_err(|_| TestTrieNodeProviderError::PreimageNotFound)?
             .map(Bytes::from)
+            .ok_or(TestTrieNodeProviderError::PreimageNotFound)
     }
 
     fn header_by_hash(&self, hash: B256) -> Result<Header, Self::Error> {
@@ -306,6 +309,7 @@ impl TrieDBProvider for DiskTrieNodeProvider {
             &mut self
                 .kv_store
                 .get(hash)
+                .map_err(|_| TestTrieNodeProviderError::PreimageNotFound)?
                 .ok_or(TestTrieNodeProviderError::PreimageNotFound)?
                 .as_slice(),
         )
@@ -328,7 +332,11 @@ pub(crate) async fn run_test_fixture(fixture_path: PathBuf) {
         .await
         .expect("Failed to untar fixture");
 
-    let kv_store = DiskKeyValueStore::new(fixture_dir.path().join("kv"));
+    let mut options = Options::default();
+    options.set_compression_type(rocksdb::DBCompressionType::Snappy);
+    options.create_if_missing(true);
+    let kv_store = DB::open(&options, fixture_dir.path().join("kv"))
+        .unwrap_or_else(|e| panic!("Failed to open database at {fixture_dir:?}: {e}"));
     let provider = DiskTrieNodeProvider::new(kv_store);
     let fixture: ExecutorTestFixture =
         serde_json::from_slice(&fs::read(fixture_dir.path().join("fixture.json")).await.unwrap())
