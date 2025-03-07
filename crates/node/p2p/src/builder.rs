@@ -159,8 +159,8 @@ impl NetworkDriverBuilder {
     /// ## Example
     ///
     /// ```rust,ignore
-    /// use kona_net::gossip::config;
-    /// use kona_net::NetworkDriverBuilder;
+    /// use kona_p2p::gossip::config;
+    /// use kona_p2p::NetworkDriverBuilder;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     ///
     /// let chain_id = 10;
@@ -193,7 +193,7 @@ impl NetworkDriverBuilder {
     /// ```rust
     /// use alloy_primitives::{Address, address};
     /// use discv5::{ConfigBuilder, ListenConfig};
-    /// use kona_net::builder::NetworkDriverBuilder;
+    /// use kona_p2p::builder::NetworkDriverBuilder;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     ///
     /// let id = 10;
@@ -235,7 +235,7 @@ impl NetworkDriverBuilder {
     ///
     /// ```rust,ignore
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-    /// use kona_net::NetworkDriverBuilder;
+    /// use kona_p2p::NetworkDriverBuilder;
     ///
     /// let chain_id = 10;
     /// let signer = Address::random();

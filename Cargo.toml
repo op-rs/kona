@@ -80,7 +80,7 @@ kona-interop = { path = "crates/protocol/interop", version = "0.1.2", default-fe
 
 # Node
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
-kona-net = { path = "crates/node/net", version = "0.1.0", default-features = false }
+kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
 kona-rpc = { path = "crates/node/rpc", version = "0.1.0", default-features = false }
 
 # Providers
