@@ -196,7 +196,7 @@ jobs:
             --workspace \
             --lcov \
             --output-path lcov.info \
-            --features test-utils \
+            --all-features \
             --profile ci \
             -E '!test(test_online)' && \
             mv ./target/nextest/ci/junit.xml ./junit.xml
