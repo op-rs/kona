@@ -85,13 +85,13 @@ impl ExecutorTestFixtureCreator {
 
         let executing_block = self
             .provider
-            .get_block_by_number(self.block_number.into(), BlockTransactionsKind::Hashes)
+            .get_block_by_number(self.block_number.into())
             .await
             .expect("Failed to get parent block")
             .expect("Block not found");
         let parent_block = self
             .provider
-            .get_block_by_number((self.block_number - 1).into(), BlockTransactionsKind::Hashes)
+            .get_block_by_number((self.block_number - 1).into())
             .await
             .expect("Failed to get parent block")
             .expect("Block not found");

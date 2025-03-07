@@ -218,16 +218,18 @@ mod tests {
             ..Default::default()
         };
         let tx_env = alloy_rpc_types_eth::Transaction {
-            inner: op_alloy_consensus::OpTxEnvelope::Deposit(alloy_primitives::Sealed::new(
-                op_alloy_consensus::TxDeposit {
-                    input: alloy_primitives::Bytes::from(&RAW_BEDROCK_INFO_TX),
-                    ..Default::default()
-                },
-            )),
+            inner: alloy_consensus::transaction::Recovered::new_unchecked(
+                op_alloy_consensus::OpTxEnvelope::Deposit(alloy_primitives::Sealed::new(
+                    op_alloy_consensus::TxDeposit {
+                        input: alloy_primitives::Bytes::from(&RAW_BEDROCK_INFO_TX),
+                        ..Default::default()
+                    },
+                )),
+                Default::default(),
+            ),
             block_hash: None,
             block_number: Some(1),
             effective_gas_price: Some(1),
-            from: alloy_primitives::Address::ZERO,
             transaction_index: Some(0),
         };
         let block: alloy_rpc_types_eth::Block<op_alloy_rpc_types::Transaction> =
