@@ -67,13 +67,10 @@ impl EngineClient {
         &mut self,
         numtag: BlockNumberOrTag,
     ) -> Result<L2BlockInfo> {
-        let block = <RootProvider<Optimism>>::get_block_by_number(
-            &self.rpc,
-            numtag,
-        )
+        let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag)
             .full()
-        .await
-        .map_err(|e| anyhow::anyhow!(e))?;
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
         let block =
             block.map(|b| b.into_consensus()).ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)

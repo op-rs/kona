@@ -3,8 +3,9 @@
 use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync::Arc, vec::Vec};
 use alloy_primitives::{B256, map::HashMap};
 
-use alloy_consensus::{Header, Receipt, Signed, TxEip1559, TxEip2930, TxEip4844,
-    TxEip4844Variant, TxEnvelope, TxLegacy,
+use alloy_consensus::{
+    Header, Receipt, Signed, TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant, TxEnvelope,
+    TxLegacy,
 };
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
@@ -389,10 +390,7 @@ pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip4844(Signed::new_unhashed(
-                TxEip4844Variant::TxEip4844(eip_tx),
-                sig,
-            ))
+            TxEnvelope::Eip4844(Signed::new_unhashed(TxEip4844Variant::TxEip4844(eip_tx), sig))
         }
         Transaction::Eip7702(_) => unimplemented!("EIP-7702 not implemented"),
     };

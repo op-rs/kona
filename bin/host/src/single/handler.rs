@@ -19,7 +19,6 @@ use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use kona_protocol::BlockInfo;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use std::collections::HashMap;
 use tracing::warn;
 
 /// The [HintHandler] for the [SingleChainHost].
@@ -347,17 +346,17 @@ impl HintHandler for SingleChainHintHandler {
                     return Ok(());
                 };
 
-                let mut merged = HashMap::<B256, Bytes>::default();
-                merged.extend(execute_payload_response.state);
-                merged.extend(execute_payload_response.codes);
-                merged.extend(execute_payload_response.keys);
+                let preimages = execute_payload_response
+                    .state
+                    .into_iter()
+                    .chain(execute_payload_response.codes)
+                    .chain(execute_payload_response.keys);
 
                 let mut kv_lock = kv.write().await;
-                for (hash, preimage) in merged.into_iter() {
+                for preimage in preimages {
                     let computed_hash = keccak256(preimage.as_ref());
-                    assert_eq!(computed_hash, hash, "Preimage hash does not match expected hash");
 
-                    let key = PreimageKey::new_keccak256(*hash);
+                    let key = PreimageKey::new_keccak256(*computed_hash);
                     kv_lock.set(key.into(), preimage.into())?;
                 }
             }

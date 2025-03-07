@@ -13,7 +13,7 @@ use alloy_eips::{
 use alloy_primitives::{Address, B256, Bytes, address, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::{Decodable, Encodable};
-use alloy_rpc_types::{Block, BlockTransactionsKind};
+use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_driver::Driver;
@@ -417,9 +417,7 @@ impl HintHandler for InteropHintHandler {
                     .await?
                     .ok_or(anyhow!("Block not found."))?;
                 let disputed_block = l2_provider
-                    .get_block_by_number(
-                        (parent_block.header.number + 1).into(),
-                    )
+                    .get_block_by_number((parent_block.header.number + 1).into())
                     .await?
                     .ok_or(anyhow!("Block not found."))?;
 

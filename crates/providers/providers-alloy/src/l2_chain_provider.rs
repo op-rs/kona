@@ -12,7 +12,7 @@ use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
 use lru::LruCache;
 use op_alloy_consensus::OpBlock;
-use op_alloy_network::{Optimism};
+use op_alloy_network::Optimism;
 use std::{num::NonZeroUsize, sync::Arc};
 
 /// The [AlloyL2ChainProvider] is a concrete implementation of the [L2ChainProvider] trait,
@@ -65,12 +65,8 @@ impl AlloyL2ChainProvider {
         id: BlockId,
     ) -> Result<Option<L2BlockInfo>, RpcError<TransportErrorKind>> {
         let block = match id {
-            BlockId::Number(num) => {
-                self.inner.get_block_by_number(num).full().await?
-            }
-            BlockId::Hash(hash) => {
-                self.inner.get_block_by_hash(hash.block_hash).full().await?
-            }
+            BlockId::Number(num) => self.inner.get_block_by_number(num).full().await?,
+            BlockId::Hash(hash) => self.inner.get_block_by_hash(hash.block_hash).full().await?,
         };
 
         match block {
