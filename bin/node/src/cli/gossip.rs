@@ -2,7 +2,7 @@
 
 use crate::cli::globals::GlobalArgs;
 use clap::Args;
-use kona_net::driver::NetworkDriver;
+use kona_p2p::driver::NetworkDriver;
 use kona_registry::ROLLUP_CONFIGS;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
