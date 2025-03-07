@@ -1,12 +1,11 @@
 //! Contains the [`SystemConfig`] type.
 
-use alloy_consensus::{Eip658Value, Receipt};
-use alloy_primitives::{Address, B64, Log, U256};
-
 use crate::{
     CONFIG_UPDATE_TOPIC, RollupConfig, SystemConfigLog, SystemConfigUpdateError,
     SystemConfigUpdateKind,
 };
+use alloy_consensus::{Eip658Value, Receipt};
+use alloy_primitives::{Address, B64, B256, Log, U256};
 
 /// System configuration.
 #[derive(Debug, Copy, Clone, Default, Hash, Eq, PartialEq)]
@@ -65,6 +64,7 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
             eip1559_params: Option<B64>,
             eip1559_denominator: Option<u32>,
             eip1559_elasticity: Option<u32>,
+            operator_fee_params: Option<B256>,
             operator_fee_scalar: Option<u32>,
             operator_fee_constant: Option<u64>,
         }
@@ -75,6 +75,14 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
                 Some(u32::from_be_bytes(params.as_slice().get(0..4).unwrap().try_into().unwrap()));
             alias.eip1559_elasticity =
                 Some(u32::from_be_bytes(params.as_slice().get(4..8).unwrap().try_into().unwrap()));
+        }
+        if let Some(params) = alias.operator_fee_params {
+            alias.operator_fee_scalar = Some(u32::from_be_bytes(
+                params.as_slice().get(20..24).unwrap().try_into().unwrap(),
+            ));
+            alias.operator_fee_constant = Some(u64::from_be_bytes(
+                params.as_slice().get(24..32).unwrap().try_into().unwrap(),
+            ));
         }
 
         Ok(Self {
