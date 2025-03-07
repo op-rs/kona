@@ -15,19 +15,13 @@ pub use graph::MessageGraph;
 mod traits;
 pub use traits::InteropProvider;
 
-mod supervisor;
-pub use supervisor::Supervisor;
-
-#[cfg(feature = "client")]
-mod client;
-#[cfg(feature = "client")]
-pub use client::{SupervisorClient, SupervisorError};
-
 mod safety;
 pub use safety::SafetyLevel;
 
 mod errors;
-pub use errors::{MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult};
+pub use errors::{
+    InvalidExecutingMessage, MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult,
+};
 
 mod root;
 pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootResponse};

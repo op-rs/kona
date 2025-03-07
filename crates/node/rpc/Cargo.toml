@@ -26,7 +26,11 @@ alloy-eips = { workspace = true, features = ["serde"] }
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 
 # Misc
-derive_more = { workspace = true, default-features = false, features = ["display", "from"] }
+derive_more = { workspace = true, default-features = false, features = [
+    "display",
+    "from",
+    "constructor"
+] }
 
 # `serde`
 serde = { workspace = true, optional = true }
@@ -36,6 +40,9 @@ jsonrpsee = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, features = ["wasm_js"] } # req for wasm32-unknown-unknown
 kona-genesis = { workspace = true, optional = true }
 op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
+
+# `reqwest` feature
+alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
 
 # `interop` feature
 thiserror = { workspace = true, optional = true }
@@ -76,6 +83,7 @@ jsonrpsee = [
     "dep:getrandom",
     "dep:op-alloy-rpc-jsonrpsee",
 ]
+reqwest = ["dep:alloy-rpc-client"]
 client = [
     "dep:tokio",
     "dep:jsonrpsee",
@@ -91,3 +99,4 @@ interop = [
     "dep:kona-interop",
     "dep:async-trait",
 ]
+

@@ -31,19 +31,26 @@ mod attributes;
 pub use attributes::OpAttributesWithParent;
 
 #[cfg(feature = "jsonrpsee")]
-mod api;
+mod jsonrpsee;
+#[cfg(all(feature = "jsonrpsee", feature = "interop", feature = "client"))]
+pub use jsonrpsee::SupervisorApiClient;
+#[cfg(all(feature = "jsonrpsee", feature = "interop"))]
+pub use jsonrpsee::SupervisorApiServer;
 #[cfg(all(feature = "jsonrpsee", feature = "client"))]
-pub use api::{
+pub use jsonrpsee::{
     EngineApiExtClient, MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeClient,
-    SupervisorApiClient,
 };
 #[cfg(feature = "jsonrpsee")]
-pub use api::{
+pub use jsonrpsee::{
     EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeServer,
-    SupervisorApiServer,
 };
 
+#[cfg(all(feature = "reqwest", feature = "interop"))]
+pub mod reqwest;
+#[cfg(all(feature = "reqwest", feature = "interop", feature = "client"))]
+pub use reqwest::SupervisorClient;
+
 #[cfg(feature = "interop")]
-mod traits;
+mod interop;
 #[cfg(feature = "interop")]
-pub use traits::{ExecutingMessageValidator, ExecutingMessageValidatorError};
+pub use interop::{CheckMessages, ExecutingMessageValidator, ExecutingMessageValidatorError};
