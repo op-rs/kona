@@ -58,7 +58,7 @@ impl From<jsonrpsee::types::ErrorObjectOwned> for ExecutingMessageValidatorError
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonrpsee::types::ErrorObjectOwned;
+    use jsonrpsee::{core::ClientError, types::ErrorObjectOwned};
     use kona_interop::{InvalidExecutingMessage, SafetyLevel};
 
     const MIN_SAFETY_LOCAL_SAFE_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: cross-unsafe) does not meet the minimum safety local-safe"}"#;
@@ -82,9 +82,9 @@ mod tests {
         ));
 
         assert!(matches!(
-            ExecutingMessageValidatorError::from(
+            ExecutingMessageValidatorError::from(ClientError::Call(
                 serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_SAFE_ERROR).unwrap()
-            ),
+            )),
             ExecutingMessageValidatorError::InvalidExecutingMessage(
                 InvalidExecutingMessage::MinimumSafety {
                     expected: SafetyLevel::Safe,
