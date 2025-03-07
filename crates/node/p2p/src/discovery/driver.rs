@@ -50,7 +50,7 @@ impl DiscoveryDriver {
     /// ## Example
     ///
     /// ```no_run
-    /// use kona_net::discovery::builder::DiscoveryBuilder;
+    /// use kona_p2p::discovery::builder::DiscoveryBuilder;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     ///
     /// #[tokio::main]
