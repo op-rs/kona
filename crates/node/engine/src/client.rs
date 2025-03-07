@@ -2,7 +2,6 @@
 
 use alloy_eips::eip1898::BlockNumberOrTag;
 use alloy_network::AnyNetwork;
-use alloy_network_primitives::BlockTransactionsKind;
 use alloy_primitives::{B256, BlockHash, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_client::RpcClient;
@@ -71,8 +70,8 @@ impl EngineClient {
         let block = <RootProvider<Optimism>>::get_block_by_number(
             &self.rpc,
             numtag,
-            BlockTransactionsKind::Full,
         )
+            .full()
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
         let block =

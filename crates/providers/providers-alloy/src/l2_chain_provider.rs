@@ -66,10 +66,10 @@ impl AlloyL2ChainProvider {
     ) -> Result<Option<L2BlockInfo>, RpcError<TransportErrorKind>> {
         let block = match id {
             BlockId::Number(num) => {
-                self.inner.get_block_by_number(num, BlockTransactionsKind::Full).await?
+                self.inner.get_block_by_number(num).full().await?
             }
             BlockId::Hash(hash) => {
-                self.inner.get_block_by_hash(hash.block_hash, BlockTransactionsKind::Full).await?
+                self.inner.get_block_by_hash(hash.block_hash).full().await?
             }
         };
 
@@ -159,7 +159,8 @@ impl BatchValidationProvider for AlloyL2ChainProvider {
 
         let block = self
             .inner
-            .get_block_by_number(number.into(), BlockTransactionsKind::Full)
+            .get_block_by_number(number.into())
+            .full()
             .await?
             .ok_or(AlloyL2ChainProviderError::BlockNotFound(number))?
             .into_consensus()

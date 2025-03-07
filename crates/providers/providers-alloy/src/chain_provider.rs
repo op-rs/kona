@@ -110,7 +110,7 @@ impl ChainProvider for AlloyChainProvider {
 
         let block = self
             .inner
-            .get_block_by_hash(hash, BlockTransactionsKind::Hashes)
+            .get_block_by_hash(hash)
             .await?
             .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?;
         let header = block.header.into_consensus();
@@ -123,7 +123,7 @@ impl ChainProvider for AlloyChainProvider {
     async fn block_info_by_number(&mut self, number: u64) -> Result<BlockInfo, Self::Error> {
         let block = self
             .inner
-            .get_block_by_number(number.into(), BlockTransactionsKind::Hashes)
+            .get_block_by_number(number.into())
             .await?
             .ok_or(AlloyChainProviderError::BlockNotFound(number.into()))?;
         let header = block.header.into_consensus();
@@ -168,7 +168,8 @@ impl ChainProvider for AlloyChainProvider {
 
         let block = self
             .inner
-            .get_block_by_hash(hash, BlockTransactionsKind::Full)
+            .get_block_by_hash(hash)
+            .full()
             .await?
             .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?
             .into_consensus()
