@@ -10,10 +10,8 @@ feature-depth = 1
 ignore = [
     # Can be removed once libp2p is updated to 1.55.*
     "RUSTSEC-2024-0384",
-    # Can be removed once reth version is updated
-    "RUSTSEC-2024-0370",
-    # Ring is unmaintained - used in upstream libs
-    "RUSTSEC-2025-0007",
+    # paste crate is no longer maintained.
+    "RUSTSEC-2024-0436",
 ]
 
 [licenses]
@@ -24,13 +22,10 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
-    "Unicode-DFS-2016",
     "Unlicense",
     "Unicode-3.0",
     "MPL-2.0",
     "Zlib",
-    # https://github.com/briansmith/ring/issues/902
-    "LicenseRef-ring",
     "0BSD",
 ]
 confidence-threshold = 0.8
@@ -39,12 +34,9 @@ exceptions = [
     # so we prefer to not have dependencies using it
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
     { allow = ["CC0-1.0"], name = "secp256k1" },
-    { allow = ["CC0-1.0"], name = "notify" },
     { allow = ["CC0-1.0"], name = "aurora-engine-modexp" },
     { allow = ["CC0-1.0"], name = "secp256k1-sys" },
     { allow = ["CC0-1.0"], name = "tiny-keccak" },
-    { allow = ["CC0-1.0"], name = "to_method" },
-    { allow = ["CC0-1.0"], name = "trezor-client" },
 ]
 
 [[licenses.clarify]]
