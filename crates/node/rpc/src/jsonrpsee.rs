@@ -1,9 +1,8 @@
 //! The Optimism RPC API using `jsonrpsee`
 
 use alloc::{boxed::Box, string::String, vec::Vec};
-use core::net::IpAddr;
-
 use alloy_eips::BlockNumberOrTag;
+use core::net::IpAddr;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use kona_genesis::RollupConfig;
 use kona_interop::{ExecutingMessage, SafetyLevel};
