@@ -82,9 +82,9 @@ mod tests {
         ));
 
         assert!(matches!(
-            ExecutingMessageValidatorError::from(ClientError::Call(
+            ExecutingMessageValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_SAFE_ERROR).unwrap()
-            )),
+            ),
             ExecutingMessageValidatorError::InvalidExecutingMessage(
                 InvalidExecutingMessage::MinimumSafety {
                     expected: SafetyLevel::Safe,
@@ -107,6 +107,11 @@ mod tests {
                 serde_json::from_str::<ErrorObjectOwned>(RANDOM_VALIDATION_ERROR).unwrap()
             ),
             ExecutingMessageValidatorError::SupervisorServerError(_)
+        ));
+
+        assert!(matches!(
+            ExecutingMessageValidatorError::from(ClientError::RequestTimeout),
+            ExecutingMessageValidatorError::RpcClientError(_)
         ));
     }
 }
