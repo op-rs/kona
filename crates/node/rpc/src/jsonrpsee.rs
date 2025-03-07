@@ -1,5 +1,9 @@
 //! The Optimism RPC API using `jsonrpsee`
 
+use crate::{
+    OutputResponse, PeerDump, PeerInfo, PeerStats, ProtocolVersion, SafeHeadResponse,
+    SuperchainSignal,
+};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use alloy_eips::BlockNumberOrTag;
 use core::net::IpAddr;
@@ -10,11 +14,6 @@ use kona_protocol::SyncStatus;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
-
-use crate::{
-    OutputResponse, PeerDump, PeerInfo, PeerStats, ProtocolVersion, SafeHeadResponse,
-    SuperchainSignal,
-};
 
 // Re-export apis defined in upstream `op-alloy-rpc-jsonrpsee`
 pub use op_alloy_rpc_jsonrpsee::traits::{MinerApiExtServer, OpAdminApiServer};
@@ -28,7 +27,7 @@ pub use op_alloy_rpc_jsonrpsee::traits::{MinerApiExtClient, OpAdminApiClient};
 /// https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/node/api.go#L114
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "optimism"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "optimism"))]
-pub trait RollupNode {
+pub trait RollupNodeApi {
     /// Get the output root at a specific block.
     #[method(name = "outputAtBlock")]
     async fn op_output_at_block(&self, block_number: BlockNumberOrTag)
