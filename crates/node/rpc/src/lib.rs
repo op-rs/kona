@@ -38,11 +38,11 @@ pub use jsonrpsee::SupervisorApiClient;
 pub use jsonrpsee::SupervisorApiServer;
 #[cfg(all(feature = "jsonrpsee", feature = "client"))]
 pub use jsonrpsee::{
-    EngineApiExtClient, MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeClient,
+    EngineApiExtClient, MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient,
 };
 #[cfg(feature = "jsonrpsee")]
 pub use jsonrpsee::{
-    EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeServer,
+    EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
 };
 
 #[cfg(all(feature = "reqwest", feature = "interop"))]

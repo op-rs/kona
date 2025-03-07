@@ -48,7 +48,11 @@ where
         base_fee_params: &BaseFeeParams,
     ) -> ExecutorResult<BlockEnv> {
         let blob_excess_gas_and_price = parent_header
-            .next_block_excess_blob_gas(BlobParams::cancun())
+            .next_block_excess_blob_gas(if spec_id.is_enabled_in(SpecId::ISTHMUS) {
+                BlobParams::prague()
+            } else {
+                BlobParams::cancun()
+            })
             .or_else(|| spec_id.is_enabled_in(SpecId::ECOTONE).then_some(0))
             .map(|e| BlobExcessGasAndPrice::new(e, spec_id.is_enabled_in(SpecId::PRAGUE)));
         let next_block_base_fee =

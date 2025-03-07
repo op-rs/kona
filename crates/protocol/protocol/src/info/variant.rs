@@ -135,7 +135,7 @@ impl L1BlockInfoTx {
             .requests_hash
             .and_then(|_| {
                 (rollup_config.hardforks.pectra_blob_schedule_time.is_none() ||
-                    rollup_config.is_pectra_blob_schedule_active(l2_block_time))
+                    rollup_config.is_pectra_blob_schedule_active(l1_header.timestamp))
                 .then_some(BlobParams::prague())
             })
             .unwrap_or(BlobParams::cancun());
@@ -359,6 +359,7 @@ mod test {
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
     use kona_genesis::HardForkConfig;
+    use rstest::rstest;
 
     #[test]
     fn test_l1_block_info_missing_selector() {
@@ -895,6 +896,80 @@ mod test {
         assert_eq!(l1_info.base_fee_scalar, base_fee_scalar);
     }
 
+    #[rstest]
+    #[case::fork_active(true, false)]
+    #[case::fork_inactive(false, false)]
+    #[should_panic]
+    #[case::fork_active_wrong_params(true, true)]
+    #[should_panic]
+    #[case::fork_inactive_wrong_params(false, true)]
+    fn test_try_new_ecotone_with_optional_prague_fee_fork(
+        #[case] fork_active: bool,
+        #[case] use_wrong_params: bool,
+    ) {
+        let rollup_config = RollupConfig {
+            hardforks: HardForkConfig {
+                ecotone_time: Some(1),
+                pectra_blob_schedule_time: Some(2),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let system_config = SystemConfig::default();
+        let sequence_number = 0;
+        let l1_header = Header {
+            timestamp: if fork_active { 2 } else { 1 },
+            excess_blob_gas: Some(0x5080000),
+            blob_gas_used: Some(0x100000),
+            requests_hash: Some(B256::ZERO),
+            ..Default::default()
+        };
+        let l2_block_time = 0xFF;
+
+        let l1_info = L1BlockInfoTx::try_new(
+            &rollup_config,
+            &system_config,
+            sequence_number,
+            &l1_header,
+            l2_block_time,
+        )
+        .unwrap();
+
+        let L1BlockInfoTx::Ecotone(l1_info) = l1_info else {
+            panic!("Wrong fork");
+        };
+
+        assert_eq!(l1_info.number, l1_header.number);
+        assert_eq!(l1_info.time, l1_header.timestamp);
+        assert_eq!(l1_info.base_fee, { l1_header.base_fee_per_gas.unwrap_or(0) });
+        assert_eq!(l1_info.block_hash, l1_header.hash_slow());
+        assert_eq!(l1_info.sequence_number, sequence_number);
+        assert_eq!(l1_info.batcher_address, system_config.batcher_address);
+        assert_eq!(
+            l1_info.blob_base_fee,
+            l1_header
+                .blob_fee(if fork_active != use_wrong_params {
+                    BlobParams::prague()
+                } else {
+                    BlobParams::cancun()
+                })
+                .unwrap_or(1)
+        );
+
+        let scalar = system_config.scalar.to_be_bytes::<32>();
+        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoEcotone::L1_SCALAR)
+            .then(|| {
+                u32::from_be_bytes(
+                    scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),
+                )
+            })
+            .unwrap_or_default();
+        let base_fee_scalar =
+            u32::from_be_bytes(scalar[28..32].try_into().expect("Failed to parse base fee scalar"));
+        assert_eq!(l1_info.blob_base_fee_scalar, blob_base_fee_scalar);
+        assert_eq!(l1_info.base_fee_scalar, base_fee_scalar);
+    }
+
     #[test]
     fn test_try_new_interop() {
         let rollup_config = RollupConfig {
@@ -925,7 +1000,7 @@ mod test {
         assert_eq!(l1_info.block_hash, l1_header.hash_slow());
         assert_eq!(l1_info.sequence_number, sequence_number);
         assert_eq!(l1_info.batcher_address, system_config.batcher_address);
-        assert_eq!(l1_info.blob_base_fee, l1_header.blob_fee(BlobParams::cancun()).unwrap_or(1));
+        assert_eq!(l1_info.blob_base_fee, l1_header.blob_fee(BlobParams::prague()).unwrap_or(1));
 
         let scalar = system_config.scalar.to_be_bytes::<32>();
         let blob_base_fee_scalar = (scalar[0] == L1BlockInfoInterop::L1_SCALAR)
@@ -993,7 +1068,7 @@ mod test {
                 block_hash: l1_header.hash_slow(),
                 sequence_number,
                 batcher_address: system_config.batcher_address,
-                blob_base_fee: l1_header.blob_fee(BlobParams::cancun()).unwrap_or(1),
+                blob_base_fee: l1_header.blob_fee(BlobParams::prague()).unwrap_or(1),
                 blob_base_fee_scalar,
                 base_fee_scalar,
                 operator_fee_scalar: system_config.operator_fee_scalar.unwrap_or_default(),
