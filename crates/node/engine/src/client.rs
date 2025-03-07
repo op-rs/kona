@@ -2,7 +2,7 @@
 
 use alloy_eips::eip1898::BlockNumberOrTag;
 use alloy_network::AnyNetwork;
-use alloy_network_primitives::{BlockTransactions, BlockTransactionsKind};
+use alloy_network_primitives::BlockTransactionsKind;
 use alloy_primitives::{B256, BlockHash, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_client::RpcClient;
@@ -30,7 +30,7 @@ use tower::ServiceBuilder;
 use url::Url;
 
 use kona_genesis::RollupConfig;
-use kona_protocol::{BlockInfo, L1BlockInfoTx, L2BlockInfo};
+use kona_protocol::L2BlockInfo;
 
 /// A Hyper HTTP client with a JWT authentication layer.
 type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
@@ -75,42 +75,10 @@ impl EngineClient {
         )
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
-        let block = block.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-
-        // Construct the block info from the block.
-        let block_info = BlockInfo {
-            hash: block.header.hash_slow(),
-            number: block.header.number,
-            parent_hash: block.header.parent_hash,
-            timestamp: block.header.timestamp,
-        };
-
-        let genesis = self.cfg.genesis;
-        let (l1_origin, sequence_number) = if block_info.number == genesis.l2.number {
-            if block_info.hash != genesis.l2.hash {
-                anyhow::bail!("Genesis block hash mismatch");
-            }
-            (genesis.l1, 0)
-        } else {
-            if block.transactions.is_empty() {
-                anyhow::bail!("Block has no transactions");
-            }
-
-            let BlockTransactions::Full(txs) = block.transactions else {
-                anyhow::bail!("Block has no full transactions");
-            };
-
-            let tx = &txs[0];
-            let Some(tx) = tx.inner.inner.as_deposit() else {
-                anyhow::bail!("First transaction is not a deposit");
-            };
-
-            let l1_info = L1BlockInfoTx::decode_calldata(tx.input.as_ref())
-                .map_err(|e| anyhow::anyhow!(e))?;
-            (l1_info.id(), l1_info.sequence_number())
-        };
-
-        Ok(L2BlockInfo { block_info, l1_origin, seq_num: sequence_number })
+        let block =
+            block.map(|b| b.into_consensus()).ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)
+            .map_err(|e| anyhow::anyhow!(e))
     }
 }
 

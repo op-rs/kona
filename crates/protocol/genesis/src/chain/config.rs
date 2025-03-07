@@ -7,7 +7,7 @@ use alloy_primitives::Address;
 use crate::{
     AddressList, AltDAConfig, BaseFeeConfig, ChainGenesis, GRANITE_CHANNEL_TIMEOUT, HardForkConfig,
     Roles, RollupConfig, SuperchainLevel, base_fee_params, base_fee_params_canyon,
-    rollup::DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
+    params::base_fee_config, rollup::DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
 };
 
 /// Defines core blockchain settings per block.
@@ -122,6 +122,11 @@ impl ChainConfig {
             .unwrap_or_else(|| base_fee_params_canyon(self.chain_id))
     }
 
+    /// Returns the base fee config for the chain.
+    pub fn base_fee_config(&self) -> BaseFeeConfig {
+        self.optimism.as_ref().map(|op| *op).unwrap_or_else(|| base_fee_config(self.chain_id))
+    }
+
     /// Loads the rollup config for the OP-Stack chain given the chain config and address list.
     #[deprecated(since = "0.2.1", note = "please use `as_rollup_config` instead")]
     pub fn load_op_stack_rollup_config(&self) -> RollupConfig {
@@ -134,11 +139,9 @@ impl ChainConfig {
             genesis: self.genesis,
             l1_chain_id: self.l1_chain_id,
             l2_chain_id: self.chain_id,
-            base_fee_params: self.base_fee_params(),
             block_time: self.block_time,
             seq_window_size: self.seq_window_size,
             max_sequencer_drift: self.max_sequencer_drift,
-            canyon_base_fee_params: self.canyon_base_fee_params(),
             hardforks: self.hardfork_config,
             batch_inbox_address: self.batch_inbox_addr,
             deposit_contract_address: self
@@ -171,6 +174,8 @@ impl ChainConfig {
             channel_timeout: 300,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             interop_message_expiry_window: DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
+            chain_op_config: self.base_fee_config(),
+            alt_da_config: self.alt_da.clone(),
         }
     }
 }

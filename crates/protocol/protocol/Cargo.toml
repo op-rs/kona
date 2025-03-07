@@ -64,6 +64,9 @@ tokio = { workspace = true, features = ["full"] }
 arbitrary = { workspace = true, features = ["derive"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 alloy-primitives = { workspace = true, features = ["arbitrary"] }
+op-alloy-consensus.workspace = true
+alloy-rpc-types-eth.workspace = true
+op-alloy-rpc-types.workspace = true
 
 [features]
 default = []

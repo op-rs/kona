@@ -1,8 +1,7 @@
 //! Providers that use alloy provider types on the backend.
 
-use alloy_primitives::{Bytes, U64};
+use alloy_eips::BlockId;
 use alloy_provider::{Provider, RootProvider};
-use alloy_rlp::Decodable;
 use alloy_transport::{RpcError, TransportErrorKind};
 use async_trait::async_trait;
 use kona_derive::{
@@ -11,8 +10,10 @@ use kona_derive::{
 };
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
+use lru::LruCache;
 use op_alloy_consensus::OpBlock;
-use std::sync::Arc;
+use op_alloy_network::{Optimism, primitives::BlockTransactionsKind};
+use std::{num::NonZeroUsize, sync::Arc};
 
 /// The [AlloyL2ChainProvider] is a concrete implementation of the [L2ChainProvider] trait,
 /// providing data over Ethereum JSON-RPC using an alloy provider as the backend.
@@ -23,15 +24,28 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct AlloyL2ChainProvider {
     /// The inner Ethereum JSON-RPC provider.
-    inner: RootProvider,
+    inner: RootProvider<Optimism>,
     /// The rollup configuration.
     rollup_config: Arc<RollupConfig>,
+    /// The `block_by_number` LRU cache.
+    block_by_number_cache: LruCache<u64, OpBlock>,
 }
 
 impl AlloyL2ChainProvider {
     /// Creates a new [AlloyL2ChainProvider] with the given alloy provider and [RollupConfig].
-    pub fn new(inner: RootProvider, rollup_config: Arc<RollupConfig>) -> Self {
-        Self { inner, rollup_config }
+    ///
+    /// ## Panics
+    /// - Panics if `cache_size` is zero.
+    pub fn new(
+        inner: RootProvider<Optimism>,
+        rollup_config: Arc<RollupConfig>,
+        cache_size: usize,
+    ) -> Self {
+        Self {
+            inner,
+            rollup_config,
+            block_by_number_cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
+        }
     }
 
     /// Returns the chain ID.
@@ -44,25 +58,63 @@ impl AlloyL2ChainProvider {
         self.inner.get_block_number().await
     }
 
+    /// Returns the [L2BlockInfo] for the given [BlockId]. [None] is returned if the block
+    /// does not exist.
+    pub async fn block_info_by_id(
+        &mut self,
+        id: BlockId,
+    ) -> Result<Option<L2BlockInfo>, RpcError<TransportErrorKind>> {
+        let block = match id {
+            BlockId::Number(num) => {
+                self.inner.get_block_by_number(num, BlockTransactionsKind::Full).await?
+            }
+            BlockId::Hash(hash) => {
+                self.inner.get_block_by_hash(hash.block_hash, BlockTransactionsKind::Full).await?
+            }
+        };
+
+        match block {
+            Some(block) => {
+                let consensus_block = block.into_consensus().map_transactions(|t| t.inner.inner);
+
+                let l2_block = L2BlockInfo::from_block_and_genesis(
+                    &consensus_block,
+                    &self.rollup_config.genesis,
+                )
+                .map_err(|_| {
+                    RpcError::local_usage_str(
+                        "failed to construct L2BlockInfo from block and genesis",
+                    )
+                })?;
+                Ok(Some(l2_block))
+            }
+            None => Ok(None),
+        }
+    }
+
     /// Creates a new [AlloyL2ChainProvider] from the provided [reqwest::Url].
-    pub fn new_http(url: reqwest::Url, rollup_config: Arc<RollupConfig>) -> Self {
+    pub fn new_http(
+        url: reqwest::Url,
+        rollup_config: Arc<RollupConfig>,
+        cache_size: usize,
+    ) -> Self {
         let inner = RootProvider::new_http(url);
-        Self::new(inner, rollup_config)
+        Self::new(inner, rollup_config, cache_size)
     }
 }
 
 /// An error for the [AlloyL2ChainProvider].
 #[derive(Debug, thiserror::Error)]
 pub enum AlloyL2ChainProviderError {
+    /// Transport error
+    #[error(transparent)]
+    Transport(#[from] RpcError<TransportErrorKind>),
     /// Failed to find a block.
     #[error("Failed to fetch block {0}")]
     BlockNotFound(u64),
     /// Failed to construct [L2BlockInfo] from the block and genesis.
     #[error("Failed to construct L2BlockInfo from block {0} and genesis")]
     L2BlockInfoConstruction(u64),
-    /// Failed to decode an [OpBlock] from the raw block.
-    #[error("Failed to decode OpBlock from raw block {0}")]
-    OpBlockDecode(u64),
     /// Failed to convert the block into a [SystemConfig].
     #[error("Failed to convert block {0} into SystemConfig")]
     SystemConfigConversion(u64),
@@ -71,14 +123,14 @@ pub enum AlloyL2ChainProviderError {
 impl From<AlloyL2ChainProviderError> for PipelineErrorKind {
     fn from(e: AlloyL2ChainProviderError) -> Self {
         match e {
+            AlloyL2ChainProviderError::Transport(e) => PipelineErrorKind::Temporary(
+                PipelineError::Provider(format!("Transport error: {e}")),
+            ),
             AlloyL2ChainProviderError::BlockNotFound(_) => {
-                PipelineErrorKind::Temporary(PipelineError::Provider("block not found".to_string()))
+                PipelineErrorKind::Temporary(PipelineError::Provider("Block not found".to_string()))
             }
             AlloyL2ChainProviderError::L2BlockInfoConstruction(_) => PipelineErrorKind::Temporary(
-                PipelineError::Provider("l2 block info construction failed".to_string()),
-            ),
-            AlloyL2ChainProviderError::OpBlockDecode(_) => PipelineErrorKind::Temporary(
-                PipelineError::Provider("op block decode failed".to_string()),
+                PipelineError::Provider("L2 block info construction failed".to_string()),
             ),
             AlloyL2ChainProviderError::SystemConfigConversion(_) => PipelineErrorKind::Temporary(
                 PipelineError::Provider("system config conversion failed".to_string()),
@@ -101,13 +153,20 @@ impl BatchValidationProvider for AlloyL2ChainProvider {
     }
 
     async fn block_by_number(&mut self, number: u64) -> Result<OpBlock, Self::Error> {
-        let raw_block: Bytes = self
+        if let Some(block) = self.block_by_number_cache.get(&number) {
+            return Ok(block.clone());
+        }
+
+        let block = self
             .inner
-            .raw_request("debug_getRawBlock".into(), [U64::from(number)])
-            .await
-            .map_err(|_| AlloyL2ChainProviderError::BlockNotFound(number))?;
-        OpBlock::decode(&mut raw_block.as_ref())
-            .map_err(|_| AlloyL2ChainProviderError::OpBlockDecode(number))
+            .get_block_by_number(number.into(), BlockTransactionsKind::Full)
+            .await?
+            .ok_or(AlloyL2ChainProviderError::BlockNotFound(number))?
+            .into_consensus()
+            .map_transactions(|t| t.inner.inner);
+
+        self.block_by_number_cache.put(number, block.clone());
+        Ok(block)
     }
 }
 

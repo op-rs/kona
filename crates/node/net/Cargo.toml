@@ -16,7 +16,6 @@ rust-version.workspace = true
 # Alloy
 alloy-rlp.workspace = true
 alloy-primitives = { workspace = true, features = ["k256", "getrandom"] }
-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 
 # Op Alloy
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
@@ -43,6 +42,7 @@ arbitrary = { workspace = true, features = ["derive"], optional = true }
 arbtest.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }
 alloy-primitives = { workspace = true, features = ["arbitrary"] }
+alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 
 [features]
 default = []

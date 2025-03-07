@@ -7,7 +7,17 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-extern crate alloc;
+#[macro_use]
+extern crate tracing;
+
+mod actor;
+pub use actor::{EngineActor, EngineActorError, EngineActorMessage, EngineEvent};
+
+mod tasks;
+pub use tasks::{
+    EngineTask, ForkchoiceTask, ForkchoiceTaskError, ForkchoiceTaskExt, ForkchoiceTaskInput,
+    ForkchoiceTaskOut, InsertTask, InsertTaskError, InsertTaskExt, InsertTaskInput, InsertTaskOut,
+};
 
 mod client;
 pub use client::EngineClient;
@@ -18,17 +28,7 @@ pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPa
 mod sync;
 pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
-mod controller;
-pub use controller::EngineController;
-
-mod controller_builder;
-pub use controller_builder::ControllerBuilder;
-
-mod error;
-pub use error::EngineUpdateError;
-
 mod state;
-pub use state::EngineState;
+pub use state::{EngineState, StateBuilder};
 
-mod state_builder;
-pub use state_builder::StateBuilder;
+pub(crate) mod macros;

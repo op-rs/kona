@@ -5,7 +5,6 @@
 //! [vp]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/types.go#L546
 
 use kona_genesis::RollupConfig;
-use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// The method version for the `engine_forkchoiceUpdated` api.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -22,12 +21,11 @@ impl EngineForkchoiceVersion {
     /// Returns the appropriate [`EngineForkchoiceVersion`] for the chain at the given attributes.
     ///
     /// Uses the [`RollupConfig`] to check which hardfork is active at the given timestamp.
-    pub fn from_cfg(cfg: &RollupConfig, attributes: &OpPayloadAttributes) -> Self {
-        let ts = attributes.payload_attributes.timestamp;
-        if cfg.is_ecotone_active(ts) {
+    pub fn from_cfg(cfg: &RollupConfig, timestamp: u64) -> Self {
+        if cfg.is_ecotone_active(timestamp) {
             // Cancun
             Self::V3
-        } else if cfg.is_canyon_active(ts) {
+        } else if cfg.is_canyon_active(timestamp) {
             // Shanghai
             Self::V2
         } else {

@@ -3,8 +3,8 @@
 use std::sync::mpsc::Receiver;
 
 use alloy_primitives::Address;
-use alloy_rpc_types_engine::ExecutionPayload;
 use libp2p::TransportError;
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::{select, sync::watch};
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
 /// - Peer discovery with `discv5`.
 pub struct NetworkDriver {
     /// Channel to receive unsafe blocks.
-    pub(crate) unsafe_block_recv: Option<Receiver<ExecutionPayload>>,
+    pub(crate) unsafe_block_recv: Option<Receiver<OpNetworkPayloadEnvelope>>,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Option<watch::Sender<Address>>,
     /// The swarm instance.
@@ -35,7 +35,7 @@ impl NetworkDriver {
     }
 
     /// Take the unsafe block receiver.
-    pub fn take_unsafe_block_recv(&mut self) -> Option<Receiver<ExecutionPayload>> {
+    pub fn take_unsafe_block_recv(&mut self) -> Option<Receiver<OpNetworkPayloadEnvelope>> {
         self.unsafe_block_recv.take()
     }
 

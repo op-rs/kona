@@ -96,7 +96,7 @@ pub enum PipelineError {
     #[error("Data source exhausted")]
     EndOfSource,
     /// Provider error variant.
-    #[error("Blob provider error: {0}")]
+    #[error("Provider error: {0}")]
     Provider(String),
 }
 
