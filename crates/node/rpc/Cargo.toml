@@ -1,6 +1,6 @@
 [package]
 name = "kona-rpc"
-version = "0.1.0"
+version = "0.1.1"
 description = "Optimism RPC Types and API"
 
 edition.workspace = true
