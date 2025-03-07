@@ -1,41 +1,40 @@
-# ref: https://docs.codecov.com/docs/codecovyml-reference
+# Configuration for Codecov
+#
+# Kona's code coverage is available at
+# https://app.codecov.io/gh/op-rs/kona
+#
+# Reference: https://docs.codecov.com/docs/codecovyml-reference
+
 coverage:
   range: 90..100
   round: down
   precision: 1
   status:
-    # ref: https://docs.codecov.com/docs/commit-status
     project:
       default:
-        # Avoid false negatives
         threshold: 1%
     patch:
       default:
         target: auto
-        # Avoid false negatives
         threshold: 1%
         base: auto
         only_pulls: true
 
-ignore:
-  - "**/test_utils/*"
-  - "**/test_utils*"
-  - "**/test_util*"
-  - "**/tests*"
-  - "crates/providers/providers-alloy"
-  - "crates/providers/providers-local"
-  - "crates/proof/mpt/src/noop.rs"
-  # Interop - not yet integrated
-  - "crates/proof/proof-interop"
-  - "bin/host/src/interop"
-  - "bin/client/src/interop"
-  # Node - Work in Progress
-  - "bin/node"
-  - "crates/node/engine"
-
-
-# Make comments less noisy
 comment:
   layout: "condensed_header, condensed_files, condensed_footer"
   require_changes: true
   hide_project_coverage: false
+
+ignore:
+  - "**/test_util*"
+  # Ignore providers
+  - "crates/providers"
+  # Ignore noop files
+  - "**/noop.rs"
+  # Interop - WIP
+  - "crates/proof/proof-interop"
+  - "bin/host/src/interop"
+  - "bin/client/src/interop"
+  # Node - WIP
+  - "bin/node"
+  - "crates/node/engine"
