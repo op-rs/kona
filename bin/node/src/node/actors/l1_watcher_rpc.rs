@@ -42,7 +42,7 @@ impl L1WatcherRpc {
         // Fetch the block of the current unsafe L1 head.
         let block = self
             .l1_provider
-            .get_block_by_hash(block_hash, BlockTransactionsKind::Hashes)
+            .get_block_by_hash(block_hash)
             .await
             .map_err(|e| L1WatcherRpcError::Transport(e.to_string()))?
             .ok_or(L1WatcherRpcError::L1BlockNotFound(block_hash))?;

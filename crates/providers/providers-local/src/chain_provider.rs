@@ -3,8 +3,7 @@
 use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync::Arc, vec::Vec};
 use alloy_primitives::{B256, map::HashMap};
 
-use alloy_consensus::{
-    BlockHeader, Header, Receipt, SignableTransaction, Signed, TxEip1559, TxEip2930, TxEip4844,
+use alloy_consensus::{Header, Receipt, Signed, TxEip1559, TxEip2930, TxEip4844,
     TxEip4844Variant, TxEnvelope, TxLegacy,
 };
 use alloy_eips::BlockNumHash;
@@ -136,7 +135,7 @@ impl InMemoryChainProviderInner {
                     blob_gas_used: header.blob_gas_used,
                     excess_blob_gas: header.excess_blob_gas,
                     parent_beacon_block_root: header.parent_beacon_block_root,
-                    requests_hash: header.requests_hash(),
+                    requests_hash: header.requests_hash,
                 },
             );
         }
@@ -303,6 +302,7 @@ impl ChainProvider for InMemoryChainProvider {
 }
 
 pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
+    // TODO: this should just be an Into
     let sig = *tx.signature();
 
     let new = match &tx.transaction() {
@@ -316,7 +316,7 @@ pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
                 value: l.value,
                 input: l.input.clone(),
             };
-            TxEnvelope::Legacy(Signed::new_unchecked(legacy_tx, sig, tx.signature_hash()))
+            TxEnvelope::Legacy(Signed::new_unhashed(legacy_tx, sig))
         }
         Transaction::Eip2930(e) => {
             let eip_tx = TxEip2930 {
@@ -339,7 +339,7 @@ pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip2930(Signed::new_unchecked(eip_tx, sig, tx.signature_hash()))
+            TxEnvelope::Eip2930(Signed::new_unhashed(eip_tx, sig))
         }
         Transaction::Eip1559(e) => {
             let eip_tx = TxEip1559 {
@@ -363,7 +363,7 @@ pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip1559(Signed::new_unchecked(eip_tx, sig, tx.signature_hash()))
+            TxEnvelope::Eip1559(Signed::new_unhashed(eip_tx, sig))
         }
         Transaction::Eip4844(e) => {
             let eip_tx = TxEip4844 {
@@ -389,10 +389,9 @@ pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip4844(Signed::new_unchecked(
+            TxEnvelope::Eip4844(Signed::new_unhashed(
                 TxEip4844Variant::TxEip4844(eip_tx),
                 sig,
-                tx.signature_hash(),
             ))
         }
         Transaction::Eip7702(_) => unimplemented!("EIP-7702 not implemented"),

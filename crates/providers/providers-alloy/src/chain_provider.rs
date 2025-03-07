@@ -12,7 +12,6 @@ use kona_derive::{
 };
 use kona_protocol::BlockInfo;
 use lru::LruCache;
-use op_alloy_network::primitives::BlockTransactionsKind;
 use std::{boxed::Box, num::NonZeroUsize, vec::Vec};
 
 /// The [AlloyChainProvider] is a concrete implementation of the [ChainProvider] trait, providing
@@ -173,7 +172,7 @@ impl ChainProvider for AlloyChainProvider {
             .await?
             .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?
             .into_consensus()
-            .map_transactions(|t| t.inner);
+            .map_transactions(|t| t.inner.into_inner());
 
         let block_info = BlockInfo {
             hash: block.header.hash_slow(),

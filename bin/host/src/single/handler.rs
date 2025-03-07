@@ -12,7 +12,7 @@ use alloy_eips::{
 use alloy_primitives::{Address, B256, Bytes, address, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::Decodable;
-use alloy_rpc_types::{Block, BlockTransactionsKind, debug::ExecutionWitness};
+use alloy_rpc_types::{Block, debug::ExecutionWitness};
 use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
@@ -53,7 +53,8 @@ impl HintHandler for SingleChainHintHandler {
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let Block { transactions, .. } = providers
                     .l1
-                    .get_block_by_hash(hash, BlockTransactionsKind::Full)
+                    .get_block_by_hash(hash)
+                    .full()
                     .await?
                     .ok_or(anyhow!("Block not found"))?;
                 let encoded_transactions = transactions
@@ -175,7 +176,8 @@ impl HintHandler for SingleChainHintHandler {
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let Block { transactions, .. } = providers
                     .l2
-                    .get_block_by_hash(hash, BlockTransactionsKind::Full)
+                    .get_block_by_hash(hash)
+                    .full()
                     .await?
                     .ok_or(anyhow!("Block not found."))?;
 

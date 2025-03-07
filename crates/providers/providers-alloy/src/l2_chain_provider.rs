@@ -12,7 +12,7 @@ use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
 use lru::LruCache;
 use op_alloy_consensus::OpBlock;
-use op_alloy_network::{Optimism, primitives::BlockTransactionsKind};
+use op_alloy_network::{Optimism};
 use std::{num::NonZeroUsize, sync::Arc};
 
 /// The [AlloyL2ChainProvider] is a concrete implementation of the [L2ChainProvider] trait,
@@ -164,7 +164,7 @@ impl BatchValidationProvider for AlloyL2ChainProvider {
             .await?
             .ok_or(AlloyL2ChainProviderError::BlockNotFound(number))?
             .into_consensus()
-            .map_transactions(|t| t.inner.inner);
+            .map_transactions(|t| t.inner.inner.into_inner());
 
         self.block_by_number_cache.put(number, block.clone());
         Ok(block)

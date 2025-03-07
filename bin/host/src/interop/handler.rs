@@ -67,7 +67,8 @@ impl HintHandler for InteropHintHandler {
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let Block { transactions, .. } = providers
                     .l1
-                    .get_block_by_hash(hash, BlockTransactionsKind::Full)
+                    .get_block_by_hash(hash)
+                    .full()
                     .await?
                     .ok_or(anyhow!("Block not found"))?;
                 let encoded_transactions = transactions
@@ -268,7 +269,8 @@ impl HintHandler for InteropHintHandler {
 
                 let Block { transactions, .. } = providers
                     .l2(&chain_id)?
-                    .get_block_by_hash(hash, BlockTransactionsKind::Full)
+                    .get_block_by_hash(hash)
+                    .full()
                     .await?
                     .ok_or(anyhow!("Block not found"))?;
                 let encoded_transactions = transactions
@@ -411,13 +413,12 @@ impl HintHandler for InteropHintHandler {
 
                 // Check if the block is canonical before continuing.
                 let parent_block = l2_provider
-                    .get_block_by_hash(agreed_block_hash, BlockTransactionsKind::Hashes)
+                    .get_block_by_hash(agreed_block_hash)
                     .await?
                     .ok_or(anyhow!("Block not found."))?;
                 let disputed_block = l2_provider
                     .get_block_by_number(
                         (parent_block.header.number + 1).into(),
-                        BlockTransactionsKind::Hashes,
                     )
                     .await?
                     .ok_or(anyhow!("Block not found."))?;
