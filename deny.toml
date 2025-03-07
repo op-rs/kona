@@ -10,10 +10,8 @@ feature-depth = 1
 ignore = [
     # Can be removed once libp2p is updated to 1.55.*
     "RUSTSEC-2024-0384",
-    # Can be removed once reth version is updated
-    "RUSTSEC-2024-0370",
-    # Ring is unmaintained - used in upstream libs
-    "RUSTSEC-2025-0007",
+    # paste crate is no longer maintained.
+    "RUSTSEC-2024-0436",
 ]
 
 [licenses]
