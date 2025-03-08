@@ -160,9 +160,6 @@ miniz_oxide = "0.8.5"
 alloc-no-stdlib = "2.0.4"
 brotli = { version = "7.0.0", default-features = false }
 
-# rpc
-jsonrpsee = "0.24.8"
-
 # General
 rand = { version = "0.9.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
@@ -175,7 +172,7 @@ lazy_static = { version = "1.5.0", default-features = false }
 # Networking
 snap = "1.1.1"
 discv5 = "0.9.1"
-libp2p = "0.54.1"
+libp2p = "0.55.0"
 openssl = "0.10.70"
 libp2p-identity = "0.2.10"
 
@@ -199,6 +196,7 @@ toml = { version = "0.8.19", default-features = false }
 serde_json = { version = "1.0.138", default-features = false }
 
 # Ethereum
+jsonrpsee = "0.24.8"
 unsigned-varint = "0.8.0"
 revm = { version = "19.5.0", default-features = false }
 
