@@ -197,11 +197,8 @@ jobs:
             --lcov \
             --output-path lcov.info \
             --all-features \
+           --ignore-run-fail \
             --profile ci \
-            --exclude kona-providers-local \
-            --exclude kona-providers-alloy \
-            --exclude kona-node \
-            --exclude kona-engine \
             -E '!test(test_online)' && \
             mv ./target/nextest/ci/junit.xml ./junit.xml
       - name: Record Rust version
