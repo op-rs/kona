@@ -14,36 +14,20 @@ rust-version.workspace = true
 [dependencies]
 # workspace
 kona-cli.workspace = true
+kona-node-service.workspace = true
 kona-p2p.workspace = true
-kona-engine.workspace = true
 kona-genesis.workspace = true
 kona-registry.workspace = true
-kona-derive.workspace = true
-kona-protocol.workspace = true
-kona-providers-alloy.workspace = true
-kona-rpc.workspace = true
 
 # alloy
 alloy-primitives.workspace = true
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
-alloy-provider.workspace = true
-alloy-network.workspace = true
-alloy-eips.workspace = true
-alloy-transport.workspace = true
-
-# op-alloy
-op-alloy-network.workspace = true
 
 # general
 url.workspace = true
-thiserror.workspace = true
 anyhow.workspace = true
-derive_more.workspace = true
-async-trait.workspace = true
 tracing.workspace = true
 serde_json = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tokio-util.workspace = true
-futures.workspace = true
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }

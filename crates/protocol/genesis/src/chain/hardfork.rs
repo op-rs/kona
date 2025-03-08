@@ -1,5 +1,8 @@
 //! Contains the hardfork configuration for the chain.
 
+use alloc::string::{String, ToString};
+use core::fmt::Display;
+
 /// Hardfork configuration.
 ///
 /// See: <https://github.com/ethereum-optimism/superchain-registry/blob/8ff62ada16e14dd59d0fb94ffb47761c7fa96e01/ops/internal/config/chain.go#L102-L110>
@@ -64,6 +67,31 @@ pub struct HardForkConfig {
     /// otherwise.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub interop_time: Option<u64>,
+}
+
+impl Display for HardForkConfig {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        #[inline(always)]
+        fn fmt_time(t: Option<u64>) -> String {
+            t.map(|t| t.to_string()).unwrap_or_else(|| "Not scheduled".to_string())
+        }
+
+        writeln!(f, "🍴 Scheduled Hardforks:")?;
+        writeln!(f, "-> Regolith Activation Time: {}", fmt_time(self.regolith_time))?;
+        writeln!(f, "-> Canyon Activation Time: {}", fmt_time(self.canyon_time))?;
+        writeln!(f, "-> Delta Activation Time: {}", fmt_time(self.delta_time))?;
+        writeln!(f, "-> Ecotone Activation Time: {}", fmt_time(self.ecotone_time))?;
+        writeln!(f, "-> Fjord Activation Time: {}", fmt_time(self.fjord_time))?;
+        writeln!(f, "-> Granite Activation Time: {}", fmt_time(self.granite_time))?;
+        writeln!(f, "-> Holocene Activation Time: {}", fmt_time(self.holocene_time))?;
+        writeln!(
+            f,
+            "-> Pectra Blob Schedule Activation Time (Sepolia Superchain Only): {}",
+            fmt_time(self.pectra_blob_schedule_time)
+        )?;
+        writeln!(f, "-> Isthmus Activation Time: {}", fmt_time(self.isthmus_time))?;
+        writeln!(f, "-> Interop Activation Time: {}", fmt_time(self.interop_time))
+    }
 }
 
 #[cfg(test)]

@@ -1,13 +1,12 @@
 //! The [RollupNodeBuilder].
 
-#![allow(unused)]
-
 use super::RollupNode;
+use crate::NodeMode;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
-use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
+use kona_providers_alloy::OnlineBeaconClient;
 use std::sync::Arc;
 use url::Url;
 
@@ -17,17 +16,17 @@ pub struct RollupNodeBuilder {
     /// The rollup configuration.
     config: RollupConfig,
     /// The sync configuration.
-    sync_config: Option<SyncConfig>,
+    _sync_config: Option<SyncConfig>,
     /// The L1 EL provider RPC URL.
     l1_provider_rpc_url: Option<Url>,
     /// The L1 beacon API URL.
     l1_beacon_api_url: Option<Url>,
     /// The L2 engine RPC URL.
-    l2_engine_rpc_url: Option<Url>,
+    _l2_engine_rpc_url: Option<Url>,
     /// The L2 EL provider RPC URL.
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
-    jwt_secret: Option<JwtSecret>,
+    _jwt_secret: Option<JwtSecret>,
 }
 
 impl RollupNodeBuilder {
@@ -38,7 +37,7 @@ impl RollupNodeBuilder {
 
     /// Appends a [SyncConfig] to the builder.
     pub fn with_sync_config(self, sync_config: SyncConfig) -> Self {
-        Self { sync_config: Some(sync_config), ..self }
+        Self { _sync_config: Some(sync_config), ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.
@@ -53,7 +52,7 @@ impl RollupNodeBuilder {
 
     /// Appends an L2 engine RPC URL to the builder.
     pub fn with_l2_engine_rpc_url(self, l2_engine_rpc_url: Url) -> Self {
-        Self { l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
+        Self { _l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
     }
 
     /// Appends an L2 EL provider RPC URL to the builder.
@@ -63,7 +62,7 @@ impl RollupNodeBuilder {
 
     /// Appends a JWT secret to the builder.
     pub fn with_jwt_secret(self, jwt_secret: JwtSecret) -> Self {
-        Self { jwt_secret: Some(jwt_secret), ..self }
+        Self { _jwt_secret: Some(jwt_secret), ..self }
     }
 
     /// Assembles the [RollupNode] service.
@@ -84,11 +83,12 @@ impl RollupNodeBuilder {
             RootProvider::new_http(self.l2_provider_rpc_url.expect("l2 provider rpc url not set"));
 
         RollupNode {
+            mode: NodeMode::Validator, // TODO: Make dynamic
             config: Arc::new(self.config),
             l1_provider,
             l1_beacon,
             l2_provider,
-            l2_engine: (),
+            _l2_engine: (),
         }
     }
 }

@@ -1,13 +1,15 @@
 //! Node Subcommand.
 
-use crate::{cli::globals::GlobalArgs, node::RollupNode};
+use crate::cli::globals::GlobalArgs;
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
 use kona_genesis::RollupConfig;
+use kona_node_service::{RollupNode, RollupNodeService};
 use kona_registry::ROLLUP_CONFIGS;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
+use tracing::debug;
 use url::Url;
 
 /// The Node subcommand.
