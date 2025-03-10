@@ -109,7 +109,7 @@ crates/
   utilities/
     serde/     <-- Has Maili Shadow
   cli/
-    ..         # TODO
+    ...
 ```
 
 > [!INFO]

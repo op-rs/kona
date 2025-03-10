@@ -347,8 +347,6 @@ where
                     let parent_excess_blob_gas = parent_header.excess_blob_gas.unwrap_or_default();
                     let parent_blob_gas_used = parent_header.blob_gas_used.unwrap_or_default();
 
-                    // TODO(isthmus): Consider the final field for EIP-7742. Since this EIP isn't
-                    // implemented yet, we can safely ignore it for now.
                     calc_excess_blob_gas(parent_excess_blob_gas, parent_blob_gas_used, 0)
                 } else {
                     // For the first post-fork block, both blob gas fields are evaluated to 0.
