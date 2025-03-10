@@ -4033,33 +4033,44 @@ dependencies = [
 name = "kona-node"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
+ "alloy-rpc-types-engine",
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-genesis",
+ "kona-node-service",
+ "kona-p2p",
+ "kona-registry",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
+name = "kona-node-service"
+version = "0.1.0"
+dependencies = [
  "alloy-eips 0.12.4",
- "alloy-network",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types-engine",
  "alloy-transport",
- "anyhow",
  "async-trait",
- "clap",
- "derive_more 2.0.1",
  "futures",
- "kona-cli",
  "kona-derive",
  "kona-engine",
  "kona-genesis",
- "kona-p2p",
  "kona-protocol",
  "kona-providers-alloy",
- "kona-registry",
  "kona-rpc",
  "op-alloy-network",
- "serde_json",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "tracing",
- "tracing-subscriber",
  "url",
 ]
 

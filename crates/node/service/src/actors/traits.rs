@@ -1,4 +1,4 @@
-//! Traits for the core rollup node service.
+//! [NodeActor] trait.
 
 use async_trait::async_trait;
 
@@ -10,14 +10,14 @@ use async_trait::async_trait;
 /// - Emit new events for other actors to process.
 #[async_trait]
 pub trait NodeActor {
-    /// The event type emitted by the actor.
-    type Event;
-    /// The error type emitted by the actor.
+    /// The event type received by the actor.
+    type InboundEvent;
+    /// The error type for the actor.
     type Error;
 
     /// Starts the actor.
     async fn start(self) -> Result<(), Self::Error>;
 
     /// Processes an incoming message.
-    async fn process(&mut self, msg: Self::Event) -> Result<(), Self::Error>;
+    async fn process(&mut self, msg: Self::InboundEvent) -> Result<(), Self::Error>;
 }

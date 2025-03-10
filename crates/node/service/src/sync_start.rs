@@ -11,7 +11,7 @@ use kona_providers_alloy::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 /// [RECOVER_MIN_SEQ_WINDOWS] is the number of sequence windows between the unsafe head L1 origin,
 /// and the finalized block, while finality is still at genesis, that need to elapse to
@@ -43,7 +43,13 @@ pub async fn find_starting_forkchoice(
     l2_provider: &mut AlloyL2ChainProvider,
 ) -> Result<L2ForkchoiceState, SyncStartError> {
     let mut current_fc = current_forkchoice(cfg, l2_provider).await?;
-    info!(target: "sync_start", "Loaded current fork choice state: {current_fc}");
+    info!(
+        target: "sync_start",
+        unsafe = %current_fc.un_safe.block_info.number,
+        safe = %current_fc.safe.block_info.number,
+        finalized = %current_fc.finalized.block_info.number,
+        "Loaded current L2 EL forkchoice state"
+    );
 
     // Check if we can recover from a finality-less sync state
     if should_recover_from_finality_less_sync(&current_fc, cfg) {
@@ -206,10 +212,10 @@ async fn fetch_l1_block(
 
         info!(
             target: "sync_start",
-            "Walking back L1 block by hash. Current: #{} | Next: #{} | L2 block: #{}",
-            current_l1_block.map(|b| b.number).unwrap_or_default(),
-            new_l1_block.number,
-            current_block.block_info.number
+            current = current_l1_block.map(|b| b.number).unwrap_or_default(),
+            next = new_l1_block.number,
+            l2 = current_block.block_info.number,
+            "Walking back L1 block by hash",
         );
 
         *ahead = false;
@@ -222,14 +228,6 @@ async fn fetch_l1_block(
         let resp = l1_provider.block_info_and_transactions_by_hash(l1_hash).await;
         let not_found = matches!(resp, Err(AlloyChainProviderError::BlockNotFound(_)));
         let (new_l1_block, _) = resp?;
-
-        info!(
-            target: "sync_start",
-            "Walking back L1 block by hash. Current: #{} | Next: #{} | L2 block: #{}",
-            current_l1_block.map(|b| b.number).unwrap_or_default(),
-            new_l1_block.number,
-            current_block.block_info.number
-        );
 
         *ahead = not_found;
         Ok(Some(new_l1_block))

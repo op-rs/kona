@@ -1,29 +1,28 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
-use crate::node::{NodeActor, NodeEvent};
+use crate::NodeActor;
 use async_trait::async_trait;
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
     traits::{Pipeline, SignalReceiver},
     types::{ActivationSignal, ResetSignal, StepResult},
 };
-use kona_protocol::L2BlockInfo;
+use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::OpAttributesWithParent;
 use thiserror::Error;
 use tokio::{
     select,
-    sync::broadcast::{
-        Receiver, Sender,
-        error::{RecvError, SendError},
-    },
+    sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError},
 };
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, error, info, warn};
 
 /// The [NodeActor] for the derivation sub-routine.
 ///
 /// This actor is responsible for receiving messages from [NodeActor]s and stepping the
 /// derivation pipeline forward to produce new payload attributes. The actor then sends the payload
 /// to the [NodeActor] responsible for the execution sub-routine.
+#[derive(Debug)]
 pub struct DerivationActor<P>
 where
     P: Pipeline + SignalReceiver,
@@ -32,10 +31,10 @@ where
     pipeline: P,
     /// The latest L2 safe head.
     l2_safe_head: L2BlockInfo,
-    /// The sender for signals to other actors.
-    sender: Sender<NodeEvent>,
-    /// The receiver for signals from other actors.
-    receiver: Receiver<NodeEvent>,
+    /// The sender for derived [OpAttributesWithParent]s produced by the actor.
+    attributes_out: UnboundedSender<OpAttributesWithParent>,
+    /// The receiver for L1 head update notifications.
+    l1_head_updates: UnboundedReceiver<BlockInfo>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
@@ -45,14 +44,14 @@ where
     P: Pipeline + SignalReceiver,
 {
     /// Creates a new instance of the [DerivationActor].
-    pub fn new(
+    pub const fn new(
         pipeline: P,
         l2_safe_head: L2BlockInfo,
-        sender: Sender<NodeEvent>,
-        receiver: Receiver<NodeEvent>,
+        attributes_out: UnboundedSender<OpAttributesWithParent>,
+        l1_head_updates: UnboundedReceiver<BlockInfo>,
         cancellation: CancellationToken,
     ) -> Self {
-        Self { pipeline, l2_safe_head, sender, receiver, cancellation }
+        Self { pipeline, l2_safe_head, attributes_out, l1_head_updates, cancellation }
     }
 
     /// Attempts to step the derivation pipeline forward as much as possible in order to produce the
@@ -77,8 +76,7 @@ where
                     match e {
                         PipelineErrorKind::Temporary(e) => {
                             // NotEnoughData is transient, and doesn't imply we need to wait for
-                            // more data. We can continue stepping until
-                            // we receive an Eof.
+                            // more data. We can continue stepping until we receive an Eof.
                             if matches!(e, PipelineError::NotEnoughData) {
                                 continue;
                             }
@@ -159,8 +157,8 @@ impl<P> NodeActor for DerivationActor<P>
 where
     P: Pipeline + SignalReceiver + Send + Sync,
 {
+    type InboundEvent = InboundDerivationMessage;
     type Error = DerivationError;
-    type Event = NodeEvent;
 
     async fn start(mut self) -> Result<(), Self::Error> {
         loop {
@@ -172,50 +170,49 @@ where
                     );
                     return Ok(());
                 }
-                msg = self.receiver.recv() => {
-                    self.process(msg?).await?;
-                }
-            }
-        }
-    }
-
-    async fn process(&mut self, msg: Self::Event) -> Result<(), Self::Error> {
-        match msg {
-            NodeEvent::L1HeadUpdate(_) | NodeEvent::L2ForkchoiceUpdate(_) => {
-                // Update the local view of the safe head.
-                //
-                // TODO: Remove in favor of req-resp; We don't want to maintain a local view once
-                // we have the engine hooked up.
-                if let NodeEvent::L2ForkchoiceUpdate(safe_head) = msg {
-                    self.l2_safe_head = safe_head;
-                }
-
-                // Advance the pipeline as much as possible, new data may be available.
-                let payload_attrs = match self.produce_next_safe_payload().await {
-                    Ok(attrs) => attrs,
-                    Err(DerivationError::Yield) => {
-                        // Yield until more data is available.
+                msg = self.l1_head_updates.recv() => {
+                    if msg.is_none() {
+                        error!(
+                            target: "derivation",
+                            "L1 head update stream closed without cancellation. Exiting derivation task."
+                        );
                         return Ok(());
                     }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                };
 
-                self.sender.send(NodeEvent::DerivedPayload(payload_attrs))?;
-                Ok(())
-            }
-            _ => {
-                // Ignore all other messages.
-                Ok(())
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
+                }
             }
         }
     }
+
+    async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
+        // Advance the pipeline as much as possible, new data may be available or there still may be
+        // payloads in the attributes queue.
+        let payload_attrs = match self.produce_next_safe_payload().await {
+            Ok(attrs) => attrs,
+            Err(DerivationError::Yield) => {
+                // Yield until more data is available.
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        self.attributes_out.send(payload_attrs).map_err(Box::new)?;
+        Ok(())
+    }
+}
+
+/// Messages that the [DerivationActor] can receive from other actors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InboundDerivationMessage {
+    /// New data is potentially available for processing on the data availability layer.
+    NewDataAvailable,
 }
 
 /// An error from the [DerivationActor].
 #[derive(Error, Debug)]
-#[allow(clippy::large_enum_variant)]
 pub enum DerivationError {
     /// An error originating from the derivation pipeline.
     #[error(transparent)]
@@ -225,8 +222,5 @@ pub enum DerivationError {
     Yield,
     /// An error originating from the broadcast sender.
     #[error("Failed to send event to broadcast sender")]
-    Sender(#[from] SendError<NodeEvent>),
-    /// An error originating from the broadcast receiver.
-    #[error("Failed to receive event from broadcast receiver")]
-    Receiver(#[from] RecvError),
+    Sender(#[from] Box<SendError<OpAttributesWithParent>>),
 }

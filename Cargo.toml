@@ -82,6 +82,7 @@ kona-hardforks = { path = "crates/protocol/hardforks", version = "0.2.4", defaul
 kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
 kona-rpc = { path = "crates/node/rpc", version = "0.1.1", default-features = false }
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
+kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
 
 # Providers
 kona-providers-local = { path = "crates/providers/providers-local", version = "0.1.0", default-features = false }
