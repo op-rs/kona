@@ -38,3 +38,4 @@ ignore:
   # Node - WIP
   - "bin/node"
   - "crates/node/engine"
+  - "crates/node/service"

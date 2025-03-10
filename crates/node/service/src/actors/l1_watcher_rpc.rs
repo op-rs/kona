@@ -1,7 +1,6 @@
 //! [NodeActor] implementation for an L1 chain watcher that checks for L1 head updates over RPC.
 
-use crate::node::{NodeActor, NodeEvent};
-use alloy_network::primitives::BlockTransactionsKind;
+use crate::NodeActor;
 use alloy_primitives::B256;
 use alloy_provider::{Provider, RootProvider};
 use async_trait::async_trait;
@@ -10,25 +9,27 @@ use kona_protocol::BlockInfo;
 use thiserror::Error;
 use tokio::{
     select,
-    sync::broadcast::{Sender, error::SendError},
+    sync::mpsc::{UnboundedSender, error::SendError},
 };
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 
 /// An L1 chain watcher that checks for L1 head updates over RPC.
+#[derive(Debug)]
 pub struct L1WatcherRpc {
     /// The L1 provider.
     l1_provider: RootProvider,
     /// The outbound event sender.
-    sender: Sender<NodeEvent>,
+    sender: UnboundedSender<BlockInfo>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
 
 impl L1WatcherRpc {
     /// Creates a new [L1WatcherRpc] instance.
-    pub fn new(
+    pub const fn new(
         l1_provider: RootProvider,
-        sender: Sender<NodeEvent>,
+        sender: UnboundedSender<BlockInfo>,
         cancellation: CancellationToken,
     ) -> Self {
         Self { l1_provider, sender, cancellation }
@@ -38,7 +39,7 @@ impl L1WatcherRpc {
     async fn block_info_by_hash(
         &mut self,
         block_hash: B256,
-    ) -> Result<BlockInfo, L1WatcherRpcError<NodeEvent>> {
+    ) -> Result<BlockInfo, L1WatcherRpcError<BlockInfo>> {
         // Fetch the block of the current unsafe L1 head.
         let block = self
             .l1_provider
@@ -62,8 +63,8 @@ impl L1WatcherRpc {
 
 #[async_trait]
 impl NodeActor for L1WatcherRpc {
-    type Event = NodeEvent;
-    type Error = L1WatcherRpcError<Self::Event>;
+    type InboundEvent = ();
+    type Error = L1WatcherRpcError<BlockInfo>;
 
     async fn start(mut self) -> Result<(), Self::Error> {
         let mut unsafe_head_stream = self
@@ -94,16 +95,14 @@ impl NodeActor for L1WatcherRpc {
                     Some(new_head) => {
                         // Send the head update event to all consumers.
                         let head_block_info = self.block_info_by_hash(new_head).await?;
-                        self.sender.send(NodeEvent::L1HeadUpdate(head_block_info))?;
+                        self.sender.send(head_block_info)?;
                     },
                 }
             }
         }
-
-        Ok(())
     }
 
-    async fn process(&mut self, _msg: Self::Event) -> Result<(), Self::Error> {
+    async fn process(&mut self, _msg: Self::InboundEvent) -> Result<(), Self::Error> {
         // The L1 watcher does not process any incoming messages.
         Ok(())
     }
@@ -111,10 +110,10 @@ impl NodeActor for L1WatcherRpc {
 
 /// The error type for the [L1WatcherRpc].
 #[derive(Error, Debug)]
-pub enum L1WatcherRpcError<E> {
+pub enum L1WatcherRpcError<T> {
     /// Error sending the head update event.
     #[error("Error sending the head update event: {0}")]
-    SendError(#[from] SendError<E>),
+    SendError(#[from] SendError<T>),
     /// Error in the transport layer.
     #[error("Transport error: {0}")]
     Transport(String),
