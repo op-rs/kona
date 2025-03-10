@@ -11,6 +11,8 @@ The following protocol crates are published to [crates.io][crates].
 <a href="https://crates.io/crates/kona-protocol"><img src="https://img.shields.io/crates/v/kona-protocol.svg" alt="kona-protocol crate"></a>
 <a href="https://crates.io/crates/kona-genesis"><img src="https://img.shields.io/crates/v/kona-genesis.svg" alt="kona-genesis crate"></a>
 <a href="https://crates.io/crates/kona-interop"><img src="https://img.shields.io/crates/v/kona-interop.svg" alt="kona-interop crate"></a>
+<a href="https://crates.io/crates/kona-derive"><img src="https://img.shields.io/crates/v/kona-derive.svg" alt="kona-derive crate"></a>
+<a href="https://crates.io/crates/kona-driver"><img src="https://img.shields.io/crates/v/kona-driver.svg" alt="kona-driver crate"></a>
 
 At the lowest level, `kona-genesis` and `kona-hardforks` expose
 core genesis and hardfork types.
@@ -19,12 +21,12 @@ core genesis and hardfork types.
 into other core protocol types, as well as many independent protocol types.
 
 More recently, the `kona-interop` crate was introduced that contains types
-specific to the [Interop][interop] project.
+specific to [Interop][interop].
 
-Aside from types, Kona contains `kona-registry` that are bindings to the
-[superchain-registry][scr]. The registry is available in a `no_std` environment
-but requires `serde` to read serialized configs at compile time. Types
-deserialized at compile time by the registry are from `kona-genesis`.
+`kona-registry` contains bindings to the [superchain-registry][scr].
+The registry is available in a `no_std` environment
+but requires `serde` to read serialized configs at compile time. `kona-registry` uses
+types defined in `kona-genesis` to deserialize the superchain registry configs at compile time.
 
 
 <!-- Links -->

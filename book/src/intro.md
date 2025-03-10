@@ -16,17 +16,20 @@
 
 ## Introduction
 
-Kona is _the_ monorepo for the Rust <a href="https://specs.optimism.io/">OP Stack</a>.
+Originally a suite of portable implementations of the OP Stack rollup state transition,
+Kona has been extended to be _the monorepo_ for <a href="https://specs.optimism.io/">OP Stack</a>
+types, components, and services built in Rust. Kona provides an ecosystem of extensible, low-level
+crates that compose into components and services required for the OP Stack.
 
-Kona provides a rich suite of libraries and build pipelines. Proof libraries are available for
-developing verifiable Rust programs targeting {{#template ../templates/glossary-link.md root=./ ref=fault-proof-vm text=Fault Proof VMs}}.
+Protocol crates are `no_std` compatible for use within the Fault Proof. Types defined in these
+libraries are shared by other components of the OP Stack as well including the rollup node.
+
+Proof crates are available for developing verifiable Rust programs targeting
+{{#template ../templates/glossary-link.md root=./ ref=fault-proof-vm text=Fault Proof VMs}}.
 These libraries provide tooling and abstractions around low-level syscalls, memory management,
 and other common structures that authors of verifiable programs will need to interact with.
 It also provides build pipelines for compiling `no_std` Rust programs to a format that can be
 executed by supported Fault Proof VM targets.
-
-Protocol libraries are `no_std` compatible for use within the Fault Proof. These types are
-also built for re-use by other components of the OP Stack, for example a rollup node.
 
 Kona is built and maintained by open source contributors and is licensed under the MIT License.
 
