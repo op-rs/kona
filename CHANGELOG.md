@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.4] - 2025-03-07
+## [0.2.4] - 2025-03-10
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.2.4
+
+## [0.1.3] - 2025-03-10
 
 ### 🚀 Features
 
@@ -38,6 +44,7 @@ All notable changes to this project will be documented in this file.
 - *(engine)* Engine Client (#1169)
 - *(protocol)* Use `Prague` blob fee calculation for L1 info tx (#1192)
 - *(protocol)* Add optional pectra blob fee schedule fork (#1195)
+- *(executor)* Dep on kona-host (#1224)
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -88,12 +95,15 @@ All notable changes to this project will be documented in this file.
 - *(rpc)* Rename `RollupNode` -> `RollupNodeApi`, export (#1215)
 - Bump alloy 0.12 (#1208)
 - *(genesis)* Update `SystemConfig` ser (#1217)
-- Release 0.2.4
+- *(net)* P2P Rename (#1221)
+- Update Dependencies (#1226)
+- Codecov Config (#1225)
+- Release 0.1.3
 
 ### Release
 
 - *(maili)* 0.2.9 (#1087)
-- 0.2.4
+- Maili crates one last time (#1218)
 
 ## [kona-host/v0.1.0-beta.11] - 2025-02-21
 
