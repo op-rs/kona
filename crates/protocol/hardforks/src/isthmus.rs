@@ -27,7 +27,7 @@ impl Isthmus {
     /// EIP-2935 From Address
     pub const EIP2935_FROM: Address = address!("3462413Af4609098e1E27A490f554f260213D685");
 
-        /// L1 Block Deployer Address
+    /// L1 Block Deployer Address
     pub const L1_BLOCK_DEPLOYER: Address = address!("4210000000000000000000000000000000000003");
 
     /// The L1 Block Proxy Address
@@ -242,7 +242,7 @@ impl Hardfork for Isthmus {
 mod tests {
     use super::*;
     use alloc::vec;
-        use alloy_primitives::b256;
+    use alloy_primitives::b256;
 
     #[test]
     fn test_l1_block_source_hash() {
@@ -289,10 +289,31 @@ mod tests {
     #[test]
     fn test_isthmus_txs_encoded() {
         let isthmus_upgrade_tx = Isthmus.txs().collect::<Vec<_>>();
-        assert_eq!(isthmus_upgrade_tx.len(), 1);
+        assert_eq!(isthmus_upgrade_tx.len(), 8);
 
         let expected_txs: Vec<Bytes> = vec![
+            hex::decode(include_str!("./bytecode/isthmus_tx_0.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
             hex::decode(include_str!("./bytecode/isthmus_tx_1.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
+            hex::decode(include_str!("./bytecode/isthmus_tx_2.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
+            hex::decode(include_str!("./bytecode/isthmus_tx_3.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
+            hex::decode(include_str!("./bytecode/isthmus_tx_4.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
+            hex::decode(include_str!("./bytecode/isthmus_tx_5.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
+            hex::decode(include_str!("./bytecode/isthmus_tx_6.hex").replace("\n", ""))
+                .unwrap()
+                .into(),
+            hex::decode(include_str!("./bytecode/isthmus_tx_7.hex").replace("\n", ""))
                 .unwrap()
                 .into(),
         ];

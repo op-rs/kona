@@ -28,7 +28,7 @@ use crate::{Ecotone, Fjord, Isthmus};
 /// ```rust
 /// use kona_hardforks::{Hardfork, Hardforks};
 /// let isthmus_upgrade_tx = Hardforks::ISTHMUS.txs();
-/// assert_eq!(isthmus_upgrade_tx.collect::<Vec<_>>().len(), 1);
+/// assert_eq!(isthmus_upgrade_tx.collect::<Vec<_>>().len(), 8);
 /// ```
 #[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
@@ -60,6 +60,6 @@ mod tests {
         assert_eq!(fjord_upgrade_txs.collect::<Vec<_>>().len(), 3);
 
         let isthmus_upgrade_tx = Hardforks::ISTHMUS.txs();
-        assert_eq!(isthmus_upgrade_tx.collect::<Vec<_>>().len(), 1);
+        assert_eq!(isthmus_upgrade_tx.collect::<Vec<_>>().len(), 8);
     }
 }
