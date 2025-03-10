@@ -15,7 +15,6 @@ use tokio::{
     sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError},
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
 
 /// The [NodeActor] for the derivation sub-routine.
 ///

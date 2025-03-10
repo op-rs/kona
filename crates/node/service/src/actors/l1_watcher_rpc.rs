@@ -12,7 +12,6 @@ use tokio::{
     sync::mpsc::{UnboundedSender, error::SendError},
 };
 use tokio_util::sync::CancellationToken;
-use tracing::info;
 
 /// An L1 chain watcher that checks for L1 head updates over RPC.
 #[derive(Debug)]

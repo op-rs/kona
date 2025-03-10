@@ -11,7 +11,6 @@ use kona_providers_alloy::{
 };
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{error, info, warn};
 
 /// [RECOVER_MIN_SEQ_WINDOWS] is the number of sequence windows between the unsafe head L1 origin,
 /// and the finalized block, while finality is still at genesis, that need to elapse to
