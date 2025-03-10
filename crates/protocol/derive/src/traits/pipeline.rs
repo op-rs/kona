@@ -1,12 +1,13 @@
 //! Defines the interface for the core derivation pipeline.
 
-use crate::{errors::PipelineErrorKind, traits::OriginProvider, types::StepResult};
 use alloc::boxed::Box;
 use async_trait::async_trait;
 use core::iter::Iterator;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::L2BlockInfo;
 use kona_rpc::OpAttributesWithParent;
+
+use crate::{errors::PipelineErrorKind, traits::OriginProvider, types::StepResult};
 
 /// This trait defines the interface for interacting with the derivation pipeline.
 #[async_trait]
