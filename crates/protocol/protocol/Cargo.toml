@@ -1,6 +1,6 @@
 [package]
 name = "kona-protocol"
-version = "0.1.0"
+version = "0.2.4"
 description = "Optimism protocol-specific types"
 
 edition.workspace = true
@@ -64,6 +64,9 @@ tokio = { workspace = true, features = ["full"] }
 arbitrary = { workspace = true, features = ["derive"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 alloy-primitives = { workspace = true, features = ["arbitrary"] }
+op-alloy-consensus.workspace = true
+alloy-rpc-types-eth.workspace = true
+op-alloy-rpc-types.workspace = true
 
 [features]
 default = []

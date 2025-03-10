@@ -3,7 +3,7 @@
 use alloc::string::ToString;
 use core::str::FromStr;
 use private::ConvertRuint;
-use serde::{self, de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer, de};
 use serde_json::Value;
 
 /// Serializes a primitive number as a "quantity" hex string.

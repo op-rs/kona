@@ -11,7 +11,7 @@ use alloy_primitives::Bytes;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_genesis::{
-    RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+    MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD, RollupConfig,
 };
 use kona_protocol::{Batch, BatchReader, BlockInfo};
 use tracing::{debug, warn};
@@ -168,6 +168,7 @@ mod test {
         errors::PipelineErrorKind, test_utils::TestChannelReaderProvider, types::ResetSignal,
     };
     use alloc::vec;
+    use kona_genesis::HardForkConfig;
 
     fn new_compressed_batch_data() -> Bytes {
         let file_contents =
@@ -245,7 +246,10 @@ mod test {
     #[tokio::test]
     async fn test_flush_post_holocene() {
         let raw = new_compressed_batch_data();
-        let config = Arc::new(RollupConfig { holocene_time: Some(0), ..RollupConfig::default() });
+        let config = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
         let mock = TestChannelReaderProvider::new(vec![Ok(Some(raw))]);
         let mut reader = ChannelReader::new(mock, config);
         let res = reader.next_batch().await.unwrap();

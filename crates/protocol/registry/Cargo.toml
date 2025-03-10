@@ -1,6 +1,6 @@
 [package]
 name = "kona-registry"
-version = "0.1.0"
+version = "0.2.4"
 description = "A registry of superchain configs"
 
 edition.workspace = true
@@ -20,6 +20,7 @@ kona-genesis = { workspace = true, features = ["serde"] }
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
+alloy-chains = { workspace = true, features = ["serde"] }
 
 # `serde`
 serde = { workspace = true, features = ["derive", "alloc"] }
@@ -42,5 +43,6 @@ std = [
 	"kona-genesis/std",
 	"serde_json/std",
 	"alloy-primitives/std",
-	"serde/std"
+	"serde/std",
+	"alloy-chains/std"
 ]

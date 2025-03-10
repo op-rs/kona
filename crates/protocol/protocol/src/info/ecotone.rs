@@ -2,7 +2,7 @@
 
 use crate::DecodeError;
 use alloc::vec::Vec;
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256};
 
 /// Represents the fields within an Ecotone L1 block info transaction.
 ///

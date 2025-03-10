@@ -1,7 +1,7 @@
 use crate::{
+    PreimageKey, PreimageOracleClient, PreimageOracleServer,
     errors::{PreimageOracleError, PreimageOracleResult},
     traits::{Channel, PreimageFetcher},
-    PreimageKey, PreimageOracleClient, PreimageOracleServer,
 };
 use alloc::{boxed::Box, vec::Vec};
 
@@ -138,7 +138,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{native_channel::BidirectionalChannel, PreimageKeyType};
+    use crate::{PreimageKeyType, native_channel::BidirectionalChannel};
     use alloc::sync::Arc;
     use alloy_primitives::keccak256;
     use std::collections::HashMap;

@@ -40,7 +40,7 @@ pub fn closing_deposit_context_tx(
 mod tests {
     use super::*;
     use crate::L1BlockInfoBedrock;
-    use alloy_primitives::{Address, Bytes, B256};
+    use alloy_primitives::{Address, B256, Bytes};
 
     #[test]
     fn test_closing_deposit() {

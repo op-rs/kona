@@ -3,8 +3,8 @@
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
-    ChainGenesis, RollupConfig, SystemConfig, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
-    OP_SEPOLIA_BASE_FEE_PARAMS, OP_SEPOLIA_BASE_FEE_PARAMS_CANYON,
+    ChainGenesis, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, HardForkConfig,
+    OP_SEPOLIA_BASE_FEE_CONFIG, RollupConfig, SystemConfig,
 };
 
 /// The [RollupConfig] for OP Sepolia.
@@ -39,17 +39,20 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
     granite_channel_timeout: 50,
     l1_chain_id: 11155111,
     l2_chain_id: 11155420,
-    base_fee_params: OP_SEPOLIA_BASE_FEE_PARAMS,
-    canyon_base_fee_params: OP_SEPOLIA_BASE_FEE_PARAMS_CANYON,
-    regolith_time: Some(0),
-    canyon_time: Some(1699981200),
-    delta_time: Some(1703203200),
-    ecotone_time: Some(1708534800),
-    fjord_time: Some(1716998400),
-    granite_time: Some(1723478400),
-    holocene_time: Some(1732633200),
-    isthmus_time: None,
-    interop_time: None,
+    chain_op_config: OP_SEPOLIA_BASE_FEE_CONFIG,
+    alt_da_config: None,
+    hardforks: HardForkConfig {
+        regolith_time: None,
+        canyon_time: Some(1699981200),
+        delta_time: Some(1703203200),
+        ecotone_time: Some(1708534800),
+        fjord_time: Some(1716998400),
+        granite_time: Some(1723478400),
+        holocene_time: Some(1732633200),
+        pectra_blob_schedule_time: Some(1742486400),
+        isthmus_time: None,
+        interop_time: None,
+    },
     batch_inbox_address: address!("ff00000000000000000000000000000011155420"),
     deposit_contract_address: address!("16fc5058f25648194471939df75cf27a2fdc48bc"),
     l1_system_config_address: address!("034edd2a225f7f429a63e0f1d2084b9e0a93b538"),

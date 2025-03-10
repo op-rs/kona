@@ -44,7 +44,7 @@ pub(crate) fn fill_tx_env_for_contract_call(
             source_hash: None,
             mint: None,
             is_system_transaction: Some(false),
-            // The L1 fee is not charged for the EIP-4788 transaction, submit zero bytes for the
+            // The L1 fee is not charged for system transactions, submit zero bytes for the
             // enveloped tx size.
             enveloped_tx: Some(Bytes::default()),
         },

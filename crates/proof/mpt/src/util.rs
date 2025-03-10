@@ -2,7 +2,7 @@
 
 use alloc::vec::Vec;
 use alloy_rlp::{Buf, BufMut, Encodable, Header};
-use alloy_trie::{proof::ProofRetainer, HashBuilder, Nibbles};
+use alloy_trie::{HashBuilder, Nibbles, proof::ProofRetainer};
 
 /// Compute a trie root of the collection of items with a custom encoder.
 pub fn ordered_trie_with_encoder<T, F>(items: &[T], mut encode: F) -> HashBuilder

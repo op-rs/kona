@@ -43,11 +43,11 @@ to wind up with the example's desired [`Batch`][batch].
 
 ## Running this example:
 
-- Clone the examples repository: `git clone git@github.com:op-rs/maili.git`
+- Clone the examples repository: `git clone git@github.com:op-rs/kona.git`
 - Run: `cargo run --example frames_to_batch`
 
 ```rust
-{{#include ../../../crates/protocol/examples/frames_to_batch.rs}}
+{{#include ../../../crates/protocol/protocol/examples/frames_to_batch.rs}}
 ```
 
 <!-- Links -->

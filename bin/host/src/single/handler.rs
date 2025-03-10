@@ -1,25 +1,24 @@
 //! [HintHandler] for the [SingleChainHost].
 
 use crate::{
-    backend::util::store_ordered_trie, kv::SharedKeyValueStore, single::cfg::SingleChainHost,
-    HintHandler, OnlineHostBackendCfg,
+    HintHandler, OnlineHostBackendCfg, backend::util::store_ordered_trie, kv::SharedKeyValueStore,
+    single::cfg::SingleChainHost,
 };
 use alloy_consensus::Header;
 use alloy_eips::{
     eip2718::Encodable2718,
-    eip4844::{IndexedBlobHash, FIELD_ELEMENTS_PER_BLOB},
+    eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
-use alloy_primitives::{address, keccak256, Address, Bytes, B256};
+use alloy_primitives::{Address, B256, Bytes, address, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::Decodable;
-use alloy_rpc_types::{debug::ExecutionWitness, Block, BlockTransactionsKind};
-use anyhow::{anyhow, ensure, Result};
+use alloy_rpc_types::{Block, debug::ExecutionWitness};
+use anyhow::{Result, anyhow, ensure};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType};
 use kona_protocol::BlockInfo;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use std::collections::HashMap;
 use tracing::warn;
 
 /// The [HintHandler] for the [SingleChainHost].
@@ -53,7 +52,8 @@ impl HintHandler for SingleChainHintHandler {
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let Block { transactions, .. } = providers
                     .l1
-                    .get_block_by_hash(hash, BlockTransactionsKind::Full)
+                    .get_block_by_hash(hash)
+                    .full()
                     .await?
                     .ok_or(anyhow!("Block not found"))?;
                 let encoded_transactions = transactions
@@ -175,7 +175,8 @@ impl HintHandler for SingleChainHintHandler {
                 let hash: B256 = hint.data.as_ref().try_into()?;
                 let Block { transactions, .. } = providers
                     .l2
-                    .get_block_by_hash(hash, BlockTransactionsKind::Full)
+                    .get_block_by_hash(hash)
+                    .full()
                     .await?
                     .ok_or(anyhow!("Block not found."))?;
 
@@ -345,17 +346,17 @@ impl HintHandler for SingleChainHintHandler {
                     return Ok(());
                 };
 
-                let mut merged = HashMap::<B256, Bytes>::default();
-                merged.extend(execute_payload_response.state);
-                merged.extend(execute_payload_response.codes);
-                merged.extend(execute_payload_response.keys);
+                let preimages = execute_payload_response
+                    .state
+                    .into_iter()
+                    .chain(execute_payload_response.codes)
+                    .chain(execute_payload_response.keys);
 
                 let mut kv_lock = kv.write().await;
-                for (hash, preimage) in merged.into_iter() {
+                for preimage in preimages {
                     let computed_hash = keccak256(preimage.as_ref());
-                    assert_eq!(computed_hash, hash, "Preimage hash does not match expected hash");
 
-                    let key = PreimageKey::new_keccak256(*hash);
+                    let key = PreimageKey::new_keccak256(*computed_hash);
                     kv_lock.set(key.into(), preimage.into())?;
                 }
             }

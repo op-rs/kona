@@ -24,7 +24,7 @@ pub mod global_allocator {
     /// * After aligning the start and end addresses, the size of the heap must be > 0, or the
     ///   function will panic.
     pub unsafe fn init_allocator(heap_start_addr: *mut u8, heap_size: usize) {
-        ALLOCATOR.lock().init(heap_start_addr, heap_size)
+        unsafe { ALLOCATOR.lock().init(heap_start_addr, heap_size) }
     }
 }
 

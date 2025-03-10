@@ -1,7 +1,7 @@
 //! Raw Span Batch Prefix
 
 use crate::{SpanBatchError, SpanDecodingError};
-use alloy_primitives::{bytes, FixedBytes};
+use alloy_primitives::{FixedBytes, bytes};
 
 /// Span Batch Prefix
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

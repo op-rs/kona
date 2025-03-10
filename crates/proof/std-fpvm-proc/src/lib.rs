@@ -3,8 +3,9 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
+    ItemFn, LitInt, Result,
     parse::{Parse, ParseStream},
-    parse_macro_input, ItemFn, LitInt, Result,
+    parse_macro_input,
 };
 
 /// The arguments for the `#[client_entry]` attribute proc macro
@@ -45,7 +46,7 @@ pub fn client_entry(attr: TokenStream, input: TokenStream) -> TokenStream {
                 const HEAP_SIZE: usize = #heap_size;
 
                 #[doc = "Program entry point"]
-                #[no_mangle]
+                #[unsafe(no_mangle)]
                 pub extern "C" fn _start() {
                     kona_std_fpvm::alloc_heap!(HEAP_SIZE);
                     let _ = #fn_name();

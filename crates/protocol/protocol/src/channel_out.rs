@@ -3,7 +3,7 @@
 use crate::{Batch, ChannelCompressor, ChannelId, CompressorError, Frame};
 use alloc::{vec, vec::Vec};
 use kona_genesis::RollupConfig;
-use rand::{rngs::SmallRng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng, rngs::SmallRng};
 
 /// The frame overhead.
 const FRAME_V0_OVERHEAD: usize = 23;
@@ -147,7 +147,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_utils::MockCompressor, CompressorWriter, SingleBatch, SpanBatch};
+    use crate::{CompressorWriter, SingleBatch, SpanBatch, test_utils::MockCompressor};
 
     #[test]
     fn test_output_frame_max_size_too_small() {

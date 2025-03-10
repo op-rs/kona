@@ -3,15 +3,15 @@
 
 use crate::errors::{TrieDBError, TrieDBResult};
 use alloc::{string::ToString, vec::Vec};
-use alloy_consensus::{Header, Sealed, EMPTY_ROOT_HASH};
-use alloy_primitives::{keccak256, Address, B256, U256};
+use alloy_consensus::{EMPTY_ROOT_HASH, Header, Sealed};
+use alloy_primitives::{Address, B256, U256, keccak256};
 use alloy_rlp::{Decodable, Encodable};
 use alloy_trie::TrieAccount;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
 use revm::{
-    db::{states::StorageSlot, BundleState},
-    primitives::{AccountInfo, Bytecode, HashMap, BLOCK_HASH_HISTORY},
     Database,
+    db::{BundleState, states::StorageSlot},
+    primitives::{AccountInfo, BLOCK_HASH_HISTORY, Bytecode, HashMap},
 };
 
 mod traits;
@@ -45,10 +45,10 @@ pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 /// **Example Construction**:
 /// ```rust
 /// use alloy_consensus::{Header, Sealable};
-/// use alloy_primitives::{Bytes, B256};
+/// use alloy_primitives::{B256, Bytes};
 /// use kona_executor::{NoopTrieDBProvider, TrieDB};
 /// use kona_mpt::NoopTrieHinter;
-/// use revm::{db::states::bundle_state::BundleRetention, EvmBuilder, StateBuilder};
+/// use revm::{EvmBuilder, StateBuilder, db::states::bundle_state::BundleRetention};
 ///
 /// let mock_starting_root = B256::default();
 /// let mock_parent_block_header = Header::default();

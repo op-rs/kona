@@ -1,7 +1,7 @@
-//! Chain Provider
+//! L1 Chain Provider
 
 use alloc::{boxed::Box, collections::vec_deque::VecDeque, string::ToString, sync::Arc, vec::Vec};
-use alloy_primitives::{map::HashMap, PrimitiveSignature, B256};
+use alloy_primitives::{B256, map::HashMap};
 
 use alloy_consensus::{
     Header, Receipt, Signed, TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant, TxEnvelope,
@@ -15,10 +15,10 @@ use kona_derive::{
 };
 use kona_protocol::BlockInfo;
 use parking_lot::RwLock;
-use reth_primitives::Transaction;
-use reth_provider::Chain;
+use reth_ethereum_primitives::{Transaction, TransactionSigned};
+use reth_execution_types::Chain;
 
-/// An in-memory [ChainProvider] that stores chain data,
+/// An in-memory [ChainProvider] that stores L1 chain data,
 /// meant to be shared between multiple readers.
 ///
 /// This provider uses a ring buffer to limit capacity
@@ -136,7 +136,7 @@ impl InMemoryChainProviderInner {
                     blob_gas_used: header.blob_gas_used,
                     excess_blob_gas: header.excess_blob_gas,
                     parent_beacon_block_root: header.parent_beacon_block_root,
-                    requests_hash: header.requests_root,
+                    requests_hash: header.requests_hash,
                 },
             );
         }
@@ -172,17 +172,15 @@ impl InMemoryChainProviderInner {
 
     /// Commits [Receipt]s to the provider.
     fn commit_receipts(&mut self, chain: &Arc<Chain>) {
-        for (b, receipt) in chain.blocks_and_receipts() {
+        for (b, receipts) in chain.blocks_and_receipts() {
             self.hash_to_receipts.insert(
                 b.hash(),
-                receipt
+                receipts
                     .iter()
-                    .flat_map(|r| {
-                        r.as_ref().map(|r| Receipt {
-                            cumulative_gas_used: r.cumulative_gas_used,
-                            logs: r.logs.clone(),
-                            status: alloy_consensus::Eip658Value::Eip658(r.success),
-                        })
+                    .map(|r| Receipt {
+                        cumulative_gas_used: r.cumulative_gas_used,
+                        logs: r.logs.clone(),
+                        status: alloy_consensus::Eip658Value::Eip658(r.success),
                     })
                     .collect(),
             );
@@ -192,7 +190,7 @@ impl InMemoryChainProviderInner {
     /// Commits [TxEnvelope]s to the provider.
     fn commit_txs(&mut self, chain: &Arc<Chain>) {
         for b in chain.blocks_iter() {
-            let txs = b.transactions().flat_map(reth_to_alloy_tx).collect();
+            let txs = b.body().transactions().map(reth_to_alloy_tx).collect();
             self.hash_to_txs.insert(b.hash(), txs);
         }
     }
@@ -304,10 +302,11 @@ impl ChainProvider for InMemoryChainProvider {
     }
 }
 
-pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnvelope> {
-    let sig = PrimitiveSignature::try_from(tx.signature.as_bytes().as_slice()).ok()?;
+pub fn reth_to_alloy_tx(tx: &TransactionSigned) -> TxEnvelope {
+    // TODO: this should just be an Into
+    let sig = *tx.signature();
 
-    let new = match &tx.transaction {
+    let new = match &tx.transaction() {
         Transaction::Legacy(l) => {
             let legacy_tx = TxLegacy {
                 chain_id: l.chain_id,
@@ -318,7 +317,7 @@ pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnv
                 value: l.value,
                 input: l.input.clone(),
             };
-            TxEnvelope::Legacy(Signed::new_unchecked(legacy_tx, sig, tx.signature_hash()))
+            TxEnvelope::Legacy(Signed::new_unhashed(legacy_tx, sig))
         }
         Transaction::Eip2930(e) => {
             let eip_tx = TxEip2930 {
@@ -341,7 +340,7 @@ pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnv
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip2930(Signed::new_unchecked(eip_tx, sig, tx.signature_hash()))
+            TxEnvelope::Eip2930(Signed::new_unhashed(eip_tx, sig))
         }
         Transaction::Eip1559(e) => {
             let eip_tx = TxEip1559 {
@@ -365,7 +364,7 @@ pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnv
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip1559(Signed::new_unchecked(eip_tx, sig, tx.signature_hash()))
+            TxEnvelope::Eip1559(Signed::new_unhashed(eip_tx, sig))
         }
         Transaction::Eip4844(e) => {
             let eip_tx = TxEip4844 {
@@ -391,13 +390,9 @@ pub fn reth_to_alloy_tx(tx: &reth_primitives::TransactionSigned) -> Option<TxEnv
                         .collect(),
                 ),
             };
-            TxEnvelope::Eip4844(Signed::new_unchecked(
-                TxEip4844Variant::TxEip4844(eip_tx),
-                sig,
-                tx.signature_hash(),
-            ))
+            TxEnvelope::Eip4844(Signed::new_unhashed(TxEip4844Variant::TxEip4844(eip_tx), sig))
         }
         Transaction::Eip7702(_) => unimplemented!("EIP-7702 not implemented"),
     };
-    Some(new)
+    new
 }

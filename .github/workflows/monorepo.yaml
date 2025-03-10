@@ -18,7 +18,7 @@ jobs:
       - uses: taiki-e/install-action@just
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - name: Update Monorepo Commit
         run: just update-monorepo
       - name: Create Pull Request

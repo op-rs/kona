@@ -3,10 +3,10 @@
 //! [eip-2935]: https://eips.ethereum.org/EIPS/eip-2935
 
 use crate::{
+    TrieDBProvider,
     db::TrieDB,
     errors::{ExecutorError, ExecutorResult},
     syscalls::fill_tx_env_for_contract_call,
-    TrieDBProvider,
 };
 use alloc::boxed::Box;
 use alloy_primitives::B256;
@@ -14,9 +14,9 @@ use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{
+    DatabaseCommit, Evm,
     db::State,
     primitives::{BlockEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg},
-    DatabaseCommit, Evm,
 };
 
 /// Execute the [EIP-2935][EIP-2935] pre-block block hash contract call.
@@ -43,7 +43,7 @@ where
     F: TrieDBProvider,
     H: TrieHinter,
 {
-    // apply pre-block EIP-4788 contract call
+    // apply pre-block EIP-2935 contract call
     let mut evm_pre_block = Evm::builder()
         .with_db(db)
         .with_env_with_handler_cfg(EnvWithHandlerCfg::new_with_cfg_env(
@@ -63,7 +63,7 @@ where
     )
 }
 
-/// Apply the EIP-4788 pre-block beacon root contract call to a given EVM instance.
+/// Apply the EIP-2935 pre-block block hash accumulator contract call to a given EVM instance.
 fn apply_block_hash_contract_call<F, H>(
     config: &RollupConfig,
     timestamp: u64,

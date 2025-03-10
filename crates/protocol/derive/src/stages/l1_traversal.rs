@@ -143,7 +143,7 @@ pub(crate) mod tests {
     use crate::{errors::PipelineErrorKind, test_utils::TestChainProvider};
     use alloc::vec;
     use alloy_consensus::Receipt;
-    use alloy_primitives::{address, b256, hex, Bytes, Log, LogData, B256};
+    use alloy_primitives::{B256, Bytes, Log, LogData, address, b256, hex};
     use kona_genesis::{CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC};
 
     const L1_SYS_CONFIG_ADDR: Address = address!("1337000000000000000000000000000000000000");
@@ -227,10 +227,14 @@ pub(crate) mod tests {
         assert!(traversal.advance_origin().await.is_ok());
         let cfg = SystemConfig::default();
         traversal.done = true;
-        assert!(traversal
-            .signal(ActivationSignal { system_config: Some(cfg), ..Default::default() }.signal())
-            .await
-            .is_ok());
+        assert!(
+            traversal
+                .signal(
+                    ActivationSignal { system_config: Some(cfg), ..Default::default() }.signal()
+                )
+                .await
+                .is_ok()
+        );
         assert_eq!(traversal.origin(), Some(BlockInfo::default()));
         assert_eq!(traversal.system_config, cfg);
         assert!(!traversal.done);
@@ -244,10 +248,12 @@ pub(crate) mod tests {
         assert!(traversal.advance_origin().await.is_ok());
         let cfg = SystemConfig::default();
         traversal.done = true;
-        assert!(traversal
-            .signal(ResetSignal { system_config: Some(cfg), ..Default::default() }.signal())
-            .await
-            .is_ok());
+        assert!(
+            traversal
+                .signal(ResetSignal { system_config: Some(cfg), ..Default::default() }.signal())
+                .await
+                .is_ok()
+        );
         assert_eq!(traversal.origin(), Some(BlockInfo::default()));
         assert_eq!(traversal.system_config, cfg);
         assert!(!traversal.done);

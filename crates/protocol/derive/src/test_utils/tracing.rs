@@ -4,7 +4,7 @@
 use alloc::{format, string::String, sync::Arc, vec::Vec};
 use spin::Mutex;
 use tracing::{Event, Level, Subscriber};
-use tracing_subscriber::{layer::Context, Layer};
+use tracing_subscriber::{Layer, layer::Context};
 
 /// The storage for the collected traces.
 #[derive(Debug, Default, Clone)]

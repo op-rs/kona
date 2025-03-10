@@ -1,7 +1,7 @@
 //! Environment preparation for the executor.
 
-use super::{util::decode_holocene_eip_1559_params, StatelessL2BlockExecutor};
-use crate::{constants::FEE_RECIPIENT, ExecutorError, ExecutorResult, TrieDBProvider};
+use super::{StatelessL2BlockExecutor, util::decode_holocene_eip_1559_params};
+use crate::{ExecutorError, ExecutorResult, TrieDBProvider, constants::FEE_RECIPIENT};
 use alloy_consensus::Header;
 use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
 use alloy_primitives::{TxKind, U256};
@@ -48,7 +48,11 @@ where
         base_fee_params: &BaseFeeParams,
     ) -> ExecutorResult<BlockEnv> {
         let blob_excess_gas_and_price = parent_header
-            .next_block_excess_blob_gas(BlobParams::cancun())
+            .next_block_excess_blob_gas(if spec_id.is_enabled_in(SpecId::ISTHMUS) {
+                BlobParams::prague()
+            } else {
+                BlobParams::cancun()
+            })
             .or_else(|| spec_id.is_enabled_in(SpecId::ECOTONE).then_some(0))
             .map(|e| BlobExcessGasAndPrice::new(e, spec_id.is_enabled_in(SpecId::PRAGUE)));
         let next_block_base_fee =
@@ -86,15 +90,15 @@ where
                     .is_holocene_active(parent_header.timestamp)
                     .then(|| decode_holocene_eip_1559_params(parent_header))
                     .transpose()?
-                    .unwrap_or(config.canyon_base_fee_params)
+                    .unwrap_or(config.chain_op_config.as_canyon_base_fee_params())
             } else if config.is_canyon_active(payload_attrs.payload_attributes.timestamp) {
                 // If the payload attribute timestamp is past canyon activation,
                 // use the canyon base fee params from the rollup config.
-                config.canyon_base_fee_params
+                config.chain_op_config.as_canyon_base_fee_params()
             } else {
                 // If the payload attribute timestamp is prior to canyon activation,
                 // use the default base fee params from the rollup config.
-                config.base_fee_params
+                config.chain_op_config.as_base_fee_params()
             };
 
         Ok(base_fee_params)

@@ -2,10 +2,10 @@
 
 use crate::{DecodeError, L1BlockInfoTx};
 use alloy_consensus::{Block, Transaction, Typed2718};
-use alloy_eips::{eip2718::Eip2718Error, BlockNumHash};
+use alloy_eips::{BlockNumHash, eip2718::Eip2718Error};
 use alloy_primitives::B256;
 use kona_genesis::ChainGenesis;
-use op_alloy_consensus::OpBlock;
+use op_alloy_consensus::OpTxEnvelope;
 
 /// Block Header Info
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -70,11 +70,16 @@ impl core::fmt::Display for BlockInfo {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct L2BlockInfo {
     /// The base [BlockInfo]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub block_info: BlockInfo,
     /// The L1 origin [BlockNumHash]
+    #[cfg_attr(feature = "serde", serde(rename = "l1origin", alias = "l1Origin"))]
     pub l1_origin: BlockNumHash,
     /// The sequence number of the L2 block
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "alloy_serde::quantity", rename = "sequenceNumber", alias = "seqNum")
+    )]
     pub seq_num: u64,
 }
 
@@ -139,8 +144,8 @@ impl L2BlockInfo {
     }
 
     /// Constructs an [L2BlockInfo] from a given OP [Block] and [ChainGenesis].
-    pub fn from_block_and_genesis(
-        block: &OpBlock,
+    pub fn from_block_and_genesis<T: Typed2718 + AsRef<OpTxEnvelope>>(
+        block: &Block<T>,
         genesis: &ChainGenesis,
     ) -> Result<Self, FromBlockError> {
         let block_info = BlockInfo::from(block);
@@ -155,8 +160,7 @@ impl L2BlockInfo {
                 return Err(FromBlockError::MissingL1InfoDeposit(block_info.hash));
             }
 
-            let tx = &block.body.transactions[0];
-
+            let tx = block.body.transactions[0].as_ref();
             let Some(tx) = tx.as_deposit() else {
                 return Err(FromBlockError::FirstTxNonDeposit(tx.ty()));
             };
@@ -176,6 +180,100 @@ mod tests {
     use alloc::string::ToString;
     use alloy_consensus::{Header, TxEnvelope};
     use alloy_primitives::b256;
+    use op_alloy_consensus::OpBlock;
+
+    #[test]
+    fn test_rpc_block_into_info() {
+        let block: alloy_rpc_types_eth::Block<OpTxEnvelope> = alloy_rpc_types_eth::Block {
+            header: alloy_rpc_types_eth::Header {
+                hash: b256!("04d6fefc87466405ba0e5672dcf5c75325b33e5437da2a42423080aab8be889b"),
+                inner: alloy_consensus::Header {
+                    number: 1,
+                    parent_hash: b256!(
+                        "0202020202020202020202020202020202020202020202020202020202020202"
+                    ),
+                    timestamp: 1,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let expected = BlockInfo {
+            hash: b256!("04d6fefc87466405ba0e5672dcf5c75325b33e5437da2a42423080aab8be889b"),
+            number: 1,
+            parent_hash: b256!("0202020202020202020202020202020202020202020202020202020202020202"),
+            timestamp: 1,
+        };
+        let block = block.into_consensus();
+        assert_eq!(BlockInfo::from(block), expected);
+    }
+
+    #[test]
+    fn test_from_block_and_genesis() {
+        use crate::test_utils::RAW_BEDROCK_INFO_TX;
+        let genesis = ChainGenesis {
+            l1: BlockNumHash { hash: B256::from([4; 32]), number: 2 },
+            l2: BlockNumHash { hash: B256::from([5; 32]), number: 1 },
+            ..Default::default()
+        };
+        let tx_env = alloy_rpc_types_eth::Transaction {
+            inner: alloy_consensus::transaction::Recovered::new_unchecked(
+                op_alloy_consensus::OpTxEnvelope::Deposit(alloy_primitives::Sealed::new(
+                    op_alloy_consensus::TxDeposit {
+                        input: alloy_primitives::Bytes::from(&RAW_BEDROCK_INFO_TX),
+                        ..Default::default()
+                    },
+                )),
+                Default::default(),
+            ),
+            block_hash: None,
+            block_number: Some(1),
+            effective_gas_price: Some(1),
+            transaction_index: Some(0),
+        };
+        let block: alloy_rpc_types_eth::Block<op_alloy_rpc_types::Transaction> =
+            alloy_rpc_types_eth::Block {
+                header: alloy_rpc_types_eth::Header {
+                    hash: b256!("04d6fefc87466405ba0e5672dcf5c75325b33e5437da2a42423080aab8be889b"),
+                    inner: alloy_consensus::Header {
+                        number: 3,
+                        parent_hash: b256!(
+                            "0202020202020202020202020202020202020202020202020202020202020202"
+                        ),
+                        timestamp: 1,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                transactions: alloy_rpc_types_eth::BlockTransactions::Full(vec![
+                    op_alloy_rpc_types::Transaction {
+                        inner: tx_env,
+                        deposit_nonce: None,
+                        deposit_receipt_version: None,
+                    },
+                ]),
+                ..Default::default()
+            };
+        let expected = L2BlockInfo {
+            block_info: BlockInfo {
+                hash: b256!("e65ecd961cee8e4d2d6e1d424116f6fe9a794df0244578b6d5860a3d2dfcd97e"),
+                number: 3,
+                parent_hash: b256!(
+                    "0202020202020202020202020202020202020202020202020202020202020202"
+                ),
+                timestamp: 1,
+            },
+            l1_origin: BlockNumHash {
+                hash: b256!("392012032675be9f94aae5ab442de73c5f4fb1bf30fa7dd0d2442239899a40fc"),
+                number: 18334955,
+            },
+            seq_num: 4,
+        };
+        let block = block.into_consensus();
+        let derived = L2BlockInfo::from_block_and_genesis(&block, &genesis).unwrap();
+        assert_eq!(derived, expected);
+    }
 
     #[test]
     fn test_from_block_error_partial_eq() {
@@ -352,17 +450,15 @@ mod tests {
         };
 
         let json = r#"{
-            "blockInfo": {
-                "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-                "number": 1,
-                "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-                "timestamp": 1
-            },
-            "l1Origin": {
+            "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
+            "number": 1,
+            "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
+            "timestamp": 1,
+            "l1origin": {
                 "hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
                 "number": 2
             },
-            "seqNum": 3
+            "sequenceNumber": 3
         }"#;
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();
@@ -384,17 +480,15 @@ mod tests {
         };
 
         let json = r#"{
-            "blockInfo": {
-                "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-                "number": "0x1",
-                "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-                "timestamp": "0x1"
-            },
-            "l1Origin": {
+            "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
+            "number": "0x1",
+            "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
+            "timestamp": "0x1",
+            "l1origin": {
                 "hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
                 "number": 2
             },
-            "seqNum": "0x3"
+            "sequenceNumber": "0x3"
         }"#;
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();

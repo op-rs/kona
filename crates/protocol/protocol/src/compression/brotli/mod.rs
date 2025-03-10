@@ -6,7 +6,7 @@ mod compress;
 pub use compress::{BrotliCompressionError, BrotliCompressor};
 
 mod decompress;
-pub use decompress::{decompress_brotli, BrotliDecompressionError};
+pub use decompress::{BrotliDecompressionError, decompress_brotli};
 
 /// The brotli encoding level used in Optimism.
 ///

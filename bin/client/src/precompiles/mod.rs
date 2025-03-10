@@ -6,9 +6,9 @@ use alloc::sync::Arc;
 use kona_executor::{TrieDB, TrieDBProvider};
 use kona_mpt::TrieHinter;
 use revm::{
-    handler::register::EvmHandler,
-    primitives::{spec_to_generic, SpecId},
     State,
+    handler::register::EvmHandler,
+    primitives::{SpecId, spec_to_generic},
 };
 
 mod bn128_pair;

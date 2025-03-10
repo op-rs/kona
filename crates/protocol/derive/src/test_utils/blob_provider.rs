@@ -3,7 +3,7 @@
 use crate::{errors::BlobProviderError, traits::BlobProvider};
 use alloc::{boxed::Box, vec::Vec};
 use alloy_eips::eip4844::{Blob, IndexedBlobHash};
-use alloy_primitives::{map::HashMap, B256};
+use alloy_primitives::{B256, map::HashMap};
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
 

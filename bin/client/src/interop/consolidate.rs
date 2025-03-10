@@ -5,7 +5,7 @@ use crate::interop::util::fetch_output_block_hash;
 use alloc::{sync::Arc, vec::Vec};
 use core::fmt::Debug;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
-use kona_proof::{l2::OracleL2ChainProvider, CachingOracle};
+use kona_proof::{CachingOracle, l2::OracleL2ChainProvider};
 use kona_proof_interop::{
     BootInfo, HintType, OracleInteropProvider, PreState, SuperchainConsolidator,
 };
@@ -27,7 +27,7 @@ where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
 {
-    let provider = OracleInteropProvider::new(oracle.clone(), boot.agreed_pre_state.clone());
+    let provider = OracleInteropProvider::new(oracle.clone(), boot.clone());
 
     info!(target: "client_interop", "Deriving local-safe headers from prestate");
 

@@ -3,8 +3,8 @@
 use crate::kv::KeyValueStore;
 use async_trait::async_trait;
 use kona_preimage::{
-    errors::{PreimageOracleError, PreimageOracleResult},
     HintRouter, PreimageFetcher, PreimageKey,
+    errors::{PreimageOracleError, PreimageOracleResult},
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -7,11 +7,11 @@ use crate::{
     types::{PipelineResult, Signal},
 };
 use alloc::{boxed::Box, sync::Arc};
-use alloy_primitives::{hex, Bytes};
+use alloy_primitives::{Bytes, hex};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_genesis::{
-    RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+    MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD, RollupConfig,
 };
 use kona_protocol::{BlockInfo, Channel};
 
@@ -192,7 +192,8 @@ mod test {
     };
     use alloc::{sync::Arc, vec};
     use kona_genesis::{
-        RollupConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+        HardForkConfig, MAX_RLP_BYTES_PER_CHANNEL_BEDROCK, MAX_RLP_BYTES_PER_CHANNEL_FJORD,
+        RollupConfig,
     };
     use kona_protocol::BlockInfo;
     use tracing::Level;
@@ -348,7 +349,10 @@ mod test {
         ];
         frames[1].data = vec![0; MAX_RLP_BYTES_PER_CHANNEL_FJORD as usize];
         let mock = TestNextFrameProvider::new(frames.into_iter().rev().map(Ok).collect());
-        let cfg = Arc::new(RollupConfig { fjord_time: Some(0), ..Default::default() });
+        let cfg = Arc::new(RollupConfig {
+            hardforks: HardForkConfig { fjord_time: Some(0), ..Default::default() },
+            ..Default::default()
+        });
 
         let mut assembler = ChannelAssembler::new(cfg, mock);
 

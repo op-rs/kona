@@ -1,6 +1,6 @@
 [package]
 name = "kona-serde"
-version = "0.1.0"
+version = "0.1.1"
 description = "Serde related helpers for kona"
 
 edition.workspace = true

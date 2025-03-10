@@ -2,7 +2,7 @@
 
 use crate::errors::BlobDecodingError;
 use alloc::{boxed::Box, vec};
-use alloy_eips::eip4844::{Blob, BYTES_PER_BLOB, VERSIONED_HASH_VERSION_KZG};
+use alloy_eips::eip4844::{BYTES_PER_BLOB, Blob, VERSIONED_HASH_VERSION_KZG};
 use alloy_primitives::Bytes;
 
 /// The blob encoding version

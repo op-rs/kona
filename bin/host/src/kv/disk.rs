@@ -3,8 +3,8 @@
 
 use super::{KeyValueStore, MemoryKeyValueStore};
 use alloy_primitives::B256;
-use anyhow::{anyhow, Result};
-use rocksdb::{Options, DB};
+use anyhow::{Result, anyhow};
+use rocksdb::{DB, Options};
 use std::path::PathBuf;
 
 /// A simple, synchronous key-value store that stores data on disk.

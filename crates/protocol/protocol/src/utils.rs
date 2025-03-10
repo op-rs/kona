@@ -164,8 +164,8 @@ mod tests {
     use crate::test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX};
     use alloc::vec;
     use alloy_eips::eip1898::BlockNumHash;
-    use alloy_primitives::{address, bytes, uint, U256};
-    use kona_genesis::ChainGenesis;
+    use alloy_primitives::{U256, address, bytes, uint};
+    use kona_genesis::{ChainGenesis, HardForkConfig};
 
     #[test]
     fn test_to_system_config_invalid_genesis_hash() {
@@ -328,7 +328,7 @@ mod tests {
                 l2: BlockNumHash { hash: block_hash, ..Default::default() },
                 ..Default::default()
             },
-            holocene_time: Some(0),
+            hardforks: HardForkConfig { holocene_time: Some(0), ..Default::default() },
             ..Default::default()
         };
         assert!(rollup_config.is_holocene_active(block.header.timestamp));
@@ -375,8 +375,11 @@ mod tests {
                 l2: BlockNumHash { hash: block_hash, ..Default::default() },
                 ..Default::default()
             },
-            holocene_time: Some(0),
-            isthmus_time: Some(0),
+            hardforks: HardForkConfig {
+                holocene_time: Some(0),
+                isthmus_time: Some(0),
+                ..Default::default()
+            },
             ..Default::default()
         };
         assert!(rollup_config.is_holocene_active(block.header.timestamp));

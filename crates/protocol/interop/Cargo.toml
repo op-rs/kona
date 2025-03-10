@@ -1,7 +1,7 @@
 [package]
 name = "kona-interop"
 description = "Core functionality and primitives for the Interop feature of the OP Stack."
-version = "0.1.2"
+version = "0.2.4"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -30,10 +30,6 @@ alloy-consensus.workspace = true
 alloy-primitives = { workspace = true, features = ["rlp"] }
 op-alloy-consensus.workspace = true
 
-# `interop` feature
-kona-protocol = { workspace = true, optional = true }
-alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
-
 # Arbitrary
 arbitrary = { version = "1.4", features = ["derive"], optional = true }
 
@@ -50,6 +46,7 @@ rand.workspace = true
 [features]
 default = []
 std = [
+  "derive_more/display",
   "alloy-consensus/std",
   "alloy-eips/std",
   "alloy-primitives/std",
@@ -58,7 +55,6 @@ std = [
   "derive_more/std",
   "serde?/std",
   "thiserror/std",
-  "kona-protocol?/std",
 ]
 arbitrary = [
   "std",
@@ -71,12 +67,4 @@ serde = [
   "dep:serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",
-  "kona-protocol?/serde",
-]
-interop = [
-  "std",
-  "serde",
-  "dep:kona-protocol",
-  "dep:alloy-rpc-client",
-  "derive_more/display",
 ]

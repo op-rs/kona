@@ -2,11 +2,11 @@
 //! a derivable ordered list.
 
 use crate::{
-    errors::{OrderedListWalkerError, OrderedListWalkerResult},
     TrieNode, TrieNodeError, TrieProvider,
+    errors::{OrderedListWalkerError, OrderedListWalkerResult},
 };
 use alloc::{collections::VecDeque, string::ToString, vec};
-use alloy_primitives::{Bytes, B256};
+use alloy_primitives::{B256, Bytes};
 use alloy_rlp::EMPTY_STRING_CODE;
 use core::marker::PhantomData;
 
@@ -163,12 +163,11 @@ where
 mod test {
     use super::*;
     use crate::{
-        ordered_trie_with_encoder,
+        NoopTrieProvider, ordered_trie_with_encoder,
         test_util::{
-            get_live_derivable_receipts_list, get_live_derivable_transactions_list,
-            TrieNodeProvider,
+            TrieNodeProvider, get_live_derivable_receipts_list,
+            get_live_derivable_transactions_list,
         },
-        NoopTrieProvider,
     };
     use alloc::{collections::BTreeMap, string::String, vec::Vec};
     use alloy_consensus::{ReceiptEnvelope, TxEnvelope};
@@ -234,8 +233,10 @@ mod test {
 
     #[test]
     fn test_empty_list_walker() {
-        assert!(OrderedListWalker::fetch_leaves(&TrieNode::Empty, &NoopTrieProvider)
-            .expect("Failed to traverse empty trie")
-            .is_empty());
+        assert!(
+            OrderedListWalker::fetch_leaves(&TrieNode::Empty, &NoopTrieProvider)
+                .expect("Failed to traverse empty trie")
+                .is_empty()
+        );
     }
 }

@@ -6,9 +6,9 @@ use alloc::{
     string::{String, ToString},
 };
 use tracing::{
+    Event, Level, Metadata, Subscriber,
     field::{Field, Visit},
     span::{Attributes, Id, Record},
-    Event, Level, Metadata, Subscriber,
 };
 
 /// Custom [Subscriber] implementation that uses [crate::io] to write log entries to

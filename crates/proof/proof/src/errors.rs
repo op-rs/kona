@@ -2,7 +2,7 @@
 
 use alloc::string::{String, ToString};
 use kona_derive::errors::{PipelineError, PipelineErrorKind};
-use kona_mpt::OrderedListWalkerError;
+use kona_mpt::{OrderedListWalkerError, TrieNodeError};
 use kona_preimage::errors::PreimageOracleError;
 use kona_protocol::{FromBlockError, OpBlockConversionError};
 use thiserror::Error;
@@ -18,7 +18,10 @@ pub enum OracleProviderError {
     Preimage(#[from] PreimageOracleError),
     /// List walker error.
     #[error("Trie walker error: {0}")]
-    TrieWalker(OrderedListWalkerError),
+    TrieWalker(#[from] OrderedListWalkerError),
+    /// Trie node error.
+    #[error("Trie node error: {0}")]
+    TrieNode(#[from] TrieNodeError),
     /// BlockInfo error.
     #[error("From block error: {0}")]
     BlockInfo(FromBlockError),

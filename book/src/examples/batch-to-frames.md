@@ -48,11 +48,11 @@ ready to be batch-submitted to the data-availability layer.
 
 ## Running this example:
 
-- Clone the examples repository: `git clone git@github.com:op-rs/maili.git`
+- Clone the examples repository: `git clone git@github.com:op-rs/kona.git`
 - Run: `cargo run --example batch_to_frames`
 
 ```rust
-{{#include ../../../crates/protocol/examples/batch_to_frames.rs}}
+{{#include ../../../crates/protocol/protocol/examples/batch_to_frames.rs}}
 ```
 
 <!-- Links -->

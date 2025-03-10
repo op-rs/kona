@@ -20,7 +20,7 @@ pub struct Superchain {
 #[cfg(feature = "serde")]
 mod tests {
     use super::*;
-    use crate::{HardForkConfiguration, SuperchainConfig, SuperchainL1Info};
+    use crate::{HardForkConfig, SuperchainConfig, SuperchainL1Info};
     use alloc::{string::ToString, vec};
 
     #[test]
@@ -87,13 +87,15 @@ mod tests {
                     public_rpc: "https://mainnet.rpc".to_string(),
                     explorer: "https://mainnet.explorer".to_string(),
                 },
-                hardforks: HardForkConfiguration {
+                hardforks: HardForkConfig {
+                    regolith_time: None,
                     canyon_time: Some(1699981200),
                     delta_time: Some(1703203200),
                     ecotone_time: Some(1708534800),
                     fjord_time: Some(1716998400),
                     granite_time: Some(1723478400),
                     holocene_time: Some(1732633200),
+                    pectra_blob_schedule_time: None,
                     isthmus_time: None,
                     interop_time: None,
                 },

@@ -20,7 +20,7 @@ jobs:
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -73,7 +73,7 @@ jobs:
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -87,7 +87,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        target: ["native", "cannon", "asterisc"]
+        target: ["native", "cannon-client", "asterisc-client"]
     name: build-${{ matrix.target }}
     continue-on-error: true
     steps:
@@ -99,7 +99,7 @@ jobs:
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -115,7 +115,7 @@ jobs:
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
-  cargo-doc:
+  cargo-doc-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -127,12 +127,28 @@ jobs:
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
       - name: doclint
         run: just lint-docs
+  cargo-doc-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: taiki-e/install-action@just
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: doctest
         run: just test-docs
   cargo-hack:
@@ -147,7 +163,7 @@ jobs:
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81
+          toolchain: 1.85
       - uses: taiki-e/install-action@cargo-hack
       - uses: Swatinem/rust-cache@v2
         with:
@@ -164,7 +180,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
-          toolchain: 1.81
+          toolchain: 1.85
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -175,12 +191,13 @@ jobs:
         run: cargo generate-lockfile
       - name: cargo llvm-cov
         run: |
-          RUST_MIN_STACK=33554432 cargo llvm-cov nextest \
+          cargo llvm-cov nextest \
             --locked \
             --workspace \
             --lcov \
             --output-path lcov.info \
-            --features test-utils \
+            --all-features \
+           --ignore-run-fail \
             --profile ci \
             -E '!test(test_online)' && \
             mv ./target/nextest/ci/junit.xml ./junit.xml

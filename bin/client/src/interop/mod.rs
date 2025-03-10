@@ -4,12 +4,13 @@ use alloc::sync::Arc;
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
 use core::fmt::Debug;
+use kona_derive::errors::PipelineErrorKind;
 use kona_driver::DriverError;
 use kona_executor::{ExecutorError, KonaHandleRegister};
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
-use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider, CachingOracle};
+use kona_proof::{CachingOracle, errors::OracleProviderError, l2::OracleL2ChainProvider};
 use kona_proof_interop::{
-    boot::BootstrapError, BootInfo, ConsolidationError, PreState, TRANSITION_STATE_MAX_STEPS,
+    BootInfo, ConsolidationError, PreState, TRANSITION_STATE_MAX_STEPS, boot::BootstrapError,
 };
 use thiserror::Error;
 use tracing::{error, info};
@@ -31,6 +32,9 @@ pub enum FaultProofProgramError {
     /// An error occurred in the driver.
     #[error(transparent)]
     Driver(#[from] DriverError<ExecutorError>),
+    /// An error occurred in the derivation pipeline.
+    #[error(transparent)]
+    PipelineError(#[from] PipelineErrorKind),
     /// Consolidation error.
     #[error(transparent)]
     Consolidation(#[from] ConsolidationError),

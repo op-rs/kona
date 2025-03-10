@@ -41,24 +41,26 @@ use core::arch::asm;
 pub(crate) unsafe fn syscall1(n: usize, arg1: usize) -> usize {
     let mut err: usize;
     let mut ret: usize;
-    asm!(
-        "syscall",
-        inlateout("$2") n => ret,
-        lateout("$7") err,
-        in("$4") arg1,
-        // Clobber all temporary registers
-        lateout("$8") _,
-        lateout("$9") _,
-        lateout("$10") _,
-        lateout("$11") _,
-        lateout("$12") _,
-        lateout("$13") _,
-        lateout("$14") _,
-        lateout("$15") _,
-        lateout("$24") _,
-        lateout("$25") _,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "syscall",
+            inlateout("$2") n => ret,
+            lateout("$7") err,
+            in("$4") arg1,
+            // Clobber all temporary registers
+            lateout("$8") _,
+            lateout("$9") _,
+            lateout("$10") _,
+            lateout("$11") _,
+            lateout("$12") _,
+            lateout("$13") _,
+            lateout("$14") _,
+            lateout("$15") _,
+            lateout("$24") _,
+            lateout("$25") _,
+            options(nostack, preserves_flags)
+        );
+    }
 
     (err == 0).then_some(ret).unwrap_or_else(|| ret.wrapping_neg())
 }
@@ -68,26 +70,28 @@ pub(crate) unsafe fn syscall1(n: usize, arg1: usize) -> usize {
 pub(crate) unsafe fn syscall3(n: usize, arg1: usize, arg2: usize, arg3: usize) -> usize {
     let mut err: usize;
     let mut ret: usize;
-    asm!(
-        "syscall",
-        inlateout("$2") n => ret,
-        lateout("$7") err,
-        in("$4") arg1,
-        in("$5") arg2,
-        in("$6") arg3,
-        // Clobber all temporary registers
-        lateout("$8") _,
-        lateout("$9") _,
-        lateout("$10") _,
-        lateout("$11") _,
-        lateout("$12") _,
-        lateout("$13") _,
-        lateout("$14") _,
-        lateout("$15") _,
-        lateout("$24") _,
-        lateout("$25") _,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            "syscall",
+            inlateout("$2") n => ret,
+            lateout("$7") err,
+            in("$4") arg1,
+            in("$5") arg2,
+            in("$6") arg3,
+            // Clobber all temporary registers
+            lateout("$8") _,
+            lateout("$9") _,
+            lateout("$10") _,
+            lateout("$11") _,
+            lateout("$12") _,
+            lateout("$13") _,
+            lateout("$14") _,
+            lateout("$15") _,
+            lateout("$24") _,
+            lateout("$25") _,
+            options(nostack, preserves_flags)
+        );
+    }
 
     (err == 0).then_some(ret).unwrap_or_else(|| ret.wrapping_neg())
 }
