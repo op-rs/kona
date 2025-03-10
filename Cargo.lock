@@ -3827,7 +3827,7 @@ dependencies = [
 
 [[package]]
 name = "kona-driver"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "alloy-consensus 0.12.4",
  "alloy-primitives",
@@ -3874,7 +3874,7 @@ dependencies = [
 
 [[package]]
 name = "kona-executor"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "alloy-consensus 0.12.4",
  "alloy-eips 0.12.4",
@@ -4008,7 +4008,7 @@ dependencies = [
 
 [[package]]
 name = "kona-mpt"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "alloy-consensus 0.12.4",
  "alloy-primitives",
