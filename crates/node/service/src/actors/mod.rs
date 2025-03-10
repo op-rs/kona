@@ -10,3 +10,6 @@ pub use derivation::{DerivationActor, DerivationError, InboundDerivationMessage}
 
 mod l1_watcher_rpc;
 pub use l1_watcher_rpc::{L1WatcherRpc, L1WatcherRpcError};
+
+mod network;
+pub use network::{NetworkActor, NetworkActorError};
