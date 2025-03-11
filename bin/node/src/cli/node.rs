@@ -1,6 +1,6 @@
 //! Node Subcommand.
 
-use crate::cli::globals::GlobalArgs;
+use crate::cli::{globals::GlobalArgs, p2p::P2PArgs};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
@@ -41,6 +41,9 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[clap(long, visible_alias = "rollup-cfg")]
     pub l2_config_file: Option<PathBuf>,
+    /// P2P CLI arguments
+    #[clap(flatten)]
+    pub p2p_flags: P2PArgs,
 }
 
 impl NodeCommand {

@@ -4,6 +4,7 @@ pub mod disc;
 pub mod globals;
 pub mod gossip;
 pub mod node;
+pub mod p2p;
 pub mod telemetry;
 
 use anyhow::Result;
