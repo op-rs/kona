@@ -52,12 +52,29 @@ impl NodeCommand {
         let cfg = self.get_l2_config(args)?;
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
 
+        let ip = self.p2p_flags.listen_ip;
+        let tcp = self.p2p_flags.listen_tcp_port;
+        let udp = self.p2p_flags.listen_udp_port;
+        let gossip_addr = std::net::SocketAddr::new(ip, tcp);
+        let disc_addr = std::net::SocketAddr::new(ip, udp);
+
+        let Some(mut private_key) = self.p2p_flags.private_key else {
+            // TODO: try to read the private key from the path
+            // self.p2p_flags.priv_path
+            anyhow::bail!("Private key file not implemented");
+        };
+        let keypair = libp2p_identity::Keypair::secp256k1_from_der(&mut private_key.0)
+            .map_err(|_| anyhow::anyhow!("Failed to parse private key"))?;
+
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_gossip_addr(gossip_addr)
+            .with_disc_addr(disc_addr)
+            .with_keypair(keypair)
             .build()
             .start()
             .await

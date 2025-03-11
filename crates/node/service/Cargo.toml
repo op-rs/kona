@@ -41,3 +41,4 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tokio-util.workspace = true
 futures.workspace = true
+libp2p-identity = { workspace = true, features = ["secp256k1"] }

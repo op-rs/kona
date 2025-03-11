@@ -9,13 +9,15 @@ use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{errors::PipelineErrorKind, traits::ChainProvider};
 use kona_genesis::RollupConfig;
+use kona_p2p::{builder::NetworkDriverBuilderError, driver::NetworkDriver};
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
     OnlineBlobProvider, OnlinePipeline,
 };
+use libp2p_identity::Keypair;
 use op_alloy_network::Optimism;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 use thiserror::Error;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
@@ -45,6 +47,14 @@ pub struct RollupNode {
     ///
     /// TODO: Place L2 Engine API client here once it's ready.
     pub(crate) _l2_engine: (),
+    /// Whether p2p networking is entirely disabled.
+    pub(crate) network_disabled: bool,
+    /// The keypair for the network driver.
+    pub(crate) keypair: Option<Keypair>,
+    /// The discovery socket address.
+    pub(crate) discovery_addr: Option<SocketAddr>,
+    /// The gossip socket address.
+    pub(crate) gossip_addr: Option<SocketAddr>,
 }
 
 impl RollupNode {
@@ -77,6 +87,31 @@ impl ValidatorNodeService for RollupNode {
         cancellation: CancellationToken,
     ) -> Self::DataAvailabilityWatcher {
         L1WatcherRpc::new(self.l1_provider.clone(), new_da_tx, cancellation)
+    }
+
+    async fn init_network(&self) -> Result<Option<NetworkDriver>, Self::Error> {
+        if self.network_disabled {
+            return Ok(None);
+        }
+        let gossip_addr = self.gossip_addr.ok_or_else(|| {
+            RollupNodeError::NetworkDriver(NetworkDriverBuilderError::GossipAddrNotSet)
+        })?;
+        let discovery_addr = self.discovery_addr.ok_or_else(|| {
+            RollupNodeError::NetworkDriver(NetworkDriverBuilderError::DiscoveryAddrNotSet)
+        })?;
+        let keypair = self.keypair.clone().ok_or_else(|| {
+            RollupNodeError::NetworkDriver(NetworkDriverBuilderError::KeypairNotSet)
+        })?;
+        Ok(NetworkDriver::builder()
+            // TODO: grab the unsafe block signer from the config.
+            // Only in chain config and not rollup config...
+            .with_unsafe_block_signer(Default::default())
+            .with_chain_id(self.config.l2_chain_id)
+            .with_gossip_addr(gossip_addr)
+            .with_discovery_addr(discovery_addr.into())
+            .with_keypair(keypair)
+            .build()
+            .map(Some)?)
     }
 
     async fn init_derivation(&self) -> Result<(L2ForkchoiceState, OnlinePipeline), Self::Error> {
@@ -146,4 +181,7 @@ pub enum RollupNodeError {
     /// An error occurred while initializing the derivation pipeline.
     #[error(transparent)]
     AlloyChainProvider(#[from] AlloyChainProviderError),
+    /// An error occured while initializing the network driver.
+    #[error(transparent)]
+    NetworkDriver(#[from] NetworkDriverBuilderError),
 }
