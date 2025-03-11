@@ -62,7 +62,7 @@ pub(crate) unsafe fn syscall1(n: usize, arg1: usize) -> usize {
         );
     }
 
-    (err == 0).then_some(ret).unwrap_or_else(|| ret.wrapping_neg())
+    if err == 0 { ret } else { ret.wrapping_neg() }
 }
 
 /// Issues a raw system call with 3 arguments. (e.g. read, write)
@@ -93,5 +93,5 @@ pub(crate) unsafe fn syscall3(n: usize, arg1: usize, arg2: usize, arg3: usize) -
         );
     }
 
-    (err == 0).then_some(ret).unwrap_or_else(|| ret.wrapping_neg())
+    if err == 0 { ret } else { ret.wrapping_neg() }
 }
