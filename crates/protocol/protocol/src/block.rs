@@ -4,8 +4,9 @@ use crate::{DecodeError, L1BlockInfoTx};
 use alloy_consensus::{Block, Transaction, Typed2718};
 use alloy_eips::{BlockNumHash, eip2718::Eip2718Error};
 use alloy_primitives::B256;
+use alloy_rpc_types_engine::ExecutionPayload;
 use kona_genesis::ChainGenesis;
-use op_alloy_consensus::OpTxEnvelope;
+use op_alloy_consensus::{OpTxEnvelope, OpTxType};
 
 /// Block Header Info
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -168,6 +169,51 @@ impl L2BlockInfo {
             let l1_info = L1BlockInfoTx::decode_calldata(tx.input().as_ref())
                 .map_err(FromBlockError::BlockInfoDecodeError)?;
             (l1_info.id(), l1_info.sequence_number())
+        };
+
+        Ok(Self { block_info, l1_origin, seq_num: sequence_number })
+    }
+
+    /// Constructs an [L2BlockInfo] From a given [ExecutionPayload] and [ChainGenesis].
+    pub fn from_payload_and_genesis(
+        payload: &ExecutionPayload,
+        genesis: &ChainGenesis,
+    ) -> Result<Self, FromBlockError> {
+        let block_info = BlockInfo {
+            hash: payload.block_hash(),
+            number: payload.block_number(),
+            parent_hash: payload.parent_hash(),
+            timestamp: payload.timestamp(),
+        };
+
+        let (l1_origin, sequence_number) = if block_info.number == genesis.l2.number {
+            if block_info.hash != genesis.l2.hash {
+                return Err(FromBlockError::InvalidGenesisHash);
+            }
+            (genesis.l1, 0)
+        } else {
+            let transactions = match payload {
+                ExecutionPayload::V1(payload) => &payload.transactions,
+                ExecutionPayload::V2(payload) => &payload.payload_inner.transactions,
+                ExecutionPayload::V3(payload) => &payload.payload_inner.payload_inner.transactions,
+            };
+
+            if transactions.is_empty() {
+                return Err(FromBlockError::MissingL1InfoDeposit(block_info.hash));
+            }
+
+            match transactions.first() {
+                Some(tx) => {
+                    if tx.is_empty() || tx[0] != OpTxType::Deposit as u8 {
+                        return Err(FromBlockError::FirstTxNonDeposit(transactions[0][0]));
+                    }
+
+                    let l1_info = L1BlockInfoTx::decode_calldata(tx)
+                        .map_err(FromBlockError::BlockInfoDecodeError)?;
+                    (l1_info.id(), l1_info.sequence_number())
+                }
+                None => return Err(FromBlockError::MissingL1InfoDeposit(block_info.hash)),
+            }
         };
 
         Ok(Self { block_info, l1_origin, seq_num: sequence_number })

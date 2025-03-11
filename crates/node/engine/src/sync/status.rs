@@ -16,13 +16,14 @@
 /// Note, execution layer sync is only done if there is no finalized block.
 /// Once the execution layer sync has finished, the last block must be marked
 /// as finalized and consolidation is performed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SyncStatus {
     /// Consensus sync
     ConsensusLayer = 0,
     /// Execution sync will start.
     /// This is to verify that nothing has been finalized yet.
+    #[default]
     ExecutionLayerWillStart = 1,
     /// Execution sync has started.
     ExecutionLayerStarted = 2,
