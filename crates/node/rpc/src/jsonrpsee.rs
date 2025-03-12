@@ -6,10 +6,11 @@ use crate::{
 };
 use alloc::{boxed::Box, string::String, vec::Vec};
 use alloy_eips::BlockNumberOrTag;
+use alloy_primitives::B256;
 use core::net::IpAddr;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use kona_genesis::RollupConfig;
-use kona_interop::{ExecutingMessage, SafetyLevel};
+use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::SyncStatus;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
@@ -147,25 +148,28 @@ pub trait EngineApiExt {
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
 pub trait SupervisorApi {
-    /// Checks if the given messages meet the given minimum safety level.
-    #[method(name = "checkMessages")]
-    async fn check_messages(
+    /// Checks if the given inbox entries meet the given minimum safety level.
+    #[method(name = "checkAccessList")]
+    async fn check_access_list(
         &self,
-        messages: Vec<ExecutingMessage>,
+        inbox_entries: Vec<B256>,
         min_safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
 }
 
 #[cfg(all(feature = "interop", feature = "client"))]
-impl<T> crate::CheckMessages for T
+impl<T> crate::CheckAccessList for T
 where
     T: SupervisorApiClient + Send + Sync,
 {
-    async fn check_messages(
+    async fn check_access_list(
         &self,
-        messages: &[ExecutingMessage],
+        inbox_entries: &[B256],
         min_safety: SafetyLevel,
-    ) -> Result<(), crate::ExecutingMessageValidatorError> {
-        Ok(T::check_messages(self, messages.to_vec(), min_safety).await?)
+        executing_descriptor: ExecutingDescriptor,
+    ) -> Result<(), crate::InteropTxValidatorError> {
+        Ok(T::check_access_list(self, inbox_entries.to_vec(), min_safety, executing_descriptor)
+            .await?)
     }
 }

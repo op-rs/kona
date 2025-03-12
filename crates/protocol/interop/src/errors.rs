@@ -74,7 +74,7 @@ pub type SuperRootResult<T> = core::result::Result<T, SuperRootError>;
 
 /// Invalid [`ExecutingMessage`](crate::ExecutingMessage) error.
 #[derive(Error, Debug)]
-pub enum InvalidExecutingMessage {
+pub enum InvalidInboxEntry {
     /// Message does not meet minimum safety level
     #[error("message does not meet min safety level, got: {got}, expected: {expected}")]
     MinimumSafety {
@@ -88,7 +88,7 @@ pub enum InvalidExecutingMessage {
     UnknownChain(u64),
 }
 
-impl InvalidExecutingMessage {
+impl InvalidInboxEntry {
     /// Parses error message. Returns `None`, if message is not recognized.
     // todo: match on error code instead of message string once resolved <https://github.com/ethereum-optimism/optimism/issues/14603>
     pub fn parse_err_msg(err_msg: &str) -> Option<Self> {
@@ -154,34 +154,34 @@ mod tests {
     #[test]
     fn test_op_supervisor_error_parsing() {
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_CROSS_UNSAFE_ERROR).unwrap(),
-            InvalidExecutingMessage::MinimumSafety {
+            InvalidInboxEntry::parse_err_msg(MIN_SAFETY_CROSS_UNSAFE_ERROR).unwrap(),
+            InvalidInboxEntry::MinimumSafety {
                 expected: SafetyLevel::CrossUnsafe,
                 got: SafetyLevel::Unsafe
             }
         ));
 
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_UNSAFE_ERROR).unwrap(),
-            InvalidExecutingMessage::MinimumSafety {
+            InvalidInboxEntry::parse_err_msg(MIN_SAFETY_UNSAFE_ERROR).unwrap(),
+            InvalidInboxEntry::MinimumSafety {
                 expected: SafetyLevel::Unsafe,
                 got: SafetyLevel::Invalid
             }
         ));
 
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(MIN_SAFETY_FINALIZED_ERROR).unwrap(),
-            InvalidExecutingMessage::MinimumSafety {
+            InvalidInboxEntry::parse_err_msg(MIN_SAFETY_FINALIZED_ERROR).unwrap(),
+            InvalidInboxEntry::MinimumSafety {
                 expected: SafetyLevel::Finalized,
                 got: SafetyLevel::Safe,
             }
         ));
 
         assert!(matches!(
-            InvalidExecutingMessage::parse_err_msg(INVALID_CHAIN).unwrap(),
-            InvalidExecutingMessage::UnknownChain(14417)
+            InvalidInboxEntry::parse_err_msg(INVALID_CHAIN).unwrap(),
+            InvalidInboxEntry::UnknownChain(14417)
         ));
 
-        assert!(InvalidExecutingMessage::parse_err_msg(RANDOM_ERROR).is_none());
+        assert!(InvalidInboxEntry::parse_err_msg(RANDOM_ERROR).is_none());
     }
 }

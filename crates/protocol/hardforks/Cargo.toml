@@ -23,8 +23,6 @@ alloy-primitives = { workspace = true, features = ["rlp"] }
 op-alloy-consensus.workspace = true
 
 [dev-dependencies]
-rand.workspace = true
-tokio = { workspace = true, features = ["macros"] }
 alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 
 [features]

@@ -22,6 +22,9 @@ serde_json = { workspace = true, features = ["alloc"] }
 [dev-dependencies]
 toml = { workspace = true, features = ["parse"] }
 
+[package.metadata.cargo-udeps.ignore]
+development = ["toml"]
+
 [features]
 default = []
 std = [

@@ -4,7 +4,6 @@
     html_favicon_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/favicon.ico",
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
-#![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -53,4 +52,4 @@ pub use reqwest::SupervisorClient;
 #[cfg(feature = "interop")]
 mod interop;
 #[cfg(feature = "interop")]
-pub use interop::{CheckMessages, ExecutingMessageValidator, ExecutingMessageValidatorError};
+pub use interop::{CheckAccessList, InteropTxValidator, InteropTxValidatorError};

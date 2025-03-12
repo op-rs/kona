@@ -115,6 +115,25 @@ jobs:
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
+  cargo-udeps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    name: check-udeps
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: taiki-e/install-action@just
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@cargo-udeps
+      - name: cargo udeps
+        run: just check-unused-deps
   cargo-doc-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20

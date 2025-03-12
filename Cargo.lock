@@ -3932,8 +3932,6 @@ dependencies = [
  "alloy-eips 0.12.4",
  "alloy-primitives",
  "op-alloy-consensus 0.11.0",
- "rand 0.9.0",
- "tokio",
 ]
 
 [[package]]
@@ -4026,7 +4024,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "tokio",
- "tracing-subscriber",
 ]
 
 [[package]]

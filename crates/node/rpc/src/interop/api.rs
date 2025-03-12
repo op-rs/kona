@@ -1,17 +1,18 @@
 //! Interop RPC API.
 
-use kona_interop::{ExecutingMessage, SafetyLevel};
+use alloy_primitives::B256;
+use kona_interop::{ExecutingDescriptor, SafetyLevel};
 
-use crate::ExecutingMessageValidatorError;
+use crate::InteropTxValidatorError;
 
 /// Subset of `op-supervisor` API, used for validating interop events.
-///
-/// <https://github.com/ethereum-optimism/optimism/blob/develop/op-supervisor/supervisor/frontend/frontend.go#L18-L28>
-pub trait CheckMessages {
+// TODO: add link once https://github.com/ethereum-optimism/optimism/pull/14784 merged
+pub trait CheckAccessList {
     /// Returns if the messages meet the minimum safety level.
-    fn check_messages(
+    fn check_access_list(
         &self,
-        messages: &[ExecutingMessage],
+        inbox_entries: &[B256],
         min_safety: SafetyLevel,
-    ) -> impl Future<Output = Result<(), ExecutingMessageValidatorError>> + Send;
+        executing_descriptor: ExecutingDescriptor,
+    ) -> impl Future<Output = Result<(), InteropTxValidatorError>> + Send;
 }

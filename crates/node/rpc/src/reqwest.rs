@@ -1,10 +1,11 @@
 //! RPC API implementation using `reqwest`
 
+use alloy_primitives::B256;
 use alloy_rpc_client::ReqwestClient;
 use derive_more::Constructor;
-use kona_interop::{ExecutingMessage, SafetyLevel};
+use kona_interop::{ExecutingDescriptor, SafetyLevel};
 
-use crate::{CheckMessages, ExecutingMessageValidatorError};
+use crate::{CheckAccessList, InteropTxValidatorError};
 
 /// A supervisor client.
 #[derive(Debug, Clone, Constructor)]
@@ -13,15 +14,19 @@ pub struct SupervisorClient {
     client: ReqwestClient,
 }
 
-impl CheckMessages for SupervisorClient {
-    async fn check_messages(
+impl CheckAccessList for SupervisorClient {
+    async fn check_access_list(
         &self,
-        messages: &[ExecutingMessage],
+        inbox_entries: &[B256],
         min_safety: SafetyLevel,
-    ) -> Result<(), ExecutingMessageValidatorError> {
+        executing_descriptor: ExecutingDescriptor,
+    ) -> Result<(), InteropTxValidatorError> {
         self.client
-            .request("supervisor_checkMessages", (messages, min_safety))
+            .request(
+                "supervisor_checkAccessList",
+                (inbox_entries, min_safety, executing_descriptor),
+            )
             .await
-            .map_err(ExecutingMessageValidatorError::client)
+            .map_err(InteropTxValidatorError::client)
     }
 }

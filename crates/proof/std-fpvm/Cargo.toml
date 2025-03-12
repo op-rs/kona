@@ -24,5 +24,8 @@ async-trait.workspace = true
 # `tracing` feature dependencies
 tracing = { workspace = true, optional = true }
 
+[package.metadata.cargo-udeps.ignore]
+normal = ["linked_list_allocator"]
+
 [features]
 tracing = ["dep:tracing"]

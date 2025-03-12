@@ -2,14 +2,14 @@
 
 use alloc::boxed::Box;
 use core::error;
-use kona_interop::InvalidExecutingMessage;
+use kona_interop::InvalidInboxEntry;
 
-/// Failures occurring during validation of [`ExecutingMessage`](kona_interop::ExecutingMessage)s.
+/// Failures occurring during validation of inbox entries.
 #[derive(thiserror::Error, Debug)]
-pub enum ExecutingMessageValidatorError {
+pub enum InteropTxValidatorError {
     /// Error validating interop event.
     #[error(transparent)]
-    InvalidExecutingMessage(#[from] InvalidExecutingMessage),
+    InvalidInboxEntry(#[from] InvalidInboxEntry),
 
     /// RPC client failure.
     #[error("supervisor rpc client failure: {0}")]
@@ -24,7 +24,7 @@ pub enum ExecutingMessageValidatorError {
     SupervisorServerError(Box<dyn error::Error + Send + Sync>),
 }
 
-impl ExecutingMessageValidatorError {
+impl InteropTxValidatorError {
     /// Returns a new instance of [`RpcClientError`](Self::RpcClientError) variant.
     pub fn client(err: impl error::Error + Send + Sync + 'static) -> Self {
         Self::RpcClientError(Box::new(err))
@@ -37,7 +37,7 @@ impl ExecutingMessageValidatorError {
 }
 
 #[cfg(feature = "jsonrpsee")]
-impl From<jsonrpsee::core::ClientError> for ExecutingMessageValidatorError {
+impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
             jsonrpsee::core::ClientError::Call(err) => err.into(),
@@ -47,10 +47,10 @@ impl From<jsonrpsee::core::ClientError> for ExecutingMessageValidatorError {
 }
 
 #[cfg(feature = "jsonrpsee")]
-impl From<jsonrpsee::types::ErrorObjectOwned> for ExecutingMessageValidatorError {
+impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
     fn from(err: jsonrpsee::types::ErrorObjectOwned) -> Self {
-        InvalidExecutingMessage::parse_err_msg(err.message())
-            .map(Self::InvalidExecutingMessage)
+        InvalidInboxEntry::parse_err_msg(err.message())
+            .map(Self::InvalidInboxEntry)
             .unwrap_or(Self::server_unexpected(err))
     }
 }
@@ -59,7 +59,7 @@ impl From<jsonrpsee::types::ErrorObjectOwned> for ExecutingMessageValidatorError
 mod tests {
     use super::*;
     use jsonrpsee::{core::ClientError, types::ErrorObjectOwned};
-    use kona_interop::{InvalidExecutingMessage, SafetyLevel};
+    use kona_interop::{InvalidInboxEntry, SafetyLevel};
 
     const MIN_SAFETY_LOCAL_SAFE_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: cross-unsafe) does not meet the minimum safety local-safe"}"#;
     const MIN_SAFETY_SAFE_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 1091637521 4369 0 901} (safety level: local-safe) does not meet the minimum safety safe"}"#;
@@ -70,48 +70,42 @@ mod tests {
     #[cfg(feature = "jsonrpsee")]
     fn test_jsonrpsee_client_error_parsing() {
         assert!(matches!(
-            ExecutingMessageValidatorError::from(
+            InteropTxValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_LOCAL_SAFE_ERROR).unwrap()
             ),
-            ExecutingMessageValidatorError::InvalidExecutingMessage(
-                InvalidExecutingMessage::MinimumSafety {
-                    expected: SafetyLevel::LocalSafe,
-                    got: SafetyLevel::CrossUnsafe
-                }
-            )
+            InteropTxValidatorError::InvalidInboxEntry(InvalidInboxEntry::MinimumSafety {
+                expected: SafetyLevel::LocalSafe,
+                got: SafetyLevel::CrossUnsafe
+            })
         ));
 
         assert!(matches!(
-            ExecutingMessageValidatorError::from(
+            InteropTxValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(MIN_SAFETY_SAFE_ERROR).unwrap()
             ),
-            ExecutingMessageValidatorError::InvalidExecutingMessage(
-                InvalidExecutingMessage::MinimumSafety {
-                    expected: SafetyLevel::Safe,
-                    got: SafetyLevel::LocalSafe
-                }
-            )
+            InteropTxValidatorError::InvalidInboxEntry(InvalidInboxEntry::MinimumSafety {
+                expected: SafetyLevel::Safe,
+                got: SafetyLevel::LocalSafe
+            })
         ));
 
         assert!(matches!(
-            ExecutingMessageValidatorError::from(
+            InteropTxValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(INVALID_CHAIN).unwrap()
             ),
-            ExecutingMessageValidatorError::InvalidExecutingMessage(
-                InvalidExecutingMessage::UnknownChain(14417)
-            )
+            InteropTxValidatorError::InvalidInboxEntry(InvalidInboxEntry::UnknownChain(14417))
         ));
 
         assert!(matches!(
-            ExecutingMessageValidatorError::from(
+            InteropTxValidatorError::from(
                 serde_json::from_str::<ErrorObjectOwned>(RANDOM_VALIDATION_ERROR).unwrap()
             ),
-            ExecutingMessageValidatorError::SupervisorServerError(_)
+            InteropTxValidatorError::SupervisorServerError(_)
         ));
 
         assert!(matches!(
-            ExecutingMessageValidatorError::from(ClientError::RequestTimeout),
-            ExecutingMessageValidatorError::RpcClientError(_)
+            InteropTxValidatorError::from(ClientError::RequestTimeout),
+            InteropTxValidatorError::RpcClientError(_)
         ));
     }
 }
