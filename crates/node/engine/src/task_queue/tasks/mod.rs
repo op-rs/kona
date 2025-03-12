@@ -8,3 +8,6 @@ pub use forkchoice::{ForkchoiceTask, ForkchoiceTaskError};
 
 mod insert;
 pub use insert::{InsertUnsafeTask, InsertUnsafeTaskError};
+
+mod build;
+pub use build::{BuildTask, BuildTaskError};

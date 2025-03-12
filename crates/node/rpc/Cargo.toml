@@ -19,6 +19,7 @@ workspace = true
 kona-protocol.workspace = true
 
 # OP Alloy
+op-alloy-consensus.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
 # Alloy

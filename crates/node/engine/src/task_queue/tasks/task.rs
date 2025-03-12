@@ -2,7 +2,7 @@
 //!
 //! [Engine]: crate::Engine
 
-use super::{ForkchoiceTask, InsertUnsafeTask};
+use super::{BuildTask, ForkchoiceTask, InsertUnsafeTask};
 use crate::EngineState;
 use async_trait::async_trait;
 use thiserror::Error;
@@ -17,6 +17,8 @@ pub enum EngineTask {
     ForkchoiceUpdate(ForkchoiceTask),
     /// Inserts an unsafe payload into the execution engine.
     InsertUnsafe(InsertUnsafeTask),
+    /// Builds a new block with the given attributes, and inserts it into the execution engine.
+    BuildBlock(BuildTask),
 }
 
 impl EngineTask {
@@ -25,6 +27,7 @@ impl EngineTask {
         match self.clone() {
             Self::ForkchoiceUpdate(task) => task.execute(state).await,
             Self::InsertUnsafe(task) => task.execute(state).await,
+            Self::BuildBlock(task) => task.execute(state).await,
         }
     }
 }
