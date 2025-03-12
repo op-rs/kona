@@ -1,9 +1,8 @@
-//! Contains the node CLI.
+//! Node Subcommand.
 
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
-use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
 use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
@@ -11,35 +10,31 @@ use kona_registry::ROLLUP_CONFIGS;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
 use tracing::debug;
-use tracing_subscriber::EnvFilter;
 use url::Url;
 
 use crate::flags::{GlobalArgs, P2PArgs};
 
-/// Kona's Consensus Node CLI.
+/// The Node subcommand.
 ///
 /// For compatibility with the [op-node], relevant flags retain an alias that matches that
 /// of the [op-node] CLI.
 ///
 /// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
-#[derive(Parser, Clone, Debug)]
-#[command(author, version, about, styles = cli_styles(), long_about = None)]
-pub struct Cli {
-    /// Global arguments for the CLI.
-    #[clap(flatten)]
-    pub global: GlobalArgs,
+#[derive(Parser, Debug, Clone)]
+#[command(about = "Runs the consensus node")]
+pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
     #[clap(long, visible_alias = "l1", env = "L1_ETH_RPC")]
-    pub l1_eth_rpc: Url,
+    pub l1_eth_rpc: Option<Url>,
     /// URL of the L1 beacon API.
     #[clap(long, visible_alias = "l1.beacon", env = "L1_BEACON")]
-    pub l1_beacon: Url,
+    pub l1_beacon: Option<Url>,
     /// URL of the engine API endpoint of an L2 execution client.
     #[clap(long, visible_alias = "l2", env = "L2_ENGINE_RPC")]
-    pub l2_engine_rpc: Url,
+    pub l2_engine_rpc: Option<Url>,
     /// An L2 RPC Url.
     #[clap(long, visible_alias = "l2.provider", env = "L2_ETH_RPC")]
-    pub l2_provider_rpc: Url,
+    pub l2_provider_rpc: Option<Url>,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
     #[clap(long, visible_alias = "l2.jwt-secret", env = "L2_ENGINE_AUTH")]
@@ -62,32 +57,10 @@ pub struct Cli {
     pub p2p_flags: P2PArgs,
 }
 
-impl Cli {
-    /// Runs the CLI.
-    pub fn run(self) -> Result<()> {
-        // Initialize the telemetry stack.
-        Self::init_stack(self.global.v, self.global.metrics_port)?;
-
-        // Starts the node.
-        Self::run_until_ctrl_c(self.start())
-    }
-
-    /// Initialize the tracing stack and Prometheus metrics recorder.
-    ///
-    /// This function should be called at the beginning of the program.
-    pub fn init_stack(verbosity: u8, metrics_port: u16) -> Result<()> {
-        // Initialize the tracing subscriber.
-        init_tracing_subscriber(verbosity, None::<EnvFilter>)?;
-
-        // Start the Prometheus metrics server.
-        init_prometheus_server(metrics_port)?;
-
-        Ok(())
-    }
-
-    /// Starts the node.
-    pub async fn start(self) -> Result<()> {
-        let cfg = self.get_l2_config(&self.global)?;
+impl NodeCommand {
+    /// Run the Node subcommand.
+    pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
+        let cfg = self.get_l2_config(args)?;
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let kind = self.l2_engine_kind;
         let sync_config = SyncConfig {
@@ -112,13 +85,29 @@ impl Cli {
         let keypair = libp2p_identity::Keypair::secp256k1_from_der(&mut private_key.0)
             .map_err(|_| anyhow::anyhow!("Failed to parse private key"))?;
 
+        let l1_eth_rpc = self
+            .l1_eth_rpc
+            .clone()
+            .ok_or(anyhow::anyhow!("Missing L1 RPC URL. Please specify with `--l1`."))?;
+        let l1_beacon = self
+            .l1_beacon
+            .clone()
+            .ok_or(anyhow::anyhow!("Missing L1 beacon URL. Please specify with `--l1.beacon`."))?;
+        let l2_provider_rpc = self.l2_provider_rpc.clone().ok_or(anyhow::anyhow!(
+            "Missing L2 provider RPC URL. Please specify with `--l2.provider`."
+        ))?;
+        let l2_engine_rpc = self
+            .l2_engine_rpc
+            .clone()
+            .ok_or(anyhow::anyhow!("Missing L2 engine RPC URL. Please specify with `--l2`."))?;
+
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
             .with_sync_config(sync_config)
-            .with_l1_provider_rpc_url(self.l1_eth_rpc)
-            .with_l1_beacon_api_url(self.l1_beacon)
-            .with_l2_provider_rpc_url(self.l2_provider_rpc)
-            .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_l1_provider_rpc_url(l1_eth_rpc)
+            .with_l1_beacon_api_url(l1_beacon)
+            .with_l2_provider_rpc_url(l2_provider_rpc)
+            .with_l2_engine_rpc_url(l2_engine_rpc)
             .with_gossip_addr(gossip_addr)
             .with_disc_addr(disc_addr)
             .with_keypair(keypair)
@@ -126,21 +115,6 @@ impl Cli {
             .start()
             .await
             .map_err(Into::into)
-    }
-
-    /// Run until ctrl-c is pressed.
-    pub fn run_until_ctrl_c<F>(fut: F) -> Result<()>
-    where
-        F: std::future::Future<Output = Result<()>>,
-    {
-        let rt = Self::tokio_runtime().map_err(|e| anyhow::anyhow!(e))?;
-        rt.block_on(fut)
-    }
-
-    /// Creates a new default tokio multi-thread [Runtime](tokio::runtime::Runtime) with all
-    /// features enabled
-    pub fn tokio_runtime() -> Result<tokio::runtime::Runtime, std::io::Error> {
-        tokio::runtime::Builder::new_multi_thread().enable_all().build()
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.
