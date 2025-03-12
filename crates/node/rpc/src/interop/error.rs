@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use core::error;
 use kona_interop::InvalidInboxEntry;
 
-/// Failures occurring during validation of [`ExecutingMessage`](kona_interop::ExecutingMessage)s.
+/// Failures occurring during validation of inbox entries.
 #[derive(thiserror::Error, Debug)]
 pub enum InteropTxValidatorError {
     /// Error validating interop event.

@@ -85,7 +85,7 @@ pub struct ExecutingDescriptor {
 }
 
 impl ExecutingDescriptor {
-    /// Create a new [ExecutingDescriptor] from the timestamp and timeout
+    /// Create a new [`ExecutingDescriptor`] from the timestamp and timeout
     pub const fn new(timestamp: u64, timeout: Option<u64>) -> Self {
         Self { timestamp, timeout }
     }

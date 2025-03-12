@@ -7,7 +7,6 @@ use crate::InteropTxValidatorError;
 
 /// Subset of `op-supervisor` API, used for validating interop events.
 // TODO: add link once https://github.com/ethereum-optimism/optimism/pull/14784 merged
-/// <>
 pub trait CheckAccessList {
     /// Returns if the messages meet the minimum safety level.
     fn check_access_list(
