@@ -5,7 +5,9 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
 use alloy_primitives::B256;
+use anyhow::Result;
 use clap::Parser;
+use libp2p_identity::Keypair;
 use std::{net::IpAddr, path::PathBuf};
 
 /// P2P CLI Flags
@@ -78,6 +80,28 @@ impl Default for P2PArgs {
             listen_tcp_port: 9222,
             listen_udp_port: 0,
         }
+    }
+}
+
+impl P2PArgs {
+    /// Returns the [Keypair] from the cli inputs.
+    ///
+    /// If the raw private key is empty and the specified file is empty,
+    /// this method will generate a new private key and write it out to the file.
+    ///
+    /// If neither a file is specified, nor a raw private key input, this method
+    /// will error.
+    pub fn keypair(&self) -> Result<Keypair> {
+        // Attempt the parse the private key if specified.
+        if let Some(mut private_key) = self.private_key {
+            return kona_p2p::parse_key(&mut private_key.0).map_err(|e| anyhow::anyhow!(e));
+        }
+
+        let Some(ref key_path) = self.priv_path else {
+            anyhow::bail!("Neither a raw private key nor a private key file path was provided.");
+        };
+
+        kona_p2p::get_keypair(key_path).map_err(|e| anyhow::anyhow!(e))
     }
 }
 

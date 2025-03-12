@@ -77,13 +77,7 @@ impl NodeCommand {
         let gossip_addr = std::net::SocketAddr::new(ip, tcp);
         let disc_addr = std::net::SocketAddr::new(ip, udp);
 
-        let Some(mut private_key) = self.p2p_flags.private_key else {
-            // TODO: try to read the private key from the path
-            // self.p2p_flags.priv_path
-            anyhow::bail!("Private key file not implemented");
-        };
-        let keypair = libp2p_identity::Keypair::secp256k1_from_der(&mut private_key.0)
-            .map_err(|_| anyhow::anyhow!("Failed to parse private key"))?;
+        let keypair = self.p2p_flags.keypair()?;
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)

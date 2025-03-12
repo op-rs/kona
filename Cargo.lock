@@ -4122,6 +4122,7 @@ dependencies = [
  "op-alloy-rpc-types-engine",
  "openssl",
  "snap",
+ "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tracing",

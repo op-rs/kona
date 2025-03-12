@@ -39,6 +39,7 @@ unsigned-varint.workspace = true
 arbitrary = { workspace = true, features = ["derive"], optional = true }
 
 [dev-dependencies]
+tempfile.workspace = true
 arbtest.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }
 alloy-primitives = { workspace = true, features = ["arbitrary"] }
