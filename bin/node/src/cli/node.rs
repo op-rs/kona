@@ -42,15 +42,6 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[clap(long, visible_alias = "rollup-cfg")]
     pub l2_config_file: Option<PathBuf>,
-    /// The sync mode for the node.
-    #[clap(
-        long,
-        visible_alias = "syncmode",
-        default_value = "execution-layer",
-        env = "SYNCMODE",
-        help = "Sync mode for the node. Kona only supports 'execution-layer'. Consensus layer sync is not recommended."
-    )]
-    pub sync_mode: SyncMode,
     /// Engine kind.
     #[clap(
         long,
@@ -72,7 +63,7 @@ impl NodeCommand {
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let kind = self.l2_engine_kind;
         let sync_config = SyncConfig {
-            sync_mode: self.sync_mode,
+            sync_mode: SyncMode::ExecutionLayer,
             // Skip sync start check is deprecated in the op-node,
             // so set it to false here without needing a cli flag.
             skip_sync_start_check: false,
