@@ -72,7 +72,8 @@ impl From<executeMessageCall> for ExecutingMessage {
     }
 }
 
-/// An [`ExecutingDescriptor`](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#executingdescriptor) is a part of the payload to `supervisor_checkAccessList`
+/// An [`ExecutingDescriptor`] is a part of the payload to `supervisor_checkAccessList`
+/// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#executingdescriptor>
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExecutingDescriptor {
