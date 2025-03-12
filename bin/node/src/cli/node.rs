@@ -4,6 +4,7 @@ use crate::cli::{globals::GlobalArgs, p2p::P2PArgs};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
+use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
 use kona_registry::ROLLUP_CONFIGS;
@@ -41,7 +42,25 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[clap(long, visible_alias = "rollup-cfg")]
     pub l2_config_file: Option<PathBuf>,
-    /// P2P CLI arguments
+    /// The sync mode for the node.
+    #[clap(
+        long,
+        visible_alias = "syncmode",
+        default_value = "execution-layer",
+        env = "SYNCMODE",
+        help = "Sync mode for the node. Kona only supports 'execution-layer'. Consensus layer sync is not recommended."
+    )]
+    pub sync_mode: SyncMode,
+    /// Engine kind.
+    #[clap(
+        long,
+        visible_alias = "l2.enginekind",
+        default_value = "geth",
+        env = "L2_ENGINE_KIND",
+        help = "The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
+    )]
+    pub l2_engine_kind: EngineKind,
+    /// P2P CLI arguments.
     #[clap(flatten)]
     pub p2p_flags: P2PArgs,
 }
@@ -51,9 +70,18 @@ impl NodeCommand {
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let kind = self.l2_engine_kind;
+        let sync_config = SyncConfig {
+            sync_mode: self.sync_mode,
+            // Skip sync start check is deprecated in the op-node,
+            // so set it to false here without needing a cli flag.
+            skip_sync_start_check: false,
+            supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
+        };
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
+            .with_sync_config(sync_config)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)

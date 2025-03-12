@@ -14,6 +14,7 @@ rust-version.workspace = true
 [dependencies]
 # workspace
 kona-cli.workspace = true
+kona-engine.workspace = true
 kona-node-service.workspace = true
 kona-p2p.workspace = true
 kona-genesis.workspace = true
