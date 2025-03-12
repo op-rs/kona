@@ -1,8 +1,6 @@
 //! Contains the node CLI.
 
-pub mod disc;
 pub mod globals;
-pub mod gossip;
 pub mod node;
 pub mod p2p;
 pub mod telemetry;
@@ -15,10 +13,6 @@ use kona_cli::cli_styles;
 #[derive(Debug, Clone, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
-    /// Discovery service command.
-    Disc(disc::DiscCommand),
-    /// Gossip service command.
-    Gossip(gossip::GossipCommand),
     /// Runs the consensus node.
     Node(node::NodeCommand),
 }
@@ -42,8 +36,6 @@ impl Cli {
         telemetry::init_stack(self.global.v, self.global.metrics_port)?;
 
         match self.subcommand {
-            Commands::Disc(disc) => Self::run_until_ctrl_c(disc.run(&self.global)),
-            Commands::Gossip(gossip) => Self::run_until_ctrl_c(gossip.run(&self.global)),
             Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
         }
     }

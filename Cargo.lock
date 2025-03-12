@@ -2424,6 +2424,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-discovery"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-p2p",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "example-gossip"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-p2p",
+ "kona-registry",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
