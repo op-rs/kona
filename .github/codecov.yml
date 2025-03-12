@@ -26,6 +26,7 @@ comment:
   hide_project_coverage: false
 
 ignore:
+  - "examples/**/*"
   - "**/test_util*"
   # Ignore providers
   - "crates/providers"
