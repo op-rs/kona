@@ -52,4 +52,4 @@ pub use reqwest::SupervisorClient;
 #[cfg(feature = "interop")]
 mod interop;
 #[cfg(feature = "interop")]
-pub use interop::{CheckMessages, ExecutingMessageValidator, ExecutingMessageValidatorError};
+pub use interop::{CheckAccessList, InteropTxValidator, InteropTxValidatorError};
