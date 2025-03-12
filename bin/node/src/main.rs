@@ -6,7 +6,8 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-mod cli;
+mod flags;
+mod node;
 
 fn main() {
     use clap::Parser;
@@ -19,7 +20,7 @@ fn main() {
         unsafe { std::env::set_var("RUST_BACKTRACE", "1") };
     }
 
-    if let Err(err) = cli::Cli::parse().run() {
+    if let Err(err) = node::Cli::parse().run() {
         eprintln!("Error: {err:?}");
         std::process::exit(1);
     }

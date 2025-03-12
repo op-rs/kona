@@ -1,9 +1,9 @@
-//! Node Subcommand.
+//! Contains the node CLI.
 
-use crate::cli::{globals::GlobalArgs, p2p::P2PArgs};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
+use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
 use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
@@ -11,17 +11,23 @@ use kona_registry::ROLLUP_CONFIGS;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
 use tracing::debug;
+use tracing_subscriber::EnvFilter;
 use url::Url;
 
-/// The Node subcommand.
+use crate::flags::{GlobalArgs, P2PArgs};
+
+/// Kona's Consensus Node CLI.
 ///
 /// For compatibility with the [op-node], relevant flags retain an alias that matches that
 /// of the [op-node] CLI.
 ///
 /// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
-#[derive(Parser, Debug, Clone)]
-#[command(about = "Runs the consensus node")]
-pub struct NodeCommand {
+#[derive(Parser, Clone, Debug)]
+#[command(author, version, about, styles = cli_styles(), long_about = None)]
+pub struct Cli {
+    /// Global arguments for the CLI.
+    #[clap(flatten)]
+    pub global: GlobalArgs,
     /// URL of the L1 execution client RPC API.
     #[clap(long, visible_alias = "l1", env = "L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
@@ -56,10 +62,32 @@ pub struct NodeCommand {
     pub p2p_flags: P2PArgs,
 }
 
-impl NodeCommand {
-    /// Run the Node subcommand.
-    pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
-        let cfg = self.get_l2_config(args)?;
+impl Cli {
+    /// Runs the CLI.
+    pub fn run(self) -> Result<()> {
+        // Initialize the telemetry stack.
+        Self::init_stack(self.global.v, self.global.metrics_port)?;
+
+        // Starts the node.
+        Self::run_until_ctrl_c(self.start())
+    }
+
+    /// Initialize the tracing stack and Prometheus metrics recorder.
+    ///
+    /// This function should be called at the beginning of the program.
+    pub fn init_stack(verbosity: u8, metrics_port: u16) -> Result<()> {
+        // Initialize the tracing subscriber.
+        init_tracing_subscriber(verbosity, None::<EnvFilter>)?;
+
+        // Start the Prometheus metrics server.
+        init_prometheus_server(metrics_port)?;
+
+        Ok(())
+    }
+
+    /// Starts the node.
+    pub async fn start(self) -> Result<()> {
+        let cfg = self.get_l2_config(&self.global)?;
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let kind = self.l2_engine_kind;
         let sync_config = SyncConfig {
@@ -98,6 +126,21 @@ impl NodeCommand {
             .start()
             .await
             .map_err(Into::into)
+    }
+
+    /// Run until ctrl-c is pressed.
+    pub fn run_until_ctrl_c<F>(fut: F) -> Result<()>
+    where
+        F: std::future::Future<Output = Result<()>>,
+    {
+        let rt = Self::tokio_runtime().map_err(|e| anyhow::anyhow!(e))?;
+        rt.block_on(fut)
+    }
+
+    /// Creates a new default tokio multi-thread [Runtime](tokio::runtime::Runtime) with all
+    /// features enabled
+    pub fn tokio_runtime() -> Result<tokio::runtime::Runtime, std::io::Error> {
+        tokio::runtime::Builder::new_multi_thread().enable_all().build()
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.
