@@ -25,16 +25,16 @@ use crate::flags::{GlobalArgs, P2PArgs};
 pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
     #[clap(long, visible_alias = "l1", env = "L1_ETH_RPC")]
-    pub l1_eth_rpc: Option<Url>,
+    pub l1_eth_rpc: Url,
     /// URL of the L1 beacon API.
     #[clap(long, visible_alias = "l1.beacon", env = "L1_BEACON")]
-    pub l1_beacon: Option<Url>,
+    pub l1_beacon: Url,
     /// URL of the engine API endpoint of an L2 execution client.
     #[clap(long, visible_alias = "l2", env = "L2_ENGINE_RPC")]
-    pub l2_engine_rpc: Option<Url>,
+    pub l2_engine_rpc: Url,
     /// An L2 RPC Url.
     #[clap(long, visible_alias = "l2.provider", env = "L2_ETH_RPC")]
-    pub l2_provider_rpc: Option<Url>,
+    pub l2_provider_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
     #[clap(long, visible_alias = "l2.jwt-secret", env = "L2_ENGINE_AUTH")]
@@ -85,29 +85,13 @@ impl NodeCommand {
         let keypair = libp2p_identity::Keypair::secp256k1_from_der(&mut private_key.0)
             .map_err(|_| anyhow::anyhow!("Failed to parse private key"))?;
 
-        let l1_eth_rpc = self
-            .l1_eth_rpc
-            .clone()
-            .ok_or(anyhow::anyhow!("Missing L1 RPC URL. Please specify with `--l1`."))?;
-        let l1_beacon = self
-            .l1_beacon
-            .clone()
-            .ok_or(anyhow::anyhow!("Missing L1 beacon URL. Please specify with `--l1.beacon`."))?;
-        let l2_provider_rpc = self.l2_provider_rpc.clone().ok_or(anyhow::anyhow!(
-            "Missing L2 provider RPC URL. Please specify with `--l2.provider`."
-        ))?;
-        let l2_engine_rpc = self
-            .l2_engine_rpc
-            .clone()
-            .ok_or(anyhow::anyhow!("Missing L2 engine RPC URL. Please specify with `--l2`."))?;
-
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
             .with_sync_config(sync_config)
-            .with_l1_provider_rpc_url(l1_eth_rpc)
-            .with_l1_beacon_api_url(l1_beacon)
-            .with_l2_provider_rpc_url(l2_provider_rpc)
-            .with_l2_engine_rpc_url(l2_engine_rpc)
+            .with_l1_provider_rpc_url(self.l1_eth_rpc)
+            .with_l1_beacon_api_url(self.l1_beacon)
+            .with_l2_provider_rpc_url(self.l2_provider_rpc)
+            .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_gossip_addr(gossip_addr)
             .with_disc_addr(disc_addr)
             .with_keypair(keypair)

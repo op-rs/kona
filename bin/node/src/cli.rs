@@ -23,10 +23,7 @@ pub struct Cli {
     pub global: GlobalArgs,
     /// The subcommand to run.
     #[clap(subcommand)]
-    pub subcommand: Option<Commands>,
-    /// Node arguments used if no subcommand is provided.
-    #[clap(flatten)]
-    pub node: NodeCommand,
+    pub subcommand: Commands,
 }
 
 impl Cli {
@@ -36,8 +33,7 @@ impl Cli {
         Self::init_stack(self.global.v, self.global.metrics_port)?;
 
         match self.subcommand {
-            Some(Commands::Node(node)) => Self::run_until_ctrl_c(node.run(&self.global)),
-            None => Self::run_until_ctrl_c(self.node.run(&self.global)),
+            Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
         }
     }
 
