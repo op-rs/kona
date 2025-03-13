@@ -4,7 +4,7 @@ use crate::{DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, service
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
-use kona_p2p::driver::NetworkDriver;
+use kona_p2p::NetworkDriver;
 use kona_protocol::BlockInfo;
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};

@@ -1,79 +1,97 @@
 //! Wrapper around the Discv5 service.
 
-use discv5::Discv5;
-use discv5::enr::NodeId;
+use discv5::{Discv5, Enr, enr::NodeId};
 use std::sync::Arc;
 use thiserror::Error;
-use std::collections::HashSet;
-use crate::BootNode;
+use tokio::sync::Mutex;
 
 /// An error that bubbled up from the [`Discv5`] service.
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug)]
 pub enum Discv5WrapperError {
     /// A query error when finding a node.
-    #[error(transparent)]
-    Query(#[from] discv5::QueryError),
+    #[error("query error: {0}")]
+    Query(discv5::QueryError),
+    /// An error when adding a node.
+    #[error("add node failed: {0}")]
+    AddNodeFailed(&'static str),
+    /// A [`Discv5`] error.
+    #[error("discv5 error: {0}")]
+    Discv5(discv5::Error),
 }
 
 /// Wraps the [`Discv5`] service, providing a more ergonomic API.
 #[derive(Clone)]
-pub struct Discv5Wrapper(pub Arc<Discv5>);
+pub struct Discv5Wrapper(pub Arc<Mutex<Discv5>>);
 
 impl Discv5Wrapper {
     /// Creates a new Discv5 service.
-    pub fn new(config: Config) -> Self {
-        let disc = Discv5::new(config);
-        Self(Arc::new(disc))
+    pub fn new(inner: Discv5) -> Self {
+        Self(Arc::new(Mutex::new(inner)))
     }
 
     /// Returns a new [`Arc`] reference to the underlying [`Discv5`] service.
-    pub fn inner(&self) -> Arc<Discv5> {
+    pub fn inner(&self) -> Arc<Mutex<Discv5>> {
         self.0.clone()
     }
 
+    /// Returns the local ENR of the node.
+    pub async fn local_enr(&self) -> Enr {
+        self.0.lock().await.local_enr().clone()
+    }
+
     /// Starts the discovery service.
-    pub async fn start(&self) -> Result<()> {
-        self.0.start().await
+    pub async fn start(&mut self) -> Result<(), Discv5WrapperError> {
+        let mut discv5 = self.0.lock().await;
+        discv5.start().await.map_err(Discv5WrapperError::Discv5)
     }
 
     /// Finds the node with the given target.
-    pub async fn find_node(&self) -> Result<Vec<Enr>, Discv5Error> {
-        self.0.find_node(NodeId::random()).await
+    pub async fn find_node(&self) -> Result<Vec<Enr>, Discv5WrapperError> {
+        let discv5 = self.0.lock().await;
+        discv5.find_node(NodeId::random()).await.map_err(Discv5WrapperError::Query)
+    }
+
+    /// Gets metrics for the discovery service.
+    pub async fn metrics(&self) -> discv5::metrics::Metrics {
+        let discv5 = self.0.lock().await;
+        discv5.metrics()
+    }
+
+    /// Returns the number of connected peers.
+    pub async fn peers(&self) -> usize {
+        let discv5 = self.0.lock().await;
+        discv5.connected_peers()
     }
 
     /// Bootstraps underlying [`discv5::Discv5`] node with configured peers.
-    ///
-    /// Adapted from <https://github.com/paradigmxyz/reth/blob/main/crates/net/discv5/src/lib.rs>.
-    pub async fn bootstrap(&self, nodes: HashSet<BootNode>) -> Result<(), Error> {
+    pub async fn bootstrap(&self, nodes: &[Enr]) -> Result<(), Discv5WrapperError> {
         trace!(target: "net::discv5",
             ?nodes,
             "adding bootstrap nodes .."
         );
 
-        let mut enr_requests = vec![];
+        // let mut enr_requests = vec![];
+        let discv5 = self.0.lock().await;
         for node in nodes {
-            match node {
-                BootNode::Enr(node) => {
-                    if let Err(err) = discv5.add_enr(node) {
-                        return Err(Error::AddNodeFailed(err))
-                    }
-                }
-                BootNode::Enode(enode) => {
-                    let discv5 = self.inner();
-                    enr_requests.push(async move {
-                        if let Err(err) = discv5.request_enr(enode.to_string()).await {
-                            debug!(target: "p2p::discv5",
-                                ?enode,
-                                %err,
-                                "failed adding boot node"
-                            );
-                        }
-                    })
-                }
-            }
+            // match node {
+            // BootNode::Enr(enr) => {
+            discv5.add_enr(node.clone()).map_err(Discv5WrapperError::AddNodeFailed)?;
+            // }
+            // BootNode::Enode(enode) => enr_requests.push(async move {
+            //     if let Err(err) = discv5.request_enr(enode.to_string()).await {
+            //         debug!(target: "p2p::discv5",
+            //             ?enode,
+            //             %err,
+            //             "failed adding boot node"
+            //         );
+            //     }
+            // }),
+            // }
         }
 
         // If a session is established, the ENR is added straight away to discv5 kbuckets
-        Ok(_ = join_all(enr_requests).await)
+        // use futures::future::join_all;
+        // Ok(_ = join_all(enr_requests).await)
+        Ok(())
     }
 }

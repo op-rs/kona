@@ -1,13 +1,12 @@
 //! Contains a builder for the discovery service.
 
-use crate::{Discv5Driver, types::enr::OpStackEnr};
 use discv5::{
     Config, ConfigBuilder, Discv5, ListenConfig,
     enr::{CombinedKey, Enr},
 };
 use std::net::SocketAddr;
 
-use crate::types::enr::OP_CL_KEY;
+use crate::{Discv5Driver, OP_CL_KEY, OpStackEnr};
 
 /// An error that can occur when building the discovery service.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -109,8 +108,8 @@ impl Discv5Builder {
         }
         let enr = enr_builder.build(&key).map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
 
-        let disc = Discv5::new(enr, key, config)
-            .map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
+        let disc =
+            Discv5::new(enr, key, config).map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
 
         Ok(Discv5Driver::new(disc, chain_id))
     }

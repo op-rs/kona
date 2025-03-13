@@ -1,18 +1,14 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
-use crate::gossip::{
-    behaviour::Behaviour,
-    event::Event,
-    handler::{BlockHandler, Handler},
-};
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, Swarm, TransportError,
     swarm::{DialError, SwarmEvent},
 };
-use tracing::{debug, error, info};
 
-/// A [libp2p::Swarm] instance with an associated address to listen on.
+use crate::{Behaviour, BlockHandler, Event, Handler};
+
+/// A [`Swarm`] instance with an associated address to listen on.
 pub struct GossipDriver {
     /// The [libp2p::Swarm] instance.
     pub swarm: Swarm<Behaviour>,

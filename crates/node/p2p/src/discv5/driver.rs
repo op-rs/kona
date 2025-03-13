@@ -1,26 +1,20 @@
 //! Discovery Module.
 
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::{
-    sync::mpsc::{Receiver, Sender, channel},
+    sync::mpsc::{Receiver, channel},
     time::sleep,
 };
-use tracing::{info, warn};
 
-use discv5::{Discv5, enr::NodeId, metrics::Metrics};
+use discv5::Discv5;
 
-use crate::{
-    Discv5Wrapper,
-    discovery::{bootnodes::BOOTNODES, builder::DiscoveryBuilder},
-    types::{enr::OpStackEnr, peer::Peer},
-};
+use crate::{BOOTNODES, Discv5Builder, Discv5Wrapper, OpStackEnr, Peer};
 
 /// The number of peers to buffer in the channel.
 const DISCOVERY_PEER_CHANNEL_SIZE: usize = 256;
 
 /// The discovery driver handles running the discovery service.
-pub struct DiscoveryDriver {
+pub struct Discv5Driver {
     /// The [Discv5] discovery service.
     pub disc: Discv5Wrapper,
     /// The chain ID of the network.
@@ -30,41 +24,41 @@ pub struct DiscoveryDriver {
     pub interval: Duration,
 }
 
-impl DiscoveryDriver {
-    /// Returns a new [DiscoveryBuilder] instance.
-    pub fn builder() -> DiscoveryBuilder {
-        DiscoveryBuilder::new()
+impl Discv5Driver {
+    /// Returns a new [`Discv5Builder`] instance.
+    pub fn builder() -> Discv5Builder {
+        Discv5Builder::new()
     }
 
-    /// Instantiates a new [DiscoveryDriver].
+    /// Instantiates a new [`Discv5Driver`].
     pub fn new(disc: Discv5, chain_id: u64) -> Self {
-        Self { disc: Discv5Wrapper(Arc::new(disc)), chain_id, interval: Duration::from_secs(10) }
+        Self { disc: Discv5Wrapper::new(disc), chain_id, interval: Duration::from_secs(10) }
     }
 
-    /// Spawns a new [Discv5] discovery service in a new tokio task.
+    /// Spawns a new [`Discv5`] discovery service in a new tokio task.
     ///
-    /// Returns a [Receiver] to receive [Peer] structs.
+    /// Returns a [`Receiver`] to receive [`Peer`] structs.
     ///
     /// ## Errors
     ///
     /// Returns an error if the address or chain ID is not set
-    /// on the [crate::discovery::builder::DiscoveryBuilder].
+    /// on the [`Discv5Builder`].
     ///
     /// ## Example
     ///
     /// ```no_run
-    /// use kona_p2p::discovery::builder::DiscoveryBuilder;
+    /// use kona_p2p::Discv5Driver;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     ///
     /// #[tokio::main]
     /// async fn main() {
     ///     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
-    ///     let mut discovery = DiscoveryBuilder::new()
+    ///     let mut disc = Discv5Driver::builder()
     ///         .with_address(socket)
     ///         .with_chain_id(10) // OP Mainnet chain id
     ///         .build()
     ///         .expect("Failed to build discovery service");
-    ///     let (mut peer_recv, _, _) = discovery.start();
+    ///     let mut peer_recv = disc.start();
     ///
     ///     loop {
     ///         if let Some(peer) = peer_recv.recv().await {
@@ -81,33 +75,28 @@ impl DiscoveryDriver {
         // peers bounded by `DISCOVERY_PEER_CHANNEL_SIZE`.
         let (sender, recv) = channel::<Peer>(DISCOVERY_PEER_CHANNEL_SIZE);
 
-        // Channels for metrics and metrics requests.
-        let (metrics_tx, metrics_rx) = channel::<Metrics>(1);
-        let (metrics_req_tx, mut metrics_req_rx) = channel::<()>(1);
-
         let chain_id = self.chain_id;
         let interval = self.interval;
-        let discv5 = self.disc.clone();
+        let mut discv5 = self.disc.clone();
         tokio::spawn(async move {
             loop {
                 if let Err(e) = discv5.start().await {
-                    warn!("Failed to start discovery service: {:?}", e);
+                    warn!(target: "p2p::discv5::driver", "Failed to start discovery service: {:?}", e);
                     sleep(Duration::from_secs(2)).await;
                     continue;
                 }
                 break;
             }
 
-            if let Err(e) = discv5.bootstrap(bootnodes).await {
-                warn!("Failed to bootstrap discovery service: {:?}", e);
-                break;
+            if let Err(e) = discv5.bootstrap(&bootnodes).await {
+                warn!(target: "p2p::discv5::driver", "Failed to bootstrap discovery service: {:?}", e);
+                return;
             }
 
-            info!("Started peer discovery");
+            info!(target: "p2p::discv5::driver", "Started peer discovery");
 
             loop {
-                let target = NodeId::random();
-                match discv5.0.find_node(target).await {
+                match discv5.find_node().await {
                     Ok(nodes) => {
                         let peers = nodes
                             .iter()
@@ -119,7 +108,7 @@ impl DiscoveryDriver {
                         }
                     }
                     Err(err) => {
-                        warn!("discovery error: {:?}", err);
+                        warn!(target: "p2p::discv5::driver", "discovery error: {:?}", err);
                     }
                 }
 
@@ -137,9 +126,9 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[tokio::test]
-    async fn test_discovery_driver() {
+    async fn test_discv5_driver() {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
-        let discovery = DiscoveryBuilder::new()
+        let discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(10)
             .build()

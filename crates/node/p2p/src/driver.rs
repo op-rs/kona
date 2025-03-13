@@ -7,9 +7,7 @@ use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::{select, sync::watch};
 
-use crate::{
-    builder::NetworkDriverBuilder, discovery::driver::DiscoveryDriver, gossip::driver::GossipDriver,
-};
+use crate::{Discv5Driver, GossipDriver, NetworkDriverBuilder};
 
 /// NetworkDriver
 ///
@@ -25,7 +23,7 @@ pub struct NetworkDriver {
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
-    pub discovery: DiscoveryDriver,
+    pub discovery: Discv5Driver,
 }
 
 impl NetworkDriver {
@@ -47,17 +45,17 @@ impl NetworkDriver {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
-        let (mut peer_recv, _, _) = self.discovery.start();
+        let mut peer_recv = self.discovery.start();
         self.gossip.listen()?;
         tokio::spawn(async move {
             loop {
                 select! {
                     peer = peer_recv.recv() => {
                         self.gossip.dial_opt(peer.clone()).await;
-                        tracing::info!("Received peer: {:?} | Connected peers: {:?}", peer, self.gossip.connected_peers());
+                        info!(target: "p2p::driver", "Received peer: {:?} | Connected peers: {:?}", peer, self.gossip.connected_peers());
                     },
                     event = self.gossip.select_next_some() => {
-                        tracing::debug!("Received event: {:?}", event);
+                        debug!(target: "p2p::driver", "Received event: {:?}", event);
                         self.gossip.handle_event(event);
                     },
                 }

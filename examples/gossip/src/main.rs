@@ -19,7 +19,7 @@
 
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::driver::NetworkDriver;
+use kona_p2p::NetworkDriver;
 use kona_registry::ROLLUP_CONFIGS;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tracing_subscriber::EnvFilter;

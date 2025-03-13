@@ -5,7 +5,7 @@ use discv5::enr::{CombinedKey, Enr};
 use unsigned_varint::{decode, encode};
 
 /// The ENR key literal string for the consensus layer.
-const OP_CL_KEY: &str = "opstack";
+pub const OP_CL_KEY: &str = "opstack";
 
 /// The unique L2 network identifier
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

@@ -15,14 +15,8 @@ use libp2p::{
 use libp2p_identity::Keypair;
 
 use crate::{
-    discovery::builder::{DiscoveryBuilder, DiscoveryBuilderError},
-    driver::NetworkDriver,
-    gossip::{
-        behaviour::{Behaviour, BehaviourError},
-        config,
-        driver::GossipDriver,
-        handler::BlockHandler,
-    },
+    Behaviour, BehaviourError, BlockHandler, Discv5Builder, Discv5BuilderError, GossipDriver,
+    NetworkDriver,
 };
 
 /// An error from the [NetworkDriverBuilder].
@@ -49,9 +43,9 @@ pub enum NetworkDriverBuilderError {
     /// An error when setting the behaviour on the swarm builder.
     #[error("error setting behaviour on swarm builder")]
     WithBehaviourError,
-    /// A discovery builder error.
+    /// An error from the discv5 builder.
     #[error("discovery builder error: {0}")]
-    DiscoveryBuilderError(#[from] DiscoveryBuilderError),
+    Discv5BuilderError(#[from] Discv5BuilderError),
     /// The keypair is not set.
     #[error("keypair not set")]
     KeypairNotSet,
@@ -158,14 +152,13 @@ impl NetworkDriverBuilder {
     /// Specifies the [GossipConfig] for the `gossipsub` configuration.
     ///
     /// If not set, the [NetworkDriverBuilder] will use the default gossipsub
-    /// configuration defined in [config::default_config]. These defaults can
-    /// be extended by using the [config::default_config_builder] method to
+    /// configuration defined in [crate::default_config]. These defaults can
+    /// be extended by using the [crate::default_config_builder] method to
     /// build a custom [GossipConfig].
     ///
     /// ## Example
     ///
     /// ```rust,ignore
-    /// use kona_p2p::gossip::config;
     /// use kona_p2p::NetworkDriverBuilder;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     ///
@@ -174,7 +167,7 @@ impl NetworkDriverBuilder {
     /// let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
     ///
     /// // Let's say we want to enable flood publishing and use all other default settings.
-    /// let cfg = config::default_config_builder().flood_publish(true).build().unwrap();
+    /// let cfg = kona_p2p::default_config_builder().flood_publish(true).build().unwrap();
     /// let mut builder = NetworkDriverBuilder::new()
     ///    .with_unsafe_block_signer(signer)
     ///    .with_chain_id(chain_id)
@@ -199,7 +192,7 @@ impl NetworkDriverBuilder {
     /// ```rust
     /// use alloy_primitives::{Address, address};
     /// use discv5::{ConfigBuilder, ListenConfig};
-    /// use kona_p2p::builder::NetworkDriverBuilder;
+    /// use kona_p2p::NetworkDriverBuilder;
     /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     ///
     /// let id = 10;
@@ -271,7 +264,7 @@ impl NetworkDriverBuilder {
         // Build the config for gossipsub.
         let config = match self.gossip_config.take() {
             Some(cfg) => cfg,
-            None => config::default_config()
+            None => crate::default_config()
                 .map_err(|_| NetworkDriverBuilderError::ConfigBuilderError)?,
         };
         let unsafe_block_signer =
@@ -317,7 +310,7 @@ impl NetworkDriverBuilder {
 
         // Build the discovery service
         let mut discovery_builder =
-            DiscoveryBuilder::new().with_address(gossip_addr).with_chain_id(chain_id);
+            Discv5Builder::new().with_address(gossip_addr).with_chain_id(chain_id);
 
         if let Some(discovery_addr) = self.discovery_addr.take() {
             discovery_builder = discovery_builder.with_listen_config(discovery_addr);
@@ -379,7 +372,7 @@ mod tests {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
-        let cfg = config::default_config_builder().flood_publish(true).build().unwrap();
+        let cfg = crate::default_config_builder().flood_publish(true).build().unwrap();
         let driver = NetworkDriverBuilder::new()
             .with_unsafe_block_signer(signer)
             .with_chain_id(id)
@@ -408,8 +401,8 @@ mod tests {
         assert_eq!(driver.gossip.handler.blocks_v3_topic.hash(), v3.hash());
     }
 
-    #[test]
-    fn test_build_default_network_driver() {
+    #[tokio::test]
+    async fn test_build_default_network_driver() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -429,7 +422,7 @@ mod tests {
         // Driver Assertions
         assert_eq!(driver.gossip.addr, multiaddr);
         assert_eq!(driver.discovery.chain_id, id);
-        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9099);
+        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9099);
 
         // Block Handler Assertions
         assert_eq!(driver.gossip.handler.chain_id, id);
@@ -441,8 +434,8 @@ mod tests {
         assert_eq!(driver.gossip.handler.blocks_v3_topic.hash(), v3.hash());
     }
 
-    #[test]
-    fn test_build_network_driver_with_discovery_addr() {
+    #[tokio::test]
+    async fn test_build_network_driver_with_discovery_addr() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -455,11 +448,11 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9098);
+        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9098);
     }
 
-    #[test]
-    fn test_build_network_driver_with_discovery_config() {
+    #[tokio::test]
+    async fn test_build_network_driver_with_discovery_config() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -474,11 +467,11 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9098);
+        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9098);
     }
 
-    #[test]
-    fn test_build_network_driver_with_discovery_config_and_listen_config() {
+    #[tokio::test]
+    async fn test_build_network_driver_with_discovery_config_and_listen_config() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -495,6 +488,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9097);
+        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9097);
     }
 }

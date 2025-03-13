@@ -45,18 +45,17 @@ impl Handler for BlockHandler {
     /// Checks validity of a block received via p2p gossip, and sends to the block update channel if
     /// valid.
     fn handle(&self, msg: Message) -> MessageAcceptance {
-        tracing::debug!("received block");
-
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
-            tracing::debug!("received v1 block");
+            debug!(target: "p2p::block_handler", "received v1 block");
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)
         } else if msg.topic == self.blocks_v2_topic.hash() {
-            tracing::debug!("received v2 block");
+            debug!(target: "p2p::block_handler", "received v2 block");
             OpNetworkPayloadEnvelope::decode_v2(&msg.data)
         } else if msg.topic == self.blocks_v3_topic.hash() {
-            tracing::debug!("received v3 block");
+            debug!(target: "p2p::block_handler", "received v3 block");
             OpNetworkPayloadEnvelope::decode_v3(&msg.data)
         } else {
+            warn!(target: "p2p::block_handler", "Received block with unknown topic: {:?}", msg.topic);
             return MessageAcceptance::Reject;
         };
 
@@ -66,12 +65,12 @@ impl Handler for BlockHandler {
                     _ = self.block_sender.send(envelope);
                     MessageAcceptance::Accept
                 } else {
-                    tracing::warn!("invalid unsafe block");
+                    warn!(target: "p2p::block_handler", "Invalid block received");
                     MessageAcceptance::Reject
                 }
             }
             Err(err) => {
-                tracing::warn!("unsafe block decode failed: {}", err);
+                warn!(target: "p2p::block_handler", "Failed to decode block: {:?}", err);
                 MessageAcceptance::Reject
             }
         }
@@ -118,7 +117,7 @@ impl BlockHandler {
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.unsafe_signer_recv.borrow();
         let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
-            tracing::warn!("Failed to recover address from message");
+            warn!(target: "p2p::block_handler", "Failed to recover address from message");
             return false;
         };
 

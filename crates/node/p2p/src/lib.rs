@@ -6,17 +6,30 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-pub mod builder;
+#[macro_use]
+extern crate tracing;
 
-pub mod driver;
+mod builder;
+pub use builder::{NetworkDriverBuilder, NetworkDriverBuilderError};
 
-pub mod gossip;
+mod driver;
+pub use driver::NetworkDriver;
+
+mod gossip;
+pub use gossip::{
+    Behaviour, BehaviourError, BlockHandler, DEFAULT_MESH_D, DEFAULT_MESH_DHI, DEFAULT_MESH_DLAZY,
+    DEFAULT_MESH_DLO, Event, GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GossipDriver, Handler,
+    MAX_GOSSIP_SIZE, MAX_OUTBOUND_QUEUE, MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE,
+    PEER_SCORE_INSPECT_FREQUENCY, SEEN_MESSAGES_TTL, default_config, default_config_builder,
+};
 
 mod types;
-pub use types::{OpStackEnr, Peer, PeerConversionError};
+pub use types::{OP_CL_KEY, OpStackEnr, Peer, PeerConversionError};
 
 mod discv5;
-pub use discv5::{BOOTNODES, Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError};
+pub use discv5::{
+    BOOTNODES, Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError,
+};
 
 mod utils;
 pub use utils::{KeypairError, ParseKeyError, get_keypair, parse_key};
