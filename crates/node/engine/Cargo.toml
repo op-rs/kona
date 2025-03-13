@@ -15,6 +15,7 @@ workspace = true
 # workspace
 kona-genesis.workspace = true
 kona-protocol.workspace = true
+kona-rpc.workspace = true
 
 # alloy
 alloy-eips.workspace = true

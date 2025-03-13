@@ -1,6 +1,7 @@
 //! Optimism Payload attributes that reference the parent L2 block.
 
 use kona_protocol::L2BlockInfo;
+use op_alloy_consensus::OpTxType;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// Optimism Payload Attributes with parent block reference.
@@ -38,6 +39,14 @@ impl OpAttributesWithParent {
     /// Returns whether the current batch is the last in its span.
     pub const fn is_last_in_span(&self) -> bool {
         self.is_last_in_span
+    }
+
+    /// Returns `true` if all transactions in the payload are deposits.
+    pub fn is_deposits_only(&self) -> bool {
+        self.attributes
+            .transactions
+            .iter()
+            .all(|tx| tx.first().is_some_and(|tx| tx[0] == OpTxType::Deposit as u8))
     }
 }
 
