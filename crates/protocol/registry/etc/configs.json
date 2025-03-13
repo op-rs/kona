@@ -1330,6 +1330,88 @@
           }
         },
         {
+          "Name": "SnaxChain",
+          "PublicRPC": "https://mainnet.snaxchain.io",
+          "SequencerRPC": "https://mainnet.snaxchain.io",
+          "Explorer": "https://explorer.snaxchain.io",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": 0,
+          "DataAvailabilityType": "eth-da",
+          "l2_chain_id": 2192,
+          "batch_inbox_address": "0xfec57bd3729a5f930d4ee8ac5992fdc8988426e4",
+          "block_time": 2,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 600,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 1726070401,
+            "holocene_time": 1736445601
+          },
+          "optimism": {
+            "eip1559Elasticity": "0x6",
+            "eip1559Denominator": "0x32",
+            "eip1559DenominatorCanyon": "0xfa"
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 20520542,
+              "hash": "0x920dc48c1f037d444cb4dee5c69f41853f469dd9e7751398458126a6f76ecea6"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0x518aadbc56e4ca8b03aa141c13b2fc246a9eae88edea09ee477f3d620b00d5ae"
+            },
+            "l2_time": 1723562231,
+            "system_config": {
+              "batcherAddress": "0x060b915ca4904b56ada63565626b9c97f6cad212",
+              "overhead": "0xbc",
+              "scalar": "0xa6fe0",
+              "gasLimit": 30000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "ProxyAdminOwner": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "Guardian": "0x9ba6e03d8b90de867373db8cf1a58d2f7f006b3a",
+            "Challenger": "0x4a4962275df8c60a80d3a25faec5aa7de116a746",
+            "Proposer": "0x85c73d8f7a3c95667779e0d9b8104982a5c1d04e",
+            "UnsafeBlockSigner": "0x22c48998635c2d7ea8b82ab50761f2c1eeae5d21",
+            "BatchSubmitter": "0x060b915ca4904b56ada63565626b9c97f6cad212"
+          },
+          "Addresses": {
+            "AddressManager": "0xd7bf8b8618c21f337d8ed30ac797fa330eb94411",
+            "L1CrossDomainMessengerProxy": "0x2a4fc0e3b365052d71b9853efd0123985559f62e",
+            "L1Erc721BridgeProxy": "0x45561f85e43ac0d2258c0f0c16540ce128ea1634",
+            "L1StandardBridgeProxy": "0xa5fb68c24b02852e8b514e98a1014faf12547fa5",
+            "L2OutputOracleProxy": "0xf8f3ebf2469c00a00ea9d1d04913b73896268b25",
+            "OptimismMintableErc20FactoryProxy": "0xeec78bcea0efbba6e1be7afc58c93b70f97d3a6a",
+            "OptimismPortalProxy": "0x936d881b4760d5e9b6d55b774f65c509236b4743",
+            "SystemConfigProxy": "0x9c9b78f798f821c2f6398f603825fd175e2427f9",
+            "ProxyAdmin": "0x672b75103c0cbfdcc4a40737a80724f87a8a25d7",
+            "SuperchainConfig": "0x7439ccf2f0c7569a9b69c86fce0b58ec771cf1a6",
+            "AnchorStateRegistryProxy": "0xe184371e73a90f7676a3f518964b409c49af17b2",
+            "DelayedWethProxy": "0xface4dd95ff0ce212928c7b6d160b84d6df28bb2",
+            "DisputeGameFactoryProxy": "0x8af5b3ed56d4a822532a07a84c499d600ecd5cf5",
+            "FaultDisputeGame": null,
+            "Mips": "0x10c68ee05b4f9773b5d77b9eb7023dde3f8d7741",
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": "0x133790bdae0acfd5288d8974318ce408678e2380",
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
           "Name": "Superseed",
           "PublicRPC": "https://mainnet.superseed.xyz",
           "SequencerRPC": "https://mainnet.superseed.xyz",
