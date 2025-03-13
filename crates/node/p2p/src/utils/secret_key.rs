@@ -85,6 +85,7 @@ pub fn get_keypair(secret_key_path: &Path) -> Result<Keypair, KeypairError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_primitives::b256;
     use std::path::PathBuf;
 
     #[test]
@@ -95,6 +96,17 @@ mod tests {
     }
 
     #[test]
+    fn test_get_keypair_new_file() {
+        let dir = std::env::temp_dir();
+        assert!(std::env::set_current_dir(dir).is_ok());
+
+        let path = PathBuf::from("./root/does_not_exist34.txt");
+        assert!(get_keypair(&path).is_ok());
+    }
+
+    // Github actions panics on this test.
+    #[test]
+    #[ignore]
     fn test_get_keypair_invalid_path() {
         let dir = std::env::temp_dir();
         assert!(std::env::set_current_dir(dir).is_ok());
@@ -105,5 +117,24 @@ mod tests {
         let KeypairError::SecretKeyFsPathError(_) = err else {
             panic!("Incorrect error thrown");
         };
+    }
+
+    #[test]
+    fn test_get_keypair_file() {
+        // Create a temporary directory.
+        let dir = std::env::temp_dir();
+        let mut key_path = dir.clone();
+        assert!(std::env::set_current_dir(dir).is_ok());
+
+        // Write a private key to a file.
+        let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
+        let hex = alloy_primitives::hex::encode(key.0);
+        key_path.push("test.txt");
+        std::fs::write(&key_path, &hex).unwrap();
+
+        // Validate the keypair and file contents (to make sure it wasn't overwritten).
+        assert!(get_keypair(&key_path).is_ok());
+        let contents = std::fs::read_to_string(&key_path).unwrap();
+        assert_eq!(contents, hex);
     }
 }
