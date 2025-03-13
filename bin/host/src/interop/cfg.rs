@@ -313,7 +313,7 @@ mod tests {
             "--l2-pre-state",
             "ffd7db0f9d5cdeb49c4c9eba649d4dc6d852d64671e65488e57f58584992ac68",
             "--claimed-l2-post-state",
-            "ffd7db0f9d5cdeb49c4c9eba649d4dc6d852d64671e65488e57f58584992ac68",
+            &hash.to_string(),
             "--claimed-l2-timestamp",
             "0",
             "--native",
@@ -337,7 +337,7 @@ mod tests {
         let host = InteropHost::parse_from([
             "interop-host",
             "--l1-head",
-            &hash.to_string(),
+            "ffd7db0f9d5cdeb49c4c9eba649d4dc6d852d64671e65488e57f58584992ac68",
             "--l2-pre-state",
             "ff",
             "--claimed-l2-post-state",
