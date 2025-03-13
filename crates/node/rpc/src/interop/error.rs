@@ -19,6 +19,14 @@ pub enum InteropTxValidatorError {
     #[error("message validation timed out, timeout: {0} secs")]
     ValidationTimeout(u64),
 
+    /// Interop hardfork is not active, all cross chain txs are invalid
+    #[error("interop hardfork has not been activated")]
+    InteropInactive,
+
+    /// Interop hardfork active, but supervisor not configured
+    #[error("supervisor is not configured")]
+    SupervisorNotConfigured,
+
     /// Catch-all variant for other supervisor server errors.
     #[error("unexpected error from supervisor: {0}")]
     SupervisorServerError(Box<dyn error::Error + Send + Sync>),
