@@ -9,13 +9,10 @@
 #[macro_use]
 extern crate tracing;
 
-mod actor;
-pub use actor::{EngineActor, EngineActorError, EngineActorMessage, EngineEvent};
-
-mod tasks;
-pub use tasks::{
-    EngineTask, ForkchoiceTask, ForkchoiceTaskError, ForkchoiceTaskExt, ForkchoiceTaskInput,
-    ForkchoiceTaskOut, InsertTask, InsertTaskError, InsertTaskExt, InsertTaskInput, InsertTaskOut,
+mod task_queue;
+pub use task_queue::{
+    Engine, EngineTask, EngineTaskError, EngineTaskExt, ForkchoiceTask, ForkchoiceTaskError,
+    InsertUnsafeTask, InsertUnsafeTaskError,
 };
 
 mod client;
@@ -28,9 +25,7 @@ mod sync;
 pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
 mod state;
-pub use state::{EngineState, StateBuilder};
+pub use state::{EngineState, EngineStateBuilder};
 
 mod kinds;
 pub use kinds::EngineKind;
-
-pub(crate) mod macros;

@@ -64,17 +64,20 @@ impl EngineClient {
 
     /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].
     pub async fn l2_block_info_by_label(
-        &mut self,
+        &self,
         numtag: BlockNumberOrTag,
-    ) -> Result<L2BlockInfo> {
+    ) -> Result<Option<L2BlockInfo>> {
         let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag)
             .full()
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
-        let block =
-            block.map(|b| b.into_consensus()).ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)
-            .map_err(|e| anyhow::anyhow!(e))
+
+        match block.map(|b| b.into_consensus()) {
+            Some(block) => {
+                Ok(Some(L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)?))
+            }
+            None => Ok(None),
+        }
     }
 }
 

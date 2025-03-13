@@ -4,4 +4,4 @@ mod core;
 pub use core::EngineState;
 
 mod builder;
-pub use builder::StateBuilder;
+pub use builder::EngineStateBuilder;
