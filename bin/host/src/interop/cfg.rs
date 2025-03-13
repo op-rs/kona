@@ -9,7 +9,7 @@ use crate::{
 use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use clap::Parser;
-use kona_cli::{cli_parsers::parse_bytes, cli_styles};
+use kona_cli::cli_styles;
 use kona_genesis::RollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
@@ -19,7 +19,7 @@ use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use op_alloy_network::Optimism;
 use serde::Serialize;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
 use tokio::{
     sync::RwLock,
     task::{self, JoinHandle},
@@ -36,7 +36,7 @@ pub struct InteropHost {
     /// Agreed [PreState] to start from.
     ///
     /// [PreState]: kona_proof_interop::PreState
-    #[clap(long, visible_alias = "l2-pre-state", value_parser = parse_bytes, env)]
+    #[clap(long, visible_alias = "l2-pre-state", value_parser = Bytes::from_str, env)]
     pub agreed_l2_pre_state: Bytes,
     /// Claimed L2 post-state to validate.
     #[clap(long, visible_alias = "l2-claim", env)]
@@ -326,6 +326,34 @@ mod tests {
         ]);
         assert_eq!(host.l1_head, hash);
         assert_eq!(host.agreed_l2_pre_state, Bytes::from(hash.0));
+        assert_eq!(host.claimed_l2_post_state, hash);
+        assert_eq!(host.claimed_l2_timestamp, 0);
+        assert!(host.native);
+    }
+
+    #[test]
+    fn test_parse_interop_hex_bytes() {
+        let hash = b256!("ffd7db0f9d5cdeb49c4c9eba649d4dc6d852d64671e65488e57f58584992ac68");
+        let host = InteropHost::parse_from([
+            "interop-host",
+            "--l1-head",
+            &hash.to_string(),
+            "--l2-pre-state",
+            "0xff",
+            "--claimed-l2-post-state",
+            &hash.to_string(),
+            "--claimed-l2-timestamp",
+            "0",
+            "--native",
+            "--l2-node-addresses",
+            "http://localhost:8545",
+            "--l1-node-address",
+            "http://localhost:8546",
+            "--l1-beacon-address",
+            "http://localhost:8547",
+        ]);
+        assert_eq!(host.l1_head, hash);
+        assert_eq!(host.agreed_l2_pre_state, Bytes::from([0xff]));
         assert_eq!(host.claimed_l2_post_state, hash);
         assert_eq!(host.claimed_l2_timestamp, 0);
         assert!(host.native);
