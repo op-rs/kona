@@ -3,12 +3,11 @@
 use std::sync::mpsc::Receiver;
 
 use alloy_primitives::Address;
-use discv5::multiaddr::{Multiaddr, Protocol};
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::{select, sync::watch};
 
-use crate::{Discv5Driver, GossipDriver, NetworkDriverBuilder};
+use crate::{AnyNode, Discv5Driver, GossipDriver, NetworkDriverBuilder};
 
 /// NetworkDriver
 ///
@@ -56,18 +55,16 @@ impl NetworkDriver {
                             warn!(target: "p2p::driver", "Receiver `None` peer enr");
                             continue;
                         };
-                        let mut multi_address = Multiaddr::empty();
-                        if let Some(ip) = enr.ip4() {
-                            multi_address.push(Protocol::Ip4(ip));
-                        } else if let Some(ip) = enr.ip6() {
-                            multi_address.push(Protocol::Ip6(ip));
-                        }
-                        if let Some(udp) = enr.udp4() {
-                            multi_address.push(Protocol::Udp(udp));
-                        } else if let Some(udp) = enr.udp6() {
-                            multi_address.push(Protocol::Udp(udp));
-                        }
-                        match self.gossip.dial(multi_address).await {
+                        let any_node = AnyNode::from(enr.clone());
+                        let dial_opts = match any_node.as_dial_opts() {
+                            Ok(opts) => opts,
+                            Err(e) => {
+                                warn!(target: "p2p::driver", "Failed to construct dial opts from enr: {:?}, {:?}", enr, e);
+                                continue;
+                            }
+                        };
+
+                        match self.gossip.dial(dial_opts).await {
                             Ok(_) => {
                                 info!(target: "p2p::driver", "Connected to peer: {:?} | Connected peers: {:?}", enr, self.gossip.connected_peers());
                             }

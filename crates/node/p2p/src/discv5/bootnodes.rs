@@ -1,20 +1,31 @@
 //! Bootnodes for consensus network discovery.
 
-use crate::BootNode;
+use crate::{BootNode, NodeRecord};
+use discv5::Enr;
 use lazy_static::lazy_static;
 use std::str::FromStr;
+
+/// Helper method to parse a bootnode from a string.
+fn parse_bootnode(raw: &str) -> BootNode {
+    // If the string starts with "enr:" it is an ENR record.
+    if raw.starts_with("enr:") {
+        let enr = Enr::from_str(raw).unwrap();
+        return BootNode::from(enr);
+    }
+    // Otherwise, attempt to use the Node Record format.
+    let record = NodeRecord::from_str(raw).unwrap();
+    BootNode::from_unsigned(record).unwrap()
+}
 
 lazy_static! {
     /// Default op bootnodes to use.
     pub static ref OP_BOOTNODES: Vec<BootNode> = OP_RAW_BOOTNODES.iter()
-        .map(|raw| crate::NodeRecord::from_str(raw).unwrap())
-        .map(|record| crate::BootNode::from_unsigned(record).unwrap())
+        .map(|raw| parse_bootnode(raw))
         .collect();
 
     /// Default op testnet bootnodes to use.
     pub static ref OP_TESTNET_BOOTNODES: Vec<BootNode> = OP_RAW_TESTNET_BOOTNODES.iter()
-        .map(|raw| crate::NodeRecord::from_str(raw).unwrap())
-        .map(|record| crate::BootNode::from_unsigned(record).unwrap())
+        .map(|raw| parse_bootnode(raw))
         .collect();
 }
 

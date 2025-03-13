@@ -2,7 +2,8 @@
 
 use crate::{NodeRecord, PeerId};
 use derive_more::From;
-use discv5::{Enr, enr::EnrPublicKey};
+use discv5::{Enr, enr::EnrPublicKey, libp2p_identity::ParseError};
+use libp2p::swarm::dial_opts::DialOpts;
 
 /// A peer that can come in [`Enr`] or [`NodeRecord`] form.
 #[derive(Debug, Clone, From, Eq, PartialEq, Hash)]
@@ -24,6 +25,23 @@ impl AnyNode {
             Self::PeerId(peer_id) => *peer_id,
         }
     }
+
+    /// Converts the [`AnyNode`] into [`DialOpts`].
+    pub fn as_dial_opts(&self) -> Result<DialOpts, ParseError> {
+        let peer_id = self.peer_id();
+        let prefixed = [&[0x12, 0x40], peer_id.as_slice()].concat();
+        let libp2p_id = libp2p::PeerId::from_bytes(&prefixed)?;
+        Ok(libp2p_id.into())
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl TryInto<DialOpts> for AnyNode {
+    type Error = ParseError;
+
+    fn try_into(self) -> Result<DialOpts, Self::Error> {
+        self.as_dial_opts()
+    }
 }
 
 #[cfg(test)]
@@ -31,6 +49,15 @@ mod tests {
     use super::*;
     use alloy_primitives::b512;
     use std::str::FromStr;
+
+    #[test]
+    fn test_into_dial_opts() {
+        let peer_id: PeerId = b512!(
+            "ca2774c3c401325850b2477fd7d0f27911efbf79b1e8b335066516e2bd8c4c9e0ba9696a94b1cb030a88eac582305ff55e905e64fb77fe0edcd70a4e5296d3ec"
+        );
+        let any_node = AnyNode::from(peer_id);
+        let _: DialOpts = any_node.try_into().unwrap();
+    }
 
     #[test]
     fn test_peer_id_node_record() {

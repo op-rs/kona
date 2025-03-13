@@ -1,7 +1,7 @@
 //! Contains the [`BootNode`] type which is used to represent a boot node in the network.
 
 use crate::NodeRecord;
-use derive_more::Display;
+use derive_more::{Display, From};
 use discv5::{
     Enr,
     multiaddr::{Multiaddr, PeerId, Protocol},
@@ -10,7 +10,7 @@ use std::net::IpAddr;
 
 /// A boot node can be added either as a string in either 'enode' URL scheme or serialized from
 /// [`Enr`] type.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Display)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, From, Display)]
 pub enum BootNode {
     /// An unsigned node record.
     #[display("{_0}")]
