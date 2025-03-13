@@ -1,5 +1,6 @@
 //! Discovery Module.
 
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::{
     sync::mpsc::{Receiver, Sender, channel},
@@ -10,6 +11,7 @@ use tracing::{info, warn};
 use discv5::{Discv5, enr::NodeId, metrics::Metrics};
 
 use crate::{
+    Discv5Wrapper,
     discovery::{bootnodes::BOOTNODES, builder::DiscoveryBuilder},
     types::{enr::OpStackEnr, peer::Peer},
 };
@@ -20,9 +22,10 @@ const DISCOVERY_PEER_CHANNEL_SIZE: usize = 256;
 /// The discovery driver handles running the discovery service.
 pub struct DiscoveryDriver {
     /// The [Discv5] discovery service.
-    pub disc: Discv5,
+    pub disc: Discv5Wrapper,
     /// The chain ID of the network.
     pub chain_id: u64,
+    ///
     /// The interval to discovery random nodes.
     pub interval: Duration,
 }
@@ -35,7 +38,7 @@ impl DiscoveryDriver {
 
     /// Instantiates a new [DiscoveryDriver].
     pub fn new(disc: Discv5, chain_id: u64) -> Self {
-        Self { disc, chain_id, interval: Duration::from_secs(10) }
+        Self { disc: Discv5Wrapper(Arc::new(disc)), chain_id, interval: Duration::from_secs(10) }
     }
 
     /// Spawns a new [Discv5] discovery service in a new tokio task.
@@ -70,7 +73,7 @@ impl DiscoveryDriver {
     ///     }
     /// }
     /// ```
-    pub fn start(mut self) -> (Receiver<Peer>, Sender<()>, Receiver<Metrics>) {
+    pub fn start(&self) -> Receiver<Peer> {
         // Clone the bootnodes since the spawned thread takes mutable ownership.
         let bootnodes = BOOTNODES.clone();
 
@@ -82,10 +85,12 @@ impl DiscoveryDriver {
         let (metrics_tx, metrics_rx) = channel::<Metrics>(1);
         let (metrics_req_tx, mut metrics_req_rx) = channel::<()>(1);
 
+        let chain_id = self.chain_id;
+        let interval = self.interval;
+        let discv5 = self.disc.clone();
         tokio::spawn(async move {
-            bootnodes.into_iter().for_each(|enr| _ = self.disc.add_enr(enr));
             loop {
-                if let Err(e) = self.disc.start().await {
+                if let Err(e) = discv5.start().await {
                     warn!("Failed to start discovery service: {:?}", e);
                     sleep(Duration::from_secs(2)).await;
                     continue;
@@ -93,18 +98,20 @@ impl DiscoveryDriver {
                 break;
             }
 
+            if let Err(e) = discv5.bootstrap(bootnodes).await {
+                warn!("Failed to bootstrap discovery service: {:?}", e);
+                break;
+            }
+
             info!("Started peer discovery");
 
             loop {
-                if let Ok(()) = metrics_req_rx.try_recv() {
-                    let _ = metrics_tx.send(self.disc.metrics()).await;
-                }
                 let target = NodeId::random();
-                match self.disc.find_node(target).await {
+                match discv5.0.find_node(target).await {
                     Ok(nodes) => {
                         let peers = nodes
                             .iter()
-                            .filter(|node| OpStackEnr::is_valid_node(node, self.chain_id))
+                            .filter(|node| OpStackEnr::is_valid_node(node, chain_id))
                             .flat_map(Peer::try_from);
 
                         for peer in peers {
@@ -116,11 +123,11 @@ impl DiscoveryDriver {
                     }
                 }
 
-                sleep(self.interval).await;
+                sleep(interval).await;
             }
         });
 
-        (recv, metrics_req_tx, metrics_rx)
+        recv
     }
 }
 

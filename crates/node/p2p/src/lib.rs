@@ -8,13 +8,15 @@
 
 pub mod builder;
 
-pub mod discovery;
-
 pub mod driver;
 
 pub mod gossip;
 
-pub mod types;
+mod types;
+pub use types::{OpStackEnr, Peer, PeerConversionError};
+
+mod discv5;
+pub use discv5::{BOOTNODES, Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError};
 
 mod utils;
 pub use utils::{KeypairError, ParseKeyError, get_keypair, parse_key};
