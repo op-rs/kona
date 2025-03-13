@@ -46,30 +46,35 @@ impl NetworkDriver {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
-        let mut peer_recv = self.discovery.start();
+        let mut enr_recv = self.discovery.start();
         self.gossip.listen()?;
         tokio::spawn(async move {
             loop {
                 select! {
-                    peer = peer_recv.recv() => {
-                        let dial = if let Some(ref peer) = peer {
-                            let mut multi_address = Multiaddr::empty();
-                            if let Some(ip) = peer.ip4() {
-                                multi_address.push(Protocol::Ip4(ip));
-                            } else if let Some(ip) = peer.ip6() {
-                                multi_address.push(Protocol::Ip6(ip));
-                            }
-                            if let Some(udp) = peer.udp4() {
-                                multi_address.push(Protocol::Udp(udp));
-                            } else if let Some(udp) = peer.udp6() {
-                                multi_address.push(Protocol::Udp(udp));
-                            }
-                            Some(multi_address)
-                        } else {
-                            None
+                    enr = enr_recv.recv() => {
+                        let Some(ref enr) = enr else {
+                            warn!(target: "p2p::driver", "Receiver `None` peer enr");
+                            continue;
                         };
-                        self.gossip.dial_opt(dial).await;
-                        info!(target: "p2p::driver", "Received peer: {:?} | Connected peers: {:?}", peer, self.gossip.connected_peers());
+                        let mut multi_address = Multiaddr::empty();
+                        if let Some(ip) = enr.ip4() {
+                            multi_address.push(Protocol::Ip4(ip));
+                        } else if let Some(ip) = enr.ip6() {
+                            multi_address.push(Protocol::Ip6(ip));
+                        }
+                        if let Some(udp) = enr.udp4() {
+                            multi_address.push(Protocol::Udp(udp));
+                        } else if let Some(udp) = enr.udp6() {
+                            multi_address.push(Protocol::Udp(udp));
+                        }
+                        match self.gossip.dial(multi_address).await {
+                            Ok(_) => {
+                                info!(target: "p2p::driver", "Connected to peer: {:?} | Connected peers: {:?}", enr, self.gossip.connected_peers());
+                            }
+                            Err(e) => {
+                                warn!(target: "p2p::driver", "Failed to connect to peer: {:?} | Connected peers: {:?} | Error: {:?}", enr, self.gossip.connected_peers(), e);
+                            }
+                        }
                     },
                     event = self.gossip.select_next_some() => {
                         debug!(target: "p2p::driver", "Received event: {:?}", event);

@@ -3,23 +3,26 @@
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, Swarm, TransportError,
-    swarm::{DialError, SwarmEvent},
+    swarm::{DialError, SwarmEvent, dial_opts::DialOpts},
 };
 
 use crate::{Behaviour, BlockHandler, Event, Handler};
 
-/// A [`Swarm`] instance with an associated address to listen on.
+/// A driver for a [`Swarm`] instance.
+///
+/// Connects the swarm to the given [`Multiaddr`]
+/// and handles events using the [`BlockHandler`].
 pub struct GossipDriver {
-    /// The [libp2p::Swarm] instance.
+    /// The [`Swarm`] instance.
     pub swarm: Swarm<Behaviour>,
-    /// The address to listen on.
+    /// A [`Multiaddr`] to listen on.
     pub addr: Multiaddr,
-    /// Block handler.
+    /// The [`BlockHandler`].
     pub handler: BlockHandler,
 }
 
 impl GossipDriver {
-    /// Creates a new [GossipDriver] instance.
+    /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
         Self { swarm, addr, handler }
     }
@@ -46,21 +49,20 @@ impl GossipDriver {
         self.swarm.connected_peers().count()
     }
 
-    /// Dials the given [`Option<Multiaddr>`].
-    pub async fn dial_opt(&mut self, peer: Option<impl Into<Multiaddr>>) {
-        let Some(addr) = peer else {
+    /// Dials the given [`Option<DialOpts>`].
+    pub async fn dial_opt(&mut self, opts: Option<impl Into<DialOpts>>) {
+        let Some(opts) = opts else {
             return;
         };
-        match self.dial(addr).await {
+        match self.dial(opts).await {
             Ok(_) => info!("Dialed peer"),
             Err(e) => error!("Failed to dial peer: {:?}", e),
         }
     }
 
-    /// Dials the given [Multiaddr].
-    pub async fn dial(&mut self, peer: impl Into<Multiaddr>) -> Result<(), DialError> {
-        let addr: Multiaddr = peer.into();
-        self.swarm.dial(addr)?;
+    /// Dials the given [`DialOpts`].
+    pub async fn dial(&mut self, opts: impl Into<DialOpts>) -> Result<(), DialError> {
+        self.swarm.dial(opts)?;
         Ok(())
     }
 
