@@ -9,10 +9,7 @@ use crate::{
 use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use clap::Parser;
-use kona_cli::{
-    cli_parsers::{parse_b256, parse_bytes},
-    cli_styles,
-};
+use kona_cli::{cli_parsers::parse_bytes, cli_styles};
 use kona_genesis::RollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
@@ -34,7 +31,7 @@ use tokio::{
 pub struct InteropHost {
     /// Hash of the L1 head block, marking a static, trusted cutoff point for reading data from the
     /// L1 chain.
-    #[clap(long, value_parser = parse_b256, env)]
+    #[clap(long, env)]
     pub l1_head: B256,
     /// Agreed [PreState] to start from.
     ///
@@ -42,7 +39,7 @@ pub struct InteropHost {
     #[clap(long, visible_alias = "l2-pre-state", value_parser = parse_bytes, env)]
     pub agreed_l2_pre_state: Bytes,
     /// Claimed L2 post-state to validate.
-    #[clap(long, visible_alias = "l2-claim", value_parser = parse_b256, env)]
+    #[clap(long, visible_alias = "l2-claim", env)]
     pub claimed_l2_post_state: B256,
     /// Claimed L2 timestamp, corresponding to the L2 post-state.
     #[clap(long, visible_alias = "l2-timestamp", env)]
@@ -61,7 +58,7 @@ pub struct InteropHost {
     #[clap(
         long,
         visible_alias = "l1",
-        requires = "l2_node_address",
+        requires = "l2_node_addresses",
         requires = "l1_beacon_address",
         env
     )]
@@ -298,5 +295,39 @@ impl InteropProviders {
     /// Returns the L2 [RootProvider] for the given chain ID.
     pub fn l2(&self, chain_id: &u64) -> Result<&RootProvider<Optimism>, InteropHostError> {
         self.l2s.get(chain_id).ok_or_else(|| InteropHostError::RootProviderError(*chain_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::b256;
+
+    #[test]
+    fn test_parse_interop_host_cli() {
+        let hash = b256!("ffd7db0f9d5cdeb49c4c9eba649d4dc6d852d64671e65488e57f58584992ac68");
+        let host = InteropHost::parse_from([
+            "interop-host",
+            "--l1-head",
+            &hash.to_string(),
+            "--l2-pre-state",
+            &hash.to_string(),
+            "--claimed-l2-post-state",
+            &hash.to_string(),
+            "--claimed-l2-timestamp",
+            "0",
+            "--native",
+            "--l2-node-addresses",
+            "http://localhost:8545",
+            "--l1-node-address",
+            "http://localhost:8546",
+            "--l1-beacon-address",
+            "http://localhost:8547",
+        ]);
+        assert_eq!(host.l1_head, hash);
+        assert_eq!(host.agreed_l2_pre_state, Bytes::from(hash.0));
+        assert_eq!(host.claimed_l2_post_state, hash);
+        assert_eq!(host.claimed_l2_timestamp, 0);
+        assert!(host.native);
     }
 }

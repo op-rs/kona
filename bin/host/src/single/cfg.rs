@@ -9,7 +9,7 @@ use crate::{
 use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
-use kona_cli::{cli_parsers::parse_b256, cli_styles};
+use kona_cli::cli_styles;
 use kona_genesis::RollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
@@ -30,16 +30,16 @@ use tokio::{
 #[command(styles = cli_styles())]
 pub struct SingleChainHost {
     /// Hash of the L1 head block. Derivation stops after this block is processed.
-    #[clap(long, value_parser = parse_b256, env)]
+    #[clap(long, env)]
     pub l1_head: B256,
     /// Hash of the agreed upon safe L2 block committed to by `--agreed-l2-output-root`.
-    #[clap(long, visible_alias = "l2-head", value_parser = parse_b256, env)]
+    #[clap(long, visible_alias = "l2-head", env)]
     pub agreed_l2_head_hash: B256,
     /// Agreed safe L2 Output Root to start derivation from.
-    #[clap(long, visible_alias = "l2-output-root", value_parser = parse_b256, env)]
+    #[clap(long, visible_alias = "l2-output-root", env)]
     pub agreed_l2_output_root: B256,
     /// Claimed L2 output root at block # `--claimed-l2-block-number` to validate.
-    #[clap(long, visible_alias = "l2-claim", value_parser = parse_b256, env)]
+    #[clap(long, visible_alias = "l2-claim", env)]
     pub claimed_l2_output_root: B256,
     /// Number of the L2 block that the claimed output root commits to.
     #[clap(long, visible_alias = "l2-block-number", env)]
