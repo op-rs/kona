@@ -2,12 +2,12 @@
 
 use std::time::Duration;
 use tokio::{
-    sync::mpsc::{Receiver, channel},
+    sync::mpsc::{Receiver, Sender, channel},
     time::sleep,
 };
 use tracing::{info, warn};
 
-use discv5::{Discv5, enr::NodeId};
+use discv5::{Discv5, enr::NodeId, metrics::Metrics};
 
 use crate::{
     discovery::{bootnodes::BOOTNODES, builder::DiscoveryBuilder},
@@ -61,7 +61,7 @@ impl DiscoveryDriver {
     ///         .with_chain_id(10) // OP Mainnet chain id
     ///         .build()
     ///         .expect("Failed to build discovery service");
-    ///     let mut peer_recv = discovery.start();
+    ///     let (mut peer_recv, _, _) = discovery.start();
     ///
     ///     loop {
     ///         if let Some(peer) = peer_recv.recv().await {
@@ -70,13 +70,17 @@ impl DiscoveryDriver {
     ///     }
     /// }
     /// ```
-    pub fn start(mut self) -> Receiver<Peer> {
+    pub fn start(mut self) -> (Receiver<Peer>, Sender<()>, Receiver<Metrics>) {
         // Clone the bootnodes since the spawned thread takes mutable ownership.
         let bootnodes = BOOTNODES.clone();
 
         // Create a multi-producer, single-consumer (mpsc) channel to receive
         // peers bounded by `DISCOVERY_PEER_CHANNEL_SIZE`.
         let (sender, recv) = channel::<Peer>(DISCOVERY_PEER_CHANNEL_SIZE);
+
+        // Channels for metrics and metrics requests.
+        let (metrics_tx, metrics_rx) = channel::<Metrics>(1);
+        let (metrics_req_tx, mut metrics_req_rx) = channel::<()>(1);
 
         tokio::spawn(async move {
             bootnodes.into_iter().for_each(|enr| _ = self.disc.add_enr(enr));
@@ -92,6 +96,9 @@ impl DiscoveryDriver {
             info!("Started peer discovery");
 
             loop {
+                if let Ok(()) = metrics_req_rx.try_recv() {
+                    let _ = metrics_tx.send(self.disc.metrics()).await;
+                }
                 let target = NodeId::random();
                 match self.disc.find_node(target).await {
                     Ok(nodes) => {
@@ -113,7 +120,7 @@ impl DiscoveryDriver {
             }
         });
 
-        recv
+        (recv, metrics_req_tx, metrics_rx)
     }
 }
 

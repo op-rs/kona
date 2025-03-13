@@ -44,7 +44,11 @@ pub struct DiscCommand {
 impl DiscCommand {
     /// Run the discovery subcommand.
     pub async fn run(self) -> anyhow::Result<()> {
-        init_tracing_subscriber(self.v, None::<EnvFilter>)?;
+        use tracing_subscriber::filter::{EnvFilter, LevelFilter};
+        let filter = EnvFilter::builder()
+            .with_default_directive(LevelFilter::INFO.into())
+            .parse("")?;
+        init_tracing_subscriber(self.v, Some(filter))?;
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.disc_port);
         tracing::info!("Starting discovery service on {:?}", socket);
@@ -53,16 +57,31 @@ impl DiscCommand {
             DiscoveryBuilder::new().with_address(socket).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(self.interval);
-        let mut peer_recv = discovery.start();
+        let (mut peer_recv, metrics_req, mut metrics_rx) = discovery.start();
         tracing::info!("Discovery service started, receiving peers.");
 
+        // Every 10 seconds, print the peer stats from the discovery service.
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+
         loop {
-            match peer_recv.recv().await {
-                Some(peer) => {
-                    tracing::info!("Received peer: {:?}", peer);
+            tokio::select! {
+                peer = peer_recv.recv() => {
+                    match peer {
+                        Some(peer) => {
+                            tracing::info!("Received peer: {:?}", peer);
+                        }
+                        None => {
+                            tracing::warn!("Failed to receive peer");
+                        }
+                    }
                 }
-                None => {
-                    tracing::warn!("Failed to receive peer");
+                metrics = metrics_rx.recv() => {
+                    tracing::info!("Metrics: {:?}", metrics);
+                }
+                _ = interval.tick() => {
+                    if let Err(e) = metrics_req.send(()).await {
+                        tracing::error!("Failed to send metrics request: {:?}", e);
+                    }
                 }
             }
         }
