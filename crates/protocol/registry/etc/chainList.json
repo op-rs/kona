@@ -778,6 +778,24 @@
     }
   },
   {
+    "name": "Settlus Sepolia",
+    "identifier": "sepolia/settlus-sepolia",
+    "chainId": 5373,
+    "rpc": [
+      "https://settlus-septestnet.g.alchemy.com/public"
+    ],
+    "explorers": [
+      "sepolia.settlus.network"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "sepolia"
+    }
+  },
+  {
     "name": "Shape Sepolia Testnet",
     "identifier": "sepolia/shape",
     "chainId": 11011,
