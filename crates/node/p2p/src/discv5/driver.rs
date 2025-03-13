@@ -6,9 +6,9 @@ use tokio::{
     time::sleep,
 };
 
-use discv5::Discv5;
+use discv5::{Discv5, Enr};
 
-use crate::{BOOTNODES, Discv5Builder, Discv5Wrapper, OpStackEnr, Peer};
+use crate::{Discv5Builder, Discv5Wrapper, OP_BOOTNODES, OpStackEnr};
 
 /// The number of peers to buffer in the channel.
 const DISCOVERY_PEER_CHANNEL_SIZE: usize = 256;
@@ -37,7 +37,7 @@ impl Discv5Driver {
 
     /// Spawns a new [`Discv5`] discovery service in a new tokio task.
     ///
-    /// Returns a [`Receiver`] to receive [`Peer`] structs.
+    /// Returns a [`Receiver`] to receive [`Enr`] structs.
     ///
     /// ## Errors
     ///
@@ -67,13 +67,13 @@ impl Discv5Driver {
     ///     }
     /// }
     /// ```
-    pub fn start(&self) -> Receiver<Peer> {
+    pub fn start(&self) -> Receiver<Enr> {
         // Clone the bootnodes since the spawned thread takes mutable ownership.
-        let bootnodes = BOOTNODES.clone();
+        let bootnodes = OP_BOOTNODES.clone();
 
         // Create a multi-producer, single-consumer (mpsc) channel to receive
         // peers bounded by `DISCOVERY_PEER_CHANNEL_SIZE`.
-        let (sender, recv) = channel::<Peer>(DISCOVERY_PEER_CHANNEL_SIZE);
+        let (sender, recv) = channel::<Enr>(DISCOVERY_PEER_CHANNEL_SIZE);
 
         let chain_id = self.chain_id;
         let interval = self.interval;
@@ -98,13 +98,11 @@ impl Discv5Driver {
             loop {
                 match discv5.find_node().await {
                     Ok(nodes) => {
-                        let peers = nodes
-                            .iter()
-                            .filter(|node| OpStackEnr::is_valid_node(node, chain_id))
-                            .flat_map(Peer::try_from);
+                        let enrs =
+                            nodes.iter().filter(|node| OpStackEnr::is_valid_node(node, chain_id));
 
-                        for peer in peers {
-                            _ = sender.send(peer).await;
+                        for enr in enrs {
+                            _ = sender.send(enr.clone()).await;
                         }
                     }
                     Err(err) => {

@@ -23,22 +23,25 @@ op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 # Networking
 snap.workspace = true
 futures.workspace = true
-discv5.workspace = true
+discv5 = { workspace = true, features = ["libp2p"] }
 libp2p = { workspace = true, features = ["macros", "tokio", "tcp", "noise", "gossipsub", "ping", "yamux"] }
 openssl = { workspace = true, features = ["vendored"] }
 libp2p-identity = { workspace = true, features = ["secp256k1"] }
 
 # Misc
+url.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 lazy_static.workspace = true
 unsigned-varint.workspace = true
+derive_more = { workspace = true, features = ["display"] }
 
 # `arbitrary` feature dependencies
 arbitrary = { workspace = true, features = ["derive"], optional = true }
 
 [dev-dependencies]
+multihash = "0.19.3"
 tempfile.workspace = true
 arbtest.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }

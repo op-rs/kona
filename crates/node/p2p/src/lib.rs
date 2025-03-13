@@ -4,6 +4,7 @@
     html_favicon_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/favicon.ico",
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
+#![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 #[macro_use]
@@ -23,12 +24,15 @@ pub use gossip::{
     PEER_SCORE_INSPECT_FREQUENCY, SEEN_MESSAGES_TTL, default_config, default_config_builder,
 };
 
-mod types;
-pub use types::{OP_CL_KEY, OpStackEnr, Peer, PeerConversionError};
+mod peers;
+pub use peers::{
+    AnyNode, BootNode, NodeRecord, NodeRecordParseError, OP_CL_KEY, OpStackEnr, PeerId,
+};
 
 mod discv5;
 pub use discv5::{
-    BOOTNODES, Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError,
+    Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError,
+    OP_BOOTNODES, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OP_TESTNET_BOOTNODES,
 };
 
 mod utils;

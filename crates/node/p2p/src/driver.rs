@@ -3,6 +3,7 @@
 use std::sync::mpsc::Receiver;
 
 use alloy_primitives::Address;
+use discv5::multiaddr::{Multiaddr, Protocol};
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::{select, sync::watch};
@@ -51,7 +52,23 @@ impl NetworkDriver {
             loop {
                 select! {
                     peer = peer_recv.recv() => {
-                        self.gossip.dial_opt(peer.clone()).await;
+                        let dial = if let Some(ref peer) = peer {
+                            let mut multi_address = Multiaddr::empty();
+                            if let Some(ip) = peer.ip4() {
+                                multi_address.push(Protocol::Ip4(ip));
+                            } else if let Some(ip) = peer.ip6() {
+                                multi_address.push(Protocol::Ip6(ip));
+                            }
+                            if let Some(udp) = peer.udp4() {
+                                multi_address.push(Protocol::Udp(udp));
+                            } else if let Some(udp) = peer.udp6() {
+                                multi_address.push(Protocol::Udp(udp));
+                            }
+                            Some(multi_address)
+                        } else {
+                            None
+                        };
+                        self.gossip.dial_opt(dial).await;
                         info!(target: "p2p::driver", "Received peer: {:?} | Connected peers: {:?}", peer, self.gossip.connected_peers());
                     },
                     event = self.gossip.select_next_some() => {

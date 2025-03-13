@@ -1,6 +1,8 @@
 //! Wrapper around the Discv5 service.
 
+use crate::BootNode;
 use discv5::{Discv5, Enr, enr::NodeId};
+use futures::future::join_all;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -64,34 +66,36 @@ impl Discv5Wrapper {
     }
 
     /// Bootstraps underlying [`discv5::Discv5`] node with configured peers.
-    pub async fn bootstrap(&self, nodes: &[Enr]) -> Result<(), Discv5WrapperError> {
+    pub async fn bootstrap(&self, nodes: &[BootNode]) -> Result<(), Discv5WrapperError> {
         trace!(target: "net::discv5",
             ?nodes,
             "adding bootstrap nodes .."
         );
 
-        // let mut enr_requests = vec![];
-        let discv5 = self.0.lock().await;
+        let mut enr_requests = vec![];
         for node in nodes {
-            // match node {
-            // BootNode::Enr(enr) => {
-            discv5.add_enr(node.clone()).map_err(Discv5WrapperError::AddNodeFailed)?;
-            // }
-            // BootNode::Enode(enode) => enr_requests.push(async move {
-            //     if let Err(err) = discv5.request_enr(enode.to_string()).await {
-            //         debug!(target: "p2p::discv5",
-            //             ?enode,
-            //             %err,
-            //             "failed adding boot node"
-            //         );
-            //     }
-            // }),
-            // }
+            match node {
+                BootNode::Enr(enr) => {
+                    let discv5 = self.0.lock().await;
+                    discv5.add_enr(enr.clone()).map_err(Discv5WrapperError::AddNodeFailed)?;
+                }
+                BootNode::Enode(enode) => {
+                    let discv5 = self.0.clone();
+                    enr_requests.push(async move {
+                        let discv5 = discv5.lock().await;
+                        if let Err(err) = discv5.request_enr(enode.to_string()).await {
+                            debug!(target: "p2p::discv5",
+                                ?enode,
+                                %err,
+                                "failed adding boot node"
+                            );
+                        }
+                    })
+                }
+            }
         }
 
         // If a session is established, the ENR is added straight away to discv5 kbuckets
-        // use futures::future::join_all;
-        // Ok(_ = join_all(enr_requests).await)
-        Ok(())
+        Ok(_ = join_all(enr_requests).await)
     }
 }
