@@ -165,25 +165,8 @@ impl Discv5Driver {
                             }
                         }
                     }
-                    // Receive an event from the event stream.
-                    // Forward it along to the handler.
-                    // receiver = self.disc.event_stream() => {
-                    //     let Ok(mut recv) = receiver else {
-                    //         warn!(target: "p2p::discv5::driver", "Failed to receive event stream");
-                    //         continue;
-                    //     };
-                    //     let Some(event) = recv.recv().await else {
-                    //         trace!(target: "p2p::discv5::driver", "Empty event received");
-                    //         continue;
-                    //     };
-                    //     // It's up to the handler to consume events.
-                    //     // Don't block the driver loop.
-                    //     if let Err(e) = events_sender.try_send(event) {
-                    //         trace!(target: "p2p::discv5::driver", "Failed to forward event: {:?}", e);
-                    //     }
-                    // }
                     _ = interval.tick() => {
-                        info!(target: "p2p::discv5::driver", "Finding new nodes...");
+                        trace!(target: "p2p::discv5::driver", "Finding new nodes...");
                         match self.disc.find_node(NodeId::random()).await {
                             Ok(nodes) => {
                                 let enrs =
