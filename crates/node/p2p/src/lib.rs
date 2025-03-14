@@ -7,7 +7,14 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 pub mod builder;
+
 pub mod discovery;
+
 pub mod driver;
+
 pub mod gossip;
+
 pub mod types;
+
+mod utils;
+pub use utils::{KeypairError, ParseKeyError, get_keypair, parse_key};

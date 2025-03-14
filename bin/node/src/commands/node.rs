@@ -1,9 +1,9 @@
 //! Node Subcommand.
 
-use crate::cli::{globals::GlobalArgs, p2p::P2PArgs};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
+use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
 use kona_registry::ROLLUP_CONFIGS;
@@ -11,6 +11,8 @@ use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
 use tracing::debug;
 use url::Url;
+
+use crate::flags::{GlobalArgs, P2PArgs};
 
 /// The Node subcommand.
 ///
@@ -41,7 +43,16 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[clap(long, visible_alias = "rollup-cfg")]
     pub l2_config_file: Option<PathBuf>,
-    /// P2P CLI arguments
+    /// Engine kind.
+    #[clap(
+        long,
+        visible_alias = "l2.enginekind",
+        default_value = "geth",
+        env = "L2_ENGINE_KIND",
+        help = "The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
+    )]
+    pub l2_engine_kind: EngineKind,
+    /// P2P CLI arguments.
     #[clap(flatten)]
     pub p2p_flags: P2PArgs,
 }
@@ -51,13 +62,33 @@ impl NodeCommand {
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let kind = self.l2_engine_kind;
+        let sync_config = SyncConfig {
+            sync_mode: SyncMode::ExecutionLayer,
+            // Skip sync start check is deprecated in the op-node,
+            // so set it to false here without needing a cli flag.
+            skip_sync_start_check: false,
+            supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
+        };
+
+        let ip = self.p2p_flags.listen_ip;
+        let tcp = self.p2p_flags.listen_tcp_port;
+        let udp = self.p2p_flags.listen_udp_port;
+        let gossip_addr = std::net::SocketAddr::new(ip, tcp);
+        let disc_addr = std::net::SocketAddr::new(ip, udp);
+
+        let keypair = self.p2p_flags.keypair()?;
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
+            .with_sync_config(sync_config)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_gossip_addr(gossip_addr)
+            .with_disc_addr(disc_addr)
+            .with_keypair(keypair)
             .build()
             .start()
             .await

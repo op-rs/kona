@@ -7,7 +7,8 @@ use alloy_rpc_types_engine::JwtSecret;
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
 use kona_providers_alloy::OnlineBeaconClient;
-use std::sync::Arc;
+use libp2p_identity::Keypair;
+use std::{net::SocketAddr, sync::Arc};
 use url::Url;
 
 /// The [RollupNodeBuilder] is used to construct a [RollupNode] service.
@@ -27,6 +28,14 @@ pub struct RollupNodeBuilder {
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
     _jwt_secret: Option<JwtSecret>,
+    /// The gossip address.
+    gossip_addr: Option<SocketAddr>,
+    /// The discovery address.
+    discovery_addr: Option<SocketAddr>,
+    /// If p2p networking is entirely disabled.
+    network_disabled: bool,
+    /// The keypair.
+    keypair: Option<Keypair>,
 }
 
 impl RollupNodeBuilder {
@@ -65,6 +74,26 @@ impl RollupNodeBuilder {
         Self { _jwt_secret: Some(jwt_secret), ..self }
     }
 
+    /// Appends the gossip address to the builder.
+    pub fn with_gossip_addr(self, gossip_addr: SocketAddr) -> Self {
+        Self { gossip_addr: Some(gossip_addr), ..self }
+    }
+
+    /// Appends the discovery address to the builder.
+    pub fn with_disc_addr(self, discovery_addr: SocketAddr) -> Self {
+        Self { discovery_addr: Some(discovery_addr), ..self }
+    }
+
+    /// Appends whether p2p networking is entirely disabled to the builder.
+    pub fn with_network_disabled(self, network_disabled: bool) -> Self {
+        Self { network_disabled, ..self }
+    }
+
+    /// Appends the keypair to the builder.
+    pub fn with_keypair(self, keypair: Keypair) -> Self {
+        Self { keypair: Some(keypair), ..self }
+    }
+
     /// Assembles the [RollupNode] service.
     ///
     /// ## Panics
@@ -89,6 +118,10 @@ impl RollupNodeBuilder {
             l1_beacon,
             l2_provider,
             _l2_engine: (),
+            network_disabled: self.network_disabled,
+            keypair: self.keypair,
+            discovery_addr: self.discovery_addr,
+            gossip_addr: self.gossip_addr,
         }
     }
 }

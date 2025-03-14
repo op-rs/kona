@@ -52,6 +52,12 @@ pub enum NetworkDriverBuilderError {
     /// A discovery builder error.
     #[error("discovery builder error: {0}")]
     DiscoveryBuilderError(#[from] DiscoveryBuilderError),
+    /// The keypair is not set.
+    #[error("keypair not set")]
+    KeypairNotSet,
+    /// The discovery address is not set.
+    #[error("discovery address not set")]
+    DiscoveryAddrNotSet,
 }
 
 /// Constructs a [NetworkDriver] for Optimism's consensus-layer.

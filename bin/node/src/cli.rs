@@ -1,26 +1,17 @@
 //! Contains the node CLI.
 
-pub mod disc;
-pub mod globals;
-pub mod gossip;
-pub mod node;
-pub mod p2p;
-pub mod telemetry;
-
+use crate::{commands::NodeCommand, flags::GlobalArgs};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::cli_styles;
+use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
+use tracing_subscriber::EnvFilter;
 
 /// Subcommands for the CLI.
 #[derive(Debug, Clone, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
-    /// Discovery service command.
-    Disc(disc::DiscCommand),
-    /// Gossip service command.
-    Gossip(gossip::GossipCommand),
     /// Runs the consensus node.
-    Node(node::NodeCommand),
+    Node(NodeCommand),
 }
 
 /// The node CLI.
@@ -29,7 +20,7 @@ pub enum Commands {
 pub struct Cli {
     /// Global arguments for the CLI.
     #[clap(flatten)]
-    pub global: globals::GlobalArgs,
+    pub global: GlobalArgs,
     /// The subcommand to run.
     #[clap(subcommand)]
     pub subcommand: Commands,
@@ -39,13 +30,24 @@ impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
         // Initialize the telemetry stack.
-        telemetry::init_stack(self.global.v, self.global.metrics_port)?;
+        Self::init_stack(self.global.v, self.global.metrics_port)?;
 
         match self.subcommand {
-            Commands::Disc(disc) => Self::run_until_ctrl_c(disc.run(&self.global)),
-            Commands::Gossip(gossip) => Self::run_until_ctrl_c(gossip.run(&self.global)),
             Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
         }
+    }
+
+    /// Initialize the tracing stack and Prometheus metrics recorder.
+    ///
+    /// This function should be called at the beginning of the program.
+    pub fn init_stack(verbosity: u8, metrics_port: u16) -> Result<()> {
+        // Initialize the tracing subscriber.
+        init_tracing_subscriber(verbosity, None::<EnvFilter>)?;
+
+        // Start the Prometheus metrics server.
+        init_prometheus_server(metrics_port)?;
+
+        Ok(())
     }
 
     /// Run until ctrl-c is pressed.

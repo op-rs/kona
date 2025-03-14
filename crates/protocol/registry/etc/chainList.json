@@ -363,6 +363,24 @@
     }
   },
   {
+    "name": "SnaxChain",
+    "identifier": "mainnet/snax",
+    "chainId": 2192,
+    "rpc": [
+      "https://mainnet.snaxchain.io"
+    ],
+    "explorers": [
+      "https://explorer.snaxchain.io"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "mainnet"
+    }
+  },
+  {
     "name": "Soneium",
     "identifier": "mainnet/soneium",
     "chainId": 1868,
@@ -750,6 +768,24 @@
     ],
     "explorers": [
       "https://testnet.racescan.io/"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "sepolia"
+    }
+  },
+  {
+    "name": "Settlus Sepolia",
+    "identifier": "sepolia/settlus-sepolia",
+    "chainId": 5373,
+    "rpc": [
+      "https://settlus-septestnet.g.alchemy.com/public"
+    ],
+    "explorers": [
+      "sepolia.settlus.network"
     ],
     "superchainLevel": 0,
     "governedByOptimism": false,

@@ -133,7 +133,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - uses: taiki-e/install-action@cargo-udeps
       - name: cargo udeps
-        run: just check-unused-deps
+        run: just check-udeps
   cargo-doc-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20

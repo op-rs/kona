@@ -2424,6 +2424,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-discovery"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-p2p",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "example-gossip"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-p2p",
+ "kona-registry",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3756,7 +3783,6 @@ dependencies = [
 name = "kona-cli"
 version = "0.1.0"
 dependencies = [
- "alloy-primitives",
  "clap",
  "libc",
  "metrics-exporter-prometheus",
@@ -3859,6 +3885,7 @@ dependencies = [
  "alloy-transport-http",
  "anyhow",
  "async-trait",
+ "derive_more 2.0.1",
  "http-body-util",
  "kona-genesis",
  "kona-protocol",
@@ -4035,10 +4062,12 @@ dependencies = [
  "anyhow",
  "clap",
  "kona-cli",
+ "kona-engine",
  "kona-genesis",
  "kona-node-service",
  "kona-p2p",
  "kona-registry",
+ "libp2p-identity",
  "serde_json",
  "tokio",
  "tracing",
@@ -4065,6 +4094,7 @@ dependencies = [
  "kona-providers-alloy",
  "kona-rpc",
  "libp2p",
+ "libp2p-identity",
  "op-alloy-network",
  "op-alloy-rpc-types-engine",
  "thiserror 2.0.12",
@@ -4091,6 +4121,7 @@ dependencies = [
  "op-alloy-rpc-types-engine",
  "openssl",
  "snap",
+ "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tracing",

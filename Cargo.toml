@@ -17,6 +17,7 @@ members = [
   "crates/protocol/*",
   "crates/providers/*",
   "crates/utilities/*",
+  "examples/*",
 ]
 default-members = [
   "bin/host",

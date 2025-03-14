@@ -30,4 +30,7 @@ pub use sync::{SyncConfig, SyncMode, SyncStatus};
 mod state;
 pub use state::{EngineState, StateBuilder};
 
+mod kinds;
+pub use kinds::EngineKind;
+
 pub(crate) mod macros;

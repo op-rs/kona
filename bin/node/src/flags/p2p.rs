@@ -5,7 +5,9 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
 use alloy_primitives::B256;
+use anyhow::Result;
 use clap::Parser;
+use libp2p_identity::Keypair;
 use std::{net::IpAddr, path::PathBuf};
 
 /// P2P CLI Flags
@@ -81,6 +83,28 @@ impl Default for P2PArgs {
     }
 }
 
+impl P2PArgs {
+    /// Returns the [Keypair] from the cli inputs.
+    ///
+    /// If the raw private key is empty and the specified file is empty,
+    /// this method will generate a new private key and write it out to the file.
+    ///
+    /// If neither a file is specified, nor a raw private key input, this method
+    /// will error.
+    pub fn keypair(&self) -> Result<Keypair> {
+        // Attempt the parse the private key if specified.
+        if let Some(mut private_key) = self.private_key {
+            return kona_p2p::parse_key(&mut private_key.0).map_err(|e| anyhow::anyhow!(e));
+        }
+
+        let Some(ref key_path) = self.priv_path else {
+            anyhow::bail!("Neither a raw private key nor a private key file path was provided.");
+        };
+
+        kona_p2p::get_keypair(key_path).map_err(|e| anyhow::anyhow!(e))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,6 +118,41 @@ mod tests {
         /// P2P CLI Flags
         #[clap(flatten)]
         pub p2p: P2PArgs,
+    }
+
+    #[test]
+    fn test_p2p_args_keypair_missing_both() {
+        let args = MockCommand::parse_from(["test"]);
+        assert!(args.p2p.keypair().is_err());
+    }
+
+    #[test]
+    fn test_p2p_args_keypair_raw_private_key() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.priv.raw",
+            "1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be",
+        ]);
+        assert!(args.p2p.keypair().is_ok());
+    }
+
+    #[test]
+    fn test_p2p_args_keypair_from_path() {
+        // Create a temporary directory.
+        let dir = std::env::temp_dir();
+        let mut source_path = dir.clone();
+        assert!(std::env::set_current_dir(dir).is_ok());
+
+        // Write a private key to a file.
+        let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
+        let hex = alloy_primitives::hex::encode(key.0);
+        source_path.push("test.txt");
+        std::fs::write(&source_path, &hex).unwrap();
+
+        // Parse the keypair from the file.
+        let args =
+            MockCommand::parse_from(["test", "--p2p.priv.path", source_path.to_str().unwrap()]);
+        assert!(args.p2p.keypair().is_ok());
     }
 
     #[test]

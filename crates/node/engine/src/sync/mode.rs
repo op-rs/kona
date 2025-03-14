@@ -1,6 +1,6 @@
 //! Contains the `SyncMode`.
 
-use core::fmt::Display;
+use derive_more::{Display, FromStr};
 
 /// Sync Mode
 ///
@@ -12,26 +12,13 @@ use core::fmt::Display;
 ///    they are capable of it.
 ///
 /// This is ported from: <https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/sync/config.go#L15>.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Display, FromStr, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SyncMode {
     /// Syncing the consensus layer
+    #[display("consensus-layer")]
     ConsensusLayer = 0,
     /// Syncing the execution layer
+    #[display("execution-layer")]
     ExecutionLayer = 1,
-}
-
-impl AsRef<str> for SyncMode {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::ConsensusLayer => "consensus-layer",
-            Self::ExecutionLayer => "execution-layer",
-        }
-    }
-}
-
-impl Display for SyncMode {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.as_ref())
-    }
 }

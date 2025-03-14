@@ -115,7 +115,7 @@ build-asterisc-client:
     ghcr.io/op-rs/kona/asterisc-builder:0.1.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
 
 # Check for unused dependencies in the crate graph.
-check-unused-deps:
+check-udeps:
   cargo +nightly udeps --workspace --all-features --all-targets
 
 # Clones and checks out the monorepo at the commit present in `.monorepo`
