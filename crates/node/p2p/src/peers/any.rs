@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_peer_id_node_record() {
-        let raw = crate::OP_RAW_BOOTNODES[0];
+        let raw = crate::OP_RAW_BOOTNODES[8];
         let record = NodeRecord::from_str(raw).unwrap();
         let any_node = AnyNode::from(record);
         let peer_id = any_node.peer_id();
