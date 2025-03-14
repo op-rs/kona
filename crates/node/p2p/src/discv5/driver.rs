@@ -86,9 +86,10 @@ impl Discv5Driver {
     async fn bootstrap(&self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
-        trace!(target: "p2p::discv5",
+        info!(target: "p2p::discv5",
             ?nodes,
-            "adding bootstrap nodes .."
+            "adding {} bootstrap nodes...",
+            nodes.0.len()
         );
 
         for node in nodes.0 {
