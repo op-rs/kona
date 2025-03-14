@@ -6,5 +6,5 @@ pub use builder::{Discv5Builder, Discv5BuilderError};
 mod driver;
 pub use driver::Discv5Driver;
 
-mod wrapper;
-pub use wrapper::{Discv5Wrapper, Discv5WrapperError};
+mod handler;
+pub use handler::{Discv5Handler, HandlerRequest, HandlerResponse};

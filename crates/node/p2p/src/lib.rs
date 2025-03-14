@@ -32,7 +32,7 @@ pub use peers::{
 
 mod discv5;
 pub use discv5::{
-    Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError,
+    Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler, HandlerRequest, HandlerResponse,
 };
 
 mod utils;

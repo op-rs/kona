@@ -401,8 +401,8 @@ mod tests {
         assert_eq!(driver.gossip.handler.blocks_v3_topic.hash(), v3.hash());
     }
 
-    #[tokio::test]
-    async fn test_build_default_network_driver() {
+    #[test]
+    fn test_build_default_network_driver() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -422,7 +422,7 @@ mod tests {
         // Driver Assertions
         assert_eq!(driver.gossip.addr, multiaddr);
         assert_eq!(driver.discovery.chain_id, id);
-        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9099);
+        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9099);
 
         // Block Handler Assertions
         assert_eq!(driver.gossip.handler.chain_id, id);
@@ -434,8 +434,8 @@ mod tests {
         assert_eq!(driver.gossip.handler.blocks_v3_topic.hash(), v3.hash());
     }
 
-    #[tokio::test]
-    async fn test_build_network_driver_with_discovery_addr() {
+    #[test]
+    fn test_build_network_driver_with_discovery_addr() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -448,11 +448,11 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9098);
+        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9098);
     }
 
-    #[tokio::test]
-    async fn test_build_network_driver_with_discovery_config() {
+    #[test]
+    fn test_build_network_driver_with_discovery_config() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -467,11 +467,11 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9098);
+        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9098);
     }
 
-    #[tokio::test]
-    async fn test_build_network_driver_with_discovery_config_and_listen_config() {
+    #[test]
+    fn test_build_network_driver_with_discovery_config_and_listen_config() {
         let id = 10;
         let signer = Address::random();
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
@@ -488,6 +488,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().await.tcp4().unwrap(), 9097);
+        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9097);
     }
 }

@@ -56,7 +56,7 @@ impl DiscCommand {
             Discv5Builder::new().with_address(socket).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(self.interval);
-        let mut peer_recv = discovery.start();
+        let mut handler = discovery.start();
         tracing::info!("Discovery service started, receiving peers.");
 
         // Every 10 seconds, print the peer stats from the discovery service.
@@ -64,10 +64,10 @@ impl DiscCommand {
 
         loop {
             tokio::select! {
-                peer = peer_recv.recv() => {
-                    match peer {
-                        Some(peer) => {
-                            tracing::info!("Received peer: {:?}", peer);
+                enr = handler.enr_receiver.recv() => {
+                    match enr {
+                        Some(enr) => {
+                            tracing::info!("Received peer: {:?}", enr);
                         }
                         None => {
                             tracing::warn!("Failed to receive peer");
@@ -75,9 +75,9 @@ impl DiscCommand {
                     }
                 }
                 _ = interval.tick() => {
-                    let metrics = discovery.disc.metrics().await;
+                    let metrics = handler.metrics().await;
                     tracing::info!("Discovery metrics: {:?}", metrics);
-                    let peers = discovery.disc.peers().await;
+                    let peers = handler.peers().await;
                     tracing::info!("Discovery peer count: {:?}", peers);
                 }
             }

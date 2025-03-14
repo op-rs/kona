@@ -45,12 +45,12 @@ impl NetworkDriver {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
-        let mut enr_recv = self.discovery.start();
+        let mut handler = self.discovery.start();
         self.gossip.listen()?;
         tokio::spawn(async move {
             loop {
                 select! {
-                    enr = enr_recv.recv() => {
+                    enr = handler.enr_receiver.recv() => {
                         let Some(ref enr) = enr else {
                             warn!(target: "p2p::driver", "Receiver `None` peer enr");
                             continue;
