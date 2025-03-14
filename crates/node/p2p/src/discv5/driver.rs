@@ -8,7 +8,7 @@ use tokio::{
 
 use discv5::{Discv5, Enr};
 
-use crate::{Discv5Builder, Discv5Wrapper, OP_BOOTNODES, OpStackEnr};
+use crate::{BootNodes, Discv5Builder, Discv5Wrapper, OpStackEnr};
 
 /// The number of peers to buffer in the channel.
 const DISCOVERY_PEER_CHANNEL_SIZE: usize = 256;
@@ -69,7 +69,7 @@ impl Discv5Driver {
     /// ```
     pub fn start(&self) -> Receiver<Enr> {
         // Clone the bootnodes since the spawned thread takes mutable ownership.
-        let bootnodes = OP_BOOTNODES.clone();
+        let bootnodes = BootNodes::from_chain_id(self.chain_id);
 
         // Create a multi-producer, single-consumer (mpsc) channel to receive
         // peers bounded by `DISCOVERY_PEER_CHANNEL_SIZE`.

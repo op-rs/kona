@@ -5,6 +5,55 @@ use discv5::Enr;
 use lazy_static::lazy_static;
 use std::str::FromStr;
 
+use kona_genesis::{
+    BASE_MAINNET_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID,
+};
+
+/// Bootnodes for OP Stack chains.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BootNodes(pub Vec<BootNode>);
+
+impl BootNodes {
+    /// Returns the bootnodes for the given chain id.
+    ///
+    /// If the chain id is not recognized, no bootnodes are returned.
+    pub fn from_chain_id(id: u64) -> Self {
+        match id {
+            OP_MAINNET_CHAIN_ID | BASE_MAINNET_CHAIN_ID => Self::mainnet(),
+            OP_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => Self::testnet(),
+            _ => Self(vec![]),
+        }
+    }
+
+    /// Returns the bootnodes for the mainnet.
+    pub fn mainnet() -> Self {
+        Self(OP_BOOTNODES.clone())
+    }
+
+    /// Returns the bootnodes for the testnet.
+    pub fn testnet() -> Self {
+        Self(OP_TESTNET_BOOTNODES.clone())
+    }
+
+    /// Returns the length of the bootnodes.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns if the bootnodes are empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl std::ops::Deref for BootNodes {
+    type Target = Vec<BootNode>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// Helper method to parse a bootnode from a string.
 fn parse_bootnode(raw: &str) -> BootNode {
     // If the string starts with "enr:" it is an ENR record.
@@ -19,12 +68,12 @@ fn parse_bootnode(raw: &str) -> BootNode {
 
 lazy_static! {
     /// Default op bootnodes to use.
-    pub static ref OP_BOOTNODES: Vec<BootNode> = OP_RAW_BOOTNODES.iter()
+    static ref OP_BOOTNODES: Vec<BootNode> = OP_RAW_BOOTNODES.iter()
         .map(|raw| parse_bootnode(raw))
         .collect();
 
     /// Default op testnet bootnodes to use.
-    pub static ref OP_TESTNET_BOOTNODES: Vec<BootNode> = OP_RAW_TESTNET_BOOTNODES.iter()
+    static ref OP_TESTNET_BOOTNODES: Vec<BootNode> = OP_RAW_TESTNET_BOOTNODES.iter()
         .map(|raw| parse_bootnode(raw))
         .collect();
 }
@@ -87,5 +136,35 @@ mod tests {
             let record = crate::NodeRecord::from_str(raw).unwrap();
             let _ = crate::BootNode::from_unsigned(record).unwrap();
         }
+    }
+
+    #[test]
+    fn test_bootnodes_from_chain_id() {
+        let mainnet = BootNodes::from_chain_id(OP_MAINNET_CHAIN_ID);
+        assert_eq!(mainnet.len(), 13);
+
+        let testnet = BootNodes::from_chain_id(OP_SEPOLIA_CHAIN_ID);
+        assert_eq!(testnet.len(), 8);
+
+        let unknown = BootNodes::from_chain_id(0);
+        assert!(unknown.is_empty());
+    }
+
+    #[test]
+    fn test_bootnodes_len() {
+        let bootnodes = BootNodes::mainnet();
+        assert_eq!(bootnodes.len(), 13);
+
+        let bootnodes = BootNodes::testnet();
+        assert_eq!(bootnodes.len(), 8);
+    }
+
+    #[test]
+    fn test_bootnodes_empty() {
+        let bootnodes = BootNodes(vec![]);
+        assert!(bootnodes.is_empty());
+
+        let bootnodes = BootNodes::from_chain_id(OP_MAINNET_CHAIN_ID);
+        assert!(!bootnodes.is_empty());
     }
 }

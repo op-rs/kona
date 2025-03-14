@@ -6,7 +6,7 @@ use discv5::{
 };
 use std::net::SocketAddr;
 
-use crate::{Discv5Driver, OP_CL_KEY, OpStackEnr};
+use crate::{Discv5Driver, OpStackEnr};
 
 /// An error that can occur when building the discovery service.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -93,7 +93,7 @@ impl Discv5Builder {
 
         let key = CombinedKey::generate_secp256k1();
         let mut enr_builder = Enr::builder();
-        enr_builder.add_value_rlp(OP_CL_KEY, opstack_data.into());
+        enr_builder.add_value_rlp(OpStackEnr::OP_CL_KEY, opstack_data.into());
         match config.listen_config {
             ListenConfig::Ipv4 { ip, port } => {
                 enr_builder.ip4(ip).tcp4(port);

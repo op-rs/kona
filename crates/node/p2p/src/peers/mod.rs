@@ -42,8 +42,11 @@ use alloy_primitives::B512;
 /// This is the most primitive secp256k1 public key identifier for a given peer.
 pub type PeerId = B512;
 
+mod bootnodes;
+pub use bootnodes::{BootNodes, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES};
+
 mod enr;
-pub use enr::{OP_CL_KEY, OpStackEnr};
+pub use enr::OpStackEnr;
 
 mod any;
 pub use any::AnyNode;

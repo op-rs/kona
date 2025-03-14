@@ -26,13 +26,13 @@ pub use gossip::{
 
 mod peers;
 pub use peers::{
-    AnyNode, BootNode, NodeRecord, NodeRecordParseError, OP_CL_KEY, OpStackEnr, PeerId,
+    AnyNode, BootNode, BootNodes, NodeRecord, NodeRecordParseError, OP_RAW_BOOTNODES,
+    OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId,
 };
 
 mod discv5;
 pub use discv5::{
     Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Wrapper, Discv5WrapperError,
-    OP_BOOTNODES, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OP_TESTNET_BOOTNODES,
 };
 
 mod utils;

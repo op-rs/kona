@@ -4118,6 +4118,7 @@ dependencies = [
  "derive_more 2.0.1",
  "discv5",
  "futures",
+ "kona-genesis",
  "lazy_static",
  "libp2p",
  "libp2p-identity",
