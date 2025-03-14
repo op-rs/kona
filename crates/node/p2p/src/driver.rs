@@ -3,12 +3,11 @@
 use std::sync::mpsc::Receiver;
 
 use alloy_primitives::Address;
-use discv5::Enr;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::{select, sync::watch};
 
-use crate::{AnyNode, Discv5Driver, GossipDriver, NetworkDriverBuilder};
+use crate::{Discv5Driver, GossipDriver, NetworkDriverBuilder};
 
 /// NetworkDriver
 ///
@@ -43,27 +42,6 @@ impl NetworkDriver {
         self.unsafe_block_signer_sender.take()
     }
 
-    /// Dials a given [`Enr`] using the gossip libp2p swarm.
-    pub async fn dial_enr(gossip: &mut GossipDriver, enr: &Enr) {
-        let any_node = AnyNode::from(enr.clone());
-        let dial_opts = match any_node.as_dial_opts() {
-            Ok(opts) => opts,
-            Err(e) => {
-                warn!(target: "p2p::driver", "Failed to construct dial opts from enr: {:?}, {:?}", enr, e);
-                return;
-            }
-        };
-
-        match gossip.dial(dial_opts).await {
-            Ok(_) => {
-                info!(target: "p2p::driver", "Connected to peer: {:?} | Connected peers: {:?}", enr, gossip.connected_peers());
-            }
-            Err(e) => {
-                info!(target: "p2p::driver", "Failed to connect to peer: {:?}", e);
-            }
-        }
-    }
-
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
@@ -73,28 +51,15 @@ impl NetworkDriver {
         tokio::spawn(async move {
             loop {
                 select! {
-                    // event = handler.event() => {
-                    //     use discv5::Event;
-                    //     let Some(ref event) = event else {
-                    //         trace!(target: "p2p::driver", "Empty event received");
-                    //         continue;
-                    //     };
-                    //     info!(target: "p2p::driver", "Received event: {:?}", event);
-                    //     let Event::SessionEstablished(enr, _) = event else {
-                    //         trace!(target: "p2p::driver", "Received non-established session event: {:?}", event);
-                    //         continue;
-                    //     };
-                    //     Self::dial_enr(&mut self.gossip, &enr).await;
-                    // },
                     enr = handler.enr_receiver.recv() => {
                         let Some(ref enr) = enr else {
                             trace!(target: "p2p::driver", "Receiver `None` peer enr");
                             continue;
                         };
-                        Self::dial_enr(&mut self.gossip, enr).await;
+                        self.gossip.dial(enr.clone());
                     },
                     event = self.gossip.select_next_some() => {
-                        debug!(target: "p2p::driver", "Received event: {:?}", event);
+                        trace!(target: "p2p::driver", "Received event: {:?}", event);
                         self.gossip.handle_event(event);
                     },
                     _ = interval.tick() => {
@@ -107,7 +72,7 @@ impl NetworkDriver {
                         let enrs = handler.table_enrs().await;
                         info!(target: "p2p::driver", "{} Enrs in Discovery Table", enrs.len());
                         for enr in enrs {
-                            Self::dial_enr(&mut self.gossip, &enr).await;
+                            self.gossip.dial(enr);
                         }
                     }
                 }

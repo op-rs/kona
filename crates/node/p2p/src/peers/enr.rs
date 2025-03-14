@@ -1,7 +1,7 @@
 //! Contains the Optimism consensus-layer ENR Type.
 
 use alloy_rlp::{Decodable, Encodable};
-use discv5::enr::{CombinedKey, Enr};
+use discv5::Enr;
 use unsigned_varint::{decode, encode};
 
 /// The unique L2 network identifier
@@ -18,20 +18,17 @@ impl OpStackEnr {
     /// The [`Enr`] key literal string for the consensus layer.
     pub const OP_CL_KEY: &str = "opstack";
 
-    /// Instantiates a new Op Stack Enr.
+    /// Instantiates a new [`OpStackEnr`].
     pub fn new(chain_id: u64, version: u64) -> Self {
         Self { chain_id, version }
     }
 
-    /// Returns `true` if a node [Enr] contains an `opstack` key and is on the same network.
-    pub fn is_valid_node(node: &Enr<CombinedKey>, chain_id: u64) -> bool {
-        node.get_raw_rlp(Self::OP_CL_KEY)
-            .map(|mut opstack| {
-                OpStackEnr::decode(&mut opstack)
-                    .map(|opstack| opstack.chain_id == chain_id && opstack.version == 0)
-                    .unwrap_or_default()
-            })
-            .unwrap_or_default()
+    /// Returns `true` if a node [`Enr`] contains an `opstack` key and is on the same network.
+    pub fn is_valid_node(node: &Enr, chain_id: u64) -> bool {
+        node.get_raw_rlp(Self::OP_CL_KEY).is_some_and(|mut opstack| {
+            OpStackEnr::decode(&mut opstack)
+                .is_ok_and(|opstack| opstack.chain_id == chain_id && opstack.version == 0)
+        })
     }
 }
 
@@ -63,6 +60,7 @@ impl Decodable for OpStackEnr {
 mod tests {
     use super::*;
     use alloy_primitives::{Bytes, bytes};
+    use discv5::enr::CombinedKey;
 
     #[test]
     #[cfg(feature = "arbitrary")]
@@ -79,7 +77,7 @@ mod tests {
     #[test]
     fn test_is_valid_node() {
         let key = CombinedKey::generate_secp256k1();
-        let mut enr = Enr::<CombinedKey>::builder().build(&key).unwrap();
+        let mut enr = Enr::builder().build(&key).unwrap();
         let op_stack_enr = OpStackEnr::new(10, 0);
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
@@ -91,7 +89,7 @@ mod tests {
     #[test]
     fn test_is_valid_node_invalid_version() {
         let key = CombinedKey::generate_secp256k1();
-        let mut enr = Enr::<CombinedKey>::builder().build(&key).unwrap();
+        let mut enr = Enr::builder().build(&key).unwrap();
         let op_stack_enr = OpStackEnr::new(10, 1);
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);

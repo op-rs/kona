@@ -1,12 +1,10 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
+use discv5::Enr;
 use futures::stream::StreamExt;
-use libp2p::{
-    Multiaddr, Swarm, TransportError,
-    swarm::{DialError, SwarmEvent, dial_opts::DialOpts},
-};
+use libp2p::{Multiaddr, Swarm, TransportError, multiaddr::Protocol, swarm::SwarmEvent};
 
-use crate::{Behaviour, BlockHandler, Event, Handler};
+use crate::{Behaviour, BlockHandler, Event, Handler, OpStackEnr};
 
 /// A driver for a [`Swarm`] instance.
 ///
@@ -34,6 +32,11 @@ impl GossipDriver {
         Ok(())
     }
 
+    /// Returns the local peer id.
+    pub fn local_peer_id(&self) -> &libp2p::PeerId {
+        self.swarm.local_peer_id()
+    }
+
     /// Returns a mutable reference to the Swarm's behaviour.
     pub fn behaviour_mut(&mut self) -> &mut Behaviour {
         self.swarm.behaviour_mut()
@@ -44,48 +47,91 @@ impl GossipDriver {
         self.swarm.select_next_some().await
     }
 
+    /// Returns if the swarm is already connected to the specified [`Multiaddr`].
+    pub fn is_connected(&mut self, addr: &Multiaddr) -> bool {
+        self.swarm.external_addresses().any(|a| *a == *addr)
+    }
+
     /// Returns the number of connected peers.
     pub fn connected_peers(&self) -> usize {
         self.swarm.connected_peers().count()
     }
 
-    /// Dials the given [`Option<DialOpts>`].
-    pub async fn dial_opt(&mut self, opts: Option<impl Into<DialOpts>>) {
-        let Some(opts) = opts else {
+    /// Dials the given [`Enr`].
+    pub fn dial(&mut self, enr: Enr) {
+        let key = OpStackEnr::OP_CL_KEY.as_bytes();
+        if enr.get_raw_rlp(key).is_none() {
+            debug!(target: "p2p::gossip::driver", "Ignoring peer without opstack CL key...");
+            return;
+        }
+        let addr = if let Some(socket) = enr.tcp4_socket() {
+            let mut addr = Multiaddr::from(*socket.ip());
+            addr.push(Protocol::Tcp(socket.port()));
+            addr
+        } else if let Some(socket) = enr.tcp6_socket() {
+            let mut addr = Multiaddr::from(*socket.ip());
+            addr.push(Protocol::Tcp(socket.port()));
+            addr
+        } else {
+            debug!(target: "p2p::gossip::driver", "Failed to extract tcp socket from enr: {:?}", enr);
             return;
         };
-        match self.dial(opts).await {
-            Ok(_) => info!("Dialed peer"),
-            Err(e) => error!("Failed to dial peer: {:?}", e),
+        self.dial_multiaddr(addr);
+    }
+
+    /// Dials the given [`Multiaddr`].
+    pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
+        if self.is_connected(&addr) {
+            warn!(target: "p2p::gossip::driver", "Already connected to peer: {:?}", addr.clone());
+            return;
+        }
+
+        match self.swarm.dial(addr.clone()) {
+            Ok(_) => trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr),
+            Err(e) => {
+                debug!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
+            }
         }
     }
 
-    /// Dials the given [`DialOpts`].
-    pub async fn dial(&mut self, opts: impl Into<DialOpts>) -> Result<(), DialError> {
-        self.swarm.dial(opts)?;
-        Ok(())
+    /// Handles a [`libp2p::gossipsub::Event`].
+    fn handle_gossipsub_event(&mut self, event: libp2p::gossipsub::Event) {
+        match event {
+            libp2p::gossipsub::Event::Message {
+                propagation_source: src,
+                message_id: id,
+                message,
+            } => {
+                info!("Received message with topic: {}", message.topic);
+                if self.handler.topics().contains(&message.topic) {
+                    debug!("Handling message with topic: {}", message.topic);
+                    let status = self.handler.handle(message);
+                    debug!("Reporting message validation result: {:?}", status);
+                    _ = self
+                        .swarm
+                        .behaviour_mut()
+                        .gossipsub
+                        .report_message_validation_result(&id, &src, status);
+                }
+            }
+            _ => warn!(target: "p2p::gossip", "Ignoring non-message gossipsub event: {:?}", event),
+        }
     }
 
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
-        debug!(target: "p2p::gossip", "Handling event: {:?}", event);
-        if let SwarmEvent::Behaviour(Event::Gossipsub(libp2p::gossipsub::Event::Message {
-            propagation_source: src,
-            message_id: id,
-            message,
-        })) = event
-        {
-            debug!("Received message with topic: {}", message.topic);
-            if self.handler.topics().contains(&message.topic) {
-                debug!("Handling message with topic: {}", message.topic);
-                let status = self.handler.handle(message);
-                debug!("Reporting message validation result: {:?}", status);
-                _ = self
-                    .swarm
-                    .behaviour_mut()
-                    .gossipsub
-                    .report_message_validation_result(&id, &src, status);
+        let SwarmEvent::Behaviour(event) = event else {
+            warn!(target: "p2p::gossip", "Ignoring non-behaviour in event handler: {:?}", event);
+            return;
+        };
+
+        match event {
+            Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
+                info!("Ping from peer: {:?} | Result: {:?}", peer, result);
+                // Send a pong back to the peer.
+                // _ = self.swarm.behaviour_mut().ping.pong(peer);
             }
+            Event::Gossipsub(e) => self.handle_gossipsub_event(e),
         }
     }
 }
