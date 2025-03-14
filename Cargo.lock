@@ -2159,8 +2159,10 @@ dependencies = [
  "hex",
  "hkdf",
  "lazy_static",
+ "libp2p-identity",
  "lru 0.12.5",
  "more-asserts",
+ "multiaddr",
  "parking_lot",
  "rand 0.8.5",
  "smallvec",
@@ -4113,11 +4115,14 @@ dependencies = [
  "alloy-rpc-types-engine",
  "arbitrary",
  "arbtest",
+ "derive_more 2.0.1",
  "discv5",
  "futures",
+ "kona-genesis",
  "lazy_static",
  "libp2p",
  "libp2p-identity",
+ "multihash",
  "op-alloy-rpc-types-engine",
  "openssl",
  "snap",
@@ -4126,6 +4131,7 @@ dependencies = [
  "tokio",
  "tracing",
  "unsigned-varint 0.8.0",
+ "url",
 ]
 
 [[package]]

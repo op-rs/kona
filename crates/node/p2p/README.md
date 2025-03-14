@@ -16,7 +16,7 @@ Contains a gossipsub driver to run discv5 peer discovery and block gossip.
 ```rust,no_run
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use alloy_primitives::address;
-use kona_p2p::driver::NetworkDriver;
+use kona_p2p::NetworkDriver;
 
 // Build the network driver.
 let signer = address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
