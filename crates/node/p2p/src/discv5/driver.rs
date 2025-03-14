@@ -5,7 +5,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 
-use discv5::{Discv5, Enr, enr::NodeId};
+use discv5::{Discv5, Enr, Event, enr::NodeId};
 
 use crate::{
     BootNode, BootNodes, Discv5Builder, Discv5Handler, HandlerRequest, HandlerResponse, OpStackEnr,
@@ -86,11 +86,8 @@ impl Discv5Driver {
     async fn bootstrap(&self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
-        info!(target: "p2p::discv5",
-            ?nodes,
-            "adding {} bootstrap nodes...",
-            nodes.0.len()
-        );
+        info!(target: "p2p::discv5", "Adding {} bootstrap nodes...", nodes.0.len());
+        debug!(target: "p2p::discv5", ?nodes);
 
         for node in nodes.0 {
             match node {
@@ -120,6 +117,7 @@ impl Discv5Driver {
         let (req_sender, mut req_recv) = channel::<HandlerRequest>(1024);
         let (res_sender, res_recv) = channel::<HandlerResponse>(1024);
         let (enr_sender, enr_recv) = channel::<Enr>(1024);
+        let (_events_sender, events_recv) = channel::<Event>(1024);
 
         tokio::spawn(async move {
             // Step 1: Start the discovery service.
@@ -157,13 +155,35 @@ impl Discv5Driver {
                                 HandlerRequest::RequestEnr(enode) => {
                                     let _ = self.disc.request_enr(enode).await;
                                 }
+                                HandlerRequest::TableEnrs => {
+                                    let enrs = self.disc.table_entries_enr();
+                                    let _ = res_sender.send(HandlerResponse::TableEnrs(enrs)).await;
+                                }
                             }
                             None => {
-                                warn!(target: "p2p::discv5::driver", "Receiver `None` peer enr");
+                                trace!(target: "p2p::discv5::driver", "Receiver `None` peer enr");
                             }
                         }
                     }
+                    // Receive an event from the event stream.
+                    // Forward it along to the handler.
+                    // receiver = self.disc.event_stream() => {
+                    //     let Ok(mut recv) = receiver else {
+                    //         warn!(target: "p2p::discv5::driver", "Failed to receive event stream");
+                    //         continue;
+                    //     };
+                    //     let Some(event) = recv.recv().await else {
+                    //         trace!(target: "p2p::discv5::driver", "Empty event received");
+                    //         continue;
+                    //     };
+                    //     // It's up to the handler to consume events.
+                    //     // Don't block the driver loop.
+                    //     if let Err(e) = events_sender.try_send(event) {
+                    //         trace!(target: "p2p::discv5::driver", "Failed to forward event: {:?}", e);
+                    //     }
+                    // }
                     _ = interval.tick() => {
+                        info!(target: "p2p::discv5::driver", "Finding new nodes...");
                         match self.disc.find_node(NodeId::random()).await {
                             Ok(nodes) => {
                                 let enrs =
@@ -182,7 +202,7 @@ impl Discv5Driver {
             }
         });
 
-        Discv5Handler::new(req_sender, res_recv, enr_recv)
+        Discv5Handler::new(req_sender, res_recv, events_recv, enr_recv)
     }
 }
 

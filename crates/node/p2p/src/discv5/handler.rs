@@ -1,6 +1,6 @@
 //! Handler to the [`discv5::Discv5`] service spawned in a thread.
 
-use discv5::{Enr, metrics::Metrics};
+use discv5::{Enr, Event, metrics::Metrics};
 use std::string::String;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -19,6 +19,8 @@ pub enum HandlerRequest {
     RequestEnr(String),
     /// Requests the local [`Enr`].
     LocalEnr,
+    /// Requests the table ENRs.
+    TableEnrs,
 }
 
 /// A response from the spawned [`discv5::Discv5`] service thread to the [`Discv5Handler`].
@@ -30,6 +32,8 @@ pub enum HandlerResponse {
     PeerCount(usize),
     /// Requests the local [`Enr`].
     LocalEnr(Enr),
+    /// Table Enrs
+    TableEnrs(Vec<Enr>),
 }
 
 /// Handler to the spawned [`discv5::Discv5`] service.
@@ -42,6 +46,8 @@ pub struct Discv5Handler {
     pub sender: Sender<HandlerRequest>,
     /// Receives [`HandlerResponse`]s from the spawned [`discv5::Discv5`] service.
     pub receiver: Receiver<HandlerResponse>,
+    /// [`Event`] receiver.
+    pub events: Receiver<Event>,
     /// Receives new [`Enr`]s.
     pub enr_receiver: Receiver<Enr>,
 }
@@ -51,9 +57,15 @@ impl Discv5Handler {
     pub fn new(
         sender: Sender<HandlerRequest>,
         receiver: Receiver<HandlerResponse>,
+        events: Receiver<Event>,
         enr_receiver: Receiver<Enr>,
     ) -> Self {
-        Self { sender, receiver, enr_receiver }
+        Self { sender, receiver, events, enr_receiver }
+    }
+
+    /// Receives an [`Event`] from the discovery service.
+    pub async fn event(&mut self) -> Option<Event> {
+        self.events.recv().await
     }
 
     /// Returns the local ENR of the node.
@@ -62,6 +74,15 @@ impl Discv5Handler {
         match self.receiver.recv().await {
             Some(HandlerResponse::LocalEnr(enr)) => Some(enr),
             _ => None,
+        }
+    }
+
+    /// Requests [`Enr`]s from the discovery service.
+    pub async fn table_enrs(&mut self) -> Vec<Enr> {
+        let _ = self.sender.send(HandlerRequest::TableEnrs).await;
+        match self.receiver.recv().await {
+            Some(HandlerResponse::TableEnrs(enrs)) => enrs,
+            _ => vec![],
         }
     }
 

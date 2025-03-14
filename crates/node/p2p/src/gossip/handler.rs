@@ -39,6 +39,8 @@ pub struct BlockHandler {
     pub blocks_v2_topic: IdentTopic,
     /// The libp2p topic for Ecotone V3 blocks.
     pub blocks_v3_topic: IdentTopic,
+    /// The libp2p topic for V4 blocks.
+    pub blocks_v4_topic: IdentTopic,
 }
 
 impl Handler for BlockHandler {
@@ -54,6 +56,11 @@ impl Handler for BlockHandler {
         } else if msg.topic == self.blocks_v3_topic.hash() {
             debug!(target: "p2p::block_handler", "received v3 block");
             OpNetworkPayloadEnvelope::decode_v3(&msg.data)
+        } else if msg.topic == self.blocks_v4_topic.hash() {
+            debug!(target: "p2p::block_handler", "received v4 block");
+            warn!(target: "p2p::block_handler", "v4 decoding unsupported");
+            return MessageAcceptance::Reject;
+            // OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
             warn!(target: "p2p::block_handler", "Received block with unknown topic: {:?}", msg.topic);
             return MessageAcceptance::Reject;
@@ -78,7 +85,12 @@ impl Handler for BlockHandler {
 
     /// The gossip topics accepted for new blocks
     fn topics(&self) -> Vec<TopicHash> {
-        vec![self.blocks_v1_topic.hash(), self.blocks_v2_topic.hash(), self.blocks_v3_topic.hash()]
+        vec![
+            self.blocks_v1_topic.hash(),
+            self.blocks_v2_topic.hash(),
+            self.blocks_v3_topic.hash(),
+            self.blocks_v4_topic.hash(),
+        ]
     }
 }
 
@@ -97,6 +109,7 @@ impl BlockHandler {
             blocks_v1_topic: IdentTopic::new(format!("/optimism/{}/0/blocks", chain_id)),
             blocks_v2_topic: IdentTopic::new(format!("/optimism/{}/1/blocks", chain_id)),
             blocks_v3_topic: IdentTopic::new(format!("/optimism/{}/2/blocks", chain_id)),
+            blocks_v4_topic: IdentTopic::new(format!("/optimism/{}/3/blocks", chain_id)),
         };
 
         (handler, recv)

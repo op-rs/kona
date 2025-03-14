@@ -67,6 +67,7 @@ mod tests {
             IdentTopic::new("/optimism/0/0/blocks").hash(),
             IdentTopic::new("/optimism/0/1/blocks").hash(),
             IdentTopic::new("/optimism/0/2/blocks").hash(),
+            IdentTopic::new("/optimism/0/3/blocks").hash(),
         ]
     }
 

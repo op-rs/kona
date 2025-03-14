@@ -68,6 +68,7 @@ impl GossipDriver {
 
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
+        debug!(target: "p2p::gossip", "Handling event: {:?}", event);
         if let SwarmEvent::Behaviour(Event::Gossipsub(libp2p::gossipsub::Event::Message {
             propagation_source: src,
             message_id: id,

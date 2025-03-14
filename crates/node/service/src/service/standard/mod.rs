@@ -108,7 +108,7 @@ impl ValidatorNodeService for RollupNode {
             .with_unsafe_block_signer(Default::default())
             .with_chain_id(self.config.l2_chain_id)
             .with_gossip_addr(gossip_addr)
-            .with_discovery_addr(discovery_addr.into())
+            .with_discovery_addr(discovery_addr)
             .with_keypair(keypair)
             .build()
             .map(Some)?)
