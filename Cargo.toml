@@ -29,6 +29,9 @@ default-members = [
 # https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
 resolver = "2"
 
+[workspace.metadata.cargo-udeps.ignore]
+normal = ["rustls-platform-verifier"]
+
 [workspace.lints.rust]
 missing-debug-implementations = "warn"
 missing-docs = "warn"
