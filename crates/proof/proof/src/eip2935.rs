@@ -34,10 +34,11 @@ where
     // the desired block number is within the window size, we compute the slot based on the
     // target block number, as the result is present within the ring. Otherwise, we return the
     // oldest block in the window.
-    let slot = (header.number.saturating_sub(block_number) <= HISTORY_SERVE_WINDOW)
-        .then(|| block_number.saturating_sub(1))
-        .unwrap_or(header.number) %
-        HISTORY_SERVE_WINDOW;
+    let slot = if header.number.saturating_sub(block_number) <= HISTORY_SERVE_WINDOW {
+        block_number
+    } else {
+        header.number
+    } % HISTORY_SERVE_WINDOW;
 
     // Send a hint to fetch the storage slot proof prior to traversing the state / account tries.
     hinter
@@ -144,12 +145,13 @@ mod tests {
         #[case] target_block_number: u64,
     ) {
         let expected_hash = B256::from([0xFF; 32]);
-        let ring_index = (head_block_number - target_block_number <= HISTORY_SERVE_WINDOW)
-            .then(|| target_block_number - 1)
-            .unwrap_or(head_block_number) %
-            HISTORY_SERVE_WINDOW;
+        let ring_index = if head_block_number - target_block_number <= HISTORY_SERVE_WINDOW {
+            target_block_number
+        } else {
+            head_block_number
+        } % HISTORY_SERVE_WINDOW;
 
-        let provider = MockTrieProvider::new(ring_index % HISTORY_SERVE_WINDOW, expected_hash);
+        let provider = MockTrieProvider::new(ring_index, expected_hash);
         let header = Header {
             number: head_block_number,
             state_root: provider.state_root,
