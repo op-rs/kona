@@ -3167,6 +3167,88 @@
           }
         },
         {
+          "Name": "Settlus Sepolia",
+          "PublicRPC": "https://settlus-septestnet.g.alchemy.com/public",
+          "SequencerRPC": "https://settlus-sep-testnet-sequencer.g.alchemy.com/",
+          "Explorer": "sepolia.settlus.network",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": null,
+          "DataAvailabilityType": "eth-da",
+          "l2_chain_id": 5373,
+          "batch_inbox_address": "0x00b18c246d9b94634a54dcc2a2d258a048ab2227",
+          "block_time": 1,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 1800,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0,
+            "holocene_time": 0
+          },
+          "optimism": {
+            "eip1559Elasticity": "0x6",
+            "eip1559Denominator": "0x32",
+            "eip1559DenominatorCanyon": "0xfa"
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 7456555,
+              "hash": "0xd8c9f415fe06484e7713d1e08144a4d1b37e064813b6f3ca45c9d9a29a1f13db"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0xa055eed3718c2ed1f04692c707b7045a804505b5e5184a37143514ba9d14281e"
+            },
+            "l2_time": 1736459256,
+            "system_config": {
+              "batcherAddress": "0x26a1babee918f55bfddb002066c63678147b03a2",
+              "overhead": "0x0",
+              "scalar": "0x10000000000000000000000000000000000000000000000000c5fc500000558",
+              "gasLimit": 60000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": "0xc5019ac7b57ae7918bc3430a92d92bccd3079ab6",
+            "ProxyAdminOwner": "0xc5019ac7b57ae7918bc3430a92d92bccd3079ab6",
+            "Guardian": "0x8c7e4a51acb17719d225bd17598b8a94b46c8767",
+            "Challenger": "0xac165b92e4f98d0dfd9fb7d2ab474fee56b98a0d",
+            "Proposer": "0x3fb1caa16477704bd679c5a883d9dbb1924f4ee0",
+            "UnsafeBlockSigner": "0xb1fed649e18588d081c5ea4ae14b61836dd0062a",
+            "BatchSubmitter": "0x26a1babee918f55bfddb002066c63678147b03a2"
+          },
+          "Addresses": {
+            "AddressManager": "0xed768f41dbe97d81d77316818c2802d322ce21db",
+            "L1CrossDomainMessengerProxy": "0xffae0c2cf1547057cd0828e3b01af11c266c1b3c",
+            "L1Erc721BridgeProxy": "0xbd07617f0ce47db1cd51eb6b9b5e7b3c109410f2",
+            "L1StandardBridgeProxy": "0x1fe9c3b11ed334fc049ae9a92ec290aa69c39267",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": "0x71c23513fa05827e168b5a4dca1f1c81a9a5eef4",
+            "OptimismPortalProxy": "0x55585368857dcc7e0f89475d28963977db0b1ee1",
+            "SystemConfigProxy": "0x7f73514a7ec19f3f51e3c607d536560818df4205",
+            "ProxyAdmin": "0x4b339825002823af8b6ca1ecdf5f9d08ca1f584a",
+            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
+            "AnchorStateRegistryProxy": "0xc31b23208e7f7f8c8bc2ce6816cbb6867c026b1f",
+            "DelayedWethProxy": "0xe2a6efac27793d4cc9a14b3bf3089817cfa41aa9",
+            "DisputeGameFactoryProxy": "0x017d15a6854ccaaa89c63d1a9fea8da45ced97cf",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": "0xeb0d28f0474103480ecd393c8e0c64c003a4914e",
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
           "Name": "RACE Testnet",
           "PublicRPC": "https://racetestnet.io",
           "SequencerRPC": "https://racetestnet.io",

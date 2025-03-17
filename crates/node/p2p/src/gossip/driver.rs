@@ -1,29 +1,28 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
-use crate::gossip::{
-    behaviour::Behaviour,
-    event::Event,
-    handler::{BlockHandler, Handler},
-};
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, Swarm, TransportError,
-    swarm::{DialError, SwarmEvent},
+    swarm::{DialError, SwarmEvent, dial_opts::DialOpts},
 };
-use tracing::{debug, error, info};
 
-/// A [libp2p::Swarm] instance with an associated address to listen on.
+use crate::{Behaviour, BlockHandler, Event, Handler};
+
+/// A driver for a [`Swarm`] instance.
+///
+/// Connects the swarm to the given [`Multiaddr`]
+/// and handles events using the [`BlockHandler`].
 pub struct GossipDriver {
-    /// The [libp2p::Swarm] instance.
+    /// The [`Swarm`] instance.
     pub swarm: Swarm<Behaviour>,
-    /// The address to listen on.
+    /// A [`Multiaddr`] to listen on.
     pub addr: Multiaddr,
-    /// Block handler.
+    /// The [`BlockHandler`].
     pub handler: BlockHandler,
 }
 
 impl GossipDriver {
-    /// Creates a new [GossipDriver] instance.
+    /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
         Self { swarm, addr, handler }
     }
@@ -50,26 +49,26 @@ impl GossipDriver {
         self.swarm.connected_peers().count()
     }
 
-    /// Dials the given [`Option<Multiaddr>`].
-    pub async fn dial_opt(&mut self, peer: Option<impl Into<Multiaddr>>) {
-        let Some(addr) = peer else {
+    /// Dials the given [`Option<DialOpts>`].
+    pub async fn dial_opt(&mut self, opts: Option<impl Into<DialOpts>>) {
+        let Some(opts) = opts else {
             return;
         };
-        match self.dial(addr).await {
+        match self.dial(opts).await {
             Ok(_) => info!("Dialed peer"),
             Err(e) => error!("Failed to dial peer: {:?}", e),
         }
     }
 
-    /// Dials the given [Multiaddr].
-    pub async fn dial(&mut self, peer: impl Into<Multiaddr>) -> Result<(), DialError> {
-        let addr: Multiaddr = peer.into();
-        self.swarm.dial(addr)?;
+    /// Dials the given [`DialOpts`].
+    pub async fn dial(&mut self, opts: impl Into<DialOpts>) -> Result<(), DialError> {
+        self.swarm.dial(opts)?;
         Ok(())
     }
 
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
+        debug!(target: "p2p::gossip", "Handling event: {:?}", event);
         if let SwarmEvent::Behaviour(Event::Gossipsub(libp2p::gossipsub::Event::Message {
             propagation_source: src,
             message_id: id,

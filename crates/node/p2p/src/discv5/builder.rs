@@ -1,17 +1,16 @@
 //! Contains a builder for the discovery service.
 
-use crate::{discovery::driver::DiscoveryDriver, types::enr::OpStackEnr};
 use discv5::{
     Config, ConfigBuilder, Discv5, ListenConfig,
     enr::{CombinedKey, Enr},
 };
 use std::net::SocketAddr;
 
-use crate::types::enr::OP_CL_KEY;
+use crate::{Discv5Driver, OpStackEnr};
 
 /// An error that can occur when building the discovery service.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum DiscoveryBuilderError {
+pub enum Discv5BuilderError {
     /// The chain ID is not set.
     #[error("chain ID not set")]
     ChainIdNotSet,
@@ -28,7 +27,7 @@ pub enum DiscoveryBuilderError {
 
 /// Discovery service builder.
 #[derive(Debug, Default, Clone)]
-pub struct DiscoveryBuilder {
+pub struct Discv5Builder {
     /// The discovery service address.
     address: Option<SocketAddr>,
     /// The chain ID of the network.
@@ -40,7 +39,7 @@ pub struct DiscoveryBuilder {
     discovery_config: Option<Config>,
 }
 
-impl DiscoveryBuilder {
+impl Discv5Builder {
     /// Creates a new discovery builder.
     pub fn new() -> Self {
         Self::default()
@@ -70,9 +69,9 @@ impl DiscoveryBuilder {
         self
     }
 
-    /// Builds a [DiscoveryDriver].
-    pub fn build(&mut self) -> Result<DiscoveryDriver, DiscoveryBuilderError> {
-        let chain_id = self.chain_id.ok_or(DiscoveryBuilderError::ChainIdNotSet)?;
+    /// Builds a [`Discv5Driver`].
+    pub fn build(&mut self) -> Result<Discv5Driver, Discv5BuilderError> {
+        let chain_id = self.chain_id.ok_or(Discv5BuilderError::ChainIdNotSet)?;
         let opstack = OpStackEnr::new(chain_id, 0);
         let mut opstack_data = Vec::new();
         use alloy_rlp::Encodable;
@@ -82,19 +81,19 @@ impl DiscoveryBuilder {
             if let Some(listen_config) = self.listen_config.take() {
                 discovery_config.listen_config = listen_config;
             }
-            Ok::<Config, DiscoveryBuilderError>(discovery_config)
+            Ok::<Config, Discv5BuilderError>(discovery_config)
         } else {
             let listen_config = self
                 .listen_config
                 .take()
                 .or_else(|| self.address.map(ListenConfig::from))
-                .ok_or(DiscoveryBuilderError::ListenConfigNotSet)?;
+                .ok_or(Discv5BuilderError::ListenConfigNotSet)?;
             Ok(ConfigBuilder::new(listen_config).build())
         }?;
 
         let key = CombinedKey::generate_secp256k1();
         let mut enr_builder = Enr::builder();
-        enr_builder.add_value_rlp(OP_CL_KEY, opstack_data.into());
+        enr_builder.add_value_rlp(OpStackEnr::OP_CL_KEY, opstack_data.into());
         match config.listen_config {
             ListenConfig::Ipv4 { ip, port } => {
                 enr_builder.ip4(ip).tcp4(port);
@@ -107,11 +106,11 @@ impl DiscoveryBuilder {
                 enr_builder.ip6(ipv6).tcp6(ipv6_port);
             }
         }
-        let enr = enr_builder.build(&key).map_err(|_| DiscoveryBuilderError::EnrBuildFailed)?;
+        let enr = enr_builder.build(&key).map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
 
-        let disc = Discv5::new(enr, key, config)
-            .map_err(|_| DiscoveryBuilderError::Discv5CreationFailed)?;
+        let disc =
+            Discv5::new(enr, key, config).map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
 
-        Ok(DiscoveryDriver::new(disc, chain_id))
+        Ok(Discv5Driver::new(disc, chain_id))
     }
 }

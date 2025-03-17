@@ -39,24 +39,30 @@ pub struct BlockHandler {
     pub blocks_v2_topic: IdentTopic,
     /// The libp2p topic for Ecotone V3 blocks.
     pub blocks_v3_topic: IdentTopic,
+    /// The libp2p topic for V4 blocks.
+    pub blocks_v4_topic: IdentTopic,
 }
 
 impl Handler for BlockHandler {
     /// Checks validity of a block received via p2p gossip, and sends to the block update channel if
     /// valid.
     fn handle(&self, msg: Message) -> MessageAcceptance {
-        tracing::debug!("received block");
-
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
-            tracing::debug!("received v1 block");
+            debug!(target: "p2p::block_handler", "received v1 block");
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)
         } else if msg.topic == self.blocks_v2_topic.hash() {
-            tracing::debug!("received v2 block");
+            debug!(target: "p2p::block_handler", "received v2 block");
             OpNetworkPayloadEnvelope::decode_v2(&msg.data)
         } else if msg.topic == self.blocks_v3_topic.hash() {
-            tracing::debug!("received v3 block");
+            debug!(target: "p2p::block_handler", "received v3 block");
             OpNetworkPayloadEnvelope::decode_v3(&msg.data)
+        } else if msg.topic == self.blocks_v4_topic.hash() {
+            debug!(target: "p2p::block_handler", "received v4 block");
+            warn!(target: "p2p::block_handler", "v4 decoding unsupported");
+            return MessageAcceptance::Reject;
+            // OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
+            warn!(target: "p2p::block_handler", "Received block with unknown topic: {:?}", msg.topic);
             return MessageAcceptance::Reject;
         };
 
@@ -66,12 +72,12 @@ impl Handler for BlockHandler {
                     _ = self.block_sender.send(envelope);
                     MessageAcceptance::Accept
                 } else {
-                    tracing::warn!("invalid unsafe block");
+                    warn!(target: "p2p::block_handler", "Invalid block received");
                     MessageAcceptance::Reject
                 }
             }
             Err(err) => {
-                tracing::warn!("unsafe block decode failed: {}", err);
+                warn!(target: "p2p::block_handler", "Failed to decode block: {:?}", err);
                 MessageAcceptance::Reject
             }
         }
@@ -79,7 +85,12 @@ impl Handler for BlockHandler {
 
     /// The gossip topics accepted for new blocks
     fn topics(&self) -> Vec<TopicHash> {
-        vec![self.blocks_v1_topic.hash(), self.blocks_v2_topic.hash(), self.blocks_v3_topic.hash()]
+        vec![
+            self.blocks_v1_topic.hash(),
+            self.blocks_v2_topic.hash(),
+            self.blocks_v3_topic.hash(),
+            self.blocks_v4_topic.hash(),
+        ]
     }
 }
 
@@ -98,6 +109,7 @@ impl BlockHandler {
             blocks_v1_topic: IdentTopic::new(format!("/optimism/{}/0/blocks", chain_id)),
             blocks_v2_topic: IdentTopic::new(format!("/optimism/{}/1/blocks", chain_id)),
             blocks_v3_topic: IdentTopic::new(format!("/optimism/{}/2/blocks", chain_id)),
+            blocks_v4_topic: IdentTopic::new(format!("/optimism/{}/3/blocks", chain_id)),
         };
 
         (handler, recv)
@@ -118,7 +130,7 @@ impl BlockHandler {
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.unsafe_signer_recv.borrow();
         let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
-            tracing::warn!("Failed to recover address from message");
+            warn!(target: "p2p::block_handler", "Failed to recover address from message");
             return false;
         };
 

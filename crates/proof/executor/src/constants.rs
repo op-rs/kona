@@ -16,4 +16,4 @@ pub(crate) const HOLOCENE_EXTRA_DATA_VERSION: u8 = 0x00;
 
 /// Empty SHA-256 hash.
 pub(crate) const SHA256_EMPTY: B256 =
-    b256!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+    b256!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");

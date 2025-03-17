@@ -107,6 +107,7 @@ fn compute_message_id(msg: &Message) -> MessageId {
                 .to_vec()
         }
         Err(_) => {
+            warn!(target: "cfg", "Failed to decompress message, using invalid snappy");
             let domain_invalid_snappy: Vec<u8> = vec![0x0, 0x0, 0x0, 0x0];
             sha256([domain_invalid_snappy.as_slice(), msg.data.as_slice()].concat().as_slice())
                 [..20]

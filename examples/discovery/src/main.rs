@@ -19,7 +19,7 @@
 
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::discovery::builder::DiscoveryBuilder;
+use kona_p2p::Discv5Builder;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tracing_subscriber::EnvFilter;
 
@@ -44,25 +44,41 @@ pub struct DiscCommand {
 impl DiscCommand {
     /// Run the discovery subcommand.
     pub async fn run(self) -> anyhow::Result<()> {
-        init_tracing_subscriber(self.v, None::<EnvFilter>)?;
+        use tracing_subscriber::filter::LevelFilter;
+        let filter =
+            EnvFilter::builder().with_default_directive(LevelFilter::INFO.into()).parse("")?;
+        init_tracing_subscriber(self.v, Some(filter))?;
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.disc_port);
         tracing::info!("Starting discovery service on {:?}", socket);
 
         let mut discovery_builder =
-            DiscoveryBuilder::new().with_address(socket).with_chain_id(self.l2_chain_id);
+            Discv5Builder::new().with_address(socket).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(self.interval);
-        let mut peer_recv = discovery.start();
+        let mut handler = discovery.start();
         tracing::info!("Discovery service started, receiving peers.");
 
+        // Every 10 seconds, print the peer stats from the discovery service.
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+
         loop {
-            match peer_recv.recv().await {
-                Some(peer) => {
-                    tracing::info!("Received peer: {:?}", peer);
+            tokio::select! {
+                enr = handler.enr_receiver.recv() => {
+                    match enr {
+                        Some(enr) => {
+                            tracing::info!("Received peer: {:?}", enr);
+                        }
+                        None => {
+                            tracing::warn!("Failed to receive peer");
+                        }
+                    }
                 }
-                None => {
-                    tracing::warn!("Failed to receive peer");
+                _ = interval.tick() => {
+                    let metrics = handler.metrics().await;
+                    tracing::info!("Discovery metrics: {:?}", metrics);
+                    let peers = handler.peers().await;
+                    tracing::info!("Discovery peer count: {:?}", peers);
                 }
             }
         }

@@ -3,14 +3,12 @@
 use crate::errors::OracleProviderError;
 use alloc::string::ToString;
 use alloy_consensus::Header;
-use alloy_primitives::{Address, B256, U256, address, b256, keccak256};
+use alloy_eips::eip2935::HISTORY_STORAGE_ADDRESS;
+use alloy_primitives::{B256, U256, b256, keccak256};
 use alloy_rlp::Decodable;
 use alloy_trie::TrieAccount;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError, TrieProvider};
 use kona_preimage::errors::PreimageOracleError;
-
-/// The address of the EIP-2935 history storage contract.
-const HISTORY_STORAGE_ADDRESS: Address = address!("0000F90827F1C53a10cb7A02335B175320002935");
 
 /// The [`keccak256`] hash of the address of the EIP-2935 history storage contract.
 const HASHED_HISTORY_STORAGE_ADDRESS: B256 =

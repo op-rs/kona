@@ -4,9 +4,6 @@ use alloy_rlp::{Decodable, Encodable};
 use discv5::enr::{CombinedKey, Enr};
 use unsigned_varint::{decode, encode};
 
-/// The ENR key literal string for the consensus layer.
-pub const OP_CL_KEY: &str = "opstack";
-
 /// The unique L2 network identifier
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
@@ -18,6 +15,9 @@ pub struct OpStackEnr {
 }
 
 impl OpStackEnr {
+    /// The [`Enr`] key literal string for the consensus layer.
+    pub const OP_CL_KEY: &str = "opstack";
+
     /// Instantiates a new Op Stack Enr.
     pub fn new(chain_id: u64, version: u64) -> Self {
         Self { chain_id, version }
@@ -25,7 +25,7 @@ impl OpStackEnr {
 
     /// Returns `true` if a node [Enr] contains an `opstack` key and is on the same network.
     pub fn is_valid_node(node: &Enr<CombinedKey>, chain_id: u64) -> bool {
-        node.get_raw_rlp(OP_CL_KEY)
+        node.get_raw_rlp(Self::OP_CL_KEY)
             .map(|mut opstack| {
                 OpStackEnr::decode(&mut opstack)
                     .map(|opstack| opstack.chain_id == chain_id && opstack.version == 0)
@@ -83,7 +83,7 @@ mod tests {
         let op_stack_enr = OpStackEnr::new(10, 0);
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
-        enr.insert_raw_rlp(OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
+        enr.insert_raw_rlp(OpStackEnr::OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
         assert!(OpStackEnr::is_valid_node(&enr, 10));
         assert!(!OpStackEnr::is_valid_node(&enr, 11));
     }
@@ -95,7 +95,7 @@ mod tests {
         let op_stack_enr = OpStackEnr::new(10, 1);
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
-        enr.insert_raw_rlp(OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
+        enr.insert_raw_rlp(OpStackEnr::OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
         assert!(!OpStackEnr::is_valid_node(&enr, 10));
     }
 

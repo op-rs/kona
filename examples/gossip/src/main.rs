@@ -19,7 +19,7 @@
 
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::driver::NetworkDriver;
+use kona_p2p::NetworkDriver;
 use kona_registry::ROLLUP_CONFIGS;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tracing_subscriber::EnvFilter;
@@ -37,6 +37,9 @@ pub struct GossipCommand {
     /// Port to listen for gossip on.
     #[clap(long, short = 'l', default_value = "9099", help = "Port to listen for gossip on")]
     pub gossip_port: u16,
+    /// Port to listen for discovery on.
+    #[clap(long, short = 'd', default_value = "9098", help = "Port to listen for discovery on")]
+    pub disc_port: u16,
     /// Interval to send discovery packets.
     #[clap(long, short = 'i', default_value = "1", help = "Interval to send discovery packets")]
     pub interval: u64,
@@ -57,13 +60,17 @@ impl GossipCommand {
             .batcher_address;
         tracing::info!("Gossip configured with signer: {:?}", signer);
 
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.gossip_port);
-        tracing::info!("Starting gossip driver on {:?}", socket);
+        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.gossip_port);
+        tracing::info!("Starting gossip driver on {:?}", gossip);
+
+        let disc = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.disc_port);
+        tracing::info!("Starting disc driver on {:?}", disc);
 
         let mut driver = NetworkDriver::builder()
             .with_chain_id(self.l2_chain_id)
             .with_unsafe_block_signer(signer)
-            .with_gossip_addr(socket)
+            .with_gossip_addr(gossip)
+            .with_discovery_addr(disc)
             .with_interval(std::time::Duration::from_secs(self.interval))
             .build()?;
         let recv =
