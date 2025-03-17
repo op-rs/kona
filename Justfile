@@ -64,7 +64,7 @@ fmt-native-fix:
 
 # Check the formatting of the workspace
 fmt-native-check:
-  cargo +nightly fmt --all -- --check
+  RUSTFLAGS="-Clinker-plugin-lto -Clinker=clang -Clink-arg=-fuse-ld=lld" cargo +nightly fmt --all -- --check
 
 # Lint the workspace
 lint-native: fmt-native-check lint-docs
