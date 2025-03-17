@@ -1,6 +1,6 @@
 //! Networking Utilities ported from reth.
 //!
-//! Most of this module is ported from
+//! Much of this module is ported from
 //! <https://github.com/paradigmxyz/reth/blob/0e087ae1c35502f0b8d128c64e4c57269af20c0e/crates/net/peers/src/lib.rs>.
 //!
 //! This module manages and converts Ethereum network entities such as node records, peer IDs, and
@@ -25,7 +25,6 @@
 //! [`NodeRecord`], and [`discv5::Enr`]), we use the [`AnyNode`] type, which is an enum over the
 //! three types. [`AnyNode`] is used in reth's `admin_addTrustedPeer` RPC method.
 //!
-//!
 //! In short, the types are as follows:
 //! - [`PeerId`]: A simple public key identifier.
 //! - [`NodeRecord`]: A more complete representation of a peer, including IP address and ports.
@@ -35,15 +34,13 @@
 //! - [`AnyNode`]: An enum over [`PeerId`], [`NodeRecord`], and [`discv5::Enr`], useful in
 //!   deserialization when the type of the node record is not known.
 
-use alloy_primitives::B512;
-
 /// Alias for a peer identifier.
 ///
 /// This is the most primitive secp256k1 public key identifier for a given peer.
-pub type PeerId = B512;
+pub type PeerId = alloy_primitives::B512;
 
-mod bootnodes;
-pub use bootnodes::{BootNodes, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES};
+mod nodes;
+pub use nodes::{BootNodes, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES};
 
 mod enr;
 pub use enr::OpStackEnr;
@@ -56,3 +53,6 @@ pub use boot::BootNode;
 
 mod record;
 pub use record::{NodeRecord, NodeRecordParseError};
+
+mod utils;
+pub use utils::enr_to_multiaddr;

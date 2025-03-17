@@ -18,9 +18,9 @@ impl OpStackEnr {
     /// The [`Enr`] key literal string for the consensus layer.
     pub const OP_CL_KEY: &str = "opstack";
 
-    /// Instantiates a new [`OpStackEnr`].
-    pub fn new(chain_id: u64, version: u64) -> Self {
-        Self { chain_id, version }
+    /// Constructs an [`OpStackEnr`] from a chain id.
+    pub fn from_chain_id(chain_id: u64) -> Self {
+        Self { chain_id, version: 0 }
     }
 
     /// Returns `true` if a node [`Enr`] contains an `opstack` key and is on the same network.
@@ -66,7 +66,7 @@ mod tests {
     #[cfg(feature = "arbitrary")]
     fn roundtrip_op_stack_enr() {
         arbtest::arbtest(|u| {
-            let op_stack_enr = OpStackEnr::new(u.arbitrary()?, 0);
+            let op_stack_enr = OpStackEnr::from_chain_id(u.arbitrary()?);
             let bytes = alloy_rlp::encode(op_stack_enr).to_vec();
             let decoded = OpStackEnr::decode(&mut &bytes[..]).unwrap();
             assert_eq!(decoded, op_stack_enr);
@@ -78,7 +78,7 @@ mod tests {
     fn test_is_valid_node() {
         let key = CombinedKey::generate_secp256k1();
         let mut enr = Enr::builder().build(&key).unwrap();
-        let op_stack_enr = OpStackEnr::new(10, 0);
+        let op_stack_enr = OpStackEnr::from_chain_id(10);
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
         enr.insert_raw_rlp(OpStackEnr::OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
@@ -90,7 +90,8 @@ mod tests {
     fn test_is_valid_node_invalid_version() {
         let key = CombinedKey::generate_secp256k1();
         let mut enr = Enr::builder().build(&key).unwrap();
-        let op_stack_enr = OpStackEnr::new(10, 1);
+        let mut op_stack_enr = OpStackEnr::from_chain_id(10);
+        op_stack_enr.version = 1;
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
         enr.insert_raw_rlp(OpStackEnr::OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
@@ -99,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_op_mainnet_enr() {
-        let op_enr = OpStackEnr::new(10, 0);
+        let op_enr = OpStackEnr::from_chain_id(10);
         let bytes = alloy_rlp::encode(op_enr).to_vec();
         assert_eq!(Bytes::from(bytes.clone()), bytes!("820A00"));
         let decoded = OpStackEnr::decode(&mut &bytes[..]).unwrap();
@@ -108,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_base_mainnet_enr() {
-        let base_enr = OpStackEnr::new(8453, 0);
+        let base_enr = OpStackEnr::from_chain_id(8453);
         let bytes = alloy_rlp::encode(base_enr).to_vec();
         assert_eq!(Bytes::from(bytes.clone()), bytes!("83854200"));
         let decoded = OpStackEnr::decode(&mut &bytes[..]).unwrap();

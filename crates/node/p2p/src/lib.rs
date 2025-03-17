@@ -27,7 +27,7 @@ pub use gossip::{
 mod peers;
 pub use peers::{
     AnyNode, BootNode, BootNodes, NodeRecord, NodeRecordParseError, OP_RAW_BOOTNODES,
-    OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId,
+    OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId, enr_to_multiaddr,
 };
 
 mod discv5;

@@ -2,9 +2,9 @@
 
 use discv5::Enr;
 use futures::stream::StreamExt;
-use libp2p::{Multiaddr, Swarm, TransportError, multiaddr::Protocol, swarm::SwarmEvent};
+use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
 
-use crate::{Behaviour, BlockHandler, Event, Handler, OpStackEnr};
+use crate::{Behaviour, BlockHandler, Event, Handler, OpStackEnr, enr_to_multiaddr};
 
 /// A driver for a [`Swarm`] instance.
 ///
@@ -64,19 +64,11 @@ impl GossipDriver {
             debug!(target: "p2p::gossip::driver", "Ignoring peer without opstack CL key...");
             return;
         }
-        let addr = if let Some(socket) = enr.tcp4_socket() {
-            let mut addr = Multiaddr::from(*socket.ip());
-            addr.push(Protocol::Tcp(socket.port()));
-            addr
-        } else if let Some(socket) = enr.tcp6_socket() {
-            let mut addr = Multiaddr::from(*socket.ip());
-            addr.push(Protocol::Tcp(socket.port()));
-            addr
-        } else {
+        let Some(multiaddr) = enr_to_multiaddr(&enr) else {
             debug!(target: "p2p::gossip::driver", "Failed to extract tcp socket from enr: {:?}", enr);
             return;
         };
-        self.dial_multiaddr(addr);
+        self.dial_multiaddr(multiaddr);
     }
 
     /// Dials the given [`Multiaddr`].

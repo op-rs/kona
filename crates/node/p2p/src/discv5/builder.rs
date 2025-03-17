@@ -72,7 +72,7 @@ impl Discv5Builder {
     /// Builds a [`Discv5Driver`].
     pub fn build(&mut self) -> Result<Discv5Driver, Discv5BuilderError> {
         let chain_id = self.chain_id.ok_or(Discv5BuilderError::ChainIdNotSet)?;
-        let opstack = OpStackEnr::new(chain_id, 0);
+        let opstack = OpStackEnr::from_chain_id(chain_id);
         let mut opstack_data = Vec::new();
         use alloy_rlp::Encodable;
         opstack.encode(&mut opstack_data);

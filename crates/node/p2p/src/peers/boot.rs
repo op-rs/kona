@@ -1,6 +1,6 @@
 //! Contains the [`BootNode`] type which is used to represent a boot node in the network.
 
-use crate::NodeRecord;
+use crate::{NodeRecord, enr_to_multiaddr};
 use derive_more::{Display, From};
 use discv5::{
     Enr,
@@ -26,7 +26,7 @@ impl BootNode {
     pub fn from_unsigned(
         node_record: NodeRecord,
     ) -> Result<Self, discv5::libp2p_identity::ParseError> {
-        let NodeRecord { address, udp_port, id, .. } = node_record;
+        let NodeRecord { address, udp_port, id, tcp_port } = node_record;
         let mut multi_address = Multiaddr::empty();
         match address {
             IpAddr::V4(ip) => multi_address.push(Protocol::Ip4(ip)),
@@ -34,10 +34,19 @@ impl BootNode {
         }
 
         multi_address.push(Protocol::Udp(udp_port));
+        multi_address.push(Protocol::Tcp(tcp_port));
         let slice_peer_id = [&[0x12, 0x40], id.as_slice()].concat();
         multi_address.push(Protocol::P2p(PeerId::from_bytes(&slice_peer_id)?));
 
         Ok(Self::Enode(multi_address))
+    }
+
+    /// Converts a [`BootNode`] into a [`Multiaddr`].
+    pub fn to_multiaddr(&self) -> Option<Multiaddr> {
+        match self {
+            Self::Enode(addr) => Some(addr.clone()),
+            Self::Enr(enr) => enr_to_multiaddr(enr),
+        }
     }
 }
 
