@@ -51,6 +51,10 @@ action-tests test_name='Test_ProgramAction' *args='':
 clean-actions:
   rm -rf monorepo/
 
+# Runs benchmarks
+benches:
+  cargo bench --no-run --workspace --features test-utils --exclude example-gossip --exclude example-discovery
+
 # Lint the workspace for all available targets
 lint-all: lint-native lint-cannon lint-asterisc lint-docs
 

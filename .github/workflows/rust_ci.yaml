@@ -78,7 +78,7 @@ jobs:
         with:
           cache-on-failure: true
       - name: build benches
-        run: cargo bench --no-run --workspace --all --features test-utils
+        run: just benches
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
