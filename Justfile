@@ -16,7 +16,7 @@ tests: test test-docs
 
 # Test for the native target with all features. By default, excludes online tests.
 test *args="-E '!test(test_online)'":
-  cargo nextest run --workspace --all --all-features {{args}}
+  cargo nextest run --workspace --all-features {{args}}
 
 # Run all online tests
 test-online:
@@ -51,6 +51,10 @@ action-tests test_name='Test_ProgramAction' *args='':
 clean-actions:
   rm -rf monorepo/
 
+# Runs benchmarks
+benches:
+  cargo bench --no-run --workspace --features test-utils --exclude example-gossip --exclude example-discovery
+
 # Lint the workspace for all available targets
 lint-all: lint-native lint-cannon lint-asterisc lint-docs
 
@@ -68,7 +72,7 @@ fmt-native-check:
 
 # Lint the workspace
 lint-native: fmt-native-check lint-docs
-  cargo clippy --workspace --all --all-features --all-targets -- -D warnings
+  cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 # Lint the workspace (mips arch). Currently, only the `kona-std-fpvm` crate is linted for the `cannon` target, as it is the only crate with architecture-specific code.
 lint-cannon:
@@ -88,11 +92,11 @@ lint-asterisc:
 
 # Lint the Rust documentation
 lint-docs:
-  RUSTDOCFLAGS="-D warnings" cargo doc --all --no-deps --document-private-items
+  RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --document-private-items
 
 # Test the Rust documentation
 test-docs:
-  cargo test --doc --all --locked
+  cargo test --doc --workspace --locked
 
 # Build for the native target
 build-native *args='':
