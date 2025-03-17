@@ -1,10 +1,9 @@
 //! An [EngineState] builder.
 
+use crate::{EngineClient, EngineState, SyncStatus};
 use alloy_eips::eip1898::BlockNumberOrTag;
 use anyhow::{Result, bail};
 use kona_protocol::L2BlockInfo;
-
-use crate::{EngineClient, EngineState};
 
 /// A builder for the [EngineState].
 ///
@@ -13,9 +12,11 @@ use crate::{EngineClient, EngineState};
 /// [EngineState] by fetching the remaining block info via the
 /// client.
 #[derive(Debug, Clone)]
-pub struct StateBuilder {
+pub struct EngineStateBuilder {
     /// The engine client.
     client: EngineClient,
+    /// The sync status of the engine.
+    sync_status: Option<SyncStatus>,
     /// Most recent block found on the p2p network
     unsafe_head: Option<L2BlockInfo>,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
@@ -34,11 +35,12 @@ pub struct StateBuilder {
     finalized_head: Option<L2BlockInfo>,
 }
 
-impl StateBuilder {
-    /// Constructs a new [StateBuilder] from the provided client.
+impl EngineStateBuilder {
+    /// Constructs a new [EngineStateBuilder] from the provided client.
     pub const fn new(client: EngineClient) -> Self {
         Self {
             client,
+            sync_status: None,
             unsafe_head: None,
             cross_unsafe_head: None,
             pending_safe_head: None,
@@ -52,16 +54,7 @@ impl StateBuilder {
     async fn fetch_unsafe_head(&mut self) -> Result<&mut Self> {
         if self.unsafe_head.is_none() {
             self.unsafe_head =
-                Some(self.client.l2_block_info_by_label(BlockNumberOrTag::Pending).await?);
-        }
-        Ok(self)
-    }
-
-    /// Fetches the finalized head block info if it is not already set.
-    async fn fetch_finalized_head(&mut self) -> Result<&mut Self> {
-        if self.finalized_head.is_none() {
-            self.finalized_head =
-                Some(self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await?);
+                self.client.l2_block_info_by_label(BlockNumberOrTag::Pending).await?;
         }
         Ok(self)
     }
@@ -70,7 +63,7 @@ impl StateBuilder {
     async fn fetch_safe_head(&mut self) -> Result<&mut Self> {
         if self.safe_head.is_none() {
             let safe_head = match self.client.l2_block_info_by_label(BlockNumberOrTag::Safe).await {
-                Ok(safe_head) => Some(safe_head),
+                Ok(safe_head) => safe_head,
                 // TODO: only set this if the block is not found
                 // SEE: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L293
                 Err(_) => self.finalized_head,
@@ -78,6 +71,21 @@ impl StateBuilder {
             self.safe_head = safe_head;
         }
         Ok(self)
+    }
+
+    /// Fetches the finalized head block info if it is not already set.
+    async fn fetch_finalized_head(&mut self) -> Result<&mut Self> {
+        if self.finalized_head.is_none() {
+            self.finalized_head =
+                self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await?;
+        }
+        Ok(self)
+    }
+
+    /// Append the sync status to the [EngineStateBuilder].
+    pub fn with_sync_status(&mut self, sync_status: SyncStatus) -> &mut Self {
+        self.sync_status = Some(sync_status);
+        self
     }
 
     /// Builds the [EngineState], fetching missing block info if necessary.
@@ -124,6 +132,7 @@ impl StateBuilder {
         };
 
         Ok(EngineState {
+            sync_status: builder.sync_status.unwrap_or_default(),
             unsafe_head,
             cross_unsafe_head,
             pending_safe_head,

@@ -1,9 +1,8 @@
 //! The internal state of the engine controller.
 
+use crate::SyncStatus;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
-
-use crate::{EngineClient, StateBuilder};
 
 /// The chain state viewed by the engine controller.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -29,6 +28,9 @@ pub struct EngineState {
     /// This is changing in the Holocene fork.
     pub(crate) backup_unsafe_head: Option<L2BlockInfo>,
 
+    /// The [SyncStatus] of the engine.
+    pub sync_status: SyncStatus,
+
     /// If a forkchoice update call is needed.
     pub forkchoice_update_needed: bool,
 
@@ -41,11 +43,6 @@ pub struct EngineState {
 }
 
 impl EngineState {
-    /// Returns the [StateBuilder] that should be used to construct the [EngineState].
-    pub const fn builder(client: EngineClient) -> StateBuilder {
-        StateBuilder::new(client)
-    }
-
     /// Creates a `ForkchoiceState`
     ///
     /// - `head_block` = `unsafe_head`
