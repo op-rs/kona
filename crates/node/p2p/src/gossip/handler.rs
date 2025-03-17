@@ -143,8 +143,8 @@ impl BlockHandler {
 mod tests {
     use super::*;
     use alloy_primitives::{Address, B256, Bloom, Bytes, PrimitiveSignature, U256};
-    use alloy_rpc_types_engine::{ExecutionPayload, ExecutionPayloadV1};
-    use op_alloy_rpc_types_engine::PayloadHash;
+    use alloy_rpc_types_engine::ExecutionPayloadV1;
+    use op_alloy_rpc_types_engine::{OpExecutionPayload, PayloadHash};
 
     #[test]
     fn test_block_valid() {
@@ -167,7 +167,7 @@ mod tests {
             block_hash: B256::ZERO,
             transactions: vec![],
         };
-        let payload = ExecutionPayload::V1(v1);
+        let payload = OpExecutionPayload::V1(v1);
         let envelope = OpNetworkPayloadEnvelope {
             payload,
             signature: PrimitiveSignature::test_signature(),

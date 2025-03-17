@@ -167,7 +167,7 @@ impl BuildTask {
                 })?;
                 let response = engine
                     .new_payload_v4(
-                        payload.execution_payload.clone(),
+                        payload.execution_payload.payload_inner.clone(),
                         payload.parent_beacon_block_root,
                     )
                     .await
@@ -176,7 +176,7 @@ impl BuildTask {
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
-                (ExecutionPayload::V3(payload.execution_payload), response)
+                (ExecutionPayload::V3(payload.execution_payload.payload_inner), response)
             }
             EngineGetPayloadVersion::V3 => {
                 let payload = engine.get_payload_v3(payload_id).await.map_err(|e| {

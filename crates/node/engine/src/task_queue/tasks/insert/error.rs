@@ -6,6 +6,7 @@ use crate::EngineTaskError;
 use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
+use op_alloy_rpc_types_engine::OpPayloadError;
 
 /// An error that occurs when running the [InsertUnsafeTask].
 ///
@@ -15,6 +16,9 @@ pub enum InsertUnsafeTaskError {
     /// Could not fetch the finalized L2 block.
     #[error("Could not fetch the finalized L2 block")]
     FinalizedBlockFetch,
+    /// Error converting a payload into a block.
+    #[error(transparent)]
+    FromBlockError(#[from] OpPayloadError),
     /// Failed to insert new payload.
     #[error("Failed to insert new payload: {0}")]
     InsertFailed(RpcError<TransportErrorKind>),
@@ -36,6 +40,7 @@ impl From<InsertUnsafeTaskError> for EngineTaskError {
     fn from(value: InsertUnsafeTaskError) -> Self {
         match value {
             InsertUnsafeTaskError::FinalizedBlockFetch => Self::Temporary(Box::new(value)),
+            InsertUnsafeTaskError::FromBlockError(_) => Self::Critical(Box::new(value)),
             InsertUnsafeTaskError::InsertFailed(_) => Self::Temporary(Box::new(value)),
             InsertUnsafeTaskError::ForkchoiceUpdateFailed(_) => Self::Temporary(Box::new(value)),
             InsertUnsafeTaskError::UnexpectedPayloadStatus(_) => Self::Temporary(Box::new(value)),
