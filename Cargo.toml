@@ -68,6 +68,9 @@ panic = "abort"
 codegen-units = 1
 lto = "fat"
 
+[patch.crates-io]
+revm = { git = "https://github.com/refcell/revm", branch = "rf/deposit-tx-fix" }
+
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "0.1.1", default-features = false }
