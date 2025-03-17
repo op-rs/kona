@@ -64,11 +64,11 @@ hack:
 
 # Fixes the formatting of the workspace
 fmt-native-fix:
-  cargo +nightly fmt --workspace
+  cargo +nightly fmt --all
 
 # Check the formatting of the workspace
 fmt-native-check:
-  cargo +nightly fmt --workspace -- --check
+  cargo +nightly fmt --all -- --check
 
 # Lint the workspace
 lint-native: fmt-native-check lint-docs
