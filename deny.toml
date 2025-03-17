@@ -8,8 +8,6 @@ feature-depth = 1
 
 [advisories]
 ignore = [
-    # Can be removed once libp2p is updated to 1.55.*
-    "RUSTSEC-2024-0384",
     # paste crate is no longer maintained.
     "RUSTSEC-2024-0436",
 ]
