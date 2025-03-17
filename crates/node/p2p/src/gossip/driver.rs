@@ -94,11 +94,11 @@ impl GossipDriver {
                 message_id: id,
                 message,
             } => {
-                info!("Received message with topic: {}", message.topic);
+                trace!(target: "p2p::gossip::driver", "Received message with topic: {}", message.topic);
                 if self.handler.topics().contains(&message.topic) {
-                    debug!("Handling message with topic: {}", message.topic);
+                    debug!(target: "p2p::gossip::driver", "Handling message with topic: {}", message.topic);
                     let status = self.handler.handle(message);
-                    debug!("Reporting message validation result: {:?}", status);
+                    debug!(target: "p2p::gossip::driver", "Reporting message validation result: {:?}", status);
                     _ = self
                         .swarm
                         .behaviour_mut()
@@ -106,22 +106,22 @@ impl GossipDriver {
                         .report_message_validation_result(&id, &src, status);
                 }
             }
-            _ => warn!(target: "p2p::gossip", "Ignoring non-message gossipsub event: {:?}", event),
+            _ => {
+                warn!(target: "p2p::gossip::driver", "Ignoring non-message gossipsub event: {:?}", event)
+            }
         }
     }
 
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
         let SwarmEvent::Behaviour(event) = event else {
-            warn!(target: "p2p::gossip", "Ignoring non-behaviour in event handler: {:?}", event);
+            warn!(target: "p2p::gossip::driver", "Ignoring non-behaviour in event handler: {:?}", event);
             return;
         };
 
         match event {
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
-                info!("Ping from peer: {:?} | Result: {:?}", peer, result);
-                // Send a pong back to the peer.
-                // _ = self.swarm.behaviour_mut().ping.pong(peer);
+                trace!(target: "p2p::gossip::driver", "Ping from peer: {:?} | Result: {:?}", peer, result);
             }
             Event::Gossipsub(e) => self.handle_gossipsub_event(e),
         }
