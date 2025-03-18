@@ -6,24 +6,7 @@ use discv5::{
 };
 use std::net::SocketAddr;
 
-use crate::{Discv5Driver, OpStackEnr};
-
-/// An error that can occur when building the discovery service.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum Discv5BuilderError {
-    /// The chain ID is not set.
-    #[error("chain ID not set")]
-    ChainIdNotSet,
-    /// The listen config is not set.
-    #[error("listen config not set")]
-    ListenConfigNotSet,
-    /// Could not create the discovery service.
-    #[error("could not create discovery service")]
-    Discv5CreationFailed,
-    /// Failed to build the ENR.
-    #[error("failed to build ENR")]
-    EnrBuildFailed,
-}
+use crate::{Discv5BuilderError, Discv5Driver, OpStackEnr};
 
 /// Discovery service builder.
 #[derive(Debug, Default, Clone)]
@@ -40,9 +23,9 @@ pub struct Discv5Builder {
 }
 
 impl Discv5Builder {
-    /// Creates a new discovery builder.
-    pub fn new() -> Self {
-        Self::default()
+    /// Creates a new [`Discv5Builder`] instance.
+    pub const fn new() -> Self {
+        Self { address: None, chain_id: None, listen_config: None, discovery_config: None }
     }
 
     /// Sets the discovery service address.

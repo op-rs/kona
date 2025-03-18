@@ -1,35 +1,37 @@
 //! Driver for network services.
 
-use std::sync::mpsc::Receiver;
-
 use alloy_primitives::Address;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use tokio::{select, sync::watch};
+use tokio::{
+    select,
+    sync::{mpsc::Receiver, watch::Sender},
+};
 
-use crate::{Discv5Driver, GossipDriver, NetworkDriverBuilder};
+use crate::{Discv5Driver, GossipDriver, NetworkBuilder};
 
-/// NetworkDriver
+/// Network
 ///
 /// Contains the logic to run Optimism's consensus-layer networking stack.
 /// There are two core services that are run by the driver:
 /// - Block gossip through Gossipsub.
 /// - Peer discovery with `discv5`.
-pub struct NetworkDriver {
+#[derive(Debug)]
+pub struct Network {
     /// Channel to receive unsafe blocks.
     pub(crate) unsafe_block_recv: Option<Receiver<OpNetworkPayloadEnvelope>>,
     /// Channel to send unsafe signer updates.
-    pub(crate) unsafe_block_signer_sender: Option<watch::Sender<Address>>,
+    pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
     pub discovery: Discv5Driver,
 }
 
-impl NetworkDriver {
-    /// Returns a new [NetworkDriverBuilder].
-    pub fn builder() -> NetworkDriverBuilder {
-        NetworkDriverBuilder::new()
+impl Network {
+    /// Returns the [`NetworkBuilder`] that can be used to construct the [`Network`].
+    pub const fn builder() -> NetworkBuilder {
+        NetworkBuilder::new()
     }
 
     /// Take the unsafe block receiver.
@@ -38,7 +40,7 @@ impl NetworkDriver {
     }
 
     /// Take the unsafe block signer sender.
-    pub fn take_unsafe_block_signer_sender(&mut self) -> Option<watch::Sender<Address>> {
+    pub fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
         self.unsafe_block_signer_sender.take()
     }
 

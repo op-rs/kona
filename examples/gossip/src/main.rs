@@ -19,8 +19,9 @@
 
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::NetworkDriver;
+use kona_p2p::Network;
 use kona_registry::ROLLUP_CONFIGS;
+use libp2p::Multiaddr;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tracing_subscriber::EnvFilter;
 
@@ -63,27 +64,27 @@ impl GossipCommand {
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.gossip_port);
         tracing::info!("Starting gossip driver on {:?}", gossip);
 
-        let disc = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.disc_port);
-        tracing::info!("Starting disc driver on {:?}", disc);
-
-        let mut driver = NetworkDriver::builder()
+        let mut gossip_addr = Multiaddr::from(gossip.ip());
+        gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
+        let disc_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.disc_port);
+        let mut network = Network::builder()
+            .with_discovery_address(disc_addr)
             .with_chain_id(self.l2_chain_id)
+            .with_gossip_address(gossip_addr)
             .with_unsafe_block_signer(signer)
-            .with_gossip_addr(gossip)
-            .with_discovery_addr(disc)
-            .with_interval(std::time::Duration::from_secs(self.interval))
             .build()?;
-        let recv =
-            driver.take_unsafe_block_recv().ok_or(anyhow::anyhow!("No unsafe block receiver"))?;
-        driver.start()?;
+
+        let mut recv =
+            network.take_unsafe_block_recv().ok_or(anyhow::anyhow!("No unsafe block receiver"))?;
+        network.start()?;
         tracing::info!("Gossip driver started, receiving blocks.");
         loop {
-            match recv.recv() {
-                Ok(block) => {
+            match recv.recv().await {
+                Some(block) => {
                     tracing::info!("Received unsafe block: {:?}", block);
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to receive unsafe block: {:?}", e);
+                None => {
+                    tracing::warn!("Failed to receive unsafe block");
                 }
             }
         }

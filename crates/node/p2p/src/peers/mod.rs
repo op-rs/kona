@@ -42,6 +42,9 @@ pub type PeerId = alloy_primitives::B512;
 mod nodes;
 pub use nodes::{BootNodes, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES};
 
+mod store;
+pub use store::BootStore;
+
 mod enr;
 pub use enr::OpStackEnr;
 

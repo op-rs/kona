@@ -10,23 +10,21 @@
 #[macro_use]
 extern crate tracing;
 
-mod builder;
-pub use builder::{NetworkDriverBuilder, NetworkDriverBuilderError};
-
-mod driver;
-pub use driver::NetworkDriver;
+mod net;
+pub use net::{Network, NetworkBuilder, NetworkBuilderError};
 
 mod gossip;
 pub use gossip::{
     Behaviour, BehaviourError, BlockHandler, DEFAULT_MESH_D, DEFAULT_MESH_DHI, DEFAULT_MESH_DLAZY,
-    DEFAULT_MESH_DLO, Event, GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GossipDriver, Handler,
-    MAX_GOSSIP_SIZE, MAX_OUTBOUND_QUEUE, MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE,
-    PEER_SCORE_INSPECT_FREQUENCY, SEEN_MESSAGES_TTL, default_config, default_config_builder,
+    DEFAULT_MESH_DLO, Event, GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GossipDriver,
+    GossipDriverBuilder, GossipDriverBuilderError, Handler, MAX_GOSSIP_SIZE, MAX_OUTBOUND_QUEUE,
+    MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE, PEER_SCORE_INSPECT_FREQUENCY, SEEN_MESSAGES_TTL,
+    default_config, default_config_builder,
 };
 
 mod peers;
 pub use peers::{
-    AnyNode, BootNode, BootNodes, NodeRecord, NodeRecordParseError, OP_RAW_BOOTNODES,
+    AnyNode, BootNode, BootNodes, BootStore, NodeRecord, NodeRecordParseError, OP_RAW_BOOTNODES,
     OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId, enr_to_multiaddr,
 };
 
