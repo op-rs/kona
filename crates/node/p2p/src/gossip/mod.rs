@@ -11,6 +11,9 @@ pub use config::{
     default_config, default_config_builder,
 };
 
+mod builder;
+pub use builder::{GossipDriverBuilder, GossipDriverBuilderError};
+
 mod event;
 pub use event::Event;
 

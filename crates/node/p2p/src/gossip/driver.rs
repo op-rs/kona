@@ -3,8 +3,12 @@
 use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use tokio::sync::mpsc::Receiver;
 
-use crate::{Behaviour, BlockHandler, Event, Handler, OpStackEnr, enr_to_multiaddr};
+use crate::{
+    Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, enr_to_multiaddr,
+};
 
 /// A driver for a [`Swarm`] instance.
 ///
@@ -17,18 +21,50 @@ pub struct GossipDriver {
     pub addr: Multiaddr,
     /// The [`BlockHandler`].
     pub handler: BlockHandler,
+    /// A receiver for unsafe payloads.
+    /// This is expected to be consumed and listened to by the consumer.
+    pub payload_receiver: Option<Receiver<OpNetworkPayloadEnvelope>>,
+}
+
+impl std::fmt::Debug for GossipDriver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GossipDriver")
+            .field("swarm", &"Swarm")
+            .field("addr", &self.addr)
+            .field("handler", &self.handler)
+            .finish()
+    }
 }
 
 impl GossipDriver {
+    /// Returns the [`GossipDriverBuilder`] that can be used to construct the [`GossipDriver`].
+    pub const fn builder() -> GossipDriverBuilder {
+        GossipDriverBuilder::new()
+    }
+
     /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
-        Self { swarm, addr, handler }
+        Self { swarm, addr, handler, payload_receiver: None }
+    }
+
+    /// Sets the payload receiver on the [`GossipDriver`].
+    pub fn set_payload_receiver(
+        &mut self,
+        unsafe_payload_recv: Receiver<OpNetworkPayloadEnvelope>,
+    ) -> &mut Self {
+        self.payload_receiver = Some(unsafe_payload_recv);
+        self
+    }
+
+    /// Takes the [`Receiver`] for [`OpNetworkPayloadEnvelope`].
+    pub fn take_payload_recv(&mut self) -> Option<Receiver<OpNetworkPayloadEnvelope>> {
+        self.payload_receiver.take()
     }
 
     /// Listens on the address.
     pub fn listen(&mut self) -> Result<(), TransportError<std::io::Error>> {
         self.swarm.listen_on(self.addr.clone())?;
-        info!("Swarm listening on: {:?}", self.addr);
+        info!(target: "p2p::gossip::driver", "Swarm listening on: {:?}", self.addr);
         Ok(())
     }
 

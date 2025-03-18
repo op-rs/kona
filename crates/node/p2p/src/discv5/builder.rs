@@ -1,5 +1,6 @@
 //! Contains a builder for the discovery service.
 
+use derive_more::From;
 use discv5::{
     Config, ConfigBuilder, Discv5, ListenConfig,
     enr::{CombinedKey, Enr},
@@ -9,7 +10,7 @@ use std::net::SocketAddr;
 use crate::{Discv5Driver, OpStackEnr};
 
 /// An error that can occur when building the discovery service.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, Copy, PartialEq, From, Eq, thiserror::Error)]
 pub enum Discv5BuilderError {
     /// The chain ID is not set.
     #[error("chain ID not set")]
@@ -40,9 +41,9 @@ pub struct Discv5Builder {
 }
 
 impl Discv5Builder {
-    /// Creates a new discovery builder.
-    pub fn new() -> Self {
-        Self::default()
+    /// Creates a new [`Discv5Builder`] instance.
+    pub const fn new() -> Self {
+        Self { address: None, chain_id: None, listen_config: None, discovery_config: None }
     }
 
     /// Sets the discovery service address.

@@ -7,7 +7,7 @@ use alloy_rpc_types_engine::JwtSecret;
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
 use kona_providers_alloy::OnlineBeaconClient;
-use libp2p_identity::Keypair;
+use libp2p::identity::Keypair;
 use std::{net::SocketAddr, sync::Arc};
 use url::Url;
 
@@ -29,9 +29,9 @@ pub struct RollupNodeBuilder {
     /// The JWT secret.
     _jwt_secret: Option<JwtSecret>,
     /// The gossip address.
-    gossip_addr: Option<SocketAddr>,
+    gossip_address: Option<SocketAddr>,
     /// The discovery address.
-    discovery_addr: Option<SocketAddr>,
+    discovery_address: Option<SocketAddr>,
     /// If p2p networking is entirely disabled.
     network_disabled: bool,
     /// The keypair.
@@ -75,13 +75,13 @@ impl RollupNodeBuilder {
     }
 
     /// Appends the gossip address to the builder.
-    pub fn with_gossip_addr(self, gossip_addr: SocketAddr) -> Self {
-        Self { gossip_addr: Some(gossip_addr), ..self }
+    pub fn with_gossip_address(self, gossip_addr: SocketAddr) -> Self {
+        Self { gossip_address: Some(gossip_addr), ..self }
     }
 
     /// Appends the discovery address to the builder.
-    pub fn with_disc_addr(self, discovery_addr: SocketAddr) -> Self {
-        Self { discovery_addr: Some(discovery_addr), ..self }
+    pub fn with_discovery_address(self, discovery_addr: SocketAddr) -> Self {
+        Self { discovery_address: Some(discovery_addr), ..self }
     }
 
     /// Appends whether p2p networking is entirely disabled to the builder.
@@ -120,8 +120,8 @@ impl RollupNodeBuilder {
             _l2_engine: (),
             network_disabled: self.network_disabled,
             keypair: self.keypair,
-            discovery_addr: self.discovery_addr,
-            gossip_addr: self.gossip_addr,
+            discovery_address: self.discovery_address,
+            gossip_address: self.gossip_address,
         }
     }
 }

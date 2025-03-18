@@ -4,7 +4,7 @@ use crate::{DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, service
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
-use kona_p2p::NetworkDriver;
+use kona_p2p::Network;
 use kona_protocol::BlockInfo;
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
@@ -47,17 +47,17 @@ use tokio_util::sync::CancellationToken;
 /// - `Error`: The type of error for the service's entrypoint.
 #[async_trait]
 pub trait ValidatorNodeService {
-    /// The type of [NodeActor] to use for the DA watcher service.
+    /// The type of [`NodeActor`] to use for the DA watcher service.
     type DataAvailabilityWatcher: NodeActor<Error: Display> + Send + Sync + 'static;
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
     type Error;
 
-    /// Returns a reference to the rollup node's [RollupConfig].
+    /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;
 
-    /// Creates a new [NodeActor] instance that watches the data availability layer. The
+    /// Creates a new [`NodeActor`] instance that watches the data availability layer. The
     /// `new_data_tx` channel is used to send updates on the data availability layer to the
     /// derivation pipeline. The `cancellation` token is used to gracefully shut down the actor.
     fn new_da_watcher(
@@ -66,14 +66,14 @@ pub trait ValidatorNodeService {
         cancellation: CancellationToken,
     ) -> Self::DataAvailabilityWatcher;
 
-    /// Creates a new instance of the [Pipeline] and initializes it. Returns the starting L2
+    /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
     /// forkchoice state and the initialized derivation pipeline.
     async fn init_derivation(
         &self,
     ) -> Result<(L2ForkchoiceState, Self::DerivationPipeline), Self::Error>;
 
-    /// Creates a new instance of the [NetworkDriver].
-    async fn init_network(&self) -> Result<Option<NetworkDriver>, Self::Error>;
+    /// Creates a new instance of the [`Network`].
+    async fn init_network(&self) -> Result<Option<Network>, Self::Error>;
 
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), Self::Error> {

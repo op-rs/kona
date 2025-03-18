@@ -9,13 +9,13 @@ use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{errors::PipelineErrorKind, traits::ChainProvider};
 use kona_genesis::RollupConfig;
-use kona_p2p::{NetworkDriver, NetworkDriverBuilderError};
+use kona_p2p::{Discv5BuilderError, GossipDriverBuilderError, Network, NetworkBuilderError};
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
     OnlineBlobProvider, OnlinePipeline,
 };
-use libp2p_identity::Keypair;
+use libp2p::identity::Keypair;
 use op_alloy_network::Optimism;
 use std::{net::SocketAddr, sync::Arc};
 use thiserror::Error;
@@ -52,9 +52,9 @@ pub struct RollupNode {
     /// The keypair for the network driver.
     pub(crate) keypair: Option<Keypair>,
     /// The discovery socket address.
-    pub(crate) discovery_addr: Option<SocketAddr>,
+    pub(crate) discovery_address: Option<SocketAddr>,
     /// The gossip socket address.
-    pub(crate) gossip_addr: Option<SocketAddr>,
+    pub(crate) gossip_address: Option<SocketAddr>,
 }
 
 impl RollupNode {
@@ -89,29 +89,37 @@ impl ValidatorNodeService for RollupNode {
         L1WatcherRpc::new(self.l1_provider.clone(), new_da_tx, cancellation)
     }
 
-    async fn init_network(&self) -> Result<Option<NetworkDriver>, Self::Error> {
+    async fn init_network(&self) -> Result<Option<Network>, Self::Error> {
         if self.network_disabled {
             return Ok(None);
         }
-        let gossip_addr = self.gossip_addr.ok_or_else(|| {
-            RollupNodeError::NetworkDriver(NetworkDriverBuilderError::GossipAddrNotSet)
+        let gossip_addr = self.gossip_address.ok_or_else(|| {
+            RollupNodeError::Network(NetworkBuilderError::GossipDriverBuilder(
+                GossipDriverBuilderError::GossipAddrNotSet,
+            ))
         })?;
-        let discovery_addr = self.discovery_addr.ok_or_else(|| {
-            RollupNodeError::NetworkDriver(NetworkDriverBuilderError::DiscoveryAddrNotSet)
+        let disc_addr = self.discovery_address.ok_or_else(|| {
+            RollupNodeError::Network(NetworkBuilderError::DiscoveryDriverBuilder(
+                Discv5BuilderError::ListenConfigNotSet,
+            ))
         })?;
-        let keypair = self.keypair.clone().ok_or_else(|| {
-            RollupNodeError::NetworkDriver(NetworkDriverBuilderError::KeypairNotSet)
-        })?;
-        Ok(NetworkDriver::builder()
-            // TODO: grab the unsafe block signer from the config.
-            // Only in chain config and not rollup config...
-            .with_unsafe_block_signer(Default::default())
-            .with_chain_id(self.config.l2_chain_id)
-            .with_gossip_addr(gossip_addr)
-            .with_discovery_addr(discovery_addr)
+        let keypair = self.keypair.clone().unwrap_or_else(Keypair::generate_secp256k1);
+
+        // TODO: grab the unsafe block signer from the config.
+        // Only in chain config and not rollup config...
+        let signer = alloy_primitives::Address::default();
+        let chain_id = self.config.l2_chain_id;
+        let mut multiaddr = libp2p::Multiaddr::from(gossip_addr.ip());
+        multiaddr.push(libp2p::multiaddr::Protocol::Tcp(gossip_addr.port()));
+        Network::builder()
+            .with_discovery_address(disc_addr)
+            .with_chain_id(chain_id)
+            .with_gossip_address(multiaddr)
+            .with_unsafe_block_signer(signer)
             .with_keypair(keypair)
             .build()
-            .map(Some)?)
+            .map(Some)
+            .map_err(RollupNodeError::Network)
     }
 
     async fn init_derivation(&self) -> Result<(L2ForkchoiceState, OnlinePipeline), Self::Error> {
@@ -181,7 +189,7 @@ pub enum RollupNodeError {
     /// An error occurred while initializing the derivation pipeline.
     #[error(transparent)]
     AlloyChainProvider(#[from] AlloyChainProviderError),
-    /// An error occured while initializing the network driver.
+    /// An error occured while initializing the network.
     #[error(transparent)]
-    NetworkDriver(#[from] NetworkDriverBuilderError),
+    Network(#[from] NetworkBuilderError),
 }

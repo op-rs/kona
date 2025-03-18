@@ -59,6 +59,16 @@ pub struct Discv5Driver {
     pub interval: Duration,
 }
 
+impl std::fmt::Debug for Discv5Driver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Discv5Driver")
+            .field("disc", &"Discv5")
+            .field("chain_id", &self.chain_id)
+            .field("interval", &self.interval)
+            .finish()
+    }
+}
+
 impl Discv5Driver {
     /// Returns a new [`Discv5Builder`] instance.
     pub fn builder() -> Discv5Builder {
