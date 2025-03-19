@@ -37,7 +37,6 @@ impl FromStr for SafetyLevel {
     }
 }
 
-
 /// Error when parsing SafetyLevel from string.
 #[derive(Error, Debug)]
 #[error("Invalid SafetyLevel, error: {0}")]
