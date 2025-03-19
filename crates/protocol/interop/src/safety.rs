@@ -28,8 +28,8 @@ impl FromStr for SafetyLevel {
         match s.to_lowercase().as_str() {
             "finalized" => Ok(Self::Finalized),
             "safe" => Ok(Self::Safe),
-            "local_safe" | "localsafe" => Ok(Self::LocalSafe),
-            "cross_unsafe" | "crossunsafe" => Ok(Self::CrossUnsafe),
+            "local-safe" | "localsafe" => Ok(Self::LocalSafe),
+            "cross-unsafe" | "crossunsafe" => Ok(Self::CrossUnsafe),
             "unsafe" => Ok(Self::Unsafe),
             "invalid" => Ok(Self::Invalid),
             _ => Err(SafetyLevelParseError),
@@ -37,9 +37,10 @@ impl FromStr for SafetyLevel {
     }
 }
 
+
 /// Error when parsing SafetyLevel from string.
 #[derive(Error, Debug)]
-#[error("Invalid SafetyLevel")]
+#[error("Invalid SafetyLevel, error: {0}")]
 pub struct SafetyLevelParseError;
 
 #[cfg(test)]
