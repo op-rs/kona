@@ -1,5 +1,7 @@
 //! Message safety level for interoperability.
 use derive_more::Display;
+use core::str::FromStr;
+use std::fmt;
 /// The safety level of a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -18,6 +20,34 @@ pub enum SafetyLevel {
     /// The message is invalid.
     Invalid,
 }
+
+impl FromStr for SafetyLevel {
+    type Err = SafetyLevelParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "finalized" => Ok(Self::Finalized),
+            "safe" => Ok(Self::Safe),
+            "local_safe" | "localsafe" => Ok(Self::LocalSafe),
+            "cross_unsafe" | "crossunsafe" => Ok(Self::CrossUnsafe),
+            "unsafe" => Ok(Self::Unsafe),
+            "invalid" => Ok(Self::Invalid),
+            _ => Err(SafetyLevelParseError),
+        }
+    }
+}
+
+/// Error when parsing SafetyLevel from string.
+#[derive(Debug)]
+pub struct SafetyLevelParseError;
+
+impl fmt::Display for SafetyLevelParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Invalid SafetyLevel")
+    }
+}
+
+impl std::error::Error for SafetyLevelParseError {}
 
 #[cfg(test)]
 #[cfg(feature = "serde")]
