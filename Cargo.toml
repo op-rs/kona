@@ -89,7 +89,6 @@ kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features
 kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
 
 # Providers
-kona-providers-local = { path = "crates/providers/providers-local", version = "0.1.0", default-features = false }
 kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.1.0", default-features = false }
 
 # Proof
@@ -134,10 +133,6 @@ op-alloy-consensus = { version = "0.11.1", default-features = false }
 op-alloy-rpc-types = { version = "0.11.1", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.11.1", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.11.1", default-features = false }
-
-# Reth
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 
 # General
 url = "2.5.4"

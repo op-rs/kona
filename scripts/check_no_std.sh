@@ -21,9 +21,6 @@ no_std_packages=(
   # node crates
   kona-rpc
 
-  # providers
-  # kona-providers-local
-
   # utilities
   kona-serde
 )
