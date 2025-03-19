@@ -206,4 +206,4 @@ unsigned-varint = "0.8.0"
 revm = { version = "19.6.0", default-features = false }
 
 # K/V database
-rocksdb = { version = "0.22.0", default-features = false }
+rocksdb = { version = "0.23.0", default-features = false }
