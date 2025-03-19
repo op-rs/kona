@@ -40,7 +40,7 @@ impl FromStr for SafetyLevel {
 /// Error when parsing SafetyLevel from string.
 #[derive(Error, Debug)]
 #[error("Invalid SafetyLevel, error: {0}")]
-pub struct SafetyLevelParseError(&'static str);
+pub struct SafetyLevelParseError(&str);
 
 #[cfg(test)]
 #[cfg(feature = "serde")]
