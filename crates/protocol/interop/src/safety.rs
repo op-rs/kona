@@ -2,6 +2,7 @@
 use core::str::FromStr;
 use derive_more::Display;
 use thiserror::Error;
+use crate::alloc::string::ToString;
 /// The safety level of a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
