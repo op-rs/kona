@@ -32,7 +32,7 @@ impl FromStr for SafetyLevel {
             "cross-unsafe" | "crossunsafe" => Ok(Self::CrossUnsafe),
             "unsafe" => Ok(Self::Unsafe),
             "invalid" => Ok(Self::Invalid),
-            _ => Err(SafetyLevelParseError),
+            _ => Err(SafetyLevelParseError(s.to_string())),
         }
     }
 }
@@ -40,8 +40,8 @@ impl FromStr for SafetyLevel {
 
 /// Error when parsing SafetyLevel from string.
 #[derive(Error, Debug)]
-#[error("Invalid SafetyLevel, error: {0}")]
-pub struct SafetyLevelParseError;
+#[error("Invalid SafetyLevel, error: '{0}'")]
+pub struct SafetyLevelParseError(&'static str);
 
 #[cfg(test)]
 #[cfg(feature = "serde")]

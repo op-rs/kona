@@ -15,9 +15,7 @@ mod traits;
 pub use traits::InteropProvider;
 
 mod safety;
-pub use safety::{
-    SafetyLevel, SafetyLevelParseError,
-};
+pub use safety::{SafetyLevel, SafetyLevelParseError};
 
 mod errors;
 pub use errors::{
