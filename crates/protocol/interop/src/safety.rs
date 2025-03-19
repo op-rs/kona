@@ -1,8 +1,8 @@
 //! Message safety level for interoperability.
+use alloc::string::{String, ToString};
 use core::str::FromStr;
 use derive_more::Display;
 use thiserror::Error;
-use crate::alloc::string::ToString;
 /// The safety level of a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -41,7 +41,7 @@ impl FromStr for SafetyLevel {
 /// Error when parsing SafetyLevel from string.
 #[derive(Error, Debug)]
 #[error("Invalid SafetyLevel, error: {0}")]
-pub struct SafetyLevelParseError(pub String);
+pub struct SafetyLevelParseError(pub ToString);
 
 #[cfg(test)]
 #[cfg(feature = "serde")]
