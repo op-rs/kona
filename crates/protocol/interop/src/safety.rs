@@ -80,8 +80,8 @@ fn test_safety_level_from_str_valid() {
 
 #[test]
 fn test_safety_level_from_str_invalid() {
-        assert!(SafetyLevel::from_str("unknown").is_err());
-        assert!(SafetyLevel::from_str("123").is_err());
-        assert!(SafetyLevel::from_str("").is_err());
-        assert!(SafetyLevel::from_str("safe ").is_err());
+    assert!(SafetyLevel::from_str("unknown").is_err());
+    assert!(SafetyLevel::from_str("123").is_err());
+    assert!(SafetyLevel::from_str("").is_err());
+    assert!(SafetyLevel::from_str("safe ").is_err());
 }
