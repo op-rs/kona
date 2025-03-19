@@ -15,4 +15,3 @@ data/
 
 # Exclude maili shadow crate Cargo.lock files
 **/**/**/maili/Cargo.lock
-.qodo

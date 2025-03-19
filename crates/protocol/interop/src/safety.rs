@@ -1,7 +1,7 @@
 //! Message safety level for interoperability.
-use derive_more::Display;
 use core::str::FromStr;
-use std::fmt;
+use derive_more::Display;
+use thiserror::Error;
 /// The safety level of a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -38,16 +38,9 @@ impl FromStr for SafetyLevel {
 }
 
 /// Error when parsing SafetyLevel from string.
-#[derive(Debug)]
+#[derive(Error, Debug)]
+#[error("Invalid SafetyLevel")]
 pub struct SafetyLevelParseError;
-
-impl fmt::Display for SafetyLevelParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Invalid SafetyLevel")
-    }
-}
-
-impl std::error::Error for SafetyLevelParseError {}
 
 #[cfg(test)]
 #[cfg(feature = "serde")]
