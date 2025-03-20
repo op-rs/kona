@@ -22,7 +22,7 @@ impl Isthmus {
     /// The Enable Isthmus Input Method 4Byte Signature.
     ///
     /// Derive this by running `cast sig "setIsthmus()"`.
-    pub const ENABLE_ISTHMUS_INPUT: [u8; 4] = hex!("8e98b106");
+    pub const ENABLE_ISTHMUS_INPUT: [u8; 4] = hex!("291b0383");
 
     /// EIP-2935 From Address
     pub const EIP2935_FROM: Address = address!("3462413Af4609098e1E27A490f554f260213D685");
@@ -72,7 +72,7 @@ impl Isthmus {
 
     /// Returns the source hash for the Isthmus Deposit Contract deployment.
     pub fn deposit_contract_source() -> B256 {
-        UpgradeDepositSource { intent: String::from("Isthmus: deposit contract deployment") }
+        UpgradeDepositSource { intent: String::from("Isthmus: EIP-2935 Contract Deployment") }
             .source_hash()
     }
 
