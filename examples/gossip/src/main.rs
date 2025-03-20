@@ -32,16 +32,16 @@ pub struct GossipCommand {
     #[arg(long, short, action = ArgAction::Count)]
     pub v: u8,
     /// The L2 chain ID to use.
-    #[clap(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
+    #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
     /// Port to listen for gossip on.
-    #[clap(long, short = 'l', default_value = "9099", help = "Port to listen for gossip on")]
+    #[arg(long, short = 'l', default_value = "9099", help = "Port to listen for gossip on")]
     pub gossip_port: u16,
     /// Port to listen for discovery on.
-    #[clap(long, short = 'd', default_value = "9098", help = "Port to listen for discovery on")]
+    #[arg(long, short = 'd', default_value = "9098", help = "Port to listen for discovery on")]
     pub disc_port: u16,
     /// Interval to send discovery packets.
-    #[clap(long, short = 'i', default_value = "1", help = "Interval to send discovery packets")]
+    #[arg(long, short = 'i', default_value = "1", help = "Interval to send discovery packets")]
     pub interval: u64,
 }
 
