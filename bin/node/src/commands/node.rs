@@ -24,27 +24,27 @@ use crate::flags::{GlobalArgs, P2PArgs};
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
-    #[clap(long, visible_alias = "l1", env = "L1_ETH_RPC")]
+    #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
     /// URL of the L1 beacon API.
-    #[clap(long, visible_alias = "l1.beacon", env = "L1_BEACON")]
+    #[arg(long, visible_alias = "l1.beacon", env = "L1_BEACON")]
     pub l1_beacon: Url,
     /// URL of the engine API endpoint of an L2 execution client.
-    #[clap(long, visible_alias = "l2", env = "L2_ENGINE_RPC")]
+    #[arg(long, visible_alias = "l2", env = "L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
     /// An L2 RPC Url.
-    #[clap(long, visible_alias = "l2.provider", env = "L2_ETH_RPC")]
+    #[arg(long, visible_alias = "l2.provider", env = "L2_ETH_RPC")]
     pub l2_provider_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    #[clap(long, visible_alias = "l2.jwt-secret", env = "L2_ENGINE_AUTH")]
+    #[arg(long, visible_alias = "l2.jwt-secret", env = "L2_ENGINE_AUTH")]
     pub l2_engine_jwt_secret: Option<PathBuf>,
     /// Path to a custom L2 rollup configuration file
     /// (overrides the default rollup configuration from the registry)
-    #[clap(long, visible_alias = "rollup-cfg")]
+    #[arg(long, visible_alias = "rollup-cfg")]
     pub l2_config_file: Option<PathBuf>,
     /// Engine kind.
-    #[clap(
+    #[arg(
         long,
         visible_alias = "l2.enginekind",
         default_value = "geth",
@@ -53,7 +53,7 @@ pub struct NodeCommand {
     )]
     pub l2_engine_kind: EngineKind,
     /// P2P CLI arguments.
-    #[clap(flatten)]
+    #[command(flatten)]
     pub p2p_flags: P2PArgs,
 }
 

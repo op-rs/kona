@@ -14,7 +14,7 @@ use std::{net::IpAddr, path::PathBuf};
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
 pub struct P2PArgs {
     /// Whether to disable the entire P2P stack.
-    #[clap(
+    #[arg(
         long = "p2p.disable",
         default_value = "false",
         env = "KONA_NODE_P2P_DISABLE",
@@ -22,7 +22,7 @@ pub struct P2PArgs {
     )]
     pub disabled: bool,
     /// Disable Discv5 (node discovery).
-    #[clap(
+    #[arg(
         long = "p2p.no-discovery",
         default_value = "false",
         env = "KONA_NODE_P2P_NO_DISCOVERY",
@@ -30,21 +30,21 @@ pub struct P2PArgs {
     )]
     pub no_discovery: bool,
     /// A private key file path.
-    #[clap(
+    #[arg(
         long = "p2p.priv.path",
         env = "KONA_NODE_P2P_PRIV_PATH",
         help = "Read the hex-encoded 32-byte private key for the peer ID from this txt file. Created if not already exists. Important to persist to keep the same network identity after restarting, maintaining the previous advertised identity."
     )]
     pub priv_path: Option<PathBuf>,
     /// The hex-encoded 32-byte private key for the peer ID.
-    #[clap(
+    #[arg(
         long = "p2p.priv.raw",
         env = "KONA_NODE_P2P_PRIV_RAW",
         help = "The hex-encoded 32-byte private key for the peer ID"
     )]
     pub private_key: Option<B256>,
     /// IP to bind LibP2P and Discv5 to.
-    #[clap(
+    #[arg(
         long = "p2p.listen.ip",
         default_value = "0.0.0.0",
         env = "KONA_NODE_P2P_LISTEN_IP",
@@ -52,7 +52,7 @@ pub struct P2PArgs {
     )]
     pub listen_ip: IpAddr,
     /// TCP port to bind LibP2P to. Any available system port if set to 0.
-    #[clap(
+    #[arg(
         long = "p2p.listen.tcp",
         default_value = "9222",
         env = "KONA_NODE_P2P_LISTEN_TCP_PORT",
@@ -60,7 +60,7 @@ pub struct P2PArgs {
     )]
     pub listen_tcp_port: u16,
     /// UDP port to bind Discv5 to. Same as TCP port if left 0.
-    #[clap(
+    #[arg(
         long = "p2p.listen.udp",
         default_value = "0",
         env = "KONA_NODE_P2P_LISTEN_UDP_PORT",
