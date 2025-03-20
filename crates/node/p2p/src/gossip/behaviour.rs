@@ -44,7 +44,7 @@ impl Behaviour {
                     .topics()
                     .iter()
                     .map(|topic| {
-                        tracing::debug!("Subscribing to topic: {}", topic.to_string());
+                        debug!("Subscribing to topic: {}", topic.to_string());
                         let topic = IdentTopic::new(topic.to_string());
                         gossipsub.subscribe(&topic).map_err(|_| BehaviourError::SubscriptionFailed)
                     })

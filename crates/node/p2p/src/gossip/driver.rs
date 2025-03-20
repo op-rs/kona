@@ -24,6 +24,8 @@ pub struct GossipDriver {
     /// A receiver for unsafe payloads.
     /// This is expected to be consumed and listened to by the consumer.
     pub payload_receiver: Option<Receiver<OpNetworkPayloadEnvelope>>,
+    /// A list of peers we have successfully dialed.
+    pub dialed_peers: Vec<Multiaddr>,
 }
 
 impl std::fmt::Debug for GossipDriver {
@@ -44,7 +46,7 @@ impl GossipDriver {
 
     /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
-        Self { swarm, addr, handler, payload_receiver: None }
+        Self { swarm, addr, handler, payload_receiver: None, dialed_peers: Vec::new() }
     }
 
     /// Sets the payload receiver on the [`GossipDriver`].
@@ -83,21 +85,9 @@ impl GossipDriver {
         self.swarm.select_next_some().await
     }
 
-    /// Returns if the swarm is already connected to the specified [`Multiaddr`].
-    pub fn is_connected(&mut self, addr: &Multiaddr) -> bool {
-        // Unimplemented: This needs to
-        // false
-        info!("Checking if connected to peer: {:?}", addr);
-        let Some(peer_id) = addr.iter().find_map(|addr| {
-            if let libp2p::core::multiaddr::Protocol::P2p(key) = addr { Some(key) } else { None }
-        }) else {
-            return false;
-        };
-        let connected = self.swarm.connected_peers().any(|a| *a == peer_id);
-        info!("Connected to peer: {:?} | Result: {:?}", addr, connected);
-        connected
-        // info!("External addresses: {:?}", self.swarm.external_addresses().collect::<Vec<_>>());
-        // self.swarm.external_addresses().any(|a| *a == *addr)
+    /// Returns if the swarm has already successfully dialed the given [`Multiaddr`].
+    pub fn has_dialed(&mut self, addr: &Multiaddr) -> bool {
+        self.dialed_peers.contains(addr)
     }
 
     /// Returns the number of connected peers.
@@ -121,15 +111,18 @@ impl GossipDriver {
 
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
-        if self.is_connected(&addr) {
-            warn!(target: "p2p::gossip::driver", "Already connected to peer: {:?}", addr.clone());
+        if self.has_dialed(&addr) {
+            debug!(target: "p2p::gossip::driver", "Already connected to peer: {:?}", addr.clone());
             return;
         }
 
         match self.swarm.dial(addr.clone()) {
-            Ok(_) => trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr),
+            Ok(_) => {
+                trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr);
+                self.dialed_peers.push(addr);
+            }
             Err(e) => {
-                info!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
+                debug!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
             }
         }
     }
