@@ -6,7 +6,7 @@
 
 use alloy_primitives::B256;
 use anyhow::Result;
-use clap::{Parser};
+use clap::Parser;
 use libp2p_identity::Keypair;
 use std::{net::IpAddr, path::PathBuf};
 
