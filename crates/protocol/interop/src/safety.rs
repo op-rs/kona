@@ -44,11 +44,11 @@ impl FromStr for SafetyLevel {
 pub struct SafetyLevelParseError(pub String);
 
 #[cfg(test)]
-#[cfg(feature = "serde")]
 mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_safety_level_serde() {
         let level = SafetyLevel::Finalized;
         let json = serde_json::to_string(&level).unwrap();
@@ -59,6 +59,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_serde_safety_level_fails() {
         let json = r#""failed""#;
         let level: Result<SafetyLevel, _> = serde_json::from_str(json);
