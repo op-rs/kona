@@ -64,24 +64,24 @@ mod tests {
         let level: Result<SafetyLevel, _> = serde_json::from_str(json);
         assert!(level.is_err());
     }
-}
 
-#[test]
-fn test_safety_level_from_str_valid() {
-    assert_eq!(SafetyLevel::from_str("finalized").unwrap(), SafetyLevel::Finalized);
-    assert_eq!(SafetyLevel::from_str("safe").unwrap(), SafetyLevel::Safe);
-    assert_eq!(SafetyLevel::from_str("local-safe").unwrap(), SafetyLevel::LocalSafe);
-    assert_eq!(SafetyLevel::from_str("localsafe").unwrap(), SafetyLevel::LocalSafe);
-    assert_eq!(SafetyLevel::from_str("cross-unsafe").unwrap(), SafetyLevel::CrossUnsafe);
-    assert_eq!(SafetyLevel::from_str("crossunsafe").unwrap(), SafetyLevel::CrossUnsafe);
-    assert_eq!(SafetyLevel::from_str("unsafe").unwrap(), SafetyLevel::Unsafe);
-    assert_eq!(SafetyLevel::from_str("invalid").unwrap(), SafetyLevel::Invalid);
-}
+    #[test]
+    fn test_safety_level_from_str_valid() {
+        assert_eq!(SafetyLevel::from_str("finalized").unwrap(), SafetyLevel::Finalized);
+        assert_eq!(SafetyLevel::from_str("safe").unwrap(), SafetyLevel::Safe);
+        assert_eq!(SafetyLevel::from_str("local-safe").unwrap(), SafetyLevel::LocalSafe);
+        assert_eq!(SafetyLevel::from_str("localsafe").unwrap(), SafetyLevel::LocalSafe);
+        assert_eq!(SafetyLevel::from_str("cross-unsafe").unwrap(), SafetyLevel::CrossUnsafe);
+        assert_eq!(SafetyLevel::from_str("crossunsafe").unwrap(), SafetyLevel::CrossUnsafe);
+        assert_eq!(SafetyLevel::from_str("unsafe").unwrap(), SafetyLevel::Unsafe);
+        assert_eq!(SafetyLevel::from_str("invalid").unwrap(), SafetyLevel::Invalid);
+    }
 
-#[test]
-fn test_safety_level_from_str_invalid() {
-    assert!(SafetyLevel::from_str("unknown").is_err());
-    assert!(SafetyLevel::from_str("123").is_err());
-    assert!(SafetyLevel::from_str("").is_err());
-    assert!(SafetyLevel::from_str("safe ").is_err());
+    #[test]
+    fn test_safety_level_from_str_invalid() {
+        assert!(SafetyLevel::from_str("unknown").is_err());
+        assert!(SafetyLevel::from_str("123").is_err());
+        assert!(SafetyLevel::from_str("").is_err());
+        assert!(SafetyLevel::from_str("safe ").is_err());
+    }
 }
