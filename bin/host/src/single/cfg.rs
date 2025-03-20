@@ -30,22 +30,22 @@ use tokio::{
 #[command(styles = cli_styles())]
 pub struct SingleChainHost {
     /// Hash of the L1 head block. Derivation stops after this block is processed.
-    #[clap(long, env)]
+    #[arg(long, env)]
     pub l1_head: B256,
     /// Hash of the agreed upon safe L2 block committed to by `--agreed-l2-output-root`.
-    #[clap(long, visible_alias = "l2-head", env)]
+    #[arg(long, visible_alias = "l2-head", env)]
     pub agreed_l2_head_hash: B256,
     /// Agreed safe L2 Output Root to start derivation from.
-    #[clap(long, visible_alias = "l2-output-root", env)]
+    #[arg(long, visible_alias = "l2-output-root", env)]
     pub agreed_l2_output_root: B256,
     /// Claimed L2 output root at block # `--claimed-l2-block-number` to validate.
-    #[clap(long, visible_alias = "l2-claim", env)]
+    #[arg(long, visible_alias = "l2-claim", env)]
     pub claimed_l2_output_root: B256,
     /// Number of the L2 block that the claimed output root commits to.
-    #[clap(long, visible_alias = "l2-block-number", env)]
+    #[arg(long, visible_alias = "l2-block-number", env)]
     pub claimed_l2_block_number: u64,
     /// Address of L2 JSON-RPC endpoint to use (eth and debug namespace required).
-    #[clap(
+    #[arg(
         long,
         visible_alias = "l2",
         requires = "l1_node_address",
@@ -54,7 +54,7 @@ pub struct SingleChainHost {
     )]
     pub l2_node_address: Option<String>,
     /// Address of L1 JSON-RPC endpoint to use (eth and debug namespace required)
-    #[clap(
+    #[arg(
         long,
         visible_alias = "l1",
         requires = "l2_node_address",
@@ -63,7 +63,7 @@ pub struct SingleChainHost {
     )]
     pub l1_node_address: Option<String>,
     /// Address of the L1 Beacon API endpoint to use.
-    #[clap(
+    #[arg(
         long,
         visible_alias = "beacon",
         requires = "l1_node_address",
@@ -73,7 +73,7 @@ pub struct SingleChainHost {
     pub l1_beacon_address: Option<String>,
     /// The Data Directory for preimage data storage. Optional if running in online mode,
     /// required if running in offline mode.
-    #[clap(
+    #[arg(
         long,
         visible_alias = "db",
         required_unless_present_all = ["l2_node_address", "l1_node_address", "l1_beacon_address"],
@@ -81,15 +81,15 @@ pub struct SingleChainHost {
     )]
     pub data_dir: Option<PathBuf>,
     /// Run the client program natively.
-    #[clap(long, conflicts_with = "server", required_unless_present = "server")]
+    #[arg(long, conflicts_with = "server", required_unless_present = "server")]
     pub native: bool,
     /// Run in pre-image server mode without executing any client program. If not provided, the
     /// host will run the client program in the host process.
-    #[clap(long, conflicts_with = "native", required_unless_present = "native")]
+    #[arg(long, conflicts_with = "native", required_unless_present = "native")]
     pub server: bool,
     /// The L2 chain ID of a supported chain. If provided, the host will look for the corresponding
     /// rollup config in the superchain registry.
-    #[clap(
+    #[arg(
         long,
         conflicts_with = "rollup_config_path",
         required_unless_present = "rollup_config_path",
@@ -98,7 +98,7 @@ pub struct SingleChainHost {
     pub l2_chain_id: Option<u64>,
     /// Path to rollup config. If provided, the host will use this config instead of attempting to
     /// look up the config in the superchain registry.
-    #[clap(
+    #[arg(
         long,
         alias = "rollup-cfg",
         conflicts_with = "l2_chain_id",

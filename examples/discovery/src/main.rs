@@ -31,13 +31,13 @@ pub struct DiscCommand {
     #[arg(long, short, action = ArgAction::Count)]
     pub v: u8,
     /// The L2 chain ID to use.
-    #[clap(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
+    #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
     /// Discovery port to listen on.
-    #[clap(long, short = 'l', default_value = "9099", help = "Port to listen to discovery")]
+    #[arg(long, short = 'l', default_value = "9099", help = "Port to listen to discovery")]
     pub disc_port: u16,
     /// Interval to send discovery packets.
-    #[clap(long, short = 'i', default_value = "1", help = "Interval to send discovery packets")]
+    #[arg(long, short = 'i', default_value = "1", help = "Interval to send discovery packets")]
     pub interval: u64,
 }
 

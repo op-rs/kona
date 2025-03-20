@@ -27,7 +27,7 @@ pub struct HostCli {
     #[arg(long, short, action = ArgAction::Count)]
     pub v: u8,
     /// Host mode
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub mode: HostMode,
 }
 

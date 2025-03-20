@@ -9,10 +9,10 @@ pub struct GlobalArgs {
     #[arg(long, short, action = ArgAction::Count)]
     pub v: u8,
     /// The L2 chain ID to use.
-    #[clap(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
+    #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
     /// A port to serve prometheus metrics on.
-    #[clap(
+    #[arg(
         long,
         short = 'm',
         default_value = "9090",

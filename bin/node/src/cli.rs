@@ -19,10 +19,10 @@ pub enum Commands {
 #[command(author, version, about, styles = cli_styles(), long_about = None)]
 pub struct Cli {
     /// Global arguments for the CLI.
-    #[clap(flatten)]
+    #[command(flatten)]
     pub global: GlobalArgs,
     /// The subcommand to run.
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub subcommand: Commands,
 }
 
