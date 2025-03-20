@@ -31,21 +31,21 @@ use tokio::{
 pub struct InteropHost {
     /// Hash of the L1 head block, marking a static, trusted cutoff point for reading data from the
     /// L1 chain.
-    #[clap(long, env)]
+    #[arg(long, env)]
     pub l1_head: B256,
     /// Agreed [PreState] to start from.
     ///
     /// [PreState]: kona_proof_interop::PreState
-    #[clap(long, visible_alias = "l2-pre-state", value_parser = Bytes::from_str, env)]
+    #[arg(long, visible_alias = "l2-pre-state", value_parser = Bytes::from_str, env)]
     pub agreed_l2_pre_state: Bytes,
     /// Claimed L2 post-state to validate.
-    #[clap(long, visible_alias = "l2-claim", env)]
+    #[arg(long, visible_alias = "l2-claim", env)]
     pub claimed_l2_post_state: B256,
     /// Claimed L2 timestamp, corresponding to the L2 post-state.
-    #[clap(long, visible_alias = "l2-timestamp", env)]
+    #[arg(long, visible_alias = "l2-timestamp", env)]
     pub claimed_l2_timestamp: u64,
     /// Addresses of L2 JSON-RPC endpoints to use (eth and debug namespace required).
-    #[clap(
+    #[arg(
         long,
         visible_alias = "l2s",
         requires = "l1_node_address",
@@ -55,7 +55,7 @@ pub struct InteropHost {
     )]
     pub l2_node_addresses: Option<Vec<String>>,
     /// Address of L1 JSON-RPC endpoint to use (eth and debug namespace required)
-    #[clap(
+    #[arg(
         long,
         visible_alias = "l1",
         requires = "l2_node_addresses",
@@ -64,7 +64,7 @@ pub struct InteropHost {
     )]
     pub l1_node_address: Option<String>,
     /// Address of the L1 Beacon API endpoint to use.
-    #[clap(
+    #[arg(
         long,
         visible_alias = "beacon",
         requires = "l1_node_address",
@@ -74,7 +74,7 @@ pub struct InteropHost {
     pub l1_beacon_address: Option<String>,
     /// The Data Directory for preimage data storage. Optional if running in online mode,
     /// required if running in offline mode.
-    #[clap(
+    #[arg(
         long,
         visible_alias = "db",
         required_unless_present_all = ["l2_node_addresses", "l1_node_address", "l1_beacon_address"],
@@ -82,15 +82,15 @@ pub struct InteropHost {
     )]
     pub data_dir: Option<PathBuf>,
     /// Run the client program natively.
-    #[clap(long, conflicts_with = "server", required_unless_present = "server")]
+    #[arg(long, conflicts_with = "server", required_unless_present = "server")]
     pub native: bool,
     /// Run in pre-image server mode without executing any client program. If not provided, the
     /// host will run the client program in the host process.
-    #[clap(long, conflicts_with = "native", required_unless_present = "native")]
+    #[arg(long, conflicts_with = "native", required_unless_present = "native")]
     pub server: bool,
     /// Path to rollup configs. If provided, the host will use this config instead of attempting to
     /// look up the configs in the superchain registry.
-    #[clap(long, alias = "rollup-cfgs", value_delimiter = ',', env)]
+    #[arg(long, alias = "rollup-cfgs", value_delimiter = ',', env)]
     pub rollup_config_paths: Option<Vec<PathBuf>>,
 }
 
