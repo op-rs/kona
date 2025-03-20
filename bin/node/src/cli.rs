@@ -2,7 +2,7 @@
 
 use crate::{commands::NodeCommand, flags::GlobalArgs};
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
 use tracing_subscriber::EnvFilter;
 
@@ -19,10 +19,10 @@ pub enum Commands {
 #[command(author, version, about, styles = cli_styles(), long_about = None)]
 pub struct Cli {
     /// Global arguments for the CLI.
-    #[clap(flatten)]
+    #[command(flatten)]
     pub global: GlobalArgs,
     /// The subcommand to run.
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub subcommand: Commands,
 }
 
