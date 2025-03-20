@@ -2,7 +2,7 @@
 
 use crate::{commands::NodeCommand, flags::GlobalArgs};
 use anyhow::Result;
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
 use tracing_subscriber::EnvFilter;
 
