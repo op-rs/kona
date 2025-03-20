@@ -46,6 +46,7 @@ impl Handler for BlockHandler {
     /// Checks validity of a block received via p2p gossip, and sends to the block update channel if
     /// valid.
     fn handle(&self, msg: Message) -> MessageAcceptance {
+        info!(target: "p2p::block_handler", "Received block");
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
             debug!(target: "p2p::block_handler", "received v1 block");
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)

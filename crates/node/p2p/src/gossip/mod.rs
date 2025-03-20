@@ -12,7 +12,10 @@ pub use config::{
 };
 
 mod builder;
-pub use builder::{GossipDriverBuilder, GossipDriverBuilderError};
+pub use builder::GossipDriverBuilder;
+
+mod error;
+pub use error::GossipDriverBuilderError;
 
 mod event;
 pub use event::Event;

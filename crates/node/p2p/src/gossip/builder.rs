@@ -1,8 +1,6 @@
 //! A builder for the [`GossipDriver`].
 
-use crate::{Behaviour, BlockHandler, GossipDriver};
 use alloy_primitives::Address;
-use derive_more::From;
 use libp2p::{
     Multiaddr, SwarmBuilder, identity::Keypair, noise::Config as NoiseConfig,
     tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
@@ -10,28 +8,7 @@ use libp2p::{
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
 
-/// An error type for the [`GossipDriverBuilder`].
-#[derive(Debug, Clone, PartialEq, Eq, From, thiserror::Error)]
-pub enum GossipDriverBuilderError {
-    /// Missing chain id.
-    #[error("missing chain id")]
-    MissingChainID,
-    /// The unsafe block signer is missing.
-    #[error("missing unsafe block signer")]
-    MissingUnsafeBlockSigner,
-    /// A TCP error.
-    #[error("TCP error")]
-    TcpError,
-    /// An error when setting the behaviour on the swarm builder.
-    #[error("error setting behaviour on swarm builder")]
-    WithBehaviourError,
-    /// Missing gossip address.
-    #[error("gossip address not set")]
-    GossipAddrNotSet,
-    /// An error when building the gossip behaviour.
-    #[error("error building gossip behaviour")]
-    BehaviourError(crate::BehaviourError),
-}
+use crate::{Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError};
 
 /// A builder for the [`GossipDriver`].
 #[derive(Debug, Default)]
@@ -101,9 +78,17 @@ impl GossipDriverBuilder {
         let behaviour = Behaviour::new(config, &[Box::new(handler.clone())])?;
 
         // Build the swarm.
+        info!("Building Swarm with Peer ID: {}", keypair.public().to_peer_id());
         let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
-            .with_tcp(TcpConfig::default(), |i: &Keypair| NoiseConfig::new(i), YamuxConfig::default)
+            .with_tcp(
+                TcpConfig::default(),
+                |i: &Keypair| {
+                    info!("Noise Config Peer ID: {}", i.public().to_peer_id());
+                    NoiseConfig::new(i)
+                },
+                YamuxConfig::default,
+            )
             .map_err(|_| GossipDriverBuilderError::TcpError)?
             .with_behaviour(|_| behaviour)
             .map_err(|_| GossipDriverBuilderError::WithBehaviourError)?

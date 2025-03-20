@@ -85,7 +85,19 @@ impl GossipDriver {
 
     /// Returns if the swarm is already connected to the specified [`Multiaddr`].
     pub fn is_connected(&mut self, addr: &Multiaddr) -> bool {
-        self.swarm.external_addresses().any(|a| *a == *addr)
+        // Unimplemented: This needs to
+        // false
+        info!("Checking if connected to peer: {:?}", addr);
+        let Some(peer_id) = addr.iter().find_map(|addr| {
+            if let libp2p::core::multiaddr::Protocol::P2p(key) = addr { Some(key) } else { None }
+        }) else {
+            return false;
+        };
+        let connected = self.swarm.connected_peers().any(|a| *a == peer_id);
+        info!("Connected to peer: {:?} | Result: {:?}", addr, connected);
+        connected
+        // info!("External addresses: {:?}", self.swarm.external_addresses().collect::<Vec<_>>());
+        // self.swarm.external_addresses().any(|a| *a == *addr)
     }
 
     /// Returns the number of connected peers.
@@ -117,7 +129,7 @@ impl GossipDriver {
         match self.swarm.dial(addr.clone()) {
             Ok(_) => trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr),
             Err(e) => {
-                debug!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
+                info!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
             }
         }
     }
@@ -151,7 +163,7 @@ impl GossipDriver {
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
         let SwarmEvent::Behaviour(event) = event else {
-            warn!(target: "p2p::gossip::driver", "Ignoring non-behaviour in event handler: {:?}", event);
+            debug!(target: "p2p::gossip::driver", "Ignoring non-behaviour in event handler: {:?}", event);
             return;
         };
 
