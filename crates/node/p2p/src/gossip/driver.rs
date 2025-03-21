@@ -3,8 +3,12 @@
 use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use tokio::sync::mpsc::Receiver;
 
-use crate::{Behaviour, BlockHandler, Event, Handler, OpStackEnr, enr_to_multiaddr};
+use crate::{
+    Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, enr_to_multiaddr,
+};
 
 /// A driver for a [`Swarm`] instance.
 ///
@@ -17,18 +21,52 @@ pub struct GossipDriver {
     pub addr: Multiaddr,
     /// The [`BlockHandler`].
     pub handler: BlockHandler,
+    /// A receiver for unsafe payloads.
+    /// This is expected to be consumed and listened to by the consumer.
+    pub payload_receiver: Option<Receiver<OpNetworkPayloadEnvelope>>,
+    /// A list of peers we have successfully dialed.
+    pub dialed_peers: Vec<Multiaddr>,
+}
+
+impl std::fmt::Debug for GossipDriver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GossipDriver")
+            .field("swarm", &"Swarm")
+            .field("addr", &self.addr)
+            .field("handler", &self.handler)
+            .finish()
+    }
 }
 
 impl GossipDriver {
+    /// Returns the [`GossipDriverBuilder`] that can be used to construct the [`GossipDriver`].
+    pub const fn builder() -> GossipDriverBuilder {
+        GossipDriverBuilder::new()
+    }
+
     /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
-        Self { swarm, addr, handler }
+        Self { swarm, addr, handler, payload_receiver: None, dialed_peers: Vec::new() }
+    }
+
+    /// Sets the payload receiver on the [`GossipDriver`].
+    pub fn set_payload_receiver(
+        &mut self,
+        unsafe_payload_recv: Receiver<OpNetworkPayloadEnvelope>,
+    ) -> &mut Self {
+        self.payload_receiver = Some(unsafe_payload_recv);
+        self
+    }
+
+    /// Takes the [`Receiver`] for [`OpNetworkPayloadEnvelope`].
+    pub fn take_payload_recv(&mut self) -> Option<Receiver<OpNetworkPayloadEnvelope>> {
+        self.payload_receiver.take()
     }
 
     /// Listens on the address.
     pub fn listen(&mut self) -> Result<(), TransportError<std::io::Error>> {
         self.swarm.listen_on(self.addr.clone())?;
-        info!("Swarm listening on: {:?}", self.addr);
+        info!(target: "p2p::gossip::driver", "Swarm listening on: {:?}", self.addr);
         Ok(())
     }
 
@@ -47,9 +85,9 @@ impl GossipDriver {
         self.swarm.select_next_some().await
     }
 
-    /// Returns if the swarm is already connected to the specified [`Multiaddr`].
-    pub fn is_connected(&mut self, addr: &Multiaddr) -> bool {
-        self.swarm.external_addresses().any(|a| *a == *addr)
+    /// Returns if the swarm has already successfully dialed the given [`Multiaddr`].
+    pub fn has_dialed(&mut self, addr: &Multiaddr) -> bool {
+        self.dialed_peers.contains(addr)
     }
 
     /// Returns the number of connected peers.
@@ -73,13 +111,16 @@ impl GossipDriver {
 
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
-        if self.is_connected(&addr) {
-            warn!(target: "p2p::gossip::driver", "Already connected to peer: {:?}", addr.clone());
+        if self.has_dialed(&addr) {
+            debug!(target: "p2p::gossip::driver", "Already connected to peer: {:?}", addr.clone());
             return;
         }
 
         match self.swarm.dial(addr.clone()) {
-            Ok(_) => trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr),
+            Ok(_) => {
+                trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr);
+                self.dialed_peers.push(addr);
+            }
             Err(e) => {
                 debug!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
             }
@@ -115,7 +156,7 @@ impl GossipDriver {
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
         let SwarmEvent::Behaviour(event) = event else {
-            warn!(target: "p2p::gossip::driver", "Ignoring non-behaviour in event handler: {:?}", event);
+            debug!(target: "p2p::gossip::driver", "Ignoring non-behaviour in event handler: {:?}", event);
             return;
         };
 

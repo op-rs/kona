@@ -3,7 +3,7 @@
 //! This module is adapted from <https://github.com/paradigmxyz/reth/blob/aef442740c51fc00884d34931ebc3b547e41b9f4/crates/cli/util/src/load_secret_key.rs#L20>
 
 use alloy_primitives::B256;
-use libp2p_identity::{Keypair, secp256k1::SecretKey};
+use libp2p::identity::{Keypair, secp256k1::SecretKey};
 use std::{
     path::{Path, PathBuf},
     str::FromStr,
@@ -21,7 +21,7 @@ pub enum ParseKeyError {
 /// Parses raw bytes into a [`Keypair`].
 pub fn parse_key(input: &mut [u8]) -> Result<Keypair, ParseKeyError> {
     let sk = SecretKey::try_from_bytes(input).map_err(|_| ParseKeyError::FailedToParseSecretKey)?;
-    let kp = libp2p_identity::secp256k1::Keypair::from(sk);
+    let kp = libp2p::identity::secp256k1::Keypair::from(sk);
     Ok(Keypair::from(kp))
 }
 
@@ -72,7 +72,7 @@ pub fn get_keypair(secret_key_path: &Path) -> Result<Keypair, KeypairError> {
             let secret = SecretKey::generate();
             let hex = alloy_primitives::hex::encode(secret.to_bytes());
             std::fs::write(secret_key_path, hex)?;
-            let kp = libp2p_identity::secp256k1::Keypair::from(secret);
+            let kp = libp2p::identity::secp256k1::Keypair::from(secret);
             Ok(Keypair::from(kp))
         }
         Err(error) => Err(KeypairError::FailedToAccessKeyFile {

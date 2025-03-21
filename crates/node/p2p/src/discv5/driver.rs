@@ -8,7 +8,8 @@ use tokio::{
 use discv5::{Discv5, Enr, Event, enr::NodeId};
 
 use crate::{
-    BootNode, BootNodes, Discv5Builder, Discv5Handler, HandlerRequest, HandlerResponse, OpStackEnr,
+    BootNode, BootNodes, BootStore, Discv5Builder, Discv5Handler, HandlerRequest, HandlerResponse,
+    OpStackEnr,
 };
 
 /// The [`Discv5Driver`] drives the discovery service.
@@ -52,11 +53,24 @@ use crate::{
 pub struct Discv5Driver {
     /// The [`Discv5`] discovery service.
     pub disc: Discv5,
+    /// The [`BootStore`].
+    pub store: BootStore,
     /// The chain ID of the network.
     pub chain_id: u64,
     ///
     /// The interval to discovery random nodes.
     pub interval: Duration,
+}
+
+impl std::fmt::Debug for Discv5Driver {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Discv5Driver")
+            .field("disc", &"Discv5")
+            .field("store", &"BootStore")
+            .field("chain_id", &self.chain_id)
+            .field("interval", &self.interval)
+            .finish()
+    }
 }
 
 impl Discv5Driver {
@@ -67,15 +81,17 @@ impl Discv5Driver {
 
     /// Instantiates a new [`Discv5Driver`].
     pub fn new(disc: Discv5, chain_id: u64) -> Self {
-        Self { disc, chain_id, interval: Duration::from_secs(10) }
+        let store = BootStore::from_chain_id(chain_id, None);
+        Self { disc, chain_id, store, interval: Duration::from_secs(10) }
     }
 
     /// Starts the inner [`Discv5`] service.
     async fn init(&mut self) {
         loop {
             if let Err(e) = self.disc.start().await {
-                warn!(target: "p2p::discv5::driver", "Failed to start discovery service: {:?}", e);
+                warn!("Failed to start discovery service: {:?}", e);
                 sleep(Duration::from_secs(2)).await;
+                info!("Retrying discovery startup...");
                 continue;
             }
             break;
@@ -83,20 +99,37 @@ impl Discv5Driver {
     }
 
     /// Bootstraps the [`Discv5`] service with the bootnodes.
-    async fn bootstrap(&self) {
+    async fn bootstrap(&mut self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
-        info!(target: "p2p::discv5", "Adding {} bootstrap nodes...", nodes.0.len());
-        debug!(target: "p2p::discv5", ?nodes);
+        info!("Adding {} bootstrap nodes...", nodes.0.len());
+        debug!(?nodes);
+
+        let boot_enrs: Vec<Enr> = nodes
+            .0
+            .iter()
+            .filter_map(|bn| match bn {
+                BootNode::Enr(enr) => Some(enr.clone()),
+                _ => None,
+            })
+            .collect();
+
+        info!(
+            "Merging {} bootnode enrs with {} boot store enrs",
+            boot_enrs.len(),
+            self.store.len()
+        );
+        self.store.merge(boot_enrs);
+
+        for enr in self.store.peers() {
+            if let Err(e) = self.disc.add_enr(enr.clone()) {
+                warn!(target: "p2p::discv5::driver", "Failed to bootstrap discovery service: {:?}", e);
+                continue;
+            }
+        }
 
         for node in nodes.0 {
             match node {
-                BootNode::Enr(enr) => {
-                    if let Err(e) = self.disc.add_enr(enr.clone()) {
-                        warn!(target: "p2p::discv5::driver", "Failed to bootstrap discovery service: {:?}", e);
-                        continue;
-                    }
-                }
                 BootNode::Enode(enode) => {
                     if let Err(err) = self.disc.request_enr(enode.to_string()).await {
                         debug!(target: "p2p::discv5",
@@ -106,6 +139,7 @@ impl Discv5Driver {
                         );
                     }
                 }
+                _ => { /* ignore: bootnode enrs already added */ }
             }
         }
     }
@@ -130,6 +164,9 @@ impl Discv5Driver {
 
             // Interval to find new nodes.
             let mut interval = tokio::time::interval(self.interval);
+
+            // Interval at which to sync the boot store.
+            let mut store_interval = tokio::time::interval(Duration::from_secs(60));
 
             // Step 3: Run the core driver loop.
             loop {
@@ -166,20 +203,25 @@ impl Discv5Driver {
                         }
                     }
                     _ = interval.tick() => {
-                        trace!(target: "p2p::discv5::driver", "Finding new nodes...");
                         match self.disc.find_node(NodeId::random()).await {
                             Ok(nodes) => {
                                 let enrs =
-                                    nodes.iter().filter(|node| OpStackEnr::is_valid_node(node, self.chain_id));
+                                    nodes.into_iter().filter(|node| OpStackEnr::is_valid_node(node, self.chain_id));
 
                                 for enr in enrs {
-                                    _ = enr_sender.send(enr.clone()).await;
+                                    self.store.add_enr(enr.clone());
+                                    _ = enr_sender.send(enr).await;
                                 }
                             }
                             Err(err) => {
-                                warn!(target: "p2p::discv5::driver", "discovery error: {:?}", err);
+                                debug!("Failed to find node: {:?}", err);
                             }
                         }
+                    }
+                    _ = store_interval.tick() => {
+                        let enrs = self.disc.table_entries_enr();
+                        self.store.merge(enrs);
+                        self.store.sync();
                     }
                 }
             }

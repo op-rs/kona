@@ -1,14 +1,13 @@
 //! Block Handler
 
-use std::{
-    sync::mpsc::{Receiver, Sender, channel},
-    time::SystemTime,
-};
-
 use alloy_primitives::Address;
 use libp2p::gossipsub::{IdentTopic, Message, MessageAcceptance, TopicHash};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use tokio::sync::watch;
+use std::time::SystemTime;
+use tokio::sync::{
+    mpsc::{Sender, channel},
+    watch::Receiver,
+};
 
 /// This trait defines the functionality required to process incoming messages
 /// and determine their acceptance within the network.
@@ -32,7 +31,7 @@ pub struct BlockHandler {
     /// A channel sender to forward new blocks to other modules
     pub block_sender: Sender<OpNetworkPayloadEnvelope>,
     /// A [Receiver] to monitor changes to the unsafe block signer.
-    pub unsafe_signer_recv: watch::Receiver<Address>,
+    pub unsafe_signer_recv: Receiver<Address>,
     /// The libp2p topic for pre Canyon/Shangai blocks.
     pub blocks_v1_topic: IdentTopic,
     /// The libp2p topic for Canyon/Delta blocks.
@@ -98,9 +97,9 @@ impl BlockHandler {
     /// Creates a new [BlockHandler] and opens a channel
     pub fn new(
         chain_id: u64,
-        unsafe_recv: watch::Receiver<Address>,
-    ) -> (Self, Receiver<OpNetworkPayloadEnvelope>) {
-        let (sender, recv) = channel();
+        unsafe_recv: Receiver<Address>,
+    ) -> (Self, tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>) {
+        let (sender, recv) = channel(256);
 
         let handler = Self {
             chain_id,

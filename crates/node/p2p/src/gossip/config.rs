@@ -1,7 +1,7 @@
 //! Gossipsub Config
 
 use lazy_static::lazy_static;
-use libp2p::gossipsub::{Config, ConfigBuilder, ConfigBuilderError, Message, MessageId};
+use libp2p::gossipsub::{Config, ConfigBuilder, Message, MessageId};
 use openssl::sha::sha256;
 use snap::raw::Decoder;
 use std::time::Duration;
@@ -93,8 +93,8 @@ pub fn default_config_builder() -> ConfigBuilder {
 }
 
 /// Returns the default [Config] for gossipsub.
-pub fn default_config() -> Result<Config, ConfigBuilderError> {
-    default_config_builder().build()
+pub fn default_config() -> Config {
+    default_config_builder().build().expect("default gossipsub config must be valid")
 }
 
 /// Computes the [MessageId] of a `gossipsub` message.
@@ -121,6 +121,14 @@ fn compute_message_id(msg: &Message) -> MessageId {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_constructs_default_config() {
+        let cfg = default_config();
+        assert_eq!(cfg.mesh_n(), DEFAULT_MESH_D);
+        assert_eq!(cfg.mesh_n_low(), DEFAULT_MESH_DLO);
+        assert_eq!(cfg.mesh_n_high(), DEFAULT_MESH_DHI);
+    }
 
     #[test]
     fn test_compute_message_id_invalid_snappy() {
