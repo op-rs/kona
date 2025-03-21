@@ -2,6 +2,7 @@
 
 use alloy_primitives::U256;
 use core::ops::Mul;
+use op_alloy_consensus::OpTxType;
 
 /// Re-export the fastlz compression length calculation function.
 pub use op_alloy_flz::flz_compress_len;
@@ -77,7 +78,7 @@ pub fn calculate_tx_l1_cost_bedrock_empty_scalars(
     base_fee: U256,
     l1_fee_scalar: U256,
 ) -> U256 {
-    if input.is_empty() || input.first() == Some(&0x7F) {
+    if input.is_empty() || input.first() == Some(&(OpTxType::Deposit as u8)) {
         return U256::ZERO;
     }
 
@@ -93,7 +94,7 @@ pub fn calculate_tx_l1_cost_bedrock(
     base_fee: U256,
     l1_fee_scalar: U256,
 ) -> U256 {
-    if input.is_empty() || input.first() == Some(&0x7F) {
+    if input.is_empty() || input.first() == Some(&(OpTxType::Deposit as u8)) {
         return U256::ZERO;
     }
 
@@ -109,7 +110,7 @@ pub fn calculate_tx_l1_cost_regolith(
     base_fee: U256,
     l1_fee_scalar: U256,
 ) -> U256 {
-    if input.is_empty() || input.first() == Some(&0x7F) {
+    if input.is_empty() || input.first() == Some(&(OpTxType::Deposit as u8)) {
         return U256::ZERO;
     }
 
@@ -135,7 +136,7 @@ pub fn calculate_tx_l1_cost_ecotone(
     blob_base_fee: U256,
     blob_base_fee_scalar: U256,
 ) -> U256 {
-    if input.is_empty() || input.first() == Some(&0x7F) {
+    if input.is_empty() || input.first() == Some(&(OpTxType::Deposit as u8)) {
         return U256::ZERO;
     }
 
@@ -163,7 +164,7 @@ pub fn calculate_tx_l1_cost_fjord(
     blob_base_fee: U256,
     blob_base_fee_scalar: U256,
 ) -> U256 {
-    if input.is_empty() || input.first() == Some(&0x7F) {
+    if input.is_empty() || input.first() == Some(&(OpTxType::Deposit as u8)) {
         return U256::ZERO;
     }
 
@@ -283,8 +284,8 @@ mod tests {
             calculate_tx_l1_cost_bedrock(&input, l1_fee_overhead, base_fee, l1_fee_scalar);
         assert_eq!(gas_cost, U256::ZERO);
 
-        // Deposit transactions with the EIP-2718 type of 0x7F should result in zero
-        let input = bytes!("7FFACADE");
+        // Deposit transactions with the EIP-2718 type of 0x7E should result in zero
+        let input = bytes!("7EFACADE");
         let gas_cost =
             calculate_tx_l1_cost_bedrock(&input, l1_fee_overhead, base_fee, l1_fee_scalar);
         assert_eq!(gas_cost, U256::ZERO);
@@ -311,8 +312,8 @@ mod tests {
             calculate_tx_l1_cost_regolith(&input, l1_fee_overhead, base_fee, l1_fee_scalar);
         assert_eq!(gas_cost, U256::ZERO);
 
-        // Deposit transactions with the EIP-2718 type of 0x7F should result in zero
-        let input = bytes!("7FFACADE");
+        // Deposit transactions with the EIP-2718 type of 0x7E should result in zero
+        let input = bytes!("7EFACADE");
         let gas_cost =
             calculate_tx_l1_cost_regolith(&input, l1_fee_overhead, base_fee, l1_fee_scalar);
         assert_eq!(gas_cost, U256::ZERO);
@@ -349,8 +350,8 @@ mod tests {
         );
         assert_eq!(gas_cost, U256::ZERO);
 
-        // Deposit transactions with the EIP-2718 type of 0x7F should result in zero
-        let input = bytes!("7FFACADE");
+        // Deposit transactions with the EIP-2718 type of 0x7E should result in zero
+        let input = bytes!("7EFACADE");
         let gas_cost = calculate_tx_l1_cost_ecotone(
             &input,
             base_fee,
@@ -418,8 +419,8 @@ mod tests {
         );
         assert_eq!(gas_cost, U256::ZERO);
 
-        // Deposit transactions with the EIP-2718 type of 0x7F should result in zero
-        let input = bytes!("7FFACADE");
+        // Deposit transactions with the EIP-2718 type of 0x7E should result in zero
+        let input = bytes!("7EFACADE");
         let gas_cost = calculate_tx_l1_cost_fjord(
             &input,
             base_fee,

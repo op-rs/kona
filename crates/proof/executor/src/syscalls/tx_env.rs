@@ -1,7 +1,7 @@
 //! Contains a helper function to fill the [`TxEnv`] for the given system call.
 
 use alloc::vec::Vec;
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, B256, Bytes, U256};
 use revm::primitives::{Env, OptimismFields, TransactTo, TxEnv};
 
 /// Fill transaction environment with the system caller and the system
@@ -41,7 +41,7 @@ pub(crate) fn fill_tx_env_for_contract_call(
         blob_hashes: Vec::new(),
         max_fee_per_blob_gas: None,
         optimism: OptimismFields {
-            source_hash: None,
+            source_hash: Some(B256::ZERO),
             mint: None,
             is_system_transaction: Some(false),
             // The L1 fee is not charged for system transactions, submit zero bytes for the
