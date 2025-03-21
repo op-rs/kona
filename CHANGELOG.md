@@ -2,13 +2,80 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.4] - 2025-03-10
+## [0.2.0] - 2025-03-21
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release 0.2.4
+- Release 0.3.0
+- Release 0.3.0
+- Release 0.3.0
+- Release 0.3.0
+- Release 0.2.0
+- Release 0.3.0
+- Release 0.2.0
+- Release 0.3.0
+- Release 0.3.0
+- Release 0.3.0
+- Release 0.3.0
+- Release 0.2.0
+- Release 0.2.0
+- Release 0.2.0
 
-## [0.1.3] - 2025-03-10
+## [0.3.0] - 2025-03-21
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.3.0
+
+## [0.2.0] - 2025-03-21
+
+### 🚀 Features
+
+- *(examples)* Pulls Discovery and P2P Gossip into Examples (#1250)
+- *(node)* P2P Wiring (#1246)
+- *(node)* P2P Overhaul (#1260)
+- *(engine)* Synchronous task queue (#1256)
+- *(engine)* Block building task (#1258)
+- *(node)* P2P Upgrades (#1271)
+
+### 🐛 Bug Fixes
+
+- *(executor)* Use correct empty `sha256` hash (#1267)
+- *(proof)* EIP-2935 walkback fix (#1273)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(node)* Wire in Sync Config (#1249)
+- *(node)* Simplify Node CLI (#1251)
+- *(node)* P2P Secret Key (#1254)
+- Remove B256 Value Parser (#1255)
+- *(cli)* Remove CLI Parsers (#1259)
+- *(workspace)* Fix udeps check (#1263)
+- *(genesis)* Localize Import for Lints (#1265)
+- Fixup Benchmark CI Job (#1274)
+- *(ci)* Deprecate --all Flag (#1275)
+- Cleanup and Dependency Bumps (#1235)
+- *(workspace)* Remove `reth` dependency (#1279)
+- *(ci)* Bump Monorepo Commit for Operator Fee Tests (#1277)
+- Bump Deps before Release (#1288)
+- Release 0.2.0
+
+### Refactor
+
+- Clap attribute macros from #[clap(...)] to #[arg(...)] and #[command(...)] in v4.x (#1285)
+
+## [kona-host/v0.1.0-beta.13] - 2025-03-11
+
+### 🚀 Features
+
+- *(node)* P2P CLI Args (#1242)
+
+### ⚙️ Miscellaneous Tasks
+
+- Allow udeps in `-Zbuild-std` lints (#1245)
+- *(workspace)* Use versioned `asterisc-builder` + `cannon-builder` images (#1243)
+
+## [kona-host/v0.1.0-beta.12] - 2025-03-11
 
 ### 🚀 Features
 
@@ -33,6 +100,9 @@ All notable changes to this project will be documented in this file.
 - *(engine)* Wire up Insert Task (#1202)
 - *(node)* Add `sync_start` module (#1207)
 - *(interop)* Clean up interop validator RPC component (#1172)
+- *(node)* Refactor orchestration (#1231)
+- *(hardforks)* Isthmus Network Upgrade Transactions (#1080)
+- *(node)* P2P Wiring (#1233)
 
 ### 🐛 Bug Fixes
 
@@ -98,12 +168,14 @@ All notable changes to this project will be documented in this file.
 - *(net)* P2P Rename (#1221)
 - Update Dependencies (#1226)
 - Codecov Config (#1225)
-- Release 0.1.3
+- *(book)* Small touchups (#1230)
+- *(node)* Tracing Macros (#1234)
 
 ### Release
 
 - *(maili)* 0.2.9 (#1087)
 - Maili crates one last time (#1218)
+- Kona-driver (#1229)
 
 ## [kona-host/v0.1.0-beta.11] - 2025-02-21
 
