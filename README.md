@@ -76,7 +76,8 @@ getting started with building your own programs, and a reference for the librari
 
 - [`engine`](./crates/node/engine): An extensible implementation of the [OP Stack][op-stack] rollup node engine client
 - [`rpc`](./crates/node/rpc): OP Stack RPC types and extensions.
-- [`net`](./crates/node/net): OP Stack Networking including P2P and Discovery.
+- [`p2p`](./crates/node/p2p): OP Stack P2P Networking including Gossip and Discovery.
+- [`service`](./crates/node/service): The OP Stack rollup node service.
 
 **Providers**
 
