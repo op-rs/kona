@@ -108,31 +108,31 @@ kona-serde = { path = "crates/utilities/serde", version = "0.1.1", default-featu
 alloy-rlp = { version = "0.3.11", default-features = false }
 alloy-trie = { version = "0.7.9", default-features = false }
 alloy-chains = { version = "0.1", default-features = false }
-alloy-eips = { version = "0.12.5", default-features = false }
-alloy-serde = { version = "0.12.5", default-features = false }
-alloy-network = { version = "0.12.5", default-features = false }
-alloy-provider = { version = "0.12.5", default-features = false }
-alloy-sol-types = { version = "0.8.23", default-features = false }
-alloy-consensus = { version = "0.12.5", default-features = false }
-alloy-transport = { version = "0.12.5", default-features = false }
-alloy-rpc-types = { version = "0.12.5", default-features = false }
-alloy-rpc-client = { version = "0.12.5", default-features = false }
+alloy-eips = { version = "0.12.6", default-features = false }
+alloy-serde = { version = "0.12.6", default-features = false }
+alloy-network = { version = "0.12.6", default-features = false }
+alloy-provider = { version = "0.12.6", default-features = false }
+alloy-sol-types = { version = "0.8.24", default-features = false }
+alloy-consensus = { version = "0.12.6", default-features = false }
+alloy-transport = { version = "0.12.6", default-features = false }
+alloy-rpc-types = { version = "0.12.6", default-features = false }
+alloy-rpc-client = { version = "0.12.6", default-features = false }
 alloy-primitives = { version = "0.8.22", default-features = false }
-alloy-node-bindings = { version = "0.12.5", default-features = false }
-alloy-rpc-types-eth = { version = "0.12.5", default-features = false }
-alloy-transport-http = { version = "0.12.5", default-features = false }
-alloy-rpc-types-engine = { version = "0.12.5", default-features = false }
-alloy-rpc-types-beacon = { version = "0.12.5", default-features = false }
-alloy-network-primitives = { version = "0.12.5", default-features = false }
+alloy-node-bindings = { version = "0.12.6", default-features = false }
+alloy-rpc-types-eth = { version = "0.12.6", default-features = false }
+alloy-transport-http = { version = "0.12.6", default-features = false }
+alloy-rpc-types-engine = { version = "0.12.6", default-features = false }
+alloy-rpc-types-beacon = { version = "0.12.6", default-features = false }
+alloy-network-primitives = { version = "0.12.6", default-features = false }
 
 # OP Alloy
-op-alloy-flz = { version = "0.11.1", default-features = false }
-op-alloy-network = { version = "0.11.1", default-features = false }
+op-alloy-flz = { version = "0.11.2", default-features = false }
+op-alloy-network = { version = "0.11.2", default-features = false }
 op-alloy-provider = { version = "0.11.1", default-features = false }
-op-alloy-consensus = { version = "0.11.1", default-features = false }
-op-alloy-rpc-types = { version = "0.11.1", default-features = false }
+op-alloy-consensus = { version = "0.11.2", default-features = false }
+op-alloy-rpc-types = { version = "0.11.2", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.11.1", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.11.1", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.11.2", default-features = false }
 
 # General
 url = "2.5.4"
@@ -144,7 +144,7 @@ tokio = "1.44.1"
 cfg-if = "1.0.0"
 rstest = "0.25.0"
 futures = "0.3.31"
-reqwest = "0.12.14"
+reqwest = "0.12.15"
 tempfile = "3.19.0"
 arbitrary = "1.4.1"
 tokio-util = "0.7.14"
