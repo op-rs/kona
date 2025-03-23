@@ -8,8 +8,7 @@ use kona_genesis::{RollupConfig, SystemConfig};
 use op_alloy_consensus::{DepositSourceDomain, L1InfoDepositSource, TxDeposit};
 
 use crate::{
-    BlockInfoError, DecodeError, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoInterop,
-    L1BlockInfoIsthmus,
+    BlockInfoError, DecodeError, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus,
 };
 
 /// The system transaction gas limit post-Regolith
@@ -34,8 +33,6 @@ pub enum L1BlockInfoTx {
     Bedrock(L1BlockInfoBedrock),
     /// An Ecotone L1 info transaction
     Ecotone(L1BlockInfoEcotone),
-    /// An Interop L1 info transaction
-    Interop(L1BlockInfoInterop),
     /// An Isthmus L1 info transaction
     Isthmus(L1BlockInfoIsthmus),
 }
@@ -83,22 +80,6 @@ impl L1BlockInfoTx {
         let base_fee_scalar = u32::from_be_bytes(
             scalar[28..32].try_into().map_err(|_| BlockInfoError::BaseFeeScalar)?,
         );
-
-        if rollup_config.is_interop_active(l2_block_time) &&
-            rollup_config.hardforks.interop_time.unwrap_or_default() != l2_block_time
-        {
-            return Ok(Self::Interop(L1BlockInfoInterop {
-                number: l1_header.number,
-                time: l1_header.timestamp,
-                base_fee: l1_header.base_fee_per_gas.unwrap_or(0),
-                block_hash: l1_header.hash_slow(),
-                sequence_number,
-                batcher_address: system_config.batcher_address,
-                blob_base_fee: l1_header.blob_fee(BlobParams::prague()).unwrap_or(1),
-                blob_base_fee_scalar,
-                base_fee_scalar,
-            }));
-        }
 
         if rollup_config.is_isthmus_active(l2_block_time) &&
             rollup_config.hardforks.isthmus_time.unwrap_or_default() != l2_block_time
@@ -207,9 +188,6 @@ impl L1BlockInfoTx {
             L1BlockInfoEcotone::L1_INFO_TX_SELECTOR => {
                 L1BlockInfoEcotone::decode_calldata(r).map(Self::Ecotone)
             }
-            L1BlockInfoInterop::L1_INFO_TX_SELECTOR => {
-                L1BlockInfoInterop::decode_calldata(r).map(Self::Interop)
-            }
             L1BlockInfoIsthmus::L1_INFO_TX_SELECTOR => {
                 L1BlockInfoIsthmus::decode_calldata(r).map(Self::Isthmus)
             }
@@ -220,7 +198,7 @@ impl L1BlockInfoTx {
     /// Returns whether the scalars are empty.
     pub const fn empty_scalars(&self) -> bool {
         match self {
-            Self::Bedrock(_) | Self::Interop(_) | Self::Isthmus(..) => false,
+            Self::Bedrock(_) | Self::Isthmus(..) => false,
             Self::Ecotone(L1BlockInfoEcotone { empty_scalars, .. }) => *empty_scalars,
         }
     }
@@ -230,7 +208,6 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(tx) => tx.block_hash,
             Self::Ecotone(tx) => tx.block_hash,
-            Self::Interop(tx) => tx.block_hash,
             Self::Isthmus(tx) => tx.block_hash,
         }
     }
@@ -240,7 +217,6 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(bedrock_tx) => bedrock_tx.encode_calldata(),
             Self::Ecotone(ecotone_tx) => ecotone_tx.encode_calldata(),
-            Self::Interop(interop_tx) => interop_tx.encode_calldata(),
             Self::Isthmus(isthmus_tx) => isthmus_tx.encode_calldata(),
         }
     }
@@ -250,8 +226,7 @@ impl L1BlockInfoTx {
         match self {
             Self::Ecotone(L1BlockInfoEcotone { number, block_hash, .. }) |
             Self::Bedrock(L1BlockInfoBedrock { number, block_hash, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { number, block_hash, .. }) |
-            Self::Interop(L1BlockInfoInterop { number, block_hash, .. }) => {
+            Self::Isthmus(L1BlockInfoIsthmus { number, block_hash, .. }) => {
                 BlockNumHash { number: *number, hash: *block_hash }
             }
         }
@@ -280,8 +255,7 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { base_fee, .. }) |
             Self::Ecotone(L1BlockInfoEcotone { base_fee, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { base_fee, .. }) |
-            Self::Interop(L1BlockInfoInterop { base_fee, .. }) => U256::from(*base_fee),
+            Self::Isthmus(L1BlockInfoIsthmus { base_fee, .. }) => U256::from(*base_fee),
         }
     }
 
@@ -290,8 +264,7 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { l1_fee_scalar, .. }) => *l1_fee_scalar,
             Self::Ecotone(L1BlockInfoEcotone { base_fee_scalar, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { base_fee_scalar, .. }) |
-            Self::Interop(L1BlockInfoInterop { base_fee_scalar, .. }) => {
+            Self::Isthmus(L1BlockInfoIsthmus { base_fee_scalar, .. }) => {
                 U256::from(*base_fee_scalar)
             }
         }
@@ -302,8 +275,7 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(_) => U256::ZERO,
             Self::Ecotone(L1BlockInfoEcotone { blob_base_fee, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee, .. }) |
-            Self::Interop(L1BlockInfoInterop { blob_base_fee, .. }) => U256::from(*blob_base_fee),
+            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee, .. }) => U256::from(*blob_base_fee),
         }
     }
 
@@ -312,8 +284,7 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(_) => U256::ZERO,
             Self::Ecotone(L1BlockInfoEcotone { blob_base_fee_scalar, .. }) |
-            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee_scalar, .. }) |
-            Self::Interop(L1BlockInfoInterop { blob_base_fee_scalar, .. }) => {
+            Self::Isthmus(L1BlockInfoIsthmus { blob_base_fee_scalar, .. }) => {
                 U256::from(*blob_base_fee_scalar)
             }
         }
@@ -324,7 +295,6 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { l1_fee_overhead, .. }) => *l1_fee_overhead,
             Self::Ecotone(L1BlockInfoEcotone { l1_fee_overhead, .. }) => *l1_fee_overhead,
-            Self::Interop(_) => U256::ZERO,
             Self::Isthmus(_) => U256::ZERO,
         }
     }
@@ -334,7 +304,6 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { batcher_address, .. }) |
             Self::Ecotone(L1BlockInfoEcotone { batcher_address, .. }) |
-            Self::Interop(L1BlockInfoInterop { batcher_address, .. }) |
             Self::Isthmus(L1BlockInfoIsthmus { batcher_address, .. }) => *batcher_address,
         }
     }
@@ -344,7 +313,6 @@ impl L1BlockInfoTx {
         match self {
             Self::Bedrock(L1BlockInfoBedrock { sequence_number, .. }) |
             Self::Ecotone(L1BlockInfoEcotone { sequence_number, .. }) |
-            Self::Interop(L1BlockInfoInterop { sequence_number, .. }) |
             Self::Isthmus(L1BlockInfoIsthmus { sequence_number, .. }) => *sequence_number,
         }
     }
@@ -353,9 +321,7 @@ impl L1BlockInfoTx {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{
-        RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_INTEROP_INFO_TX, RAW_ISTHMUS_INFO_TX,
-    };
+    use crate::test_utils::{RAW_BEDROCK_INFO_TX, RAW_ECOTONE_INFO_TX, RAW_ISTHMUS_INFO_TX};
     use alloc::{string::ToString, vec::Vec};
     use alloy_primitives::{address, b256};
     use kona_genesis::HardForkConfig;
@@ -391,17 +357,6 @@ mod test {
             "Invalid ecotone data length. Expected 164, got 6"
         );
 
-        let calldata = L1BlockInfoInterop::L1_INFO_TX_SELECTOR
-            .into_iter()
-            .chain([0xde, 0xad])
-            .collect::<Vec<u8>>();
-        let err = L1BlockInfoTx::decode_calldata(&calldata);
-        assert!(err.is_err());
-        assert_eq!(
-            err.err().unwrap().to_string(),
-            "Invalid interop data length. Expected 164, got 6"
-        );
-
         let calldata = L1BlockInfoIsthmus::L1_INFO_TX_SELECTOR
             .into_iter()
             .chain([0xde, 0xad])
@@ -431,15 +386,6 @@ mod test {
         });
         assert_eq!(
             ecotone.block_hash(),
-            b256!("1c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add3")
-        );
-
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop {
-            block_hash: b256!("1c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add3"),
-            ..Default::default()
-        });
-        assert_eq!(
-            interop.block_hash(),
             b256!("1c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add3")
         );
     }
@@ -478,19 +424,6 @@ mod test {
             }
         );
 
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop {
-            number: 789,
-            block_hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a"),
-            ..Default::default()
-        });
-        assert_eq!(
-            interop.id(),
-            BlockNumHash {
-                number: 789,
-                hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a")
-            }
-        );
-
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             number: 101112,
             block_hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a"),
@@ -519,12 +452,6 @@ mod test {
         });
         assert_eq!(ecotone.sequence_number(), 456);
 
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop {
-            sequence_number: 789,
-            ..Default::default()
-        });
-        assert_eq!(interop.sequence_number(), 789);
-
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             sequence_number: 101112,
             ..Default::default()
@@ -540,9 +467,6 @@ mod test {
         let ecotone = L1BlockInfoTx::Ecotone(L1BlockInfoEcotone::default());
         assert_eq!(ecotone.operator_fee_constant(), 0);
 
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop::default());
-        assert_eq!(interop.operator_fee_constant(), 0);
-
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             operator_fee_constant: 123,
             ..Default::default()
@@ -557,9 +481,6 @@ mod test {
 
         let ecotone = L1BlockInfoTx::Ecotone(L1BlockInfoEcotone::default());
         assert_eq!(ecotone.operator_fee_scalar(), 0);
-
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop::default());
-        assert_eq!(interop.operator_fee_scalar(), 0);
 
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             operator_fee_scalar: 123,
@@ -577,10 +498,6 @@ mod test {
         let ecotone =
             L1BlockInfoTx::Ecotone(L1BlockInfoEcotone { base_fee: 456, ..Default::default() });
         assert_eq!(ecotone.l1_base_fee(), U256::from(456));
-
-        let interop =
-            L1BlockInfoTx::Interop(L1BlockInfoInterop { base_fee: 789, ..Default::default() });
-        assert_eq!(interop.l1_base_fee(), U256::from(789));
 
         let isthmus =
             L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus { base_fee: 101112, ..Default::default() });
@@ -601,9 +518,6 @@ mod test {
         });
         assert_eq!(ecotone.l1_fee_overhead(), U256::from(456));
 
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop::default());
-        assert_eq!(interop.l1_fee_overhead(), U256::ZERO);
-
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus::default());
         assert_eq!(isthmus.l1_fee_overhead(), U256::ZERO);
     }
@@ -621,12 +535,6 @@ mod test {
             ..Default::default()
         });
         assert_eq!(ecotone.batcher_address(), address!("6887246668a3b87f54deb3b94ba47a6f63f32985"));
-
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop {
-            batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
-            ..Default::default()
-        });
-        assert_eq!(interop.batcher_address(), address!("6887246668a3b87f54deb3b94ba47a6f63f32985"));
 
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             batcher_address: address!("6887246668a3b87f54deb3b94ba47a6f63f32985"),
@@ -649,12 +557,6 @@ mod test {
         });
         assert_eq!(ecotone.l1_fee_scalar(), U256::from(456));
 
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop {
-            base_fee_scalar: 789,
-            ..Default::default()
-        });
-        assert_eq!(interop.l1_fee_scalar(), U256::from(789));
-
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             base_fee_scalar: 101112,
             ..Default::default()
@@ -670,10 +572,6 @@ mod test {
         let ecotone =
             L1BlockInfoTx::Ecotone(L1BlockInfoEcotone { blob_base_fee: 456, ..Default::default() });
         assert_eq!(ecotone.blob_base_fee(), U256::from(456));
-
-        let interop =
-            L1BlockInfoTx::Interop(L1BlockInfoInterop { blob_base_fee: 789, ..Default::default() });
-        assert_eq!(interop.blob_base_fee(), U256::from(789));
 
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             blob_base_fee: 101112,
@@ -692,12 +590,6 @@ mod test {
             ..Default::default()
         });
         assert_eq!(ecotone.blob_base_fee_scalar(), U256::from(456));
-
-        let interop = L1BlockInfoTx::Interop(L1BlockInfoInterop {
-            blob_base_fee_scalar: 789,
-            ..Default::default()
-        });
-        assert_eq!(interop.blob_base_fee_scalar(), U256::from(789));
 
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             blob_base_fee_scalar: 101112,
@@ -794,29 +686,6 @@ mod test {
         };
         assert_eq!(expected, decoded);
         assert_eq!(L1BlockInfoTx::Ecotone(decoded).encode_calldata().as_ref(), RAW_ECOTONE_INFO_TX);
-    }
-
-    #[test]
-    fn test_interop_l1_block_info_tx_roundtrip() {
-        let expected = L1BlockInfoInterop {
-            number: 0,
-            time: 1737075512,
-            base_fee: 1000000000,
-            block_hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a"),
-            sequence_number: 1,
-            batcher_address: address!("c0658ee336b551ff83216fbdf85ec92613d23602"),
-            blob_base_fee: 1,
-            blob_base_fee_scalar: 810949,
-            base_fee_scalar: 1368,
-        };
-
-        let L1BlockInfoTx::Interop(decoded) =
-            L1BlockInfoTx::decode_calldata(RAW_INTEROP_INFO_TX.as_ref()).unwrap()
-        else {
-            panic!("Wrong fork");
-        };
-        assert_eq!(expected, decoded);
-        assert_eq!(L1BlockInfoTx::Interop(decoded).encode_calldata().as_ref(), RAW_INTEROP_INFO_TX);
     }
 
     #[test]
@@ -971,52 +840,6 @@ mod test {
     }
 
     #[test]
-    fn test_try_new_interop() {
-        let rollup_config = RollupConfig {
-            hardforks: HardForkConfig { interop_time: Some(1), ..Default::default() },
-            ..Default::default()
-        };
-        let system_config = SystemConfig::default();
-        let sequence_number = 0;
-        let l1_header = Header::default();
-        let l2_block_time = 0xFF;
-
-        let l1_info = L1BlockInfoTx::try_new(
-            &rollup_config,
-            &system_config,
-            sequence_number,
-            &l1_header,
-            l2_block_time,
-        )
-        .unwrap();
-
-        let L1BlockInfoTx::Interop(l1_info) = l1_info else {
-            panic!("Wrong fork");
-        };
-
-        assert_eq!(l1_info.number, l1_header.number);
-        assert_eq!(l1_info.time, l1_header.timestamp);
-        assert_eq!(l1_info.base_fee, { l1_header.base_fee_per_gas.unwrap_or(0) });
-        assert_eq!(l1_info.block_hash, l1_header.hash_slow());
-        assert_eq!(l1_info.sequence_number, sequence_number);
-        assert_eq!(l1_info.batcher_address, system_config.batcher_address);
-        assert_eq!(l1_info.blob_base_fee, l1_header.blob_fee(BlobParams::prague()).unwrap_or(1));
-
-        let scalar = system_config.scalar.to_be_bytes::<32>();
-        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoInterop::L1_SCALAR)
-            .then(|| {
-                u32::from_be_bytes(
-                    scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),
-                )
-            })
-            .unwrap_or_default();
-        let base_fee_scalar =
-            u32::from_be_bytes(scalar[28..32].try_into().expect("Failed to parse base fee scalar"));
-        assert_eq!(l1_info.blob_base_fee_scalar, blob_base_fee_scalar);
-        assert_eq!(l1_info.base_fee_scalar, base_fee_scalar);
-    }
-
-    #[test]
     fn test_try_new_isthmus() {
         let rollup_config = RollupConfig {
             hardforks: HardForkConfig { isthmus_time: Some(1), ..Default::default() },
@@ -1049,7 +872,7 @@ mod test {
         assert!(matches!(l1_info, L1BlockInfoTx::Isthmus(_)));
 
         let scalar = system_config.scalar.to_be_bytes::<32>();
-        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoInterop::L1_SCALAR)
+        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoIsthmus::L1_SCALAR)
             .then(|| {
                 u32::from_be_bytes(
                     scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),

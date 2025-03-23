@@ -14,9 +14,7 @@ use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_hardforks::{Hardfork, Hardforks};
-use kona_protocol::{
-    DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, closing_deposit_context_tx, decode_deposit,
-};
+use kona_protocol::{DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, decode_deposit};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// The sequencer fee vault address.
@@ -148,7 +146,7 @@ where
         }
 
         // Build and encode the L1 info transaction for the current payload.
-        let (l1_info, l1_info_tx_envelope) = L1BlockInfoTx::try_new_with_deposit_tx(
+        let (_, l1_info_tx_envelope) = L1BlockInfoTx::try_new_with_deposit_tx(
             &self.rollup_cfg,
             &sys_config,
             sequence_number,
@@ -165,15 +163,6 @@ where
             Vec::with_capacity(1 + deposit_transactions.len() + upgrade_transactions.len());
         txs.push(encoded_l1_info_tx.into());
         txs.extend(deposit_transactions);
-
-        if self.rollup_cfg.is_interop_active(next_l2_time) {
-            let close_deposit_context_tx = closing_deposit_context_tx(&l1_info, sequence_number);
-
-            let mut rlp_buf = Vec::with_capacity(close_deposit_context_tx.length());
-            close_deposit_context_tx.encode_2718(&mut rlp_buf);
-            txs.push(rlp_buf.into());
-        }
-
         txs.extend(upgrade_transactions);
 
         let mut withdrawals = None;

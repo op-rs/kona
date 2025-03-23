@@ -10,8 +10,7 @@ use tracing_subscriber::{Layer, layer::Context};
 
 use crate::{
     BatchValidationProvider, ChannelCompressor, CompressorError, CompressorResult,
-    CompressorWriter, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoInterop,
-    L1BlockInfoIsthmus, L2BlockInfo,
+    CompressorWriter, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus, L2BlockInfo,
 };
 
 /// Raw encoded bedrock L1 block info transaction.
@@ -27,11 +26,6 @@ pub const RAW_ECOTONE_INFO_TX: [u8; L1BlockInfoEcotone::L1_INFO_TX_LEN] = hex!(
 /// Raw encoded isthmus L1 block info transaction.
 pub const RAW_ISTHMUS_INFO_TX: [u8; L1BlockInfoIsthmus::L1_INFO_TX_LEN] = hex!(
     "098999be00000558000c5fc5000000000000000500000000661c277300000000012bec20000000000000000000000000000000000000000000000000000000026e9f109900000000000000000000000000000000000000000000000000000000000000011c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add30000000000000000000000006887246668a3b87f54deb3b94ba47a6f63f329850000abcd000000000000dcba"
-);
-
-/// Raw encoded interop L1 block info transaction.
-pub const RAW_INTEROP_INFO_TX: [u8; L1BlockInfoInterop::L1_INFO_TX_LEN] = hex!(
-    "760ee04d00000558000c5fc50000000000000001000000006789ab380000000000000000000000000000000000000000000000000000000000000000000000003b9aca0000000000000000000000000000000000000000000000000000000000000000014f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a000000000000000000000000c0658ee336b551ff83216fbdf85ec92613d23602"
 );
 
 /// A Mock compressor for testing.
