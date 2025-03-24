@@ -10,6 +10,7 @@ categories = ["cryptography", "cryptography::cryptocurrencies"]
 exclude = ["**/target"]
 
 [workspace]
+resolver = "2"
 members = [
   "bin/*",
   "crates/proof/*",
@@ -24,10 +25,6 @@ default-members = [
   "bin/client",
   "bin/node",
 ]
-
-# Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021
-# https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
-resolver = "2"
 
 [workspace.metadata.cargo-udeps.ignore]
 normal = ["rustls-platform-verifier"]
@@ -44,7 +41,6 @@ unnameable-types = "warn"
 all = "warn"
 
 [workspace.lints.clippy]
-needless-return = "allow" # Temporary fix since this is breaking in nightly clippy
 all = { level = "warn", priority = -1 }
 missing-const-for-fn = "warn"
 use-self = "warn"

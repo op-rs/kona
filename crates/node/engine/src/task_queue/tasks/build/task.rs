@@ -241,7 +241,7 @@ impl BuildTask {
             PayloadStatusEnum::Invalid { validation_error } => {
                 if payload_attrs.is_deposits_only() {
                     error!(target: "engine-builder", "Critical: Deposit-only payload import failed: {validation_error}");
-                    return Err(BuildTaskError::DepositOnlyPayloadFailed);
+                    Err(BuildTaskError::DepositOnlyPayloadFailed)
                 } else {
                     warn!(target: "engine-builder", "Payload import failed: {validation_error}");
                     warn!(target: "engine-builder", "Re-attempting payload import with deposits only.");
@@ -250,7 +250,7 @@ impl BuildTask {
             }
             s => {
                 // Other codes are never returned by `engine_newPayload`
-                return Err(BuildTaskError::UnexpectedPayloadStatus(s));
+                Err(BuildTaskError::UnexpectedPayloadStatus(s))
             }
         }
     }
