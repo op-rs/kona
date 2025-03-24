@@ -6,6 +6,7 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::{BlockHash, Bytes};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use kona_genesis::RollupConfig;
+use op_alloy_consensus::OpTxType;
 
 /// Represents a single batch: a single encoded L2 block
 #[derive(Debug, Default, RlpDecodable, RlpEncodable, Clone, PartialEq, Eq)]
@@ -26,7 +27,7 @@ pub struct SingleBatch {
 impl SingleBatch {
     /// If any transactions are empty or deposited transaction types.
     pub fn has_invalid_transactions(&self) -> bool {
-        self.transactions.iter().any(|tx| tx.0.is_empty() || tx.0[0] == 0x7E)
+        self.transactions.iter().any(|tx| tx.0.is_empty() || tx.0[0] == OpTxType::Deposit as u8)
     }
 
     /// Returns the [BlockNumHash] of the batch.
