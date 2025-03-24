@@ -22,6 +22,9 @@ pub trait InteropTxValidator {
     type SupervisorClient: CheckAccessList + Send + Sync;
 
     /// Default duration that message validation is not allowed to exceed.
+    ///
+    /// Note: this has no effect unless shorter than timeout configured for
+    /// [`Self::SupervisorClient`] type.
     const DEFAULT_TIMEOUT: Duration;
 
     /// Returns reference to supervisor client. Used in default trait method implementations.
@@ -33,16 +36,13 @@ pub trait InteropTxValidator {
     }
 
     /// Validates a list of inbox entries against a Supervisor.
-    async fn validate_messages(
+    async fn validate_messages_with_timeout(
         &self,
         inbox_entries: &[B256],
         safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
-        timeout: Option<Duration>,
+        timeout: Duration,
     ) -> Result<(), InteropTxValidatorError> {
-        // Set timeout duration based on input if provided.
-        let timeout = timeout.unwrap_or(Self::DEFAULT_TIMEOUT);
-
         // Validate messages against supervisor with timeout.
         tokio::time::timeout(
             timeout,
@@ -50,5 +50,23 @@ pub trait InteropTxValidator {
         )
         .await
         .map_err(|_| InteropTxValidatorError::ValidationTimeout(timeout.as_secs()))?
+    }
+
+    /// Validates a list of inbox entries against a Supervisor.
+    ///
+    /// Times out RPC requests after [`Self::DEFAULT_TIMEOUT`].
+    async fn validate_messages(
+        &self,
+        inbox_entries: &[B256],
+        safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
+    ) -> Result<(), InteropTxValidatorError> {
+        self.validate_messages_with_timeout(
+            inbox_entries,
+            safety,
+            executing_descriptor,
+            Self::DEFAULT_TIMEOUT,
+        )
+        .await
     }
 }
