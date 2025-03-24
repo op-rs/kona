@@ -49,7 +49,7 @@ mod iter;
 pub use iter::FrameIter;
 
 mod utils;
-pub use utils::{read_tx_data, starts_with_2718_deposit, starts_with_7702_tx, to_system_config};
+pub use utils::{read_tx_data, to_system_config};
 
 mod channel_out;
 pub use channel_out::{ChannelOut, ChannelOutError};

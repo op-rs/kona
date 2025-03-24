@@ -1,6 +1,6 @@
 //! This module contains the [SingleBatch] type.
 
-use crate::{BatchValidity, BlockInfo, L2BlockInfo, starts_with_2718_deposit, starts_with_7702_tx};
+use crate::{BatchValidity, BlockInfo, L2BlockInfo};
 use alloc::vec::Vec;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{BlockHash, Bytes};
@@ -160,11 +160,13 @@ impl SingleBatch {
             if tx.is_empty() {
                 return BatchValidity::Drop;
             }
-            if starts_with_2718_deposit(tx) {
+            if tx.as_ref().first() == Some(&(OpTxType::Deposit as u8)) {
                 return BatchValidity::Drop;
             }
             // If isthmus is not active yet and the transaction is a 7702, drop the batch.
-            if !cfg.is_isthmus_active(self.timestamp) && starts_with_7702_tx(tx) {
+            if !cfg.is_isthmus_active(self.timestamp) &&
+                tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
+            {
                 return BatchValidity::Drop;
             }
         }

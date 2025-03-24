@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::FixedBytes;
 use kona_genesis::RollupConfig;
-use op_alloy_consensus::DEPOSIT_TX_TYPE_ID;
+use op_alloy_consensus::OpTxType;
 use tracing::{info, warn};
 
 use crate::{
@@ -265,28 +265,27 @@ impl SpanBatch {
             }
 
             // Check that the transactions are not empty and do not contain any deposits.
-            for (tx_index, tx_bytes) in batch.transactions.iter().enumerate() {
-                if tx_bytes.is_empty() {
+            for (i, tx) in batch.transactions.iter().enumerate() {
+                if tx.is_empty() {
                     warn!(
                         "transaction data must not be empty, but found empty tx, tx_index: {}",
-                        tx_index
+                        i
                     );
                     return BatchValidity::Drop;
                 }
-                if tx_bytes.0[0] == DEPOSIT_TX_TYPE_ID {
+                if tx.as_ref().first() == Some(&(OpTxType::Deposit as u8)) {
                     warn!(
                         "sequencers may not embed any deposits into batch data, but found tx that has one, tx_index: {}",
-                        tx_index
+                        i
                     );
                     return BatchValidity::Drop;
                 }
 
                 // If isthmus is not active yet and the transaction is a 7702, drop the batch.
-                if !cfg.is_isthmus_active(batch.timestamp) && crate::starts_with_7702_tx(tx_bytes) {
-                    warn!(
-                        "EIP-7702 transactions are not supported pre-isthmus. tx_index: {}",
-                        tx_index
-                    );
+                if !cfg.is_isthmus_active(batch.timestamp) &&
+                    tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
+                {
+                    warn!("EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
                     return BatchValidity::Drop;
                 }
             }
@@ -1690,7 +1689,7 @@ mod tests {
         let second = SpanBatchElement {
             epoch_num: 10,
             timestamp: 20,
-            transactions: vec![Bytes::copy_from_slice(&[DEPOSIT_TX_TYPE_ID])],
+            transactions: vec![Bytes::copy_from_slice(&[OpTxType::Deposit as u8])],
         };
         let third =
             SpanBatchElement { epoch_num: 11, timestamp: 20, transactions: vec![filler_bytes] };
