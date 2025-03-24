@@ -72,13 +72,6 @@ pub use info::{
     L1BlockInfoTx,
 };
 
-mod fee;
-pub use fee::{
-    calculate_tx_l1_cost_bedrock, calculate_tx_l1_cost_bedrock_empty_scalars,
-    calculate_tx_l1_cost_ecotone, calculate_tx_l1_cost_fjord, calculate_tx_l1_cost_regolith,
-    data_gas_bedrock, data_gas_fjord, data_gas_regolith, flz_compress_len, tx_estimated_size_fjord,
-};
-
 mod predeploys;
 pub use predeploys::Predeploys;
 
