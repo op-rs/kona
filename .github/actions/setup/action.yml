@@ -1,0 +1,58 @@
+name: Setup Rust Action Environment
+
+description: Installs dependencies to run Rust jobs.
+
+inputs:
+  components:
+    description: Components to install in the rust toolchain
+    required: false
+    default: ""
+  channel:
+    description: The Rust channel release to use
+    required: false
+    default: "stable"
+  prefix-key:
+    description: The prefix key for the rust cache
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Just
+      uses: taiki-e/install-action@just
+
+    - name: Installs stable rust toolchain
+      if: ${{ inputs.channel == 'stable' && inputs.components == '' }}
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.85
+
+    - name: Installs stable rust toolchain
+      if: ${{ inputs.channel == 'stable' && inputs.components != '' }}
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.85
+        components: $COMPONENTS
+      env:
+        COMPONENTS: ${{ inputs.components }}
+
+    - name: Installs nightly rust toolchain
+      if: ${{ inputs.channel == 'nightly' && inputs.components == '' }}
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Installs nightly rust toolchain
+      if: ${{ inputs.channel == 'nightly' && inputs.components != '' }}
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: $COMPONENTS
+      env:
+        COMPONENTS: ${{ inputs.components }}
+
+    - name: Installs the rust cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: true
+        prefix-key: $PREFIX_KEY
+      env:
+        PREFIX_KEY: ${{ inputs.prefix-key }}
