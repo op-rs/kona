@@ -19,7 +19,6 @@ workspace = true
 kona-genesis.workspace = true
 
 # OP Alloy
-op-alloy-flz.workspace = true
 op-alloy-consensus.workspace = true
 
 # Alloy

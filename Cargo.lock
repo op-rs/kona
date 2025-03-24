@@ -4156,7 +4156,6 @@ dependencies = [
  "kona-genesis",
  "miniz_oxide",
  "op-alloy-consensus",
- "op-alloy-flz",
  "op-alloy-rpc-types",
  "proptest",
  "rand 0.9.0",
@@ -5314,12 +5313,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
 ]
-
-[[package]]
-name = "op-alloy-flz"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e11bd9b9382673e8c0ab4b9ff8921aba7caf3a2805f88c6840daaa50f5db2a1"
 
 [[package]]
 name = "op-alloy-network"

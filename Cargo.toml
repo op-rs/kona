@@ -126,7 +126,6 @@ alloy-rpc-types-beacon = { version = "0.12.6", default-features = false }
 alloy-network-primitives = { version = "0.12.6", default-features = false }
 
 # OP Alloy
-op-alloy-flz = { version = "0.11.2", default-features = false }
 op-alloy-network = { version = "0.11.2", default-features = false }
 op-alloy-provider = { version = "0.11.1", default-features = false }
 op-alloy-consensus = { version = "0.11.2", default-features = false }
