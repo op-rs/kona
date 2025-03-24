@@ -44,6 +44,7 @@ impl Behaviour {
                     .topics()
                     .iter()
                     .map(|topic| {
+                        debug!("Subscribing to topic: {}", topic.to_string());
                         let topic = IdentTopic::new(topic.to_string());
                         gossipsub.subscribe(&topic).map_err(|_| BehaviourError::SubscriptionFailed)
                     })
@@ -73,14 +74,14 @@ mod tests {
 
     #[test]
     fn test_behaviour_no_handlers() {
-        let cfg = config::default_config_builder().build().expect("Failed to build default config");
+        let cfg = config::default_config();
         let handlers = vec![];
         let _ = Behaviour::new(cfg, &handlers).unwrap();
     }
 
     #[test]
     fn test_behaviour_with_handlers() {
-        let cfg = config::default_config_builder().build().expect("Failed to build default config");
+        let cfg = config::default_config();
         let (_, recv) = tokio::sync::watch::channel(Address::default());
         let (block_handler, _) = BlockHandler::new(0, recv);
         let handlers: Vec<Box<dyn Handler>> = vec![Box::new(block_handler)];

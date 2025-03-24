@@ -4,7 +4,6 @@ use alloy_primitives::Address;
 use kona_p2p::{Behaviour, BlockHandler, GossipDriver};
 use libp2p::{Multiaddr, SwarmBuilder, identity::Keypair, multiaddr::Protocol};
 use std::net::Ipv4Addr;
-use tokio::sync::watch::channel;
 
 /// Helper function to create a new gossip driver instance.
 pub fn gossip_driver(port: u16) -> GossipDriver {
@@ -15,11 +14,11 @@ pub fn gossip_driver(port: u16) -> GossipDriver {
     addr.push(Protocol::Tcp(port));
 
     // Use the default `kona_p2p` config for the gossipsub protocol.
-    let config = kona_p2p::default_config().expect("constructs default libp2p gossipsub config");
+    let config = kona_p2p::default_config();
 
     // Construct a Behaviour instance
     let unsafe_block_signer = Address::default();
-    let (_, unsafe_block_signer_recv) = channel(unsafe_block_signer);
+    let (_, unsafe_block_signer_recv) = tokio::sync::watch::channel(unsafe_block_signer);
     let (handler, _unsafe_block_recv) = BlockHandler::new(chain_id, unsafe_block_signer_recv);
     let behaviour =
         Behaviour::new(config, &[Box::new(handler.clone())]).expect("creates behaviour");

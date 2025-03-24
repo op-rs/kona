@@ -137,6 +137,7 @@ op-alloy-rpc-types-engine = { version = "0.11.2", default-features = false }
 # General
 url = "2.5.4"
 lru = "0.13.0"
+dirs = "6.0.0"
 spin = "0.9.8"
 clap = "4.5.32"
 tower = "0.5.2"
@@ -174,7 +175,6 @@ snap = "1.1.1"
 discv5 = "0.9.1"
 libp2p = "0.55.0"
 openssl = "0.10.71"
-libp2p-identity = "0.2.10"
 
 # Tracing
 tracing-loki = "0.2.6"

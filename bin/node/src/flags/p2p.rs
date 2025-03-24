@@ -7,7 +7,7 @@
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
-use libp2p_identity::Keypair;
+use libp2p::identity::Keypair;
 use std::{net::IpAddr, path::PathBuf};
 
 /// P2P CLI Flags

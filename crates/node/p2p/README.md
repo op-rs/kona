@@ -16,22 +16,27 @@ Contains a gossipsub driver to run discv5 peer discovery and block gossip.
 ```rust,no_run
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use alloy_primitives::address;
-use kona_p2p::NetworkDriver;
+use kona_p2p::Network;
+use libp2p::Multiaddr;
 
-// Build the network driver.
+// Construct the Network
 let signer = address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
-let driver = NetworkDriver::builder()
+let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+let mut gossip_addr = Multiaddr::from(gossip.ip());
+gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
+let disc = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+let network = Network::builder()
     .with_chain_id(10) // op mainnet chain id
     .with_unsafe_block_signer(signer)
-    .with_gossip_addr(socket)
+    .with_discovery_address(disc)
+    .with_gossip_address(gossip_addr)
     .build()
     .expect("Failed to builder network driver");
 
-// Call `.start()` on the driver.
-driver.start().expect("Failed to start network driver");
-
-println!("NetworkDriver started.");
+// Starting the network spawns gossip and discovery service
+// handling in a new thread so this is a non-blocking,
+// synchronous operation that does not need to be awaited.
+network.start().expect("Failed to start network driver");
 ```
 
 [!WARNING]: ###example
