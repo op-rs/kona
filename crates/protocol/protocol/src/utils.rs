@@ -5,7 +5,7 @@ use alloy_consensus::{Transaction, TxType, Typed2718};
 use alloy_primitives::B256;
 use alloy_rlp::{Buf, Header};
 use kona_genesis::{RollupConfig, SystemConfig};
-use op_alloy_consensus::OpBlock;
+use op_alloy_consensus::{OpBlock, OpTxType};
 
 use crate::{
     L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus, L1BlockInfoTx,
@@ -17,7 +17,7 @@ pub fn starts_with_2718_deposit<B>(value: &B) -> bool
 where
     B: AsRef<[u8]>,
 {
-    value.as_ref().first() == Some(&0x7E)
+    value.as_ref().first() == Some(&(OpTxType::Deposit as u8))
 }
 
 /// Returns if the given `value` is a [`TxType::Eip7702`] transaction.
