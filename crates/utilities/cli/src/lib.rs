@@ -8,6 +8,8 @@
 mod clap;
 pub use clap::cli_styles;
 
+pub mod backtrace;
+
 mod tracing;
 pub use tracing::init_tracing_subscriber;
 
