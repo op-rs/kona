@@ -54,7 +54,8 @@ pub trait InteropTxValidator {
 
     /// Validates a list of inbox entries against a Supervisor.
     ///
-    /// Times out RPC requests after [`Self::DEFAULT_TIMEOUT`].
+    /// Times out RPC requests after [`Self::DEFAULT_TIMEOUT`], as long as this timeout is shorter
+    /// than the underlying request timeout configured for [`Self::SupervisorClient`] type.
     async fn validate_messages(
         &self,
         inbox_entries: &[B256],
