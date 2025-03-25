@@ -37,7 +37,7 @@ impl Behaviour {
         let mut gossipsub = libp2p::gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, cfg)
             .map_err(|_| BehaviourError::GossipsubCreationFailed)?;
 
-        handlers
+        let subscriptions = handlers
             .iter()
             .flat_map(|handler| {
                 handler
@@ -56,6 +56,12 @@ impl Behaviour {
                     .collect::<Vec<_>>()
             })
             .collect::<Result<Vec<bool>, BehaviourError>>()?;
+
+        for sub in subscriptions {
+            if !sub {
+                return Err(BehaviourError::SubscriptionFailed);
+            }
+        }
 
         Ok(Self { ping, gossipsub })
     }

@@ -24,13 +24,19 @@ pub struct RpcArgs {
     pub admin_persistence: Option<PathBuf>,
 }
 
-impl From<RpcArgs> for RpcConfig {
-    fn from(args: RpcArgs) -> Self {
+impl From<&RpcArgs> for RpcConfig {
+    fn from(args: &RpcArgs) -> Self {
         RpcConfig {
             listen_addr: args.listen_addr,
             listen_port: args.listen_port,
             enable_admin: args.enable_admin,
-            admin_persistence: args.admin_persistence,
+            admin_persistence: args.admin_persistence.clone(),
         }
+    }
+}
+
+impl From<RpcArgs> for RpcConfig {
+    fn from(args: RpcArgs) -> Self {
+        RpcConfig::from(&args)
     }
 }

@@ -4051,6 +4051,7 @@ dependencies = [
  "alloy-rpc-types-engine",
  "anyhow",
  "clap",
+ "jsonrpsee",
  "kona-cli",
  "kona-engine",
  "kona-genesis",

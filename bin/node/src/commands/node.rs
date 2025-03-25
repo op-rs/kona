@@ -77,6 +77,7 @@ impl NodeCommand {
         };
 
         let p2p_config = self.p2p_config(args)?;
+        let rpc_config = self.rpc_flags.into();
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
@@ -86,6 +87,7 @@ impl NodeCommand {
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_p2p_config(p2p_config)
+            .with_rpc_config(rpc_config)
             .build()
             .start()
             .await
