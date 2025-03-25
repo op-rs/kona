@@ -7,7 +7,7 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait SequencerNodeService: ValidatorNodeService {
     /// TODO
-    async fn start(&self) -> Result<(), Self::Error> {
+    async fn start(&mut self) -> Result<(), Self::Error> {
         unimplemented!("TODO")
     }
 }

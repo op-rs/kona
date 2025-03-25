@@ -8,7 +8,7 @@ use tokio::{
     sync::{mpsc::Receiver, watch::Sender},
 };
 
-use crate::{Discv5Driver, GossipDriver, NetworkBuilder};
+use crate::{Discv5Driver, GossipDriver, NetworkBuilder, NetworkRpcHandler};
 
 /// Network
 ///
@@ -22,6 +22,8 @@ pub struct Network {
     pub(crate) unsafe_block_recv: Option<Receiver<OpNetworkPayloadEnvelope>>,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
+    /// Handler for RPC Requests.
+    pub(crate) rpc: NetworkRpcHandler,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
@@ -47,6 +49,7 @@ impl Network {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
+        let mut rpc = std::mem::take(&mut self.rpc);
         let mut handler = self.discovery.start();
         self.gossip.listen()?;
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
@@ -60,6 +63,13 @@ impl Network {
                         };
                         self.gossip.dial(enr.clone());
                     },
+                    req = rpc.recv() => {
+                        let Some(req) = req else {
+                            trace!(target: "p2p::driver", "Receiver `None` rpc request");
+                            continue;
+                        };
+                        rpc.handle_rpc_req(req);
+                    }
                     event = self.gossip.select_next_some() => {
                         trace!(target: "p2p::driver", "Received event: {:?}", event);
                         self.gossip.handle_event(event);

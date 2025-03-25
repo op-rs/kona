@@ -7,6 +7,7 @@ use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
 use kona_registry::ROLLUP_CONFIGS;
+use kona_rpc::RpcConfig;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
 use tracing::debug;
@@ -80,7 +81,7 @@ impl NodeCommand {
         let gossip_addr = std::net::SocketAddr::new(ip, tcp);
         let disc_addr = std::net::SocketAddr::new(ip, udp);
         let keypair = self.p2p_flags.keypair()?;
-        let rpc_config = self.rpc_flags.into();
+        let rpc_config = RpcConfig::from(self.rpc_flags);
 
         let signer = args.genesis_signer()?;
 

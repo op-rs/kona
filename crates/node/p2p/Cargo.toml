@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 # Kona
 kona-genesis.workspace = true
+kona-rpc = { workspace = true, features = ["jsonrpsee", "reqwest", "std"] }
 
 # Alloy
 alloy-rlp.workspace = true
@@ -37,8 +38,10 @@ serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+async-trait.workspace = true
 lazy_static.workspace = true
 unsigned-varint.workspace = true
+jsonrpsee = { workspace = true, features = ["server"] }
 serde_json = { workspace = true, features = ["alloc"] }
 derive_more = { workspace = true, features = ["display"] }
 

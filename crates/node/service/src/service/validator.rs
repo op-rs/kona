@@ -1,7 +1,10 @@
 //! [ValidatorNodeService] trait.
 
-use crate::{DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, service::spawn_and_wait};
+use crate::{
+    DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, RpcActor, service::spawn_and_wait,
+};
 use async_trait::async_trait;
+use jsonrpsee::server::ServerHandle;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
@@ -72,11 +75,14 @@ pub trait ValidatorNodeService {
         &self,
     ) -> Result<(L2ForkchoiceState, Self::DerivationPipeline), Self::Error>;
 
+    /// Initializes the RPC server for the node.
+    async fn init_rpc(&mut self) -> Result<Option<ServerHandle>, Self::Error>;
+
     /// Creates a new instance of the [`Network`].
-    async fn init_network(&self) -> Result<Option<Network>, Self::Error>;
+    async fn init_network(&mut self) -> Result<Option<Network>, Self::Error>;
 
     /// Starts the rollup node service.
-    async fn start(&self) -> Result<(), Self::Error> {
+    async fn start(&mut self) -> Result<(), Self::Error> {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
@@ -96,6 +102,8 @@ pub trait ValidatorNodeService {
         );
         let derivation = Some(derivation);
 
+        let rpc = self.init_rpc().await?.map(|handle| RpcActor::new(handle, cancellation.clone()));
+
         let network = (self.init_network().await?).map_or_else(
             || None,
             |driver| {
@@ -112,7 +120,7 @@ pub trait ValidatorNodeService {
             },
         );
 
-        spawn_and_wait!(cancellation, actors = [da_watcher, derivation, network]);
+        spawn_and_wait!(cancellation, actors = [da_watcher, derivation, rpc, network]);
         Ok(())
     }
 }

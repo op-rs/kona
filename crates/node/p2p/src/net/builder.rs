@@ -5,7 +5,7 @@ use discv5::{Config as Discv5Config, ListenConfig};
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{net::SocketAddr, time::Duration};
 
-use crate::{Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError};
+use crate::{Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError, NetworkRpcHandler};
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
 #[derive(Debug, Default)]
@@ -16,12 +16,19 @@ pub struct NetworkBuilder {
     gossip: GossipDriverBuilder,
     /// The unsafe block signer [`Address`].
     signer: Option<Address>,
+    /// A channel to receive RPC requests.
+    rpc: Option<NetworkRpcHandler>,
 }
 
 impl NetworkBuilder {
     /// Creates a new [`NetworkBuilder`].
     pub const fn new() -> Self {
-        Self { discovery: Discv5Builder::new(), gossip: GossipDriverBuilder::new(), signer: None }
+        Self {
+            discovery: Discv5Builder::new(),
+            gossip: GossipDriverBuilder::new(),
+            signer: None,
+            rpc: None,
+        }
     }
 
     /// Sets the address for the [`crate::Discv5Driver`].
@@ -36,6 +43,11 @@ impl NetworkBuilder {
             discovery: self.discovery.with_chain_id(id),
             ..self
         }
+    }
+
+    /// Sets the RPC receiver for the [`Network`].
+    pub fn with_rpc_receiver(self, rpc: tokio::sync::mpsc::Receiver<crate::NetRpcRequest>) -> Self {
+        Self { rpc: Some(NetworkRpcHandler::new(rpc)), ..self }
     }
 
     /// Sets the listen config for the [`crate::Discv5Driver`].
@@ -71,13 +83,14 @@ impl NetworkBuilder {
     /// Builds the [`Network`].
     pub fn build(mut self) -> Result<Network, NetworkBuilderError> {
         let signer = self.signer.take().ok_or(NetworkBuilderError::UnsafeBlockSignerNotSet)?;
+        let rpc = self.rpc.take().ok_or(NetworkBuilderError::MissingRpcReceiver)?;
         let (signer_tx, signer_rx) = tokio::sync::watch::channel(signer);
         let unsafe_block_signer_sender = Some(signer_tx);
         let mut gossip = self.gossip.with_unsafe_block_signer_receiver(signer_rx).build()?;
         let discovery = self.discovery.build()?;
         let unsafe_block_recv = gossip.take_payload_recv();
 
-        Ok(Network { gossip, discovery, unsafe_block_recv, unsafe_block_signer_sender })
+        Ok(Network { gossip, rpc, discovery, unsafe_block_recv, unsafe_block_signer_sender })
     }
 }
 
@@ -97,9 +110,20 @@ mod tests {
     }
 
     #[test]
-    fn test_build_missing_chain_id() {
+    fn test_build_missing_rpc_receiver() {
         let builder = NetworkBuilder::new();
         let err = builder.with_unsafe_block_signer(Address::random()).build().unwrap_err();
+        assert_eq!(err, NetworkBuilderError::MissingRpcReceiver);
+    }
+
+    #[test]
+    fn test_build_missing_chain_id() {
+        let builder = NetworkBuilder::new();
+        let err = builder
+            .with_unsafe_block_signer(Address::random())
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
+            .build()
+            .unwrap_err();
         let gossip_err = GossipDriverBuilderError::MissingChainID;
         assert_eq!(err, NetworkBuilderError::GossipDriverBuilder(gossip_err));
     }
@@ -109,6 +133,7 @@ mod tests {
         let builder = NetworkBuilder::new();
         let err = builder
             .with_unsafe_block_signer(Address::random())
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_chain_id(1)
             .build()
             .unwrap_err();
@@ -127,6 +152,7 @@ mod tests {
         let driver = NetworkBuilder::new()
             .with_unsafe_block_signer(signer)
             .with_chain_id(id)
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_gossip_address(gossip_addr.clone())
             .with_discovery_address(disc)
             .build()
@@ -166,6 +192,7 @@ mod tests {
             .with_gossip_address(gossip_addr)
             .with_discovery_address(disc)
             .with_discovery_config(discovery_config)
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .build()
             .unwrap();
 

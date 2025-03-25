@@ -1,5 +1,8 @@
 //! Network driver module.
 
+mod ext;
+pub use ext::{NetRpcRequest, NetworkRpcHandler};
+
 mod error;
 pub use error::NetworkBuilderError;
 

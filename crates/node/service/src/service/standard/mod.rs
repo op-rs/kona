@@ -8,6 +8,7 @@ use crate::{L1WatcherRpc, L2ForkchoiceState, SyncStartError, find_starting_forkc
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use jsonrpsee::server::ServerHandle;
 use libp2p::identity::Keypair;
 use op_alloy_network::Optimism;
 use std::{net::SocketAddr, sync::Arc};
@@ -24,7 +25,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
     OnlineBlobProvider, OnlinePipeline,
 };
-use kona_rpc::RpcConfig;
+use kona_rpc::{OpP2PApiServer, RpcConfig};
 
 mod builder;
 pub use builder::RollupNodeBuilder;
@@ -61,8 +62,9 @@ pub struct RollupNode {
     /// The unsafe block signer.
     pub(crate) unsafe_block_signer: Address,
     /// The RPC configuration.
-    #[allow(unused)]
     pub(crate) rpc_config: Option<RpcConfig>,
+    /// The RPC receiver handle for the network actor.
+    pub(crate) rpc_rx: Option<tokio::sync::mpsc::Receiver<kona_p2p::NetRpcRequest>>,
 }
 
 impl RollupNode {
@@ -97,7 +99,28 @@ impl ValidatorNodeService for RollupNode {
         L1WatcherRpc::new(self.l1_provider.clone(), new_da_tx, cancellation)
     }
 
-    async fn init_network(&self) -> Result<Option<Network>, Self::Error> {
+    async fn init_rpc(&mut self) -> Result<Option<ServerHandle>, Self::Error> {
+        let Some(rpc_config) = self.rpc_config.as_ref() else {
+            info!("RPC server disabled, skipping RPC server setup");
+            return Ok(None);
+        };
+        let socket: SocketAddr = rpc_config.into();
+        let server = jsonrpsee::server::Server::builder()
+            .build(socket)
+            .await
+            .map_err(|_| RollupNodeError::RPCServerInit)?;
+        let mut module = jsonrpsee::RpcModule::new(());
+
+        if !self.network_disabled {
+            let (tx, rx) = tokio::sync::mpsc::channel(1024);
+            let p2p = kona_p2p::NetworkRpc::new(tx);
+            module.merge(p2p.into_rpc()).map_err(|_| RollupNodeError::MergeRpcModules)?;
+            self.rpc_rx = Some(rx);
+        }
+        Ok(Some(server.start(module)))
+    }
+
+    async fn init_network(&mut self) -> Result<Option<Network>, Self::Error> {
         if self.network_disabled {
             return Ok(None);
         }
@@ -112,6 +135,7 @@ impl ValidatorNodeService for RollupNode {
             ))
         })?;
         let keypair = self.keypair.clone().unwrap_or_else(Keypair::generate_secp256k1);
+        let rpc = self.rpc_rx.take().ok_or_else(|| RollupNodeError::RPCServerStart)?;
 
         let chain_id = self.config.l2_chain_id;
         let mut multiaddr = libp2p::Multiaddr::from(gossip_addr.ip());
@@ -119,6 +143,7 @@ impl ValidatorNodeService for RollupNode {
         Network::builder()
             .with_discovery_address(disc_addr)
             .with_chain_id(chain_id)
+            .with_rpc_receiver(rpc)
             .with_gossip_address(multiaddr)
             .with_unsafe_block_signer(self.unsafe_block_signer)
             .with_keypair(keypair)
@@ -177,7 +202,7 @@ impl ValidatorNodeService for RollupNode {
 
 #[async_trait]
 impl SequencerNodeService for RollupNode {
-    async fn start(&self) -> Result<(), Self::Error> {
+    async fn start(&mut self) -> Result<(), Self::Error> {
         unimplemented!()
     }
 }
@@ -197,4 +222,13 @@ pub enum RollupNodeError {
     /// An error occured while initializing the network.
     #[error(transparent)]
     Network(#[from] NetworkBuilderError),
+    /// An error initializing the RPC server.
+    #[error("Failed to initialize the RPC server")]
+    RPCServerInit,
+    /// An error starting the RPC server.
+    #[error("Failed to start the RPC server")]
+    RPCServerStart,
+    /// Failed to merge RPC modules.
+    #[error("Failed to merge RPC modules")]
+    MergeRpcModules,
 }

@@ -83,7 +83,9 @@ pub fn default_config_builder() -> ConfigBuilder {
         .heartbeat_interval(*GOSSIP_HEARTBEAT)
         .fanout_ttl(Duration::from_secs(24))
         .history_length(12)
+        .flood_publish(false)
         .history_gossip(3)
+        .max_transmit_size(MAX_GOSSIP_SIZE)
         .duplicate_cache_time(Duration::from_secs(65))
         .validation_mode(libp2p::gossipsub::ValidationMode::None)
         .validate_messages()
@@ -99,9 +101,11 @@ pub fn default_config() -> Config {
 
 /// Computes the [MessageId] of a `gossipsub` message.
 fn compute_message_id(msg: &Message) -> MessageId {
+    info!("Computing message ID");
     let mut decoder = Decoder::new();
     let id = match decoder.decompress_vec(&msg.data) {
         Ok(data) => {
+            info!(target: "cfg", "Successfully decompressed message");
             let domain_valid_snappy: Vec<u8> = vec![0x1, 0x0, 0x0, 0x0];
             sha256([domain_valid_snappy.as_slice(), data.as_slice()].concat().as_slice())[..20]
                 .to_vec()
@@ -114,6 +118,7 @@ fn compute_message_id(msg: &Message) -> MessageId {
                 .to_vec()
         }
     };
+    info!(target: "cfg", "Computed message ID: {:?}", id);
 
     MessageId(id)
 }

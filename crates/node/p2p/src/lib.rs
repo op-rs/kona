@@ -10,8 +10,11 @@
 #[macro_use]
 extern crate tracing;
 
+mod rpc;
+pub use rpc::NetworkRpc;
+
 mod net;
-pub use net::{Network, NetworkBuilder, NetworkBuilderError};
+pub use net::{NetRpcRequest, Network, NetworkBuilder, NetworkBuilderError, NetworkRpcHandler};
 
 mod gossip;
 pub use gossip::{

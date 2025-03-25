@@ -41,7 +41,7 @@ pub struct RollupNodeBuilder {
     keypair: Option<Keypair>,
     /// The unsafe block signer.
     unsafe_block_signer: Option<Address>,
-    /// An RPC Configuration.
+    /// The RPC Config.
     rpc_config: Option<RpcConfig>,
 }
 
@@ -49,11 +49,6 @@ impl RollupNodeBuilder {
     /// Creates a new [RollupNodeBuilder] with the given [RollupConfig].
     pub fn new(config: RollupConfig) -> Self {
         Self { config, ..Self::default() }
-    }
-
-    /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
-    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
-        Self { rpc_config: Some(rpc_config), ..self }
     }
 
     /// Appends a [SyncConfig] to the builder.
@@ -94,6 +89,11 @@ impl RollupNodeBuilder {
     /// Appends the discovery address to the builder.
     pub fn with_discovery_address(self, discovery_addr: SocketAddr) -> Self {
         Self { discovery_address: Some(discovery_addr), ..self }
+    }
+
+    /// Appends the [`RpcConfig`] to the builder.
+    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
+        Self { rpc_config: Some(rpc_config), ..self }
     }
 
     /// Appends whether p2p networking is entirely disabled to the builder.
@@ -141,6 +141,7 @@ impl RollupNodeBuilder {
             gossip_address: self.gossip_address,
             unsafe_block_signer: self.unsafe_block_signer.expect("unsafe block signer not set"),
             rpc_config: self.rpc_config,
+            rpc_rx: None,
         }
     }
 }

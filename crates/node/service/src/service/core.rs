@@ -25,7 +25,7 @@ pub trait RollupNodeService: ValidatorNodeService + SequencerNodeService {
     ///
     /// - [NodeMode::Validator]: [ValidatorNodeService::start]
     /// - [NodeMode::Sequencer]: [SequencerNodeService::start]
-    async fn start(&self) -> Result<(), Self::Error> {
+    async fn start(&mut self) -> Result<(), Self::Error> {
         info!(target: "rollup_node", "Starting rollup node services");
         info!(target: "rollup_node", "Chain ID: {}", self.config().l2_chain_id);
         for hf in self.config().hardforks.to_string().lines() {
