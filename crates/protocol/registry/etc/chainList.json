@@ -345,6 +345,24 @@
     }
   },
   {
+    "name": "Settlus Mainnet",
+    "identifier": "mainnet/settlus-mainnet",
+    "chainId": 5371,
+    "rpc": [
+      "https://settlus-mainnet.g.alchemy.com/public"
+    ],
+    "explorers": [
+      "mainnet.settlus.network"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "mainnet"
+    }
+  },
+  {
     "name": "Shape",
     "identifier": "mainnet/shape",
     "chainId": 360,

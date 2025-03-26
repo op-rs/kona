@@ -1492,6 +1492,88 @@
           }
         },
         {
+          "Name": "Settlus Mainnet",
+          "PublicRPC": "https://settlus-mainnet.g.alchemy.com/public",
+          "SequencerRPC": "https://settlus-mainnet-sequencer.g.alchemy.com/",
+          "Explorer": "mainnet.settlus.network",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": null,
+          "DataAvailabilityType": "eth-da",
+          "l2_chain_id": 5371,
+          "batch_inbox_address": "0x003e40d3125591bd722ab1bb880c78e4d74d0977",
+          "block_time": 1,
+          "seq_window_size": 3600,
+          "max_sequencer_drift": 1800,
+          "GasPayingToken": null,
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0,
+            "holocene_time": 0
+          },
+          "optimism": {
+            "eip1559Elasticity": "0x6",
+            "eip1559Denominator": "0x32",
+            "eip1559DenominatorCanyon": "0xfa"
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 21897258,
+              "hash": "0x7737a04d48b78bd5ce39fdd16a5ecf652e3c35ee5226a56869aa0cbb230acbcb"
+            },
+            "l2": {
+              "number": 0,
+              "hash": "0x47a86b86dc4ba2e8c877515717dab337673a24dc3fb06d69ac9f07e9949a48c6"
+            },
+            "l2_time": 1740171575,
+            "system_config": {
+              "batcherAddress": "0xd0b4c3ac8a50b6f1b3949adaf55cc9805620eb57",
+              "overhead": "0x0",
+              "scalar": "0x10000000000000000000000000000000000000000000000000c5fc500000558",
+              "gasLimit": 60000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": "0x57669299e2a7d5be46ba817d8039c1350af830e8",
+            "ProxyAdminOwner": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
+            "Guardian": "0x09f7150d8c019bef34450d6920f6b3608cefdaf2",
+            "Challenger": "0xa4fb12d15eb85dc9284a7df0adbc8b696edbbf1d",
+            "Proposer": "0x1bc6df949b8edc8ee61adb99d578a7a6e6ff7310",
+            "UnsafeBlockSigner": "0xe7c264af5bdf997a78105a6e0ff32c126eda66d9",
+            "BatchSubmitter": "0xd0b4c3ac8a50b6f1b3949adaf55cc9805620eb57"
+          },
+          "Addresses": {
+            "AddressManager": "0xc24c700bc65a3b15de13e489e155c81f621b1856",
+            "L1CrossDomainMessengerProxy": "0x9bda922e6f1bd53c24f9bcfb88b9638199a82ceb",
+            "L1Erc721BridgeProxy": "0xccfa1f8a93640488e3e1ae90a0edaf44680e9f82",
+            "L1StandardBridgeProxy": "0xfd4918e51d1e5aa2195c42654cf769b152c9d9c0",
+            "L2OutputOracleProxy": null,
+            "OptimismMintableErc20FactoryProxy": "0x44e9388e88bb8ede446d62590d8a4c6d34813e98",
+            "OptimismPortalProxy": "0xfc1d560eb01443e31b0eb56620703e80e42a7e4e",
+            "SystemConfigProxy": "0x15c1daed5443a77b4dcf6fe35cafccebb0c6da0e",
+            "ProxyAdmin": "0xd35fef329bb6569baa373bda702f3dff59d57321",
+            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
+            "AnchorStateRegistryProxy": "0xb5150595f1e2240b76f414dc96509f5125ba5dd0",
+            "DelayedWethProxy": "0xc206d300b07cb905cb1831d8a9172d4c66394638",
+            "DisputeGameFactoryProxy": "0xde9fda9c499ba1c0168ac083acf5bec5cc67fa76",
+            "FaultDisputeGame": null,
+            "Mips": null,
+            "PermissionedDisputeGame": "0xf9534ebc84082df9d35fb1ed8786bf8ce8a90294",
+            "PreimageOracle": null,
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
           "Name": "RACE Mainnet",
           "PublicRPC": "https://racemainnet.io",
           "SequencerRPC": "https://racemainnet.io",
