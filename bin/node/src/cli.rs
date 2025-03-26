@@ -1,6 +1,9 @@
 //! Contains the node CLI.
 
-use crate::{commands::{NetCommand, NodeCommand}, flags::GlobalArgs};
+use crate::{
+    commands::{NetCommand, NodeCommand},
+    flags::GlobalArgs,
+};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};

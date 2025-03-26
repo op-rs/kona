@@ -36,74 +36,88 @@ impl NetworkRpc {
 #[async_trait]
 impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
-        tracing::info!("opp2p_self");
+        tracing::trace!("opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(NetRpcRequest::PeerInfo(tx))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        tracing::info!("opp2p_self: sent request");
 
         rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_peers(&self) -> RpcResult<PeerDump> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_peer_stats(&self) -> RpcResult<PeerStats> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_discovery_table(&self) -> RpcResult<Vec<String>> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_block_peer(&self, _peer: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_list_blocked_peers(&self) -> RpcResult<Vec<String>> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_block_addr(&self, _ip: IpAddr) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_unblock_addr(&self, _ip: IpAddr) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_list_blocked_addrs(&self) -> RpcResult<Vec<IpAddr>> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_block_subnet(&self, _subnet: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_unblock_subnet(&self, _subnet: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<String>> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_protect_peer(&self, _peer: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_unprotect_peer(&self, _peer: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_connect_peer(&self, _peer: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_disconnect_peer(&self, _peer: String) -> RpcResult<()> {
-        unimplemented!()
+        // Method not supported yet.
+        Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 }

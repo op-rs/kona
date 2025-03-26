@@ -69,7 +69,35 @@ impl Network {
                             trace!(target: "p2p::driver", "Receiver `None` rpc request");
                             continue;
                         };
-                        NetworkRpcHandler::handle(req, &handler, &gossip);
+                        match req {
+                            crate::NetRpcRequest::PeerInfo(sender) => {
+                                use std::string::ToString;
+                                let peer_id = gossip.local_peer_id().to_string();
+                                let chain_id = handler.chain_id;
+                                let enr = handler.local_enr().await.unwrap();
+                                let node_id = handler.local_enr().await.unwrap().id().unwrap_or_default();
+                                let addresses = gossip.swarm.external_addresses().map(|a| a.to_string()).collect::<Vec<String>>();
+                                let peer_info = kona_rpc::PeerInfo {
+                                    peer_id,
+                                    node_id,
+                                    user_agent: "kona".to_string(),
+                                    protocol_version: "1".to_string(),
+                                    enr: enr.to_string(),
+                                    addresses,
+                                    protocols: None, // TODO: peer supported protocols
+                                    connectedness: kona_rpc::Connectedness::Connected,
+                                    direction: kona_rpc::Direction::Inbound,
+                                    protected: false,
+                                    chain_id,
+                                    latency: 0,
+                                    gossip_blocks: false,
+                                    peer_scores: kona_rpc::PeerScores::default(),
+                                };
+                                if let Err(e) = sender.send(peer_info) {
+                                    warn!("Failed to send peer info through response channel: {:?}", e);
+                                }
+                            }
+                        }
                     }
                     event = gossip.select_next_some() => {
                         trace!(target: "p2p::driver", "Received event: {:?}", event);

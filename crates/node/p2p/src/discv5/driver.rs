@@ -152,6 +152,7 @@ impl Discv5Driver {
         let (res_sender, res_recv) = channel::<HandlerResponse>(1024);
         let (enr_sender, enr_recv) = channel::<Enr>(1024);
         let (_events_sender, events_recv) = channel::<Event>(1024);
+        let chain_id = self.chain_id;
 
         tokio::spawn(async move {
             // Step 1: Start the discovery service.
@@ -227,7 +228,7 @@ impl Discv5Driver {
             }
         });
 
-        Discv5Handler::new(req_sender, res_recv, events_recv, enr_recv)
+        Discv5Handler::new(chain_id, req_sender, res_recv, events_recv, enr_recv)
     }
 }
 

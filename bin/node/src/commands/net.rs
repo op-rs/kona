@@ -1,12 +1,12 @@
 //! Net Subcommand
 
+use crate::flags::{GlobalArgs, P2PArgs, RPCArgs};
 use clap::Parser;
 use kona_p2p::Network;
-use std::net::SocketAddr;
-use kona_rpc::OpP2PApiServer;
 use kona_registry::ROLLUP_CONFIGS;
+use kona_rpc::OpP2PApiServer;
 use libp2p::multiaddr::{Multiaddr, Protocol};
-use crate::flags::{P2PArgs, RPCArgs, GlobalArgs};
+use std::net::SocketAddr;
 
 /// The `net` Subcommand
 ///
@@ -54,7 +54,9 @@ impl NetCommand {
 
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
         let p2p = kona_p2p::NetworkRpc::new(tx);
-        module.merge(p2p.into_rpc()).map_err(|e| anyhow::anyhow!("Failed to merge RPC Modules: {:?}", e))?;
+        module
+            .merge(p2p.into_rpc())
+            .map_err(|e| anyhow::anyhow!("Failed to merge RPC Modules: {:?}", e))?;
         let handle = server.start(module);
         tracing::info!("Started RPC server on {:?}", socket);
 

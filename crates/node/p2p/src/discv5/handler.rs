@@ -42,6 +42,8 @@ pub enum HandlerResponse {
 /// by using message-passing to relay requests and responses through
 /// a channel.
 pub struct Discv5Handler {
+    /// The chain id.
+    pub chain_id: u64,
     /// Sends [`HandlerRequest`]s to the spawned [`discv5::Discv5`] service.
     pub sender: Sender<HandlerRequest>,
     /// Receives [`HandlerResponse`]s from the spawned [`discv5::Discv5`] service.
@@ -55,12 +57,13 @@ pub struct Discv5Handler {
 impl Discv5Handler {
     /// Creates a new [`Discv5Handler`] service.
     pub fn new(
+        chain_id: u64,
         sender: Sender<HandlerRequest>,
         receiver: Receiver<HandlerResponse>,
         events: Receiver<Event>,
         enr_receiver: Receiver<Enr>,
     ) -> Self {
-        Self { sender, receiver, events, enr_receiver }
+        Self { chain_id, sender, receiver, events, enr_receiver }
     }
 
     /// Receives an [`Event`] from the discovery service.
