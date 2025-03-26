@@ -54,6 +54,7 @@ impl Network {
         self.gossip.listen()?;
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         tokio::spawn(async move {
+            let mut gossip = self.gossip;
             loop {
                 select! {
                     enr = handler.enr_receiver.recv() => {
@@ -61,21 +62,21 @@ impl Network {
                             trace!(target: "p2p::driver", "Receiver `None` peer enr");
                             continue;
                         };
-                        self.gossip.dial(enr.clone());
+                        gossip.dial(enr.clone());
                     },
                     req = rpc.recv() => {
                         let Some(req) = req else {
                             trace!(target: "p2p::driver", "Receiver `None` rpc request");
                             continue;
                         };
-                        rpc.handle_rpc_req(req);
+                        NetworkRpcHandler::handle(req, &handler, &gossip);
                     }
-                    event = self.gossip.select_next_some() => {
+                    event = gossip.select_next_some() => {
                         trace!(target: "p2p::driver", "Received event: {:?}", event);
-                        self.gossip.handle_event(event);
+                        gossip.handle_event(event);
                     },
                     _ = interval.tick() => {
-                        let swarm_peers = self.gossip.connected_peers();
+                        let swarm_peers = gossip.connected_peers();
                         info!(target: "p2p::driver", "Swarm peer count: {}", swarm_peers);
                         let metrics = handler.metrics().await;
                         debug!(target: "p2p::driver", "Discovery metrics: {:?}", metrics);
@@ -84,7 +85,7 @@ impl Network {
                         let enrs = handler.table_enrs().await;
                         info!(target: "p2p::driver", "{} Enrs in Discovery Table", enrs.len());
                         for enr in enrs {
-                            self.gossip.dial(enr);
+                            gossip.dial(enr);
                         }
                     }
                 }

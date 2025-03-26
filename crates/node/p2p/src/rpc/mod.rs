@@ -36,11 +36,13 @@ impl NetworkRpc {
 #[async_trait]
 impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
+        tracing::info!("opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(NetRpcRequest::PeerInfo(tx))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+        tracing::info!("opp2p_self: sent request");
 
         rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }

@@ -123,7 +123,7 @@ impl Discv5Driver {
 
         for enr in self.store.peers() {
             if let Err(e) = self.disc.add_enr(enr.clone()) {
-                warn!(target: "p2p::discv5::driver", "Failed to bootstrap discovery service: {:?}", e);
+                debug!(target: "p2p::discv5::driver", "Failed to bootstrap discovery service: {:?}", e);
                 continue;
             }
         }
