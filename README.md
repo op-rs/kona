@@ -18,7 +18,7 @@
 <p align="center">
   <a href="#whats-kona">What's Kona?</a> •
   <a href="#overview">Overview</a> •
-  <a href="#overview">MSRV</a> •
+  <a href="#msrv">MSRV</a> •
   <a href="https://op-rs.github.io/kona/CONTRIBUTING.html">Contributing</a> •
   <a href="#credits">Credits</a> •
   <a href="#license">License</a>
