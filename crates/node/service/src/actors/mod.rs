@@ -5,6 +5,9 @@
 mod traits;
 pub use traits::NodeActor;
 
+mod rpc;
+pub use rpc::{RpcActor, RpcActorError};
+
 mod derivation;
 pub use derivation::{DerivationActor, DerivationError, InboundDerivationMessage};
 
