@@ -80,6 +80,7 @@ impl NodeCommand {
         let gossip_addr = std::net::SocketAddr::new(ip, tcp);
         let disc_addr = std::net::SocketAddr::new(ip, udp);
         let keypair = self.p2p_flags.keypair()?;
+        let rpc_config = self.rpc_flags.into();
 
         let signer = args.genesis_signer()?;
 
@@ -94,6 +95,7 @@ impl NodeCommand {
             .with_discovery_address(disc_addr)
             .with_gossip_address(gossip_addr)
             .with_keypair(keypair)
+            .with_rpc_config(rpc_config)
             .build()
             .start()
             .await

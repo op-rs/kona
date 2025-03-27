@@ -5,12 +5,14 @@ use crate::NodeMode;
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
-use kona_engine::SyncConfig;
-use kona_genesis::RollupConfig;
-use kona_providers_alloy::OnlineBeaconClient;
 use libp2p::identity::Keypair;
 use std::{net::SocketAddr, sync::Arc};
 use url::Url;
+
+use kona_engine::SyncConfig;
+use kona_genesis::RollupConfig;
+use kona_providers_alloy::OnlineBeaconClient;
+use kona_rpc::RpcConfig;
 
 /// The [RollupNodeBuilder] is used to construct a [RollupNode] service.
 #[derive(Debug, Default)]
@@ -39,12 +41,19 @@ pub struct RollupNodeBuilder {
     keypair: Option<Keypair>,
     /// The unsafe block signer.
     unsafe_block_signer: Option<Address>,
+    /// An RPC Configuration.
+    rpc_config: Option<RpcConfig>,
 }
 
 impl RollupNodeBuilder {
     /// Creates a new [RollupNodeBuilder] with the given [RollupConfig].
     pub fn new(config: RollupConfig) -> Self {
         Self { config, ..Self::default() }
+    }
+
+    /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
+    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
+        Self { rpc_config: Some(rpc_config), ..self }
     }
 
     /// Appends a [SyncConfig] to the builder.
@@ -131,6 +140,7 @@ impl RollupNodeBuilder {
             discovery_address: self.discovery_address,
             gossip_address: self.gossip_address,
             unsafe_block_signer: self.unsafe_block_signer.expect("unsafe block signer not set"),
+            rpc_config: self.rpc_config,
         }
     }
 }

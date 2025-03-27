@@ -4026,6 +4026,7 @@ dependencies = [
  "kona-node-service",
  "kona-p2p",
  "kona-registry",
+ "kona-rpc",
  "libp2p",
  "serde_json",
  "tokio",
