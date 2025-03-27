@@ -11,7 +11,7 @@
 extern crate tracing;
 
 mod net;
-pub use net::{Network, NetworkBuilder, NetworkBuilderError};
+pub use net::{NetConfig, Network, NetworkBuilder, NetworkBuilderError};
 
 mod gossip;
 pub use gossip::{
