@@ -22,3 +22,14 @@ pub struct RPCArgs {
     #[arg(long = "rpc.admin-state", env = "KONA_NODE_RPC_ADMIN_STATE")]
     pub admin_persistence: Option<PathBuf>,
 }
+
+impl From<RPCArgs> for kona_rpc::RpcConfig {
+    fn from(args: RPCArgs) -> Self {
+        kona_rpc::RpcConfig {
+            listen_addr: args.listen_addr,
+            listen_port: args.listen_port,
+            enable_admin: args.enable_admin,
+            admin_persistence: args.admin_persistence,
+        }
+    }
+}

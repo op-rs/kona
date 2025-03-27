@@ -19,6 +19,7 @@ kona-node-service.workspace = true
 kona-p2p.workspace = true
 kona-genesis.workspace = true
 kona-registry.workspace = true
+kona-rpc = { workspace = true, features = ["std"] }
 
 # alloy
 alloy-primitives.workspace = true
