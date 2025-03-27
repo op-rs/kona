@@ -25,7 +25,7 @@ pub struct GlobalArgs {
 
 impl GlobalArgs {
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.
-    pub fn signer(&self) -> anyhow::Result<Address> {
+    pub fn genesis_signer(&self) -> anyhow::Result<Address> {
         let id = self.l2_chain_id;
         ROLLUP_CONFIGS
             .get(&id)

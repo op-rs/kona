@@ -81,7 +81,7 @@ impl NodeCommand {
         let disc_addr = std::net::SocketAddr::new(ip, udp);
         let keypair = self.p2p_flags.keypair()?;
 
-        let signer = args.signer()?;
+        let signer = args.genesis_signer()?;
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
