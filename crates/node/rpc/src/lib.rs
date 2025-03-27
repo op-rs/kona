@@ -14,6 +14,11 @@ mod config;
 #[cfg(feature = "std")]
 pub use config::RpcConfig;
 
+#[cfg(feature = "std")]
+mod launcher;
+#[cfg(feature = "std")]
+pub use launcher::{RpcLauncher, RpcLauncherError};
+
 mod net;
 pub use net::{
     Connectedness, Direction, GossipScores, PeerDump, PeerInfo, PeerScores, PeerStats,

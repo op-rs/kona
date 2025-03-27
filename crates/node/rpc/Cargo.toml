@@ -59,6 +59,9 @@ serde_json.workspace = true
 [features]
 default = []
 std = [
+    "dep:thiserror",
+    "dep:jsonrpsee",
+    "jsonrpsee/server",
     "kona-protocol/std",
     "kona-genesis?/std",
     "alloy-eips/std",

@@ -128,6 +128,8 @@ impl RollupNodeBuilder {
         let l2_provider =
             RootProvider::new_http(self.l2_provider_rpc_url.expect("l2 provider rpc url not set"));
 
+        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
+
         RollupNode {
             mode: NodeMode::Validator, // TODO: Make dynamic
             config: Arc::new(self.config),
@@ -140,7 +142,7 @@ impl RollupNodeBuilder {
             discovery_address: self.discovery_address,
             gossip_address: self.gossip_address,
             unsafe_block_signer: self.unsafe_block_signer.expect("unsafe block signer not set"),
-            rpc_config: self.rpc_config,
+            rpc_launcher,
         }
     }
 }
