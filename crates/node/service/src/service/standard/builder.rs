@@ -2,6 +2,7 @@
 
 use super::RollupNode;
 use crate::NodeMode;
+use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use kona_engine::SyncConfig;
@@ -36,6 +37,8 @@ pub struct RollupNodeBuilder {
     network_disabled: bool,
     /// The keypair.
     keypair: Option<Keypair>,
+    /// The unsafe block signer.
+    unsafe_block_signer: Option<Address>,
 }
 
 impl RollupNodeBuilder {
@@ -94,6 +97,11 @@ impl RollupNodeBuilder {
         Self { keypair: Some(keypair), ..self }
     }
 
+    /// Appends the unsafe block signer to the builder.
+    pub fn with_unsafe_block_signer(self, unsafe_block_signer: Address) -> Self {
+        Self { unsafe_block_signer: Some(unsafe_block_signer), ..self }
+    }
+
     /// Assembles the [RollupNode] service.
     ///
     /// ## Panics
@@ -122,6 +130,7 @@ impl RollupNodeBuilder {
             keypair: self.keypair,
             discovery_address: self.discovery_address,
             gossip_address: self.gossip_address,
+            unsafe_block_signer: self.unsafe_block_signer.expect("unsafe block signer not set"),
         }
     }
 }

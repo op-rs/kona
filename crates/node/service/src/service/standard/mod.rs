@@ -5,6 +5,7 @@
 
 use super::{NodeMode, RollupNodeService, SequencerNodeService, ValidatorNodeService};
 use crate::{L1WatcherRpc, L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
+use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{errors::PipelineErrorKind, traits::ChainProvider};
@@ -55,6 +56,8 @@ pub struct RollupNode {
     pub(crate) discovery_address: Option<SocketAddr>,
     /// The gossip socket address.
     pub(crate) gossip_address: Option<SocketAddr>,
+    /// The unsafe block signer.
+    pub(crate) unsafe_block_signer: Address,
 }
 
 impl RollupNode {
@@ -105,9 +108,6 @@ impl ValidatorNodeService for RollupNode {
         })?;
         let keypair = self.keypair.clone().unwrap_or_else(Keypair::generate_secp256k1);
 
-        // TODO: grab the unsafe block signer from the config.
-        // Only in chain config and not rollup config...
-        let signer = alloy_primitives::Address::default();
         let chain_id = self.config.l2_chain_id;
         let mut multiaddr = libp2p::Multiaddr::from(gossip_addr.ip());
         multiaddr.push(libp2p::multiaddr::Protocol::Tcp(gossip_addr.port()));
@@ -115,7 +115,7 @@ impl ValidatorNodeService for RollupNode {
             .with_discovery_address(disc_addr)
             .with_chain_id(chain_id)
             .with_gossip_address(multiaddr)
-            .with_unsafe_block_signer(signer)
+            .with_unsafe_block_signer(self.unsafe_block_signer)
             .with_keypair(keypair)
             .build()
             .map(Some)

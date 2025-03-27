@@ -79,8 +79,9 @@ impl NodeCommand {
         let udp = self.p2p_flags.listen_udp_port;
         let gossip_addr = std::net::SocketAddr::new(ip, tcp);
         let disc_addr = std::net::SocketAddr::new(ip, udp);
-
         let keypair = self.p2p_flags.keypair()?;
+
+        let signer = args.signer()?;
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
@@ -89,6 +90,7 @@ impl NodeCommand {
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_unsafe_block_signer(signer)
             .with_discovery_address(disc_addr)
             .with_gossip_address(gossip_addr)
             .with_keypair(keypair)
