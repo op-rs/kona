@@ -9,6 +9,11 @@
 
 extern crate alloc;
 
+#[cfg(feature = "std")]
+mod config;
+#[cfg(feature = "std")]
+pub use config::RpcConfig;
+
 mod net;
 pub use net::{
     Connectedness, Direction, GossipScores, PeerDump, PeerInfo, PeerScores, PeerStats,
