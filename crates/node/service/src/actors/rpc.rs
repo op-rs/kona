@@ -25,12 +25,6 @@ pub struct RpcActor {
     cancellation: CancellationToken,
 }
 
-// impl std::fmt::Debug for RpcActor {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "RPCServerActor")
-//     }
-// }
-
 impl RpcActor {
     /// Constructs a new [`RpcActor`] given the [`ServerHandle`] and [`CancellationToken`].
     pub const fn new(server: ServerHandle, cancellation: CancellationToken) -> Self {
