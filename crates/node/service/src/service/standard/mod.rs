@@ -7,6 +7,14 @@ use super::{NodeMode, RollupNodeService, SequencerNodeService, ValidatorNodeServ
 use crate::{L1WatcherRpc, L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use libp2p::identity::Keypair;
+use op_alloy_network::Optimism;
+use std::{net::SocketAddr, sync::Arc};
+use thiserror::Error;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio_util::sync::CancellationToken;
+use tracing::info;
+
 use kona_derive::{errors::PipelineErrorKind, traits::ChainProvider};
 use kona_genesis::RollupConfig;
 use kona_p2p::{Discv5BuilderError, GossipDriverBuilderError, Network, NetworkBuilderError};
@@ -15,13 +23,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
     OnlineBlobProvider, OnlinePipeline,
 };
-use libp2p::identity::Keypair;
-use op_alloy_network::Optimism;
-use std::{net::SocketAddr, sync::Arc};
-use thiserror::Error;
-use tokio::sync::mpsc::UnboundedSender;
-use tokio_util::sync::CancellationToken;
-use tracing::info;
+use kona_rpc::RpcConfig;
 
 mod builder;
 pub use builder::RollupNodeBuilder;
@@ -55,6 +57,9 @@ pub struct RollupNode {
     pub(crate) discovery_address: Option<SocketAddr>,
     /// The gossip socket address.
     pub(crate) gossip_address: Option<SocketAddr>,
+    /// The RPC configuration.
+    #[allow(unused)]
+    pub(crate) rpc_config: Option<RpcConfig>,
 }
 
 impl RollupNode {
