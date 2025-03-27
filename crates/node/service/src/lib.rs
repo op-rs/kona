@@ -18,7 +18,7 @@ pub use service::{
 mod actors;
 pub use actors::{
     DerivationActor, DerivationError, InboundDerivationMessage, L1WatcherRpc, L1WatcherRpcError,
-    NetworkActor, NetworkActorError, NodeActor,
+    NetworkActor, NetworkActorError, NodeActor, RpcActor, RpcActorError,
 };
 
 mod sync_start;
