@@ -12,7 +12,7 @@ use std::{fs::File, path::PathBuf};
 use tracing::debug;
 use url::Url;
 
-use crate::flags::{GlobalArgs, P2PArgs};
+use crate::flags::{GlobalArgs, P2PArgs, RPCArgs};
 
 /// The Node subcommand.
 ///
@@ -55,6 +55,9 @@ pub struct NodeCommand {
     /// P2P CLI arguments.
     #[command(flatten)]
     pub p2p_flags: P2PArgs,
+    /// RPC CLI arguments.
+    #[command(flatten)]
+    pub rpc_flags: RPCArgs,
 }
 
 impl NodeCommand {
