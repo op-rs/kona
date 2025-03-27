@@ -15,7 +15,7 @@ use kona_rpc::{OpP2PApiServer, PeerDump, PeerInfo, PeerStats};
 use std::net::IpAddr;
 
 /// A type alias for the sender of a [`NetRpcRequest`].
-pub type RpcReqSender = tokio::sync::mpsc::Sender<NetRpcRequest>;
+type RpcReqSender = tokio::sync::mpsc::Sender<NetRpcRequest>;
 
 /// NetworkRpc
 ///
@@ -36,7 +36,6 @@ impl NetworkRpc {
 #[async_trait]
 impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
-        tracing::trace!("opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(NetRpcRequest::PeerInfo(tx))
