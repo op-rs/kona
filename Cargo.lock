@@ -3747,7 +3747,7 @@ dependencies = [
  "revm",
  "serde",
  "serde_json",
- "spin",
+ "spin 0.10.0",
  "thiserror 2.0.12",
  "tracing",
 ]
@@ -3771,7 +3771,7 @@ dependencies = [
  "op-alloy-rpc-types-engine",
  "proptest",
  "serde_json",
- "spin",
+ "spin 0.10.0",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -3793,7 +3793,7 @@ dependencies = [
  "kona-rpc",
  "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
- "spin",
+ "spin 0.10.0",
  "thiserror 2.0.12",
  "tracing",
 ]
@@ -4102,7 +4102,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "spin",
+ "spin 0.10.0",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -4131,7 +4131,7 @@ dependencies = [
  "rand 0.9.0",
  "serde",
  "serde_json",
- "spin",
+ "spin 0.10.0",
  "thiserror 2.0.12",
  "tracing",
 ]
@@ -4162,7 +4162,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "spin",
+ "spin 0.10.0",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -4271,7 +4271,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -5286,9 +5286,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.21.1"
+version = "1.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d75b0bedcc4fe52caa0e03d9f1151a323e4aa5e2d78ba3580400cd3c9e2bc4bc"
+checksum = "c2806eaa3524762875e21c3dcd057bc4b7bfa01ce4da8d46be1cd43649e1cc6b"
 
 [[package]]
 name = "oorandom"
@@ -7135,6 +7135,12 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+
+[[package]]
+name = "spin"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591"
 dependencies = [
  "lock_api",
 ]
