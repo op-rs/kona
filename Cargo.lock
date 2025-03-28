@@ -2354,9 +2354,9 @@ dependencies = [
 
 [[package]]
 name = "event-listener-strategy"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3e4e0dd3673c1139bf041f3008816d9cf2946bbfac2945c09e523b8d7b05b2"
+checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
@@ -3779,6 +3779,37 @@ dependencies = [
  "spin 0.10.0",
  "thiserror 2.0.12",
  "tracing",
+]
+
+[[package]]
+name = "kona-comp"
+version = "0.3.0"
+dependencies = [
+ "alloc-no-stdlib",
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-rpc-types-engine",
+ "alloy-serde",
+ "alloy-sol-types",
+ "arbitrary",
+ "async-trait",
+ "brotli",
+ "kona-genesis",
+ "kona-protocol",
+ "miniz_oxide",
+ "op-alloy-consensus",
+ "proptest",
+ "rand 0.9.0",
+ "revm",
+ "serde",
+ "serde_json",
+ "spin 0.10.0",
+ "thiserror 2.0.12",
+ "tracing",
+ "tracing-subscriber",
+ "unsigned-varint 0.8.0",
 ]
 
 [[package]]

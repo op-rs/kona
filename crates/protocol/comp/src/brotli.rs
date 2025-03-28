@@ -1,7 +1,26 @@
-//! Brotli Compression
+//! Contains brotli compression utilities.
 
-use crate::{BrotliLevel, ChannelCompressor, CompressorError, CompressorResult, CompressorWriter};
+use crate::{ChannelCompressor, CompressorError, CompressorResult, CompressorWriter};
 use std::vec::Vec;
+
+/// The brotli encoding level used in Optimism.
+///
+/// See: <https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/derive/types.go#L50>
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BrotliLevel {
+    /// The fastest compression level.
+    Brotli9 = 9,
+    /// The default compression level.
+    Brotli10 = 10,
+    /// The highest compression level.
+    Brotli11 = 11,
+}
+
+impl From<BrotliLevel> for u32 {
+    fn from(level: BrotliLevel) -> Self {
+        level as Self
+    }
+}
 
 /// A Brotli Compression Error.
 #[derive(thiserror::Error, Debug)]
@@ -48,7 +67,7 @@ impl From<BrotliLevel> for BrotliCompressor {
 ///       By default, [BrotliLevel::Brotli10] is used.
 #[allow(unused_variables)]
 #[allow(unused_mut)]
-fn compress_brotli(
+pub fn compress_brotli(
     mut input: &[u8],
     level: BrotliLevel,
 ) -> Result<Vec<u8>, BrotliCompressionError> {
@@ -114,9 +133,9 @@ impl ChannelCompressor for BrotliCompressor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::decompress_brotli;
     use alloy_primitives::hex;
     use kona_genesis::MAX_RLP_BYTES_PER_CHANNEL_FJORD;
+    use kona_protocol::decompress_brotli;
 
     #[test]
     fn test_compress_brotli() {
