@@ -20,6 +20,9 @@ pub use batch::{
     SpanBatchTransactions, SpanDecodingError,
 };
 
+mod brotli;
+pub use brotli::{BrotliDecompressionError, decompress_brotli};
+
 mod sync;
 pub use sync::SyncStatus;
 
@@ -34,22 +37,8 @@ pub use frame::{
     DERIVATION_VERSION_0, FRAME_OVERHEAD, Frame, FrameDecodingError, FrameParseError, MAX_FRAME_LEN,
 };
 
-mod compression;
-#[cfg(feature = "std")]
-pub use compression::{
-    BrotliCompressionError, BrotliCompressor, RatioCompressor, ShadowCompressor, VariantCompressor,
-};
-pub use compression::{
-    BrotliDecompressionError, BrotliLevel, ChannelCompressor, CompressionAlgo, CompressorError,
-    CompressorResult, CompressorType, CompressorWriter, Config, ZlibCompressor, compress_zlib,
-    decompress_brotli, decompress_zlib,
-};
-
 mod utils;
 pub use utils::{read_tx_data, to_system_config};
-
-mod channel_out;
-pub use channel_out::{ChannelOut, ChannelOutError};
 
 mod channel;
 pub use channel::{

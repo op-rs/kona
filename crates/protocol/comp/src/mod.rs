@@ -16,8 +16,7 @@ pub use zlib::{ZlibCompressor, compress_zlib, decompress_zlib};
 
 mod brotli;
 #[cfg(feature = "std")]
-pub use brotli::{BrotliCompressionError, BrotliCompressor};
-pub use brotli::{BrotliDecompressionError, BrotliLevel, decompress_brotli};
+pub use brotli::{BrotliCompressionError, compress_brotli, BrotliCompressor};
 
 mod traits;
 pub use traits::{ChannelCompressor, CompressorWriter};

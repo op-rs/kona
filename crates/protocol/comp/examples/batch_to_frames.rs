@@ -15,10 +15,9 @@
 #[cfg(feature = "std")]
 fn main() {
     use alloy_primitives::BlockHash;
+    use kona_comp::{ChannelOut, CompressionAlgo, VariantCompressor};
     use kona_genesis::RollupConfig;
-    use kona_protocol::{
-        Batch, ChannelId, ChannelOut, CompressionAlgo, SingleBatch, VariantCompressor,
-    };
+    use kona_protocol::{Batch, ChannelId, SingleBatch};
 
     // Use the example transaction
     let transactions = example_transactions();
