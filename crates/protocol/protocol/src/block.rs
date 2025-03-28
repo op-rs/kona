@@ -5,13 +5,17 @@ use alloy_consensus::{Block, Transaction, Typed2718};
 use alloy_eips::{BlockNumHash, eip2718::Eip2718Error};
 use alloy_primitives::B256;
 use alloy_rpc_types_engine::ExecutionPayload;
+use derive_more::Display;
 use kona_genesis::ChainGenesis;
 use op_alloy_consensus::{OpTxEnvelope, OpTxType};
 
 /// Block Header Info
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Display, Copy, Eq, Hash, PartialEq, Default)]
+#[display(
+    "BlockInfo {{ hash: {hash}, number: {number}, parent_hash: {parent_hash}, timestamp: {timestamp} }}"
+)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct BlockInfo {
     /// The block hash
@@ -55,20 +59,13 @@ impl<T> From<&Block<T>> for BlockInfo {
     }
 }
 
-impl core::fmt::Display for BlockInfo {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "BlockInfo {{ hash: {}, number: {}, parent_hash: {}, timestamp: {} }}",
-            self.hash, self.number, self.parent_hash, self.timestamp
-        )
-    }
-}
-
 /// L2 Block Header Info
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Default)]
+#[derive(Debug, Display, Clone, Copy, Hash, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[display(
+    "L2BlockInfo {{ block_info: {block_info}, l1_origin: {l1_origin:?}, seq_num: {seq_num} }}"
+)]
 pub struct L2BlockInfo {
     /// The base [BlockInfo]
     #[cfg_attr(feature = "serde", serde(flatten))]

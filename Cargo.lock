@@ -4183,6 +4183,7 @@ dependencies = [
  "arbitrary",
  "async-trait",
  "brotli",
+ "derive_more 2.0.1",
  "kona-genesis",
  "miniz_oxide",
  "op-alloy-consensus",

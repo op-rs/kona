@@ -42,19 +42,12 @@ pub struct SuperchainSignal {
 /// protocol version. The version must be encoded as 32 bytes of DATA in JSON RPC usage.
 ///
 /// See also: <https://specs.optimism.io/protocol/superchain-upgrades.html#protocol-version>
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Display, Debug, PartialEq, Eq)]
+#[display("{_0}")]
 #[non_exhaustive]
 pub enum ProtocolVersion {
     /// Version-type 0.
     V0(ProtocolVersionFormatV0),
-}
-
-impl core::fmt::Display for ProtocolVersion {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::V0(value) => write!(f, "{}", value),
-        }
-    }
 }
 
 /// An error that can occur when encoding or decoding a ProtocolVersion.
