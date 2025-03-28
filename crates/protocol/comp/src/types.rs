@@ -1,8 +1,5 @@
 //! Compression types.
 
-use crate::BrotliLevel;
-use alloc::borrow::Borrow;
-
 /// The result from compressing data.
 pub type CompressorResult<T> = Result<T, CompressorError>;
 
@@ -43,7 +40,8 @@ pub enum CompressionAlgo {
     Zlib,
 }
 
-impl<A: Borrow<CompressionAlgo>> From<A> for BrotliLevel {
+#[cfg(feature = "std")]
+impl<A: alloc::borrow::Borrow<CompressionAlgo>> From<A> for crate::BrotliLevel {
     fn from(algo: A) -> Self {
         match algo.borrow() {
             CompressionAlgo::Brotli9 => Self::Brotli9,
