@@ -43,4 +43,4 @@ url.workspace = true
 tower.workspace = true
 anyhow.workspace = true
 http-body-util.workspace = true
-derive_more = { workspace = true, features = ["display", "from_str"] }
+derive_more = { workspace = true, features = ["display", "deref", "from_str"] }

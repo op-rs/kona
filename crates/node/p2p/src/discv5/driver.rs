@@ -1,11 +1,11 @@
 //! Discovery Module.
 
+use derive_more::Debug;
+use discv5::{Discv5, Enr, Event, enr::NodeId};
 use tokio::{
     sync::mpsc::channel,
     time::{Duration, sleep},
 };
-
-use discv5::{Discv5, Enr, Event, enr::NodeId};
 
 use crate::{
     BootNode, BootNodes, BootStore, Discv5Builder, Discv5Handler, HandlerRequest, HandlerResponse,
@@ -50,8 +50,10 @@ use crate::{
 ///     }
 /// }
 /// ```
+#[derive(Debug)]
 pub struct Discv5Driver {
     /// The [`Discv5`] discovery service.
+    #[debug(skip)]
     pub disc: Discv5,
     /// The [`BootStore`].
     pub store: BootStore,
@@ -60,17 +62,6 @@ pub struct Discv5Driver {
     ///
     /// The interval to discovery random nodes.
     pub interval: Duration,
-}
-
-impl std::fmt::Debug for Discv5Driver {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Discv5Driver")
-            .field("disc", &"Discv5")
-            .field("store", &"BootStore")
-            .field("chain_id", &self.chain_id)
-            .field("interval", &self.interval)
-            .finish()
-    }
 }
 
 impl Discv5Driver {

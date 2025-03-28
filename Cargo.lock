@@ -4045,6 +4045,7 @@ dependencies = [
  "alloy-rpc-types-engine",
  "alloy-transport",
  "async-trait",
+ "derive_more 2.0.1",
  "futures",
  "jsonrpsee",
  "kona-derive",
