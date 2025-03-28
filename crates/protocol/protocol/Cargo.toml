@@ -34,6 +34,7 @@ tracing.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 unsigned-varint.workspace = true
+derive_more = { workspace = true, features = ["display"] }
 
 # Compression
 brotli.workspace = true

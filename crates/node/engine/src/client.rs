@@ -18,6 +18,7 @@ use alloy_transport_http::{
     },
 };
 use anyhow::Result;
+use derive_more::Deref;
 use http_body_util::Full;
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -35,9 +36,10 @@ use kona_protocol::L2BlockInfo;
 type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
 
 /// An external engine api client
-#[derive(Debug, Clone)]
+#[derive(Debug, Deref, Clone)]
 pub struct EngineClient {
     /// The L2 engine provider.
+    #[deref]
     engine: RootProvider<AnyNetwork>,
     /// The L2 chain provider.
     rpc: RootProvider<Optimism>,
@@ -206,13 +208,5 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
             AnyNetwork,
             Http<HyperAuthClient>,
         >>::exchange_capabilities(&self.engine, capabilities).await
-    }
-}
-
-impl std::ops::Deref for EngineClient {
-    type Target = RootProvider<AnyNetwork>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.engine
     }
 }

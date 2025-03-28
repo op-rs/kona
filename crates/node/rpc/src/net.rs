@@ -2,6 +2,7 @@
 
 use alloc::{string::String, vec::Vec};
 use core::net::IpAddr;
+use derive_more::Display;
 
 use alloy_primitives::{ChainId, map::HashMap};
 
@@ -162,39 +163,32 @@ pub struct PeerStats {
 
 /// Represents the connectivity state of a peer in a network, indicating the reachability and
 /// interaction status of a node with its peers.
-#[derive(Clone, Debug, PartialEq, Copy, Default)]
+#[derive(Clone, Debug, Display, PartialEq, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum Connectedness {
     /// No current connection to the peer, and no recent history of a successful connection.
     #[default]
+    #[display("Not Connected")]
     NotConnected = 0,
 
     /// An active, open connection to the peer exists.
+    #[display("Connected")]
     Connected = 1,
 
     /// Connection to the peer is possible but not currently established; usually implies a past
     /// successful connection.
+    #[display("Can Connect")]
     CanConnect = 2,
 
     /// Recent attempts to connect to the peer failed, indicating potential issues in reachability
     /// or peer status.
+    #[display("Cannot Connect")]
     CannotConnect = 3,
 
     /// Connection to the peer is limited; may not have full capabilities.
+    #[display("Limited")]
     Limited = 4,
-}
-
-impl core::fmt::Display for Connectedness {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::NotConnected => write!(f, "Not Connected"),
-            Self::Connected => write!(f, "Connected"),
-            Self::CanConnect => write!(f, "Can Connect"),
-            Self::CannotConnect => write!(f, "Cannot Connect"),
-            Self::Limited => write!(f, "Limited"),
-        }
-    }
 }
 
 impl From<u8> for Connectedness {
@@ -210,14 +204,17 @@ impl From<u8> for Connectedness {
     }
 }
 /// Direction represents the direction of a connection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Display, Copy, PartialEq, Eq, Default)]
 pub enum Direction {
     /// Unknown is the default direction when the direction is not specified.
     #[default]
+    #[display("Unknown")]
     Unknown = 0,
     /// Inbound is for when the remote peer initiated the connection.
+    #[display("Inbound")]
     Inbound = 1,
     /// Outbound is for when the local peer initiated the connection.
+    #[display("Outbound")]
     Outbound = 2,
 }
 
@@ -247,20 +244,6 @@ impl<'de> serde::Deserialize<'de> for Direction {
                 &"a value between 0 and 2",
             )),
         }
-    }
-}
-
-impl core::fmt::Display for Direction {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Unknown => "Unknown",
-                Self::Inbound => "Inbound",
-                Self::Outbound => "Outbound",
-            }
-        )
     }
 }
 

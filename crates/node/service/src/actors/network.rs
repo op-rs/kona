@@ -3,6 +3,7 @@
 use crate::NodeActor;
 use alloy_primitives::Address;
 use async_trait::async_trait;
+use derive_more::Debug;
 use kona_p2p::Network;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
@@ -40,6 +41,7 @@ use tokio_util::sync::CancellationToken;
 /// // Construct the `NetworkActor` with the [`Network`].
 /// // let actor = NetworkActor::new(driver);
 /// ```
+#[derive(Debug)]
 pub struct NetworkActor {
     /// Network driver
     driver: Network,
@@ -49,12 +51,6 @@ pub struct NetworkActor {
     signer: UnboundedReceiver<Address>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
-}
-
-impl std::fmt::Debug for NetworkActor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "NetworkActor")
-    }
 }
 
 impl NetworkActor {

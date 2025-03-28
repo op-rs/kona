@@ -1,5 +1,6 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
+use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
@@ -14,8 +15,10 @@ use crate::{
 ///
 /// Connects the swarm to the given [`Multiaddr`]
 /// and handles events using the [`BlockHandler`].
+#[derive(Debug)]
 pub struct GossipDriver {
     /// The [`Swarm`] instance.
+    #[debug(skip)]
     pub swarm: Swarm<Behaviour>,
     /// A [`Multiaddr`] to listen on.
     pub addr: Multiaddr,
@@ -26,16 +29,6 @@ pub struct GossipDriver {
     pub payload_receiver: Option<Receiver<OpNetworkPayloadEnvelope>>,
     /// A list of peers we have successfully dialed.
     pub dialed_peers: Vec<Multiaddr>,
-}
-
-impl std::fmt::Debug for GossipDriver {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GossipDriver")
-            .field("swarm", &"Swarm")
-            .field("addr", &self.addr)
-            .field("handler", &self.handler)
-            .finish()
-    }
 }
 
 impl GossipDriver {

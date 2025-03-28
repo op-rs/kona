@@ -44,9 +44,14 @@ impl Behaviour {
                     .topics()
                     .iter()
                     .map(|topic| {
-                        debug!("Subscribing to topic: {}", topic.to_string());
                         let topic = IdentTopic::new(topic.to_string());
-                        gossipsub.subscribe(&topic).map_err(|_| BehaviourError::SubscriptionFailed)
+                        let res = gossipsub
+                            .subscribe(&topic)
+                            .map_err(|_| BehaviourError::SubscriptionFailed);
+                        if res.is_ok() {
+                            info!("libp2p switch subscribed to topic: {}", topic.to_string());
+                        }
+                        res
                     })
                     .collect::<Vec<_>>()
             })

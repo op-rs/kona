@@ -1,6 +1,7 @@
 //! Bootnodes for consensus network discovery.
 
 use crate::{BootNode, NodeRecord};
+use derive_more::Deref;
 use discv5::Enr;
 use lazy_static::lazy_static;
 use std::str::FromStr;
@@ -10,7 +11,7 @@ use kona_genesis::{
 };
 
 /// Bootnodes for OP Stack chains.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Deref, PartialEq, Eq)]
 pub struct BootNodes(pub Vec<BootNode>);
 
 impl BootNodes {
@@ -43,14 +44,6 @@ impl BootNodes {
     /// Returns if the bootnodes are empty.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl std::ops::Deref for BootNodes {
-    type Target = Vec<BootNode>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

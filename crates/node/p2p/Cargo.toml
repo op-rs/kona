@@ -43,7 +43,7 @@ async-trait.workspace = true
 unsigned-varint.workspace = true
 jsonrpsee = { workspace = true, features = ["server"] }
 serde_json = { workspace = true, features = ["alloc"] }
-derive_more = { workspace = true, features = ["display"] }
+derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 
 # `arbitrary` feature dependencies
 arbitrary = { workspace = true, features = ["derive"], optional = true }
