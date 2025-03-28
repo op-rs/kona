@@ -6,9 +6,11 @@ use clap::Parser;
 use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
+use kona_p2p::Config;
 use kona_registry::ROLLUP_CONFIGS;
+use libp2p::identity::Keypair;
 use serde_json::from_reader;
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, net::SocketAddr, path::PathBuf};
 use tracing::debug;
 use url::Url;
 
@@ -74,15 +76,7 @@ impl NodeCommand {
             supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
         };
 
-        let ip = self.p2p_flags.listen_ip;
-        let tcp = self.p2p_flags.listen_tcp_port;
-        let udp = self.p2p_flags.listen_udp_port;
-        let gossip_addr = std::net::SocketAddr::new(ip, tcp);
-        let disc_addr = std::net::SocketAddr::new(ip, udp);
-        let keypair = self.p2p_flags.keypair()?;
-        let rpc_config = self.rpc_flags.into();
-
-        let signer = args.genesis_signer()?;
+        let p2p_config = self.p2p_config(args)?;
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
@@ -91,15 +85,26 @@ impl NodeCommand {
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
-            .with_unsafe_block_signer(signer)
-            .with_discovery_address(disc_addr)
-            .with_gossip_address(gossip_addr)
-            .with_keypair(keypair)
-            .with_rpc_config(rpc_config)
+            .with_p2p_config(p2p_config)
             .build()
             .start()
             .await
             .map_err(Into::into)
+    }
+
+    /// Returns the p2p [`Config`] from the [`NodeCommand`].
+    pub fn p2p_config(&self, args: &GlobalArgs) -> anyhow::Result<Config> {
+        let mut multiaddr = libp2p::Multiaddr::from(self.p2p_flags.listen_ip);
+        multiaddr.push(libp2p::multiaddr::Protocol::Tcp(self.p2p_flags.listen_tcp_port));
+        Ok(Config {
+            discovery_address: SocketAddr::new(
+                self.p2p_flags.listen_ip,
+                self.p2p_flags.listen_udp_port,
+            ),
+            gossip_address: multiaddr,
+            keypair: self.p2p_flags.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
+            unsafe_block_signer: args.genesis_signer()?,
+        })
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.
