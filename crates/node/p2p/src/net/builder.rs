@@ -5,7 +5,9 @@ use discv5::{Config as Discv5Config, ListenConfig};
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{net::SocketAddr, time::Duration};
 
-use crate::{Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network, NetworkBuilderError};
+use crate::{
+    Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network, NetworkBuilderError,
+};
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
 #[derive(Debug, Default)]
