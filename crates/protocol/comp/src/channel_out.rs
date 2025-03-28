@@ -1,8 +1,9 @@
 //! Contains the `ChannelOut` primitive for Optimism.
 
-use crate::{Batch, ChannelCompressor, ChannelId, CompressorError, Frame};
+use crate::{ChannelCompressor, CompressorError};
 use alloc::{vec, vec::Vec};
 use kona_genesis::RollupConfig;
+use kona_protocol::{Batch, ChannelId, Frame};
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
 
 /// The frame overhead.
@@ -75,7 +76,7 @@ where
         SmallRng::fill_bytes(&mut small_rng, &mut self.id);
     }
 
-    /// Accepts the given [crate::Batch] data into the [ChannelOut], compressing it
+    /// Accepts the given [Batch] data into the [ChannelOut], compressing it
     /// into frames.
     pub fn add_batch(&mut self, batch: Batch) -> Result<(), ChannelOutError> {
         if self.closed {
@@ -147,7 +148,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CompressorWriter, SingleBatch, SpanBatch, test_utils::MockCompressor};
+    use crate::{CompressorWriter, test_utils::MockCompressor};
+    use kona_protocol::{SingleBatch, SpanBatch};
 
     #[test]
     fn test_output_frame_max_size_too_small() {
