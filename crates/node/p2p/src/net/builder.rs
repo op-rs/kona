@@ -5,7 +5,7 @@ use discv5::{Config as Discv5Config, ListenConfig};
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{net::SocketAddr, time::Duration};
 
-use crate::{Discv5Builder, GossipDriverBuilder, NetConfig, Network, NetworkBuilderError};
+use crate::{Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError};
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
 #[derive(Debug, Default)]
@@ -18,8 +18,8 @@ pub struct NetworkBuilder {
     signer: Option<Address>,
 }
 
-impl From<NetConfig> for NetworkBuilder {
-    fn from(config: NetConfig) -> Self {
+impl From<Config> for NetworkBuilder {
+    fn from(config: Config) -> Self {
         Self::new()
             .with_discovery_address(config.discovery_address)
             .with_gossip_address(config.gossip_address)

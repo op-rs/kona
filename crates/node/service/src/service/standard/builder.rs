@@ -9,7 +9,7 @@ use url::Url;
 
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
-use kona_p2p::NetConfig;
+use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcConfig;
 
@@ -30,8 +30,8 @@ pub struct RollupNodeBuilder {
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
     _jwt_secret: Option<JwtSecret>,
-    /// The [`NetConfig`].
-    net_config: Option<NetConfig>,
+    /// The [`Config`].
+    p2p_config: Option<Config>,
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
     /// If p2p networking is entirely disabled.
@@ -74,9 +74,9 @@ impl RollupNodeBuilder {
         Self { _jwt_secret: Some(jwt_secret), ..self }
     }
 
-    /// Appends the [`NetConfig`] to the builder.
-    pub fn with_net_config(self, net_config: NetConfig) -> Self {
-        Self { net_config: Some(net_config), ..self }
+    /// Appends the P2P [`Config`] to the builder.
+    pub fn with_p2p_config(self, config: Config) -> Self {
+        Self { p2p_config: Some(config), ..self }
     }
 
     /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
@@ -116,7 +116,7 @@ impl RollupNodeBuilder {
             l2_provider,
             _l2_engine: (),
             rpc_launcher,
-            net_config: self.net_config,
+            p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,
         }
     }

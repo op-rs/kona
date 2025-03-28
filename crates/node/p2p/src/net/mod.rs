@@ -4,7 +4,7 @@ mod error;
 pub use error::NetworkBuilderError;
 
 mod config;
-pub use config::NetConfig;
+pub use config::Config;
 
 mod builder;
 pub use builder::NetworkBuilder;

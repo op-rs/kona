@@ -16,7 +16,7 @@ use tracing::info;
 
 use kona_derive::{errors::PipelineErrorKind, traits::ChainProvider};
 use kona_genesis::RollupConfig;
-use kona_p2p::{NetConfig, Network, NetworkBuilder, NetworkBuilderError};
+use kona_p2p::{Config, Network, NetworkBuilder, NetworkBuilderError};
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
@@ -51,8 +51,8 @@ pub struct RollupNode {
     /// The [`RpcLauncher`] for the node.
     #[allow(unused)]
     pub(crate) rpc_launcher: RpcLauncher,
-    /// The [`NetConfig`] for the node.
-    pub(crate) net_config: Option<NetConfig>,
+    /// The P2P [`Config`] for the node.
+    pub(crate) p2p_config: Option<Config>,
     /// Whether p2p networking is entirely disabled.
     pub(crate) network_disabled: bool,
 }
@@ -97,7 +97,7 @@ impl ValidatorNodeService for RollupNode {
         if self.network_disabled {
             return Ok(None);
         }
-        if self.net_config.is_none() {
+        if self.p2p_config.is_none() {
             warn!(
                 target: "rollup_node",
                 "No network configuration provided, skipping network initialization"
@@ -105,8 +105,8 @@ impl ValidatorNodeService for RollupNode {
             return Ok(None);
         }
         let chain_id = self.config.l2_chain_id;
-        let net_config = self.net_config.clone().expect("NetConfig is checked to be Some");
-        NetworkBuilder::from(net_config)
+        let p2p_config = self.p2p_config.clone().expect("P2P config is checked to be Some");
+        NetworkBuilder::from(p2p_config)
             .with_chain_id(chain_id)
             .build()
             .map(Some)
