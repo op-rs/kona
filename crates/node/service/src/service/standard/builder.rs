@@ -2,15 +2,14 @@
 
 use super::RollupNode;
 use crate::NodeMode;
-use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
-use libp2p::identity::Keypair;
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 use url::Url;
 
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
+use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcConfig;
 
@@ -31,29 +30,18 @@ pub struct RollupNodeBuilder {
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
     _jwt_secret: Option<JwtSecret>,
-    /// The gossip address.
-    gossip_address: Option<SocketAddr>,
-    /// The discovery address.
-    discovery_address: Option<SocketAddr>,
-    /// If p2p networking is entirely disabled.
-    network_disabled: bool,
-    /// The keypair.
-    keypair: Option<Keypair>,
-    /// The unsafe block signer.
-    unsafe_block_signer: Option<Address>,
+    /// The [`Config`].
+    p2p_config: Option<Config>,
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
+    /// If p2p networking is entirely disabled.
+    network_disabled: bool,
 }
 
 impl RollupNodeBuilder {
     /// Creates a new [RollupNodeBuilder] with the given [RollupConfig].
     pub fn new(config: RollupConfig) -> Self {
         Self { config, ..Self::default() }
-    }
-
-    /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
-    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
-        Self { rpc_config: Some(rpc_config), ..self }
     }
 
     /// Appends a [SyncConfig] to the builder.
@@ -86,29 +74,19 @@ impl RollupNodeBuilder {
         Self { _jwt_secret: Some(jwt_secret), ..self }
     }
 
-    /// Appends the gossip address to the builder.
-    pub fn with_gossip_address(self, gossip_addr: SocketAddr) -> Self {
-        Self { gossip_address: Some(gossip_addr), ..self }
+    /// Appends the P2P [`Config`] to the builder.
+    pub fn with_p2p_config(self, config: Config) -> Self {
+        Self { p2p_config: Some(config), ..self }
     }
 
-    /// Appends the discovery address to the builder.
-    pub fn with_discovery_address(self, discovery_addr: SocketAddr) -> Self {
-        Self { discovery_address: Some(discovery_addr), ..self }
+    /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
+    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
+        Self { rpc_config: Some(rpc_config), ..self }
     }
 
     /// Appends whether p2p networking is entirely disabled to the builder.
     pub fn with_network_disabled(self, network_disabled: bool) -> Self {
         Self { network_disabled, ..self }
-    }
-
-    /// Appends the keypair to the builder.
-    pub fn with_keypair(self, keypair: Keypair) -> Self {
-        Self { keypair: Some(keypair), ..self }
-    }
-
-    /// Appends the unsafe block signer to the builder.
-    pub fn with_unsafe_block_signer(self, unsafe_block_signer: Address) -> Self {
-        Self { unsafe_block_signer: Some(unsafe_block_signer), ..self }
     }
 
     /// Assembles the [RollupNode] service.
@@ -137,12 +115,9 @@ impl RollupNodeBuilder {
             l1_beacon,
             l2_provider,
             _l2_engine: (),
-            network_disabled: self.network_disabled,
-            keypair: self.keypair,
-            discovery_address: self.discovery_address,
-            gossip_address: self.gossip_address,
-            unsafe_block_signer: self.unsafe_block_signer.expect("unsafe block signer not set"),
             rpc_launcher,
+            p2p_config: self.p2p_config,
+            network_disabled: self.network_disabled,
         }
     }
 }

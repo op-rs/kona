@@ -5,12 +5,10 @@
 
 use super::{NodeMode, RollupNodeService, SequencerNodeService, ValidatorNodeService};
 use crate::{L1WatcherRpc, L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
-use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
-use libp2p::identity::Keypair;
 use op_alloy_network::Optimism;
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
@@ -18,7 +16,7 @@ use tracing::info;
 
 use kona_derive::{errors::PipelineErrorKind, traits::ChainProvider};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Discv5BuilderError, GossipDriverBuilderError, Network, NetworkBuilderError};
+use kona_p2p::{Config, Network, NetworkBuilder, NetworkBuilderError};
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
@@ -50,19 +48,13 @@ pub struct RollupNode {
     ///
     /// TODO: Place L2 Engine API client here once it's ready.
     pub(crate) _l2_engine: (),
-    /// Whether p2p networking is entirely disabled.
-    pub(crate) network_disabled: bool,
-    /// The keypair for the network driver.
-    pub(crate) keypair: Option<Keypair>,
-    /// The discovery socket address.
-    pub(crate) discovery_address: Option<SocketAddr>,
-    /// The gossip socket address.
-    pub(crate) gossip_address: Option<SocketAddr>,
-    /// The unsafe block signer.
-    pub(crate) unsafe_block_signer: Address,
     /// The [`RpcLauncher`] for the node.
     #[allow(unused)]
     pub(crate) rpc_launcher: RpcLauncher,
+    /// The P2P [`Config`] for the node.
+    pub(crate) p2p_config: Option<Config>,
+    /// Whether p2p networking is entirely disabled.
+    pub(crate) network_disabled: bool,
 }
 
 impl RollupNode {
@@ -105,27 +97,17 @@ impl ValidatorNodeService for RollupNode {
         if self.network_disabled {
             return Ok(None);
         }
-        let gossip_addr = self.gossip_address.ok_or_else(|| {
-            RollupNodeError::Network(NetworkBuilderError::GossipDriverBuilder(
-                GossipDriverBuilderError::GossipAddrNotSet,
-            ))
-        })?;
-        let disc_addr = self.discovery_address.ok_or_else(|| {
-            RollupNodeError::Network(NetworkBuilderError::DiscoveryDriverBuilder(
-                Discv5BuilderError::ListenConfigNotSet,
-            ))
-        })?;
-        let keypair = self.keypair.clone().unwrap_or_else(Keypair::generate_secp256k1);
-
+        if self.p2p_config.is_none() {
+            warn!(
+                target: "rollup_node",
+                "No network configuration provided, skipping network initialization"
+            );
+            return Ok(None);
+        }
         let chain_id = self.config.l2_chain_id;
-        let mut multiaddr = libp2p::Multiaddr::from(gossip_addr.ip());
-        multiaddr.push(libp2p::multiaddr::Protocol::Tcp(gossip_addr.port()));
-        Network::builder()
-            .with_discovery_address(disc_addr)
+        let p2p_config = self.p2p_config.clone().expect("P2P config is checked to be Some");
+        NetworkBuilder::from(p2p_config)
             .with_chain_id(chain_id)
-            .with_gossip_address(multiaddr)
-            .with_unsafe_block_signer(self.unsafe_block_signer)
-            .with_keypair(keypair)
             .build()
             .map(Some)
             .map_err(RollupNodeError::Network)
