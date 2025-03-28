@@ -5,7 +5,7 @@ use discv5::{Config as Discv5Config, ListenConfig};
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{net::SocketAddr, time::Duration};
 
-use crate::{Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError};
+use crate::{Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network, NetworkBuilderError};
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
 #[derive(Debug, Default)]
@@ -16,12 +16,19 @@ pub struct NetworkBuilder {
     gossip: GossipDriverBuilder,
     /// The unsafe block signer [`Address`].
     signer: Option<Address>,
+    /// A receiver for network RPC requests.
+    rpc_recv: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
 }
 
 impl NetworkBuilder {
     /// Creates a new [`NetworkBuilder`].
     pub const fn new() -> Self {
-        Self { discovery: Discv5Builder::new(), gossip: GossipDriverBuilder::new(), signer: None }
+        Self {
+            discovery: Discv5Builder::new(),
+            gossip: GossipDriverBuilder::new(),
+            signer: None,
+            rpc_recv: None,
+        }
     }
 
     /// Sets the address for the [`crate::Discv5Driver`].
@@ -36,6 +43,11 @@ impl NetworkBuilder {
             discovery: self.discovery.with_chain_id(id),
             ..self
         }
+    }
+
+    /// Sets the rpc receiver for the [`crate::Network`].
+    pub fn with_rpc_receiver(self, rpc_recv: tokio::sync::mpsc::Receiver<NetRpcRequest>) -> Self {
+        Self { rpc_recv: Some(rpc_recv), ..self }
     }
 
     /// Sets the listen config for the [`crate::Discv5Driver`].
@@ -76,8 +88,9 @@ impl NetworkBuilder {
         let mut gossip = self.gossip.with_unsafe_block_signer_receiver(signer_rx).build()?;
         let discovery = self.discovery.build()?;
         let unsafe_block_recv = gossip.take_payload_recv();
+        let rpc = self.rpc_recv.take();
 
-        Ok(Network { gossip, discovery, unsafe_block_recv, unsafe_block_signer_sender })
+        Ok(Network { gossip, discovery, unsafe_block_recv, unsafe_block_signer_sender, rpc })
     }
 }
 

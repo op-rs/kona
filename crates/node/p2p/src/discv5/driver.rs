@@ -139,6 +139,7 @@ impl Discv5Driver {
     ///
     /// Returns a [`Discv5Handler`] to communicate with the spawned task.
     pub fn start(mut self) -> Discv5Handler {
+        let chain_id = self.chain_id;
         let (req_sender, mut req_recv) = channel::<HandlerRequest>(1024);
         let (res_sender, res_recv) = channel::<HandlerResponse>(1024);
         let (enr_sender, enr_recv) = channel::<Enr>(1024);
@@ -218,7 +219,7 @@ impl Discv5Driver {
             }
         });
 
-        Discv5Handler::new(req_sender, res_recv, events_recv, enr_recv)
+        Discv5Handler::new(chain_id, req_sender, res_recv, events_recv, enr_recv)
     }
 }
 

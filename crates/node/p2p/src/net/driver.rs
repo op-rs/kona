@@ -8,7 +8,7 @@ use tokio::{
     sync::{mpsc::Receiver, watch::Sender},
 };
 
-use crate::{Discv5Driver, GossipDriver, NetworkBuilder};
+use crate::{Discv5Driver, GossipDriver, NetRpcRequest, NetworkBuilder};
 
 /// Network
 ///
@@ -22,6 +22,11 @@ pub struct Network {
     pub(crate) unsafe_block_recv: Option<Receiver<OpNetworkPayloadEnvelope>>,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
+    /// Handler for RPC Requests.
+    ///
+    /// This is allowed to be optional since it may not be desirable
+    /// run a networking stack with RPC access.
+    pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
@@ -47,12 +52,47 @@ impl Network {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
+        let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut handler = self.discovery.start();
         self.gossip.listen()?;
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         tokio::spawn(async move {
             loop {
                 select! {
+                    req = rpc.recv() => {
+                        let Some(req) = req else {
+                            trace!(target: "p2p::driver", "Receiver `None` rpc request");
+                            continue;
+                        };
+                        match req {
+                            crate::NetRpcRequest::PeerInfo(sender) => {
+                                let peer_id = self.gossip.local_peer_id().to_string();
+                                let chain_id = handler.chain_id;
+                                let enr = handler.local_enr().await.unwrap();
+                                let node_id = handler.local_enr().await.unwrap().id().unwrap_or_default();
+                                let addresses = self.gossip.swarm.external_addresses().map(|a| a.to_string()).collect::<Vec<String>>();
+                                let peer_info = kona_rpc::PeerInfo {
+                                    peer_id,
+                                    node_id,
+                                    user_agent: "kona".to_string(),
+                                    protocol_version: "1".to_string(),
+                                    enr: enr.to_string(),
+                                    addresses,
+                                    protocols: None, // TODO: peer supported protocols
+                                    connectedness: kona_rpc::Connectedness::Connected,
+                                    direction: kona_rpc::Direction::Inbound,
+                                    protected: false,
+                                    chain_id,
+                                    latency: 0,
+                                    gossip_blocks: false,
+                                    peer_scores: kona_rpc::PeerScores::default(),
+                                };
+                                if let Err(e) = sender.send(peer_info) {
+                                    warn!("Failed to send peer info through response channel: {:?}", e);
+                                }
+                            }
+                        }
+                    },
                     enr = handler.enr_receiver.recv() => {
                         let Some(ref enr) = enr else {
                             trace!(target: "p2p::driver", "Receiver `None` peer enr");

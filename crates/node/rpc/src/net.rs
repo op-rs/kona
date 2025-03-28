@@ -9,7 +9,7 @@ use alloy_primitives::{ChainId, map::HashMap};
 /// Topic scores
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L13>
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Default, Debug, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct TopicScores {
@@ -26,7 +26,7 @@ pub struct TopicScores {
 /// Gossip Scores
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L20C6-L20C18>
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct GossipScores {
@@ -44,7 +44,7 @@ pub struct GossipScores {
 /// The request response scores
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L31C1-L35C2>
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ReqRespScores {
@@ -59,7 +59,7 @@ pub struct ReqRespScores {
 /// Peer Scores
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L81>
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Default, Debug, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PeerScores {
@@ -72,7 +72,7 @@ pub struct PeerScores {
 /// The peer info.
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/develop/op-node/p2p/rpc_api.go#L15>
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PeerInfo {
@@ -117,7 +117,7 @@ pub struct PeerInfo {
 /// A raw peer dump.
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/40750a58e7a4a6f06370d18dfe6c6eab309012d9/op-node/p2p/rpc_api.go#L36>
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PeerDump {
@@ -138,7 +138,7 @@ pub struct PeerDump {
 /// Peer stats.
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/develop/op-node/p2p/rpc_server.go#L203>
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Default, Debug, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct PeerStats {

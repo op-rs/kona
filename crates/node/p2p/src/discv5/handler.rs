@@ -50,17 +50,20 @@ pub struct Discv5Handler {
     pub events: Receiver<Event>,
     /// Receives new [`Enr`]s.
     pub enr_receiver: Receiver<Enr>,
+    /// The chain id.
+    pub chain_id: u64,
 }
 
 impl Discv5Handler {
     /// Creates a new [`Discv5Handler`] service.
     pub fn new(
+        chain_id: u64,
         sender: Sender<HandlerRequest>,
         receiver: Receiver<HandlerResponse>,
         events: Receiver<Event>,
         enr_receiver: Receiver<Enr>,
     ) -> Self {
-        Self { sender, receiver, events, enr_receiver }
+        Self { sender, receiver, events, enr_receiver, chain_id }
     }
 
     /// Receives an [`Event`] from the discovery service.
