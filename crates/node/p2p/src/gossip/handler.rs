@@ -47,16 +47,17 @@ impl Handler for BlockHandler {
     /// valid.
     fn handle(&self, msg: Message) -> MessageAcceptance {
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v1 block");
+            info!(target: "p2p::block_handler", "received v1 block");
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)
         } else if msg.topic == self.blocks_v2_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v2 block");
+            info!(target: "p2p::block_handler", "received v2 block");
             OpNetworkPayloadEnvelope::decode_v2(&msg.data)
         } else if msg.topic == self.blocks_v3_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v3 block");
+            info!(target: "p2p::block_handler", "received v3 block");
+            info!("Raw data: {:?}", msg.data);
             OpNetworkPayloadEnvelope::decode_v3(&msg.data)
         } else if msg.topic == self.blocks_v4_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v4 block");
+            info!(target: "p2p::block_handler", "received v4 block");
             warn!(target: "p2p::block_handler", "v4 decoding unsupported");
             return MessageAcceptance::Reject;
             // OpNetworkPayloadEnvelope::decode_v4(&msg.data)
