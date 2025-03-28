@@ -24,7 +24,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, OnlineBeaconClient,
     OnlineBlobProvider, OnlinePipeline,
 };
-use kona_rpc::RpcConfig;
+use kona_rpc::{RpcLauncher, RpcLauncherError};
 
 mod builder;
 pub use builder::RollupNodeBuilder;
@@ -60,9 +60,9 @@ pub struct RollupNode {
     pub(crate) gossip_address: Option<SocketAddr>,
     /// The unsafe block signer.
     pub(crate) unsafe_block_signer: Address,
-    /// The RPC configuration.
+    /// The [`RpcLauncher`] for the node.
     #[allow(unused)]
-    pub(crate) rpc_config: Option<RpcConfig>,
+    pub(crate) rpc_launcher: RpcLauncher,
 }
 
 impl RollupNode {
@@ -95,6 +95,10 @@ impl ValidatorNodeService for RollupNode {
         cancellation: CancellationToken,
     ) -> Self::DataAvailabilityWatcher {
         L1WatcherRpc::new(self.l1_provider.clone(), new_da_tx, cancellation)
+    }
+
+    fn rpc(&self) -> Option<RpcLauncher> {
+        Some(self.rpc_launcher.clone())
     }
 
     async fn init_network(&self) -> Result<Option<Network>, Self::Error> {
@@ -197,4 +201,7 @@ pub enum RollupNodeError {
     /// An error occured while initializing the network.
     #[error(transparent)]
     Network(#[from] NetworkBuilderError),
+    /// An error occured while launching the RPC server.
+    #[error(transparent)]
+    RpcLauncher(#[from] RpcLauncherError),
 }

@@ -1,11 +1,14 @@
 //! [ValidatorNodeService] trait.
 
-use crate::{DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, service::spawn_and_wait};
+use crate::{
+    DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, RpcActor, service::spawn_and_wait,
+};
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::BlockInfo;
+use kona_rpc::{RpcLauncher, RpcLauncherError};
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;
@@ -52,7 +55,7 @@ pub trait ValidatorNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
-    type Error;
+    type Error: From<RpcLauncherError>;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;
@@ -74,6 +77,9 @@ pub trait ValidatorNodeService {
 
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<Network>, Self::Error>;
+
+    /// Returns the [`RpcLauncher`] for the node.
+    fn rpc(&self) -> Option<RpcLauncher>;
 
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), Self::Error> {
@@ -112,7 +118,15 @@ pub trait ValidatorNodeService {
             },
         );
 
-        spawn_and_wait!(cancellation, actors = [da_watcher, derivation, network]);
+        // The RPC Server should go last to let other actors register their rpc modules.
+        let rpc = if let Some(mut rpc) = self.rpc() {
+            let handle = rpc.start().await?;
+            Some(RpcActor::new(handle, cancellation.clone()))
+        } else {
+            None
+        };
+
+        spawn_and_wait!(cancellation, actors = [da_watcher, rpc, derivation, network]);
         Ok(())
     }
 }

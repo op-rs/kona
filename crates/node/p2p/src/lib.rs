@@ -13,6 +13,9 @@ extern crate tracing;
 mod net;
 pub use net::{Network, NetworkBuilder, NetworkBuilderError};
 
+mod rpc;
+pub use rpc::{NetRpcRequest, NetworkRpc};
+
 mod gossip;
 pub use gossip::{
     Behaviour, BehaviourError, BlockHandler, DEFAULT_MESH_D, DEFAULT_MESH_DHI, DEFAULT_MESH_DLAZY,

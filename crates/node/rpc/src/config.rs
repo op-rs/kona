@@ -1,5 +1,6 @@
 //! Contains the RPC Configuration.
 
+use crate::RpcLauncher;
 use std::{
     net::{IpAddr, SocketAddr},
     path::PathBuf,
@@ -19,8 +20,22 @@ pub struct RpcConfig {
     pub admin_persistence: Option<PathBuf>,
 }
 
+impl RpcConfig {
+    /// Converts the [`RpcConfig`] into a [`RpcLauncher`].
+    pub fn as_launcher(&self) -> RpcLauncher {
+        let socket = SocketAddr::from(self);
+        RpcLauncher::default().set_addr(socket)
+    }
+}
+
 impl From<&RpcConfig> for SocketAddr {
     fn from(config: &RpcConfig) -> Self {
         Self::new(config.listen_addr, config.listen_port)
+    }
+}
+
+impl From<&RpcConfig> for RpcLauncher {
+    fn from(config: &RpcConfig) -> Self {
+        config.as_launcher()
     }
 }
