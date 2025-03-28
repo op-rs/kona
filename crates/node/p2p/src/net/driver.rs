@@ -59,6 +59,17 @@ impl Network {
         tokio::spawn(async move {
             loop {
                 select! {
+                    event = self.gossip.select_next_some() => {
+                        trace!(target: "p2p::driver", "Received event: {:?}", event);
+                        self.gossip.handle_event(event);
+                    },
+                    enr = handler.enr_receiver.recv() => {
+                        let Some(ref enr) = enr else {
+                            trace!(target: "p2p::driver", "Receiver `None` peer enr");
+                            continue;
+                        };
+                        self.gossip.dial(enr.clone());
+                    },
                     req = rpc.recv() => {
                         let Some(req) = req else {
                             trace!(target: "p2p::driver", "Receiver `None` rpc request");
@@ -92,17 +103,6 @@ impl Network {
                                 }
                             }
                         }
-                    },
-                    enr = handler.enr_receiver.recv() => {
-                        let Some(ref enr) = enr else {
-                            trace!(target: "p2p::driver", "Receiver `None` peer enr");
-                            continue;
-                        };
-                        self.gossip.dial(enr.clone());
-                    },
-                    event = self.gossip.select_next_some() => {
-                        trace!(target: "p2p::driver", "Received event: {:?}", event);
-                        self.gossip.handle_event(event);
                     },
                     _ = interval.tick() => {
                         let swarm_peers = self.gossip.connected_peers();
