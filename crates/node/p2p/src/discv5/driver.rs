@@ -118,12 +118,17 @@ impl Discv5Driver {
                 Ok(_) => count += 1,
                 Err(e) => {
                     // If the bootstore is too large, the discovery service may not accept new ENRs.
-                    // So we don't want to spam the logs with warning messages for `N` ENRs above the limit.
+                    // So we don't want to spam the logs with warning messages for `N` ENRs above
+                    // the limit.
                     debug!("Failed to bootstrap discovery service: {:?}", e);
                 }
             }
         }
-        info!("Added {} bootnode enrs to discovery service | {} available in bootstore", count, self.store.len());
+        info!(
+            "Added {} bootnode enrs to discovery service | {} available in bootstore",
+            count,
+            self.store.len()
+        );
 
         for node in nodes.0 {
             match node {
