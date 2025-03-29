@@ -2,10 +2,10 @@
 
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
-use kona_registry::ROLLUP_CONFIGS;
+use kona_registry::OPCHAINS;
 
 /// Global arguments for the CLI.
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Default, Clone, Debug)]
 pub struct GlobalArgs {
     /// Verbosity level (0-2)
     #[arg(long, short, action = ArgAction::Count)]
@@ -27,13 +27,27 @@ impl GlobalArgs {
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.
     pub fn genesis_signer(&self) -> anyhow::Result<Address> {
         let id = self.l2_chain_id;
-        ROLLUP_CONFIGS
+        OPCHAINS
             .get(&id)
-            .ok_or(anyhow::anyhow!("No rollup config found for chain ID: {id}"))?
-            .genesis
-            .system_config
+            .ok_or(anyhow::anyhow!("No chain config found for chain ID: {id}"))?
+            .roles
             .as_ref()
-            .map(|c| c.batcher_address)
-            .ok_or(anyhow::anyhow!("No system config found for chain ID: {id}"))
+            .ok_or(anyhow::anyhow!("No roles found for chain ID: {id}"))?
+            .unsafe_block_signer
+            .ok_or(anyhow::anyhow!("No unsafe block signer found for chain ID: {id}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_genesis_signer() {
+        let args = GlobalArgs { l2_chain_id: 10, ..Default::default() };
+        assert_eq!(
+            args.genesis_signer().unwrap(),
+            alloy_primitives::address!("aaaa45d9549eda09e70937013520214382ffc4a2")
+        );
     }
 }
