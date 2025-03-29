@@ -1,17 +1,18 @@
-//! RPC CLI Flags
+//! Rpc CLI Arguments
 //!
 //! Flags for configuring the RPC server.
 
 use clap::Parser;
+use kona_rpc::RpcConfig;
 use std::{net::IpAddr, path::PathBuf};
 
-/// RPC CLI Flags
+/// RPC CLI Arguments
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
-pub struct RPCArgs {
-    /// RPC listening address
+pub struct RpcArgs {
+    /// RPC listening address.
     #[arg(long = "rpc.addr", default_value = "0.0.0.0", env = "KONA_NODE_RPC_ADDR")]
     pub listen_addr: IpAddr,
-    /// RPC listening port
+    /// RPC listening port.
     #[arg(long = "rpc.port", default_value = "9545", env = "KONA_NODE_RPC_PORT")]
     pub listen_port: u16,
     /// Enable the admin API.
@@ -23,9 +24,9 @@ pub struct RPCArgs {
     pub admin_persistence: Option<PathBuf>,
 }
 
-impl From<RPCArgs> for kona_rpc::RpcConfig {
-    fn from(args: RPCArgs) -> Self {
-        kona_rpc::RpcConfig {
+impl From<RpcArgs> for RpcConfig {
+    fn from(args: RpcArgs) -> Self {
+        RpcConfig {
             listen_addr: args.listen_addr,
             listen_port: args.listen_port,
             enable_admin: args.enable_admin,

@@ -7,4 +7,4 @@ mod p2p;
 pub use p2p::P2PArgs;
 
 mod rpc;
-pub use rpc::RPCArgs;
+pub use rpc::RpcArgs;
