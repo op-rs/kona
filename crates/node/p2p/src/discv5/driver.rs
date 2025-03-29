@@ -112,12 +112,23 @@ impl Discv5Driver {
         );
         self.store.merge(boot_enrs);
 
+        let mut count = 0;
         for enr in self.store.peers() {
-            if let Err(e) = self.disc.add_enr(enr.clone()) {
-                warn!(target: "p2p::discv5::driver", "Failed to bootstrap discovery service: {:?}", e);
-                continue;
+            match self.disc.add_enr(enr.clone()) {
+                Ok(_) => count += 1,
+                Err(e) => {
+                    // If the bootstore is too large, the discovery service may not accept new ENRs.
+                    // So we don't want to spam the logs with warning messages for `N` ENRs above
+                    // the limit.
+                    debug!("Failed to bootstrap discovery service: {:?}", e);
+                }
             }
         }
+        info!(
+            "Added {} bootnode enrs to discovery service | {} available in bootstore",
+            count,
+            self.store.len()
+        );
 
         for node in nodes.0 {
             match node {
@@ -135,6 +146,15 @@ impl Discv5Driver {
         }
     }
 
+    /// Sends ENRs from the boot store to the enr receiver.
+    pub async fn forward(&mut self, enr_sender: tokio::sync::mpsc::Sender<Enr>) {
+        for enr in self.store.peers() {
+            if let Err(e) = enr_sender.send(enr.clone()).await {
+                debug!("Failed to forward enr: {:?}", e);
+            }
+        }
+    }
+
     /// Spawns a new [`Discv5`] discovery service in a new tokio task.
     ///
     /// Returns a [`Discv5Handler`] to communicate with the spawned task.
@@ -148,11 +168,14 @@ impl Discv5Driver {
         tokio::spawn(async move {
             // Step 1: Start the discovery service.
             self.init().await;
-            info!(target: "p2p::discv5::driver", "Started `Discv5` peer discovery");
+            info!("Started `Discv5` peer discovery");
 
             // Step 2: Bootstrap discovery service bootnodes.
             self.bootstrap().await;
-            info!(target: "p2p::discv5::driver", "Bootstrapped `Discv5` bootnodes");
+            info!("Bootstrapped `Discv5` bootnodes");
+
+            // Step 3: Forward ENRs in the bootstore to the enr receiver.
+            self.forward(enr_sender.clone()).await;
 
             // Interval to find new nodes.
             let mut interval = tokio::time::interval(self.interval);

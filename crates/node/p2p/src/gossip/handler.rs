@@ -25,12 +25,13 @@ pub trait Handler: Send {
 /// Responsible for managing blocks received via p2p gossip
 #[derive(Debug, Clone)]
 pub struct BlockHandler {
-    /// Chain ID of the L2 blockchain. Used to filter out gossip messages intended for other
-    /// blockchains.
+    /// Chain ID.
+    ///
+    /// Used to filter out gossip messages intended for other chains.
     pub chain_id: u64,
-    /// A channel sender to forward new blocks to other modules
+    /// A channel [`Sender`] to forward new [`OpNetworkPayloadEnvelope`] to other modules.
     pub block_sender: Sender<OpNetworkPayloadEnvelope>,
-    /// A [Receiver] to monitor changes to the unsafe block signer.
+    /// A [`Receiver`] to monitor changes to the unsafe block signer.
     pub unsafe_signer_recv: Receiver<Address>,
     /// The libp2p topic for pre Canyon/Shangai blocks.
     pub blocks_v1_topic: IdentTopic,
@@ -47,21 +48,20 @@ impl Handler for BlockHandler {
     /// valid.
     fn handle(&self, msg: Message) -> MessageAcceptance {
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v1 block");
+            info!("received v1 block");
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)
         } else if msg.topic == self.blocks_v2_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v2 block");
+            info!("received v2 block");
             OpNetworkPayloadEnvelope::decode_v2(&msg.data)
         } else if msg.topic == self.blocks_v3_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v3 block");
+            info!("received v3 block");
             OpNetworkPayloadEnvelope::decode_v3(&msg.data)
         } else if msg.topic == self.blocks_v4_topic.hash() {
-            debug!(target: "p2p::block_handler", "received v4 block");
-            warn!(target: "p2p::block_handler", "v4 decoding unsupported");
+            info!("received v4 block");
             return MessageAcceptance::Reject;
             // OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
-            warn!(target: "p2p::block_handler", "Received block with unknown topic: {:?}", msg.topic);
+            warn!("Received block with unknown topic: {:?}", msg.topic);
             return MessageAcceptance::Reject;
         };
 
@@ -71,12 +71,12 @@ impl Handler for BlockHandler {
                     _ = self.block_sender.send(envelope);
                     MessageAcceptance::Accept
                 } else {
-                    warn!(target: "p2p::block_handler", "Invalid block received");
+                    debug!("Invalid block received");
                     MessageAcceptance::Reject
                 }
             }
             Err(err) => {
-                warn!(target: "p2p::block_handler", "Failed to decode block: {:?}", err);
+                debug!("Failed to decode block: {:?}", err);
                 MessageAcceptance::Reject
             }
         }
