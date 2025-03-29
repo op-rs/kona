@@ -93,11 +93,13 @@ pub struct PeerInfo {
     pub addresses: Vec<String>,
     /// Peer supported protocols
     pub protocols: Option<Vec<String>>,
-    /// 0: "`NotConnected`", 1: "Connected",
+    /// 0: "`NotConnected`",
+    /// 1: "Connected",
     /// 2: "`CanConnect`" (gracefully disconnected)
     /// 3: "`CannotConnect`" (tried but failed)
     pub connectedness: Connectedness,
-    /// 0: "Unknown", 1: "Inbound" (if the peer contacted us)
+    /// 0: "Unknown",
+    /// 1: "Inbound" (if the peer contacted us)
     /// 2: "Outbound" (if we connected to them)
     pub direction: Direction,
     /// Whether the peer is protected.

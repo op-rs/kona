@@ -1,6 +1,9 @@
 //! Contains the node CLI.
 
-use crate::{commands::NodeCommand, flags::GlobalArgs};
+use crate::{
+    commands::{NetCommand, NodeCommand},
+    flags::GlobalArgs,
+};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
@@ -12,6 +15,8 @@ use tracing_subscriber::EnvFilter;
 pub enum Commands {
     /// Runs the consensus node.
     Node(NodeCommand),
+    /// Runs the networking stack for the node.
+    Net(NetCommand),
 }
 
 /// The node CLI.
@@ -34,6 +39,7 @@ impl Cli {
 
         match self.subcommand {
             Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
+            Commands::Net(net) => Self::run_until_ctrl_c(net.run(&self.global)),
         }
     }
 

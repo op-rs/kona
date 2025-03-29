@@ -124,7 +124,11 @@ mod tests {
     #[test]
     fn test_build_missing_chain_id() {
         let builder = NetworkBuilder::new();
-        let err = builder.with_unsafe_block_signer(Address::random()).build().unwrap_err();
+        let err = builder
+            .with_unsafe_block_signer(Address::random())
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
+            .build()
+            .unwrap_err();
         let gossip_err = GossipDriverBuilderError::MissingChainID;
         assert_eq!(err, NetworkBuilderError::GossipDriverBuilder(gossip_err));
     }
@@ -134,6 +138,7 @@ mod tests {
         let builder = NetworkBuilder::new();
         let err = builder
             .with_unsafe_block_signer(Address::random())
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_chain_id(1)
             .build()
             .unwrap_err();
@@ -152,6 +157,7 @@ mod tests {
         let driver = NetworkBuilder::new()
             .with_unsafe_block_signer(signer)
             .with_chain_id(id)
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_gossip_address(gossip_addr.clone())
             .with_discovery_address(disc)
             .build()
@@ -191,6 +197,7 @@ mod tests {
             .with_gossip_address(gossip_addr)
             .with_discovery_address(disc)
             .with_discovery_config(discovery_config)
+            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .build()
             .unwrap();
 

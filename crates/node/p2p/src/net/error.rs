@@ -14,4 +14,7 @@ pub enum NetworkBuilderError {
     /// The unsafe block signer is missing.
     #[error("missing unsafe block signer")]
     UnsafeBlockSignerNotSet,
+    /// Missing RPC receiver.
+    #[error("missing RPC receiver")]
+    MissingRpcReceiver,
 }

@@ -134,7 +134,7 @@ impl BootStore {
         let peers = File::open(path)
             .map(|file| {
                 let reader = BufReader::new(file);
-                info!("Reading boot store from disk: {:?}", p);
+                debug!("Reading boot store from disk: {:?}", p);
                 match serde_json::from_reader(reader).map(|s: BootStore| s.peers) {
                     Ok(peers) => peers,
                     Err(e) => {

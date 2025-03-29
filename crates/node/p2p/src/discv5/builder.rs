@@ -97,3 +97,20 @@ impl Discv5Builder {
         Ok(Discv5Driver::new(disc, chain_id))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    #[test]
+    fn test_builds_valid_enr() {
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+        let mut builder = Discv5Builder::new();
+        builder = builder.with_address(addr);
+        builder = builder.with_chain_id(10);
+        let driver = builder.build().unwrap();
+        let enr = driver.disc.local_enr();
+        assert!(OpStackEnr::is_valid_node(&enr, 10));
+    }
+}
