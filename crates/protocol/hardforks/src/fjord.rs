@@ -3,6 +3,7 @@
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use core::str::FromStr;
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -62,6 +63,14 @@ impl Fjord {
 
     /// Returns the list of [TxDeposit]s for the Fjord network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
+        // Verify GasPrice Oracle source hash
+        // See: <https://specs.optimism.io/protocol/fjord/derivation.html#gaspriceoracle-deployment>
+        assert_eq!(
+            Self::update_fjord_gas_price_oracle_source(),
+            B256::from_str("0xa88fa50a2745b15e6794247614b5298483070661adacb8d32d716434ed24c6b2")
+                .unwrap(),
+            "GasPrice Oracle source hash mismatch"
+        );
         ([
             // Deploys the Fjord Gas Price Oracle contract.
             // See: <https://specs.optimism.io/protocol/fjord/derivation.html#gaspriceoracle-deployment>
