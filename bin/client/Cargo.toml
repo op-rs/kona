@@ -38,7 +38,7 @@ op-alloy-consensus.workspace = true
 op-alloy-rpc-types-engine = { workspace = true, features = ["serde"] }
 
 # Revm
-revm.workspace = true
+# revm.workspace = true
 
 # General
 lru.workspace = true
