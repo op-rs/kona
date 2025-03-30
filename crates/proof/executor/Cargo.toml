@@ -1,6 +1,6 @@
 [package]
 name = "kona-executor"
-description = "An no_std implementation of a stateless L2 block executor for the OP Stack."
+description = "A no_std stateless block builder for the OP Stack"
 version = "0.3.0"
 edition.workspace = true
 authors.workspace = true
@@ -26,9 +26,15 @@ alloy-trie.workspace = true
 # Op Alloy
 op-alloy-consensus.workspace = true
 op-alloy-rpc-types-engine = { workspace = true, features = ["serde"] }
+alloy-op-hardforks.workspace = true
 
-# Revm
-revm = { workspace = true, features = ["optimism"] }
+# revm
+op-revm.workspace = true
+revm.workspace = true
+
+# alloy-evm
+alloy-evm.workspace = true
+alloy-op-evm.workspace = true
 
 # General
 thiserror.workspace = true
@@ -36,18 +42,16 @@ tracing.workspace = true
 
 [dev-dependencies]
 rand.workspace = true
-alloy-rlp.workspace = true
 serde_json.workspace = true
-alloy-rpc-types-engine.workspace = true
 serde = { workspace = true, features = ["derive"] }
-criterion = { workspace = true, features = ["html_reports"] }
-pprof = { workspace = true, features = ["criterion", "flamegraph", "frame-pointer"] }
 tokio = { workspace = true, features = ["full"] }
 rstest.workspace = true
 kona-registry.workspace = true
+rocksdb = { workspace = true, features = ["snappy"] }
+tempfile.workspace = true
+alloy-rpc-types-engine.workspace = true
+alloy-rlp.workspace = true
 alloy-provider = { workspace = true, features = ["reqwest"] }
 alloy-rpc-client.workspace = true
 alloy-transport.workspace = true
 alloy-transport-http.workspace = true
-rocksdb.workspace = true
-tempfile.workspace = true

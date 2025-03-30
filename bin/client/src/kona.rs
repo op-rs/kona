@@ -8,11 +8,10 @@
 extern crate alloc;
 
 use alloc::string::String;
+use kona_client::fpvm_evm::FpvmOpEvmFactory;
 use kona_preimage::{HintWriter, OracleReader};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use kona_std_fpvm_proc::client_entry;
-
-mod precompiles;
 
 /// The global preimage oracle reader pipe.
 static ORACLE_READER_PIPE: FileChannel =
@@ -42,6 +41,6 @@ fn main() -> Result<(), String> {
     kona_proof::block_on(kona_client::single::run(
         ORACLE_READER,
         HINT_WRITER,
-        Some(precompiles::fpvm_handle_register),
+        FpvmOpEvmFactory::new(HINT_WRITER, ORACLE_READER),
     ))
 }

@@ -6,9 +6,9 @@ use consolidate::consolidate_dependencies;
 use core::fmt::Debug;
 use kona_derive::errors::PipelineErrorKind;
 use kona_driver::DriverError;
-use kona_executor::{ExecutorError, KonaHandleRegister};
+use kona_executor::ExecutorError;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
-use kona_proof::{CachingOracle, errors::OracleProviderError, l2::OracleL2ChainProvider};
+use kona_proof::{CachingOracle, errors::OracleProviderError};
 use kona_proof_interop::{
     BootInfo, ConsolidationError, PreState, TRANSITION_STATE_MAX_STEPS, boot::BootstrapError,
 };
@@ -52,16 +52,7 @@ pub enum FaultProofProgramError {
 /// Executes the interop fault proof program with the given [PreimageOracleClient] and
 /// [HintWriterClient].
 #[inline]
-pub async fn run<P, H>(
-    oracle_client: P,
-    hint_client: H,
-    handle_register: Option<
-        KonaHandleRegister<
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-        >,
-    >,
-) -> Result<(), FaultProofProgramError>
+pub async fn run<P, H>(oracle_client: P, hint_client: H) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
@@ -100,7 +91,7 @@ where
             }
 
             // If the pre-state is a super root, the first sub-problem is always selected.
-            sub_transition(oracle, handle_register, boot).await
+            sub_transition(oracle, boot).await
         }
         PreState::TransitionState(ref transition_state) => {
             // If the claimed L2 block timestamp is less than the prestate timestamp, the
@@ -115,7 +106,7 @@ where
             // If the pre-state is a transition state, the sub-problem is selected based on the
             // current step.
             if transition_state.step < TRANSITION_STATE_MAX_STEPS {
-                sub_transition(oracle, handle_register, boot).await
+                sub_transition(oracle, boot).await
             } else {
                 consolidate_dependencies(oracle, boot).await
             }

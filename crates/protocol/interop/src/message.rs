@@ -144,6 +144,6 @@ pub fn parse_logs_to_executing_msgs<'a>(
 /// executing message event.
 pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
     (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
-        .then(|| ExecutingMessage::decode_log_data(&log.data, true).ok())
+        .then(|| ExecutingMessage::decode_log_data(&log.data).ok())
         .flatten()
 }

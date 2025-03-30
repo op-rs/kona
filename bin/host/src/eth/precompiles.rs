@@ -2,10 +2,7 @@
 
 use alloy_primitives::{Address, Bytes};
 use anyhow::{Result, anyhow};
-use revm::{
-    precompile::{self, PrecompileWithAddress},
-    primitives::{Env, Precompile},
-};
+use revm::precompile::{self, PrecompileWithAddress};
 
 /// List of precompiles that are accelerated by the host program.
 pub(crate) const ACCELERATED_PRECOMPILES: &[PrecompileWithAddress] = &[
@@ -23,27 +20,14 @@ pub(crate) const ACCELERATED_PRECOMPILES: &[PrecompileWithAddress] = &[
 ];
 
 /// Executes an accelerated precompile on [revm].
-pub(crate) fn execute<T: Into<Bytes>>(address: Address, input: T) -> Result<Vec<u8>> {
+pub(crate) fn execute<T: Into<Bytes>>(address: Address, input: T, gas: u64) -> Result<Vec<u8>> {
     if let Some(precompile) =
         ACCELERATED_PRECOMPILES.iter().find(|precompile| precompile.0 == address)
     {
-        match precompile.1 {
-            Precompile::Standard(std_precompile) => {
-                // Standard precompile execution - no access to environment required.
-                let output = std_precompile(&input.into(), u64::MAX)
-                    .map_err(|e| anyhow!("Failed precompile execution: {e}"))?;
+        let output = precompile.precompile()(&input.into(), gas)
+            .map_err(|e| anyhow!("Failed precompile execution: {e}"))?;
 
-                Ok(output.bytes.into())
-            }
-            Precompile::Env(env_precompile) => {
-                // Use default environment for KZG point evaluation.
-                let output = env_precompile(&input.into(), u64::MAX, &Env::default())
-                    .map_err(|e| anyhow!("Failed precompile execution: {e}"))?;
-
-                Ok(output.bytes.into())
-            }
-            _ => anyhow::bail!("Precompile not accelerated"),
-        }
+        Ok(output.bytes.into())
     } else {
         anyhow::bail!("Precompile not accelerated");
     }

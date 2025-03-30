@@ -20,13 +20,15 @@ alloy-sol-types.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-eips.workspace = true
+alloy-hardforks.workspace = true
+alloy-op-hardforks.workspace = true
 
 # Misc
 thiserror.workspace = true
 derive_more = { workspace = true, features = ["from"] }
 
 # `revm` feature
-revm = { workspace = true, optional = true, features = ["optimism"] }
+op-revm = { workspace = true, optional = true }
 
 # `arbitrary` feature
 arbitrary = { workspace = true, features = ["derive"], optional = true }
@@ -45,7 +47,7 @@ alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 
 [features]
 default = []
-revm = ["dep:revm"]
+revm = ["dep:op-revm"]
 std = [
     "alloy-primitives/std",
     "alloy-sol-types/std",

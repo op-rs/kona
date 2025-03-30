@@ -1,7 +1,7 @@
 //! The unsafe block signer update.
 
 use alloy_primitives::Address;
-use alloy_sol_types::{SolType, sol};
+use alloy_sol_types::{SolType, SolValue, sol};
 
 use crate::{SystemConfigLog, UnsafeBlockSignerUpdateError};
 
@@ -22,21 +22,30 @@ impl TryFrom<&SystemConfigLog> for UnsafeBlockSignerUpdate {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| UnsafeBlockSignerUpdateError::PointerDecodingError)?;
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(UnsafeBlockSignerUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+
+        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| UnsafeBlockSignerUpdateError::LengthDecodingError)?;
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(UnsafeBlockSignerUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode(&log.data.data[64..], true)
-        else {
+        let word: [u8; 32] = log.data.data[64..96].try_into().unwrap();
+        <sol!(address)>::type_check(&word.tokenize())
+            .map_err(|_| UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError)?;
+        let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode(&log.data.data[64..]) else {
             return Err(UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError);
         };
 

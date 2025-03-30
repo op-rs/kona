@@ -2,8 +2,9 @@
 
 #![allow(missing_docs, unused)]
 
-use crate::{StatelessL2BlockExecutor, TrieDBProvider, constants::FEE_RECIPIENT};
+use crate::{StatelessL2Builder, TrieDBProvider};
 use alloy_consensus::Header;
+use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::{B256, Bytes, Sealable};
 use alloy_provider::{
     Provider, RootProvider,
@@ -17,6 +18,7 @@ use kona_genesis::RollupConfig;
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use kona_registry::ROLLUP_CONFIGS;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use op_revm::OpEvm;
 use rocksdb::{DB, Options};
 use serde::{Deserialize, Serialize};
 use std::{env::temp_dir, path::PathBuf, sync::Arc};
@@ -120,10 +122,10 @@ impl ExecutorTestFixtureCreator {
         let payload_attrs = OpPayloadAttributes {
             payload_attributes: PayloadAttributes {
                 timestamp: executing_header.timestamp,
-                parent_beacon_block_root: parent_header.parent_beacon_block_root,
-                prev_randao: parent_header.mix_hash,
+                parent_beacon_block_root: executing_header.parent_beacon_block_root,
+                prev_randao: executing_header.mix_hash,
                 withdrawals: Default::default(),
-                suggested_fee_recipient: FEE_RECIPIENT,
+                suggested_fee_recipient: executing_header.beneficiary,
             },
             gas_limit: Some(executing_header.gas_limit),
             transactions: Some(encoded_executing_transactions),
@@ -145,14 +147,17 @@ impl ExecutorTestFixtureCreator {
             expected_block_hash: executing_header.hash_slow(),
         };
 
-        let mut executor = StatelessL2BlockExecutor::builder(rollup_config, self, NoopTrieHinter)
-            .with_parent_header(parent_header)
-            .build();
-        let exec_artifacts =
-            executor.execute_payload(payload_attrs).expect("Failed to execute block").clone();
+        let mut executor = StatelessL2Builder::new(
+            rollup_config,
+            OpEvmFactory::default(),
+            self,
+            NoopTrieHinter,
+            parent_header,
+        );
+        let outcome = executor.build_block(payload_attrs).expect("Failed to execute block");
 
         assert_eq!(
-            exec_artifacts.block_header.inner(),
+            outcome.header.inner(),
             &executing_header.inner,
             "Produced header does not match the expected header"
         );
@@ -342,15 +347,18 @@ pub(crate) async fn run_test_fixture(fixture_path: PathBuf) {
         serde_json::from_slice(&fs::read(fixture_dir.path().join("fixture.json")).await.unwrap())
             .expect("Failed to deserialize fixture");
 
-    let mut executor =
-        StatelessL2BlockExecutor::builder(&fixture.rollup_config, provider, NoopTrieHinter)
-            .with_parent_header(fixture.parent_header.seal_slow())
-            .build();
+    let mut executor = StatelessL2Builder::new(
+        &fixture.rollup_config,
+        OpEvmFactory::default(),
+        provider,
+        NoopTrieHinter,
+        fixture.parent_header.seal_slow(),
+    );
 
-    let exec_artifacts = executor.execute_payload(fixture.executing_payload).unwrap();
+    let outcome = executor.build_block(fixture.executing_payload).unwrap();
 
     assert_eq!(
-        exec_artifacts.block_header.hash(),
+        outcome.header.hash(),
         fixture.expected_block_hash,
         "Produced header does not match the expected header"
     );

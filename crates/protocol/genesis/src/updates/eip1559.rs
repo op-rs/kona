@@ -1,6 +1,6 @@
 //! The EIP-1559 update type.
 
-use alloy_sol_types::{SolType, sol};
+use alloy_sol_types::{SolType, SolValue, sol};
 
 use crate::{EIP1559UpdateError, SystemConfig, SystemConfigLog};
 
@@ -31,20 +31,30 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
             return Err(EIP1559UpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| EIP1559UpdateError::PointerDecodingError)?;
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(EIP1559UpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(EIP1559UpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+
+        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| EIP1559UpdateError::LengthDecodingError)?;
+        let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(EIP1559UpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(EIP1559UpdateError::InvalidDataLength(length));
         }
 
-        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode(&log.data.data[64..], true) else {
+        let word: [u8; 32] = log.data.data[64..96].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| EIP1559UpdateError::EIP1559DecodingError)?;
+        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(EIP1559UpdateError::EIP1559DecodingError);
         };
 

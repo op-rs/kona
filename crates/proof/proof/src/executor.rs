@@ -2,22 +2,24 @@
 
 use alloc::boxed::Box;
 use alloy_consensus::{Header, Sealed};
+use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use kona_driver::Executor;
-use kona_executor::{
-    ExecutionArtifacts, KonaHandleRegister, StatelessL2BlockExecutor, TrieDBProvider,
-};
+use kona_executor::{BlockBuildingOutcome, StatelessL2Builder, TrieDBProvider};
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
+use op_alloy_consensus::OpTxEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use op_revm::OpSpecId;
 
 /// An executor wrapper type.
 #[derive(Debug)]
-pub struct KonaExecutor<'a, P, H>
+pub struct KonaExecutor<'a, P, H, Evm>
 where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
+    Evm: EvmFactory + Send + Sync + Clone,
 {
     /// The rollup config for the executor.
     rollup_config: &'a RollupConfig,
@@ -25,34 +27,37 @@ where
     trie_provider: P,
     /// The trie hinter for the executor.
     trie_hinter: H,
-    /// The handle register for the executor.
-    handle_register: Option<KonaHandleRegister<P, H>>,
+    /// The evm factory for the executor.
+    evm_factory: Evm,
     /// The executor.
-    inner: Option<StatelessL2BlockExecutor<'a, P, H>>,
+    inner: Option<StatelessL2Builder<'a, P, H, Evm>>,
 }
 
-impl<'a, P, H> KonaExecutor<'a, P, H>
+impl<'a, P, H, Evm> KonaExecutor<'a, P, H, Evm>
 where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
+    Evm: EvmFactory + Send + Sync + Clone,
 {
     /// Creates a new executor.
     pub const fn new(
         rollup_config: &'a RollupConfig,
         trie_provider: P,
         trie_hinter: H,
-        handle_register: Option<KonaHandleRegister<P, H>>,
-        inner: Option<StatelessL2BlockExecutor<'a, P, H>>,
+        evm_factory: Evm,
+        inner: Option<StatelessL2Builder<'a, P, H, Evm>>,
     ) -> Self {
-        Self { rollup_config, trie_provider, trie_hinter, handle_register, inner }
+        Self { rollup_config, trie_provider, trie_hinter, evm_factory, inner }
     }
 }
 
 #[async_trait]
-impl<P, H> Executor for KonaExecutor<'_, P, H>
+impl<P, H, Evm> Executor for KonaExecutor<'_, P, H, Evm>
 where
     P: TrieDBProvider + Send + Sync + Clone,
     H: TrieHinter + Send + Sync + Clone,
+    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Clone + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
     type Error = kona_executor::ExecutorError;
 
@@ -67,27 +72,23 @@ where
     /// Since the L2 block executor is stateless, on an update to the safe head,
     /// a new executor is created with the updated header.
     fn update_safe_head(&mut self, header: Sealed<Header>) {
-        let mut builder = StatelessL2BlockExecutor::builder(
+        self.inner = Some(StatelessL2Builder::new(
             self.rollup_config,
+            self.evm_factory.clone(),
             self.trie_provider.clone(),
             self.trie_hinter.clone(),
-        )
-        .with_parent_header(header);
-
-        if let Some(register) = self.handle_register {
-            builder = builder.with_handle_register(register);
-        }
-        self.inner = Some(builder.build());
+            header,
+        ));
     }
 
     /// Execute the given payload attributes.
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<ExecutionArtifacts, Self::Error> {
+    ) -> Result<BlockBuildingOutcome, Self::Error> {
         self.inner.as_mut().map_or_else(
             || Err(kona_executor::ExecutorError::MissingExecutor),
-            |e| e.execute_payload(attributes),
+            |e| e.build_block(attributes),
         )
     }
 

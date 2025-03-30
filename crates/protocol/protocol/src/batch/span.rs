@@ -905,7 +905,7 @@ mod tests {
                                 value: alloy_primitives::U256::from(3),
                                 ..Default::default()
                             },
-                            alloy_primitives::PrimitiveSignature::test_signature(),
+                            alloy_primitives::Signature::test_signature(),
                             alloy_primitives::B256::ZERO,
                         ),
                     )],

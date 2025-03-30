@@ -56,7 +56,7 @@ fn main() {
 fn example_transactions() -> Vec<alloy_primitives::Bytes> {
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEnvelope};
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
-    use alloy_primitives::{Address, PrimitiveSignature, U256};
+    use alloy_primitives::{Address, Signature, U256};
 
     let mut transactions = Vec::new();
 
@@ -72,7 +72,7 @@ fn example_transactions() -> Vec<alloy_primitives::Bytes> {
         input: vec![8].into(),
         access_list: Default::default(),
     };
-    let sig = PrimitiveSignature::test_signature();
+    let sig = Signature::test_signature();
     let tx_signed = tx.into_signed(sig);
     let envelope: TxEnvelope = tx_signed.into();
     let encoded = envelope.encoded_2718();
@@ -93,7 +93,7 @@ fn example_transactions() -> Vec<alloy_primitives::Bytes> {
         input: vec![8].into(),
         access_list: Default::default(),
     };
-    let sig = PrimitiveSignature::test_signature();
+    let sig = Signature::test_signature();
     let tx_signed = tx.into_signed(sig);
     let envelope: TxEnvelope = tx_signed.into();
     let encoded = envelope.encoded_2718();

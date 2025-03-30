@@ -10,6 +10,7 @@ use alloy_eips::{
     eip2718::Encodable2718,
     eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
+use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::{Address, B256, Bytes, address, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::{Decodable, Encodable};
@@ -104,7 +105,7 @@ impl HintHandler for InteropHintHandler {
                 // Fetch the blob sidecar from the blob provider.
                 let mut sidecars = providers
                     .blobs
-                    .fetch_filtered_sidecars(&partial_block_ref, &[indexed_hash])
+                    .fetch_filtered_sidecars(&partial_block_ref, [indexed_hash].as_slice())
                     .await
                     .map_err(|e| anyhow!("Failed to fetch blob sidecars: {e}"))?;
                 if sidecars.len() != 1 {
@@ -149,13 +150,14 @@ impl HintHandler for InteropHintHandler {
                 )?;
             }
             HintType::L1Precompile => {
-                ensure!(hint.data.len() >= 20, "Invalid hint data length");
+                ensure!(hint.data.len() >= 28, "Invalid hint data length");
 
                 let address = Address::from_slice(&hint.data.as_ref()[..20]);
+                let gas = u64::from_be_bytes(hint.data.as_ref()[20..28].try_into()?);
                 let input = hint.data[20..].to_vec();
                 let input_hash = keccak256(hint.data.as_ref());
 
-                let result = crate::eth::execute(address, input).map_or_else(
+                let result = crate::eth::execute(address, input, gas).map_or_else(
                     |_| vec![0u8; 1],
                     |raw_res| {
                         let mut res = Vec::with_capacity(1 + raw_res.len());
@@ -305,7 +307,7 @@ impl HintHandler for InteropHintHandler {
                 let l2_provider = providers.l2(&chain_id)?;
 
                 // Attempt to fetch the code from the L2 chain provider.
-                let code_key = [&[CODE_PREFIX], hash.as_slice()].concat();
+                let code_key = [[CODE_PREFIX].as_slice(), hash.as_slice()].concat();
                 let code = l2_provider
                     .client()
                     .request::<&[Bytes; 1], Bytes>("debug_dbGet", &[code_key.into()])
@@ -488,7 +490,7 @@ impl HintHandler for InteropHintHandler {
                             rollup_config.as_ref(),
                             l2_provider.clone(),
                             l2_provider,
-                            None,
+                            OpEvmFactory::default(),
                             None,
                         );
                         let mut driver = Driver::new(cursor, executor, pipeline);
@@ -497,24 +499,23 @@ impl HintHandler for InteropHintHandler {
                             .advance_to_target(rollup_config.as_ref(), Some(target_block))
                             .await?;
 
-                        Ok::<_, anyhow::Error>(driver.safe_head_artifacts.unwrap_or_default())
+                        driver
+                            .safe_head_artifacts
+                            .ok_or_else(|| anyhow!("No artifacts found for the safe head"))
                     }
                 });
 
                 // Wait on both the server and client tasks to complete.
                 let (_, client_result) = tokio::try_join!(server_task, client_task)?;
-                let (execution_artifacts, raw_transactions) = client_result?;
+                let (build_outcome, raw_transactions) = client_result?;
 
                 // Store optimistic block hash preimage.
                 let mut kv_lock = kv.write().await;
-                let mut rlp_buf = Vec::with_capacity(execution_artifacts.block_header.length());
-                execution_artifacts.block_header.encode(&mut rlp_buf);
+                let mut rlp_buf = Vec::with_capacity(build_outcome.header.length());
+                build_outcome.header.encode(&mut rlp_buf);
                 kv_lock.set(
-                    PreimageKey::new(
-                        *execution_artifacts.block_header.hash(),
-                        PreimageKeyType::Keccak256,
-                    )
-                    .into(),
+                    PreimageKey::new(*build_outcome.header.hash(), PreimageKeyType::Keccak256)
+                        .into(),
                     rlp_buf,
                 )?;
 
@@ -522,7 +523,8 @@ impl HintHandler for InteropHintHandler {
                 drop(kv_lock);
 
                 // Store receipts root preimages.
-                let raw_receipts = execution_artifacts
+                let raw_receipts = build_outcome
+                    .execution_result
                     .receipts
                     .into_iter()
                     .map(|receipt| Ok::<_, anyhow::Error>(receipt.encoded_2718()))

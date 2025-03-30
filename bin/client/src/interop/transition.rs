@@ -4,11 +4,12 @@ use super::FaultProofProgramError;
 use crate::interop::util::fetch_l2_safe_head_hash;
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
+use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::errors::{PipelineError, PipelineErrorKind};
 use kona_driver::{Driver, DriverError};
-use kona_executor::{KonaHandleRegister, TrieDBProvider};
+use kona_executor::TrieDBProvider;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use kona_proof::{
     CachingOracle,
@@ -24,12 +25,6 @@ use tracing::{error, info, warn};
 /// [HintWriterClient].
 pub(crate) async fn sub_transition<P, H>(
     oracle: Arc<CachingOracle<P, H>>,
-    handle_register: Option<
-        KonaHandleRegister<
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-        >,
-    >,
     boot: BootInfo,
 ) -> Result<(), FaultProofProgramError>
 where
@@ -111,7 +106,7 @@ where
         rollup_config.as_ref(),
         l2_provider.clone(),
         l2_provider,
-        handle_register,
+        OpEvmFactory::default(),
         None,
     );
     let mut driver = Driver::new(cursor, executor, pipeline);

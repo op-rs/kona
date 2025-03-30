@@ -2,9 +2,6 @@
 
 use alloy_primitives::{Address, B256, address, b256};
 
-/// The address of the fee recipient.
-pub(crate) const FEE_RECIPIENT: Address = address!("4200000000000000000000000000000000000011");
-
 /// The address of the L2 to L1 bridge predeploy.
 pub(crate) const L2_TO_L1_BRIDGE: Address = address!("4200000000000000000000000000000000000016");
 

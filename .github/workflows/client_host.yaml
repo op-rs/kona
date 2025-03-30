@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         target: ["native", "asterisc"]
-        name: ["OP Sepolia (Holocene) - Block #22012816"]
+        name: ["OP Sepolia (Holocene) - Block #26215604"]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -53,13 +53,13 @@ jobs:
           mv ./rvgo/bin/asterisc /usr/local/bin/
       - name: Set run environment
         run: |
-          if [[ ${{ contains(matrix.name, 22012816) }} == true ]]; then
-            BLOCK_NUMBER=22012816
+          if [[ ${{ contains(matrix.name, 26215604) }} == true ]]; then
+            BLOCK_NUMBER=26215604
             echo "BLOCK_NUMBER=$BLOCK_NUMBER" >> $GITHUB_ENV
-            echo "L2_CLAIM=0x42ff78e504c207c3786cb30ecb74fe915984b48649165f95bbf6f9248584be69" >> $GITHUB_ENV
-            echo "L2_OUTPUT_ROOT=0x9084f101b85cd1c7c624946feca169768896d88b3ecf4eea3a7760bfceb9cd73" >> $GITHUB_ENV
-            echo "L2_HEAD=0x6a34183664b9ad39de024a8d4077c78abf05198148b6dbfc6e39fbe4a70de299" >> $GITHUB_ENV
-            echo "L1_HEAD=0x02a50d0b5a3226758a6e9b2bdeb5deb5f0779ab55b2b34a52331d0eac48c9389" >> $GITHUB_ENV
+            echo "L2_CLAIM=0x7415d942f80a34f77d344e4bccb7050f14e593f5ea33669d27ea01dce273d72d" >> $GITHUB_ENV
+            echo "L2_OUTPUT_ROOT=0xaa34b62993bd888d7a2ad8541935374e39948576fce12aa8179a0aa5b5bc787b" >> $GITHUB_ENV
+            echo "L2_HEAD=0xf4adf5790bad1ffc9eee315dc163df9102473c5726a2743da27a8a10dc16b473" >> $GITHUB_ENV
+            echo "L1_HEAD=0x010cfdb22eaa13e8cdfbf66403f8de2a026475e96a6635d53c31f853a0e3ae25" >> $GITHUB_ENV
             echo "L2_CHAIN_ID=11155420" >> $GITHUB_ENV
             echo "WITNESS_TAR_NAME=holocene-op-sepolia-$BLOCK_NUMBER-witness.tar.zst" >> $GITHUB_ENV
           fi

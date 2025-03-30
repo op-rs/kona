@@ -134,13 +134,14 @@ impl HintHandler for SingleChainHintHandler {
                 )?;
             }
             HintType::L1Precompile => {
-                ensure!(hint.data.len() >= 20, "Invalid hint data length");
+                ensure!(hint.data.len() >= 28, "Invalid hint data length");
 
                 let address = Address::from_slice(&hint.data.as_ref()[..20]);
-                let input = hint.data[20..].to_vec();
+                let gas = u64::from_be_bytes(hint.data.as_ref()[20..28].try_into()?);
+                let input = hint.data[28..].to_vec();
                 let input_hash = keccak256(hint.data.as_ref());
 
-                let result = crate::eth::execute(address, input).map_or_else(
+                let result = crate::eth::execute(address, input, gas).map_or_else(
                     |_| vec![0u8; 1],
                     |raw_res| {
                         let mut res = Vec::with_capacity(1 + raw_res.len());

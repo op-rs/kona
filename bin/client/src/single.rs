@@ -2,11 +2,12 @@
 
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
+use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::errors::PipelineErrorKind;
 use kona_driver::{Driver, DriverError};
-use kona_executor::{ExecutorError, KonaHandleRegister, TrieDBProvider};
+use kona_executor::{ExecutorError, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
     BootInfo, CachingOracle, HintType,
@@ -16,6 +17,8 @@ use kona_proof::{
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
 };
+use op_alloy_consensus::OpTxEnvelope;
+use op_revm::OpSpecId;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -38,19 +41,16 @@ pub enum FaultProofProgramError {
 
 /// Executes the fault proof program with the given [PreimageOracleClient] and [HintWriterClient].
 #[inline]
-pub async fn run<P, H>(
+pub async fn run<P, H, Evm>(
     oracle_client: P,
     hint_client: H,
-    handle_register: Option<
-        KonaHandleRegister<
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-        >,
-    >,
+    evm_factory: Evm,
 ) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
+    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
     const ORACLE_LRU_SIZE: usize = 1024;
 
@@ -121,7 +121,7 @@ where
         rollup_config.as_ref(),
         l2_provider.clone(),
         l2_provider,
-        handle_register,
+        evm_factory,
         None,
     );
     let mut driver = Driver::new(cursor, executor, pipeline);

@@ -1,7 +1,7 @@
 //! The gas limit update type.
 
 use alloy_primitives::{U64, U256};
-use alloy_sol_types::{SolType, sol};
+use alloy_sol_types::{SolType, SolValue, sol};
 
 use crate::{GasLimitUpdateError, SystemConfig, SystemConfigLog};
 
@@ -29,20 +29,27 @@ impl TryFrom<&SystemConfigLog> for GasLimitUpdate {
             return Err(GasLimitUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| GasLimitUpdateError::PointerDecodingError)?;
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(GasLimitUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(GasLimitUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+
+        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
+        <sol!(uint64)>::type_check(&word.tokenize())
+            .map_err(|_| GasLimitUpdateError::LengthDecodingError)?;
+        let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(GasLimitUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(GasLimitUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(gas_limit) = <sol!(uint256)>::abi_decode(&log.data.data[64..], true) else {
+        let Ok(gas_limit) = <sol!(uint256)>::abi_decode(&log.data.data[64..]) else {
             return Err(GasLimitUpdateError::GasLimitDecodingError);
         };
 

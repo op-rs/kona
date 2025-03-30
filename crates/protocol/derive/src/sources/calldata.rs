@@ -98,7 +98,7 @@ mod tests {
     use crate::{errors::PipelineErrorKind, test_utils::TestChainProvider};
     use alloc::{vec, vec::Vec};
     use alloy_consensus::{Signed, TxEip2930, TxEip4844, TxEip4844Variant, TxEip7702, TxLegacy};
-    use alloy_primitives::{Address, PrimitiveSignature as Signature, TxKind, address};
+    use alloy_primitives::{Address, Signature, TxKind, address};
 
     pub(crate) fn test_legacy_tx(to: Address) -> TxEnvelope {
         let sig = Signature::test_signature();

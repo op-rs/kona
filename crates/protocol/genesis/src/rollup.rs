@@ -1,8 +1,9 @@
 //! Rollup Config Types
 
-use alloy_primitives::Address;
-
 use crate::{AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG};
+use alloy_hardforks::{EthereumHardfork, EthereumHardforks, ForkCondition};
+use alloy_op_hardforks::{OpHardfork, OpHardforks};
+use alloy_primitives::Address;
 
 /// The max rlp bytes per channel for the Bedrock hardfork.
 pub const MAX_RLP_BYTES_PER_CHANNEL_BEDROCK: u64 = 10_000_000;
@@ -159,28 +160,30 @@ impl Default for RollupConfig {
 
 #[cfg(feature = "revm")]
 impl RollupConfig {
-    /// Returns the active [`revm::primitives::SpecId`] for the executor.
+    /// Returns the active [`op_revm::OpSpecId`] for the executor.
     ///
     /// ## Takes
     /// - `timestamp`: The timestamp of the executing block.
     ///
     /// ## Returns
-    /// The active [`revm::primitives::SpecId`] for the executor.
-    pub fn spec_id(&self, timestamp: u64) -> revm::primitives::SpecId {
-        if self.is_isthmus_active(timestamp) {
-            revm::primitives::SpecId::ISTHMUS
+    /// The active [`op_revm::OpSpecId`] for the executor.
+    pub fn spec_id(&self, timestamp: u64) -> op_revm::OpSpecId {
+        if self.is_interop_active(timestamp) {
+            op_revm::OpSpecId::INTEROP
+        } else if self.is_isthmus_active(timestamp) {
+            op_revm::OpSpecId::ISTHMUS
         } else if self.is_holocene_active(timestamp) {
-            revm::primitives::SpecId::HOLOCENE
+            op_revm::OpSpecId::HOLOCENE
         } else if self.is_fjord_active(timestamp) {
-            revm::primitives::SpecId::FJORD
+            op_revm::OpSpecId::FJORD
         } else if self.is_ecotone_active(timestamp) {
-            revm::primitives::SpecId::ECOTONE
+            op_revm::OpSpecId::ECOTONE
         } else if self.is_canyon_active(timestamp) {
-            revm::primitives::SpecId::CANYON
+            op_revm::OpSpecId::CANYON
         } else if self.is_regolith_active(timestamp) {
-            revm::primitives::SpecId::REGOLITH
+            op_revm::OpSpecId::REGOLITH
         } else {
-            revm::primitives::SpecId::BEDROCK
+            op_revm::OpSpecId::BEDROCK
         }
     }
 }
@@ -307,6 +310,77 @@ impl RollupConfig {
     }
 }
 
+impl EthereumHardforks for RollupConfig {
+    fn ethereum_fork_activation(&self, fork: EthereumHardfork) -> ForkCondition {
+        if fork <= EthereumHardfork::Berlin {
+            // We assume that OP chains were launched with all forks before Berlin activated.
+            ForkCondition::Block(0)
+        } else if fork <= EthereumHardfork::Paris {
+            // Bedrock activates all hardforks up to Paris.
+            self.op_fork_activation(OpHardfork::Bedrock)
+        } else if fork <= EthereumHardfork::Shanghai {
+            // Canyon activates Shanghai hardfork.
+            self.op_fork_activation(OpHardfork::Canyon)
+        } else if fork <= EthereumHardfork::Cancun {
+            // Ecotone activates Cancun hardfork.
+            self.op_fork_activation(OpHardfork::Ecotone)
+        } else if fork <= EthereumHardfork::Prague {
+            // Isthmus activates Prague hardfork.
+            self.op_fork_activation(OpHardfork::Isthmus)
+        } else {
+            ForkCondition::Never
+        }
+    }
+}
+
+impl OpHardforks for RollupConfig {
+    fn op_fork_activation(&self, fork: OpHardfork) -> ForkCondition {
+        match fork {
+            OpHardfork::Bedrock => ForkCondition::Block(0),
+            OpHardfork::Regolith => self
+                .hardforks
+                .regolith_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Canyon)),
+            OpHardfork::Canyon => self
+                .hardforks
+                .canyon_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Ecotone)),
+            OpHardfork::Ecotone => self
+                .hardforks
+                .ecotone_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Fjord)),
+            OpHardfork::Fjord => self
+                .hardforks
+                .fjord_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Granite)),
+            OpHardfork::Granite => self
+                .hardforks
+                .granite_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Holocene)),
+            OpHardfork::Holocene => self
+                .hardforks
+                .holocene_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Isthmus)),
+            OpHardfork::Isthmus => self
+                .hardforks
+                .isthmus_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(self.op_fork_activation(OpHardfork::Interop)),
+            OpHardfork::Interop => self
+                .hardforks
+                .interop_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(ForkCondition::Never),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -334,18 +408,18 @@ mod tests {
             hardforks: HardForkConfig { regolith_time: Some(10), ..Default::default() },
             ..Default::default()
         };
-        assert_eq!(config.spec_id(0), revm::primitives::SpecId::BEDROCK);
-        assert_eq!(config.spec_id(10), revm::primitives::SpecId::REGOLITH);
+        assert_eq!(config.spec_id(0), op_revm::OpSpecId::BEDROCK);
+        assert_eq!(config.spec_id(10), op_revm::OpSpecId::REGOLITH);
         config.hardforks.canyon_time = Some(20);
-        assert_eq!(config.spec_id(20), revm::primitives::SpecId::CANYON);
+        assert_eq!(config.spec_id(20), op_revm::OpSpecId::CANYON);
         config.hardforks.ecotone_time = Some(30);
-        assert_eq!(config.spec_id(30), revm::primitives::SpecId::ECOTONE);
+        assert_eq!(config.spec_id(30), op_revm::OpSpecId::ECOTONE);
         config.hardforks.fjord_time = Some(40);
-        assert_eq!(config.spec_id(40), revm::primitives::SpecId::FJORD);
+        assert_eq!(config.spec_id(40), op_revm::OpSpecId::FJORD);
         config.hardforks.holocene_time = Some(50);
-        assert_eq!(config.spec_id(50), revm::primitives::SpecId::HOLOCENE);
+        assert_eq!(config.spec_id(50), op_revm::OpSpecId::HOLOCENE);
         config.hardforks.isthmus_time = Some(60);
-        assert_eq!(config.spec_id(60), revm::primitives::SpecId::ISTHMUS);
+        assert_eq!(config.spec_id(60), op_revm::OpSpecId::ISTHMUS);
     }
 
     #[test]

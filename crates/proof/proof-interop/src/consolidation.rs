@@ -3,9 +3,10 @@
 use crate::{BootInfo, OptimisticBlock, OracleInteropProvider, PreState};
 use alloc::{boxed::Box, vec::Vec};
 use alloy_consensus::{Header, Sealed};
+use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::Sealable;
 use alloy_rpc_types_engine::PayloadAttributes;
-use kona_executor::{ExecutorError, StatelessL2BlockExecutor};
+use kona_executor::{ExecutorError, StatelessL2Builder};
 use kona_interop::{MessageGraph, MessageGraphError};
 use kona_mpt::OrderedListWalker;
 use kona_preimage::CommsClient;
@@ -160,18 +161,17 @@ where
             let l2_provider = self.l2_providers.get(chain_id).expect("TODO: Handle gracefully");
 
             // Create a new stateless L2 block executor for the current chain.
-            let mut executor = StatelessL2BlockExecutor::builder(
+            let mut executor = StatelessL2Builder::new(
                 rollup_config,
+                OpEvmFactory::default(),
                 l2_provider.clone(),
                 l2_provider.clone(),
-            )
-            .with_parent_header(parent_header.seal_slow())
-            .build();
+                parent_header.seal_slow(),
+            );
 
             // Execute the block and take the new header. At this point, the block is guaranteed to
             // be canonical.
-            let new_header =
-                executor.execute_payload(deposit_only_payload).unwrap().block_header.clone();
+            let new_header = executor.build_block(deposit_only_payload).unwrap().header;
             let new_output_root = executor.compute_output_root().unwrap();
 
             // Replace the original optimistic block with the deposit only block.

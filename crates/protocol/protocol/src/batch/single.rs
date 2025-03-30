@@ -181,7 +181,7 @@ mod tests {
     use alloc::vec;
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEip7702, TxEnvelope};
     use alloy_eips::eip2718::{Decodable2718, Encodable2718};
-    use alloy_primitives::{Address, PrimitiveSignature, Sealed, TxKind, U256};
+    use alloy_primitives::{Address, Sealed, Signature, TxKind, U256};
     use kona_genesis::HardForkConfig;
     use op_alloy_consensus::{OpTxEnvelope, TxDeposit};
 
@@ -368,7 +368,7 @@ mod tests {
 
         // First Transaction in the batch.
         let tx = eip_1559_tx();
-        let sig = PrimitiveSignature::test_signature();
+        let sig = Signature::test_signature();
         let tx_signed = tx.into_signed(sig);
         let envelope: TxEnvelope = tx_signed.into();
         let encoded = envelope.encoded_2718();
@@ -380,7 +380,7 @@ mod tests {
         // Second transaction in the batch.
         let mut tx = eip_1559_tx();
         tx.to = Address::left_padding_from(&[7]).into();
-        let sig = PrimitiveSignature::test_signature();
+        let sig = Signature::test_signature();
         let tx_signed = tx.into_signed(sig);
         let envelope: TxEnvelope = tx_signed.into();
         let encoded = envelope.encoded_2718();
@@ -440,7 +440,7 @@ mod tests {
 
         // Extend the transactions with the 7702 transaction
         let eip_7702_tx = eip_7702_tx();
-        let sig = PrimitiveSignature::test_signature();
+        let sig = Signature::test_signature();
         let tx_signed = eip_7702_tx.into_signed(sig);
         let envelope: TxEnvelope = tx_signed.into();
         let encoded = envelope.encoded_2718();
@@ -476,7 +476,7 @@ mod tests {
 
         // Extend the transactions with the 7702 transaction
         let eip_7702_tx = eip_7702_tx();
-        let sig = PrimitiveSignature::test_signature();
+        let sig = Signature::test_signature();
         let tx_signed = eip_7702_tx.into_signed(sig);
         let envelope: TxEnvelope = tx_signed.into();
         let encoded = envelope.encoded_2718();

@@ -11,7 +11,7 @@ use kona_derive::{
     traits::{Pipeline, SignalReceiver},
     types::Signal,
 };
-use kona_executor::ExecutionArtifacts;
+use kona_executor::BlockBuildingOutcome;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use kona_rpc::OpAttributesWithParent;
@@ -35,7 +35,7 @@ where
     /// A pipeline abstraction.
     pub pipeline: DP,
     /// The safe head's execution artifacts + Transactions
-    pub safe_head_artifacts: Option<(ExecutionArtifacts, Vec<Bytes>)>,
+    pub safe_head_artifacts: Option<(BlockBuildingOutcome, Vec<Bytes>)>,
 }
 
 impl<E, DP, P> Driver<E, DP, P>
@@ -116,8 +116,8 @@ where
             };
 
             self.executor.update_safe_head(tip_cursor.l2_safe_head_header.clone());
-            let execution_result = match self.executor.execute_payload(attributes.clone()).await {
-                Ok(header) => header,
+            let outcome = match self.executor.execute_payload(attributes.clone()).await {
+                Ok(outcome) => outcome,
                 Err(e) => {
                     error!(target: "client", "Failed to execute L2 block: {}", e);
 
@@ -159,7 +159,7 @@ where
 
             // Construct the block.
             let block = OpBlock {
-                header: execution_result.block_header.inner().clone(),
+                header: outcome.header.inner().clone(),
                 body: BlockBody {
                     transactions: attributes
                         .transactions
@@ -181,7 +181,7 @@ where
             )?;
             let tip_cursor = TipCursor::new(
                 l2_info,
-                execution_result.block_header.clone(),
+                outcome.header.clone(),
                 self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 
@@ -190,8 +190,7 @@ where
             self.cursor.write().advance(origin, tip_cursor);
 
             // Update the latest safe head artifacts.
-            self.safe_head_artifacts =
-                Some((execution_result, attributes.transactions.unwrap_or_default()));
+            self.safe_head_artifacts = Some((outcome, attributes.transactions.unwrap_or_default()));
         }
     }
 }

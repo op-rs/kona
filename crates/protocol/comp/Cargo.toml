@@ -54,7 +54,6 @@ tracing-subscriber = { workspace = true, features = ["fmt"], optional = true }
 
 [dev-dependencies]
 brotli = { workspace = true, features = ["std"] }
-revm.workspace = true
 spin.workspace = true
 rand = { workspace = true, features = ["std", "std_rng"] }
 proptest.workspace = true

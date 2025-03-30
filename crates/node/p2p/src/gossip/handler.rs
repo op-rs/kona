@@ -162,7 +162,7 @@ impl BlockHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{Address, B256, Bloom, Bytes, PrimitiveSignature, U256};
+    use alloy_primitives::{Address, B256, Bloom, Bytes, Signature, U256};
     use alloy_rpc_types_engine::ExecutionPayloadV1;
     use op_alloy_rpc_types_engine::{OpExecutionPayload, PayloadHash};
 
@@ -190,7 +190,7 @@ mod tests {
         let payload = OpExecutionPayload::V1(v1);
         let envelope = OpNetworkPayloadEnvelope {
             payload,
-            signature: PrimitiveSignature::test_signature(),
+            signature: Signature::test_signature(),
             payload_hash: PayloadHash(B256::ZERO),
             parent_beacon_block_root: None,
         };

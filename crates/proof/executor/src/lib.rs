@@ -12,20 +12,18 @@ extern crate alloc;
 #[macro_use]
 extern crate tracing;
 
-mod errors;
-pub use errors::{ExecutorError, ExecutorResult, TrieDBError, TrieDBResult};
-
-mod executor;
-pub use executor::{
-    ExecutionArtifacts, KonaHandleRegister, StatelessL2BlockExecutor,
-    StatelessL2BlockExecutorBuilder,
-};
-
 mod db;
 pub use db::{NoopTrieDBProvider, TrieDB, TrieDBProvider};
 
-mod constants;
-mod syscalls;
+mod builder;
+pub use builder::{BlockBuildingOutcome, StatelessL2Builder};
+
+mod errors;
+pub use errors::{ExecutorError, ExecutorResult, TrieDBError, TrieDBResult};
+
+pub(crate) mod util;
+
+pub(crate) mod constants;
 
 #[cfg(test)]
 mod test_utils;

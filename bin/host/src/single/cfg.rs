@@ -10,6 +10,7 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
 use kona_cli::cli_styles;
+use kona_client::fpvm_evm::FpvmOpEvmFactory;
 use kona_genesis::RollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
@@ -197,9 +198,9 @@ impl SingleChainHost {
 
         let server_task = self.start_server(hint.host, preimage.host).await?;
         let client_task = task::spawn(kona_client::single::run(
-            OracleReader::new(preimage.client),
-            HintWriter::new(hint.client),
-            None,
+            OracleReader::new(preimage.client.clone()),
+            HintWriter::new(hint.client.clone()),
+            FpvmOpEvmFactory::new(HintWriter::new(hint.client), OracleReader::new(preimage.client)),
         ));
 
         let (_, client_result) = tokio::try_join!(server_task, client_task)?;
