@@ -31,20 +31,20 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
             return Err(EIP1559UpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(EIP1559UpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(EIP1559UpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(EIP1559UpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(EIP1559UpdateError::InvalidDataLength(length));
         }
 
-        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode(&log.data.data[64..], true) else {
+        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode(&log.data.data[64..]) else {
             return Err(EIP1559UpdateError::EIP1559DecodingError);
         };
 

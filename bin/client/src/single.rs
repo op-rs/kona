@@ -6,7 +6,7 @@ use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::errors::PipelineErrorKind;
 use kona_driver::{Driver, DriverError};
-use kona_executor::{ExecutorError, KonaHandleRegister, TrieDBProvider};
+use kona_executor::{ExecutorError, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
     BootInfo, CachingOracle, HintType,
@@ -38,16 +38,7 @@ pub enum FaultProofProgramError {
 
 /// Executes the fault proof program with the given [PreimageOracleClient] and [HintWriterClient].
 #[inline]
-pub async fn run<P, H>(
-    oracle_client: P,
-    hint_client: H,
-    handle_register: Option<
-        KonaHandleRegister<
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-        >,
-    >,
-) -> Result<(), FaultProofProgramError>
+pub async fn run<P, H>(oracle_client: P, hint_client: H) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
@@ -117,13 +108,8 @@ where
         l2_provider.clone(),
     )
     .await?;
-    let executor = KonaExecutor::new(
-        rollup_config.as_ref(),
-        l2_provider.clone(),
-        l2_provider,
-        handle_register,
-        None,
-    );
+    let executor =
+        KonaExecutor::new(rollup_config.as_ref(), l2_provider.clone(), l2_provider, None);
     let mut driver = Driver::new(cursor, executor, pipeline);
 
     // Run the derivation pipeline until we are able to produce the output root of the claimed

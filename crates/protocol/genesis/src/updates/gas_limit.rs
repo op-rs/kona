@@ -29,20 +29,20 @@ impl TryFrom<&SystemConfigLog> for GasLimitUpdate {
             return Err(GasLimitUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(GasLimitUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(GasLimitUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(GasLimitUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(GasLimitUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(gas_limit) = <sol!(uint256)>::abi_decode(&log.data.data[64..], true) else {
+        let Ok(gas_limit) = <sol!(uint256)>::abi_decode(&log.data.data[64..]) else {
             return Err(GasLimitUpdateError::GasLimitDecodingError);
         };
 

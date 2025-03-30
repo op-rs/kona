@@ -2,7 +2,7 @@
 
 use crate::{SpanBatchError, SpanDecodingError};
 use alloy_consensus::{SignableTransaction, Signed, TxLegacy};
-use alloy_primitives::{Address, PrimitiveSignature as Signature, TxKind, U256};
+use alloy_primitives::{Address, Signature, TxKind, U256};
 use alloy_rlp::{Bytes, RlpDecodable, RlpEncodable};
 
 /// The transaction data for a legacy transaction within a span batch.

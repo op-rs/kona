@@ -22,21 +22,20 @@ impl TryFrom<&SystemConfigLog> for UnsafeBlockSignerUpdate {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(UnsafeBlockSignerUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(UnsafeBlockSignerUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode(&log.data.data[64..], true)
-        else {
+        let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode(&log.data.data[64..]) else {
             return Err(UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError);
         };
 

@@ -1,13 +1,14 @@
 //! Errors for the `kona-executor` crate.
 
 use alloc::string::String;
+use alloy_evm::block::BlockExecutionError;
 use kona_mpt::TrieNodeError;
-use revm::primitives::EVMError;
+use revm::context::DBErrorMarker;
 use thiserror::Error;
 
-/// The error type for the [StatelessL2BlockExecutor].
+/// The error type for the [`StatelessL2Builder`].
 ///
-/// [StatelessL2BlockExecutor]: crate::StatelessL2BlockExecutor
+/// [`StatelessL2Builder`]: crate::StatelessL2Builder
 #[derive(Error, Debug)]
 pub enum ExecutorError {
     /// Missing gas limit in the payload attributes.
@@ -36,7 +37,7 @@ pub enum ExecutorError {
     TrieDBError(#[from] TrieDBError),
     /// Execution error.
     #[error("Execution error: {0}")]
-    ExecutionError(EVMError<TrieDBError>),
+    ExecutionError(#[from] BlockExecutionError),
     /// Signature error.
     #[error("Signature error: {0}")]
     SignatureError(alloy_primitives::SignatureError),
@@ -48,15 +49,15 @@ pub enum ExecutorError {
     MissingExecutor,
 }
 
-/// A [Result] type for the [ExecutorError] enum.
+/// A [`Result`] type for the [`ExecutorError`] enum.
 pub type ExecutorResult<T> = Result<T, ExecutorError>;
 
-/// A [Result] type alias where the error is [TrieDBError].
+/// A [`Result`] type alias where the error is [`TrieDBError`].
 pub type TrieDBResult<T> = Result<T, TrieDBError>;
 
-/// An error type for [TrieDB] operations.
+/// An error type for [`TrieDB`] operations.
 ///
-/// [TrieDB]: crate::TrieDB
+/// [`TrieDB`]: crate::TrieDB
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum TrieDBError {
     /// Trie root node has not been blinded.
@@ -72,3 +73,5 @@ pub enum TrieDBError {
     #[error("Trie provider error: {0}")]
     Provider(String),
 }
+
+impl DBErrorMarker for TrieDBError {}

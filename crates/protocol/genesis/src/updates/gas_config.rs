@@ -36,23 +36,23 @@ impl TryFrom<&SystemConfigLog> for GasConfigUpdate {
             return Err(GasConfigUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(GasConfigUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(GasConfigUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(GasConfigUpdateError::LengthDecodingError);
         };
         if length != 64 {
             return Err(GasConfigUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(overhead) = <sol!(uint256)>::abi_decode(&log.data.data[64..96], true) else {
+        let Ok(overhead) = <sol!(uint256)>::abi_decode(&log.data.data[64..96]) else {
             return Err(GasConfigUpdateError::OverheadDecodingError);
         };
-        let Ok(scalar) = <sol!(uint256)>::abi_decode(&log.data.data[96..], true) else {
+        let Ok(scalar) = <sol!(uint256)>::abi_decode(&log.data.data[96..]) else {
             return Err(GasConfigUpdateError::ScalarDecodingError);
         };
 

@@ -85,7 +85,7 @@ pub(crate) fn encode_canyon_base_fee_params(config: &RollupConfig) -> B64 {
 #[cfg(test)]
 mod test {
     use super::decode_holocene_eip_1559_params;
-    use crate::executor::util::{encode_canyon_base_fee_params, encode_holocene_eip_1559_params};
+    use crate::util::{encode_canyon_base_fee_params, encode_holocene_eip_1559_params};
     use alloy_consensus::Header;
     use alloy_primitives::{B64, b64, hex};
     use alloy_rpc_types_engine::PayloadAttributes;

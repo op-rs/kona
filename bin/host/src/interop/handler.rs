@@ -104,7 +104,7 @@ impl HintHandler for InteropHintHandler {
                 // Fetch the blob sidecar from the blob provider.
                 let mut sidecars = providers
                     .blobs
-                    .fetch_filtered_sidecars(&partial_block_ref, &[indexed_hash])
+                    .fetch_filtered_sidecars(&partial_block_ref, [indexed_hash].as_slice())
                     .await
                     .map_err(|e| anyhow!("Failed to fetch blob sidecars: {e}"))?;
                 if sidecars.len() != 1 {
@@ -305,7 +305,7 @@ impl HintHandler for InteropHintHandler {
                 let l2_provider = providers.l2(&chain_id)?;
 
                 // Attempt to fetch the code from the L2 chain provider.
-                let code_key = [&[CODE_PREFIX], hash.as_slice()].concat();
+                let code_key = [[CODE_PREFIX].as_slice(), hash.as_slice()].concat();
                 let code = l2_provider
                     .client()
                     .request::<&[Bytes; 1], Bytes>("debug_dbGet", &[code_key.into()])
@@ -489,7 +489,6 @@ impl HintHandler for InteropHintHandler {
                             l2_provider.clone(),
                             l2_provider,
                             None,
-                            None,
                         );
                         let mut driver = Driver::new(cursor, executor, pipeline);
 
@@ -497,24 +496,23 @@ impl HintHandler for InteropHintHandler {
                             .advance_to_target(rollup_config.as_ref(), Some(target_block))
                             .await?;
 
-                        Ok::<_, anyhow::Error>(driver.safe_head_artifacts.unwrap_or_default())
+                        driver
+                            .safe_head_artifacts
+                            .ok_or_else(|| anyhow!("No artifacts found for the safe head"))
                     }
                 });
 
                 // Wait on both the server and client tasks to complete.
                 let (_, client_result) = tokio::try_join!(server_task, client_task)?;
-                let (execution_artifacts, raw_transactions) = client_result?;
+                let (build_outcome, raw_transactions) = client_result?;
 
                 // Store optimistic block hash preimage.
                 let mut kv_lock = kv.write().await;
-                let mut rlp_buf = Vec::with_capacity(execution_artifacts.block_header.length());
-                execution_artifacts.block_header.encode(&mut rlp_buf);
+                let mut rlp_buf = Vec::with_capacity(build_outcome.header.length());
+                build_outcome.header.encode(&mut rlp_buf);
                 kv_lock.set(
-                    PreimageKey::new(
-                        *execution_artifacts.block_header.hash(),
-                        PreimageKeyType::Keccak256,
-                    )
-                    .into(),
+                    PreimageKey::new(*build_outcome.header.hash(), PreimageKeyType::Keccak256)
+                        .into(),
                     rlp_buf,
                 )?;
 
@@ -522,7 +520,8 @@ impl HintHandler for InteropHintHandler {
                 drop(kv_lock);
 
                 // Store receipts root preimages.
-                let raw_receipts = execution_artifacts
+                let raw_receipts = build_outcome
+                    .execution_result
                     .receipts
                     .into_iter()
                     .map(|receipt| Ok::<_, anyhow::Error>(receipt.encoded_2718()))

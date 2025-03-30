@@ -29,20 +29,20 @@ impl TryFrom<&SystemConfigLog> for BatcherUpdate {
             return Err(BatcherUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(BatcherUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(BatcherUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(BatcherUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(BatcherUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(batcher_address) = <sol!(address)>::abi_decode(&log.data.data[64..], true) else {
+        let Ok(batcher_address) = <sol!(address)>::abi_decode(&log.data.data[64..]) else {
             return Err(BatcherUpdateError::BatcherAddressDecodingError);
         };
 

@@ -2,7 +2,7 @@
 
 use alloy_consensus::{SignableTransaction, TxEip1559, TxEnvelope};
 use alloy_eips::eip2718::{Decodable2718, Encodable2718};
-use alloy_primitives::{Address, BlockHash, Bytes, PrimitiveSignature, U256, hex};
+use alloy_primitives::{Address, BlockHash, Bytes, Signature, U256, hex};
 use kona_genesis::RollupConfig;
 use kona_protocol::{Batch, BlockInfo, Channel, Frame, SingleBatch, decompress_brotli};
 
@@ -70,7 +70,7 @@ fn example_transactions() -> Vec<Bytes> {
         input: vec![8].into(),
         access_list: Default::default(),
     };
-    let sig = PrimitiveSignature::test_signature();
+    let sig = Signature::test_signature();
     let tx_signed = tx.into_signed(sig);
     let envelope: TxEnvelope = tx_signed.into();
     let encoded = envelope.encoded_2718();
@@ -91,7 +91,7 @@ fn example_transactions() -> Vec<Bytes> {
         input: vec![8].into(),
         access_list: Default::default(),
     };
-    let sig = PrimitiveSignature::test_signature();
+    let sig = Signature::test_signature();
     let tx_signed = tx.into_signed(sig);
     let envelope: TxEnvelope = tx_signed.into();
     let encoded = envelope.encoded_2718();
