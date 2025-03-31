@@ -98,11 +98,15 @@ impl Discv5Handler {
         }
     }
 
-    /// Returns the number of connected peers.
-    pub async fn peers(&mut self) -> Option<usize> {
-        let _ = self.sender.send(HandlerRequest::PeerCount).await;
-        match self.receiver.recv().await {
-            Some(HandlerResponse::PeerCount(count)) => Some(count),
+    /// Non-blocking request for the discovery service peer count.
+    ///
+    /// Returns `None` if the request could not be sent or received.
+    pub fn peers(&mut self) -> Option<usize> {
+        if self.sender.try_send(HandlerRequest::PeerCount).is_err() {
+            return None;
+        }
+        match self.receiver.try_recv() {
+            Ok(HandlerResponse::PeerCount(count)) => Some(count),
             _ => None,
         }
     }
