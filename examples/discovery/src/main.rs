@@ -77,7 +77,7 @@ impl DiscCommand {
                 _ = interval.tick() => {
                     let metrics = handler.metrics().await;
                     tracing::info!("Discovery metrics: {:?}", metrics);
-                    let peers = handler.peers().await;
+                    let peers = handler.peers();
                     tracing::info!("Discovery peer count: {:?}", peers);
                 }
             }

@@ -5,7 +5,7 @@ use clap::Parser;
 use kona_p2p::{Config, NetRpcRequest, NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
 use std::net::SocketAddr;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// The `net` Subcommand
 ///
