@@ -1,9 +1,9 @@
 //! Module containing a [TxDeposit] builder for the Ecotone network upgrade transactions.
 
-use core::str::FromStr;
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use core::str::FromStr;
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -108,7 +108,7 @@ impl Ecotone {
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
         // Verify source has of L1Block
         // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#l1block-deployment>
-        assert_eq!(
+        debug_assert_eq!(
             Self::deploy_l1_block_source(),
             B256::from_str("0xc88a313aa75dc4fbf0b6850d9f9ae41e04243b7008cf3eadb29256d4a71c1dfd")
                 .unwrap(),
@@ -116,7 +116,7 @@ impl Ecotone {
         );
         // Verify GasPrice Oracle source hash
         // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#gaspriceoracle-deployment>
-        assert_eq!(
+        debug_assert_eq!(
             Self::deploy_gas_price_oracle_source(),
             B256::from_str("0x8b71360ea773b4cfaf1ae6d2bd15464a4e1e2e360f786e475f63aeaed8da0ae5")
                 .unwrap(),

@@ -341,13 +341,10 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let mut cfgs = HashMap::default();
-        cfgs.insert(
-            0xDEAD,
-            RollupConfig {
-                hardforks: HardForkConfig { interop_time: Some(50), ..Default::default() },
-                ..Default::default()
-            },
-        );
+        cfgs.insert(0xDEAD, RollupConfig {
+            hardforks: HardForkConfig { interop_time: Some(50), ..Default::default() },
+            ..Default::default()
+        });
         let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),

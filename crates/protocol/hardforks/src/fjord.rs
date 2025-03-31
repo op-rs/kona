@@ -65,7 +65,7 @@ impl Fjord {
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
         // Verify GasPrice Oracle source hash
         // See: <https://specs.optimism.io/protocol/fjord/derivation.html#gaspriceoracle-deployment>
-        assert_eq!(
+        debug_assert_eq!(
             Self::update_fjord_gas_price_oracle_source(),
             B256::from_str("0xa88fa50a2745b15e6794247614b5298483070661adacb8d32d716434ed24c6b2")
                 .unwrap(),
