@@ -105,7 +105,9 @@ impl GossipDriver {
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         if self.has_dialed(&addr) {
-            trace!("Already connected to peer: {:?}", addr.clone());
+            trace!(peer=%addr
+                "Already connected to peer"
+            );
             return;
         }
 
