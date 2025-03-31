@@ -2,7 +2,7 @@
 
 use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
-use kona_p2p::{NetworkBuilder, NetworkRpc};
+use kona_p2p::{NetRpcRequest, NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};
 
