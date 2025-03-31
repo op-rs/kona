@@ -55,7 +55,6 @@ impl Network {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut handler = self.discovery.start();
         self.gossip.listen()?;
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         tokio::spawn(async move {
             loop {
                 select! {
@@ -102,21 +101,15 @@ impl Network {
                                     warn!("Failed to send peer info through response channel: {:?}", e);
                                 }
                             }
+                            crate::NetRpcRequest::PeerCount(sender) => {
+                                let disc_pc = handler.peers();
+                                let gossip_pc = self.gossip.connected_peers();
+                                if let Err(e) = sender.send((disc_pc, gossip_pc)) {
+                                    warn!("Failed to send peer count through response channel: {:?}", e);
+                                }
+                            }
                         }
                     },
-                    _ = interval.tick() => {
-                        let swarm_peers = self.gossip.connected_peers();
-                        info!(target: "p2p::driver", "Swarm peer count: {}", swarm_peers);
-                        let metrics = handler.metrics().await;
-                        debug!(target: "p2p::driver", "Discovery metrics: {:?}", metrics);
-                        let peers = handler.peers().await;
-                        info!(target: "p2p::driver", "Discovery peer count: {:?}", peers);
-                        let enrs = handler.table_enrs().await;
-                        info!(target: "p2p::driver", "{} Enrs in Discovery Table", enrs.len());
-                        for enr in enrs {
-                            self.gossip.dial(enr);
-                        }
-                    }
                 }
             }
         });

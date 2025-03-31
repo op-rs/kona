@@ -50,7 +50,7 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
         granite_time: Some(1723478400),
         holocene_time: Some(1732633200),
         pectra_blob_schedule_time: Some(1742486400),
-        isthmus_time: None,
+        isthmus_time: Some(1744905600),
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000011155420"),
