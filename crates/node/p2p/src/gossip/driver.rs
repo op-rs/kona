@@ -105,15 +105,13 @@ impl GossipDriver {
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         if self.has_dialed(&addr) {
-            trace!(peer=%addr
-                "Already connected to peer"
-            );
+            event!(tracing::Level::TRACE, peer=%addr, "Already connected to peer");
             return;
         }
 
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
-                trace!("Dialed peer: {:?}", addr);
+                event!(tracing::Level::TRACE, peer=%addr, "Dialed peer");
                 self.dialed_peers.push(addr);
             }
             Err(e) => {
