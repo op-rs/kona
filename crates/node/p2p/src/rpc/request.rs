@@ -8,4 +8,8 @@ use tokio::sync::oneshot::Sender;
 pub enum NetRpcRequest {
     /// Returns [`PeerInfo`] for the [`crate::Network`].
     PeerInfo(Sender<PeerInfo>),
+    /// Returns the current peer count for both the
+    /// - Discovery Service ([`crate::Discv5Driver`])
+    /// - Gossip Service ([`crate::GossipDriver`])
+    PeerCount(Sender<(Option<usize>, usize)>),
 }

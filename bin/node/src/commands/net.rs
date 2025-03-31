@@ -2,10 +2,10 @@
 
 use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
-use kona_p2p::{Config, NetworkBuilder, NetworkRpc};
+use kona_p2p::{Config, NetRpcRequest, NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
 use std::net::SocketAddr;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// The `net` Subcommand
 ///
@@ -35,7 +35,7 @@ impl NetCommand {
 
         // Setup the RPC server with the P2P RPC Module
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        let p2p_module = NetworkRpc::new(tx).into_rpc();
+        let p2p_module = NetworkRpc::new(tx.clone()).into_rpc();
         let rpc_config = RpcConfig::from(&self.rpc);
         let mut launcher = rpc_config.as_launcher().merge(p2p_module)?;
         let handle = launcher.start().await?;
@@ -52,24 +52,44 @@ impl NetCommand {
         network.start()?;
         info!("Network started, receiving blocks.");
 
-        // Try to receive blocks
+        // On an interval, use the rpc tx to request stats about the p2p network.
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
+
         loop {
             tokio::select! {
                 block = recv.recv() => {
                     match block {
-                        Some(block) => {
-                            info!("Received unsafe block: {:?}", block);
-                        }
-                        None => {
-                            warn!("Failed to receive unsafe block");
-                        }
+                        Some(block) => info!("Received unsafe block: {:?}", block),
+                        None => debug!("Failed to receive unsafe block"),
                     }
+                }
+                _ = interval.tick() => {
+                    let (otx, mut orx) = tokio::sync::oneshot::channel();
+                    if let Err(e) = tx.send(NetRpcRequest::PeerCount(otx)).await {
+                        warn!("Failed to send network rpc request: {:?}", e);
+                        continue;
+                    }
+                    tokio::time::timeout(tokio::time::Duration::from_secs(5), async move {
+                        loop {
+                            match orx.try_recv() {
+                                Ok((d, g)) => {
+                                    let d = d.unwrap_or_default();
+                                    info!("Peer counts: Discovery={} | Swarm={}", d, g);
+                                }
+                                Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
+                                    /* Keep trying to receive */
+                                }
+                                Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
+                                    break;
+                                }
+                            }
+                        }
+                    }).await.unwrap();
                 }
                 _ = handle.clone().stopped() => {
                     warn!("RPC server stopped");
                     return Ok(());
                 }
-
             }
         }
     }

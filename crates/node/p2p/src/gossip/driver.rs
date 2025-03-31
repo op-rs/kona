@@ -92,11 +92,11 @@ impl GossipDriver {
     pub fn dial(&mut self, enr: Enr) {
         let key = OpStackEnr::OP_CL_KEY.as_bytes();
         if enr.get_raw_rlp(key).is_none() {
-            debug!(target: "p2p::gossip::driver", "Ignoring peer without opstack CL key...");
+            debug!("Ignoring peer without opstack CL key...");
             return;
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
-            debug!(target: "p2p::gossip::driver", "Failed to extract tcp socket from enr: {:?}", enr);
+            debug!("Failed to extract tcp socket from enr: {:?}", enr);
             return;
         };
         self.dial_multiaddr(multiaddr);
@@ -105,17 +105,17 @@ impl GossipDriver {
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         if self.has_dialed(&addr) {
-            debug!(target: "p2p::gossip::driver", "Already connected to peer: {:?}", addr.clone());
+            event!(tracing::Level::TRACE, peer=%addr, "Already connected to peer");
             return;
         }
 
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
-                trace!(target: "p2p::gossip::driver", "Dialed peer: {:?}", addr);
+                event!(tracing::Level::TRACE, peer=%addr, "Dialed peer");
                 self.dialed_peers.push(addr);
             }
             Err(e) => {
-                debug!(target: "p2p::gossip::driver", "Failed to connect to peer: {:?}", e);
+                debug!("Failed to connect to peer: {:?}", e);
             }
         }
     }
@@ -128,11 +128,9 @@ impl GossipDriver {
                 message_id: id,
                 message,
             } => {
-                trace!(target: "p2p::gossip::driver", "Received message with topic: {}", message.topic);
+                debug!("Received message with topic: {}", message.topic);
                 if self.handler.topics().contains(&message.topic) {
-                    debug!(target: "p2p::gossip::driver", "Handling message with topic: {}", message.topic);
                     let status = self.handler.handle(message);
-                    debug!(target: "p2p::gossip::driver", "Reporting message validation result: {:?}", status);
                     _ = self
                         .swarm
                         .behaviour_mut()
@@ -140,8 +138,16 @@ impl GossipDriver {
                         .report_message_validation_result(&id, &src, status);
                 }
             }
+            libp2p::gossipsub::Event::Subscribed { peer_id, topic } => {
+                debug!(target: "p2p::gossip::driver", "Peer: {:?} subscribed to topic: {:?}", peer_id, topic);
+                // TODO: Metrice a peer subscribing to a topic?
+            }
+            libp2p::gossipsub::Event::SlowPeer { peer_id, .. } => {
+                debug!(target: "p2p::gossip::driver", "Slow peer: {:?}", peer_id);
+                // TODO: Metrice slow peer count
+            }
             _ => {
-                warn!(target: "p2p::gossip::driver", "Ignoring non-message gossipsub event: {:?}", event)
+                debug!("Ignoring non-message gossipsub event: {:?}", event)
             }
         }
     }
@@ -149,13 +155,13 @@ impl GossipDriver {
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
         let SwarmEvent::Behaviour(event) = event else {
-            debug!(target: "p2p::gossip::driver", "Ignoring non-behaviour in event handler: {:?}", event);
+            debug!("Ignoring non-behaviour in event handler: {:?}", event);
             return;
         };
 
         match event {
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
-                trace!(target: "p2p::gossip::driver", "Ping from peer: {:?} | Result: {:?}", peer, result);
+                trace!("Ping from peer: {:?} | Result: {:?}", peer, result);
             }
             Event::Gossipsub(e) => self.handle_gossipsub_event(e),
         }
