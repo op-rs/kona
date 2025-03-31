@@ -4,11 +4,16 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
+use crate::flags::GlobalArgs;
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
+use kona_p2p::Config;
 use libp2p::identity::Keypair;
-use std::{net::IpAddr, path::PathBuf};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::PathBuf,
+};
 
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -84,6 +89,24 @@ impl Default for P2PArgs {
 }
 
 impl P2PArgs {
+    /// Constructs kona's P2P network [`Config`] from CLI arguments.
+    ///
+    /// ## Parameters
+    ///
+    /// - [`GlobalArgs`]: required to fetch the genesis unsafe block signer.
+    ///
+    /// Errors if the genesis unsafe block signer isn't available for the specified L2 Chain ID.
+    pub fn config(&self, args: &GlobalArgs) -> anyhow::Result<Config> {
+        let mut multiaddr = libp2p::Multiaddr::from(self.listen_ip);
+        multiaddr.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
+        Ok(Config {
+            discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
+            gossip_address: multiaddr,
+            keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
+            unsafe_block_signer: args.genesis_signer()?,
+        })
+    }
+
     /// Returns the [Keypair] from the cli inputs.
     ///
     /// If the raw private key is empty and the specified file is empty,

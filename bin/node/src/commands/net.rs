@@ -2,9 +2,8 @@
 
 use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
-use kona_p2p::{Config, NetworkBuilder, NetworkRpc};
+use kona_p2p::{NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
-use std::net::SocketAddr;
 use tracing::{info, warn};
 
 /// The `net` Subcommand
@@ -42,7 +41,7 @@ impl NetCommand {
         info!("Started RPC server on {:?}:{}", rpc_config.listen_addr, rpc_config.listen_port);
 
         // Start the Network Stack
-        let p2p_config = self.p2p_config(args)?;
+        let p2p_config = self.p2p.config(args)?;
         let mut network = NetworkBuilder::from(p2p_config)
             .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)
@@ -72,20 +71,5 @@ impl NetCommand {
 
             }
         }
-    }
-
-    /// Returns the p2p [`Config`] from the [`NetCommand`].
-    pub fn p2p_config(&self, args: &GlobalArgs) -> anyhow::Result<Config> {
-        let mut multiaddr = libp2p::Multiaddr::from(self.p2p.listen_ip);
-        multiaddr.push(libp2p::multiaddr::Protocol::Tcp(self.p2p.listen_tcp_port));
-        Ok(Config {
-            discovery_address: SocketAddr::new(self.p2p.listen_ip, self.p2p.listen_udp_port),
-            gossip_address: multiaddr,
-            keypair: self
-                .p2p
-                .keypair()
-                .unwrap_or_else(|_| libp2p::identity::Keypair::generate_secp256k1()),
-            unsafe_block_signer: args.genesis_signer()?,
-        })
     }
 }
