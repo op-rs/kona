@@ -93,9 +93,6 @@ impl Discv5Driver {
     async fn bootstrap(&mut self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
-        info!("Adding {} bootstrap nodes...", nodes.0.len());
-        debug!(?nodes);
-
         let boot_enrs: Vec<Enr> = nodes
             .0
             .iter()
@@ -105,30 +102,33 @@ impl Discv5Driver {
             })
             .collect();
 
-        info!(
-            "Merging {} bootnode enrs with {} boot store enrs",
-            boot_enrs.len(),
-            self.store.len()
-        );
-        self.store.merge(boot_enrs);
-
+        // First attempt to add the bootnodes to the discovery table.
         let mut count = 0;
-        for enr in self.store.peers() {
+        for enr in &boot_enrs {
             match self.disc.add_enr(enr.clone()) {
                 Ok(_) => count += 1,
-                Err(e) => {
-                    // If the bootstore is too large, the discovery service may not accept new ENRs.
-                    // So we don't want to spam the logs with warning messages for `N` ENRs above
-                    // the limit.
-                    debug!("Failed to bootstrap discovery service: {:?}", e);
-                }
+                Err(e) => debug!("[BOOTSTRAP] Failed to add enr: {:?}", e),
             }
         }
-        info!(
-            "Added {} bootnode enrs to discovery service | {} available in bootstore",
-            count,
-            self.store.len()
-        );
+        info!("Added {} bootnode ENRs to discovery table", count);
+
+        // Add only valid peers (ones with the OP Stack CL key in the ENR).
+        // Since we already added the bootnodes, these just jumpstart the
+        // discovery service to find more OP Stack ENRs quicker.
+        //
+        // Note, discv5's table may not accept new ENRs above a certain limit.
+        // Instead of erroring, we log the failure as a debug log.
+        count = 0;
+        for enr in self.store.valid_peers() {
+            match self.disc.add_enr(enr.clone()) {
+                Ok(_) => count += 1,
+                Err(e) => debug!("Failed to add ENR to discv5 table: {:?}", e),
+            }
+        }
+        info!("Added {} ENRs to discv5 | {} in bootstore", count, self.store.len());
+
+        // Merge the bootnodes into the bootstore.
+        self.store.merge(boot_enrs);
 
         for node in nodes.0 {
             match node {
@@ -150,7 +150,7 @@ impl Discv5Driver {
     pub async fn forward(&mut self, enr_sender: tokio::sync::mpsc::Sender<Enr>) {
         for enr in self.store.peers() {
             if let Err(e) = enr_sender.send(enr.clone()).await {
-                debug!("Failed to forward enr: {:?}", e);
+                info!("Failed to forward enr: {:?}", e);
             }
         }
     }
