@@ -4,9 +4,10 @@ use super::{SequencerNodeService, ValidatorNodeService};
 use async_trait::async_trait;
 
 /// The [NodeMode] enum represents the modes of operation for the [RollupNodeService].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum NodeMode {
     /// Validator mode.
+    #[default]
     Validator,
     /// Sequencer mode.
     Sequencer,

@@ -1,7 +1,6 @@
-//! The [RollupNodeBuilder].
+//! Contains the builder for the [`RollupNode`].
 
-use super::RollupNode;
-use crate::NodeMode;
+use crate::{NodeMode, RollupNode};
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use std::sync::Arc;
@@ -13,7 +12,7 @@ use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcConfig;
 
-/// The [RollupNodeBuilder] is used to construct a [RollupNode] service.
+/// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
 pub struct RollupNodeBuilder {
     /// The rollup configuration.
@@ -34,17 +33,24 @@ pub struct RollupNodeBuilder {
     p2p_config: Option<Config>,
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
+    /// The mode to run the node in.
+    mode: NodeMode,
     /// If p2p networking is entirely disabled.
     network_disabled: bool,
 }
 
 impl RollupNodeBuilder {
-    /// Creates a new [RollupNodeBuilder] with the given [RollupConfig].
+    /// Creates a new [`RollupNodeBuilder`] with the given [`RollupConfig`].
     pub fn new(config: RollupConfig) -> Self {
         Self { config, ..Self::default() }
     }
 
-    /// Appends a [SyncConfig] to the builder.
+    /// Sets the mode on the [`RollupNodeBuilder`].
+    pub fn with_mode(self, mode: NodeMode) -> Self {
+        Self { mode, ..self }
+    }
+
+    /// Appends a [`SyncConfig`] to the builder.
     pub fn with_sync_config(self, sync_config: SyncConfig) -> Self {
         Self { _sync_config: Some(sync_config), ..self }
     }
@@ -89,7 +95,7 @@ impl RollupNodeBuilder {
         Self { network_disabled, ..self }
     }
 
-    /// Assembles the [RollupNode] service.
+    /// Assembles the [`RollupNode`] service.
     ///
     /// ## Panics
     ///
@@ -109,7 +115,7 @@ impl RollupNodeBuilder {
         let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
 
         RollupNode {
-            mode: NodeMode::Validator, // TODO: Make dynamic
+            mode: self.mode,
             config: Arc::new(self.config),
             l1_provider,
             l1_beacon,
