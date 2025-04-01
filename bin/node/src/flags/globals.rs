@@ -3,7 +3,8 @@
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
 use kona_cli::{init_prometheus_server, init_tracing_subscriber};
-use kona_registry::OPCHAINS;
+use kona_genesis::RollupConfig;
+use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 use tracing_subscriber::EnvFilter;
 
 /// Global arguments for the CLI.
@@ -42,6 +43,12 @@ impl GlobalArgs {
         init_tracing_subscriber(self.v, filter)?;
         init_prometheus_server(self.metrics_port)?;
         Ok(())
+    }
+
+    /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global
+    /// arguments.
+    pub fn rollup_config(&self) -> Option<RollupConfig> {
+        ROLLUP_CONFIGS.get(&self.l2_chain_id).cloned()
     }
 
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.

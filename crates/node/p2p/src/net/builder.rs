@@ -2,6 +2,7 @@
 
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, ListenConfig};
+use kona_genesis::RollupConfig;
 use libp2p::{Multiaddr, identity::Keypair};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{net::SocketAddr, time::Duration};
@@ -21,10 +22,14 @@ pub struct NetworkBuilder {
     gossip: GossipDriverBuilder,
     /// The unsafe block signer [`Address`].
     signer: Option<Address>,
+    /// The [`RollupConfig`] only used to select which topic to publish blocks to.
+    cfg: Option<RollupConfig>,
     /// A receiver for network RPC requests.
     rpc_recv: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
     payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
+    /// A receiver for unsafe blocks to publish.
+    publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -49,6 +54,8 @@ impl NetworkBuilder {
             signer: None,
             rpc_recv: None,
             payload_tx: None,
+            publish_rx: None,
+            cfg: None,
         }
     }
 
@@ -79,6 +86,19 @@ impl NetworkBuilder {
     /// Sets the gossipsub config for the [`crate::GossipDriver`].
     pub fn with_gossip_config(self, config: libp2p::gossipsub::Config) -> Self {
         Self { gossip: self.gossip.with_config(config), ..self }
+    }
+
+    /// Sets the publish receiver for the [`crate::Network`].
+    pub fn with_publish_receiver(
+        self,
+        publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
+    ) -> Self {
+        Self { publish_rx: Some(publish_rx), ..self }
+    }
+
+    /// Sets the [`RollupConfig`] for the [`crate::Network`].
+    pub fn with_rollup_config(self, cfg: RollupConfig) -> Self {
+        Self { cfg: Some(cfg), ..self }
     }
 
     /// Sets the rpc receiver for the [`crate::Network`].
@@ -134,7 +154,18 @@ impl NetworkBuilder {
         let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
 
-        Ok(Network { gossip, discovery, payload_tx, unsafe_block_signer_sender, rpc })
+        let publish_rx = self.publish_rx.take();
+        let cfg = self.cfg.take();
+
+        Ok(Network {
+            gossip,
+            discovery,
+            unsafe_block_signer_sender,
+            rpc,
+            payload_tx,
+            publish_rx,
+            cfg,
+        })
     }
 }
 

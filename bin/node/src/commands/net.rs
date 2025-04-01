@@ -50,11 +50,17 @@ impl NetCommand {
         let handle = launcher.start().await?;
         info!("Started RPC server on {:?}:{}", rpc_config.listen_addr, rpc_config.listen_port);
 
+        // Get the rollup config from the args
+        let rollup_config = args
+            .rollup_config()
+            .ok_or(anyhow::anyhow!("Rollug config not found for chain id: {}", args.l2_chain_id))?;
+
         // Start the Network Stack
         let p2p_config = self.p2p.config(args)?;
         let mut network = NetworkBuilder::from(p2p_config)
             .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)
+            .with_rollup_config(rollup_config)
             .build()?;
         let mut recv = network.unsafe_block_recv();
         network.start()?;

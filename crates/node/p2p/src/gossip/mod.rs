@@ -15,7 +15,7 @@ mod builder;
 pub use builder::GossipDriverBuilder;
 
 mod error;
-pub use error::GossipDriverBuilderError;
+pub use error::{GossipDriverBuilderError, HandlerEncodeError, PublishError};
 
 mod event;
 pub use event::Event;
