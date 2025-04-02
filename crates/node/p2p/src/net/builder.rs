@@ -3,7 +3,9 @@
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, ListenConfig};
 use libp2p::{Multiaddr, identity::Keypair};
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{net::SocketAddr, time::Duration};
+use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network, NetworkBuilderError,
@@ -20,6 +22,8 @@ pub struct NetworkBuilder {
     signer: Option<Address>,
     /// A receiver for network RPC requests.
     rpc_recv: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
+    /// A broadcast sender for the unsafe block payloads.
+    payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -40,6 +44,7 @@ impl NetworkBuilder {
             gossip: GossipDriverBuilder::new(),
             signer: None,
             rpc_recv: None,
+            payload_tx: None,
         }
     }
 
@@ -92,17 +97,25 @@ impl NetworkBuilder {
         Self { signer: Some(signer), ..self }
     }
 
+    /// Sets the unsafe block sender for the [`crate::Network`].
+    pub fn with_unsafe_block_sender(
+        self,
+        sender: BroadcastSender<OpNetworkPayloadEnvelope>,
+    ) -> Self {
+        Self { payload_tx: Some(sender), ..self }
+    }
+
     /// Builds the [`Network`].
     pub fn build(mut self) -> Result<Network, NetworkBuilderError> {
         let signer = self.signer.take().ok_or(NetworkBuilderError::UnsafeBlockSignerNotSet)?;
         let (signer_tx, signer_rx) = tokio::sync::watch::channel(signer);
         let unsafe_block_signer_sender = Some(signer_tx);
-        let mut gossip = self.gossip.with_unsafe_block_signer_receiver(signer_rx).build()?;
+        let gossip = self.gossip.with_unsafe_block_signer_receiver(signer_rx).build()?;
         let discovery = self.discovery.build()?;
-        let unsafe_block_recv = gossip.take_payload_recv();
         let rpc = self.rpc_recv.take();
+        let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
 
-        Ok(Network { gossip, discovery, unsafe_block_recv, unsafe_block_signer_sender, rpc })
+        Ok(Network { gossip, discovery, payload_tx, unsafe_block_signer_sender, rpc })
     }
 }
 

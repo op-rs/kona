@@ -46,8 +46,7 @@ impl NetCommand {
             .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)
             .build()?;
-        let mut recv =
-            network.take_unsafe_block_recv().ok_or(anyhow::anyhow!("No unsafe block receiver"))?;
+        let mut recv = network.unsafe_block_recv();
         network.start()?;
         info!("Network started, receiving blocks.");
 
@@ -58,8 +57,8 @@ impl NetCommand {
             tokio::select! {
                 payload = recv.recv() => {
                     match payload {
-                        Some(payload) => info!("Received unsafe payload: {:?}", payload.payload_hash),
-                        None => debug!("Failed to receive unsafe payload"),
+                        Ok(payload) => info!("Received unsafe payload: {:?}", payload.payload_hash),
+                        Err(e) => debug!("Failed to receive unsafe payload: {:?}", e),
                     }
                 }
                 _ = interval.tick() => {

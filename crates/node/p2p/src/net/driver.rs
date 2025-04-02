@@ -3,9 +3,13 @@
 use alloy_primitives::Address;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use std::collections::VecDeque;
 use tokio::{
     select,
-    sync::{mpsc::Receiver, watch::Sender},
+    sync::{
+        broadcast::{Receiver as BroadcastReceiver, Sender as BroadcastSender},
+        watch::Sender,
+    },
 };
 
 use crate::{Discv5Driver, GossipDriver, NetRpcRequest, NetworkBuilder};
@@ -18,8 +22,8 @@ use crate::{Discv5Driver, GossipDriver, NetRpcRequest, NetworkBuilder};
 /// - Peer discovery with `discv5`.
 #[derive(Debug)]
 pub struct Network {
-    /// Channel to receive unsafe blocks.
-    pub(crate) unsafe_block_recv: Option<Receiver<OpNetworkPayloadEnvelope>>,
+    /// Channel to send unsafe blocks.
+    pub(crate) payload_tx: BroadcastSender<OpNetworkPayloadEnvelope>,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
     /// Handler for RPC Requests.
@@ -40,8 +44,8 @@ impl Network {
     }
 
     /// Take the unsafe block receiver.
-    pub fn take_unsafe_block_recv(&mut self) -> Option<Receiver<OpNetworkPayloadEnvelope>> {
-        self.unsafe_block_recv.take()
+    pub fn unsafe_block_recv(&mut self) -> BroadcastReceiver<OpNetworkPayloadEnvelope> {
+        self.payload_tx.subscribe()
     }
 
     /// Take the unsafe block signer sender.
@@ -56,11 +60,28 @@ impl Network {
         let mut handler = self.discovery.start();
         self.gossip.listen()?;
         tokio::spawn(async move {
+            // A vec deque that holds unsafe blocks to be sent over the channel.
+            let mut unsafe_blocks = VecDeque::<OpNetworkPayloadEnvelope>::new();
             loop {
+                // Attempt to send the unsafe blocks over the channel **in order**.
+                loop {
+                    if unsafe_blocks.is_empty() {
+                        break;
+                    }
+                    if let Some(block) = unsafe_blocks.front() {
+                        if let Err(e) = self.payload_tx.send(block.clone()) {
+                            trace!("Failed to send unsafe block through channel: {:?}", e);
+                            break;
+                        }
+                        unsafe_blocks.pop_front();
+                    }
+                }
                 select! {
                     event = self.gossip.select_next_some() => {
                         trace!(target: "p2p::driver", "Received event: {:?}", event);
-                        self.gossip.handle_event(event);
+                        if let Some(payload) = self.gossip.handle_event(event) {
+                            unsafe_blocks.push_back(payload);
+                        }
                     },
                     enr = handler.enr_receiver.recv() => {
                         let Some(ref enr) = enr else {

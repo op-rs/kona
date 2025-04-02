@@ -19,7 +19,7 @@ pub fn gossip_driver(port: u16) -> GossipDriver {
     // Construct a Behaviour instance
     let unsafe_block_signer = Address::default();
     let (_, unsafe_block_signer_recv) = tokio::sync::watch::channel(unsafe_block_signer);
-    let (handler, _unsafe_block_recv) = BlockHandler::new(chain_id, unsafe_block_signer_recv);
+    let handler = BlockHandler::new(chain_id, unsafe_block_signer_recv);
     let behaviour =
         Behaviour::new(config, &[Box::new(handler.clone())]).expect("creates behaviour");
 

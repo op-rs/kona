@@ -74,17 +74,16 @@ impl GossipCommand {
             .with_unsafe_block_signer(signer)
             .build()?;
 
-        let mut recv =
-            network.take_unsafe_block_recv().ok_or(anyhow::anyhow!("No unsafe block receiver"))?;
+        let mut recv = network.unsafe_block_recv();
         network.start()?;
         tracing::info!("Gossip driver started, receiving blocks.");
         loop {
             match recv.recv().await {
-                Some(block) => {
+                Ok(block) => {
                     tracing::info!("Received unsafe block: {:?}", block);
                 }
-                None => {
-                    tracing::warn!("Failed to receive unsafe block");
+                Err(e) => {
+                    tracing::warn!("Failed to receive unsafe block: {:?}", e);
                 }
             }
         }

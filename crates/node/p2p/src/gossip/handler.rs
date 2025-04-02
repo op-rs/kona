@@ -4,10 +4,7 @@ use alloy_primitives::Address;
 use libp2p::gossipsub::{IdentTopic, Message, MessageAcceptance, TopicHash};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::time::SystemTime;
-use tokio::sync::{
-    mpsc::{Sender, channel},
-    watch::Receiver,
-};
+use tokio::sync::watch::Receiver;
 
 /// This trait defines the functionality required to process incoming messages
 /// and determine their acceptance within the network.
@@ -16,7 +13,7 @@ use tokio::sync::{
 /// topics they are interested in.
 pub trait Handler: Send {
     /// Manages validation and further processing of messages
-    fn handle(&self, msg: Message) -> MessageAcceptance;
+    fn handle(&self, msg: Message) -> (MessageAcceptance, Option<OpNetworkPayloadEnvelope>);
 
     /// Specifies which topics the handler is interested in
     fn topics(&self) -> Vec<TopicHash>;
@@ -29,10 +26,8 @@ pub struct BlockHandler {
     ///
     /// Used to filter out gossip messages intended for other chains.
     pub chain_id: u64,
-    /// A channel [`Sender`] to forward new [`OpNetworkPayloadEnvelope`] to other modules.
-    pub block_sender: Sender<OpNetworkPayloadEnvelope>,
     /// A [`Receiver`] to monitor changes to the unsafe block signer.
-    pub unsafe_signer_recv: Receiver<Address>,
+    pub signer_recv: Receiver<Address>,
     /// The libp2p topic for pre Canyon/Shangai blocks.
     pub blocks_v1_topic: IdentTopic,
     /// The libp2p topic for Canyon/Delta blocks.
@@ -46,7 +41,7 @@ pub struct BlockHandler {
 impl Handler for BlockHandler {
     /// Checks validity of a [`OpNetworkPayloadEnvelope`] received over P2P gossip.
     /// If valid, sends the [`OpNetworkPayloadEnvelope`] to the block update channel.
-    fn handle(&self, msg: Message) -> MessageAcceptance {
+    fn handle(&self, msg: Message) -> (MessageAcceptance, Option<OpNetworkPayloadEnvelope>) {
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)
         } else if msg.topic == self.blocks_v2_topic.hash() {
@@ -57,23 +52,20 @@ impl Handler for BlockHandler {
             OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
             warn!("Received block with unknown topic: {:?}", msg.topic);
-            return MessageAcceptance::Reject;
+            return (MessageAcceptance::Reject, None)
         };
 
         match decoded {
             Ok(envelope) => {
                 if self.block_valid(&envelope) {
-                    if let Err(e) = self.block_sender.try_send(envelope) {
-                        warn!("Failed to send block to block update channel: {:?}", e);
-                    }
-                    MessageAcceptance::Accept
+                    (MessageAcceptance::Accept, Some(envelope))
                 } else {
-                    MessageAcceptance::Reject
+                    (MessageAcceptance::Reject, None)
                 }
             }
             Err(err) => {
                 debug!("Failed to decode block: {:?}", err);
-                MessageAcceptance::Reject
+                (MessageAcceptance::Reject, None)
             }
         }
     }
@@ -90,24 +82,18 @@ impl Handler for BlockHandler {
 }
 
 impl BlockHandler {
-    /// Creates a new [BlockHandler] and opens a channel
-    pub fn new(
-        chain_id: u64,
-        unsafe_recv: Receiver<Address>,
-    ) -> (Self, tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>) {
-        let (sender, recv) = channel(256);
-
-        let handler = Self {
+    /// Creates a new [`BlockHandler`].
+    ///
+    /// Requires the chain ID and a receiver channel for the unsafe block signer.
+    pub fn new(chain_id: u64, signer_recv: Receiver<Address>) -> Self {
+        Self {
             chain_id,
-            block_sender: sender,
-            unsafe_signer_recv: unsafe_recv,
+            signer_recv,
             blocks_v1_topic: IdentTopic::new(format!("/optimism/{}/0/blocks", chain_id)),
             blocks_v2_topic: IdentTopic::new(format!("/optimism/{}/1/blocks", chain_id)),
             blocks_v3_topic: IdentTopic::new(format!("/optimism/{}/2/blocks", chain_id)),
             blocks_v4_topic: IdentTopic::new(format!("/optimism/{}/3/blocks", chain_id)),
-        };
-
-        (handler, recv)
+        }
     }
 
     /// Determines if a block is valid.
@@ -123,7 +109,7 @@ impl BlockHandler {
         let time_valid = !(is_future || is_past);
 
         let msg = envelope.payload_hash.signature_message(self.chain_id);
-        let block_signer = *self.unsafe_signer_recv.borrow();
+        let block_signer = *self.signer_recv.borrow();
         let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
             warn!(target: "p2p::block_handler", "Failed to recover address from message");
             return false;
@@ -173,7 +159,7 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let (handler, _) = BlockHandler::new(10, unsafe_signer);
+        let handler = BlockHandler::new(10, unsafe_signer);
 
         assert!(handler.block_valid(&envelope));
     }

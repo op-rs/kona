@@ -94,7 +94,7 @@ mod tests {
     fn test_behaviour_with_handlers() {
         let cfg = config::default_config();
         let (_, recv) = tokio::sync::watch::channel(Address::default());
-        let (block_handler, _) = BlockHandler::new(0, recv);
+        let block_handler = BlockHandler::new(0, recv);
         let handlers: Vec<Box<dyn Handler>> = vec![Box::new(block_handler)];
         let behaviour = Behaviour::new(cfg, &handlers).unwrap();
         let mut topics = behaviour.gossipsub.topics().cloned().collect::<Vec<TopicHash>>();

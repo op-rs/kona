@@ -5,7 +5,6 @@ use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use tokio::sync::mpsc::Receiver;
 
 use crate::{
     Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, enr_to_multiaddr,
@@ -24,9 +23,6 @@ pub struct GossipDriver {
     pub addr: Multiaddr,
     /// The [`BlockHandler`].
     pub handler: BlockHandler,
-    /// A receiver for unsafe payloads.
-    /// This is expected to be consumed and listened to by the consumer.
-    pub payload_receiver: Option<Receiver<OpNetworkPayloadEnvelope>>,
     /// A list of peers we have successfully dialed.
     pub dialed_peers: Vec<Multiaddr>,
 }
@@ -39,21 +35,7 @@ impl GossipDriver {
 
     /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
-        Self { swarm, addr, handler, payload_receiver: None, dialed_peers: Vec::new() }
-    }
-
-    /// Sets the payload receiver on the [`GossipDriver`].
-    pub fn set_payload_receiver(
-        &mut self,
-        unsafe_payload_recv: Receiver<OpNetworkPayloadEnvelope>,
-    ) -> &mut Self {
-        self.payload_receiver = Some(unsafe_payload_recv);
-        self
-    }
-
-    /// Takes the [`Receiver`] for [`OpNetworkPayloadEnvelope`].
-    pub fn take_payload_recv(&mut self) -> Option<Receiver<OpNetworkPayloadEnvelope>> {
-        self.payload_receiver.take()
+        Self { swarm, addr, handler, dialed_peers: Vec::new() }
     }
 
     /// Listens on the address.
@@ -121,7 +103,10 @@ impl GossipDriver {
     }
 
     /// Handles a [`libp2p::gossipsub::Event`].
-    fn handle_gossipsub_event(&mut self, event: libp2p::gossipsub::Event) {
+    fn handle_gossipsub_event(
+        &mut self,
+        event: libp2p::gossipsub::Event,
+    ) -> Option<OpNetworkPayloadEnvelope> {
         match event {
             libp2p::gossipsub::Event::Message {
                 propagation_source: src,
@@ -130,12 +115,13 @@ impl GossipDriver {
             } => {
                 debug!("Received message with topic: {}", message.topic);
                 if self.handler.topics().contains(&message.topic) {
-                    let status = self.handler.handle(message);
+                    let (status, payload) = self.handler.handle(message);
                     _ = self
                         .swarm
                         .behaviour_mut()
                         .gossipsub
                         .report_message_validation_result(&id, &src, status);
+                    return payload;
                 }
             }
             libp2p::gossipsub::Event::Subscribed { peer_id, topic } => {
@@ -150,18 +136,20 @@ impl GossipDriver {
                 debug!("Ignoring non-message gossipsub event: {:?}", event)
             }
         }
+        None
     }
 
     /// Handles the [`SwarmEvent<Event>`].
-    pub fn handle_event(&mut self, event: SwarmEvent<Event>) {
+    pub fn handle_event(&mut self, event: SwarmEvent<Event>) -> Option<OpNetworkPayloadEnvelope> {
         let SwarmEvent::Behaviour(event) = event else {
             debug!("Ignoring non-behaviour in event handler: {:?}", event);
-            return;
+            return None;
         };
 
         match event {
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!("Ping from peer: {:?} | Result: {:?}", peer, result);
+                None
             }
             Event::Gossipsub(e) => self.handle_gossipsub_event(e),
         }

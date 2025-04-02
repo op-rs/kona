@@ -71,7 +71,7 @@ impl GossipDriverBuilder {
         let signer_recv = self.signer.ok_or(GossipDriverBuilderError::MissingUnsafeBlockSigner)?;
 
         // Block Handler setup
-        let (handler, unsafe_block_recv) = BlockHandler::new(chain_id, signer_recv);
+        let handler = BlockHandler::new(chain_id, signer_recv);
 
         // Construct the gossip behaviour
         let config = crate::default_config();
@@ -95,8 +95,6 @@ impl GossipDriverBuilder {
             .with_swarm_config(|c| c.with_idle_connection_timeout(timeout))
             .build();
 
-        let mut driver = GossipDriver::new(swarm, addr, handler.clone());
-        driver.set_payload_receiver(unsafe_block_recv);
-        Ok(driver)
+        Ok(GossipDriver::new(swarm, addr, handler.clone()))
     }
 }

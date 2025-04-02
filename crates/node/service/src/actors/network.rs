@@ -72,9 +72,7 @@ impl NodeActor for NetworkActor {
 
     async fn start(mut self) -> Result<(), Self::Error> {
         // Take the unsafe block receiver
-        let Some(mut unsafe_block_receiver) = self.driver.take_unsafe_block_recv() else {
-            return Err(NetworkActorError::MissingUnsafeBlockReceiver);
-        };
+        let mut unsafe_block_receiver = self.driver.unsafe_block_recv();
 
         // Take the unsafe block signer sender.
         let Some(unsafe_block_signer) = self.driver.take_unsafe_block_signer_sender() else {
@@ -94,13 +92,16 @@ impl NodeActor for NetworkActor {
                     return Ok(());
                 }
                 block = unsafe_block_receiver.recv() => {
-                    if let Some(block) = block {
-                        match self.blocks.send(block) {
-                            Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
-                            Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
+                    match block {
+                        Ok(block) => {
+                            match self.blocks.send(block) {
+                                Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
+                                Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
+                            }
                         }
-                    } else {
-                        warn!(target: "network", "Found no unsafe block signer on receive");
+                        Err(e) => {
+                            warn!(target: "network", "Failed to receive unsafe block: {:?}", e);
+                        }
                     }
                 }
                 signer = self.signer.recv() => {
