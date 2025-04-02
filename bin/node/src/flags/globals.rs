@@ -2,7 +2,8 @@
 
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
-use kona_registry::OPCHAINS;
+use kona_genesis::RollupConfig;
+use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
@@ -24,6 +25,12 @@ pub struct GlobalArgs {
 }
 
 impl GlobalArgs {
+    /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global
+    /// arguments.
+    pub fn rollup_config(&self) -> Option<RollupConfig> {
+        ROLLUP_CONFIGS.get(&self.l2_chain_id).cloned()
+    }
+
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.
     pub fn genesis_signer(&self) -> anyhow::Result<Address> {
         let id = self.l2_chain_id;

@@ -1,6 +1,7 @@
 //! Driver for network services.
 
 use alloy_primitives::Address;
+use kona_genesis::RollupConfig;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::{
@@ -27,6 +28,10 @@ pub struct Network {
     /// This is allowed to be optional since it may not be desirable
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
+    /// A channel to publish an unsafe block.
+    pub(crate) publish_rx: Option<Receiver<OpNetworkPayloadEnvelope>>,
+    /// Optional [`RollupConfig`] used for selecting the topic to publish to.
+    pub(crate) cfg: Option<RollupConfig>,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
@@ -53,11 +58,26 @@ impl Network {
     /// and continually listens for new peers and messages to handle
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
+        let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut handler = self.discovery.start();
         self.gossip.listen()?;
         tokio::spawn(async move {
             loop {
                 select! {
+                    block = publish.recv() => {
+                        let Some(block) = block else {
+                            trace!(target: "p2p::driver", "Receiver `None` unsafe block");
+                            continue;
+                        };
+                        let timestamp = block.payload.timestamp();
+                        let selector = |handler: &crate::BlockHandler| {
+                            handler.topic(timestamp, self.cfg.as_ref())
+                        };
+                        match self.gossip.publish(selector, Some(block)) {
+                            Ok(id) => info!("Published unsafe payload | {:?}", id),
+                            Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
+                        }
+                    }
                     event = self.gossip.select_next_some() => {
                         trace!(target: "p2p::driver", "Received event: {:?}", event);
                         self.gossip.handle_event(event);

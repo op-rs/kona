@@ -1,6 +1,8 @@
 //! Block Handler
 
+use crate::HandlerEncodeError;
 use alloy_primitives::Address;
+use kona_genesis::RollupConfig;
 use libp2p::gossipsub::{IdentTopic, Message, MessageAcceptance, TopicHash};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::time::SystemTime;
@@ -108,6 +110,42 @@ impl BlockHandler {
         };
 
         (handler, recv)
+    }
+
+    /// Returns the topic using the specified timestamp and optional [`RollupConfig`].
+    ///
+    /// Reference: <https://github.com/ethereum-optimism/optimism/blob/0bc5fe8d16155dc68bcdf1fa5733abc58689a618/op-node/p2p/gossip.go#L604C1-L612C3>
+    pub fn topic(&self, timestamp: u64, cfg: Option<&RollupConfig>) -> IdentTopic {
+        let Some(cfg) = cfg else {
+            return self.blocks_v4_topic.clone();
+        };
+
+        if cfg.is_isthmus_active(timestamp) {
+            self.blocks_v4_topic.clone()
+        } else if cfg.is_ecotone_active(timestamp) {
+            self.blocks_v3_topic.clone()
+        } else if cfg.is_canyon_active(timestamp) {
+            self.blocks_v2_topic.clone()
+        } else {
+            self.blocks_v1_topic.clone()
+        }
+    }
+
+    /// Encodes a [`OpNetworkPayloadEnvelope`] into a byte array
+    /// based on the specified topic.
+    pub fn encode(
+        &self,
+        topic: IdentTopic,
+        envelope: OpNetworkPayloadEnvelope,
+    ) -> Result<Vec<u8>, HandlerEncodeError> {
+        let encoded = match topic.hash() {
+            hash if hash == self.blocks_v1_topic.hash() => envelope.encode_v1()?,
+            hash if hash == self.blocks_v2_topic.hash() => envelope.encode_v2()?,
+            hash if hash == self.blocks_v3_topic.hash() => envelope.encode_v3()?,
+            hash if hash == self.blocks_v4_topic.hash() => envelope.encode_v4()?,
+            hash => return Err(HandlerEncodeError::UnknownTopic(hash)),
+        };
+        Ok(encoded)
     }
 
     /// Determines if a block is valid.

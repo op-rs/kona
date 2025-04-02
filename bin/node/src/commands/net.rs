@@ -45,6 +45,7 @@ impl NetCommand {
         let mut network = NetworkBuilder::from(p2p_config)
             .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)
+            .with_rollup_config(args.rollup_config().expect("No rollup config found"))
             .build()?;
         let mut recv =
             network.take_unsafe_block_recv().ok_or(anyhow::anyhow!("No unsafe block receiver"))?;

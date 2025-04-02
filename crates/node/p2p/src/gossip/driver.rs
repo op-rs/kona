@@ -3,12 +3,17 @@
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
-use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
+use libp2p::{
+    Multiaddr, Swarm, TransportError,
+    gossipsub::{IdentTopic, MessageId},
+    swarm::SwarmEvent,
+};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use tokio::sync::mpsc::Receiver;
 
 use crate::{
-    Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, enr_to_multiaddr,
+    Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, PublishError,
+    enr_to_multiaddr,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -40,6 +45,34 @@ impl GossipDriver {
     /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
         Self { swarm, addr, handler, payload_receiver: None, dialed_peers: Vec::new() }
+    }
+
+    /// Publishes an unsafe block to gossip.
+    ///
+    /// ## Arguments
+    ///
+    /// * `topic_selector` - A function that selects the topic for the block. This is expected to be
+    ///   a closure that takes the [`BlockHandler`] and returns the [`IdentTopic`] for the block.
+    /// * `payload` - The payload to be published.
+    ///
+    /// ## Returns
+    ///
+    /// Returns the [`MessageId`] of the published message or a [`PublishError`]
+    /// if the message could not be published.
+    pub fn publish(
+        &mut self,
+        selector: impl FnOnce(&BlockHandler) -> IdentTopic,
+        payload: Option<OpNetworkPayloadEnvelope>,
+    ) -> Result<Option<MessageId>, PublishError> {
+        let Some(payload) = payload else {
+            debug!("Ignoring empty payload");
+            return Ok(None);
+        };
+        let topic = selector(&self.handler);
+        let topic_hash = topic.hash();
+        let data = self.handler.encode(topic, payload)?;
+        let id = self.swarm.behaviour_mut().gossipsub.publish(topic_hash, data)?;
+        Ok(Some(id))
     }
 
     /// Sets the payload receiver on the [`GossipDriver`].

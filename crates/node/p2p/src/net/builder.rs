@@ -2,7 +2,9 @@
 
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, ListenConfig};
+use kona_genesis::RollupConfig;
 use libp2p::{Multiaddr, identity::Keypair};
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{net::SocketAddr, time::Duration};
 
 use crate::{
@@ -18,8 +20,12 @@ pub struct NetworkBuilder {
     gossip: GossipDriverBuilder,
     /// The unsafe block signer [`Address`].
     signer: Option<Address>,
+    /// The [`RollupConfig`] only used to select which topic to publish blocks to.
+    cfg: Option<RollupConfig>,
     /// A receiver for network RPC requests.
     rpc_recv: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
+    /// A receiver for unsafe blocks to publish.
+    publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -40,6 +46,8 @@ impl NetworkBuilder {
             gossip: GossipDriverBuilder::new(),
             signer: None,
             rpc_recv: None,
+            publish_rx: None,
+            cfg: None,
         }
     }
 
@@ -55,6 +63,19 @@ impl NetworkBuilder {
             discovery: self.discovery.with_chain_id(id),
             ..self
         }
+    }
+
+    /// Sets the publish receiver for the [`crate::Network`].
+    pub fn with_publish_receiver(
+        self,
+        publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
+    ) -> Self {
+        Self { publish_rx: Some(publish_rx), ..self }
+    }
+
+    /// Sets the [`RollupConfig`] for the [`crate::Network`].
+    pub fn with_rollup_config(self, cfg: RollupConfig) -> Self {
+        Self { cfg: Some(cfg), ..self }
     }
 
     /// Sets the rpc receiver for the [`crate::Network`].
@@ -101,8 +122,18 @@ impl NetworkBuilder {
         let discovery = self.discovery.build()?;
         let unsafe_block_recv = gossip.take_payload_recv();
         let rpc = self.rpc_recv.take();
+        let publish_rx = self.publish_rx.take();
+        let cfg = self.cfg.take();
 
-        Ok(Network { gossip, discovery, unsafe_block_recv, unsafe_block_signer_sender, rpc })
+        Ok(Network {
+            gossip,
+            discovery,
+            unsafe_block_recv,
+            unsafe_block_signer_sender,
+            rpc,
+            publish_rx,
+            cfg,
+        })
     }
 }
 
