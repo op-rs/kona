@@ -56,10 +56,10 @@ impl NetCommand {
 
         loop {
             tokio::select! {
-                block = recv.recv() => {
-                    match block {
-                        Some(block) => info!("Received unsafe block: {:?}", block),
-                        None => debug!("Failed to receive unsafe block"),
+                payload = recv.recv() => {
+                    match payload {
+                        Some(payload) => info!("Received unsafe payload: {:?}", payload.payload_hash),
+                        None => debug!("Failed to receive unsafe payload"),
                     }
                 }
                 _ = interval.tick() => {

@@ -44,22 +44,17 @@ pub struct BlockHandler {
 }
 
 impl Handler for BlockHandler {
-    /// Checks validity of a block received via p2p gossip, and sends to the block update channel if
-    /// valid.
+    /// Checks validity of a [`OpNetworkPayloadEnvelope`] received over P2P gossip.
+    /// If valid, sends the [`OpNetworkPayloadEnvelope`] to the block update channel.
     fn handle(&self, msg: Message) -> MessageAcceptance {
         let decoded = if msg.topic == self.blocks_v1_topic.hash() {
-            info!("received v1 block");
             OpNetworkPayloadEnvelope::decode_v1(&msg.data)
         } else if msg.topic == self.blocks_v2_topic.hash() {
-            info!("received v2 block");
             OpNetworkPayloadEnvelope::decode_v2(&msg.data)
         } else if msg.topic == self.blocks_v3_topic.hash() {
-            info!("received v3 block");
             OpNetworkPayloadEnvelope::decode_v3(&msg.data)
         } else if msg.topic == self.blocks_v4_topic.hash() {
-            info!("received v4 block");
-            return MessageAcceptance::Reject;
-            // OpNetworkPayloadEnvelope::decode_v4(&msg.data)
+            OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
             warn!("Received block with unknown topic: {:?}", msg.topic);
             return MessageAcceptance::Reject;
@@ -68,10 +63,11 @@ impl Handler for BlockHandler {
         match decoded {
             Ok(envelope) => {
                 if self.block_valid(&envelope) {
-                    _ = self.block_sender.send(envelope);
+                    if let Err(e) = self.block_sender.try_send(envelope) {
+                        warn!("Failed to send block to block update channel: {:?}", e);
+                    }
                     MessageAcceptance::Accept
                 } else {
-                    debug!("Invalid block received");
                     MessageAcceptance::Reject
                 }
             }
