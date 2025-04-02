@@ -2912,7 +2912,7 @@
             "OptimismPortalProxy": "0x0d83dab629f0e0f9d36c0cbc89b69a489f0751bd",
             "SystemConfigProxy": "0xaee94b9ab7752d3f7704bde212c0c6a0b701571d",
             "ProxyAdmin": "0x2bf403e5353a7a082ef6bb3ae2be3b866d8d3ea4",
-            "SuperchainConfig": "0xe7e23eba32a6fd2ac79dd5ec72fe7f6217b41bdc",
+            "SuperchainConfig": "0xc2be75506d5724086deb7245bd260cc9753911be",
             "AnchorStateRegistryProxy": "0xf971f1b0d80eb769577135b490b913825bfcf00b",
             "DelayedWethProxy": null,
             "DisputeGameFactoryProxy": "0xeff73e5aa3b9aec32c659aa3e00444d20a84394b",
