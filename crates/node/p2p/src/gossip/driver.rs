@@ -3,8 +3,9 @@
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
-use libp2p::{Multiaddr, Swarm, TransportError, swarm::SwarmEvent};
+use libp2p::{Multiaddr, PeerId, Swarm, TransportError, swarm::SwarmEvent};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use std::collections::HashMap;
 
 use crate::{
     Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, enr_to_multiaddr,
@@ -24,7 +25,9 @@ pub struct GossipDriver {
     /// The [`BlockHandler`].
     pub handler: BlockHandler,
     /// A list of peers we have successfully dialed.
-    pub dialed_peers: Vec<Multiaddr>,
+    pub dialed_peers: HashMap<Multiaddr, bool>,
+    /// A mapping from [`PeerId`] to [`Multiaddr`].
+    pub peerstore: HashMap<PeerId, Multiaddr>,
 }
 
 impl GossipDriver {
@@ -35,7 +38,13 @@ impl GossipDriver {
 
     /// Creates a new [`GossipDriver`] instance.
     pub fn new(swarm: Swarm<Behaviour>, addr: Multiaddr, handler: BlockHandler) -> Self {
-        Self { swarm, addr, handler, dialed_peers: Vec::new() }
+        Self {
+            swarm,
+            addr,
+            handler,
+            dialed_peers: Default::default(),
+            peerstore: Default::default(),
+        }
     }
 
     /// Listens on the address.
@@ -62,7 +71,7 @@ impl GossipDriver {
 
     /// Returns if the swarm has already successfully dialed the given [`Multiaddr`].
     pub fn has_dialed(&mut self, addr: &Multiaddr) -> bool {
-        self.dialed_peers.contains(addr)
+        self.dialed_peers.get(addr).cloned().unwrap_or(false)
     }
 
     /// Returns the number of connected peers.
@@ -94,7 +103,7 @@ impl GossipDriver {
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
                 event!(tracing::Level::TRACE, peer=%addr, "Dialed peer");
-                self.dialed_peers.push(addr);
+                self.dialed_peers.insert(addr, true);
             }
             Err(e) => {
                 debug!("Failed to connect to peer: {:?}", e);
@@ -139,10 +148,35 @@ impl GossipDriver {
         None
     }
 
+    /// Redials the given [`PeerId`] using the peerstore.
+    pub fn redial(&mut self, peer_id: PeerId) {
+        if let Some(addr) = self.peerstore.get(&peer_id) {
+            self.dialed_peers.remove(addr);
+            trace!("Redialing peer with id: {:?}", peer_id);
+            self.dial_multiaddr(addr.clone());
+        }
+    }
+
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) -> Option<OpNetworkPayloadEnvelope> {
+        if let SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } = event {
+            self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
+            return None;
+        }
+        if let SwarmEvent::OutgoingConnectionError { peer_id, error, .. } = event {
+            trace!("Outgoing connection error: {:?}", error);
+            if let Some(id) = peer_id {
+                self.redial(id);
+            }
+            return None;
+        }
+        if let SwarmEvent::ConnectionClosed { peer_id, cause, .. } = event {
+            trace!("Connection closed, redialing peer: {:?} | {:?}", peer_id, cause);
+            self.redial(peer_id);
+            return None;
+        }
         let SwarmEvent::Behaviour(event) = event else {
-            debug!("Ignoring non-behaviour in event handler: {:?}", event);
+            trace!("Ignoring non-behaviour in event handler: {:?}", event);
             return None;
         };
 
