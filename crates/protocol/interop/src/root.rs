@@ -145,11 +145,14 @@ mod test {
 
     #[test]
     fn test_super_root_sorts_outputs() {
-        let super_root = SuperRoot::new(10, vec![
-            (OutputRootWithChain::new(3, B256::default())),
-            (OutputRootWithChain::new(2, B256::default())),
-            (OutputRootWithChain::new(1, B256::default())),
-        ]);
+        let super_root = SuperRoot::new(
+            10,
+            vec![
+                (OutputRootWithChain::new(3, B256::default())),
+                (OutputRootWithChain::new(2, B256::default())),
+                (OutputRootWithChain::new(1, B256::default())),
+            ],
+        );
 
         assert!(super_root.output_roots.windows(2).all(|w| w[0].chain_id <= w[1].chain_id));
     }
@@ -195,19 +198,25 @@ mod test {
         const EXPECTED: B256 =
             b256!("0980033cbf4337f614a2401ab7efbfdc66ab647812f1c98d891d92ddfb376541");
 
-        let super_root = SuperRoot::new(10, vec![
-            (OutputRootWithChain::new(1, B256::default())),
-            (OutputRootWithChain::new(2, B256::default())),
-        ]);
+        let super_root = SuperRoot::new(
+            10,
+            vec![
+                (OutputRootWithChain::new(1, B256::default())),
+                (OutputRootWithChain::new(2, B256::default())),
+            ],
+        );
         assert_eq!(super_root.hash(), EXPECTED);
     }
 
     #[test]
     fn test_static_super_root_roundtrip() {
-        let super_root = SuperRoot::new(10, vec![
-            (OutputRootWithChain::new(1, B256::default())),
-            (OutputRootWithChain::new(2, B256::default())),
-        ]);
+        let super_root = SuperRoot::new(
+            10,
+            vec![
+                (OutputRootWithChain::new(1, B256::default())),
+                (OutputRootWithChain::new(2, B256::default())),
+            ],
+        );
 
         let mut rlp_buf = Vec::with_capacity(super_root.encoded_length());
         super_root.encode(&mut rlp_buf);

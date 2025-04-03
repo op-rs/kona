@@ -73,10 +73,11 @@ pub fn compress_brotli(
 ) -> Result<Vec<u8>, BrotliCompressionError> {
     use brotli::enc::{BrotliCompress, BrotliEncoderParams};
     let mut output = alloc::vec![];
-    BrotliCompress(&mut input, &mut output, &BrotliEncoderParams {
-        quality: level as i32,
-        ..Default::default()
-    })?;
+    BrotliCompress(
+        &mut input,
+        &mut output,
+        &BrotliEncoderParams { quality: level as i32, ..Default::default() },
+    )?;
     Ok(output)
 }
 

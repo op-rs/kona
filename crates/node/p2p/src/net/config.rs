@@ -15,4 +15,6 @@ pub struct Config {
     pub unsafe_block_signer: Address,
     /// The keypair.
     pub keypair: Keypair,
+    /// The gossip config.
+    pub gossip_config: libp2p::gossipsub::Config,
 }

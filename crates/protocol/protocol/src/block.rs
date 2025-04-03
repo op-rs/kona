@@ -373,12 +373,15 @@ mod tests {
             body: Default::default(),
         };
         let block_info = BlockInfo::from(&block);
-        assert_eq!(block_info, BlockInfo {
-            hash: b256!("04d6fefc87466405ba0e5672dcf5c75325b33e5437da2a42423080aab8be889b"),
-            number: block.header.number,
-            parent_hash: block.header.parent_hash,
-            timestamp: block.header.timestamp,
-        });
+        assert_eq!(
+            block_info,
+            BlockInfo {
+                hash: b256!("04d6fefc87466405ba0e5672dcf5c75325b33e5437da2a42423080aab8be889b"),
+                number: block.header.number,
+                parent_hash: block.header.parent_hash,
+                timestamp: block.header.timestamp,
+            }
+        );
     }
 
     #[test]
