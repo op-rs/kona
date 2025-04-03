@@ -67,7 +67,7 @@ pub struct P2PArgs {
     /// UDP port to bind Discv5 to. Same as TCP port if left 0.
     #[arg(
         long = "p2p.listen.udp",
-        default_value = "0",
+        default_value = "9223",
         env = "KONA_NODE_P2P_LISTEN_UDP_PORT",
         help = "UDP port to bind Discv5 to. Same as TCP port if left 0."
     )]
@@ -83,7 +83,7 @@ impl Default for P2PArgs {
             private_key: None,
             listen_ip: "0.0.0.0".parse().unwrap(),
             listen_tcp_port: 9222,
-            listen_udp_port: 0,
+            listen_udp_port: 9223,
         }
     }
 }
