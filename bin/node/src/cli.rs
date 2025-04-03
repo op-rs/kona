@@ -7,7 +7,6 @@ use crate::{
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
-use tracing_subscriber::EnvFilter;
 
 /// Subcommands for the CLI.
 #[derive(Debug, Clone, Subcommand)]
@@ -47,8 +46,10 @@ impl Cli {
     ///
     /// This function should be called at the beginning of the program.
     pub fn init_stack(verbosity: u8, metrics_port: u16) -> Result<()> {
-        // Initialize the tracing subscriber.
-        init_tracing_subscriber(verbosity, None::<EnvFilter>)?;
+        // Filter out discovery warnings since they're very very noisy.
+        let filter = tracing_subscriber::EnvFilter::from_default_env()
+            .add_directive("discv5=error".parse()?);
+        init_tracing_subscriber(verbosity, Some(filter))?;
 
         // Start the Prometheus metrics server.
         init_prometheus_server(metrics_port)?;

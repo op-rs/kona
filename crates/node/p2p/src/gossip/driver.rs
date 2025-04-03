@@ -164,14 +164,14 @@ impl GossipDriver {
             return None;
         }
         if let SwarmEvent::OutgoingConnectionError { peer_id, error, .. } = event {
-            info!("Outgoing connection error: {:?}", error);
+            trace!("Outgoing connection error: {:?}", error);
             if let Some(id) = peer_id {
                 self.redial(id);
             }
             return None;
         }
         if let SwarmEvent::ConnectionClosed { peer_id, cause, .. } = event {
-            info!("Connection closed, redialing peer: {:?} | {:?}", peer_id, cause);
+            trace!("Connection closed, redialing peer: {:?} | {:?}", peer_id, cause);
             self.redial(peer_id);
             return None;
         }

@@ -72,6 +72,57 @@ pub struct P2PArgs {
         help = "UDP port to bind Discv5 to. Same as TCP port if left 0."
     )]
     pub listen_udp_port: u16,
+    /// Configure GossipSub topic stablel mesh target count.
+    /// Aka: The desired outbound degree (numbers of peers to gossip to).
+
+
+
+
+
+    		&cli.UintFlag{
+			Name:     GossipMeshDName,
+			Usage:    "Configure GossipSub topic stable mesh target count, a.k.a. desired outbound degree, number of peers to gossip to",
+			Required: false,
+			Hidden:   true,
+			Value:    p2p.DefaultMeshD,
+			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_D"),
+			Category: P2PCategory,
+		},
+		&cli.UintFlag{
+			Name:     GossipMeshDloName,
+			Usage:    "Configure GossipSub topic stable mesh low watermark, a.k.a. lower bound of outbound degree",
+			Required: false,
+			Hidden:   true,
+			Value:    p2p.DefaultMeshDlo,
+			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_DLO"),
+			Category: P2PCategory,
+		},
+		&cli.UintFlag{
+			Name:     GossipMeshDhiName,
+			Usage:    "Configure GossipSub topic stable mesh high watermark, a.k.a. upper bound of outbound degree, additional peers will not receive gossip",
+			Required: false,
+			Hidden:   true,
+			Value:    p2p.DefaultMeshDhi,
+			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_DHI"),
+			Category: P2PCategory,
+		},
+		&cli.UintFlag{
+			Name:     GossipMeshDlazyName,
+			Usage:    "Configure GossipSub gossip target, a.k.a. target degree for gossip only (not messaging like p2p.gossip.mesh.d, just announcements of IHAVE",
+			Required: false,
+			Hidden:   true,
+			Value:    p2p.DefaultMeshDlazy,
+			EnvVars:  p2pEnv(envPrefix, "GOSSIP_MESH_DLAZY"),
+			Category: P2PCategory,
+		},
+		&cli.BoolFlag{
+			Name:     GossipFloodPublishName,
+			Usage:    "Configure GossipSub to publish messages to all known peers on the topic, outside of the mesh, also see Dlazy as less aggressive alternative.",
+			Required: false,
+			Hidden:   true,
+			EnvVars:  p2pEnv(envPrefix, "GOSSIP_FLOOD_PUBLISH"),
+			Category: P2PCategory,
+		},
 }
 
 impl Default for P2PArgs {

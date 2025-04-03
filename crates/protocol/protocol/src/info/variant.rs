@@ -403,39 +403,30 @@ mod test {
             block_hash: b256!("392012032675be9f94aae5ab442de73c5f4fb1bf30fa7dd0d2442239899a40fc"),
             ..Default::default()
         });
-        assert_eq!(
-            bedrock.id(),
-            BlockNumHash {
-                number: 123,
-                hash: b256!("392012032675be9f94aae5ab442de73c5f4fb1bf30fa7dd0d2442239899a40fc")
-            }
-        );
+        assert_eq!(bedrock.id(), BlockNumHash {
+            number: 123,
+            hash: b256!("392012032675be9f94aae5ab442de73c5f4fb1bf30fa7dd0d2442239899a40fc")
+        });
 
         let ecotone = L1BlockInfoTx::Ecotone(L1BlockInfoEcotone {
             number: 456,
             block_hash: b256!("1c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add3"),
             ..Default::default()
         });
-        assert_eq!(
-            ecotone.id(),
-            BlockNumHash {
-                number: 456,
-                hash: b256!("1c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add3")
-            }
-        );
+        assert_eq!(ecotone.id(), BlockNumHash {
+            number: 456,
+            hash: b256!("1c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add3")
+        });
 
         let isthmus = L1BlockInfoTx::Isthmus(L1BlockInfoIsthmus {
             number: 101112,
             block_hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a"),
             ..Default::default()
         });
-        assert_eq!(
-            isthmus.id(),
-            BlockNumHash {
-                number: 101112,
-                hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a")
-            }
-        );
+        assert_eq!(isthmus.id(), BlockNumHash {
+            number: 101112,
+            hash: b256!("4f98b83baf52c498b49bfff33e59965b27da7febbea9a2fcc4719d06dc06932a")
+        });
     }
 
     #[test]
