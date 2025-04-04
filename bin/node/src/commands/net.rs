@@ -27,6 +27,16 @@ pub struct NetCommand {
 }
 
 impl NetCommand {
+    /// Initializes the telemetry stack and Prometheus metrics recorder.
+    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
+        // Filter out discovery warnings since they're very very noisy.
+        let filter = tracing_subscriber::EnvFilter::from_default_env()
+            .add_directive("discv5=error".parse()?);
+
+        // Initialize the telemetry stack.
+        args.init_telemetry(Some(filter))
+    }
+
     /// Run the Net subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let signer = args.genesis_signer()?;
