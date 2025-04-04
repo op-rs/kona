@@ -161,11 +161,10 @@ mod tests {
     #[test]
     fn test_channel_out_output_frame_no_data() {
         let config = RollupConfig::default();
-        let mut channel = ChannelOut::new(
-            ChannelId::default(),
-            &config,
-            MockCompressor { read_error: true, compressed: Some(Default::default()) },
-        );
+        let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor {
+            read_error: true,
+            compressed: Some(Default::default()),
+        });
         let err = channel.output_frame(FRAME_V0_OVERHEAD).unwrap_err();
         assert_eq!(err, ChannelOutError::Compression(CompressorError::Full));
     }
@@ -173,11 +172,10 @@ mod tests {
     #[test]
     fn test_channel_out_output() {
         let config = RollupConfig::default();
-        let mut channel = ChannelOut::new(
-            ChannelId::default(),
-            &config,
-            MockCompressor { compressed: Some(Default::default()), ..Default::default() },
-        );
+        let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor {
+            compressed: Some(Default::default()),
+            ..Default::default()
+        });
         let frame = channel.output_frame(FRAME_V0_OVERHEAD).unwrap();
         assert_eq!(frame.id, ChannelId::default());
         assert_eq!(frame.number, 0);

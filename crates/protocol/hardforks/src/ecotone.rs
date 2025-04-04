@@ -2,7 +2,7 @@
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex, keccak256};
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -105,6 +105,24 @@ impl Ecotone {
 
     /// Returns the list of [TxDeposit]s for the Ecotone network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
+        // Verify source hash of L1Block
+        // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#l1block-deployment>
+        debug_assert_eq!(
+            keccak256(Self::l1_block_deployment_bytecode()),
+            alloy_primitives::b256!(
+                "0xc88a313aa75dc4fbf0b6850d9f9ae41e04243b7008cf3eadb29256d4a71c1dfd"
+            ),
+            "L1Block source hash mismatch"
+        );
+        // Verify GasPrice Oracle source hash
+        // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#gaspriceoracle-deployment>
+        debug_assert_eq!(
+            keccak256(Self::ecotone_gas_price_oracle_deployment_bytecode()),
+            alloy_primitives::b256!(
+                "0x8b71360ea773b4cfaf1ae6d2bd15464a4e1e2e360f786e475f63aeaed8da0ae5"
+            ),
+            "GasPrice Oracle source hash mismatch"
+        );
         ([
             // Deploy the L1 Block contract for Ecotone.
             // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#l1block-deployment>
