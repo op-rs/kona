@@ -1,6 +1,6 @@
 //! Contains the error type for the [`crate::RollupNode`].
 
-use crate::SyncStartError;
+use crate::{DerivationError, L1WatcherRpcError, NetworkActorError, RpcActorError, SyncStartError};
 use kona_derive::errors::PipelineErrorKind;
 use kona_p2p::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
@@ -24,4 +24,22 @@ pub enum RollupNodeError {
     /// An error occured while launching the RPC server.
     #[error(transparent)]
     RpcLauncher(#[from] RpcLauncherError),
+    /// An error occured from the network actor.
+    #[error(transparent)]
+    NetworkActor(#[from] NetworkActorError),
+    /// An error occured from the derivation actor.
+    #[error(transparent)]
+    DerivationActor(#[from] DerivationError),
+    /// An error occured from the rpc actor.
+    #[error(transparent)]
+    RpcActor(#[from] RpcActorError),
+    /// An error occured from the L1 watcher actor.
+    #[error("An error occurred from the L1 watcher actor.")]
+    L1WatcherActor,
+}
+
+impl<T> From<L1WatcherRpcError<T>> for RollupNodeError {
+    fn from(_: L1WatcherRpcError<T>) -> Self {
+        Self::L1WatcherActor
+    }
 }
