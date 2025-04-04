@@ -598,6 +598,24 @@
     "gasPayingToken": "0x46d878bf7BF62Ec542953CB89Ac0bF58d991181e"
   },
   {
+    "name": "Boba Sepolia Testnet",
+    "identifier": "sepolia/boba",
+    "chainId": 28882,
+    "rpc": [
+      "https://sepolia.boba.network"
+    ],
+    "explorers": [
+      "https://testnet.bobascan.com"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "sepolia"
+    }
+  },
+  {
     "name": "Creator Chain Testnet",
     "identifier": "sepolia/creator-chain-testnet",
     "chainId": 66665,
