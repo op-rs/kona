@@ -40,10 +40,6 @@ impl Behaviour {
         let mut gossipsub = libp2p::gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, cfg)
             .map_err(|_| BehaviourError::GossipsubCreationFailed)?;
 
-        gossipsub
-            .with_peer_score(crate::default_peer_score_params(), crate::default_score_thresholds())
-            .map_err(BehaviourError::PeerScoreFailed)?;
-
         let subscriptions = handlers
             .iter()
             .flat_map(|handler| {

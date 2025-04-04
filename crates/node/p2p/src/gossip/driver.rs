@@ -71,7 +71,7 @@ impl GossipDriver {
 
     /// Returns if the swarm has already successfully dialed the given [`Multiaddr`].
     pub fn has_dialed(&mut self, addr: &Multiaddr) -> bool {
-        self.dialed_peers.get(addr).cloned().unwrap_or(false)
+        self.dialed_peers.get(addr).copied().unwrap_or(false)
     }
 
     /// Returns the number of connected peers.
