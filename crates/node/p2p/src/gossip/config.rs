@@ -85,6 +85,7 @@ pub fn default_config_builder() -> ConfigBuilder {
         .history_length(12)
         .history_gossip(3)
         .flood_publish(false)
+        .support_floodsub()
         .max_transmit_size(MAX_GOSSIP_SIZE)
         .duplicate_cache_time(Duration::from_secs(120))
         .validation_mode(libp2p::gossipsub::ValidationMode::None)

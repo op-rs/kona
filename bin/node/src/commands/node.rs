@@ -61,6 +61,11 @@ pub struct NodeCommand {
 }
 
 impl NodeCommand {
+    /// Initializes the telemetry stack and Prometheus metrics recorder.
+    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
+        args.init_telemetry(None)
+    }
+
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
