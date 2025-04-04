@@ -78,21 +78,21 @@ impl Network {
                 }
                 select! {
                     event = self.gossip.select_next_some() => {
-                        trace!(target: "p2p::driver", "Received event: {:?}", event);
+                        trace!("Received event: {:?}", event);
                         if let Some(payload) = self.gossip.handle_event(event) {
                             unsafe_blocks.push_back(payload);
                         }
                     },
                     enr = handler.enr_receiver.recv() => {
-                        let Some(ref enr) = enr else {
-                            trace!(target: "p2p::driver", "Receiver `None` peer enr");
+                        let Some(enr) = enr else {
+                            trace!("Receiver `None` peer enr");
                             continue;
                         };
-                        self.gossip.dial(enr.clone());
+                        self.gossip.dial(enr);
                     },
                     req = rpc.recv() => {
                         let Some(req) = req else {
-                            trace!(target: "p2p::driver", "Receiver `None` rpc request");
+                            trace!("Receiver `None` rpc request");
                             continue;
                         };
                         match req {

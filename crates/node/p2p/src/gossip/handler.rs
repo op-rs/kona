@@ -60,6 +60,7 @@ impl Handler for BlockHandler {
                 if self.block_valid(&envelope) {
                     (MessageAcceptance::Accept, Some(envelope))
                 } else {
+                    debug!("Received invalid block: {:?}", envelope);
                     (MessageAcceptance::Reject, None)
                 }
             }
@@ -111,7 +112,7 @@ impl BlockHandler {
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.signer_recv.borrow();
         let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
-            warn!(target: "p2p::block_handler", "Failed to recover address from message");
+            warn!("Failed to recover address from message");
             return false;
         };
 

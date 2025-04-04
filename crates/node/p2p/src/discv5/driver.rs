@@ -134,7 +134,7 @@ impl Discv5Driver {
             match node {
                 BootNode::Enode(enode) => {
                     if let Err(err) = self.disc.request_enr(enode.to_string()).await {
-                        debug!(target: "p2p::discv5",
+                        debug!(
                             ?enode,
                             %err,
                             "failed adding boot node"
