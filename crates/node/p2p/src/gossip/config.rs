@@ -1,7 +1,9 @@
 //! Gossipsub Config
 
 use lazy_static::lazy_static;
-use libp2p::gossipsub::{Config, ConfigBuilder, Message, MessageId};
+use libp2p::gossipsub::{
+    Config, ConfigBuilder, Message, MessageId, PeerScoreParams, PeerScoreThresholds,
+};
 use openssl::sha::sha256;
 use snap::raw::Decoder;
 use std::time::Duration;
@@ -59,6 +61,38 @@ lazy_static! {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Config Building
 ////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Returns the peer score parameters for the gossipsub protocol `Behaviour`.
+pub fn default_peer_score_params() -> PeerScoreParams {
+    PeerScoreParams {
+        topics: Default::default(),
+        topic_score_cap: 3600.0,
+        app_specific_weight: 10.0,
+        ip_colocation_factor_weight: -2.0,
+        ip_colocation_factor_threshold: 10.0,
+        ip_colocation_factor_whitelist: Default::default(),
+        behaviour_penalty_weight: -10.0,
+        behaviour_penalty_threshold: 6.0,
+        behaviour_penalty_decay: 0.2,
+        decay_interval: Duration::from_secs(1),
+        decay_to_zero: 0.1,
+        retain_score: Duration::from_secs(3600),
+        slow_peer_weight: -0.2,
+        slow_peer_threshold: 0.0,
+        slow_peer_decay: 0.2,
+    }
+}
+
+/// Returns the default score thresholds for the gossipsub protocol `Behaviour`.
+pub fn default_score_thresholds() -> PeerScoreThresholds {
+    PeerScoreThresholds {
+        gossip_threshold: -10.0,
+        publish_threshold: -50.0,
+        graylist_threshold: -80.0,
+        accept_px_threshold: 10.0,
+        opportunistic_graft_threshold: 20.0,
+    }
+}
 
 /// Builds the default gossipsub configuration.
 ///

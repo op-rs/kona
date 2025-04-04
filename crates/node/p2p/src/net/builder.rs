@@ -32,6 +32,7 @@ impl From<Config> for NetworkBuilder {
             .with_discovery_address(config.discovery_address)
             .with_gossip_address(config.gossip_address)
             .with_unsafe_block_signer(config.unsafe_block_signer)
+            .with_gossip_config(config.gossip_config)
             .with_keypair(config.keypair)
     }
 }
@@ -60,6 +61,11 @@ impl NetworkBuilder {
             discovery: self.discovery.with_chain_id(id),
             ..self
         }
+    }
+
+    /// Sets the gossipsub config for the [`crate::GossipDriver`].
+    pub fn with_gossip_config(self, config: libp2p::gossipsub::Config) -> Self {
+        Self { gossip: self.gossip.with_config(config), ..self }
     }
 
     /// Sets the rpc receiver for the [`crate::Network`].

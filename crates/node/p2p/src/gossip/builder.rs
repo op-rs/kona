@@ -2,7 +2,7 @@
 
 use alloy_primitives::Address;
 use libp2p::{
-    Multiaddr, SwarmBuilder, identity::Keypair, noise::Config as NoiseConfig,
+    Multiaddr, SwarmBuilder, gossipsub::Config, identity::Keypair, noise::Config as NoiseConfig,
     tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
 };
 use std::time::Duration;
@@ -23,12 +23,21 @@ pub struct GossipDriverBuilder {
     gossip_addr: Option<Multiaddr>,
     /// Unsafe block signer [`Receiver`].
     signer: Option<Receiver<Address>>,
+    /// The [`Config`] for the [`Behaviour`].
+    config: Option<Config>,
 }
 
 impl GossipDriverBuilder {
     /// Creates a new [`GossipDriverBuilder`].
     pub const fn new() -> Self {
-        Self { chain_id: None, timeout: None, keypair: None, gossip_addr: None, signer: None }
+        Self {
+            chain_id: None,
+            timeout: None,
+            keypair: None,
+            gossip_addr: None,
+            signer: None,
+            config: None,
+        }
     }
 
     /// Specifies the chain ID of the gossip driver.
@@ -61,6 +70,12 @@ impl GossipDriverBuilder {
         self
     }
 
+    /// Sets the [`Config`] for the [`Behaviour`].
+    pub fn with_config(mut self, config: Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
     /// Builds the [`GossipDriver`].
     pub fn build(mut self) -> Result<GossipDriver, GossipDriverBuilderError> {
         // Extract builder arguments
@@ -74,7 +89,15 @@ impl GossipDriverBuilder {
         let handler = BlockHandler::new(chain_id, signer_recv);
 
         // Construct the gossip behaviour
-        let config = crate::default_config();
+        let config = self.config.unwrap_or(crate::default_config());
+        info!(
+            "Config [Mesh D: {}] [Mesh L: {}] [Mesh H: {}] [Gossip Lazy: {}] [Flood Publish: {}]",
+            config.mesh_n(),
+            config.mesh_n_low(),
+            config.mesh_n_high(),
+            config.gossip_lazy(),
+            config.flood_publish()
+        );
         let behaviour = Behaviour::new(config, &[Box::new(handler.clone())])?;
 
         // Build the swarm.

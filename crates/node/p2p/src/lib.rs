@@ -22,7 +22,7 @@ pub use gossip::{
     DEFAULT_MESH_DLO, Event, GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GossipDriver,
     GossipDriverBuilder, GossipDriverBuilderError, Handler, MAX_GOSSIP_SIZE, MAX_OUTBOUND_QUEUE,
     MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE, PEER_SCORE_INSPECT_FREQUENCY, SEEN_MESSAGES_TTL,
-    default_config, default_config_builder,
+    default_config, default_config_builder, default_peer_score_params, default_score_thresholds,
 };
 
 mod peers;

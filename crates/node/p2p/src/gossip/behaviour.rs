@@ -16,6 +16,9 @@ pub enum BehaviourError {
     /// Subscription failed.
     #[error("subscription failed")]
     SubscriptionFailed,
+    /// Failed to set the peer score on the gossipsub.
+    #[error("{0}")]
+    PeerScoreFailed(String),
 }
 
 /// Specifies the [`NetworkBehaviour`] of the node
@@ -36,6 +39,10 @@ impl Behaviour {
 
         let mut gossipsub = libp2p::gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, cfg)
             .map_err(|_| BehaviourError::GossipsubCreationFailed)?;
+
+        gossipsub
+            .with_peer_score(crate::default_peer_score_params(), crate::default_score_thresholds())
+            .map_err(BehaviourError::PeerScoreFailed)?;
 
         let subscriptions = handlers
             .iter()
