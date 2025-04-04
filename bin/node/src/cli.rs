@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::{cli_styles, init_prometheus_server, init_tracing_subscriber};
+use kona_cli::cli_styles;
 
 /// Subcommands for the CLI.
 #[derive(Debug, Clone, Subcommand)]
@@ -33,28 +33,17 @@ pub struct Cli {
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
-        // Initialize the telemetry stack.
-        Self::init_stack(self.global.v, self.global.metrics_port)?;
+        // Initialize telemetry - allow subcommands to customize the filter.
+        match self.subcommand {
+            Commands::Node(ref node) => node.init_telemetry(&self.global)?,
+            Commands::Net(ref net) => net.init_telemetry(&self.global)?,
+        }
 
+        // Run the subcommand.
         match self.subcommand {
             Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
             Commands::Net(net) => Self::run_until_ctrl_c(net.run(&self.global)),
         }
-    }
-
-    /// Initialize the tracing stack and Prometheus metrics recorder.
-    ///
-    /// This function should be called at the beginning of the program.
-    pub fn init_stack(verbosity: u8, metrics_port: u16) -> Result<()> {
-        // Filter out discovery warnings since they're very very noisy.
-        let filter = tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("discv5=error".parse()?);
-        init_tracing_subscriber(verbosity, Some(filter))?;
-
-        // Start the Prometheus metrics server.
-        init_prometheus_server(metrics_port)?;
-
-        Ok(())
     }
 
     /// Run until ctrl-c is pressed.

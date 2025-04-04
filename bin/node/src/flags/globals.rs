@@ -2,7 +2,9 @@
 
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
+use kona_cli::{init_prometheus_server, init_tracing_subscriber};
 use kona_registry::OPCHAINS;
+use tracing_subscriber::EnvFilter;
 
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
@@ -24,6 +26,15 @@ pub struct GlobalArgs {
 }
 
 impl GlobalArgs {
+    /// Initialize the tracing stack and Prometheus metrics recorder.
+    ///
+    /// This function should be called at the beginning of the program.
+    pub fn init_telemetry(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
+        init_tracing_subscriber(self.v, filter)?;
+        init_prometheus_server(self.metrics_port)?;
+        Ok(())
+    }
+
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.
     pub fn genesis_signer(&self) -> anyhow::Result<Address> {
         let id = self.l2_chain_id;
