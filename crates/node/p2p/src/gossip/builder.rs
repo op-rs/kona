@@ -8,7 +8,7 @@ use libp2p::{
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
 
-use crate::{Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError};
+use crate::{Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, PeerScoreLevel};
 
 /// A builder for the [`GossipDriver`].
 #[derive(Debug, Default)]
@@ -23,8 +23,12 @@ pub struct GossipDriverBuilder {
     gossip_addr: Option<Multiaddr>,
     /// Unsafe block signer [`Receiver`].
     signer: Option<Receiver<Address>>,
+    /// Sets the [`PeerScoreLevel`] for the [`Behaviour`].
+    scoring: Option<PeerScoreLevel>,
     /// The [`Config`] for the [`Behaviour`].
     config: Option<Config>,
+    /// Sets the block time for the peer scoring.
+    block_time: Option<u64>,
 }
 
 impl GossipDriverBuilder {
@@ -36,13 +40,27 @@ impl GossipDriverBuilder {
             keypair: None,
             gossip_addr: None,
             signer: None,
+            scoring: None,
             config: None,
+            block_time: None,
         }
     }
 
     /// Specifies the chain ID of the gossip driver.
     pub fn with_chain_id(mut self, chain_id: u64) -> Self {
         self.chain_id = Some(chain_id);
+        self
+    }
+
+    /// Sets the block time for the peer scoring.
+    pub fn with_block_time(mut self, block_time: u64) -> Self {
+        self.block_time = Some(block_time);
+        self
+    }
+
+    /// Sets the [`PeerScoreLevel`] for the [`Behaviour`].
+    pub fn with_peer_scoring(mut self, level: PeerScoreLevel) -> Self {
+        self.scoring = Some(level);
         self
     }
 
@@ -98,7 +116,20 @@ impl GossipDriverBuilder {
             config.gossip_lazy(),
             config.flood_publish()
         );
-        let behaviour = Behaviour::new(config, &[Box::new(handler.clone())])?;
+        let mut behaviour = Behaviour::new(config, &[Box::new(handler.clone())])?;
+
+        // If peer scoring is configured, set it on the behaviour.
+        if let Some(scoring) = self.scoring {
+            use crate::gossip::handler::Handler;
+            let block_time = self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
+            let params = scoring.to_params(handler.topics(), block_time).unwrap_or_default();
+            match behaviour.gossipsub.with_peer_score(params, PeerScoreLevel::thresholds()) {
+                Ok(_) => debug!(target: "scoring", "Peer scoring enabled successfully"),
+                Err(e) => warn!(target: "scoring", "Peer scoring failed: {}", e),
+            }
+        } else {
+            info!(target: "scoring", "Peer scoring not enabled");
+        }
 
         // Build the swarm.
         info!("Building Swarm with Peer ID: {}", keypair.public().to_peer_id());

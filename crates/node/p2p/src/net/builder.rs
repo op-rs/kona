@@ -9,6 +9,7 @@ use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network, NetworkBuilderError,
+    PeerScoreLevel,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -33,6 +34,8 @@ impl From<Config> for NetworkBuilder {
             .with_gossip_address(config.gossip_address)
             .with_unsafe_block_signer(config.unsafe_block_signer)
             .with_gossip_config(config.gossip_config)
+            .with_peer_scoring(config.scoring)
+            .with_block_time(config.block_time)
             .with_keypair(config.keypair)
     }
 }
@@ -47,6 +50,16 @@ impl NetworkBuilder {
             rpc_recv: None,
             payload_tx: None,
         }
+    }
+
+    /// Sets the block time used by peer scoring.
+    pub fn with_block_time(self, block_time: u64) -> Self {
+        Self { gossip: self.gossip.with_block_time(block_time), ..self }
+    }
+
+    /// Sets the peer scoring based on the given [`PeerScoreLevel`].
+    pub fn with_peer_scoring(self, level: PeerScoreLevel) -> Self {
+        Self { gossip: self.gossip.with_peer_scoring(level), ..self }
     }
 
     /// Sets the address for the [`crate::Discv5Driver`].

@@ -8,7 +8,7 @@ use crate::flags::GlobalArgs;
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
-use kona_p2p::Config;
+use kona_p2p::{Config, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, SocketAddr},
@@ -92,6 +92,10 @@ pub struct P2PArgs {
         env = "KONA_NODE_P2P_GOSSIP_FLOOD_PUBLISH"
     )]
     pub gossip_flood_publish: bool,
+    /// Sets the peer scoring strategy for the P2P stack.
+    /// Can be one of: none or light.
+    #[arg(long = "p2p.scoring", default_value = "light", env = "KONA_NODE_P2P_SCORING")]
+    pub scoring: PeerScoreLevel,
 }
 
 impl Default for P2PArgs {
@@ -112,6 +116,7 @@ impl Default for P2PArgs {
             gossip_mesh_dhi: kona_p2p::DEFAULT_MESH_DHI,
             gossip_mesh_dlazy: kona_p2p::DEFAULT_MESH_DLAZY,
             gossip_flood_publish: false,
+            scoring: PeerScoreLevel::Light,
         }
     }
 }
@@ -134,12 +139,15 @@ impl P2PArgs {
             .gossip_lazy(self.gossip_mesh_dlazy)
             .flood_publish(self.gossip_flood_publish)
             .build()?;
+        let block_time = args.block_time()?;
         Ok(Config {
             discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
             gossip_address: multiaddr,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
             unsafe_block_signer: args.genesis_signer()?,
             gossip_config,
+            scoring: self.scoring,
+            block_time,
         })
     }
 

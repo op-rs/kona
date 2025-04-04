@@ -45,6 +45,9 @@ pub use nodes::{BootNodes, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES};
 mod store;
 pub use store::BootStore;
 
+mod score;
+pub use score::PeerScoreLevel;
+
 mod enr;
 pub use enr::OpStackEnr;
 

@@ -25,4 +25,7 @@ pub enum GossipDriverBuilderError {
     /// An error when building the gossip behaviour.
     #[error("error building gossip behaviour")]
     BehaviourError(BehaviourError),
+    /// Missing the l2 block time.
+    #[error("missing l2 block time")]
+    MissingL2BlockTime,
 }

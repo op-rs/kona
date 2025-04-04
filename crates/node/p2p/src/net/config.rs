@@ -1,5 +1,6 @@
 //! Configuration for the `Network`.
 
+use crate::PeerScoreLevel;
 use alloy_primitives::Address;
 use libp2p::identity::Keypair;
 use std::net::SocketAddr;
@@ -17,4 +18,8 @@ pub struct Config {
     pub keypair: Keypair,
     /// The gossip config.
     pub gossip_config: libp2p::gossipsub::Config,
+    /// The peer score level.
+    pub scoring: PeerScoreLevel,
+    /// The L2 Block Time.
+    pub block_time: u64,
 }
