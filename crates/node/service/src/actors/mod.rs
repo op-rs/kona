@@ -5,6 +5,9 @@
 mod traits;
 pub use traits::NodeActor;
 
+mod engine;
+pub use engine::EngineConfig;
+
 mod rpc;
 pub use rpc::{RpcActor, RpcActorError};
 

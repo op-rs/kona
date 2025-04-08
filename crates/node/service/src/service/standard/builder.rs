@@ -18,17 +18,17 @@ pub struct RollupNodeBuilder {
     /// The rollup configuration.
     config: RollupConfig,
     /// The sync configuration.
-    _sync_config: Option<SyncConfig>,
+    sync_config: Option<SyncConfig>,
     /// The L1 EL provider RPC URL.
     l1_provider_rpc_url: Option<Url>,
     /// The L1 beacon API URL.
     l1_beacon_api_url: Option<Url>,
     /// The L2 engine RPC URL.
-    _l2_engine_rpc_url: Option<Url>,
+    l2_engine_rpc_url: Option<Url>,
     /// The L2 EL provider RPC URL.
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
-    _jwt_secret: Option<JwtSecret>,
+    jwt_secret: Option<JwtSecret>,
     /// The [`Config`].
     p2p_config: Option<Config>,
     /// An RPC Configuration.
@@ -52,7 +52,7 @@ impl RollupNodeBuilder {
 
     /// Appends a [`SyncConfig`] to the builder.
     pub fn with_sync_config(self, sync_config: SyncConfig) -> Self {
-        Self { _sync_config: Some(sync_config), ..self }
+        Self { sync_config: Some(sync_config), ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.
@@ -67,7 +67,7 @@ impl RollupNodeBuilder {
 
     /// Appends an L2 engine RPC URL to the builder.
     pub fn with_l2_engine_rpc_url(self, l2_engine_rpc_url: Url) -> Self {
-        Self { _l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
+        Self { l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
     }
 
     /// Appends an L2 EL provider RPC URL to the builder.
@@ -77,7 +77,7 @@ impl RollupNodeBuilder {
 
     /// Appends a JWT secret to the builder.
     pub fn with_jwt_secret(self, jwt_secret: JwtSecret) -> Self {
-        Self { _jwt_secret: Some(jwt_secret), ..self }
+        Self { jwt_secret: Some(jwt_secret), ..self }
     }
 
     /// Appends the P2P [`Config`] to the builder.
@@ -103,6 +103,9 @@ impl RollupNodeBuilder {
     /// - The L1 provider RPC URL is not set.
     /// - The L1 beacon API URL is not set.
     /// - The L2 provider RPC URL is not set.
+    /// - The L2 engine URL is not set.
+    /// - The sync config is not set.
+    /// - The jwt secret is not set.
     pub fn build(self) -> RollupNode {
         let l1_provider =
             RootProvider::new_http(self.l1_provider_rpc_url.expect("l1 provider rpc url not set"));
@@ -114,13 +117,19 @@ impl RollupNodeBuilder {
 
         let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
 
+        let l2_engine = crate::EngineConfig {
+            sync: self.sync_config.expect("missing sync config"),
+            engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
+            jwt_secret: self.jwt_secret.expect("missing jwt secret"),
+        };
+
         RollupNode {
             mode: self.mode,
             config: Arc::new(self.config),
             l1_provider,
             l1_beacon,
             l2_provider,
-            _l2_engine: (),
+            l2_engine,
             rpc_launcher,
             p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,

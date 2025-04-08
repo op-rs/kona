@@ -1,7 +1,7 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
+    EngineConfig, L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
     RollupNodeService, SequencerNodeService, ValidatorNodeService, find_starting_forkchoice,
 };
 use alloy_primitives::Address;
@@ -40,10 +40,9 @@ pub struct RollupNode {
     pub(crate) l1_beacon: OnlineBeaconClient,
     /// The L2 EL provider.
     pub(crate) l2_provider: RootProvider<Optimism>,
-    /// The L2 engine.
-    ///
-    /// TODO: Place L2 Engine API client here once it's ready.
-    pub(crate) _l2_engine: (),
+    /// Configuration for the Engine Actor
+    #[allow(unused)]
+    pub(crate) l2_engine: EngineConfig,
     /// The [`RpcLauncher`] for the node.
     pub(crate) rpc_launcher: RpcLauncher,
     /// The P2P [`Config`] for the node.
