@@ -1,17 +1,26 @@
 set positional-arguments
+alias all := build-client-prestate-artifacts
+alias cannon := build-client-prestate-cannon-artifacts
 alias asterisc := build-client-prestate-asterisc-artifacts
 
 # default recipe to display help information
 default:
   @just --list
 
-# Build the `kona-client` prestate artifacts for the latest release.
+# Build the `kona-client` prestate artifacts for the specified tags (asterisc + cannon).
+build-client-prestate-artifacts kona_tag asterisc_tag cannon_tag:
+  #!/bin/bash
+  just build-client-prestate-asterisc-artifacts {{kona_tag}} {{asterisc_tag}}
+  just build-client-prestate-cannon-artifacts {{kona_tag}} {{cannon_tag}}
+
+# Build the `kona-client` prestate artifacts for the latest release (asterisc).
 build-client-prestate-asterisc-artifacts kona_tag asterisc_tag out='./prestate-artifacts-asterisc':
   #!/bin/bash
   OUTPUT_DIR={{out}}
 
   # Docker bake env
   export GIT_REF_NAME="{{kona_tag}}"
+  export ASTERISC_TAG="{{asterisc_tag}}"
   export DEFAULT_TAG="kona-asterisc-prestate:local"
 
   # Navigate to workspace root
@@ -25,3 +34,25 @@ build-client-prestate-asterisc-artifacts kona_tag asterisc_tag out='./prestate-a
     --set "*.output=$OUTPUT_DIR" \
     -f docker/docker-bake.hcl \
     kona-asterisc-prestate
+
+# Build the `kona-client` prestate artifacts for the latest release (cannon).
+build-client-prestate-cannon-artifacts kona_tag cannon_tag out='./prestate-artifacts-cannon':
+  #!/bin/bash
+  OUTPUT_DIR={{out}}
+
+  # Docker bake env
+  export GIT_REF_NAME="{{kona_tag}}"
+  export CANNON_TAG="{{cannon_tag}}"
+  export DEFAULT_TAG="kona-cannon-prestate:local"
+
+  # Navigate to workspace root
+  cd ../..
+
+  # Create the output directory
+  mkdir -p $OUTPUT_DIR
+
+  echo "Building kona-client prestate artifacts for the cannon target. 🐚 Kona Tag: {{kona_tag}} | 🔫 Cannon Tag: {{cannon_tag}}"
+  docker buildx bake \
+    --set "*.output=$OUTPUT_DIR" \
+    -f docker/docker-bake.hcl \
+    kona-cannon-prestate
