@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineConfig, NodeMode, RollupNode};
+use crate::{EngineLauncher, NodeMode, RollupNode};
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use std::sync::Arc;
@@ -118,7 +118,7 @@ impl RollupNodeBuilder {
         let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
 
         let config = Arc::new(self.config);
-        let l2_engine = EngineConfig {
+        let engine_launcher = EngineLauncher {
             config: Arc::clone(&config),
             sync: self.sync_config.expect("missing sync config"),
             l2_rpc_url,
@@ -132,7 +132,7 @@ impl RollupNodeBuilder {
             l1_provider,
             l1_beacon,
             l2_provider,
-            l2_engine,
+            engine_launcher,
             rpc_launcher,
             p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,

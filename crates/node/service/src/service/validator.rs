@@ -1,7 +1,8 @@
 //! [ValidatorNodeService] trait.
 
 use crate::{
-    DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, RpcActor, service::spawn_and_wait,
+    DerivationActor, EngineActor, EngineLaunchError, EngineLauncher, L2ForkchoiceState,
+    NetworkActor, NodeActor, RpcActor, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -56,7 +57,7 @@ pub trait ValidatorNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError>;
+    type Error: From<RpcLauncherError> + From<EngineLaunchError>;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;
@@ -79,6 +80,9 @@ pub trait ValidatorNodeService {
 
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<Network>, Self::Error>;
+
+    /// Returns the [`EngineLauncher`]
+    fn engine(&self) -> EngineLauncher;
 
     /// Returns the [`RpcLauncher`] for the node.
     fn rpc(&self) -> Option<RpcLauncher>;
@@ -106,6 +110,12 @@ pub trait ValidatorNodeService {
         );
         let derivation = Some(derivation);
 
+        let launcher = self.engine();
+        let sync = launcher.sync.clone();
+        let engine = launcher.launch().await?;
+        let engine = EngineActor::new(sync, engine, cancellation.clone());
+        let engine = Some(engine);
+
         let network = (self.init_network().await?).map_or_else(
             || None,
             |driver| {
@@ -127,7 +137,7 @@ pub trait ValidatorNodeService {
             None
         };
 
-        spawn_and_wait!(cancellation, actors = [da_watcher, rpc, derivation, network]);
+        spawn_and_wait!(cancellation, actors = [da_watcher, rpc, derivation, engine, network]);
         Ok(())
     }
 }
