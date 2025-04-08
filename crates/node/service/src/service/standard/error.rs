@@ -1,6 +1,6 @@
 //! Contains the error type for the [`crate::RollupNode`].
 
-use crate::SyncStartError;
+use crate::{EngineLaunchError, SyncStartError};
 use kona_derive::errors::PipelineErrorKind;
 use kona_p2p::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
@@ -24,4 +24,7 @@ pub enum RollupNodeError {
     /// An error occured while launching the RPC server.
     #[error(transparent)]
     RpcLauncher(#[from] RpcLauncherError),
+    /// An error occured while launching the engine api.
+    #[error(transparent)]
+    EngineLauncher(#[from] EngineLaunchError),
 }
