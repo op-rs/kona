@@ -94,7 +94,7 @@ pub trait ValidatorNodeService {
 
         // Create channels for communication between actors.
         let (new_head_tx, new_head_rx) = mpsc::unbounded_channel();
-        let (derived_payload_tx, _derived_payload_rx) = mpsc::unbounded_channel();
+        let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let da_watcher =
@@ -111,9 +111,17 @@ pub trait ValidatorNodeService {
         let derivation = Some(derivation);
 
         let launcher = self.engine();
+        let client = launcher.client();
         let sync = launcher.sync.clone();
         let engine = launcher.launch().await?;
-        let engine = EngineActor::new(sync, engine, cancellation.clone());
+        let engine = EngineActor::new(
+            std::sync::Arc::new(self.config().clone()),
+            sync,
+            client,
+            engine,
+            derived_payload_rx,
+            cancellation.clone(),
+        );
         let engine = Some(engine);
 
         let network = (self.init_network().await?).map_or_else(

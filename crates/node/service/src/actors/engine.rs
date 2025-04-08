@@ -2,9 +2,11 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
-use kona_engine::{Engine, EngineClient, EngineStateBuilder, SyncConfig};
+use kona_engine::{BuildTask, Engine, EngineClient, EngineStateBuilder, EngineTask, SyncConfig};
 use kona_genesis::RollupConfig;
+use kona_rpc::OpAttributesWithParent;
 use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -19,18 +21,31 @@ use crate::NodeActor;
 /// The rollup node ne
 #[derive(Debug)]
 pub struct EngineActor {
+    /// The [`RollupConfig`] used to build tasks.
+    pub config: Arc<RollupConfig>,
     /// The [`SyncConfig`] for engine api tasks.
     pub sync: SyncConfig,
+    /// An [`EngineClient`] used for creating engine tasks.
+    pub client: Arc<EngineClient>,
     /// The [`Engine`].
     pub engine: Engine,
+    /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
+    attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub const fn new(sync: SyncConfig, engine: Engine, cancellation: CancellationToken) -> Self {
-        Self { sync, engine, cancellation }
+    pub fn new(
+        config: Arc<RollupConfig>,
+        sync: SyncConfig,
+        client: EngineClient,
+        engine: Engine,
+        attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
+        cancellation: CancellationToken,
+    ) -> Self {
+        Self { config, sync, client: Arc::new(client), engine, attributes_rx, cancellation }
     }
 }
 
@@ -103,6 +118,20 @@ impl NodeActor for EngineActor {
                     if let Err(e) = res {
                         warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
                     }
+                }
+                attributes = self.attributes_rx.recv() => {
+                    let Some(attributes) = attributes else {
+                        debug!(target: "engine", "Received `None` attributes from receiver");
+                        continue;
+                    };
+                    let task = BuildTask::new(
+                        Arc::clone(&self.client),
+                        Arc::clone(&self.config),
+                        attributes,
+                        true,
+                    );
+                    let task = EngineTask::BuildBlock(task);
+                    self.engine.enqueue(task);
                 }
             }
         }

@@ -31,7 +31,7 @@ impl Engine {
     }
 
     /// Enqueues a new [EngineTask] for execution.
-    pub async fn enqueue(&mut self, task: EngineTask) {
+    pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.push_back(task);
     }
 
