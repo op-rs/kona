@@ -25,4 +25,5 @@ mod errors;
 pub use errors::{
     BatcherUpdateError, EIP1559UpdateError, GasConfigUpdateError, GasLimitUpdateError,
     LogProcessingError, OperatorFeeUpdateError, SystemConfigUpdateError,
+    UnsafeBlockSignerUpdateError,
 };

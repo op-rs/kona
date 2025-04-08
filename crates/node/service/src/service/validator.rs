@@ -3,6 +3,7 @@
 use crate::{
     DerivationActor, L2ForkchoiceState, NetworkActor, NodeActor, RpcActor, service::spawn_and_wait,
 };
+use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
@@ -66,6 +67,7 @@ pub trait ValidatorNodeService {
     fn new_da_watcher(
         &self,
         new_data_tx: UnboundedSender<BlockInfo>,
+        block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
     ) -> Self::DataAvailabilityWatcher;
 
@@ -90,7 +92,9 @@ pub trait ValidatorNodeService {
         let (new_head_tx, new_head_rx) = mpsc::unbounded_channel();
         let (derived_payload_tx, _derived_payload_rx) = mpsc::unbounded_channel();
 
-        let da_watcher = Some(self.new_da_watcher(new_head_tx, cancellation.clone()));
+        let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
+        let da_watcher =
+            Some(self.new_da_watcher(new_head_tx, block_signer_tx, cancellation.clone()));
 
         let (l2_forkchoice_state, derivation_pipeline) = self.init_derivation().await?;
         let derivation = DerivationActor::new(
@@ -105,10 +109,7 @@ pub trait ValidatorNodeService {
         let network = (self.init_network().await?).map_or_else(
             || None,
             |driver| {
-                // Create channels to communicate unsafe blocks and block signer.
                 let (unsafe_block_tx, _unsafe_block_rx) = mpsc::unbounded_channel();
-                let (_block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
-                // Create the network actor.
                 Some(NetworkActor::new(
                     driver,
                     unsafe_block_tx,

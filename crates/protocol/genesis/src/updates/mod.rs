@@ -3,6 +3,9 @@
 mod batcher;
 pub use batcher::BatcherUpdate;
 
+mod signer;
+pub use signer::UnsafeBlockSignerUpdate;
+
 mod gas_config;
 pub use gas_config::GasConfigUpdate;
 

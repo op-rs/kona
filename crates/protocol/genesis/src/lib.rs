@@ -37,6 +37,7 @@ pub use superchain::{
 mod updates;
 pub use updates::{
     BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate,
+    UnsafeBlockSignerUpdate,
 };
 
 mod system;
@@ -44,7 +45,7 @@ pub use system::{
     BatcherUpdateError, CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC, EIP1559UpdateError,
     GasConfigUpdateError, GasLimitUpdateError, LogProcessingError, OperatorFeeUpdateError,
     SystemConfig, SystemConfigLog, SystemConfigUpdate, SystemConfigUpdateError,
-    SystemConfigUpdateKind,
+    SystemConfigUpdateKind, UnsafeBlockSignerUpdateError,
 };
 
 /// An alias for the hardfork configuration.

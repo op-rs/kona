@@ -25,6 +25,9 @@ pub enum SystemConfigUpdateError {
     /// An operator fee parameter update error.
     #[error("Operator fee parameter update error: {0}")]
     OperatorFee(OperatorFeeUpdateError),
+    /// An unsafe block signer update error.
+    #[error("Unsafe block signer update error: {0}")]
+    UnsafeBlockSigner(UnsafeBlockSignerUpdateError),
 }
 
 /// An error occurred while processing the update log.
@@ -70,6 +73,30 @@ pub enum BatcherUpdateError {
     /// Failed to decode the batcher address argument from the batcher update log.
     #[error("Failed to decode batcher update log: batcher address")]
     BatcherAddressDecodingError,
+}
+
+/// An error for updating the unsafe block signer address on the [crate::SystemConfig].
+#[derive(Debug, thiserror::Error, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum UnsafeBlockSignerUpdateError {
+    /// Invalid data length.
+    #[error("Invalid config update log: invalid data length: {0}")]
+    InvalidDataLen(usize),
+    /// Failed to decode the data pointer argument from the update log.
+    #[error("Failed to decode unsafe block signer update log: data pointer")]
+    PointerDecodingError,
+    /// The data pointer is invalid.
+    #[error("Invalid config update log: invalid data pointer: {0}")]
+    InvalidDataPointer(u64),
+    /// Failed to decode the data length argument from the update log.
+    #[error("Failed to decode unsafe block signer update log: data length")]
+    LengthDecodingError,
+    /// The data length is invalid.
+    #[error("Invalid config update log: invalid data length: {0}")]
+    InvalidDataLength(u64),
+    /// Failed to decode the unsafe block signer address argument from the update log.
+    #[error("Failed to decode unsafe block signer update log: unsafe block signer address")]
+    UnsafeBlockSignerAddressDecodingError,
 }
 
 /// An error for updating the gas config on the [crate::SystemConfig].

@@ -2,7 +2,7 @@
 
 use crate::{
     BatcherUpdate, Eip1559Update, GasConfigUpdate, GasLimitUpdate, OperatorFeeUpdate, SystemConfig,
-    SystemConfigUpdateKind,
+    SystemConfigUpdateKind, UnsafeBlockSignerUpdate,
 };
 
 /// The system config update is an update
@@ -17,7 +17,7 @@ pub enum SystemConfigUpdate {
     /// The gas limit update.
     GasLimit(GasLimitUpdate),
     /// The unsafe block signer update.
-    UnsafeBlockSigner,
+    UnsafeBlockSigner(UnsafeBlockSignerUpdate),
     /// The EIP-1559 parameters update.
     Eip1559(Eip1559Update),
     /// The operator fee parameter update.
@@ -31,7 +31,7 @@ impl SystemConfigUpdate {
             Self::Batcher(update) => update.apply(config),
             Self::GasConfig(update) => update.apply(config),
             Self::GasLimit(update) => update.apply(config),
-            Self::UnsafeBlockSigner => { /* Ignored in derivation */ }
+            Self::UnsafeBlockSigner(_) => { /* Ignored in derivation */ }
             Self::Eip1559(update) => update.apply(config),
             Self::OperatorFee(update) => update.apply(config),
         }
@@ -43,7 +43,7 @@ impl SystemConfigUpdate {
             Self::Batcher(_) => SystemConfigUpdateKind::Batcher,
             Self::GasConfig(_) => SystemConfigUpdateKind::GasConfig,
             Self::GasLimit(_) => SystemConfigUpdateKind::GasLimit,
-            Self::UnsafeBlockSigner => SystemConfigUpdateKind::UnsafeBlockSigner,
+            Self::UnsafeBlockSigner(_) => SystemConfigUpdateKind::UnsafeBlockSigner,
             Self::Eip1559(_) => SystemConfigUpdateKind::Eip1559,
             Self::OperatorFee(_) => SystemConfigUpdateKind::OperatorFee,
         }

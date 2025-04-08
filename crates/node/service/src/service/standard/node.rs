@@ -4,6 +4,7 @@ use crate::{
     L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
     RollupNodeService, SequencerNodeService, ValidatorNodeService, find_starting_forkchoice,
 };
+use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use op_alloy_network::Optimism;
@@ -85,9 +86,16 @@ impl ValidatorNodeService for RollupNode {
     fn new_da_watcher(
         &self,
         new_da_tx: UnboundedSender<BlockInfo>,
+        block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
     ) -> Self::DataAvailabilityWatcher {
-        L1WatcherRpc::new(self.l1_provider.clone(), new_da_tx, cancellation)
+        L1WatcherRpc::new(
+            self.config.clone(),
+            self.l1_provider.clone(),
+            new_da_tx,
+            block_signer_tx,
+            cancellation,
+        )
     }
 
     fn rpc(&self) -> Option<RpcLauncher> {
