@@ -33,13 +33,14 @@ pub struct InsertUnsafeTask {
 
 impl InsertUnsafeTask {
     /// Creates a new insert task.
-    pub const fn new(
+    pub fn new(
         client: Arc<EngineClient>,
         sync_config: Arc<SyncConfig>,
         rollup_config: Arc<RollupConfig>,
-        version: EngineForkchoiceVersion,
         envelope: OpNetworkPayloadEnvelope,
     ) -> Self {
+        let version =
+            EngineForkchoiceVersion::from_cfg(rollup_config.as_ref(), envelope.payload.timestamp());
         Self { client, sync_config, rollup_config, version, envelope }
     }
 
