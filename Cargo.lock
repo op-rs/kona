@@ -3878,7 +3878,6 @@ dependencies = [
  "alloy-rpc-types-engine",
  "alloy-transport",
  "alloy-transport-http",
- "anyhow",
  "async-trait",
  "derive_more 2.0.1",
  "http-body-util",

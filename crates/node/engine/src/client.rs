@@ -9,7 +9,7 @@ use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
     ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
 };
-use alloy_transport::TransportResult;
+use alloy_transport::{RpcError, TransportErrorKind, TransportResult};
 use alloy_transport_http::{
     AuthLayer, AuthService, Http, HyperClient,
     hyper_util::{
@@ -17,7 +17,6 @@ use alloy_transport_http::{
         rt::TokioExecutor,
     },
 };
-use anyhow::Result;
 use derive_more::Deref;
 use http_body_util::Full;
 use op_alloy_network::Optimism;
@@ -26,12 +25,24 @@ use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpPayloadAttributes,
 };
 use std::sync::Arc;
+use thiserror::Error;
 use tower::ServiceBuilder;
 use url::Url;
 
 use kona_genesis::RollupConfig;
-use kona_protocol::L2BlockInfo;
+use kona_protocol::{FromBlockError, L2BlockInfo};
 
+/// An error that occured in the [EngineClient].
+#[derive(Error, Debug)]
+pub enum EngineClientError {
+    /// An RPC error occurred
+    #[error("An RPC error occurred: {0}")]
+    RpcError(#[from] RpcError<TransportErrorKind>),
+
+    /// An error occurred while decoding the payload
+    #[error("An error occurred while decoding the payload: {0}")]
+    BlockInfoDecodeError(#[from] FromBlockError),
+}
 /// A Hyper HTTP client with a JWT authentication layer.
 type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
 
@@ -68,11 +79,8 @@ impl EngineClient {
     pub async fn l2_block_info_by_label(
         &self,
         numtag: BlockNumberOrTag,
-    ) -> Result<Option<L2BlockInfo>> {
-        let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag)
-            .full()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+    ) -> Result<Option<L2BlockInfo>, EngineClientError> {
+        let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag).full().await?;
 
         match block.map(|b| b.into_consensus()) {
             Some(block) => {
