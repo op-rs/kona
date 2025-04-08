@@ -111,7 +111,7 @@ pub enum InteropHostError {
     ExecutionError(#[from] tokio::task::JoinError),
     /// A RPC error.
     #[error("Rpc Error: {0}")]
-    RcpError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
+    RpcError(#[from] alloy_transport::RpcError<alloy_transport::TransportErrorKind>),
     /// An error when no provider found for chain ID.
     #[error("No provider found for chain ID: {0}")]
     RootProviderError(u64),
