@@ -17,7 +17,7 @@ kona-cli.workspace = true
 kona-p2p.workspace = true
 kona-engine.workspace = true
 kona-genesis.workspace = true
-kona-registry.workspace = true
+kona-registry = { workspace = true, features = ["tabled"] }
 kona-node-service.workspace = true
 kona-rpc = { workspace = true, features = ["std"] }
 
@@ -27,6 +27,7 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 
 # general
 url.workspace = true
+tabled.workspace = true
 libp2p.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

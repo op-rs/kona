@@ -1,7 +1,7 @@
 //! Contains the node CLI.
 
 use crate::{
-    commands::{NetCommand, NodeCommand},
+    commands::{NetCommand, NodeCommand, RegistryCommand},
     flags::GlobalArgs,
 };
 use anyhow::Result;
@@ -16,6 +16,8 @@ pub enum Commands {
     Node(NodeCommand),
     /// Runs the networking stack for the node.
     Net(NetCommand),
+    /// Lists the OP Stack chains available in the superchain-registry.
+    Registry(RegistryCommand),
 }
 
 /// The node CLI.
@@ -43,6 +45,7 @@ impl Cli {
         match self.subcommand {
             Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
             Commands::Net(net) => Self::run_until_ctrl_c(net.run(&self.global)),
+            Commands::Registry(registry) => registry.run(&self.global),
         }
     }
 
