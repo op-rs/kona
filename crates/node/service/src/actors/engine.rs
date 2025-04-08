@@ -35,6 +35,10 @@ impl From<EngineConfig> for EngineActor {
 pub struct EngineConfig {
     /// The rollup config.
     pub config: Arc<RollupConfig>,
+    /// The [`SyncConfig`] for engine api tasks.
+    pub sync: SyncConfig,
+    /// The engine rpc url.
+    pub engine_url: Url,
     /// The l2 rpc url.
     pub l2_rpc_url: Url,
     /// The engine jwt secret.
