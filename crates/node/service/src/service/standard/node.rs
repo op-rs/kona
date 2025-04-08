@@ -99,16 +99,15 @@ impl ValidatorNodeService for RollupNode {
         if self.network_disabled {
             return Ok(None);
         }
-        if self.p2p_config.is_none() {
+        let Some(ref p2p_config) = self.p2p_config else {
             warn!(
                 target: "rollup_node",
                 "No network configuration provided, skipping network initialization"
             );
             return Ok(None);
-        }
+        };
         let chain_id = self.config.l2_chain_id;
-        let p2p_config = self.p2p_config.clone().expect("P2P config is checked to be Some");
-        NetworkBuilder::from(p2p_config)
+        NetworkBuilder::from(p2p_config.clone())
             .with_chain_id(chain_id)
             .build()
             .map(Some)
