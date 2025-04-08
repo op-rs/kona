@@ -44,7 +44,6 @@ pub struct RollupNode {
     /// TODO: Place L2 Engine API client here once it's ready.
     pub(crate) _l2_engine: (),
     /// The [`RpcLauncher`] for the node.
-    #[allow(unused)]
     pub(crate) rpc_launcher: RpcLauncher,
     /// The P2P [`Config`] for the node.
     pub(crate) p2p_config: Option<Config>,
