@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{NodeMode, RollupNode};
+use crate::{EngineConfig, NodeMode, RollupNode};
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use std::sync::Arc;
@@ -112,20 +112,23 @@ impl RollupNodeBuilder {
         let l1_beacon = OnlineBeaconClient::new_http(
             self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
         );
-        let l2_provider =
-            RootProvider::new_http(self.l2_provider_rpc_url.expect("l2 provider rpc url not set"));
+        let l2_rpc_url = self.l2_provider_rpc_url.expect("l2 provider rpc url not set");
+        let l2_provider = RootProvider::new_http(l2_rpc_url.clone());
 
         let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
 
-        let l2_engine = crate::EngineConfig {
+        let config = Arc::new(self.config);
+        let l2_engine = EngineConfig {
+            config: Arc::clone(&config),
             sync: self.sync_config.expect("missing sync config"),
+            l2_rpc_url,
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret: self.jwt_secret.expect("missing jwt secret"),
         };
 
         RollupNode {
             mode: self.mode,
-            config: Arc::new(self.config),
+            config,
             l1_provider,
             l1_beacon,
             l2_provider,
