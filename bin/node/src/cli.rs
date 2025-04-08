@@ -39,6 +39,7 @@ impl Cli {
         match self.subcommand {
             Commands::Node(ref node) => node.init_telemetry(&self.global)?,
             Commands::Net(ref net) => net.init_telemetry(&self.global)?,
+            Commands::Registry(ref registry) => registry.init_telemetry(&self.global)?,
         }
 
         // Run the subcommand.

@@ -17,6 +17,11 @@ use clap::Parser;
 pub struct RegistryCommand {}
 
 impl RegistryCommand {
+    /// Initializes the telemetry stack and Prometheus metrics recorder.
+    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
+        args.init_telemetry(None)
+    }
+
     /// Runs the subcommand.
     pub fn run(self, _args: &GlobalArgs) -> anyhow::Result<()> {
         let chains = kona_registry::CHAINS.chains.clone();
