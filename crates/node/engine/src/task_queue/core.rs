@@ -2,9 +2,6 @@
 
 use super::{EngineTaskError, EngineTaskExt};
 use crate::{EngineState, EngineTask};
-use alloy_rpc_types_eth::Block;
-use kona_rpc::OpAttributesWithParent;
-use op_alloy_rpc_types::Transaction;
 use std::collections::VecDeque;
 
 /// The [Engine] task queue.
@@ -47,25 +44,6 @@ impl Engine {
     /// [Consolidation]: https://specs.optimism.io/protocol/derivation.html#l1-consolidation-payload-attributes-matching
     pub fn needs_consolidation(&self) -> bool {
         self.state.safe_head() != self.state.unsafe_head()
-    }
-
-    /// Consolidates the oldest unsafe head (the unsafe head immediately _after_ the safe head).
-    ///
-    /// Will only consolidate if [`Self::needs_consolidation`] returns true. That is,
-    /// if the unsafe head is ahead of the safe head (aka they're not equal).
-    pub fn consolidate(
-        &mut self,
-        _attributes: &OpAttributesWithParent,
-        _block: Block<Transaction>,
-    ) -> Result<(), ConsolidationError> {
-        if self.needs_consolidation() {
-            debug!(target: "engine", "Performing consolidation");
-            // TODO: consolidate
-            // see: https://specs.optimism.io/protocol/derivation.html#l1-consolidation-payload-attributes-matching
-        } else {
-            debug!(target: "engine", "Skipping consolidation. Safe head [{}] == Unsafe Head [{}]", self.state.safe_head().block_info.number, self.state.unsafe_head().block_info.number);
-        }
-        Ok(())
     }
 
     /// Clears the task queue.
