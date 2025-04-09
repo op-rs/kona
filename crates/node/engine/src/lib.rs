@@ -11,8 +11,8 @@ extern crate tracing;
 
 mod task_queue;
 pub use task_queue::{
-    BuildTask, BuildTaskError, Engine, EngineTask, EngineTaskError, EngineTaskExt, ForkchoiceTask,
-    ForkchoiceTaskError, InsertUnsafeTask, InsertUnsafeTaskError,
+    BuildTask, BuildTaskError, ConsolidationError, Engine, EngineTask, EngineTaskError,
+    EngineTaskExt, ForkchoiceTask, ForkchoiceTaskError, InsertUnsafeTask, InsertUnsafeTaskError,
 };
 
 mod client;

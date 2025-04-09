@@ -159,6 +159,7 @@ linked_list_allocator = "0.10.5"
 rand = { version = "0.9.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 c-kzg = { version = "2.0.0", default-features = false }
+tabled = { version = "0.18", default-features = false }
 anyhow = { version = "1.0.97", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 derive_more = { version = "2.0.1", default-features = false }
