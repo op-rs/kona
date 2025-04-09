@@ -81,11 +81,8 @@ impl EngineClient {
     pub async fn l2_block_by_label(
         &self,
         numtag: BlockNumberOrTag,
-    ) -> Result<Option<Block<Transaction>>> {
-        <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag)
-            .full()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))
+    ) -> Result<Option<Block<Transaction>>, EngineClientError> {
+        Ok(<RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag).full().await?)
     }
 
     /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].
