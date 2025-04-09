@@ -11,3 +11,6 @@ pub use insert::{InsertUnsafeTask, InsertUnsafeTaskError};
 
 mod build;
 pub use build::{BuildTask, BuildTaskError};
+
+mod consolidate;
+pub use consolidate::{ConsolidateTask, ConsolidateTaskError};

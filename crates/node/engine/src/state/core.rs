@@ -58,6 +58,17 @@ impl EngineState {
         }
     }
 
+    /// Returns if consolidation is needed.
+    ///
+    /// [Consolidation] is only performed by a rollup node when the unsafe head
+    /// is ahead of the safe head. When the two are equal, consolidation isn't
+    /// required and the [`crate::BuildTask`] can be used to build the block.
+    ///
+    /// [Consolidation]: https://specs.optimism.io/protocol/derivation.html#l1-consolidation-payload-attributes-matching
+    pub fn needs_consolidation(&self) -> bool {
+        self.safe_head() != self.unsafe_head()
+    }
+
     /// Returns the current unsafe head.
     pub const fn unsafe_head(&self) -> L2BlockInfo {
         self.unsafe_head

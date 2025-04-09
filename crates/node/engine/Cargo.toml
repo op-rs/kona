@@ -19,11 +19,13 @@ kona-rpc.workspace = true
 
 # alloy
 alloy-eips.workspace = true
+alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
 alloy-provider = { workspace = true, features = ["ipc", "reqwest", "engine-api"] }
 alloy-rpc-client.workspace = true
+alloy-rpc-types-eth.workspace = true
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 alloy-transport-http = { workspace = true, features = ["reqwest", "hyper", "jwt-auth"] }
 
@@ -31,6 +33,7 @@ alloy-transport-http = { workspace = true, features = ["reqwest", "hyper", "jwt-
 op-alloy-network.workspace = true
 op-alloy-consensus.workspace = true
 op-alloy-provider.workspace = true
+op-alloy-rpc-types.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
 # general
@@ -41,6 +44,8 @@ async-trait.workspace = true
 thiserror.workspace = true
 url.workspace = true
 tower.workspace = true
-anyhow.workspace = true
 http-body-util.workspace = true
 derive_more = { workspace = true, features = ["display", "deref", "from_str"] }
+
+[dev-dependencies]
+kona-registry.workspace = true
