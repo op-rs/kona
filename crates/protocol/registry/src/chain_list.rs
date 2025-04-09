@@ -45,6 +45,7 @@ impl ChainList {
 
 /// A Chain Definition.
 #[derive(Debug, Clone, Default, Hash, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "tabled", derive(tabled::Tabled))]
 #[serde(rename_all = "camelCase")]
 pub struct Chain {
     /// The name of the chain.
@@ -54,14 +55,17 @@ pub struct Chain {
     /// Chain ID.
     pub chain_id: u64,
     /// List of RPC Endpoints.
+    #[cfg_attr(feature = "tabled", tabled(skip))]
     pub rpc: Vec<String>,
     /// List of Explorer Endpoints.
+    #[cfg_attr(feature = "tabled", tabled(skip))]
     pub explorers: Vec<String>,
     /// The Superchain Level.
     pub superchain_level: u64,
     /// The data avilability type.
     pub data_availability_type: String,
     /// The Superchain Parent.
+    #[cfg_attr(feature = "tabled", tabled(skip))]
     pub parent: SuperchainParent,
 }
 
