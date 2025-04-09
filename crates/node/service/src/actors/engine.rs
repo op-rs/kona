@@ -62,7 +62,7 @@ pub enum EngineLaunchError {
 pub struct EngineLauncher {
     /// The rollup config.
     pub config: Arc<RollupConfig>,
-    /// The sync configuration.
+    /// The [`SyncConfig`] for engine tasks.
     pub sync: SyncConfig,
     /// The engine rpc url.
     pub engine_url: Url,
