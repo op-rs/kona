@@ -74,7 +74,3 @@ impl Engine {
         Ok(())
     }
 }
-
-/// An error occured during consolidation.
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum ConsolidationError {}
