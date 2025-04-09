@@ -3870,12 +3870,14 @@ dependencies = [
 name = "kona-engine"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus",
  "alloy-eips",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-client",
  "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth",
  "alloy-transport",
  "alloy-transport-http",
  "anyhow",
@@ -3884,10 +3886,12 @@ dependencies = [
  "http-body-util",
  "kona-genesis",
  "kona-protocol",
+ "kona-registry",
  "kona-rpc",
  "op-alloy-consensus",
  "op-alloy-network",
  "op-alloy-provider",
+ "op-alloy-rpc-types",
  "op-alloy-rpc-types-engine",
  "thiserror 2.0.12",
  "tokio",

@@ -3,7 +3,7 @@
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_engine::{
-    BuildTask, Engine, EngineClient, EngineStateBuilder, EngineTask, ForkchoiceTask, SyncConfig,
+    BuildTask, ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
@@ -19,8 +19,6 @@ use crate::NodeActor;
 /// The engine actor is essentially just a wrapper over two things.
 /// - [`kona_engine::EngineState`]
 /// - The Engine API
-///
-/// The rollup node ne
 #[derive(Debug)]
 pub struct EngineActor {
     /// The [`RollupConfig`] used to build tasks.
@@ -62,7 +60,7 @@ pub enum EngineLaunchError {
 /// Configuration for the Engine Actor.
 #[derive(Debug, Clone)]
 pub struct EngineLauncher {
-    /// The rollup config.
+    /// The [`RollupConfig`].
     pub config: Arc<RollupConfig>,
     /// The [`SyncConfig`] for engine tasks.
     pub sync: SyncConfig,
@@ -126,32 +124,33 @@ impl NodeActor for EngineActor {
                         debug!(target: "engine", "Received `None` attributes from receiver");
                         continue;
                     };
-
-                    // If consolidation is needed and succeeds, the forkchoice change synchronizes.
-                    // In all other cases, the attributes need to be processed.
-                    if self.engine.needs_consolidation() && self.engine.consolidate(&attributes).is_ok() {
-                        let task = ForkchoiceTask::new(Arc::clone(&self.client));
-                        let task = EngineTask::ForkchoiceUpdate(task);
+                    // Skip to processing the payload attributes if consolidation is not needed.
+                    if !self.engine.needs_consolidation() {
+                        let task = BuildTask::new(
+                            Arc::clone(&self.client),
+                            Arc::clone(&self.config),
+                            attributes.clone(),
+                            true,
+                        );
+                        let task = EngineTask::BuildBlock(task);
                         self.engine.enqueue(task);
-                        continue;
+                    } else {
+                        let task = ConsolidateTask::new(
+                            Arc::clone(&self.client),
+                            Arc::clone(&self.config),
+                            attributes,
+                            true,
+                        );
+                        let task = EngineTask::Consolidate(task);
+                        self.engine.enqueue(task);
                     }
-
-                    // Payload attributes processing.
-                    let task = BuildTask::new(
-                        Arc::clone(&self.client),
-                        Arc::clone(&self.config),
-                        attributes,
-                        true,
-                    );
-                    let task = EngineTask::BuildBlock(task);
-                    self.engine.enqueue(task);
                 }
             }
         }
     }
 
     async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
-        unimplemented!("NodeActor::process is unimplemented")
+        unimplemented!("EngineActor::process is unimplemented")
     }
 }
 

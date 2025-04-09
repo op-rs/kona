@@ -2,7 +2,9 @@
 
 use super::{EngineTaskError, EngineTaskExt};
 use crate::{EngineState, EngineTask};
+use alloy_rpc_types_eth::Block;
 use kona_rpc::OpAttributesWithParent;
+use op_alloy_rpc_types::Transaction;
 use std::collections::VecDeque;
 
 /// The [Engine] task queue.
@@ -54,6 +56,7 @@ impl Engine {
     pub fn consolidate(
         &mut self,
         _attributes: &OpAttributesWithParent,
+        _block: Block<Transaction>,
     ) -> Result<(), ConsolidationError> {
         if self.needs_consolidation() {
             debug!(target: "engine", "Performing consolidation");

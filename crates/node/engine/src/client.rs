@@ -9,6 +9,7 @@ use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
     ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
 };
+use alloy_rpc_types_eth::Block;
 use alloy_transport::TransportResult;
 use alloy_transport_http::{
     AuthLayer, AuthService, Http, HyperClient,
@@ -22,6 +23,7 @@ use derive_more::Deref;
 use http_body_util::Full;
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
+use op_alloy_rpc_types::Transaction;
 use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpPayloadAttributes,
 };
@@ -62,6 +64,17 @@ impl EngineClient {
 
         let rpc = RootProvider::<Optimism>::new_http(rpc);
         Self { engine, rpc, cfg }
+    }
+
+    /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].
+    pub async fn l2_block_by_label(
+        &self,
+        numtag: BlockNumberOrTag,
+    ) -> Result<Option<Block<Transaction>>> {
+        <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag)
+            .full()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))
     }
 
     /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].

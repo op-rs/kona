@@ -2,7 +2,7 @@
 //!
 //! [Engine]: crate::Engine
 
-use super::{BuildTask, ForkchoiceTask, InsertUnsafeTask};
+use super::{BuildTask, ConsolidateTask, ForkchoiceTask, InsertUnsafeTask};
 use crate::EngineState;
 use async_trait::async_trait;
 use thiserror::Error;
@@ -19,6 +19,9 @@ pub enum EngineTask {
     InsertUnsafe(InsertUnsafeTask),
     /// Builds a new block with the given attributes, and inserts it into the execution engine.
     BuildBlock(BuildTask),
+    /// Performs consolidation on the engine state, reverting to payload attribute processing
+    /// via the [`BuildTask`] if consolidation fails.
+    Consolidate(ConsolidateTask),
 }
 
 impl EngineTask {
@@ -28,6 +31,7 @@ impl EngineTask {
             Self::ForkchoiceUpdate(task) => task.execute(state).await,
             Self::InsertUnsafe(task) => task.execute(state).await,
             Self::BuildBlock(task) => task.execute(state).await,
+            Self::Consolidate(task) => task.execute(state).await,
         }
     }
 }
