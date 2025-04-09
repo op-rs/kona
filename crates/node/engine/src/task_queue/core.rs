@@ -35,17 +35,6 @@ impl Engine {
         self.tasks.push_back(task);
     }
 
-    /// Returns if consolidation is needed.
-    ///
-    /// [Consolidation] is only performed by a rollup node when the unsafe head
-    /// is ahead of the safe head. When the two are equal, consolidation isn't
-    /// required and the [`crate::BuildTask`] can be used to build the block.
-    ///
-    /// [Consolidation]: https://specs.optimism.io/protocol/derivation.html#l1-consolidation-payload-attributes-matching
-    pub fn needs_consolidation(&self) -> bool {
-        self.state.safe_head() != self.state.unsafe_head()
-    }
-
     /// Clears the task queue.
     pub fn clear(&mut self) {
         self.tasks.clear();
