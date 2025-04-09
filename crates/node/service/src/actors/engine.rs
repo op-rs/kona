@@ -3,7 +3,8 @@
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineTask, InsertUnsafeTask, SyncConfig,
+    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineTask, InsertUnsafeTask,
+    SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
