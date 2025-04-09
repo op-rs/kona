@@ -121,10 +121,7 @@ impl NodeActor for EngineActor {
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
-                    info!(
-                        target: "engine",
-                        "Received shutdown signal. Exiting engine task."
-                    );
+                    warn!(target: "engine", "EngineActor received shutdown signal.");
                     return Ok(());
                 }
                 res = self.engine.drain() => {
@@ -134,8 +131,9 @@ impl NodeActor for EngineActor {
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
-                        debug!(target: "engine", "Received `None` attributes from receiver");
-                        continue;
+                        error!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
                     };
                     let task = ConsolidateTask::new(
                         Arc::clone(&self.client),
@@ -148,8 +146,9 @@ impl NodeActor for EngineActor {
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {
-                        debug!(target: "engine", "Received `None` unsafe block from receiver");
-                        continue;
+                        error!(target: "engine", "Unsafe block receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
                     };
                     let task = InsertUnsafeTask::new(
                         Arc::clone(&self.client),
@@ -171,4 +170,8 @@ impl NodeActor for EngineActor {
 
 /// An error from the [`EngineActor`].
 #[derive(thiserror::Error, Debug)]
-pub enum EngineError {}
+pub enum EngineError {
+    /// Closed channel error.
+    #[error("closed channel error")]
+    ChannelClosed,
+}
