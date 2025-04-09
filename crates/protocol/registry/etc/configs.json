@@ -696,7 +696,7 @@
             "holocene_time": 1738238400
           },
           "optimism": {
-            "eip1559Elasticity": "0x2",
+            "eip1559Elasticity": "0xa",
             "eip1559Denominator": "0x32",
             "eip1559DenominatorCanyon": "0xfa"
           },
@@ -3200,7 +3200,7 @@
             "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
-            "eip1559Elasticity": "0x2",
+            "eip1559Elasticity": "0xa",
             "eip1559Denominator": "0x32",
             "eip1559DenominatorCanyon": "0xfa"
           },
