@@ -2,7 +2,9 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
-use kona_engine::{BuildTask, Engine, EngineClient, EngineStateBuilder, EngineTask, SyncConfig};
+use kona_engine::{
+    BuildTask, Engine, EngineClient, EngineStateBuilder, EngineTask, ForkchoiceTask, SyncConfig,
+};
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
 use std::sync::Arc;
@@ -124,6 +126,17 @@ impl NodeActor for EngineActor {
                         debug!(target: "engine", "Received `None` attributes from receiver");
                         continue;
                     };
+
+                    // If consolidation is needed and succeeds, the forkchoice change synchronizes.
+                    // In all other cases, the attributes need to be processed.
+                    if self.engine.needs_consolidation() && self.engine.consolidate(&attributes).is_ok() {
+                        let task = ForkchoiceTask::new(Arc::clone(&self.client));
+                        let task = EngineTask::ForkchoiceUpdate(task);
+                        self.engine.enqueue(task);
+                        continue;
+                    }
+
+                    // Payload attributes processing.
                     let task = BuildTask::new(
                         Arc::clone(&self.client),
                         Arc::clone(&self.config),
