@@ -92,11 +92,11 @@ impl AttributesMatch {
             .into();
         }
 
-        let difficulty: B256 = block.header.inner.difficulty.into();
-        if attributes.attributes.payload_attributes.prev_randao != difficulty {
+        let mix_hash = block.header.inner.mix_hash;
+        if attributes.attributes.payload_attributes.prev_randao != mix_hash {
             return AttributesMismatch::PrevRandao(
                 attributes.attributes.payload_attributes.prev_randao,
-                difficulty,
+                mix_hash,
             )
             .into();
         }
