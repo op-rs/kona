@@ -180,7 +180,7 @@ impl From<AttributesMismatch> for AttributesMatch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{address, b256, uint};
+    use alloy_primitives::{address, b256};
     use kona_protocol::L2BlockInfo;
     use kona_registry::ROLLUP_CONFIGS;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -236,11 +236,12 @@ mod tests {
         let cfg = default_rollup_config();
         let attributes = default_attributes();
         let mut block = Block::<Transaction>::default();
-        block.header.inner.difficulty = uint!(123_U256);
+        block.header.inner.mix_hash =
+            b256!("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
         let check = AttributesMatch::check(cfg, &attributes, &block);
         let expected: AttributesMatch = AttributesMismatch::PrevRandao(
             attributes.attributes.payload_attributes.prev_randao,
-            block.header.inner.difficulty.into(),
+            block.header.inner.mix_hash,
         )
         .into();
         assert_eq!(check, expected);

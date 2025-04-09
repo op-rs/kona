@@ -88,7 +88,10 @@ impl ConsolidateTask {
 #[async_trait]
 impl EngineTaskExt for ConsolidateTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        self.consolidate(state).await?;
-        Ok(())
+        // Skip to processing the payload attributes if consolidation is not needed.
+        match state.needs_consolidation() {
+            true => self.consolidate(state).await,
+            false => self.execute_build_task(state).await,
+        }
     }
 }

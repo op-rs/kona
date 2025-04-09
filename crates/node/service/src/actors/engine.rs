@@ -3,7 +3,7 @@
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_engine::{
-    BuildTask, ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineTask, SyncConfig,
+    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
@@ -124,26 +124,14 @@ impl NodeActor for EngineActor {
                         debug!(target: "engine", "Received `None` attributes from receiver");
                         continue;
                     };
-                    // Skip to processing the payload attributes if consolidation is not needed.
-                    if !self.engine.needs_consolidation() {
-                        let task = BuildTask::new(
-                            Arc::clone(&self.client),
-                            Arc::clone(&self.config),
-                            attributes.clone(),
-                            true,
-                        );
-                        let task = EngineTask::BuildBlock(task);
-                        self.engine.enqueue(task);
-                    } else {
-                        let task = ConsolidateTask::new(
-                            Arc::clone(&self.client),
-                            Arc::clone(&self.config),
-                            attributes,
-                            true,
-                        );
-                        let task = EngineTask::Consolidate(task);
-                        self.engine.enqueue(task);
-                    }
+                    let task = ConsolidateTask::new(
+                        Arc::clone(&self.client),
+                        Arc::clone(&self.config),
+                        attributes,
+                        true,
+                    );
+                    let task = EngineTask::Consolidate(task);
+                    self.engine.enqueue(task);
                 }
             }
         }
