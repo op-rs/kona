@@ -20,7 +20,7 @@ mod attributes;
 pub use attributes::{AttributesMatch, AttributesMismatch};
 
 mod client;
-pub use client::EngineClient;
+pub use client::{EngineClient, EngineClientError};
 
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
@@ -29,7 +29,7 @@ mod sync;
 pub use sync::{SyncConfig, SyncMode, SyncStatus};
 
 mod state;
-pub use state::{EngineState, EngineStateBuilder};
+pub use state::{EngineState, EngineStateBuilder, EngineStateBuilderError};
 
 mod kinds;
 pub use kinds::EngineKind;
