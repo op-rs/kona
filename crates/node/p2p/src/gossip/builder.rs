@@ -8,7 +8,10 @@ use libp2p::{
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
 
-use crate::{Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, PeerScoreLevel};
+use crate::{
+    Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, PeerScoreLevel,
+    peers::PeerMonitoring,
+};
 
 /// A builder for the [`GossipDriver`].
 #[derive(Debug, Default)]
@@ -29,6 +32,9 @@ pub struct GossipDriverBuilder {
     config: Option<Config>,
     /// Sets the block time for the peer scoring.
     block_time: Option<u64>,
+    /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
+    /// threshold.
+    peer_monitoring: Option<PeerMonitoring>,
 }
 
 impl GossipDriverBuilder {
@@ -43,6 +49,7 @@ impl GossipDriverBuilder {
             scoring: None,
             config: None,
             block_time: None,
+            peer_monitoring: None,
         }
     }
 
@@ -61,6 +68,12 @@ impl GossipDriverBuilder {
     /// Sets the [`PeerScoreLevel`] for the [`Behaviour`].
     pub fn with_peer_scoring(mut self, level: PeerScoreLevel) -> Self {
         self.scoring = Some(level);
+        self
+    }
+
+    /// Sets the [`PeerMonitoring`] configuration for the gossip driver.
+    pub fn with_peer_monitoring(mut self, peer_monitoring: Option<PeerMonitoring>) -> Self {
+        self.peer_monitoring = peer_monitoring;
         self
     }
 

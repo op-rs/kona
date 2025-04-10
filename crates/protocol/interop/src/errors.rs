@@ -98,7 +98,7 @@ impl InvalidInboxEntry {
             if let Ok(chain_id) =
                 err_msg.split(' ').last().expect("message contains chain id").parse::<u64>()
             {
-                return Some(Self::UnknownChain(chain_id))
+                return Some(Self::UnknownChain(chain_id));
             }
         // Check if it's `does not meet the minimum safety` error, message example:
         // `message {0x4200000000000000000000000000000000000023 4 1 1728507701 901}
@@ -116,7 +116,7 @@ impl InvalidInboxEntry {
                 SafetyLevel::Invalid
             } else {
                 // Unexpected level name
-                return None
+                return None;
             };
             let expected_safety = if err_msg.contains("safety finalized") {
                 SafetyLevel::Finalized
@@ -130,10 +130,10 @@ impl InvalidInboxEntry {
                 SafetyLevel::Unsafe
             } else {
                 // Unexpected level name
-                return None
+                return None;
             };
 
-            return Some(Self::MinimumSafety { expected: expected_safety, got: message_safety })
+            return Some(Self::MinimumSafety { expected: expected_safety, got: message_safety });
         }
 
         None

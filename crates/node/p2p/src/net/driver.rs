@@ -4,16 +4,17 @@ use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use tokio::{
     select,
     sync::{
         broadcast::{Receiver as BroadcastReceiver, Sender as BroadcastSender},
         watch::Sender,
     },
+    time::Duration,
 };
 
-use crate::{Discv5Driver, GossipDriver, NetRpcRequest, NetworkBuilder};
+use crate::{Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder};
 
 /// Network
 ///
@@ -43,6 +44,9 @@ pub struct Network {
 }
 
 impl Network {
+    /// The frequency at which to inspect peer scores to ban poorly performing peers.
+    const PEER_SCORE_INSPECT_FREQUENCY: Duration = Duration::from_secs(1);
+
     /// Returns the [`NetworkBuilder`] that can be used to construct the [`Network`].
     pub const fn builder() -> NetworkBuilder {
         NetworkBuilder::new()
@@ -64,6 +68,10 @@ impl Network {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut handler = self.discovery.start();
+
+        // We are checking the peer scores every [`Self::PEER_SCORE_INSPECT_FREQUENCY`] seconds.
+        let mut peer_score_inspector = tokio::time::interval(Self::PEER_SCORE_INSPECT_FREQUENCY);
+
         self.gossip.listen()?;
         tokio::spawn(async move {
             // A vec deque that holds unsafe blocks to be sent over the channel.
@@ -109,6 +117,51 @@ impl Network {
                             continue;
                         };
                         self.gossip.dial(enr);
+                    },
+
+                    _ = peer_score_inspector.tick(), if self.gossip.peer_monitoring.as_ref().is_some() => {
+                        // Inspect peer scores and ban peers that are below the threshold.
+                        let Some(ban_peers) = self.gossip.peer_monitoring.as_ref() else {
+                            continue;
+                        };
+
+                        // We iterate over all connected peers and check their scores.
+                        // We collect a list of peers to remove
+                        let peers_to_remove = self.gossip.swarm.connected_peers().filter_map(
+                            |peer_id| {
+                                 // If the score is not available, we use a default value of 0.
+                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
+
+                                 if score < ban_peers.ban_threshold {
+                                    return Some(*peer_id);
+                                 }
+
+                                 None
+                            }
+                        ).collect::<Vec<_>>();
+
+                        // We remove the addresses from the gossip layer.
+                        let addrs_to_ban = peers_to_remove.into_iter().filter_map(|peer_to_remove| {
+                            // In that case, we ban the peer. This means...
+                            // 1. We remove the peer from the network gossip.
+                            // 2. We ban the peer from the discv5 service.
+                            if self.gossip.swarm.disconnect_peer_id(peer_to_remove).is_err() {
+                                warn!(peer = ?peer_to_remove, "Trying to disconnect a non-existing peer from the gossip driver.");
+                            }
+
+                            if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
+                                self.gossip.dialed_peers.remove(&addr);
+
+                                return Some(addr);
+                            }
+
+                            None
+                        }).collect::<HashSet<_>>();
+
+                        // We send a request to the discovery handler to ban the set of addresses.
+                        if let Err(send_err) = handler.sender.send(HandlerRequest::BanAddrs { addrs_to_ban: addrs_to_ban.into(), ban_duration: ban_peers.ban_duration }).await{
+                            warn!(err = ?send_err, "Impossible to send a request to the discovery handler. The channel connection is dropped.");
+                        }
                     },
                     req = rpc.recv() => {
                         let Some(req) = req else {

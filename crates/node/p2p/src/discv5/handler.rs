@@ -1,7 +1,8 @@
 //! Handler to the [`discv5::Discv5`] service spawned in a thread.
 
 use discv5::{Enr, Event, metrics::Metrics};
-use std::string::String;
+use libp2p::Multiaddr;
+use std::{collections::HashSet, string::String, sync::Arc, time::Duration};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 /// A request from the [`Discv5Handler`] to the spawned [`discv5::Discv5`] service.
@@ -21,6 +22,8 @@ pub enum HandlerRequest {
     LocalEnr,
     /// Requests the table ENRs.
     TableEnrs,
+    /// Bans the nodes matching the given set of [`Multiaddr`] for the given duration.
+    BanAddrs { addrs_to_ban: Arc<HashSet<Multiaddr>>, ban_duration: Duration },
 }
 
 /// A response from the spawned [`discv5::Discv5`] service thread to the [`Discv5Handler`].

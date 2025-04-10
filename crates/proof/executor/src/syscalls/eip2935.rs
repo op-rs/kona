@@ -82,7 +82,7 @@ where
     // If the block number is zero (genesis block) then no system
     // transaction may occur as per EIP-2935.
     if block_number == 0 {
-        return Ok(())
+        return Ok(());
     }
 
     // Get the previous environment
