@@ -37,6 +37,7 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Check if the head is behind the finalized head.
         if state.unsafe_head().block_info.number < state.finalized_head().block_info.number {
+            info!(target: "engine", "Unsafe head is behind finalized head");
             return Err(ForkchoiceTaskError::FinalizedAheadOfUnsafe(
                 state.unsafe_head().block_info.number,
                 state.finalized_head().block_info.number,
@@ -46,11 +47,11 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Send the forkchoice update through the input.
         let forkchoice = state.create_forkchoice_state();
-        debug!(target: "engine", "Created forkchoice state: {forkchoice:?}");
+        info!(target: "engine", "Created forkchoice state: {forkchoice:?}");
 
         // Handle the forkchoice update result.
         if let Err(e) = self.client.fork_choice_updated_v3(forkchoice, None).await {
-            warn!(target: "engine", "Forkchoice update failed: {e}");
+            info!(target: "engine", "Forkchoice update failed: {e}");
             let e = e
                 .as_error_resp()
                 .and_then(|e| {
