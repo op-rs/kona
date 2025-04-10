@@ -43,7 +43,7 @@ impl EngineTaskExt for EngineTask {
         while let Err(e) = self.execute_inner(state).await {
             match e {
                 EngineTaskError::Temporary(e) => {
-                    warn!(target: "engine", "{e}");
+                    debug!(target: "engine", "{e}");
                     continue;
                 }
                 EngineTaskError::Critical(e) => {

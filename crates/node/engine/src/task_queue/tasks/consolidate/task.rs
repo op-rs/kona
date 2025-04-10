@@ -64,7 +64,7 @@ impl ConsolidateTask {
         let block = match self.client.l2_block_by_label(block_num.into()).await {
             Ok(Some(block)) => block,
             Ok(None) => {
-                warn!(target: "engine", "Received `None` block for {}", block_num);
+                debug!(target: "engine", "Received `None` block for {}", block_num);
                 return Err(ConsolidateTaskError::MissingUnsafeL2Block(block_num).into());
             }
             Err(_) => {
