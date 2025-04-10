@@ -91,6 +91,7 @@ impl EngineClient {
         numtag: BlockNumberOrTag,
     ) -> Result<Option<L2BlockInfo>, EngineClientError> {
         let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag).full().await?;
+        debug!(target: "engine", "Fetched block: {:?}", block);
 
         match block.map(|b| b.into_consensus()) {
             Some(block) => {
