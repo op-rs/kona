@@ -151,6 +151,7 @@ impl L2BlockInfo {
         let (l1_origin, sequence_number) = if block_info.number == genesis.l2.number {
             if block_info.hash != genesis.l2.hash {
                 tracing::debug!(target: "protocol", "Invalid genesis hash for block: {}, genesis: {}", block_info.number, genesis.l2.number);
+                tracing::debug!(target: "protocol", "Invalid genesis hash {:?}, genesis: {:?}", block_info.hash, genesis.l2.hash);
                 return Err(FromBlockError::InvalidGenesisHash);
             }
             (genesis.l1, 0)
