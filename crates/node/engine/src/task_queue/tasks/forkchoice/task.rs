@@ -47,7 +47,6 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Send the forkchoice update through the input.
         let forkchoice = state.create_forkchoice_state();
-        info!(target: "engine", "Created forkchoice state: {forkchoice:?}");
 
         // Handle the forkchoice update result.
         if let Err(e) = self.client.fork_choice_updated_v3(forkchoice, None).await {
