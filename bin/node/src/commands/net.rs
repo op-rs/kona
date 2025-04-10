@@ -56,6 +56,7 @@ impl NetCommand {
             .ok_or(anyhow::anyhow!("Rollug config not found for chain id: {}", args.l2_chain_id))?;
 
         // Start the Network Stack
+        self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(args)?;
         let mut network = NetworkBuilder::from(p2p_config)
             .with_chain_id(args.l2_chain_id)
