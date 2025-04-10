@@ -96,7 +96,7 @@ impl EngineLauncher {
 
     /// Returns an [`EngineStateBuilder`].
     pub fn state_builder(&self) -> EngineStateBuilder {
-        EngineStateBuilder::new(self.client())
+        EngineStateBuilder::new(self.client(), self.config.genesis)
     }
 }
 
