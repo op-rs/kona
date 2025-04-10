@@ -135,27 +135,11 @@ impl EngineStateBuilder {
             ));
         };
 
-        let cross_unsafe_head = if let Some(h) = builder.cross_unsafe_head {
+        let finalized_head = if let Some(h) = builder.finalized_head {
             h
         } else {
             return Err(EngineStateBuilderError::ConfigError(
-                "cross_unsafe_head is required to build the EngineState".into(),
-            ));
-        };
-
-        let pending_safe_head = if let Some(h) = builder.pending_safe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "pending_safe_head is required to build the EngineState".into(),
-            ));
-        };
-
-        let local_safe_head = if let Some(h) = builder.local_safe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "local_safe_head is required to build the EngineState".into(),
+                "finalized_head is required to build the EngineState".into(),
             ));
         };
 
@@ -167,13 +151,9 @@ impl EngineStateBuilder {
             ));
         };
 
-        let finalized_head = if let Some(h) = builder.finalized_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "finalized_head is required to build the EngineState".into(),
-            ));
-        };
+        let local_safe_head = builder.local_safe_head.unwrap_or(safe_head);
+        let cross_unsafe_head = builder.cross_unsafe_head.unwrap_or(safe_head);
+        let pending_safe_head = builder.pending_safe_head.unwrap_or(safe_head);
 
         Ok(EngineState {
             sync_status: builder.sync_status.unwrap_or_default(),
