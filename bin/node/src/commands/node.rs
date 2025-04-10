@@ -78,6 +78,7 @@ impl NodeCommand {
             supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
         };
 
+        self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(args)?;
         let rpc_config = self.rpc_flags.into();
 

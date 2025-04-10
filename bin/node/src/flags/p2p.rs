@@ -122,6 +122,32 @@ impl Default for P2PArgs {
 }
 
 impl P2PArgs {
+    /// Checks if the ports are available on the system.
+    ///
+    /// ## Errors
+    ///
+    /// - If the TCP port is already in use.
+    /// - If the UDP port is already in use.
+    pub fn check_ports(&self) -> Result<()> {
+        if self.listen_tcp_port == 0 {
+            return Ok(());
+        }
+        if self.listen_udp_port == 0 {
+            return Ok(());
+        }
+        let tcp_socket = std::net::TcpListener::bind((self.listen_ip, self.listen_tcp_port));
+        let udp_socket = std::net::UdpSocket::bind((self.listen_ip, self.listen_udp_port));
+        if tcp_socket.is_err() {
+            tracing::warn!(target: "p2p::flags", "Specify a different TCP port with --p2p.listen.tcp");
+            anyhow::bail!("TCP port {} is already in use", self.listen_tcp_port);
+        }
+        if udp_socket.is_err() {
+            tracing::warn!(target: "p2p::flags", "Specify a different UDP port with --p2p.listen.udp");
+            anyhow::bail!("UDP port {} is already in use", self.listen_udp_port);
+        }
+        Ok(())
+    }
+
     /// Constructs kona's P2P network [`Config`] from CLI arguments.
     ///
     /// ## Parameters
