@@ -138,7 +138,7 @@ follows the linting rules and passes clippy.
 
 ## License
 
-Licensed under the <a href="LICENSE-MIT">MIT license</a>.
+Licensed under the [MIT license.](https://github.com/op-rs/kona/blob/main/LICENSE.md)
 
 > [!NOTE]
 >
