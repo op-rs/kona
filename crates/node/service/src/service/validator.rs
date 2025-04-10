@@ -1,12 +1,13 @@
 //! [ValidatorNodeService] trait.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLaunchError, EngineLauncher, L2ForkchoiceState,
-    NetworkActor, NodeActor, RpcActor, service::spawn_and_wait,
+    DerivationActor, EngineActor, EngineLauncher, L2ForkchoiceState, NetworkActor, NodeActor,
+    RpcActor, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
+use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::BlockInfo;
@@ -57,7 +58,7 @@ pub trait ValidatorNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError> + From<EngineLaunchError>;
+    type Error: From<RpcLauncherError> + From<EngineStateBuilderError>;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;

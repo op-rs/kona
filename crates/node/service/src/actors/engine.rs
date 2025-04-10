@@ -3,8 +3,8 @@
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineTask, InsertUnsafeTask,
-    SyncConfig,
+    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
+    InsertUnsafeTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
@@ -80,10 +80,7 @@ pub struct EngineLauncher {
 impl EngineLauncher {
     /// Launches the [`Engine`].
     pub async fn launch(self) -> Result<Engine, EngineStateBuilderError> {
-        let state = self
-            .state_builder()
-            .build()
-            .await?;
+        let state = self.state_builder().build().await?;
         Ok(Engine::new(state))
     }
 
