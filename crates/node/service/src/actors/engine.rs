@@ -119,7 +119,6 @@ impl NodeActor for EngineActor {
     type Error = EngineError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
-        info!(target: "engine", "Starting engine actor");
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
@@ -127,7 +126,6 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
                 res = self.engine.drain() => {
-                    info!(target: "engine", "Drained engine api tasks with result: {:?}", res);
                     if let Err(e) = res {
                         warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
                     }
