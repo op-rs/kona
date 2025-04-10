@@ -17,7 +17,7 @@ pub use service::{
 
 mod actors;
 pub use actors::{
-    DerivationActor, DerivationError, EngineActor, EngineError, EngineLaunchError, EngineLauncher,
+    DerivationActor, DerivationError, EngineActor, EngineError, EngineLauncher,
     InboundDerivationMessage, L1WatcherRpc, L1WatcherRpcError, NetworkActor, NetworkActorError,
     NodeActor, RpcActor, RpcActorError,
 };
