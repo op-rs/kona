@@ -129,6 +129,10 @@ impl P2PArgs {
     /// - If the TCP port is already in use.
     /// - If the UDP port is already in use.
     pub fn check_ports(&self) -> Result<()> {
+        if self.disabled {
+            tracing::debug!(target: "p2p::flags", "P2P is disabled, skipping port check");
+            return Ok(());
+        }
         if self.listen_tcp_port == 0 {
             return Ok(());
         }
