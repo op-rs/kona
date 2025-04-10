@@ -6,7 +6,7 @@
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex, keccak256};
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -141,6 +141,33 @@ impl Isthmus {
 
     /// Returns the list of [TxDeposit]s for the network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
+        // Verify L1Block source hash
+        // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#l1block-deployment>
+        debug_assert_eq!(
+            keccak256(Self::l1_block_deployment_bytecode()),
+            alloy_primitives::b256!(
+                "0x8e3fe7a416d3e5f3b7be74ddd4e7e58e516fa3f80b67c6d930e3cd7297da4a4b"
+            ),
+            "L1Block source hash mismatch"
+        );
+        // Verify GasPrice Oracle source hash
+        // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#gaspriceoracle-deployment>
+        debug_assert_eq!(
+            keccak256(Self::gas_price_oracle_deployment_bytecode()),
+            alloy_primitives::b256!(
+                "0x4d195a9d7caf9fb6d4beaf80de252c626c853afd5868c4f4f8d19c9d301c2679"
+            ),
+            "GasPrice Oracle source hash mismatch"
+        );
+        // Verify OPERATOR_FEE_VAULT_DEPLOYER source hash
+        // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#operator-fee-vault-deployment>
+        debug_assert_eq!(
+            keccak256(Self::operator_fee_vault_deployment_bytecode()),
+            alloy_primitives::b256!(
+                "0x57dc55c9c09ca456fa728f253fe7b895d3e6aae0706104935fe87c7721001971"
+            ),
+            "OPERATOR_FEE_VAULT_DEPLOYER source hash mismatch"
+        );
         ([
             TxDeposit {
                 source_hash: Self::deploy_l1_block_source(),
