@@ -225,7 +225,7 @@ mod tests {
                             value: U256::ZERO,
                             input: alloy_primitives::Bytes::new(),
                         },
-                        alloy_primitives::PrimitiveSignature::new(U256::ZERO, U256::ZERO, false),
+                        alloy_primitives::Signature::new(U256::ZERO, U256::ZERO, false),
                         Default::default(),
                     ),
                 )],

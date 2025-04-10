@@ -1,7 +1,7 @@
 //! This module contains the top level span batch transaction data type.
 
 use alloy_consensus::{Transaction, TxEnvelope, TxType};
-use alloy_primitives::{Address, PrimitiveSignature as Signature, U256};
+use alloy_primitives::{Address, Signature, U256};
 use alloy_rlp::{Bytes, Decodable, Encodable};
 
 use crate::{

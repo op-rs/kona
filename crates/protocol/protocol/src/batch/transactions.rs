@@ -8,7 +8,7 @@ use crate::{
 use alloc::vec::Vec;
 use alloy_consensus::{Transaction, TxEnvelope, TxType};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, Bytes, PrimitiveSignature as Signature, U256, bytes};
+use alloy_primitives::{Address, Bytes, Signature, U256, bytes};
 use alloy_rlp::{Buf, Decodable, Encodable};
 
 /// This struct contains the decoded information for transactions in a span batch.
@@ -350,7 +350,7 @@ mod tests {
     use super::*;
     use alloc::vec;
     use alloy_consensus::{Signed, TxEip1559, TxEip2930, TxEip7702};
-    use alloy_primitives::{PrimitiveSignature as Signature, TxKind, address};
+    use alloy_primitives::{Signature, TxKind, address};
 
     #[test]
     fn test_span_batch_transactions_add_empty_txs() {

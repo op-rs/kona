@@ -4,7 +4,7 @@ use crate::SpanBatchError;
 use alloc::vec::Vec;
 use alloy_consensus::{SignableTransaction, Signed, TxEip7702};
 use alloy_eips::{eip2930::AccessList, eip7702::SignedAuthorization};
-use alloy_primitives::{Address, PrimitiveSignature as Signature, U256};
+use alloy_primitives::{Address, Signature, U256};
 use alloy_rlp::{Bytes, RlpDecodable, RlpEncodable};
 
 /// The transaction data for an EIP-7702 transaction within a span batch.
@@ -68,7 +68,7 @@ mod test {
     use crate::SpanBatchTransactionData;
     use alloc::{vec, vec::Vec};
     use alloy_rlp::{Decodable, Encodable};
-    use revm::primitives::Authorization;
+    use alloy_rpc_types_eth::Authorization;
 
     #[test]
     fn test_eip7702_to_signed_tx() {

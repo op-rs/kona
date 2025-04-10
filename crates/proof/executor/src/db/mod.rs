@@ -1,4 +1,4 @@
-//! This module contains an implementation of an in-memory Trie DB for [revm], that allows for
+//! This module contains an implementation of an in-memory Trie DB for [`revm`], that allows for
 //! incremental updates through fetching node preimages on the fly during execution.
 
 use crate::errors::{TrieDBError, TrieDBResult};
@@ -10,8 +10,9 @@ use alloy_trie::TrieAccount;
 use kona_mpt::{Nibbles, TrieHinter, TrieNode, TrieNodeError};
 use revm::{
     Database,
-    db::{BundleState, states::StorageSlot},
-    primitives::{AccountInfo, BLOCK_HASH_HISTORY, Bytecode, HashMap},
+    database::{BundleState, states::StorageSlot},
+    primitives::{BLOCK_HASH_HISTORY, HashMap},
+    state::{AccountInfo, Bytecode},
 };
 
 mod traits;
@@ -19,12 +20,12 @@ pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 
 /// A Trie DB that caches open state in-memory.
 ///
-/// When accounts that don't already exist within the cached [TrieNode] are queried, the database
+/// When accounts that don't already exist within the cached [`TrieNode`] are queried, the database
 /// fetches the preimages of the trie nodes on the path to the account using the `PreimageFetcher`
 /// (`F` generic). This allows for data to be fetched in a verifiable manner given an initial
 /// trusted state root as it is needed during execution.
 ///
-/// The [TrieDB] is intended to be wrapped by a [State], which is then used by the [revm::Evm] to
+/// The [`TrieDB`] is intended to be wrapped by a [`State`], which is then used by [`revm`] to
 /// capture state transitions during block execution.
 ///
 /// **Behavior**:
@@ -32,10 +33,10 @@ pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 ///   fall through to the `PreimageFetcher` to fetch the preimages of the trie nodes on the path to
 ///   the account. After it has been fetched, the path will be cached until the next call to
 ///   [Self::state_root].
-/// - When querying for the code hash of an account, the `CodeHashFetcher` is consulted to fetch the
-///   code hash of the account.
-/// - When a [BundleState] changeset is committed to the parent [State] database, the changes are
-///   first applied to the [State]'s cache, then the trie hash is recomputed with
+/// - When querying for the code hash of an account, the [`TrieDBProvider`] is consulted to fetch
+///   the code hash of the account.
+/// - When a [`BundleState`] changeset is committed to the parent [`State`] database, the changes
+///   are first applied to the [`State`]'s cache, then the trie hash is recomputed with
 ///   [Self::state_root].
 /// - When the block hash of a block number is needed via [Self::block_hash], the
 ///   `HeaderByHashFetcher` is consulted to walk back to the desired block number by revealing the
@@ -72,22 +73,22 @@ pub use traits::{NoopTrieDBProvider, TrieDBProvider};
 /// let state_root = state.database.state_root(&bundle).expect("Failed to compute state root");
 /// ```
 ///
-/// [State]: revm::State
+/// [`State`]: revm::database::State
 #[derive(Debug, Clone)]
 pub struct TrieDB<F, H>
 where
     F: TrieDBProvider,
     H: TrieHinter,
 {
-    /// The [TrieNode] representation of the root node.
+    /// The [`TrieNode`] representation of the root node.
     root_node: TrieNode,
     /// Storage roots of accounts within the trie.
     storage_roots: HashMap<Address, TrieNode>,
     /// The parent block hash of the current block.
     parent_block_header: Sealed<Header>,
-    /// The [TrieDBProvider]
+    /// The [`TrieDBProvider`]
     pub fetcher: F,
-    /// The [TrieHinter]
+    /// The [`TrieHinter`]
     pub hinter: H,
 }
 
@@ -97,9 +98,9 @@ where
     H: TrieHinter,
 {
     /// Creates a new [TrieDB] with the given root node.
-    pub fn new(root: B256, parent_block_header: Sealed<Header>, fetcher: F, hinter: H) -> Self {
+    pub fn new(parent_block_header: Sealed<Header>, fetcher: F, hinter: H) -> Self {
         Self {
-            root_node: TrieNode::new_blinded(root),
+            root_node: TrieNode::new_blinded(parent_block_header.state_root),
             storage_roots: Default::default(),
             parent_block_header,
             fetcher,
@@ -227,6 +228,7 @@ where
 
             let account_info =
                 bundle_account.account_info().ok_or(TrieDBError::MissingAccountInfo)?;
+
             let mut trie_account = TrieAccount {
                 balance: account_info.balance,
                 nonce: account_info.nonce,
@@ -415,12 +417,7 @@ mod tests {
     use kona_mpt::NoopTrieHinter;
 
     fn new_test_db() -> TrieDB<NoopTrieDBProvider, NoopTrieHinter> {
-        TrieDB::new(
-            B256::default(),
-            Header::default().seal_slow(),
-            NoopTrieDBProvider,
-            NoopTrieHinter,
-        )
+        TrieDB::new(Header::default().seal_slow(), NoopTrieDBProvider, NoopTrieHinter)
     }
 
     #[test]

@@ -8,7 +8,7 @@ use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::errors::{PipelineError, PipelineErrorKind};
 use kona_driver::{Driver, DriverError};
-use kona_executor::{KonaHandleRegister, TrieDBProvider};
+use kona_executor::TrieDBProvider;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use kona_proof::{
     CachingOracle,
@@ -24,12 +24,6 @@ use tracing::{error, info, warn};
 /// [HintWriterClient].
 pub(crate) async fn sub_transition<P, H>(
     oracle: Arc<CachingOracle<P, H>>,
-    handle_register: Option<
-        KonaHandleRegister<
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-            OracleL2ChainProvider<CachingOracle<P, H>>,
-        >,
-    >,
     boot: BootInfo,
 ) -> Result<(), FaultProofProgramError>
 where
@@ -107,13 +101,8 @@ where
         l2_provider.clone(),
     )
     .await?;
-    let executor = KonaExecutor::new(
-        rollup_config.as_ref(),
-        l2_provider.clone(),
-        l2_provider,
-        handle_register,
-        None,
-    );
+    let executor =
+        KonaExecutor::new(rollup_config.as_ref(), l2_provider.clone(), l2_provider, None);
     let mut driver = Driver::new(cursor, executor, pipeline);
 
     // Run the derivation pipeline until we are able to produce the output root of the claimed

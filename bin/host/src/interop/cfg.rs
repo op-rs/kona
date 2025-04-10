@@ -191,7 +191,6 @@ impl InteropHost {
         let client_task = task::spawn(kona_client::interop::run(
             OracleReader::new(preimage.client),
             HintWriter::new(hint.client),
-            None,
         ));
 
         let (_, client_result) = tokio::try_join!(server_task, client_task)?;

@@ -31,13 +31,13 @@ impl TryFrom<&SystemConfigLog> for OperatorFeeUpdate {
             return Err(OperatorFeeUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32], true) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(OperatorFeeUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(OperatorFeeUpdateError::InvalidDataPointer(pointer));
         }
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64], true) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(OperatorFeeUpdateError::LengthDecodingError);
         };
         if length != 32 {

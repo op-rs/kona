@@ -1,16 +1,14 @@
 //! An abstraction for the driver's block executor.
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::ToString};
+use alloy_consensus::{Header, Sealed};
+use alloy_primitives::B256;
+use async_trait::async_trait;
 use core::{
     error::Error,
     fmt::{Debug, Display},
 };
-use kona_executor::ExecutionArtifacts;
-
-use alloc::string::ToString;
-use alloy_consensus::{Header, Sealed};
-use alloy_primitives::B256;
-use async_trait::async_trait;
+use kona_executor::BlockBuildingOutcome;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// Executor
@@ -31,7 +29,7 @@ pub trait Executor {
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<ExecutionArtifacts, Self::Error>;
+    ) -> Result<BlockBuildingOutcome, Self::Error>;
 
     /// Computes the output root.
     /// Expected to be called after the payload has been executed.
