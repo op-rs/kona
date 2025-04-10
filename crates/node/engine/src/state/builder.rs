@@ -104,9 +104,13 @@ impl EngineStateBuilder {
     /// Builds the [EngineState], fetching missing block info if necessary.
     pub async fn build(self) -> Result<EngineState, EngineStateBuilderError> {
         let mut builder = self;
+        debug!(target: "engine", "Building engine state");
         builder.fetch_unsafe_head().await?;
+        debug!(target: "engine", "Fetched unsafe head");
         builder.fetch_finalized_head().await?;
+        debug!(target: "engine", "Fetched finalized head");
         builder.fetch_safe_head().await?;
+        debug!(target: "engine", "Fetched safe head");
 
         let unsafe_head = if let Some(h) = builder.unsafe_head {
             h

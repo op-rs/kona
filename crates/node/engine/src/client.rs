@@ -94,6 +94,7 @@ impl EngineClient {
 
         match block.map(|b| b.into_consensus()) {
             Some(block) => {
+                debug!(target: "engine", "Fetched block: {}", block.header.number);
                 Ok(Some(L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)?))
             }
             None => Ok(None),
