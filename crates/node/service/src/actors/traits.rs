@@ -13,7 +13,7 @@ pub trait NodeActor {
     /// The event type received by the actor.
     type InboundEvent;
     /// The error type for the actor.
-    type Error;
+    type Error: std::fmt::Debug;
 
     /// Starts the actor.
     async fn start(self) -> Result<(), Self::Error>;

@@ -58,7 +58,7 @@ pub trait ValidatorNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError> + From<EngineStateBuilderError>;
+    type Error: From<RpcLauncherError> + From<EngineStateBuilderError> + std::fmt::Debug;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;
