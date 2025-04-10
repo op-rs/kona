@@ -143,7 +143,7 @@ impl NodeActor for EngineActor {
                     );
                     let task = EngineTask::Consolidate(task);
                     self.engine.enqueue(task);
-                    debug!(target: "engine", "Enqueued attributes consolidation task");
+                    debug!(target: "engine", "Enqueued attributes consolidation task.");
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {
