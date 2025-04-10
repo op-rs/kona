@@ -119,6 +119,7 @@ impl NodeActor for EngineActor {
     type Error = EngineError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
+        info!(target: "engine", "Starting engine actor");
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {

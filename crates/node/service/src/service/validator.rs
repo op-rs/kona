@@ -127,6 +127,7 @@ pub trait ValidatorNodeService {
             cancellation.clone(),
         );
         engine.init_sync()?;
+        info!(target: "validation", "Initialized engine sync");
         let engine = Some(engine);
 
         let network = (self.init_network().await?).map_or_else(
