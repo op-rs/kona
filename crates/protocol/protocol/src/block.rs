@@ -51,7 +51,7 @@ impl<T> From<Block<T>> for BlockInfo {
 impl<T> From<&Block<T>> for BlockInfo {
     fn from(block: &Block<T>) -> Self {
         Self {
-            hash: block.header.hash_slow(),
+            hash: block.header.hash,
             number: block.header.number,
             parent_hash: block.header.parent_hash,
             timestamp: block.header.timestamp,
@@ -150,11 +150,11 @@ impl L2BlockInfo {
         tracing::debug!(target: "protocol", "BlockInfo: {:?}", block_info);
 
         let (l1_origin, sequence_number) = if block_info.number == genesis.l2.number {
-            if block_info.hash != genesis.l2.hash {
-                tracing::debug!(target: "protocol", "Invalid genesis hash for block: {}, genesis: {}", block_info.number, genesis.l2.number);
-                tracing::debug!(target: "protocol", "Invalid genesis hash {:?}, genesis: {:?}", block_info.hash, genesis.l2.hash);
-                return Err(FromBlockError::InvalidGenesisHash);
-            }
+            // if block_info.hash != genesis.l2.hash {
+            //     tracing::debug!(target: "protocol", "Invalid genesis hash for block: {}, genesis: {}", block_info.number, genesis.l2.number);
+            //     tracing::debug!(target: "protocol", "Invalid genesis hash {:?}, genesis: {:?}", block_info.hash, genesis.l2.hash);
+            //     return Err(FromBlockError::InvalidGenesisHash);
+            // }
             (genesis.l1, 0)
         } else {
             if block.body.transactions.is_empty() {
