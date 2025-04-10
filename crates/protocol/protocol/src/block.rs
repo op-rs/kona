@@ -147,6 +147,7 @@ impl L2BlockInfo {
         genesis: &ChainGenesis,
     ) -> Result<Self, FromBlockError> {
         let block_info = BlockInfo::from(block);
+        tracing::debug!(target: "protocol", "BlockInfo: {:?}", block_info);
 
         let (l1_origin, sequence_number) = if block_info.number == genesis.l2.number {
             if block_info.hash != genesis.l2.hash {
