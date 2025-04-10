@@ -26,7 +26,7 @@ impl EngineTaskExt for ForkchoiceTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         // Check if a forkchoice update is not needed, return early.
         if !state.forkchoice_update_needed {
-            debug!(target: "engine", "Forkchoice task executed but no update needed");
+            info!(target: "engine", "Forkchoice task executed but no update needed");
             return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
         }
 

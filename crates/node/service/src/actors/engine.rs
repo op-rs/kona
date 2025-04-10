@@ -126,6 +126,7 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
                 res = self.engine.drain() => {
+                    info!(target: "engine", "Drained engine api tasks with result: {:?}", res);
                     if let Err(e) = res {
                         warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
                     }
