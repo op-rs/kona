@@ -135,9 +135,7 @@ impl NodeActor for EngineActor {
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {
-                        warn!(target: "engine", "Unsafe block receiver closed unexpectedly");
-                        // self.cancellation.cancel();
-                        // return Err(EngineError::ChannelClosed);
+                        trace!(target: "engine", "Unsafe block receiver closed unexpectedly");
                         continue;
                     };
                     let task = InsertUnsafeTask::new(
