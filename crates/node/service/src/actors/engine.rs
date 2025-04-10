@@ -62,14 +62,6 @@ impl EngineActor {
     }
 }
 
-/// An error thrown by the [`EngineLauncher`] at initialization.
-#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
-pub enum EngineLaunchError {
-    /// An error occured when building the engine state.
-    #[error("an error occured building the engine state")]
-    EngineStateBuildFailed,
-}
-
 /// Configuration for the Engine Actor.
 #[derive(Debug, Clone)]
 pub struct EngineLauncher {
@@ -87,12 +79,11 @@ pub struct EngineLauncher {
 
 impl EngineLauncher {
     /// Launches the [`Engine`].
-    pub async fn launch(self) -> Result<Engine, EngineLaunchError> {
+    pub async fn launch(self) -> Result<Engine, EngineStateBuilderError> {
         let state = self
             .state_builder()
             .build()
-            .await
-            .map_err(|_| EngineLaunchError::EngineStateBuildFailed)?;
+            .await?;
         Ok(Engine::new(state))
     }
 
