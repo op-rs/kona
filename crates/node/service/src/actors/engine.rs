@@ -134,9 +134,8 @@ impl NodeActor for EngineActor {
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
-                        error!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
-                        self.cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
+                        trace!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
+                        continue;
                     };
                     let task = ConsolidateTask::new(
                         Arc::clone(&self.client),
