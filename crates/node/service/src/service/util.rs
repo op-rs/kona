@@ -17,9 +17,10 @@ macro_rules! spawn_and_wait {
             if let Some(actor) = $actor {
                 task_handles.spawn(async move {
                     if let Err(e) = actor.start().await {
-                        // TODO: Bubble up generic error.
                         tracing::error!(target: "rollup_node", "{e:?}");
+                        return Err(format!("{e:?}"));
                     }
+                    Ok(())
                 });
             }
         )*
