@@ -25,17 +25,23 @@ macro_rules! spawn_and_wait {
             }
         )*
 
-        tracing::info!(target: "rollup_node", "All actors spawned, waiting for them to finish.");
         while let Some(result) = task_handles.join_next().await {
-            tracing::info!(target: "rollup_node", "Actor finished: {:?}", result);
-            if let Err(e) = result {
-                tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
-
-                // Cancel all tasks and gracefully shutdown.
-                $cancellation.cancel();
+            match result {
+                Ok(Ok(())) => {
+                    tracing::info!(target: "rollup_node", "Actor finished successfully.");
+                }
+                Ok(Err(e)) => {
+                    tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
+                    // Cancel all tasks and gracefully shutdown.
+                    $cancellation.cancel();
+                }
+                Err(e) => {
+                    tracing::error!(target: "rollup_node", "Task join error: {e}");
+                    // Cancel all tasks and gracefully shutdown.
+                    $cancellation.cancel();
+                }
             }
         }
-        tracing::info!(target: "rollup_node", "All actors finished successfully.");
     };
 }
 
