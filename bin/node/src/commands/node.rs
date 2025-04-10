@@ -89,6 +89,7 @@ impl NodeCommand {
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_p2p_config(p2p_config)
+            .with_network_disabled(self.p2p_flags.disabled)
             .with_rpc_config(rpc_config)
             .build()
             .start()
