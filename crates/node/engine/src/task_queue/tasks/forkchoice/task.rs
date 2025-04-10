@@ -32,7 +32,7 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // If the engine is syncing, log a warning. Still attempt the forkchoice update.
         if state.sync_status.is_syncing() {
-            warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
+            trace!(target: "engine", "Attempting to update forkchoice state while EL syncing");
         }
 
         // Check if the head is behind the finalized head.
@@ -46,9 +46,11 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Send the forkchoice update through the input.
         let forkchoice = state.create_forkchoice_state();
+        debug!(target: "engine", "Created forkchoice state: {forkchoice:?}");
 
         // Handle the forkchoice update result.
         if let Err(e) = self.client.fork_choice_updated_v3(forkchoice, None).await {
+            warn!(target: "engine", "Forkchoice update failed: {e}");
             let e = e
                 .as_error_resp()
                 .and_then(|e| {
@@ -59,6 +61,8 @@ impl EngineTaskExt for ForkchoiceTask {
 
             return Err(e.into());
         }
+
+        info!(target: "engine", "Forkchoice update successful");
 
         state.forkchoice_update_needed = false;
         Ok(())
