@@ -88,7 +88,7 @@ impl EngineStateBuilder {
             {
                 Ok(Some(safe_head)) => Some(safe_head),
                 Ok(None) => {
-                    debug!(target: "engine", "No safe head, using genesis");
+                    debug!(target: "engine", "No safe head, falling back to genesis");
                     self.finalized_head
                 }
                 Err(e) => return Err(e.into()),
@@ -105,7 +105,7 @@ impl EngineStateBuilder {
                     self.finalized_head = Some(finalized_head);
                 }
                 Ok(None) => {
-                    debug!(target: "engine", "No finalized head, using genesis");
+                    debug!(target: "engine", "No finalized head, falling back to genesis");
                     self.finalized_head =
                         self.client.l2_block_info_by_label(self.genesis.l2.number.into()).await?;
                 }
