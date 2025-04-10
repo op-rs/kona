@@ -27,7 +27,7 @@ macro_rules! spawn_and_wait {
 
         tracing::info!(target: "rollup_node", "All actors spawned, waiting for them to finish.");
         while let Some(result) = task_handles.join_next().await {
-            tracing::info!(target: "rollup_node", "Actor finished.");
+            tracing::info!(target: "rollup_node", "Actor finished: {:?}", result);
             if let Err(e) = result {
                 tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
 
