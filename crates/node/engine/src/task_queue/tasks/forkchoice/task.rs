@@ -26,11 +26,11 @@ impl EngineTaskExt for ForkchoiceTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         // Check if a forkchoice update is not needed, return early.
         if !state.forkchoice_update_needed {
+            debug!(target: "engine", "Forkchoice task executed but no update needed");
             return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
         }
 
-        // If the engine is syncing, log a warning. We can still attempt to apply the forkchoice
-        // update.
+        // If the engine is syncing, log a warning. Still attempt the forkchoice update.
         if state.sync_status.is_syncing() {
             warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
         }

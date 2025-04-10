@@ -113,10 +113,11 @@ pub trait ValidatorNodeService {
         let derivation = Some(derivation);
 
         let launcher = self.engine();
+
         let client = launcher.client();
         let sync = launcher.sync.clone();
         let engine = launcher.launch().await?;
-        let engine = EngineActor::new(
+        let mut engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
             sync,
             client,
@@ -125,6 +126,7 @@ pub trait ValidatorNodeService {
             unsafe_block_rx,
             cancellation.clone(),
         );
+        engine.init_sync()?;
         let engine = Some(engine);
 
         let network = (self.init_network().await?).map_or_else(

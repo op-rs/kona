@@ -4,7 +4,7 @@ use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
-    InsertUnsafeTask, SyncConfig,
+    ForkchoiceTask, InsertUnsafeTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
@@ -60,6 +60,15 @@ impl EngineActor {
             cancellation,
         }
     }
+
+    /// Helper method to send the initial forkchoice update to kick off syncing.
+    pub fn init_sync(&mut self) -> Result<(), EngineStateBuilderError> {
+        let task = ForkchoiceTask::new(Arc::clone(&self.client));
+        let task = EngineTask::ForkchoiceUpdate(task);
+        self.engine.enqueue(task);
+        debug!(target: "engine", "Enqueued initial forkchoice task.");
+        Ok(())
+    }
 }
 
 /// Configuration for the Engine Actor.
@@ -79,8 +88,12 @@ pub struct EngineLauncher {
 
 impl EngineLauncher {
     /// Launches the [`Engine`].
+    ///
+    /// At startup, the engine needs a forkchoice update
+    /// with the sync starting point.
     pub async fn launch(self) -> Result<Engine, EngineStateBuilderError> {
-        let state = self.state_builder().build().await?;
+        let mut state = self.state_builder().build().await?;
+        state.forkchoice_update_needed = true;
         Ok(Engine::new(state))
     }
 
