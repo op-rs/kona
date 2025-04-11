@@ -61,4 +61,4 @@ mod record;
 pub use record::{NodeRecord, NodeRecordParseError};
 
 mod utils;
-pub use utils::enr_to_multiaddr;
+pub use utils::{enr_to_multiaddr, multiaddr_to_enr};

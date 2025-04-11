@@ -98,6 +98,7 @@ impl Discv5Driver {
             .iter()
             .filter_map(|bn| match bn {
                 BootNode::Enr(enr) => Some(enr.clone()),
+                // BootNode::Enode(addr) => crate::multiaddr_to_enr(addr),
                 _ => None,
             })
             .collect();

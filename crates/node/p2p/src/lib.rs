@@ -29,6 +29,7 @@ mod peers;
 pub use peers::{
     AnyNode, BootNode, BootNodes, BootStore, NodeRecord, NodeRecordParseError, OP_RAW_BOOTNODES,
     OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId, PeerScoreLevel, enr_to_multiaddr,
+    multiaddr_to_enr,
 };
 
 mod discv5;

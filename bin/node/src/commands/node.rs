@@ -65,6 +65,22 @@ impl NodeCommand {
         args.init_telemetry(None)
     }
 
+    /// Validate the jwt secret if specified by exchanging capabilities with the engine.
+    pub async fn validate_jwt(&self, args: &GlobalArgs) -> anyhow::Result<()> {
+        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let engine_client = kona_engine::EngineClient::new_http(
+            self.l2_engine_rpc.clone(),
+            self.l2_provider_rpc.clone(),
+            args.rollup_config().ok_or(anyhow::anyhow!("Failed to get rollup config"))?,
+            jwt_secret,
+        );
+        engine_client
+            .exchange_capabilities()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to exchange capabilities with engine: {}", e))?;
+        Ok(())
+    }
+
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
@@ -77,6 +93,8 @@ impl NodeCommand {
             skip_sync_start_check: false,
             supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
         };
+
+        self.validate_jwt(args).await?;
 
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(args)?;
