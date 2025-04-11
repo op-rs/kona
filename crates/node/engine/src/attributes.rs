@@ -1,11 +1,12 @@
 //! Contains a utility method to check if attributes match a block.
 
+use alloy_eips::eip1559::BaseFeeParams;
 use alloy_network::TransactionResponse;
 use alloy_primitives::{Address, B256, Bytes};
 use alloy_rpc_types_eth::{Block, BlockTransactions, Withdrawals};
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
-use op_alloy_consensus::OpTxEnvelope;
+use op_alloy_consensus::{EIP1559ParamError, OpTxEnvelope, decode_holocene_extra_data};
 use op_alloy_rpc_types::Transaction;
 
 /// Represents whether the attributes match the block or not.
@@ -138,6 +139,82 @@ impl AttributesMatch {
         Self::Match
     }
 
+    /// Validates and compares EIP1559 parameters for consolidation.
+    fn check_eip1559(
+        config: &RollupConfig,
+        attributes: &OpAttributesWithParent,
+        block: &Block<Transaction>,
+    ) -> Self {
+        // We can assume that the EIP-1559 params are set iff holocene is active.
+        // Note here that we don't need to check for the attributes length because of type-safety.
+        let (ae, ad): (u128, u128) = match attributes.attributes.decode_eip_1559_params() {
+            None => {
+                // Holocene is active but the eip1559 are not set. This is a bug!
+                // Note: we checked the timestamp match above, so we can assume that both the
+                // attributes and the block have the same stamps
+                if config.is_holocene_active(block.header.timestamp) {
+                    error!(
+                        "EIP1559 parameters for attributes not set while holocene is active. This is a bug"
+                    );
+                    return AttributesMismatch::MissingAttributesEIP1559.into();
+                }
+
+                // If the attributes are not specified, that means we can just early return.
+                return Self::Match;
+            }
+            Some((0, e)) if e != 0 => {
+                error!(
+                    "Holocene EIP1559 params cannot have a 0 denominator unless elasticity is also 0. This is a bug"
+                );
+                return AttributesMismatch::InvalidEIP1559ParamsCombination.into();
+            }
+            // We need to translate (0, 0) parameters to pre-holocene protocol constants.
+            // Since holocene is supposed to be active, canyon should be as well. We take the canyon
+            // base fee params.
+            Some((0, 0)) => {
+                let BaseFeeParams { max_change_denominator, elasticity_multiplier } =
+                    config.chain_op_config.as_canyon_base_fee_params();
+
+                (elasticity_multiplier, max_change_denominator)
+            }
+            Some((ae, ad)) => (ae.into(), ad.into()),
+        };
+
+        // We decode the extra data stemming from the block header.
+        let (be, bd): (u128, u128) = match decode_holocene_extra_data(&block.header.extra_data) {
+            Ok((be, bd)) => (be.into(), bd.into()),
+            Err(EIP1559ParamError::NoEIP1559Params) => {
+                error!(
+                    "EIP1559 parameters for the block not set while holocene is active. This is a bug"
+                );
+                return AttributesMismatch::MissingBlockEIP1559.into();
+            }
+            Err(EIP1559ParamError::InvalidVersion(v)) => {
+                error!(
+                    version = v,
+                    "The version in the extra data EIP1559 payload is incorrect. Should be 0. This is a bug",
+                );
+                return AttributesMismatch::InvalidExtraDataVersion.into();
+            }
+            Err(e) => {
+                error!(err = ?e, "An unknown extra data decoding error occurred. This is a bug",);
+
+                return AttributesMismatch::UnknownExtraDataDecodingError(e).into();
+            }
+        };
+
+        // We now have to check that both parameters match
+        if ae != be || ad != bd {
+            return AttributesMismatch::EIP1559Parameters(
+                BaseFeeParams { max_change_denominator: ad, elasticity_multiplier: ae },
+                BaseFeeParams { max_change_denominator: bd, elasticity_multiplier: be },
+            )
+            .into()
+        }
+
+        Self::Match
+    }
+
     /// Checks if the specified [`OpAttributesWithParent`] matches the specified [`Block`].
     /// Returns [`AttributesMatch::Match`] if they match, otherwise returns
     /// [`AttributesMatch::Mismatch`].
@@ -213,7 +290,10 @@ impl AttributesMatch {
             .into();
         }
 
-        // TODO: Check EIP-1559 parameters
+        // Check the EIP-1559 parameters in a separate helper method
+        if let m @ Self::Mismatch(_) = Self::check_eip1559(config, attributes, block) {
+            return m;
+        }
 
         Self::Match
     }
@@ -239,6 +319,20 @@ pub enum AttributesMismatch {
     TransactionLen(usize, usize),
     /// A mismatch in the content of some transactions contained in the attributes and the block.
     TransactionContent(B256, B256),
+    /// The EIP1559 payload for the [`OpAttributesWithParent`] is missing when holocene is active.
+    MissingAttributesEIP1559,
+    /// The EIP1559 payload for the block is missing when holocene is active.
+    MissingBlockEIP1559,
+    /// The version in the extra data EIP1559 payload is incorrect. Should be 0.
+    InvalidExtraDataVersion,
+    /// An unknown extra data decoding error occurred.
+    UnknownExtraDataDecodingError(EIP1559ParamError),
+    /// Holocene EIP1559 params cannot have a 0 denominator unless elasticity is also 0
+    InvalidEIP1559ParamsCombination,
+    /// The EIP1559 base fee parameters of the attributes and the block don't match
+    EIP1559Parameters(BaseFeeParams, BaseFeeParams),
+    /// Transactions mismatch.
+    Transactions(u64, u64),
     /// The gas limit of the block does not match the gas limit of the attributes.
     GasLimit(u64, u64),
     /// The gas limit for the [`OpAttributesWithParent`] is missing.
@@ -266,11 +360,14 @@ impl From<AttributesMismatch> for AttributesMatch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{Bytes, address, b256};
+    use crate::AttributesMismatch::EIP1559Parameters;
+    use alloy_consensus::EMPTY_ROOT_HASH;
+    use alloy_primitives::{Bytes, FixedBytes, address, b256};
     use alloy_rpc_types_eth::BlockTransactions;
     use arbitrary::{Arbitrary, Unstructured};
     use kona_protocol::L2BlockInfo;
     use kona_registry::ROLLUP_CONFIGS;
+    use op_alloy_consensus::encode_holocene_extra_data;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
     fn default_attributes() -> OpAttributesWithParent {
@@ -604,6 +701,220 @@ mod tests {
 
         let check = AttributesMatch::check(cfg, &attributes, &block);
         assert_eq!(check, expected);
+    }
+
+    fn eip1559_test_setup() -> (RollupConfig, OpAttributesWithParent, Block<Transaction>) {
+        let mut cfg = default_rollup_config().clone();
+
+        // We need to activate holocene to make sure it works! We set the activation time to zero to
+        // make sure that it is activated by default.
+        cfg.hardforks.holocene_time = Some(0);
+
+        let mut attributes = default_attributes();
+        attributes.attributes.gas_limit = Some(0);
+        // For canyon and above we need to specify the withdrawals
+        attributes.attributes.payload_attributes.withdrawals = Some(vec![]);
+
+        // For canyon and above we also need to specify the withdrawal headers
+        let block = Block {
+            withdrawals: Some(Withdrawals(vec![])),
+            header: alloy_rpc_types_eth::Header {
+                inner: alloy_consensus::Header {
+                    withdrawals_root: Some(EMPTY_ROOT_HASH),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        (cfg, attributes, block)
+    }
+
+    /// Ensures that we have to set the EIP1559 parameters for holocene and above.
+    #[test]
+    fn test_eip1559_parameters_not_specified_holocene() {
+        let (cfg, attributes, block) = eip1559_test_setup();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::MissingAttributesEIP1559));
+        assert!(check.is_mismatch());
+    }
+
+    /// Ensures that we have to set the EIP1559 parameters for holocene and above.
+    #[test]
+    fn test_eip1559_parameters_specified_attributes_but_not_block() {
+        let (cfg, mut attributes, block) = eip1559_test_setup();
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::MissingBlockEIP1559));
+        assert!(check.is_mismatch());
+    }
+
+    /// Check that, when the eip1559 params are specified and empty, the check fails because we
+    /// fallback on canyon params for the attributes but not for the block (edge case).
+    #[test]
+    fn test_eip1559_parameters_specified_both_and_empty() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+        block.header.extra_data = vec![0; 9].into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(EIP1559Parameters(
+                BaseFeeParams { max_change_denominator: 250, elasticity_multiplier: 6 },
+                BaseFeeParams { max_change_denominator: 0, elasticity_multiplier: 0 }
+            ))
+        );
+        assert!(check.is_mismatch());
+    }
+
+    #[test]
+    fn test_eip1559_parameters_empty_for_attr_only() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+        block.header.extra_data = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 250, elasticity_multiplier: 6 },
+        )
+        .unwrap();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+        assert!(check.is_match());
+    }
+
+    #[test]
+    fn test_eip1559_parameters_custom_values_match() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = eip1559_extra_params;
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+        assert!(check.is_match());
+    }
+
+    #[test]
+    fn test_eip1559_parameters_custom_values_mismatch() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+
+        let eip1559_params: FixedBytes<8> = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 99, elasticity_multiplier: 2 },
+        )
+        .unwrap()
+        .split_off(1)
+        .as_ref()
+        .try_into()
+        .unwrap();
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = eip1559_extra_params;
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(AttributesMismatch::EIP1559Parameters(
+                BaseFeeParams { max_change_denominator: 99, elasticity_multiplier: 2 },
+                BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 }
+            ))
+        );
+        assert!(check.is_mismatch());
+    }
+
+    /// Edge case: if the elasticity multiplier is 0, the max change denominator cannot be 0 as well
+    #[test]
+    fn test_eip1559_parameters_combination_mismatch() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 5, elasticity_multiplier: 0 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = eip1559_extra_params;
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(AttributesMismatch::InvalidEIP1559ParamsCombination)
+        );
+        assert!(check.is_mismatch());
+    }
+
+    /// Check that the version of the extra block data must be zero.
+    #[test]
+    fn test_eip1559_parameters_invalid_version() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        let mut raw_extra_params_bytes = eip1559_extra_params.to_vec();
+        raw_extra_params_bytes[0] = 10;
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = raw_extra_params_bytes.into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::InvalidExtraDataVersion));
+        assert!(check.is_mismatch());
+    }
+
+    /// The default parameters can't overflow the u32 byte representation of the base fee params!
+    #[test]
+    fn test_eip1559_default_param_cant_overflow() {
+        let (mut cfg, mut attributes, mut block) = eip1559_test_setup();
+        cfg.chain_op_config.eip1559_denominator_canyon = u128::MAX;
+        cfg.chain_op_config.eip1559_elasticity = u128::MAX;
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+        block.header.extra_data = vec![0; 9].into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+
+        // Note that in this case we *always* have a mismatch because there isn't enough bytes in
+        // the default representation of the extra params to represent a u128
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(EIP1559Parameters(
+                BaseFeeParams {
+                    max_change_denominator: u128::MAX,
+                    elasticity_multiplier: u128::MAX
+                },
+                BaseFeeParams { max_change_denominator: 0, elasticity_multiplier: 0 }
+            ))
+        );
         assert!(check.is_mismatch());
     }
 
