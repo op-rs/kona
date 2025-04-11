@@ -94,6 +94,7 @@ impl NodeActor for NetworkActor {
                 block = unsafe_block_receiver.recv() => {
                     match block {
                         Ok(block) => {
+                            info!(target: "network", "Received unsafe block: {:?}", block);
                             match self.blocks.send(block) {
                                 Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
                                 Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
