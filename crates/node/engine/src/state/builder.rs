@@ -126,11 +126,11 @@ impl EngineStateBuilder {
         let mut builder = self;
         debug!(target: "engine", "Building engine state");
         builder.fetch_unsafe_head().await?;
-        debug!(target: "engine", "Fetched unsafe head");
+        debug!(target: "engine", "Fetched unsafe head: {:?}", builder.unsafe_head);
         builder.fetch_finalized_head().await?;
-        debug!(target: "engine", "Fetched finalized head");
+        debug!(target: "engine", "Fetched finalized head: {:?}", builder.finalized_head);
         builder.fetch_safe_head().await?;
-        debug!(target: "engine", "Fetched safe head");
+        debug!(target: "engine", "Fetched safe head: {:?}", builder.safe_head);
 
         let unsafe_head = builder.unsafe_head.ok_or(EngineStateBuilderError::MissingUnsafeHead)?;
         let finalized_head =
