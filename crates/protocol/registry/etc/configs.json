@@ -15,7 +15,8 @@
           "ecotone_time": 1710374401,
           "fjord_time": 1720627201,
           "granite_time": 1726070401,
-          "holocene_time": 1736445601
+          "holocene_time": 1736445601,
+          "isthmus_time": 1746806401
         },
         "protocol_versions_addr": "0x8062abc286f5e7d9428a0ccb9abd71e50d93b935",
         "superchain_config_addr": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
@@ -43,7 +44,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -125,7 +127,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 0,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -288,7 +291,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x14",
@@ -370,7 +374,8 @@
             "ecotone_time": 0,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -530,7 +535,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -775,7 +781,8 @@
             "ecotone_time": 0,
             "fjord_time": 1725536344,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -941,7 +948,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -1023,7 +1031,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x14",
@@ -1105,7 +1114,8 @@
             "ecotone_time": 0,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -1187,7 +1197,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 0,
-            "holocene_time": 1738573200
+            "holocene_time": 1738573200,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -1350,7 +1361,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -1757,7 +1769,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 0,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x14",
@@ -1839,7 +1852,8 @@
             "ecotone_time": 0,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -1921,7 +1935,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2088,7 +2103,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2170,7 +2186,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 0,
-            "holocene_time": 1742396400
+            "holocene_time": 1742396400,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2252,7 +2269,8 @@
             "ecotone_time": 0,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
@@ -2503,7 +2521,8 @@
             "ecotone_time": 1710374401,
             "fjord_time": 1720627201,
             "granite_time": 1726070401,
-            "holocene_time": 1736445601
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
