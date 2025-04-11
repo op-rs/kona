@@ -54,7 +54,7 @@ impl Handler for BlockHandler {
             OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
             warn!("Received block with unknown topic: {:?}", msg.topic);
-            return (MessageAcceptance::Reject, None)
+            return (MessageAcceptance::Reject, None);
         };
 
         match decoded {

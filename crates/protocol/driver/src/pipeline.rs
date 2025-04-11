@@ -46,7 +46,7 @@ where
                     match e {
                         PipelineErrorKind::Temporary(_) => {
                             trace!(target: "client_derivation_driver", "Failed to step derivation pipeline temporarily: {:?}", e);
-                            continue
+                            continue;
                         }
                         PipelineErrorKind::Reset(e) => {
                             warn!(target: "client_derivation_driver", "Failed to step derivation pipeline due to reset: {:?}", e);
@@ -89,7 +89,7 @@ where
                         }
                         PipelineErrorKind::Critical(_) => {
                             warn!(target: "client_derivation_driver", "Failed to step derivation pipeline: {:?}", e);
-                            return Err(e)
+                            return Err(e);
                         }
                     }
                 }
