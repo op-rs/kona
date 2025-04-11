@@ -6,6 +6,7 @@ use clap::Parser;
 use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
+use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
 use tracing::debug;
@@ -71,11 +72,13 @@ impl NodeCommand {
         let engine_client = kona_engine::EngineClient::new_http(
             self.l2_engine_rpc.clone(),
             self.l2_provider_rpc.clone(),
-            args.rollup_config().ok_or(anyhow::anyhow!("Failed to get rollup config"))?,
+            args.rollup_config()
+                .map(std::sync::Arc::new)
+                .ok_or(anyhow::anyhow!("Failed to get rollup config"))?,
             jwt_secret,
         );
         engine_client
-            .exchange_capabilities()
+            .exchange_capabilities(vec![])
             .await
             .map_err(|e| anyhow::anyhow!("Failed to exchange capabilities with engine: {}", e))?;
         Ok(())
