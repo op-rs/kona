@@ -4076,6 +4076,7 @@ dependencies = [
  "kona-registry",
  "kona-rpc",
  "libp2p",
+ "op-alloy-provider",
  "serde_json",
  "tabled",
  "tokio",

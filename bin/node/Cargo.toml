@@ -25,6 +25,9 @@ kona-rpc = { workspace = true, features = ["std"] }
 alloy-primitives.workspace = true
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 
+# op-alloy
+op-alloy-provider.workspace = true
+
 # general
 url.workspace = true
 tabled.workspace = true
