@@ -40,7 +40,7 @@ where
     C: CommsClient + Send + Sync,
 {
     /// Creates a new [SuperchainConsolidator] with the given providers and [Header]s.
-    pub fn new(
+    pub const fn new(
         boot_info: &'a mut BootInfo,
         interop_provider: OracleInteropProvider<C>,
         l2_providers: HashMap<u64, OracleL2ChainProvider<C>>,

@@ -105,40 +105,40 @@ impl EngineState {
     }
 
     /// Set the unsafe head.
-    pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
+    pub const fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
         self.unsafe_head = unsafe_head;
         self.forkchoice_update_needed = true;
     }
 
     /// Set the cross-verified unsafe head.
-    pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
+    pub const fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
         self.cross_unsafe_head = cross_unsafe_head;
     }
 
     /// Set the pending safe head.
-    pub fn set_pending_safe_head(&mut self, pending_safe_head: L2BlockInfo) {
+    pub const fn set_pending_safe_head(&mut self, pending_safe_head: L2BlockInfo) {
         self.pending_safe_head = pending_safe_head;
     }
 
     /// Set the local safe head.
-    pub fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
+    pub const fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
         self.local_safe_head = local_safe_head;
     }
 
     /// Set the safe head.
-    pub fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
+    pub const fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
         self.safe_head = safe_head;
         self.forkchoice_update_needed = true;
     }
 
     /// Set the finalized head.
-    pub fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
+    pub const fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
         self.finalized_head = finalized_head;
         self.forkchoice_update_needed = true;
     }
 
     /// Set the backup unsafe head.
-    pub fn set_backup_unsafe_head(&mut self, backup_unsafe_head: L2BlockInfo, reorg: bool) {
+    pub const fn set_backup_unsafe_head(&mut self, backup_unsafe_head: L2BlockInfo, reorg: bool) {
         self.backup_unsafe_head = Some(backup_unsafe_head);
         self.need_fcu_call_backup_unsafe_reorg = reorg;
     }
