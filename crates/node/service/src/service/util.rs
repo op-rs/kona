@@ -26,9 +26,7 @@ macro_rules! spawn_and_wait {
 
         while let Some(result) = task_handles.join_next().await {
             match result {
-                Ok(Ok(())) => {
-                    tracing::info!(target: "rollup_node", "Actor finished.");
-                }
+                Ok(Ok(())) => { /* Actor completed successfully */ }
                 Ok(Err(e)) => {
                     tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
                     // Cancel all tasks and gracefully shutdown.
