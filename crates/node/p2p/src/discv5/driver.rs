@@ -9,7 +9,7 @@ use tokio::{
 
 use crate::{
     BootNode, BootNodes, BootStore, Discv5Builder, Discv5Handler, HandlerRequest, HandlerResponse,
-    OpStackEnr,
+    OpStackEnr, enr_to_multiaddr,
 };
 
 /// The [`Discv5Driver`] drives the discovery service.
@@ -210,6 +210,19 @@ impl Discv5Driver {
                                 HandlerRequest::TableEnrs => {
                                     let enrs = self.disc.table_entries_enr();
                                     let _ = res_sender.send(HandlerResponse::TableEnrs(enrs)).await;
+                                },
+                                HandlerRequest::BanAddrs{addrs_to_ban, ban_duration} => {
+                                    let enrs = self.disc.table_entries_enr();
+
+                                    for enr in enrs {
+                                        let Some(multi_addr) = enr_to_multiaddr(&enr) else {
+                                            continue;
+                                        };
+
+                                        if addrs_to_ban.contains(&multi_addr) {
+                                            self.disc.ban_node(&enr.node_id(), Some(ban_duration));
+                                        }
+                                    }
                                 }
                             }
                             None => {

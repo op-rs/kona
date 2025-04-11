@@ -13,7 +13,7 @@ pub fn enr_to_multiaddr(enr: &Enr) -> Option<Multiaddr> {
     if let Some(socket) = enr.tcp6_socket() {
         let mut addr = Multiaddr::from(*socket.ip());
         addr.push(Protocol::Tcp(socket.port()));
-        return Some(addr)
+        return Some(addr);
     }
     None
 }

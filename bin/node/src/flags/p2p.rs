@@ -8,7 +8,7 @@ use crate::flags::GlobalArgs;
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
-use kona_p2p::{Config, PeerScoreLevel};
+use kona_p2p::{Config, PeerMonitoring, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, SocketAddr},
@@ -96,6 +96,23 @@ pub struct P2PArgs {
     /// Can be one of: none or light.
     #[arg(long = "p2p.scoring", default_value = "light", env = "KONA_NODE_P2P_SCORING")]
     pub scoring: PeerScoreLevel,
+
+    /// Allows to ban peers based on their score.
+    ///
+    /// Peers are banned based on a ban threshold (see `p2p.ban.threshold`).
+    /// If a peer's score is below the threshold, it gets automatically banned.
+    #[arg(long = "p2p.ban.peers", default_value = "false", env = "KONA_NODE_P2P_BAN_PEERS")]
+    pub ban_enabled: bool,
+
+    /// The threshold used to ban peers.
+    /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
+    #[arg(long = "p2p.ban.threshold", default_value = "0", env = "KONA_NODE_P2P_BAN_THRESHOLD")]
+    pub ban_threshold: i32,
+
+    /// The duration in seconds to ban a peer for.
+    /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
+    #[arg(long = "p2p.ban.duration", default_value = "30", env = "KONA_NODE_P2P_BAN_DURATION")]
+    pub ban_duration: u32,
 }
 
 impl Default for P2PArgs {
@@ -117,6 +134,9 @@ impl Default for P2PArgs {
             gossip_mesh_dlazy: kona_p2p::DEFAULT_MESH_DLAZY,
             gossip_flood_publish: false,
             scoring: PeerScoreLevel::Light,
+            ban_enabled: false,
+            ban_threshold: 0,
+            ban_duration: 30,
         }
     }
 }
@@ -140,6 +160,16 @@ impl P2PArgs {
             .flood_publish(self.gossip_flood_publish)
             .build()?;
         let block_time = args.block_time()?;
+
+        let monitor_peers = if self.ban_enabled {
+            Some(PeerMonitoring {
+                ban_duration: Duration::from_secs(self.ban_duration.into()),
+                ban_threshold: self.ban_threshold as f64,
+            })
+        } else {
+            None
+        };
+
         Ok(Config {
             discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
             gossip_address: multiaddr,
@@ -148,6 +178,7 @@ impl P2PArgs {
             gossip_config,
             scoring: self.scoring,
             block_time,
+            monitor_peers,
         })
     }
 

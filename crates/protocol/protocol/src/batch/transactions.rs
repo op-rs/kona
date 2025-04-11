@@ -311,7 +311,7 @@ impl SpanBatchTransactions {
                     (sig, tx.to(), tx.nonce(), tx.gas_limit(), tx.chain_id())
                 }
                 _ => {
-                    return Err(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData))
+                    return Err(SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData));
                 }
             };
 

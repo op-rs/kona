@@ -62,3 +62,6 @@ pub use record::{NodeRecord, NodeRecordParseError};
 
 mod utils;
 pub use utils::enr_to_multiaddr;
+
+mod monitoring;
+pub use monitoring::PeerMonitoring;

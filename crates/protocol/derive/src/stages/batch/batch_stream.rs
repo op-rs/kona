@@ -170,7 +170,7 @@ where
                             return Err(PipelineError::NotEnoughData.temp());
                         }
                         BatchValidity::Undecided | BatchValidity::Future => {
-                            return Err(PipelineError::NotEnoughData.temp())
+                            return Err(PipelineError::NotEnoughData.temp());
                         }
                     }
                 }

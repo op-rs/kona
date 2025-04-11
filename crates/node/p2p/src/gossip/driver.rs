@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::{
     Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, PublishError,
-    enr_to_multiaddr,
+    enr_to_multiaddr, peers::PeerMonitoring,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -33,6 +33,9 @@ pub struct GossipDriver {
     pub dialed_peers: HashMap<Multiaddr, bool>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
     pub peerstore: HashMap<PeerId, Multiaddr>,
+    /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
+    /// threshold.
+    pub peer_monitoring: Option<PeerMonitoring>,
 }
 
 impl GossipDriver {
@@ -49,6 +52,7 @@ impl GossipDriver {
             handler,
             dialed_peers: Default::default(),
             peerstore: Default::default(),
+            peer_monitoring: None,
         }
     }
 
