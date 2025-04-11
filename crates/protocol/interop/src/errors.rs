@@ -96,7 +96,7 @@ impl InvalidInboxEntry {
         // `failed to check message: failed to check log: unknown chain: 14417`
         if err_msg.contains(UNKNOWN_CHAIN_MSG) {
             if let Ok(chain_id) =
-                err_msg.split(' ').last().expect("message contains chain id").parse::<u64>()
+                err_msg.split(' ').next_back().expect("message contains chain id").parse::<u64>()
             {
                 return Some(Self::UnknownChain(chain_id));
             }

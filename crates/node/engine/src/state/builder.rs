@@ -96,7 +96,7 @@ impl EngineStateBuilder {
     }
 
     /// Append the sync status to the [EngineStateBuilder].
-    pub fn with_sync_status(&mut self, sync_status: SyncStatus) -> &mut Self {
+    pub const fn with_sync_status(&mut self, sync_status: SyncStatus) -> &mut Self {
         self.sync_status = Some(sync_status);
         self
     }

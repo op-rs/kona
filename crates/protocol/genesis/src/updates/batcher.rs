@@ -15,7 +15,7 @@ pub struct BatcherUpdate {
 
 impl BatcherUpdate {
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         config.batcher_address = self.batcher_address;
     }
 }
