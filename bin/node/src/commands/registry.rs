@@ -1,6 +1,6 @@
 //! Registry Subcommand
 
-use crate::flags::GlobalArgs;
+use crate::flags::{GlobalArgs, MetricsArgs};
 use clap::Parser;
 
 /// The `registry` Subcommand
@@ -18,8 +18,9 @@ pub struct RegistryCommand {}
 
 impl RegistryCommand {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
-        args.init_telemetry(None)
+    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+        args.init_tracing(None)?;
+        metrics.init_metrics()
     }
 
     /// Runs the subcommand.

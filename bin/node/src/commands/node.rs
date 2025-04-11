@@ -11,7 +11,7 @@ use std::{fs::File, path::PathBuf};
 use tracing::debug;
 use url::Url;
 
-use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
+use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 
 /// The Node subcommand.
 ///
@@ -61,8 +61,9 @@ pub struct NodeCommand {
 
 impl NodeCommand {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
-        args.init_telemetry(None)
+    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+        args.init_tracing(None)?;
+        metrics.init_metrics()
     }
 
     /// Run the Node subcommand.

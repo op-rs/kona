@@ -1,6 +1,6 @@
 //! Net Subcommand
 
-use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
+use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 use clap::Parser;
 use kona_p2p::{NetRpcRequest, NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
@@ -28,13 +28,14 @@ pub struct NetCommand {
 
 impl NetCommand {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
+    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?);
 
         // Initialize the telemetry stack.
-        args.init_telemetry(Some(filter))
+        args.init_tracing(Some(filter))?;
+        metrics.init_metrics()
     }
 
     /// Run the Net subcommand.
