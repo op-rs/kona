@@ -9,7 +9,7 @@ use kona_node_service::{RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
-use tracing::debug;
+use tracing::{debug, error};
 use url::Url;
 
 use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
@@ -72,16 +72,29 @@ impl NodeCommand {
         let engine_client = kona_engine::EngineClient::new_http(
             self.l2_engine_rpc.clone(),
             self.l2_provider_rpc.clone(),
-            args.rollup_config()
-                .map(std::sync::Arc::new)
-                .ok_or(anyhow::anyhow!("Failed to get rollup config"))?,
+            args.rollup_config().map(std::sync::Arc::new).ok_or(anyhow::anyhow!(
+                "Failed to get rollup config for chain id: {}",
+                args.l2_chain_id
+            ))?,
             jwt_secret,
         );
-        engine_client
-            .exchange_capabilities(vec![])
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to exchange capabilities with engine: {}", e))?;
-        Ok(())
+        match engine_client.exchange_capabilities(vec![]).await {
+            Ok(_) => {
+                debug!("Successfully exchanged capabilities with engine");
+                Ok(())
+            }
+            Err(e) => {
+                if e.to_string().contains("signature invalid") {
+                    error!(
+                        "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
+                    );
+                    error!(
+                        "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
+                    );
+                }
+                bail!("Failed to exchange capabilities with engine: {}", e);
+            }
+        }
     }
 
     /// Run the Node subcommand.
