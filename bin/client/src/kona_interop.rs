@@ -12,8 +12,6 @@ use kona_preimage::{HintWriter, OracleReader};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use kona_std_fpvm_proc::client_entry;
 
-// mod precompiles;
-
 /// The global preimage oracle reader pipe.
 static ORACLE_READER_PIPE: FileChannel =
     FileChannel::new(FileDescriptor::PreimageRead, FileDescriptor::PreimageWrite);

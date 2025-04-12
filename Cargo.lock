@@ -130,7 +130,7 @@ dependencies = [
  "arbitrary",
  "auto_impl",
  "c-kzg",
- "derive_more 2.0.1",
+ "derive_more",
  "either",
  "k256",
  "once_cell",
@@ -151,6 +151,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-serde",
+ "arbitrary",
  "serde",
 ]
 
@@ -212,7 +213,7 @@ dependencies = [
  "arbitrary",
  "auto_impl",
  "c-kzg",
- "derive_more 2.0.1",
+ "derive_more",
  "either",
  "ethereum_ssz",
  "ethereum_ssz_derive",
@@ -232,7 +233,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "op-alloy-consensus",
  "op-revm",
  "revm",
@@ -297,7 +298,7 @@ dependencies = [
  "alloy-sol-types",
  "async-trait",
  "auto_impl",
- "derive_more 2.0.1",
+ "derive_more",
  "futures-utils-wasm",
  "serde",
  "serde_json",
@@ -356,7 +357,7 @@ dependencies = [
  "cfg-if",
  "const-hex",
  "derive_arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "foldhash",
  "getrandom 0.3.2",
  "hashbrown 0.15.2",
@@ -548,7 +549,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-serde",
- "derive_more 2.0.1",
+ "derive_more",
  "ethereum_ssz",
  "ethereum_ssz_derive",
  "jsonwebtoken",
@@ -684,7 +685,7 @@ checksum = "6e1f1a55f9ff9a48aa0b4a8c616803754620010fbb266edae2f4548f4304373b"
 dependencies = [
  "alloy-json-rpc",
  "base64",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "futures-utils-wasm",
  "parking_lot",
@@ -758,16 +759,16 @@ dependencies = [
 
 [[package]]
 name = "alloy-trie"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f9382b4e38b126358f276b863673bc47840d3b3508dd1c9efe22f81b4e83649"
+checksum = "983d99aa81f586cef9dae38443245e585840fcf0fc58b09aee0b1f27aed1d500"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "arbitrary",
  "arrayvec",
  "derive_arbitrary",
- "derive_more 1.0.0",
+ "derive_more",
  "nybbles",
  "proptest",
  "proptest-derive",
@@ -849,9 +850,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "arbitrary"
@@ -2159,15 +2160,15 @@ dependencies = [
 
 [[package]]
 name = "data-encoding"
-version = "2.8.0"
+version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "575f75dfd25738df5b91b8e43e14d44bda14637a58fae779fd2b064f8bf3e010"
+checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
 name = "data-encoding-macro"
-version = "0.1.17"
+version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f9724adfcf41f45bf652b3995837669d73c4d49a1b5ac1ff82905ac7d9b5558"
+checksum = "47ce6c96ea0102f01122a185683611bd5ac8d99e62bc59dd12e6bda344ee673d"
 dependencies = [
  "data-encoding",
  "data-encoding-macro-internal",
@@ -2175,9 +2176,9 @@ dependencies = [
 
 [[package]]
 name = "data-encoding-macro-internal"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18e4fdb82bd54a12e42fb58a800dcae6b9e13982238ce2296dc3570b92148e1f"
+checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
  "syn 2.0.100",
@@ -2272,31 +2273,11 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
-dependencies = [
- "derive_more-impl 1.0.0",
-]
-
-[[package]]
-name = "derive_more"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
 dependencies = [
- "derive_more-impl 2.0.1",
-]
-
-[[package]]
-name = "derive_more-impl"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
+ "derive_more-impl",
 ]
 
 [[package]]
@@ -3068,9 +3049,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.8"
+version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5017294ff4bb30944501348f6f8e42e6ad28f42c8bbef7a74029aff064a4e3c2"
+checksum = "75249d144030531f8dee69fe9cea04d3edf809a017ae445e2abdff6629e86633"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -4099,8 +4080,10 @@ dependencies = [
  "revm",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "spin 0.10.0",
  "thiserror 2.0.12",
+ "tokio",
  "tracing",
 ]
 
@@ -4198,7 +4181,7 @@ dependencies = [
  "alloy-transport-http",
  "arbitrary",
  "async-trait",
- "derive_more 2.0.1",
+ "derive_more",
  "http-body-util",
  "kona-genesis",
  "kona-protocol",
@@ -4265,7 +4248,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "kona-serde",
  "op-revm",
  "rand 0.9.0",
@@ -4344,7 +4327,7 @@ dependencies = [
  "alloy-sol-types",
  "arbitrary",
  "async-trait",
- "derive_more 2.0.1",
+ "derive_more",
  "kona-genesis",
  "kona-registry",
  "op-alloy-consensus",
@@ -4415,7 +4398,7 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-transport",
  "async-trait",
- "derive_more 2.0.1",
+ "derive_more",
  "futures",
  "jsonrpsee",
  "kona-derive",
@@ -4445,7 +4428,7 @@ dependencies = [
  "arbitrary",
  "arbtest",
  "async-trait",
- "derive_more 2.0.1",
+ "derive_more",
  "dirs",
  "discv5",
  "futures",
@@ -4562,7 +4545,7 @@ dependencies = [
  "arbitrary",
  "async-trait",
  "brotli",
- "derive_more 2.0.1",
+ "derive_more",
  "kona-genesis",
  "miniz_oxide",
  "op-alloy-consensus",
@@ -4628,7 +4611,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rpc-client",
  "async-trait",
- "derive_more 2.0.1",
+ "derive_more",
  "getrandom 0.3.2",
  "jsonrpsee",
  "kona-genesis",
@@ -5720,7 +5703,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde",
  "arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "serde",
  "thiserror 2.0.12",
 ]
@@ -5778,7 +5761,7 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-serde",
  "arbitrary",
- "derive_more 2.0.1",
+ "derive_more",
  "op-alloy-consensus",
  "serde",
  "serde_json",
@@ -5795,7 +5778,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-engine",
  "alloy-serde",
- "derive_more 2.0.1",
+ "derive_more",
  "ethereum_ssz",
  "op-alloy-consensus",
  "serde",
@@ -5805,9 +5788,9 @@ dependencies = [
 
 [[package]]
 name = "op-revm"
-version = "3.0.0"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac40ce865561819210df49a6d191c452155d71d9908b4aab7ba155fff68d2ab2"
+checksum = "20f99e225fe0ee4635066cc772a2296c13fe273c0aebdb33158e4f9293d6639d"
 dependencies = [
  "auto_impl",
  "once_cell",

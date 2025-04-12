@@ -31,7 +31,7 @@ pub(crate) fn fpvm_bls12_g2_add<C: Channel + Send + Sync>(
     let input_len = input.len();
     if input_len != G2_ADD_INPUT_LENGTH {
         return Err(PrecompileError::Other(alloc::format!(
-            "G2 addition input length should be multiple of {G2_ADD_INPUT_LENGTH}, was {input_len}"
+            "G2 addition input length should be {G2_ADD_INPUT_LENGTH} bytes, was {input_len}"
         )));
     }
 
@@ -43,4 +43,52 @@ pub(crate) fn fpvm_bls12_g2_add<C: Channel + Send + Sync>(
     .map_err(|e| PrecompileError::Other(e.to_string()))?;
 
     Ok(PrecompileOutput::new(G2_ADD_BASE_GAS_FEE, result_data.into()))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::fpvm_evm::precompiles::test_utils::{
+        execute_native_precompile, test_accelerated_precompile,
+    };
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g2_add() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            // G2.INF + G2.INF = G2.INF
+            let input = [0u8; G2_ADD_INPUT_LENGTH];
+            let accelerated_result =
+                fpvm_bls12_g2_add(&input, u64::MAX, hint_writer, oracle_reader).unwrap();
+            let native_result = execute_native_precompile(
+                *bls12_381::g2_add::PRECOMPILE.address(),
+                input,
+                u64::MAX,
+            )
+            .unwrap();
+
+            assert_eq!(accelerated_result.bytes, native_result.bytes);
+            assert_eq!(accelerated_result.gas_used, native_result.gas_used);
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g2_add_bad_input_len() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            let accelerated_result =
+                fpvm_bls12_g2_add(&[], u64::MAX, hint_writer, oracle_reader).unwrap_err();
+            assert!(matches!(accelerated_result, PrecompileError::Other(_)));
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g2_add_bad_gas_limit() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            let accelerated_result =
+                fpvm_bls12_g2_add(&[], 0, hint_writer, oracle_reader).unwrap_err();
+            assert!(matches!(accelerated_result, PrecompileError::OutOfGas));
+        })
+        .await;
+    }
 }

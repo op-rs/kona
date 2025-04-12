@@ -53,6 +53,11 @@ serde_json.workspace = true
 async-trait.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+kona-preimage = { workspace = true, features = ["std"] }
+sha2.workspace = true
+
 [features]
 default = ["client-tracing"]
 client-tracing = ["kona-std-fpvm/tracing"]

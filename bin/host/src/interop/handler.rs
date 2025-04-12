@@ -154,7 +154,7 @@ impl HintHandler for InteropHintHandler {
 
                 let address = Address::from_slice(&hint.data.as_ref()[..20]);
                 let gas = u64::from_be_bytes(hint.data.as_ref()[20..28].try_into()?);
-                let input = hint.data[20..].to_vec();
+                let input = hint.data[28..].to_vec();
                 let input_hash = keccak256(hint.data.as_ref());
 
                 let result = crate::eth::execute(address, input, gas).map_or_else(

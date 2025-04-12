@@ -57,3 +57,66 @@ pub(crate) fn fpvm_bls12_g1_msm<C: Channel + Send + Sync>(
 
     Ok(PrecompileOutput::new(required_gas, result_data.into()))
 }
+
+#[cfg(test)]
+mod test {
+    use alloy_primitives::hex;
+
+    use super::*;
+    use crate::fpvm_evm::precompiles::test_utils::{
+        execute_native_precompile, test_accelerated_precompile,
+    };
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g1_msm() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            // https://raw.githubusercontent.com/ethereum/execution-spec-tests/a1c4eeff347a64ad6c5aedd51314d4ffc067346b/tests/prague/eip2537_bls_12_381_precompiles/vectors/msm_G1_bls.json
+            let input = hex!("0000000000000000000000000000000017f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb0000000000000000000000000000000008b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e10000000000000000000000000000000000000000000000000000000000000002");
+            let expected = hex!("000000000000000000000000000000000572cbea904d67468808c8eb50a9450c9721db309128012543902d0ac358a62ae28f75bb8f1c7c42c39a8c5529bf0f4e00000000000000000000000000000000166a9d8cabc673a322fda673779d8e3822ba3ecb8670e461f73bb9021d5fd76a4c56d9d4cd16bd1bba86881979749d28");
+
+            let accelerated_result = fpvm_bls12_g1_msm(&input, 12000, hint_writer, oracle_reader).unwrap();
+            let native_result = execute_native_precompile(*bls12_381::g1_msm::PRECOMPILE.address(), input, 12000).unwrap();
+
+            assert_eq!(accelerated_result.bytes.as_ref(), expected.as_ref());
+            assert_eq!(accelerated_result.bytes, native_result.bytes);
+            assert_eq!(accelerated_result.gas_used, native_result.gas_used);
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g1_msm_bad_input_len_isthmus() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            let accelerated_result = fpvm_bls12_g1_msm(
+                &[0u8; BLS12_MAX_G1_MSM_SIZE_ISTHMUS + 1],
+                u64::MAX,
+                hint_writer,
+                oracle_reader,
+            )
+            .unwrap_err();
+            assert!(matches!(accelerated_result, PrecompileError::Other(_)));
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g1_msm_bad_input_len() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            let accelerated_result =
+                fpvm_bls12_g1_msm(&[], u64::MAX, hint_writer, oracle_reader).unwrap_err();
+            assert!(matches!(accelerated_result, PrecompileError::Other(_)));
+        })
+        .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_accelerated_bls12_381_g1_msm_bad_gas_limit() {
+        test_accelerated_precompile(|hint_writer, oracle_reader| {
+            let accelerated_result =
+                fpvm_bls12_g1_msm(&[0u8; G1_MSM_INPUT_LENGTH], 0, hint_writer, oracle_reader)
+                    .unwrap_err();
+            assert!(matches!(accelerated_result, PrecompileError::OutOfGas));
+        })
+        .await;
+    }
+}

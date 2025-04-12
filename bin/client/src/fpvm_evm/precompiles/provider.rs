@@ -221,7 +221,7 @@ fn accelerated_isthmus<C: Channel + Send + Sync>() -> Vec<AcceleratedPrecompile<
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::PAIRING_ADDRESS,
-        super::bls12_pairing::fpvm_bls12_pairing::<C>,
+        super::bls12_pair::fpvm_bls12_pairing::<C>,
     ));
     base
 }
