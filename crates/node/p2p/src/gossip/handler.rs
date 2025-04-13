@@ -169,20 +169,19 @@ impl BlockHandler {
 
         // V1 topic validation (topic <= V1)
         // In fact, no need to check withdrawals for V1, because they are not included
-        if topic == &self.blocks_v1_topic.hash() {
-            if envelope.payload.has_withdrawals() || envelope.payload.has_withdrawals_list() {
-                return false;
-            }
+        if topic == &self.blocks_v1_topic.hash() &&
+            (envelope.payload.has_withdrawals() || envelope.payload.has_withdrawals_list())
+        {
+            return false;
         }
 
         // V2 and above validation (topic >= V2)
-        if topic == &self.blocks_v2_topic.hash() ||
+        if (topic == &self.blocks_v2_topic.hash() ||
             topic == &self.blocks_v3_topic.hash() ||
-            topic == &self.blocks_v4_topic.hash()
+            topic == &self.blocks_v4_topic.hash()) &&
+            !envelope.payload.has_empty_withdrawals_list()
         {
-            if !envelope.payload.has_empty_withdrawals_list() {
-                return false;
-            }
+            return false;
         }
 
         // V2 and below validation (topic <= V2)

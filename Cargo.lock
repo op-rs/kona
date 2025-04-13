@@ -4130,6 +4130,7 @@ dependencies = [
  "lazy_static",
  "libp2p",
  "multihash",
+ "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
  "openssl",
  "serde",

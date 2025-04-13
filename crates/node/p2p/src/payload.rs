@@ -1,3 +1,6 @@
+use alloy_primitives::keccak256;
+use alloy_rlp::Encodable;
+use op_alloy_consensus::OpPooledTransaction;
 use op_alloy_rpc_types_engine::OpExecutionPayload;
 
 /// Trait for validating execution payloads
@@ -90,19 +93,15 @@ impl PayloadValidation for OpExecutionPayload {
     }
 
     fn is_block_hash_valid(&self) -> bool {
-        match self {
-            OpExecutionPayload::V1(payload) => payload.block_hash == payload.block_hash,
-            OpExecutionPayload::V2(payload) => {
-                payload.payload_inner.block_hash == payload.payload_inner.block_hash
+        let block_result = self.clone().try_into_block::<OpPooledTransaction>();
+        match block_result {
+            Ok(block) => {
+                let mut buf = Vec::new();
+                block.header.encode(&mut buf);
+                let computed_hash = keccak256(&buf);
+                computed_hash == self.as_v1().block_hash
             }
-            OpExecutionPayload::V3(payload) => {
-                payload.payload_inner.payload_inner.block_hash ==
-                    payload.payload_inner.payload_inner.block_hash
-            }
-            OpExecutionPayload::V4(payload) => {
-                payload.payload_inner.payload_inner.payload_inner.block_hash ==
-                    payload.payload_inner.payload_inner.payload_inner.block_hash
-            }
+            Err(_) => false,
         }
     }
 }
