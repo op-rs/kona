@@ -36,5 +36,8 @@ pub use discv5::{
     Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler, HandlerRequest, HandlerResponse,
 };
 
+mod payload;
+pub use payload::PayloadValidation;
+
 mod utils;
 pub use utils::{KeypairError, ParseKeyError, get_keypair, parse_key};

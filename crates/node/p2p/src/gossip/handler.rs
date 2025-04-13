@@ -1,6 +1,6 @@
 //! Block Handler
 
-use crate::HandlerEncodeError;
+use crate::{HandlerEncodeError, payload::PayloadValidation};
 use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
 use libp2p::gossipsub::{IdentTopic, Message, MessageAcceptance, TopicHash};
@@ -59,7 +59,7 @@ impl Handler for BlockHandler {
 
         match decoded {
             Ok(envelope) => {
-                if self.block_valid(&envelope) {
+                if self.block_valid(&envelope, &msg.topic) {
                     (MessageAcceptance::Accept, Some(envelope))
                 } else {
                     debug!("Received invalid block: {:?}", envelope);
@@ -137,16 +137,77 @@ impl BlockHandler {
 
     /// Determines if a block is valid.
     ///
-    /// True if the block is less than 1 minute old, and correctly signed by the unsafe block
-    /// signer.
-    pub fn block_valid(&self, envelope: &OpNetworkPayloadEnvelope) -> bool {
+    /// Implements the validation rules from the OP Stack specification:
+    /// - Time validation: blocks must be within 60 seconds old and not more than 5 seconds in the
+    ///   future
+    /// - Version validation: checks for withdrawals, blob gas, beacon block root based on topic
+    ///   version
+    /// - Signature validation: blocks must be signed by the unsafe block signer
+    ///
+    /// See block validation rules in the Optimism specification:
+    /// <https://specs.optimism.io/protocol/rollup-node-p2p.html#block-validation>
+    ///
+    /// TODO: more validation rules
+    /// - REJECT: if the block is on a topic >= V4 and the l2 withdrawals root is nil
+    /// - REJECT: if more than 5 different blocks have been seen with the same block height
+    /// - IGNORE: if the block has already been seen
+    pub fn block_valid(&self, envelope: &OpNetworkPayloadEnvelope, topic: &TopicHash) -> bool {
+        // Time validation
         let current_timestamp =
             SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
         let is_future = envelope.payload.timestamp() > current_timestamp + 5;
         let is_past = envelope.payload.timestamp() < current_timestamp - 60;
-        let time_valid = !(is_future || is_past);
+        if is_future || is_past {
+            return false;
+        }
 
+        // Block hash validation
+        if !envelope.payload.is_block_hash_valid() {
+            return false;
+        }
+
+        // V1 topic validation (topic <= V1)
+        // In fact, no need to check withdrawals for V1, because they are not included
+        if topic == &self.blocks_v1_topic.hash() {
+            if envelope.payload.has_withdrawals() || envelope.payload.has_withdrawals_list() {
+                return false;
+            }
+        }
+
+        // V2 and above validation (topic >= V2)
+        if topic == &self.blocks_v2_topic.hash() ||
+            topic == &self.blocks_v3_topic.hash() ||
+            topic == &self.blocks_v4_topic.hash()
+        {
+            if !envelope.payload.has_empty_withdrawals_list() {
+                return false;
+            }
+        }
+
+        // V2 and below validation (topic <= V2)
+        if topic == &self.blocks_v1_topic.hash() || topic == &self.blocks_v2_topic.hash() {
+            if envelope.payload.has_blob_gas_used() || envelope.payload.has_excess_blob_gas() {
+                return false;
+            }
+            if envelope.parent_beacon_block_root.is_some() {
+                return false;
+            }
+        }
+
+        // V3 and above validation (topic >= V3)
+        if topic == &self.blocks_v3_topic.hash() || topic == &self.blocks_v4_topic.hash() {
+            if envelope.payload.has_non_zero_blob_gas_used() ||
+                envelope.payload.has_non_zero_excess_blob_gas()
+            {
+                return false;
+            }
+            if envelope.parent_beacon_block_root.is_none() {
+                return false;
+            }
+        }
+
+        // Signature validation
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.signer_recv.borrow();
         let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
@@ -154,8 +215,7 @@ impl BlockHandler {
             return false;
         };
 
-        let signer_valid = msg_signer == block_signer;
-        time_valid && signer_valid
+        msg_signer == block_signer
     }
 }
 
@@ -200,6 +260,6 @@ mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let handler = BlockHandler::new(10, unsafe_signer);
 
-        assert!(handler.block_valid(&envelope));
+        assert!(handler.block_valid(&envelope, &handler.blocks_v1_topic.hash()));
     }
 }
