@@ -3524,7 +3524,7 @@
           "Name": "Shape Sepolia Testnet",
           "PublicRPC": "https://sepolia.shape.network/",
           "SequencerRPC": "https://shape-sepolia-sequencer.g.alchemy.com",
-          "Explorer": "https://shape-sepolia.explorer.alchemy.com/",
+          "Explorer": "https://explorer-sepolia.shape.network/",
           "SuperchainLevel": 1,
           "GovernedByOptimism": false,
           "SuperchainTime": null,
