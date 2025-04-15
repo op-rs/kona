@@ -598,7 +598,7 @@ mod tests {
         assert!(check.is_mismatch());
     }
 
-    /// Checks the edge case where the the attributes array is empty.
+    /// Checks the edge case where the attributes array is empty.
     #[test]
     fn test_attributes_mismatch_empty_tx_attributes() {
         let cfg = default_rollup_config();
@@ -614,7 +614,7 @@ mod tests {
         assert!(check.is_mismatch());
     }
 
-    /// Checks the edge case where the the transactions contained in the block have the wrong
+    /// Checks the edge case where the transactions contained in the block have the wrong
     /// format.
     #[test]
     fn test_block_transactions_wrong_format() {
@@ -629,7 +629,7 @@ mod tests {
         assert!(check.is_mismatch());
     }
 
-    /// Checks the edge case where the the transactions contained in the attributes have the wrong
+    /// Checks the edge case where the transactions contained in the attributes have the wrong
     /// format.
     #[test]
     fn test_attributes_transactions_wrong_format() {

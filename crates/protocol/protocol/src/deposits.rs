@@ -118,7 +118,7 @@ pub fn decode_deposit(block_hash: B256, index: usize, log: &Log) -> Result<Bytes
     // abi.encode(abi.encodPacked(uint256 mint, uint256 value, uint64 gasLimit, uint8 isCreation, bytes data))
     // ```
     //
-    // The the opaqueData will be packed as shown below:
+    // The opaqueData will be packed as shown below:
     //
     // ------------------------------------------------------------
     // | offset | 256 byte content                                |
