@@ -31,9 +31,11 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
             return Err(EIP1559UpdateError::InvalidDataLen(log.data.data.len()));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| EIP1559UpdateError::PointerDecodingError)?;
+            .map_err(|_| EIP1559UpdateError::PointerTypeCheck)?;
         let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(EIP1559UpdateError::PointerDecodingError);
         };
@@ -41,9 +43,11 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
             return Err(EIP1559UpdateError::InvalidDataPointer(pointer));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| EIP1559UpdateError::LengthDecodingError)?;
+            .map_err(|_| EIP1559UpdateError::LengthTypeCheck)?;
         let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(EIP1559UpdateError::LengthDecodingError);
         };
@@ -51,9 +55,11 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
             return Err(EIP1559UpdateError::InvalidDataLength(length));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[64..96].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| EIP1559UpdateError::EIP1559DecodingError)?;
+            .map_err(|_| EIP1559UpdateError::EIP1559TypeCheckError)?;
         let Ok(eip1559_params) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(EIP1559UpdateError::EIP1559DecodingError);
         };
@@ -120,7 +126,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = Eip1559Update::try_from(&system_log).unwrap_err();
-        assert_eq!(err, EIP1559UpdateError::PointerDecodingError);
+        assert_eq!(err, EIP1559UpdateError::PointerTypeCheck);
     }
 
     #[test]
@@ -158,7 +164,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = Eip1559Update::try_from(&system_log).unwrap_err();
-        assert_eq!(err, EIP1559UpdateError::LengthDecodingError);
+        assert_eq!(err, EIP1559UpdateError::LengthTypeCheck);
     }
 
     #[test]
@@ -196,6 +202,6 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = Eip1559Update::try_from(&system_log).unwrap_err();
-        assert_eq!(err, EIP1559UpdateError::EIP1559DecodingError);
+        assert_eq!(err, EIP1559UpdateError::EIP1559TypeCheckError);
     }
 }

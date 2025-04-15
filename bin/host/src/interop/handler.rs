@@ -105,7 +105,7 @@ impl HintHandler for InteropHintHandler {
                 // Fetch the blob sidecar from the blob provider.
                 let mut sidecars = providers
                     .blobs
-                    .fetch_filtered_sidecars(&partial_block_ref, [indexed_hash].as_slice())
+                    .fetch_filtered_sidecars(&partial_block_ref, &[indexed_hash])
                     .await
                     .map_err(|e| anyhow!("Failed to fetch blob sidecars: {e}"))?;
                 if sidecars.len() != 1 {
@@ -307,7 +307,7 @@ impl HintHandler for InteropHintHandler {
                 let l2_provider = providers.l2(&chain_id)?;
 
                 // Attempt to fetch the code from the L2 chain provider.
-                let code_key = [[CODE_PREFIX].as_slice(), hash.as_slice()].concat();
+                let code_key = [&[CODE_PREFIX], hash.as_slice()].concat();
                 let code = l2_provider
                     .client()
                     .request::<&[Bytes; 1], Bytes>("debug_dbGet", &[code_key.into()])

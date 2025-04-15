@@ -39,6 +39,9 @@ where
         // Compute the roots for the block header.
         let state_root = self.trie_db.state_root(&bundle)?;
         let transactions_root = ordered_trie_with_encoder(
+            // SAFETY: The OP Stack protocol will never generate a payload attributes with an empty
+            // transactions field. Panicking here is the desired behavior, as it indicates a severe
+            // protocol violation.
             attrs.transactions.as_ref().expect("Transactions must be non-empty"),
             |tx, buf| buf.put_slice(tx.as_ref()),
         )

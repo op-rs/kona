@@ -22,9 +22,11 @@ impl TryFrom<&SystemConfigLog> for UnsafeBlockSignerUpdate {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| UnsafeBlockSignerUpdateError::PointerDecodingError)?;
+            .map_err(|_| UnsafeBlockSignerUpdateError::PointerTypeCheck)?;
         let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
             return Err(UnsafeBlockSignerUpdateError::PointerDecodingError);
         };
@@ -32,9 +34,11 @@ impl TryFrom<&SystemConfigLog> for UnsafeBlockSignerUpdate {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataPointer(pointer));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| UnsafeBlockSignerUpdateError::LengthDecodingError)?;
+            .map_err(|_| UnsafeBlockSignerUpdateError::LengthTypeCheck)?;
         let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
             return Err(UnsafeBlockSignerUpdateError::LengthDecodingError);
         };
@@ -42,9 +46,11 @@ impl TryFrom<&SystemConfigLog> for UnsafeBlockSignerUpdate {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLength(length));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[64..96].try_into().unwrap();
         <sol!(address)>::type_check(&word.tokenize())
-            .map_err(|_| UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError)?;
+            .map_err(|_| UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressTypeCheck)?;
         let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode(&log.data.data[64..]) else {
             return Err(UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError);
         };
@@ -109,7 +115,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = UnsafeBlockSignerUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, UnsafeBlockSignerUpdateError::PointerDecodingError);
+        assert_eq!(err, UnsafeBlockSignerUpdateError::PointerTypeCheck);
     }
 
     #[test]
@@ -147,7 +153,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = UnsafeBlockSignerUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, UnsafeBlockSignerUpdateError::LengthDecodingError);
+        assert_eq!(err, UnsafeBlockSignerUpdateError::LengthTypeCheck);
     }
 
     #[test]
@@ -185,6 +191,6 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = UnsafeBlockSignerUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError);
+        assert_eq!(err, UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressTypeCheck);
     }
 }

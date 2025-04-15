@@ -58,18 +58,27 @@ pub enum BatcherUpdateError {
     /// Invalid data length.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLen(usize),
+    /// Failed to type check the data pointer argument from the batcher update log.
+    #[error("Failed to decode batcher update log: data pointer type check failed")]
+    PointerTypeCheck,
     /// Failed to decode the data pointer argument from the batcher update log.
     #[error("Failed to decode batcher update log: data pointer")]
     PointerDecodingError,
     /// The data pointer is invalid.
     #[error("Invalid config update log: invalid data pointer: {0}")]
     InvalidDataPointer(u64),
+    /// Failed to type check the data length argument from the batcher update log.
+    #[error("Failed to decode batcher update log: data length type check failed")]
+    LengthTypeCheck,
     /// Failed to decode the data length argument from the batcher update log.
     #[error("Failed to decode batcher update log: data length")]
     LengthDecodingError,
     /// The data length is invalid.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLength(u64),
+    /// Failed to type check the batcher address argument from the batcher update log.
+    #[error("Failed to decode batcher update log: batcher address type check failed")]
+    BatcherAddressTypeCheck,
     /// Failed to decode the batcher address argument from the batcher update log.
     #[error("Failed to decode batcher update log: batcher address")]
     BatcherAddressDecodingError,
@@ -82,18 +91,29 @@ pub enum UnsafeBlockSignerUpdateError {
     /// Invalid data length.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLen(usize),
+    /// Failed to type check the data pointer argument from the update log.
+    #[error("Failed to decode unsafe block signer update log: data pointer type check failed")]
+    PointerTypeCheck,
     /// Failed to decode the data pointer argument from the update log.
     #[error("Failed to decode unsafe block signer update log: data pointer")]
     PointerDecodingError,
     /// The data pointer is invalid.
     #[error("Invalid config update log: invalid data pointer: {0}")]
     InvalidDataPointer(u64),
+    /// Failed to type check the data length argument from the update log.
+    #[error("Failed to decode unsafe block signer update log: data length type check failed")]
+    LengthTypeCheck,
     /// Failed to decode the data length argument from the update log.
     #[error("Failed to decode unsafe block signer update log: data length")]
     LengthDecodingError,
     /// The data length is invalid.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLength(u64),
+    /// Failed to type check the unsafe block signer address argument from the update log.
+    #[error(
+        "Failed to decode unsafe block signer update log: unsafe block signer address type check failed"
+    )]
+    UnsafeBlockSignerAddressTypeCheck,
     /// Failed to decode the unsafe block signer address argument from the update log.
     #[error("Failed to decode unsafe block signer update log: unsafe block signer address")]
     UnsafeBlockSignerAddressDecodingError,
@@ -106,12 +126,18 @@ pub enum GasConfigUpdateError {
     /// Invalid data length.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLen(usize),
+    /// Failed to type check the data pointer argument from the gas config update log.
+    #[error("Failed to decode gas config update log: data pointer type check failed")]
+    PointerTypeCheck,
     /// Failed to decode the data pointer argument from the gas config update log.
     #[error("Failed to decode gas config update log: data pointer")]
     PointerDecodingError,
     /// The data pointer is invalid.
     #[error("Invalid config update log: invalid data pointer: {0}")]
     InvalidDataPointer(u64),
+    /// Failed to type check the data length argument from the gas config update log.
+    #[error("Failed to decode gas config update log: data length type check failed")]
+    LengthTypeCheck,
     /// Failed to decode the data length argument from the gas config update log.
     #[error("Failed to decode gas config update log: data length")]
     LengthDecodingError,
@@ -133,12 +159,18 @@ pub enum GasLimitUpdateError {
     /// Invalid data length.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLen(usize),
+    /// Failed to type check the data pointer argument from the gas limit update log.
+    #[error("Failed to decode gas limit update log: data pointer type check failed")]
+    PointerTypeCheck,
     /// Failed to decode the data pointer argument from the gas limit update log.
     #[error("Failed to decode gas limit update log: data pointer")]
     PointerDecodingError,
     /// The data pointer is invalid.
     #[error("Invalid config update log: invalid data pointer: {0}")]
     InvalidDataPointer(u64),
+    /// Failed to type check the data length argument from the gas limit update log.
+    #[error("Failed to type check gas limit update log: data length type check failed")]
+    LengthTypeCheck,
     /// Failed to decode the data length argument from the gas limit update log.
     #[error("Failed to decode gas limit update log: data length")]
     LengthDecodingError,
@@ -157,6 +189,9 @@ pub enum EIP1559UpdateError {
     /// Invalid data length.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLen(usize),
+    /// Failed to type check the data pointer argument from the eip 1559 update log.
+    #[error("Failed to decode eip1559 parameter update log: data pointer type check failed")]
+    PointerTypeCheck,
     /// Failed to decode the data pointer argument from the eip 1559 update log.
     #[error("Failed to decode eip1559 parameter update log: data pointer")]
     PointerDecodingError,
@@ -164,11 +199,17 @@ pub enum EIP1559UpdateError {
     #[error("Invalid config update log: invalid data pointer: {0}")]
     InvalidDataPointer(u64),
     /// Failed to decode the data length argument from the eip 1559 update log.
+    #[error("Failed to decode eip1559 parameter update log: data length type check failed")]
+    LengthTypeCheck,
+    /// Failed to decode the data length argument from the eip 1559 update log.
     #[error("Failed to decode eip1559 parameter update log: data length")]
     LengthDecodingError,
     /// The data length is invalid.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLength(u64),
+    /// Failed to type check the eip1559 params argument from the eip 1559 update log.
+    #[error("Failed to decode eip1559 parameter update log: eip1559 parameters type check failed")]
+    EIP1559TypeCheckError,
     /// Failed to decode the eip1559 params argument from the eip 1559 update log.
     #[error("Failed to decode eip1559 parameter update log: eip1559 parameters")]
     EIP1559DecodingError,
@@ -181,14 +222,20 @@ pub enum OperatorFeeUpdateError {
     /// Invalid data length.
     #[error("Invalid config update log: invalid data length: {0}")]
     InvalidDataLen(usize),
-    /// Failed to decode the data pointer argument from the eip 1559 update log.
-    #[error("Failed to decode eip1559 parameter update log: data pointer")]
+    /// Failed to type check the data pointer argument from the operator fee update log.
+    #[error("Failed to decode operator fee parameter update log: data pointer type check failed")]
+    PointerTypeCheck,
+    /// Failed to decode the data pointer argument from the operator fee update log.
+    #[error("Failed to decode operator fee parameter update log: data pointer")]
     PointerDecodingError,
     /// The data pointer is invalid.
     #[error("Invalid config update log: invalid data pointer: {0}")]
     InvalidDataPointer(u64),
-    /// Failed to decode the data length argument from the eip 1559 update log.
-    #[error("Failed to decode eip1559 parameter update log: data length")]
+    /// Failed to type check the data length argument from the operator fee update log.
+    #[error("Failed to decode operator fee parameter update log: data length type check failed")]
+    LengthTypeCheck,
+    /// Failed to decode the data length argument from the operator fee update log.
+    #[error("Failed to decode operator fee parameter update log: data length")]
     LengthDecodingError,
     /// The data length is invalid.
     #[error("Invalid config update log: invalid data length: {0}")]

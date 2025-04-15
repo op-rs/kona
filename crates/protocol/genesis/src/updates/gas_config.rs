@@ -36,9 +36,11 @@ impl TryFrom<&SystemConfigLog> for GasConfigUpdate {
             return Err(GasConfigUpdateError::InvalidDataLen(log.data.data.len()));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| GasConfigUpdateError::PointerDecodingError)?;
+            .map_err(|_| GasConfigUpdateError::PointerTypeCheck)?;
         let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(GasConfigUpdateError::PointerDecodingError);
         };
@@ -46,9 +48,11 @@ impl TryFrom<&SystemConfigLog> for GasConfigUpdate {
             return Err(GasConfigUpdateError::InvalidDataPointer(pointer));
         }
 
+        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
+        // can never fail.
         let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
         <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| GasConfigUpdateError::LengthDecodingError)?;
+            .map_err(|_| GasConfigUpdateError::LengthTypeCheck)?;
         let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
             return Err(GasConfigUpdateError::LengthDecodingError);
         };
@@ -132,7 +136,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = GasConfigUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, GasConfigUpdateError::PointerDecodingError);
+        assert_eq!(err, GasConfigUpdateError::PointerTypeCheck);
     }
 
     #[test]
@@ -170,7 +174,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = GasConfigUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, GasConfigUpdateError::LengthDecodingError);
+        assert_eq!(err, GasConfigUpdateError::LengthTypeCheck);
     }
 
     #[test]
