@@ -40,18 +40,42 @@ alloy-op-evm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
+# `test-utils` feature
+rand = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+tokio = { workspace = true, features = ["full"], optional = true }
+rstest = { workspace = true, optional = true }
+kona-registry = { workspace = true, optional = true }
+rocksdb = { workspace = true, features = ["snappy"], optional = true }
+tempfile = { workspace = true, optional = true }
+alloy-rpc-types-engine = { workspace = true, optional = true }
+alloy-provider = { workspace = true, features = ["reqwest"], optional = true }
+alloy-rpc-client = { workspace = true, optional = true }
+alloy-transport = { workspace = true, optional = true }
+alloy-transport-http = { workspace = true, optional = true }
+
 [dev-dependencies]
-rand.workspace = true
-serde_json.workspace = true
-serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["full"] }
-rstest.workspace = true
-kona-registry.workspace = true
-rocksdb = { workspace = true, features = ["snappy"] }
-tempfile.workspace = true
-alloy-rpc-types-engine.workspace = true
-alloy-rlp.workspace = true
-alloy-provider = { workspace = true, features = ["reqwest"] }
-alloy-rpc-client.workspace = true
-alloy-transport.workspace = true
-alloy-transport-http.workspace = true
+kona-executor = { workspace = true, features = ["test-utils"] }
+
+[features]
+test-utils = [
+  "dep:rand",
+  "dep:serde_json",
+  "dep:serde",
+  "dep:tokio",
+  "dep:rstest",
+  "dep:kona-registry",
+  "dep:rocksdb",
+  "dep:tempfile",
+  "dep:alloy-rpc-types-engine",
+  "dep:alloy-provider",
+  "dep:alloy-rpc-client",
+  "dep:alloy-transport",
+  "dep:alloy-transport-http",
+]
+
+[package.metadata.cargo-udeps.ignore]
+# `kona-executor` is self-referenced in dev-dependencies to always enable the `test-utils` feature in `cfg(test)`.
+# this is a false-positive.
+development = ["kona-executor"]

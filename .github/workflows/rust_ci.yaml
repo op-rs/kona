@@ -141,6 +141,8 @@ jobs:
         with:
           submodules: true
       - uses: ./.github/actions/setup
+      - name: Install clang
+        run: sudo apt install clang libclang-dev
       - uses: taiki-e/install-action@cargo-hack
       - name: cargo hack
         run: just hack

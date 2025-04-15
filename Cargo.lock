@@ -2681,6 +2681,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "execution-fixture"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-executor",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+ "url",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4219,6 +4233,7 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "alloy-trie",
+ "kona-executor",
  "kona-genesis",
  "kona-mpt",
  "kona-registry",

@@ -1,15 +1,10 @@
 //! Test utilities for the executor.
 
-#![allow(missing_docs, unused)]
-
 use crate::{StatelessL2Builder, TrieDBProvider};
 use alloy_consensus::Header;
 use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::{B256, Bytes, Sealable};
-use alloy_provider::{
-    Provider, RootProvider,
-    network::primitives::{BlockTransactions, BlockTransactionsKind},
-};
+use alloy_provider::{Provider, RootProvider, network::primitives::BlockTransactions};
 use alloy_rlp::Decodable;
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::PayloadAttributes;
@@ -18,52 +13,82 @@ use kona_genesis::RollupConfig;
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use kona_registry::ROLLUP_CONFIGS;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-use op_revm::OpEvm;
 use rocksdb::{DB, Options};
 use serde::{Deserialize, Serialize};
-use std::{env::temp_dir, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 use tokio::{fs, runtime::Handle, sync::Mutex};
 
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum TestTrieNodeProviderError {
-    #[error("Preimage not found")]
-    PreimageNotFound,
-    #[error("Failed to decode RLP: {0}")]
-    Rlp(alloy_rlp::Error),
-    #[error("Failed to write back to key value store")]
-    KVStore,
+/// Executes a [ExecutorTestFixture] stored at the passed `fixture_path` and asserts that the
+/// produced block hash matches the expected block hash.
+pub async fn run_test_fixture(fixture_path: PathBuf) {
+    // First, untar the fixture.
+    let fixture_dir = tempfile::tempdir().expect("Failed to create temporary directory");
+    tokio::process::Command::new("tar")
+        .arg("-xvf")
+        .arg(fixture_path.as_path())
+        .arg("-C")
+        .arg(fixture_dir.path())
+        .arg("--strip-components=1")
+        .output()
+        .await
+        .expect("Failed to untar fixture");
+
+    let mut options = Options::default();
+    options.set_compression_type(rocksdb::DBCompressionType::Snappy);
+    options.create_if_missing(true);
+    let kv_store = DB::open(&options, fixture_dir.path().join("kv"))
+        .unwrap_or_else(|e| panic!("Failed to open database at {fixture_dir:?}: {e}"));
+    let provider = DiskTrieNodeProvider::new(kv_store);
+    let fixture: ExecutorTestFixture =
+        serde_json::from_slice(&fs::read(fixture_dir.path().join("fixture.json")).await.unwrap())
+            .expect("Failed to deserialize fixture");
+
+    let mut executor = StatelessL2Builder::new(
+        &fixture.rollup_config,
+        OpEvmFactory::default(),
+        provider,
+        NoopTrieHinter,
+        fixture.parent_header.seal_slow(),
+    );
+
+    let outcome = executor.build_block(fixture.executing_payload).unwrap();
+
+    assert_eq!(
+        outcome.header.hash(),
+        fixture.expected_block_hash,
+        "Produced header does not match the expected header"
+    );
 }
 
+/// The test fixture format for the [`StatelessL2Builder`].
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ExecutorTestFixture {
+pub struct ExecutorTestFixture {
     /// The rollup configuration for the executing chain.
-    pub(crate) rollup_config: RollupConfig,
+    pub rollup_config: RollupConfig,
     /// The parent block header.
-    pub(crate) parent_header: Header,
+    pub parent_header: Header,
     /// The executing payload attributes.
-    pub(crate) executing_payload: OpPayloadAttributes,
+    pub executing_payload: OpPayloadAttributes,
     /// The expected block hash
-    pub(crate) expected_block_hash: B256,
+    pub expected_block_hash: B256,
 }
 
+/// A test fixture creator for the [`StatelessL2Builder`].
 #[derive(Debug)]
-pub(crate) struct ExecutorTestFixtureCreator {
+pub struct ExecutorTestFixtureCreator {
     /// The RPC provider for the L2 execution layer.
-    pub(crate) provider: RootProvider,
+    pub provider: RootProvider,
     /// The block number to create the test fixture for.
-    pub(crate) block_number: u64,
+    pub block_number: u64,
     /// The key value store for the test fixture.
-    pub(crate) kv_store: Arc<Mutex<rocksdb::DB>>,
+    pub kv_store: Arc<Mutex<rocksdb::DB>>,
     /// The data directory for the test fixture.
-    pub(crate) data_dir: PathBuf,
+    pub data_dir: PathBuf,
 }
 
 impl ExecutorTestFixtureCreator {
-    pub(crate) fn new(
-        provider_url: &str,
-        block_number: u64,
-        base_fixture_directory: PathBuf,
-    ) -> Self {
+    /// Creates a new [`ExecutorTestFixtureCreator`] with the given parameters.
+    pub fn new(provider_url: &str, block_number: u64, base_fixture_directory: PathBuf) -> Self {
         let base = base_fixture_directory.join(format!("block-{}", block_number));
 
         let url = provider_url.parse().expect("Invalid provider URL");
@@ -82,7 +107,7 @@ impl ExecutorTestFixtureCreator {
 
 impl ExecutorTestFixtureCreator {
     /// Create a static test fixture with the configuration provided.
-    pub(crate) async fn create_static_fixture(self) {
+    pub async fn create_static_fixture(self) {
         let chain_id = self.provider.get_chain_id().await.expect("Failed to get chain ID");
         let rollup_config = ROLLUP_CONFIGS.get(&chain_id).expect("Rollup config not found");
 
@@ -274,12 +299,15 @@ impl TrieDBProvider for ExecutorTestFixtureCreator {
     }
 }
 
-struct DiskTrieNodeProvider {
+/// A simple [`TrieDBProvider`] that reads data from a disk-based key-value store.
+#[derive(Debug)]
+pub struct DiskTrieNodeProvider {
     kv_store: DB,
 }
 
 impl DiskTrieNodeProvider {
-    pub(crate) const fn new(kv_store: DB) -> Self {
+    /// Creates a new [`DiskTrieNodeProvider`] with the given [`rocksdb`] K/V store.
+    pub const fn new(kv_store: DB) -> Self {
         Self { kv_store }
     }
 }
@@ -322,44 +350,16 @@ impl TrieDBProvider for DiskTrieNodeProvider {
     }
 }
 
-/// Executes a [ExecutorTestFixture] stored at the passed `fixture_path` and asserts that the
-/// produced block hash matches the expected block hash.
-pub(crate) async fn run_test_fixture(fixture_path: PathBuf) {
-    // First, untar the fixture.
-    let mut fixture_dir = tempfile::tempdir().expect("Failed to create temporary directory");
-    let untar = tokio::process::Command::new("tar")
-        .arg("-xvf")
-        .arg(fixture_path.as_path())
-        .arg("-C")
-        .arg(fixture_dir.path())
-        .arg("--strip-components=1")
-        .output()
-        .await
-        .expect("Failed to untar fixture");
-
-    let mut options = Options::default();
-    options.set_compression_type(rocksdb::DBCompressionType::Snappy);
-    options.create_if_missing(true);
-    let kv_store = DB::open(&options, fixture_dir.path().join("kv"))
-        .unwrap_or_else(|e| panic!("Failed to open database at {fixture_dir:?}: {e}"));
-    let provider = DiskTrieNodeProvider::new(kv_store);
-    let fixture: ExecutorTestFixture =
-        serde_json::from_slice(&fs::read(fixture_dir.path().join("fixture.json")).await.unwrap())
-            .expect("Failed to deserialize fixture");
-
-    let mut executor = StatelessL2Builder::new(
-        &fixture.rollup_config,
-        OpEvmFactory::default(),
-        provider,
-        NoopTrieHinter,
-        fixture.parent_header.seal_slow(),
-    );
-
-    let outcome = executor.build_block(fixture.executing_payload).unwrap();
-
-    assert_eq!(
-        outcome.header.hash(),
-        fixture.expected_block_hash,
-        "Produced header does not match the expected header"
-    );
+/// An error type for the [`DiskTrieNodeProvider`] and [`ExecutorTestFixtureCreator`].
+#[derive(Debug, thiserror::Error)]
+pub enum TestTrieNodeProviderError {
+    /// The preimage was not found in the key-value store.
+    #[error("Preimage not found")]
+    PreimageNotFound,
+    /// Failed to decode the RLP-encoded data.
+    #[error("Failed to decode RLP: {0}")]
+    Rlp(alloy_rlp::Error),
+    /// Failed to write back to the key-value store.
+    #[error("Failed to write back to key value store")]
+    KVStore,
 }

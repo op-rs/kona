@@ -33,6 +33,7 @@
   - [Transform Frames to a Batch](./examples/frames-to-batch.md)
   - [Transform a Batch into Frames](./examples/batch-to-frames.md)
   - [Create a new L1BlockInfoTx Hardfork Variant](./examples/new-l1-block-info-tx-hardfork.md)
+  - [Create a new `kona-executor` test fixture](./examples/executor-test-fixtures.md)
 - [RFC](./rfc/intro.md)
   - [Umbrellas](./rfc/umbrellas.md)
 - [Archives](./archives/intro.md)

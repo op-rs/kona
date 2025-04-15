@@ -167,33 +167,13 @@ mod test {
     use rstest::rstest;
     use std::path::PathBuf;
 
-    // To create new test fixtures, uncomment the following test and run it with parameters filled.
-    // #[tokio::test(flavor = "multi_thread")]
-    // async fn create_fixture() {
-    //     let fixture_creator = crate::test_utils::ExecutorTestFixtureCreator::new(
-    //         "<rpc_url>",
-    //         <block_number>,
-    //         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata"),
-    //     );
-    //     fixture_creator.create_static_fixture().await;
-    // }
-
     #[rstest]
-    #[case::small_block(26207960)] // OP Sepolia
-    #[case::small_block_2(26207961)] // OP Sepolia
-    #[case::medium_block(26207962)] // OP Sepolia
-    #[case::medium_block_2(26207963)] // OP Sepolia
-    #[case::medium_block_3(26208927)] // OP Sepolia
-    #[case::medium_block_4(26208858)] // OP Sepolia
-    #[case::big_block(26208858)] // OP Sepolia
-    #[case::big_block_2(26208384)] // OP Sepolia
-    #[case::big_block_3(26211680)] // OP Sepolia
     #[tokio::test]
-    async fn test_statelessly_execute_block(#[case] block_number: u64) {
-        let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata")
-            .join(format!("block-{block_number}.tar.gz"));
-
-        run_test_fixture(fixture_dir).await;
+    async fn test_statelessly_execute_block(
+        #[base_dir = "./testdata"]
+        #[files("*.tar.gz")]
+        path: PathBuf,
+    ) {
+        run_test_fixture(path).await;
     }
 }
