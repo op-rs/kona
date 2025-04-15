@@ -2,13 +2,13 @@
 
 use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBError, TrieDBProvider};
 use alloc::{string::ToString, vec::Vec};
-use alloy_consensus::{Header, Sealed};
+use alloy_consensus::{Header, Sealed, transaction::Recovered};
 use alloy_evm::{
     EvmFactory, FromRecoveredTx, FromTxWithEncoded,
     block::{BlockExecutionResult, BlockExecutor, BlockExecutorFactory},
 };
 use alloy_op_evm::{OpBlockExecutionCtx, OpBlockExecutorFactory, block::OpAlloyReceiptBuilder};
-use alloy_primitives::hex;
+use alloy_primitives::{SignatureError, hex};
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
@@ -110,12 +110,9 @@ where
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let transactions = attrs
-            .transactions
-            .clone()
-            .map(|txs| {
-                txs.iter().map(Self::decode_and_recover_tx).collect::<ExecutorResult<Vec<_>>>()
-            })
-            .ok_or(ExecutorError::MissingTransactions)??;
+            .recovered_transactions()
+            .collect::<Result<Vec<Recovered<OpTxEnvelope>>, SignatureError>>()
+            .map_err(ExecutorError::SignatureError)?;
         let ex_result = executor.execute_block(transactions.iter())?;
 
         info!(
