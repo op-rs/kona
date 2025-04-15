@@ -3459,7 +3459,8 @@
             "ecotone_time": 0,
             "fjord_time": 0,
             "granite_time": 1723478400,
-            "holocene_time": 1732633200
+            "holocene_time": 1732633200,
+            "pectra_blob_schedule_time": 1742486400
           },
           "optimism": {
             "eip1559Elasticity": "0xa",
