@@ -2,7 +2,7 @@
 
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
-use kona_cli::{init_prometheus_server, init_tracing_subscriber};
+use kona_cli::init_tracing_subscriber;
 use kona_genesis::RollupConfig;
 use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 use tracing_subscriber::EnvFilter;
@@ -16,14 +16,6 @@ pub struct GlobalArgs {
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
-    /// A port to serve prometheus metrics on.
-    #[arg(
-        long,
-        short = 'm',
-        default_value = "9090",
-        help = "The port to serve prometheus metrics on"
-    )]
-    pub metrics_port: u16,
 }
 
 impl GlobalArgs {
@@ -36,13 +28,8 @@ impl GlobalArgs {
             .block_time)
     }
 
-    /// Initialize the tracing stack and Prometheus metrics recorder.
-    ///
-    /// This function should be called at the beginning of the program.
-    pub fn init_telemetry(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
-        init_tracing_subscriber(self.v, filter)?;
-        init_prometheus_server(self.metrics_port)?;
-        Ok(())
+    pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
+        Ok(init_tracing_subscriber(self.v, filter)?)
     }
 
     /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global

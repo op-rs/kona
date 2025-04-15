@@ -6,12 +6,13 @@ use clap::Parser;
 use kona_engine::{EngineKind, SyncConfig, SyncMode};
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
+use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf};
-use tracing::debug;
+use tracing::{debug, error};
 use url::Url;
 
-use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
+use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 
 /// The Node subcommand.
 ///
@@ -61,14 +62,48 @@ pub struct NodeCommand {
 
 impl NodeCommand {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs) -> anyhow::Result<()> {
-        args.init_telemetry(None)
+    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+        args.init_tracing(None)?;
+        metrics.init_metrics()
+    }
+
+    /// Validate the jwt secret if specified by exchanging capabilities with the engine.
+    /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
+    /// that the jwt token passed as a cli arg is correct.
+    pub async fn validate_jwt(&self, args: &GlobalArgs) -> anyhow::Result<JwtSecret> {
+        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let engine_client = kona_engine::EngineClient::new_http(
+            self.l2_engine_rpc.clone(),
+            self.l2_provider_rpc.clone(),
+            args.rollup_config().map(std::sync::Arc::new).ok_or(anyhow::anyhow!(
+                "Failed to get rollup config for chain id: {}",
+                args.l2_chain_id
+            ))?,
+            jwt_secret,
+        );
+        match engine_client.exchange_capabilities(vec![]).await {
+            Ok(_) => {
+                debug!("Successfully exchanged capabilities with engine");
+                Ok(jwt_secret)
+            }
+            Err(e) => {
+                if e.to_string().contains("signature invalid") {
+                    error!(
+                        "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
+                    );
+                    error!(
+                        "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
+                    );
+                }
+                bail!("Failed to exchange capabilities with engine: {}", e);
+            }
+        }
     }
 
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
-        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+        let jwt_secret = self.validate_jwt(args).await?;
         let kind = self.l2_engine_kind;
         let sync_config = SyncConfig {
             sync_mode: SyncMode::ExecutionLayer,
@@ -78,6 +113,7 @@ impl NodeCommand {
             supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
         };
 
+        self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(args)?;
         let rpc_config = self.rpc_flags.into();
 
@@ -89,6 +125,7 @@ impl NodeCommand {
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_p2p_config(p2p_config)
+            .with_network_disabled(self.p2p_flags.disabled)
             .with_rpc_config(rpc_config)
             .build()
             .start()

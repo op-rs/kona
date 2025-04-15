@@ -359,7 +359,7 @@ fn validate_l1_origin_relationship(
     Ok(())
 }
 
-/// An unsafe, safe, and finalized [L2BlockInfo] returned by the the [find_starting_forkchoice]
+/// An unsafe, safe, and finalized [L2BlockInfo] returned by the [find_starting_forkchoice]
 /// function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct L2ForkchoiceState {

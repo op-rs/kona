@@ -44,8 +44,10 @@ action-tests test_name='Test_ProgramAction' *args='':
   echo "Running action tests for the client program on the native target"
   export KONA_HOST_PATH="{{justfile_directory()}}/target/debug/kona-host"
 
+  # GitHub actions patch - do not print logs.
+  # https://github.com/gotestyourself/gotestsum/blob/b4b13345fee56744d80016a20b760d3599c13504/testjson/format.go#L442-L444
   cd monorepo/op-e2e/actions/proofs && \
-    gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
+    GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
 
 # Clean the action tests directory
 clean-actions:

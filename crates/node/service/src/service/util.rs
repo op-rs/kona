@@ -17,19 +17,26 @@ macro_rules! spawn_and_wait {
             if let Some(actor) = $actor {
                 task_handles.spawn(async move {
                     if let Err(e) = actor.start().await {
-                        // TODO: Bubble up generic error.
-                        tracing::error!(target: "rollup_node", "{e}");
+                        return Err(format!("{e:?}"));
                     }
+                    Ok(())
                 });
             }
         )*
 
         while let Some(result) = task_handles.join_next().await {
-            if let Err(e) = result {
-                tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
-
-                // Cancel all tasks and gracefully shutdown.
-                $cancellation.cancel();
+            match result {
+                Ok(Ok(())) => { /* Actor completed successfully */ }
+                Ok(Err(e)) => {
+                    tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
+                    // Cancel all tasks and gracefully shutdown.
+                    $cancellation.cancel();
+                }
+                Err(e) => {
+                    tracing::error!(target: "rollup_node", "Task join error: {e}");
+                    // Cancel all tasks and gracefully shutdown.
+                    $cancellation.cancel();
+                }
             }
         }
     };

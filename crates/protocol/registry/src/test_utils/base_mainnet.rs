@@ -48,7 +48,7 @@ pub const BASE_MAINNET_CONFIG: RollupConfig = RollupConfig {
         granite_time: Some(1_726_070_401_u64),
         holocene_time: Some(1736445601),
         pectra_blob_schedule_time: None,
-        isthmus_time: None,
+        isthmus_time: Some(1746806401),
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000000008453"),

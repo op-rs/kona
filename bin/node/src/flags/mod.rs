@@ -8,3 +8,6 @@ pub use p2p::P2PArgs;
 
 mod rpc;
 pub use rpc::RpcArgs;
+
+mod metrics;
+pub use metrics::MetricsArgs;

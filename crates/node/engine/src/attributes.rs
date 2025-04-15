@@ -1,9 +1,12 @@
 //! Contains a utility method to check if attributes match a block.
 
-use alloy_primitives::{Address, B256};
-use alloy_rpc_types_eth::{Block, Withdrawals};
+use alloy_eips::eip1559::BaseFeeParams;
+use alloy_network::TransactionResponse;
+use alloy_primitives::{Address, B256, Bytes};
+use alloy_rpc_types_eth::{Block, BlockTransactions, Withdrawals};
 use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
+use op_alloy_consensus::{EIP1559ParamError, OpTxEnvelope, decode_holocene_extra_data};
 use op_alloy_rpc_types::Transaction;
 
 /// Represents whether the attributes match the block or not.
@@ -68,6 +71,150 @@ impl AttributesMatch {
         Self::Match
     }
 
+    /// Checks the attributes and block transaction list for consolidation.
+    /// We start by checking that there are the same number of transactions in both the attribute
+    /// payload and the block. Then we compare their contents
+    fn check_transactions(attributes_txs: &[Bytes], block: &Block<Transaction>) -> Self {
+        // Before checking the number of transactions, we have to make sure that the block
+        // has the right transactions format. We need to have access to the
+        // full transactions to be able to compare their contents.
+        let block_txs = match block.transactions {
+            BlockTransactions::Hashes(_) | BlockTransactions::Full(_)
+                if attributes_txs.is_empty() && block.transactions.is_empty() =>
+            {
+                // We early return when both attributes and blocks are empty. This is for ergonomics
+                // because the default [`BlockTransactions`] format is
+                // [`BlockTransactions::Hash`], which may cause
+                // the [`BlockTransactions`] format check to fail right below. We may want to be a
+                // bit more flexible and not reject the hash format if both the
+                // attributes and the block are empty.
+                return Self::Match;
+            }
+            BlockTransactions::Uncle => {
+                // This can never be uncle transactions
+                error!(
+                    "Invalid format for the block transactions. The `Uncle` transaction format is not relevant in that context and should not get used here. This is a bug"
+                );
+
+                return AttributesMismatch::MalformedBlockTransactions.into();
+            }
+            BlockTransactions::Hashes(_) => {
+                // We can't have hash transactions with non empty blocks
+                error!(
+                    "Invalid format for the block transactions. The `Hash` transaction format is not relevant in that context and should not get used here. This is a bug."
+                );
+
+                return AttributesMismatch::MalformedBlockTransactions.into();
+            }
+            BlockTransactions::Full(ref block_txs) => block_txs,
+        };
+
+        let attributes_txs_len = attributes_txs.len();
+        let block_txs_len = block_txs.len();
+
+        if attributes_txs_len != block_txs_len {
+            return AttributesMismatch::TransactionLen(attributes_txs_len, block_txs_len).into();
+        }
+
+        // Then we need to check that the content of the encoded transactions match
+        // Note that it is safe to zip both iterators because we checked their length
+        // beforehand.
+        for (attr_tx_bytes, block_tx) in attributes_txs.iter().zip(block_txs) {
+            // Let's try to deserialize the attributes transaction
+            let Ok(attr_tx) = serde_json::from_slice::<OpTxEnvelope>(attr_tx_bytes) else {
+                error!(
+                    "Impossible to deserialize transaction from attributes. If we have stored these attributes it means the transactions where well formatted. This is a bug"
+                );
+
+                return AttributesMismatch::MalformedAttributesTransaction.into();
+            };
+
+            if &attr_tx != block_tx.inner.inner.inner() {
+                // Transaction mismatch!
+                return AttributesMismatch::TransactionContent(attr_tx.tx_hash(), block_tx.tx_hash())
+                    .into()
+            }
+        }
+
+        Self::Match
+    }
+
+    /// Validates and compares EIP1559 parameters for consolidation.
+    fn check_eip1559(
+        config: &RollupConfig,
+        attributes: &OpAttributesWithParent,
+        block: &Block<Transaction>,
+    ) -> Self {
+        // We can assume that the EIP-1559 params are set iff holocene is active.
+        // Note here that we don't need to check for the attributes length because of type-safety.
+        let (ae, ad): (u128, u128) = match attributes.attributes.decode_eip_1559_params() {
+            None => {
+                // Holocene is active but the eip1559 are not set. This is a bug!
+                // Note: we checked the timestamp match above, so we can assume that both the
+                // attributes and the block have the same stamps
+                if config.is_holocene_active(block.header.timestamp) {
+                    error!(
+                        "EIP1559 parameters for attributes not set while holocene is active. This is a bug"
+                    );
+                    return AttributesMismatch::MissingAttributesEIP1559.into();
+                }
+
+                // If the attributes are not specified, that means we can just early return.
+                return Self::Match;
+            }
+            Some((0, e)) if e != 0 => {
+                error!(
+                    "Holocene EIP1559 params cannot have a 0 denominator unless elasticity is also 0. This is a bug"
+                );
+                return AttributesMismatch::InvalidEIP1559ParamsCombination.into();
+            }
+            // We need to translate (0, 0) parameters to pre-holocene protocol constants.
+            // Since holocene is supposed to be active, canyon should be as well. We take the canyon
+            // base fee params.
+            Some((0, 0)) => {
+                let BaseFeeParams { max_change_denominator, elasticity_multiplier } =
+                    config.chain_op_config.as_canyon_base_fee_params();
+
+                (elasticity_multiplier, max_change_denominator)
+            }
+            Some((ae, ad)) => (ae.into(), ad.into()),
+        };
+
+        // We decode the extra data stemming from the block header.
+        let (be, bd): (u128, u128) = match decode_holocene_extra_data(&block.header.extra_data) {
+            Ok((be, bd)) => (be.into(), bd.into()),
+            Err(EIP1559ParamError::NoEIP1559Params) => {
+                error!(
+                    "EIP1559 parameters for the block not set while holocene is active. This is a bug"
+                );
+                return AttributesMismatch::MissingBlockEIP1559.into();
+            }
+            Err(EIP1559ParamError::InvalidVersion(v)) => {
+                error!(
+                    version = v,
+                    "The version in the extra data EIP1559 payload is incorrect. Should be 0. This is a bug",
+                );
+                return AttributesMismatch::InvalidExtraDataVersion.into();
+            }
+            Err(e) => {
+                error!(err = ?e, "An unknown extra data decoding error occurred. This is a bug",);
+
+                return AttributesMismatch::UnknownExtraDataDecodingError(e).into();
+            }
+        };
+
+        // We now have to check that both parameters match
+        if ae != be || ad != bd {
+            return AttributesMismatch::EIP1559Parameters(
+                BaseFeeParams { max_change_denominator: ad, elasticity_multiplier: ae },
+                BaseFeeParams { max_change_denominator: bd, elasticity_multiplier: be },
+            )
+            .into()
+        }
+
+        Self::Match
+    }
+
     /// Checks if the specified [`OpAttributesWithParent`] matches the specified [`Block`].
     /// Returns [`AttributesMatch::Match`] if they match, otherwise returns
     /// [`AttributesMatch::Mismatch`].
@@ -101,7 +248,15 @@ impl AttributesMatch {
             .into();
         }
 
-        // TODO: check transactions
+        // Let's extract the list of attribute transactions
+        let default_vec = vec![];
+        let attributes_txs =
+            attributes.attributes.transactions.as_ref().map_or_else(|| &default_vec, |attrs| attrs);
+
+        // Check transactions
+        if let mismatch @ Self::Mismatch(_) = Self::check_transactions(attributes_txs, block) {
+            return mismatch
+        }
 
         let Some(gas_limit) = attributes.attributes.gas_limit else {
             return AttributesMismatch::MissingAttributesGasLimit.into();
@@ -135,7 +290,10 @@ impl AttributesMatch {
             .into();
         }
 
-        // TODO: Check EIP-1559 parameters
+        // Check the EIP-1559 parameters in a separate helper method
+        if let m @ Self::Mismatch(_) = Self::check_eip1559(config, attributes, block) {
+            return m;
+        }
 
         Self::Match
     }
@@ -151,6 +309,28 @@ pub enum AttributesMismatch {
     Timestamp(u64, u64),
     /// The prev randao of the block does not match the prev randao of the attributes.
     PrevRandao(B256, B256),
+    /// The block contains malformed transactions. This is a bug - the transaction format
+    /// should be checked before the consolidation step.
+    MalformedBlockTransactions,
+    /// There is a malformed transaction inside the attributes. This is a bug - the transaction
+    /// format should be checked before the consolidation step.
+    MalformedAttributesTransaction,
+    /// A mismatch in the number of transactions contained in the attributes and the block.
+    TransactionLen(usize, usize),
+    /// A mismatch in the content of some transactions contained in the attributes and the block.
+    TransactionContent(B256, B256),
+    /// The EIP1559 payload for the [`OpAttributesWithParent`] is missing when holocene is active.
+    MissingAttributesEIP1559,
+    /// The EIP1559 payload for the block is missing when holocene is active.
+    MissingBlockEIP1559,
+    /// The version in the extra data EIP1559 payload is incorrect. Should be 0.
+    InvalidExtraDataVersion,
+    /// An unknown extra data decoding error occurred.
+    UnknownExtraDataDecodingError(EIP1559ParamError),
+    /// Holocene EIP1559 params cannot have a 0 denominator unless elasticity is also 0
+    InvalidEIP1559ParamsCombination,
+    /// The EIP1559 base fee parameters of the attributes and the block don't match
+    EIP1559Parameters(BaseFeeParams, BaseFeeParams),
     /// Transactions mismatch.
     Transactions(u64, u64),
     /// The gas limit of the block does not match the gas limit of the attributes.
@@ -180,9 +360,14 @@ impl From<AttributesMismatch> for AttributesMatch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{address, b256};
+    use crate::AttributesMismatch::EIP1559Parameters;
+    use alloy_consensus::EMPTY_ROOT_HASH;
+    use alloy_primitives::{Bytes, FixedBytes, address, b256};
+    use alloy_rpc_types_eth::BlockTransactions;
+    use arbitrary::{Arbitrary, Unstructured};
     use kona_protocol::L2BlockInfo;
     use kona_registry::ROLLUP_CONFIGS;
+    use op_alloy_consensus::encode_holocene_extra_data;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
     fn default_attributes() -> OpAttributesWithParent {
@@ -309,6 +494,427 @@ mod tests {
         )
         .into();
         assert_eq!(check, expected);
+        assert!(check.is_mismatch());
+    }
+
+    fn generate_txs(num_txs: usize) -> Vec<Transaction> {
+        // Simulate some random data
+        let mut data = vec![0; 1024];
+        let mut rng = rand::rng();
+
+        (0..num_txs)
+            .map(|_| {
+                rand::Rng::fill(&mut rng, &mut data[..]);
+
+                // Create unstructured data with the random bytes
+                let u = Unstructured::new(&data);
+
+                // Generate a random instance of MyStruct
+                Transaction::arbitrary_take_rest(u).expect("Impossible to generate arbitrary tx")
+            })
+            .collect()
+    }
+
+    fn test_transactions_match_helper() -> (OpAttributesWithParent, Block<Transaction>) {
+        const NUM_TXS: usize = 10;
+
+        let transactions = generate_txs(NUM_TXS);
+        let mut attributes = default_attributes();
+        attributes.attributes.gas_limit = Some(0);
+        attributes.attributes.transactions = Some(
+            transactions
+                .iter()
+                .map(|tx| {
+                    Bytes::from_iter(
+                        serde_json::to_vec(tx.inner.inner.inner())
+                            .expect("Impossible to serialize")
+                            .iter(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        let block = Block::<Transaction> {
+            transactions: BlockTransactions::Full(transactions),
+            ..Default::default()
+        };
+
+        (attributes, block)
+    }
+
+    #[test]
+    fn test_attributes_match_check_transactions() {
+        let cfg = default_rollup_config();
+        let (attributes, block) = test_transactions_match_helper();
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+    }
+
+    #[test]
+    fn test_attributes_mismatch_check_transactions_len() {
+        let cfg = default_rollup_config();
+        let (mut attributes, block) = test_transactions_match_helper();
+        attributes.attributes = OpPayloadAttributes {
+            transactions: attributes.attributes.transactions.map(|mut txs| {
+                txs.pop();
+                txs
+            }),
+            ..attributes.attributes
+        };
+
+        let block_txs_len = block.transactions.len();
+
+        let expected: AttributesMatch =
+            AttributesMismatch::TransactionLen(block_txs_len - 1, block_txs_len).into();
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, expected);
+        assert!(check.is_mismatch());
+    }
+
+    #[test]
+    fn test_attributes_mismatch_check_transaction_content() {
+        let cfg = default_rollup_config();
+        let (attributes, mut block) = test_transactions_match_helper();
+        let BlockTransactions::Full(block_txs) = &mut block.transactions else {
+            unreachable!("The helper should build a full list of transactions")
+        };
+
+        let first_tx = block_txs.last().unwrap().clone();
+        let first_tx_hash = first_tx.tx_hash();
+
+        // We set the last tx to be the same as the first transaction.
+        // Since the transactions are generated randomly and there are more than one transaction,
+        // there is a very high likelihood that any pair of transactions is distinct.
+        let last_tx = block_txs.first_mut().unwrap();
+        let last_tx_hash = last_tx.tx_hash();
+        *last_tx = first_tx;
+
+        let expected: AttributesMatch =
+            AttributesMismatch::TransactionContent(last_tx_hash, first_tx_hash).into();
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, expected);
+        assert!(check.is_mismatch());
+    }
+
+    /// Checks the edge case where the attributes array is empty.
+    #[test]
+    fn test_attributes_mismatch_empty_tx_attributes() {
+        let cfg = default_rollup_config();
+        let (mut attributes, block) = test_transactions_match_helper();
+        attributes.attributes = OpPayloadAttributes { transactions: None, ..attributes.attributes };
+
+        let block_txs_len = block.transactions.len();
+
+        let expected: AttributesMatch = AttributesMismatch::TransactionLen(0, block_txs_len).into();
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, expected);
+        assert!(check.is_mismatch());
+    }
+
+    /// Checks the edge case where the transactions contained in the block have the wrong
+    /// format.
+    #[test]
+    fn test_block_transactions_wrong_format() {
+        let cfg = default_rollup_config();
+        let (attributes, mut block) = test_transactions_match_helper();
+        block.transactions = BlockTransactions::Uncle;
+
+        let expected: AttributesMatch = AttributesMismatch::MalformedBlockTransactions.into();
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, expected);
+        assert!(check.is_mismatch());
+    }
+
+    /// Checks the edge case where the transactions contained in the attributes have the wrong
+    /// format.
+    #[test]
+    fn test_attributes_transactions_wrong_format() {
+        let cfg = default_rollup_config();
+        let (mut attributes, block) = test_transactions_match_helper();
+        let txs = attributes.attributes.transactions.as_mut().unwrap();
+        let first_tx_bytes = txs.first_mut().unwrap();
+        *first_tx_bytes = Bytes::copy_from_slice(&[0, 1, 2]);
+
+        let expected: AttributesMatch = AttributesMismatch::MalformedAttributesTransaction.into();
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, expected);
+        assert!(check.is_mismatch());
+    }
+
+    // Test that the check pass if the transactions obtained from the attributes have the format
+    // `Some(vec![])`, ie an empty vector inside a `Some` option.
+    #[test]
+    fn test_attributes_and_block_transactions_empty() {
+        let cfg = default_rollup_config();
+        let (mut attributes, mut block) = test_transactions_match_helper();
+
+        attributes.attributes =
+            OpPayloadAttributes { transactions: Some(vec![]), ..attributes.attributes };
+
+        block.transactions = BlockTransactions::Full(vec![]);
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+
+        // Edge case: if the block transactions and the payload attributes are empty, we can also
+        // use the hash format (this is the default value of `BlockTransactions`).
+        attributes.attributes = OpPayloadAttributes { transactions: None, ..attributes.attributes };
+        block.transactions = BlockTransactions::Hashes(vec![]);
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+    }
+
+    // Edge case: if the payload attributes has the format `Some(vec![])`, we can still
+    // use the hash format.
+    #[test]
+    fn test_attributes_and_block_transactions_empty_hash_format() {
+        let cfg = default_rollup_config();
+        let (mut attributes, mut block) = test_transactions_match_helper();
+
+        attributes.attributes =
+            OpPayloadAttributes { transactions: Some(vec![]), ..attributes.attributes };
+
+        block.transactions = BlockTransactions::Hashes(vec![]);
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+    }
+
+    // Test that the check fails if the block format is incorrect and the attributes are empty
+    #[test]
+    fn test_attributes_empty_and_block_uncle() {
+        let cfg = default_rollup_config();
+        let (mut attributes, mut block) = test_transactions_match_helper();
+
+        attributes.attributes =
+            OpPayloadAttributes { transactions: Some(vec![]), ..attributes.attributes };
+
+        block.transactions = BlockTransactions::Uncle;
+
+        let expected: AttributesMatch = AttributesMismatch::MalformedBlockTransactions.into();
+
+        let check = AttributesMatch::check(cfg, &attributes, &block);
+        assert_eq!(check, expected);
+    }
+
+    fn eip1559_test_setup() -> (RollupConfig, OpAttributesWithParent, Block<Transaction>) {
+        let mut cfg = default_rollup_config().clone();
+
+        // We need to activate holocene to make sure it works! We set the activation time to zero to
+        // make sure that it is activated by default.
+        cfg.hardforks.holocene_time = Some(0);
+
+        let mut attributes = default_attributes();
+        attributes.attributes.gas_limit = Some(0);
+        // For canyon and above we need to specify the withdrawals
+        attributes.attributes.payload_attributes.withdrawals = Some(vec![]);
+
+        // For canyon and above we also need to specify the withdrawal headers
+        let block = Block {
+            withdrawals: Some(Withdrawals(vec![])),
+            header: alloy_rpc_types_eth::Header {
+                inner: alloy_consensus::Header {
+                    withdrawals_root: Some(EMPTY_ROOT_HASH),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        (cfg, attributes, block)
+    }
+
+    /// Ensures that we have to set the EIP1559 parameters for holocene and above.
+    #[test]
+    fn test_eip1559_parameters_not_specified_holocene() {
+        let (cfg, attributes, block) = eip1559_test_setup();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::MissingAttributesEIP1559));
+        assert!(check.is_mismatch());
+    }
+
+    /// Ensures that we have to set the EIP1559 parameters for holocene and above.
+    #[test]
+    fn test_eip1559_parameters_specified_attributes_but_not_block() {
+        let (cfg, mut attributes, block) = eip1559_test_setup();
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::MissingBlockEIP1559));
+        assert!(check.is_mismatch());
+    }
+
+    /// Check that, when the eip1559 params are specified and empty, the check fails because we
+    /// fallback on canyon params for the attributes but not for the block (edge case).
+    #[test]
+    fn test_eip1559_parameters_specified_both_and_empty() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+        block.header.extra_data = vec![0; 9].into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(EIP1559Parameters(
+                BaseFeeParams { max_change_denominator: 250, elasticity_multiplier: 6 },
+                BaseFeeParams { max_change_denominator: 0, elasticity_multiplier: 0 }
+            ))
+        );
+        assert!(check.is_mismatch());
+    }
+
+    #[test]
+    fn test_eip1559_parameters_empty_for_attr_only() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+        block.header.extra_data = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 250, elasticity_multiplier: 6 },
+        )
+        .unwrap();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+        assert!(check.is_match());
+    }
+
+    #[test]
+    fn test_eip1559_parameters_custom_values_match() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = eip1559_extra_params;
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Match);
+        assert!(check.is_match());
+    }
+
+    #[test]
+    fn test_eip1559_parameters_custom_values_mismatch() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+
+        let eip1559_params: FixedBytes<8> = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 99, elasticity_multiplier: 2 },
+        )
+        .unwrap()
+        .split_off(1)
+        .as_ref()
+        .try_into()
+        .unwrap();
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = eip1559_extra_params;
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(AttributesMismatch::EIP1559Parameters(
+                BaseFeeParams { max_change_denominator: 99, elasticity_multiplier: 2 },
+                BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 }
+            ))
+        );
+        assert!(check.is_mismatch());
+    }
+
+    /// Edge case: if the elasticity multiplier is 0, the max change denominator cannot be 0 as well
+    #[test]
+    fn test_eip1559_parameters_combination_mismatch() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 5, elasticity_multiplier: 0 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = eip1559_extra_params;
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(AttributesMismatch::InvalidEIP1559ParamsCombination)
+        );
+        assert!(check.is_mismatch());
+    }
+
+    /// Check that the version of the extra block data must be zero.
+    #[test]
+    fn test_eip1559_parameters_invalid_version() {
+        let (cfg, mut attributes, mut block) = eip1559_test_setup();
+
+        let eip1559_extra_params = encode_holocene_extra_data(
+            Default::default(),
+            BaseFeeParams { max_change_denominator: 100, elasticity_multiplier: 2 },
+        )
+        .unwrap();
+        let eip1559_params: FixedBytes<8> =
+            eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
+
+        let mut raw_extra_params_bytes = eip1559_extra_params.to_vec();
+        raw_extra_params_bytes[0] = 10;
+
+        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        block.header.extra_data = raw_extra_params_bytes.into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+        assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::InvalidExtraDataVersion));
+        assert!(check.is_mismatch());
+    }
+
+    /// The default parameters can't overflow the u32 byte representation of the base fee params!
+    #[test]
+    fn test_eip1559_default_param_cant_overflow() {
+        let (mut cfg, mut attributes, mut block) = eip1559_test_setup();
+        cfg.chain_op_config.eip1559_denominator_canyon = u128::MAX;
+        cfg.chain_op_config.eip1559_elasticity = u128::MAX;
+
+        attributes.attributes.eip_1559_params = Some(Default::default());
+        block.header.extra_data = vec![0; 9].into();
+
+        let check = AttributesMatch::check(&cfg, &attributes, &block);
+
+        // Note that in this case we *always* have a mismatch because there isn't enough bytes in
+        // the default representation of the extra params to represent a u128
+        assert_eq!(
+            check,
+            AttributesMatch::Mismatch(EIP1559Parameters(
+                BaseFeeParams {
+                    max_change_denominator: u128::MAX,
+                    elasticity_multiplier: u128::MAX
+                },
+                BaseFeeParams { max_change_denominator: 0, elasticity_multiplier: 0 }
+            ))
+        );
         assert!(check.is_mismatch());
     }
 

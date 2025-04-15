@@ -1,40 +1,48 @@
-//! An [EngineState] builder.
+//! An [`EngineState`] builder.
 
 use crate::{EngineClient, EngineState, SyncStatus, client::EngineClientError};
 use alloy_eips::eip1898::BlockNumberOrTag;
+use kona_genesis::ChainGenesis;
 use thiserror::Error;
 
 use kona_protocol::L2BlockInfo;
 
-/// An error that occurs in the [EngineStateBuilder].
+/// An error that occurs in the [`EngineStateBuilder`].
 #[derive(Error, Debug)]
 pub enum EngineStateBuilderError {
     /// A temporary error within the engine.
     #[error("Temporary engine task error: {0}")]
     EngineClientError(#[from] EngineClientError),
-
-    /// An error that occurs when wrongly configuring the engine.
-    #[error("Configuration error: {0}")]
-    ConfigError(String),
+    /// Missing unsafe head when building the [`EngineState`].
+    #[error("The unsafe head is required to build the EngineState")]
+    MissingUnsafeHead,
+    /// Missing the finalized head when building the [`EngineState`].
+    #[error("The finalized head is required to build the EngineState")]
+    MissingFinalizedHead,
+    /// Missing the safe head when building the [`EngineState`].
+    #[error("The safe head is required to build the EngineState")]
+    MissingSafeHead,
 }
 
-/// A builder for the [EngineState].
+/// A builder for the [`EngineState`].
 ///
-/// When the [EngineState] is first created, only the finalized
+/// When the [`EngineState`] is first created, only the finalized
 /// block is specified. The `StateBuilder` constructs the
-/// [EngineState] by fetching the remaining block info via the
+/// [`EngineState`] by fetching the remaining block info via the
 /// client.
 #[derive(Debug, Clone)]
 pub struct EngineStateBuilder {
     /// The engine client.
     client: EngineClient,
+    /// The chain genesis.
+    genesis: ChainGenesis,
     /// The sync status of the engine.
     sync_status: Option<SyncStatus>,
     /// Most recent block found on the p2p network
     unsafe_head: Option<L2BlockInfo>,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
     cross_unsafe_head: Option<L2BlockInfo>,
-    /// Pending localSafeHead
+    /// Pending local safe head
     /// L2 block processed from the middle of a span batch,
     /// but not marked as the safe block yet.
     pending_safe_head: Option<L2BlockInfo>,
@@ -49,10 +57,11 @@ pub struct EngineStateBuilder {
 }
 
 impl EngineStateBuilder {
-    /// Constructs a new [EngineStateBuilder] from the provided client.
-    pub const fn new(client: EngineClient) -> Self {
+    /// Constructs a new [`EngineStateBuilder`] from the provided client.
+    pub const fn new(client: EngineClient, genesis: ChainGenesis) -> Self {
         Self {
             client,
+            genesis,
             sync_status: None,
             unsafe_head: None,
             cross_unsafe_head: None,
@@ -75,13 +84,15 @@ impl EngineStateBuilder {
     /// Fetches the safe head block info if it is not already set.
     async fn fetch_safe_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
         if self.safe_head.is_none() {
-            let safe_head = match self.client.l2_block_info_by_label(BlockNumberOrTag::Safe).await {
-                Ok(safe_head) => safe_head,
-                // TODO: only set this if the block is not found
-                // SEE: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/engine/engine_controller.go#L293
-                Err(_) => self.finalized_head,
+            self.safe_head = match self.client.l2_block_info_by_label(BlockNumberOrTag::Safe).await
+            {
+                Ok(Some(safe_head)) => Some(safe_head),
+                Ok(None) => {
+                    debug!(target: "engine", "No safe head, falling back to genesis");
+                    self.finalized_head
+                }
+                Err(e) => return Err(e.into()),
             };
-            self.safe_head = safe_head;
         }
         Ok(self)
     }
@@ -89,8 +100,17 @@ impl EngineStateBuilder {
     /// Fetches the finalized head block info if it is not already set.
     async fn fetch_finalized_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
         if self.finalized_head.is_none() {
-            self.finalized_head =
-                self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await?;
+            match self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await {
+                Ok(Some(finalized_head)) => {
+                    self.finalized_head = Some(finalized_head);
+                }
+                Ok(None) => {
+                    debug!(target: "engine", "No finalized head, falling back to genesis");
+                    self.finalized_head =
+                        self.client.l2_block_info_by_label(self.genesis.l2.number.into()).await?;
+                }
+                Err(e) => return Err(e.into()),
+            }
         }
         Ok(self)
     }
@@ -104,57 +124,22 @@ impl EngineStateBuilder {
     /// Builds the [EngineState], fetching missing block info if necessary.
     pub async fn build(self) -> Result<EngineState, EngineStateBuilderError> {
         let mut builder = self;
+        debug!(target: "engine", "Building engine state");
         builder.fetch_unsafe_head().await?;
+        debug!(target: "engine", "Fetched unsafe head: {:?}", builder.unsafe_head);
         builder.fetch_finalized_head().await?;
+        debug!(target: "engine", "Fetched finalized head: {:?}", builder.finalized_head);
         builder.fetch_safe_head().await?;
+        debug!(target: "engine", "Fetched safe head: {:?}", builder.safe_head);
 
-        let unsafe_head = if let Some(h) = builder.unsafe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "unsafe_head is required to build the EngineState".into(),
-            ));
-        };
+        let unsafe_head = builder.unsafe_head.ok_or(EngineStateBuilderError::MissingUnsafeHead)?;
+        let finalized_head =
+            builder.finalized_head.ok_or(EngineStateBuilderError::MissingFinalizedHead)?;
+        let safe_head = builder.safe_head.ok_or(EngineStateBuilderError::MissingSafeHead)?;
 
-        let cross_unsafe_head = if let Some(h) = builder.cross_unsafe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "cross_unsafe_head is required to build the EngineState".into(),
-            ));
-        };
-
-        let pending_safe_head = if let Some(h) = builder.pending_safe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "pending_safe_head is required to build the EngineState".into(),
-            ));
-        };
-
-        let local_safe_head = if let Some(h) = builder.local_safe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "local_safe_head is required to build the EngineState".into(),
-            ));
-        };
-
-        let safe_head = if let Some(h) = builder.safe_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "safe_head is required to build the EngineState".into(),
-            ));
-        };
-
-        let finalized_head = if let Some(h) = builder.finalized_head {
-            h
-        } else {
-            return Err(EngineStateBuilderError::ConfigError(
-                "finalized_head is required to build the EngineState".into(),
-            ));
-        };
+        let local_safe_head = builder.local_safe_head.unwrap_or(safe_head);
+        let cross_unsafe_head = builder.cross_unsafe_head.unwrap_or(safe_head);
+        let pending_safe_head = builder.pending_safe_head.unwrap_or(safe_head);
 
         Ok(EngineState {
             sync_status: builder.sync_status.unwrap_or_default(),

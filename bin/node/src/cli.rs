@@ -2,7 +2,7 @@
 
 use crate::{
     commands::{NetCommand, NodeCommand, RegistryCommand},
-    flags::GlobalArgs,
+    flags::{GlobalArgs, MetricsArgs},
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -27,6 +27,9 @@ pub struct Cli {
     /// Global arguments for the CLI.
     #[command(flatten)]
     pub global: GlobalArgs,
+    /// Prometheus CLI arguments.
+    #[command(flatten)]
+    pub metrics: MetricsArgs,
     /// The subcommand to run.
     #[command(subcommand)]
     pub subcommand: Commands,
@@ -37,9 +40,11 @@ impl Cli {
     pub fn run(self) -> Result<()> {
         // Initialize telemetry - allow subcommands to customize the filter.
         match self.subcommand {
-            Commands::Node(ref node) => node.init_telemetry(&self.global)?,
-            Commands::Net(ref net) => net.init_telemetry(&self.global)?,
-            Commands::Registry(ref registry) => registry.init_telemetry(&self.global)?,
+            Commands::Node(ref node) => node.init_telemetry(&self.global, &self.metrics)?,
+            Commands::Net(ref net) => net.init_telemetry(&self.global, &self.metrics)?,
+            Commands::Registry(ref registry) => {
+                registry.init_telemetry(&self.global, &self.metrics)?
+            }
         }
 
         // Run the subcommand.
