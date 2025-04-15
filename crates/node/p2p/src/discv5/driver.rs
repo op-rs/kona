@@ -2,6 +2,7 @@
 
 use derive_more::Debug;
 use discv5::{Discv5, Enr, Event, enr::NodeId};
+use libp2p::Multiaddr;
 use tokio::{
     sync::mpsc::channel,
     time::{Duration, sleep},
@@ -89,6 +90,34 @@ impl Discv5Driver {
         }
     }
 
+    /// Adds a bootnode to the discv5 service given an enode address.
+    async fn add_enode(&mut self, enode: Multiaddr) -> Option<Enr> {
+        let enr = match self.disc.request_enr(enode.clone()).await {
+            Ok(enr) => enr,
+            Err(err) => {
+                error!(
+                    ?enode,
+                    %err,
+                    "failed to add boot node"
+                );
+
+                return None;
+            }
+        };
+
+        if let Err(err) = self.disc.add_enr(enr.clone()) {
+            warn!(
+                ?enode,
+                %err,
+                "failed to add boot node"
+            );
+
+            return None;
+        }
+
+        Some(enr)
+    }
+
     /// Bootstraps the [`Discv5`] service with the bootnodes.
     async fn bootstrap(&mut self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
@@ -125,25 +154,37 @@ impl Discv5Driver {
                 Err(e) => debug!("Failed to add ENR to discv5 table: {:?}", e),
             }
         }
-        info!("Added {} ENRs to discv5 | {} in bootstore", count, self.store.len());
 
         // Merge the bootnodes into the bootstore.
         self.store.merge(boot_enrs);
+        debug!(target: "p2p::discv5",
+            new=%count,
+            total=%self.store.len(),
+            "Added new ENRs to discv5 bootstore"
+        );
+
+        let mut boot_enodes_enrs = Vec::new();
 
         for node in nodes.0 {
             match node {
                 BootNode::Enode(enode) => {
-                    if let Err(err) = self.disc.request_enr(enode.to_string()).await {
-                        debug!(
-                            ?enode,
-                            %err,
-                            "failed adding boot node"
-                        );
-                    }
+                    let Some(enr) = self.add_enode(enode).await else {
+                        continue;
+                    };
+
+                    boot_enodes_enrs.push(enr);
                 }
-                _ => { /* ignore: bootnode enrs already added */ }
+                BootNode::Enr(_) => { /* ignore: bootnode enrs already added */ }
             }
         }
+
+        // Merge the bootnodes into the bootstore.
+        self.store.merge(boot_enodes_enrs);
+        debug!(target: "p2p::discv5",
+            new=%count,
+            total=%self.store.len(),
+            "Added new ENRs to discv5 bootstore"
+        );
     }
 
     /// Sends ENRs from the boot store to the enr receiver.
@@ -261,8 +302,16 @@ impl Discv5Driver {
 
 #[cfg(test)]
 mod tests {
+    use discv5::{enr::CombinedPublicKey, handler::NodeContact};
+    use kona_genesis::OP_SEPOLIA_CHAIN_ID;
+
+    use crate::{NodeRecord, OP_RAW_TESTNET_BOOTNODES};
+
     use super::*;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use std::{
+        net::{IpAddr, Ipv4Addr, SocketAddr},
+        str::FromStr,
+    };
 
     #[tokio::test]
     async fn test_discv5_driver() {
@@ -275,5 +324,46 @@ mod tests {
         let _ = discovery.start();
         // The service starts.
         // TODO: verify with a heartbeat.
+    }
+
+    #[tokio::test]
+    async fn test_discv5_driver_bootstrap_testnet() {
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+        let mut discovery = Discv5Driver::builder()
+            .with_address(socket)
+            .with_chain_id(OP_SEPOLIA_CHAIN_ID)
+            .build()
+            .expect("Failed to build discovery service");
+
+        discovery.init().await;
+
+        discovery.bootstrap().await;
+
+        // Verify bootstore has entries.
+        assert!(!discovery.store.is_empty(), "No nodes were added to the bootstore");
+        // Verify discv5 has entries in its enr table.
+        assert!(!discovery.disc.table_entries_enr().is_empty());
+
+        // It should have the same number of entries as the testnet table.
+        let testnet = OP_RAW_TESTNET_BOOTNODES;
+
+        // Verifies that the public keys are the same.
+        let testnet_pkeys: Vec<CombinedPublicKey> = testnet
+            .iter()
+            .map(|node| {
+                let node_record = NodeRecord::from_str(node).unwrap();
+                let bootnode = BootNode::from_unsigned(node_record).unwrap();
+                let node_contact =
+                    NodeContact::try_from_multiaddr(bootnode.to_multiaddr().unwrap()).unwrap();
+
+                // The public key contained in the NodeContact is used to connect to the
+                // bootnode.
+                node_contact.public_key()
+            })
+            .collect();
+
+        for enr in discovery.disc.table_entries_enr() {
+            assert!(testnet_pkeys.contains(&enr.public_key()));
+        }
     }
 }

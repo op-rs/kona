@@ -2,8 +2,10 @@
 
 use crate::{NodeRecord, PeerId};
 use derive_more::From;
-use discv5::{Enr, enr::EnrPublicKey, libp2p_identity::ParseError};
+use discv5::{Enr, enr::EnrPublicKey};
 use libp2p::swarm::dial_opts::DialOpts;
+
+use super::utils::peer_id_to_secp256k1_pubkey;
 
 /// A peer that can come in [`Enr`] or [`NodeRecord`] form.
 #[derive(Debug, Clone, From, Eq, PartialEq, Hash)]
@@ -16,8 +18,16 @@ pub enum AnyNode {
     PeerId(PeerId),
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum DialOptsError {
+    #[error("Invalid peer id. Error: {0}")]
+    InvalidPeerId(secp256k1::Error),
+    #[error("Invalid public key. Error: {0}")]
+    InvalidPublicKey(#[from] discv5::libp2p_identity::DecodingError),
+}
+
 impl AnyNode {
-    /// Returns the peer id of the node.
+    /// Returns the local peer id of the node.
     pub fn peer_id(&self) -> PeerId {
         match self {
             Self::NodeRecord(record) => record.id,
@@ -27,17 +37,26 @@ impl AnyNode {
     }
 
     /// Converts the [`AnyNode`] into [`DialOpts`].
-    pub fn as_dial_opts(&self) -> Result<DialOpts, ParseError> {
-        let peer_id = self.peer_id();
-        let prefixed = [&[0x12, 0x40], peer_id.as_slice()].concat();
-        let libp2p_id = libp2p::PeerId::from_bytes(&prefixed)?;
+    pub fn as_dial_opts(&self) -> Result<DialOpts, DialOptsError> {
+        let pub_key = &peer_id_to_secp256k1_pubkey(self.peer_id())
+            .map_err(DialOptsError::InvalidPeerId)?
+            .serialize();
+
+        // codecov:ignore-start
+        // We ignore the code coverage because in theory, the serialization of the public key
+        // should never fail, but we don't want to panic in case of a bug.
+        let pub_key: discv5::libp2p_identity::PublicKey =
+            discv5::libp2p_identity::secp256k1::PublicKey::try_from_bytes(pub_key)?.into();
+        // codecov:ignore-end
+
+        let libp2p_id = libp2p::PeerId::from_public_key(&pub_key);
         Ok(libp2p_id.into())
     }
 }
 
 #[allow(clippy::from_over_into)]
 impl TryInto<DialOpts> for AnyNode {
-    type Error = ParseError;
+    type Error = DialOptsError;
 
     fn try_into(self) -> Result<DialOpts, Self::Error> {
         self.as_dial_opts()
@@ -57,6 +76,14 @@ mod tests {
         );
         let any_node = AnyNode::from(peer_id);
         let _: DialOpts = any_node.try_into().unwrap();
+    }
+
+    #[test]
+    fn test_into_dial_ops_error() {
+        let peer_id: PeerId = PeerId::ZERO;
+        let any_node = AnyNode::from(peer_id);
+        let res: DialOptsError = any_node.as_dial_opts().unwrap_err();
+        assert!(matches!(res, DialOptsError::InvalidPeerId(_)));
     }
 
     #[test]

@@ -198,3 +198,7 @@ serde_json = { version = "1.0.140", default-features = false }
 
 # K/V database
 rocksdb = { version = "0.23.0", default-features = false }
+
+# Cryptography
+# The same library that is used by reth.
+secp256k1 = { version = "0.30", default-features = false }

@@ -4,9 +4,11 @@ use crate::{NodeRecord, enr_to_multiaddr};
 use derive_more::{Display, From};
 use discv5::{
     Enr,
-    multiaddr::{Multiaddr, PeerId, Protocol},
+    multiaddr::{Multiaddr, Protocol},
 };
 use std::net::IpAddr;
+
+use super::utils::{PeerIdConversionError, local_id_to_p2p_id};
 
 /// A boot node can be added either as a string in either 'enode' URL scheme or serialized from
 /// [`Enr`] type.
@@ -23,9 +25,7 @@ pub enum BootNode {
 impl BootNode {
     /// Parses a [`NodeRecord`] and serializes according to CL format. Note: [`discv5`] is
     /// originally a CL library hence needs this format to add the node.
-    pub fn from_unsigned(
-        node_record: NodeRecord,
-    ) -> Result<Self, discv5::libp2p_identity::ParseError> {
+    pub fn from_unsigned(node_record: NodeRecord) -> Result<Self, PeerIdConversionError> {
         let NodeRecord { address, udp_port, id, tcp_port } = node_record;
         let mut multi_address = Multiaddr::empty();
         match address {
@@ -35,8 +35,7 @@ impl BootNode {
 
         multi_address.push(Protocol::Udp(udp_port));
         multi_address.push(Protocol::Tcp(tcp_port));
-        let slice_peer_id = [&[0x12, 0x40], id.as_slice()].concat();
-        multi_address.push(Protocol::P2p(PeerId::from_bytes(&slice_peer_id)?));
+        multi_address.push(Protocol::P2p(local_id_to_p2p_id(id)?));
 
         Ok(Self::Enode(multi_address))
     }
@@ -52,14 +51,70 @@ impl BootNode {
 
 #[cfg(test)]
 mod tests {
+    use discv5::{
+        enr::{CombinedPublicKey, k256},
+        handler::NodeContact,
+    };
+
+    use crate::peers::utils::peer_id_to_secp256k1_pubkey;
+
     use super::*;
+    use std::{net::Ipv4Addr, str::FromStr};
 
     #[test]
-    fn test_convert_local_peer_id_to_multi_peer_id() {
-        let local_peer_id = crate::PeerId::ZERO;
-        assert_eq!(local_peer_id.len(), 64);
-        let slice_peer_id = [&[0x12, 0x40], local_peer_id.as_slice()].concat();
-        let hash = multihash::Multihash::<64>::from_bytes(&slice_peer_id).unwrap();
-        let _ = PeerId::from_multihash(hash).unwrap();
+    fn test_derive_bootnode_enode_multiaddr() {
+        let hardcoded_enode = "enode://2bd2e657bb3c8efffb8ff6db9071d9eb7be70d7c6d7d980ff80fc93b2629675c5f750bc0a5ef27cd788c2e491b8795a7e9a4a6e72178c14acc6753c0e5d77ae4@34.65.205.244:30305";
+        let node_record = NodeRecord::from_str(hardcoded_enode).unwrap();
+        let boot_node = BootNode::from_unsigned(node_record).unwrap();
+
+        // Get the substring from hardcoded_enode between the second / and before the @
+        let peer_id = hardcoded_enode
+            [hardcoded_enode.find('/').unwrap() + 2..hardcoded_enode.find('@').unwrap()]
+            .to_string();
+
+        let peer_id = crate::PeerId::from_str(&peer_id).unwrap();
+        let p2p_peer_id = local_id_to_p2p_id(peer_id).unwrap();
+
+        let expected_multiaddr = Multiaddr::empty()
+            .with(Protocol::Ip4(Ipv4Addr::new(34, 65, 205, 244)))
+            .with(Protocol::Udp(30305))
+            .with(Protocol::Tcp(30305))
+            .with(Protocol::P2p(p2p_peer_id));
+
+        assert_eq!(boot_node.to_multiaddr(), Some(expected_multiaddr));
+    }
+
+    #[test]
+    fn test_derive_bootnode_enode_mutliaddr_back_and_forth() {
+        let hardcoded_enode = "enode://2bd2e657bb3c8efffb8ff6db9071d9eb7be70d7c6d7d980ff80fc93b2629675c5f750bc0a5ef27cd788c2e491b8795a7e9a4a6e72178c14acc6753c0e5d77ae4@34.65.205.244:30305";
+        let node_record = NodeRecord::from_str(hardcoded_enode).unwrap();
+        let boot_node = BootNode::from_unsigned(node_record).unwrap();
+        let multiaddr = boot_node.to_multiaddr().unwrap();
+
+        let node_contact = NodeContact::try_from_multiaddr(multiaddr).unwrap();
+
+        // The public key contained in the NodeContact is used to connect to the
+        // bootnode.
+        let contact_pkey = node_contact.public_key();
+
+        // We get the expected public key from the enode information.
+        let peer_id = hardcoded_enode
+            [hardcoded_enode.find('/').unwrap() + 2..hardcoded_enode.find('@').unwrap()]
+            .to_string();
+        let peer_id = crate::PeerId::from_str(&peer_id).unwrap();
+
+        // The public key from the peer id is using the uncompressed form.
+        let pkey_secp256k1 = peer_id_to_secp256k1_pubkey(peer_id).unwrap();
+        let p2p_public_key: discv5::libp2p_identity::secp256k1::PublicKey =
+            discv5::libp2p_identity::secp256k1::PublicKey::try_from_bytes(
+                &pkey_secp256k1.serialize(),
+            )
+            .unwrap();
+
+        let expected_pkey: CombinedPublicKey =
+            k256::ecdsa::VerifyingKey::from_sec1_bytes(&p2p_public_key.to_bytes()).unwrap().into();
+
+        // These two keys should be equal.
+        assert_eq!(contact_pkey, expected_pkey);
     }
 }

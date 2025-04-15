@@ -4138,6 +4138,7 @@ dependencies = [
  "multihash",
  "op-alloy-rpc-types-engine",
  "openssl",
+ "secp256k1 0.30.0",
  "serde",
  "serde_json",
  "snap",
@@ -6403,7 +6404,7 @@ dependencies = [
  "p256",
  "revm-primitives",
  "ripemd",
- "secp256k1",
+ "secp256k1 0.29.1",
  "sha2 0.10.8",
  "substrate-bn",
 ]
@@ -6868,6 +6869,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9465315bc9d4566e1724f0fffcbcc446268cb522e60f9a27bcded6b19c108113"
 dependencies = [
  "rand 0.8.5",
+ "secp256k1-sys",
+]
+
+[[package]]
+name = "secp256k1"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b50c5943d326858130af85e049f2661ba3c78b26589b8ab98e65e80ae44a1252"
+dependencies = [
  "secp256k1-sys",
 ]
 
