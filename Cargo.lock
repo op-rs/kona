@@ -4116,6 +4116,7 @@ dependencies = [
  "arbitrary",
  "async-trait",
  "brotli",
+ "kona-comp",
  "kona-genesis",
  "kona-protocol",
  "miniz_oxide",
