@@ -91,6 +91,7 @@ impl NetCommand {
                                 Ok((d, g)) => {
                                     let d = d.unwrap_or_default();
                                     info!("Peer counts: Discovery={} | Swarm={}", d, g);
+                                    break;
                                 }
                                 Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
                                     /* Keep trying to receive */
