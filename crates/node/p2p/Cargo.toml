@@ -20,6 +20,8 @@ kona-rpc = { workspace = true, features = ["jsonrpsee", "reqwest", "std"] }
 # Alloy
 alloy-rlp.workspace = true
 alloy-primitives = { workspace = true, features = ["k256", "getrandom"] }
+alloy-rpc-types-engine.workspace = true
+alloy-consensus.workspace = true
 
 # Op Alloy
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
@@ -58,6 +60,11 @@ arbtest.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }
 alloy-primitives = { workspace = true, features = ["arbitrary"] }
 alloy-rpc-types-engine = { workspace = true, features = ["std"] }
+alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
+alloy-eips.workspace = true
+
+op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
+rand = { workspace = true, features = ["thread_rng"] }
 
 [features]
 default = []
