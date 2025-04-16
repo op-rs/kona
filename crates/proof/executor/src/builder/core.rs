@@ -2,7 +2,7 @@
 
 use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBError, TrieDBProvider};
 use alloc::{string::ToString, vec::Vec};
-use alloy_consensus::{Header, Sealed, transaction::Recovered};
+use alloy_consensus::{Header, Sealed};
 use alloy_evm::{
     EvmFactory, FromRecoveredTx, FromTxWithEncoded,
     block::{BlockExecutionResult, BlockExecutor, BlockExecutorFactory},
@@ -110,8 +110,8 @@ where
 
         // Step 3. Execute the block containing the transactions within the payload attributes.
         let transactions = attrs
-            .recovered_transactions()
-            .collect::<Result<Vec<Recovered<OpTxEnvelope>>, SignatureError>>()
+            .recovered_transactions_with_encoded()
+            .collect::<Result<Vec<_>, SignatureError>>()
             .map_err(ExecutorError::SignatureError)?;
         let ex_result = executor.execute_block(transactions.iter())?;
 
