@@ -4,6 +4,63 @@ use alloy_rlp::{Decodable, Encodable};
 use discv5::Enr;
 use unsigned_varint::{decode, encode};
 
+/// Validates the [`Enr`] for the OP Stack.
+#[derive(Debug, derive_more::Display, Clone, Default, PartialEq, Eq)]
+pub enum EnrValidation {
+    /// Missing OP Stack ENR key ("opstack").
+    #[display("Missing OP Stack ENR key: {_0}")]
+    MissingKey(String),
+    /// Failed to decode the OP Stack ENR Value into an [`OpStackEnr`].
+    #[display("Failed to decode the OP Stack ENR Value: {_0}")]
+    DecodeError(String),
+    /// Invalid Chain ID.
+    #[display("Invalid Chain ID: {_0}")]
+    InvalidChainId(u64),
+    /// Invalid Version.
+    #[display("Invalid Version: {_0}")]
+    InvalidVersion(u64),
+    /// Valid ENR.
+    #[default]
+    #[display("Valid ENR")]
+    Valid,
+}
+
+impl EnrValidation {
+    /// Validates the [`Enr`] for the OP Stack.
+    pub fn validate(enr: &Enr, chain_id: u64) -> Self {
+        let Some(mut opstack) = enr.get_raw_rlp(OpStackEnr::OP_CL_KEY) else {
+            return Self::MissingKey(OpStackEnr::OP_CL_KEY.to_string());
+        };
+
+        let opstack_enr = match OpStackEnr::decode(&mut opstack) {
+            Ok(val) => val,
+            Err(e) => {
+                return Self::DecodeError(format!("Failed to decode: {e}"));
+            }
+        };
+
+        if opstack_enr.chain_id != chain_id {
+            return Self::InvalidChainId(opstack_enr.chain_id);
+        }
+
+        if opstack_enr.version != 0 {
+            return Self::InvalidVersion(opstack_enr.version);
+        }
+
+        Self::Valid
+    }
+
+    /// Returns `true` if the ENR is valid.
+    pub fn is_valid(&self) -> bool {
+        matches!(self, Self::Valid)
+    }
+
+    /// Returns `true` if the ENR is invalid.
+    pub fn is_invalid(&self) -> bool {
+        !self.is_valid()
+    }
+}
+
 /// The unique L2 network identifier
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]

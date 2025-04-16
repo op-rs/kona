@@ -12,7 +12,7 @@ use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::collections::HashMap;
 
 use crate::{
-    Behaviour, BlockHandler, Event, GossipDriverBuilder, Handler, OpStackEnr, PublishError,
+    Behaviour, BlockHandler, EnrValidation, Event, GossipDriverBuilder, Handler, PublishError,
     enr_to_multiaddr, peers::PeerMonitoring,
 };
 
@@ -74,7 +74,6 @@ impl GossipDriver {
         payload: Option<OpNetworkPayloadEnvelope>,
     ) -> Result<Option<MessageId>, PublishError> {
         let Some(payload) = payload else {
-            debug!("Ignoring empty payload");
             return Ok(None);
         };
         let topic = selector(&self.handler);
@@ -87,7 +86,7 @@ impl GossipDriver {
     /// Listens on the address.
     pub fn listen(&mut self) -> Result<(), TransportError<std::io::Error>> {
         self.swarm.listen_on(self.addr.clone())?;
-        info!(target: "p2p::gossip::driver", "Swarm listening on: {:?}", self.addr);
+        info!(target: "gossip", "Swarm listening on: {:?}", self.addr);
         Ok(())
     }
 
@@ -118,13 +117,13 @@ impl GossipDriver {
 
     /// Dials the given [`Enr`].
     pub fn dial(&mut self, enr: Enr) {
-        let key = OpStackEnr::OP_CL_KEY.as_bytes();
-        if enr.get_raw_rlp(key).is_none() {
-            debug!("Ignoring peer without opstack CL key...");
+        let validation = EnrValidation::validate(&enr, self.handler.chain_id);
+        if validation.is_invalid() {
+            debug!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.chain_id, validation);
             return;
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
-            debug!("Failed to extract tcp socket from enr: {:?}", enr);
+            debug!(target: "gossip", "Failed to extract tcp socket from enr: {:?}", enr);
             return;
         };
         self.dial_multiaddr(multiaddr);
@@ -143,7 +142,7 @@ impl GossipDriver {
                 self.dialed_peers.insert(addr, true);
             }
             Err(e) => {
-                debug!("Failed to connect to peer: {:?}", e);
+                debug!(target: "gossip", "Failed to connect to peer: {:?}", e);
             }
         }
     }
@@ -159,7 +158,7 @@ impl GossipDriver {
                 message_id: id,
                 message,
             } => {
-                debug!("Received message with topic: {}", message.topic);
+                trace!(target: "gossip", "Received message with topic: {}", message.topic);
                 if self.handler.topics().contains(&message.topic) {
                     let (status, payload) = self.handler.handle(message);
                     _ = self
@@ -171,15 +170,15 @@ impl GossipDriver {
                 }
             }
             libp2p::gossipsub::Event::Subscribed { peer_id, topic } => {
-                debug!(target: "p2p::gossip::driver", "Peer: {:?} subscribed to topic: {:?}", peer_id, topic);
+                trace!(target: "gossip", "Peer: {:?} subscribed to topic: {:?}", peer_id, topic);
                 // TODO: Metrice a peer subscribing to a topic?
             }
             libp2p::gossipsub::Event::SlowPeer { peer_id, .. } => {
-                debug!(target: "p2p::gossip::driver", "Slow peer: {:?}", peer_id);
+                trace!(target: "gossip", "Slow peer: {:?}", peer_id);
                 // TODO: Metrice slow peer count
             }
             _ => {
-                debug!("Ignoring non-message gossipsub event: {:?}", event)
+                trace!(target: "gossip", "Ignoring non-message gossipsub event: {:?}", event)
             }
         }
         None
@@ -189,7 +188,7 @@ impl GossipDriver {
     pub fn redial(&mut self, peer_id: PeerId) {
         if let Some(addr) = self.peerstore.get(&peer_id) {
             self.dialed_peers.remove(addr);
-            trace!("Redialing peer with id: {:?}", peer_id);
+            trace!(target: "gossip", "Redialing peer with id: {:?}", peer_id);
             self.dial_multiaddr(addr.clone());
         }
     }
@@ -201,25 +200,25 @@ impl GossipDriver {
             return None;
         }
         if let SwarmEvent::OutgoingConnectionError { peer_id, error, .. } = event {
-            trace!("Outgoing connection error: {:?}", error);
+            trace!(target: "gossip", "Outgoing connection error: {:?}", error);
             if let Some(id) = peer_id {
                 self.redial(id);
             }
             return None;
         }
         if let SwarmEvent::ConnectionClosed { peer_id, cause, .. } = event {
-            trace!("Connection closed, redialing peer: {:?} | {:?}", peer_id, cause);
+            trace!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?}", peer_id, cause);
             self.redial(peer_id);
             return None;
         }
         let SwarmEvent::Behaviour(event) = event else {
-            trace!("Ignoring non-behaviour in event handler: {:?}", event);
+            trace!(target: "gossip", "Ignoring non-behaviour in event handler: {:?}", event);
             return None;
         };
 
         match event {
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
-                trace!("Ping from peer: {:?} | Result: {:?}", peer, result);
+                trace!(target: "gossip", "Ping from peer: {:?} | Result: {:?}", peer, result);
                 None
             }
             Event::Gossipsub(e) => self.handle_gossipsub_event(e),
