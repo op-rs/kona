@@ -4142,6 +4142,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types-engine",
  "async-trait",
+ "kona-derive",
  "kona-genesis",
  "kona-hardforks",
  "kona-protocol",

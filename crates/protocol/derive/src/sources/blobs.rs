@@ -213,6 +213,7 @@ pub(crate) mod tests {
         errors::PipelineErrorKind,
         test_utils::{TestBlobProvider, TestChainProvider},
     };
+    use alloc::vec;
     use alloy_rlp::Decodable;
 
     pub(crate) fn default_test_blob_source() -> BlobSource<TestChainProvider, TestBlobProvider> {
