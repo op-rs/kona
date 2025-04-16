@@ -16,7 +16,7 @@ use std::{
 pub struct BootStore {
     /// The file path for the [`BootStore`].
     #[serde(skip)]
-    path: PathBuf,
+    pub path: PathBuf,
     /// [`Enr`]s for peers.
     peers: Vec<Enr>,
 }

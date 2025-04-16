@@ -324,22 +324,27 @@ mod tests {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
         let discovery = Discv5Driver::builder()
             .with_address(socket)
-            .with_chain_id(10)
+            .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .build()
             .expect("Failed to build discovery service");
-        let _ = discovery.start();
-        // The service starts.
-        // TODO: verify with a heartbeat.
+        let handle = discovery.start();
+        assert_eq!(handle.chain_id, OP_SEPOLIA_CHAIN_ID);
     }
 
     #[tokio::test]
     async fn test_discv5_driver_bootstrap_testnet() {
+        // Use a test directory to make sure bootstore
+        // doesn't conflict with a local bootstore.
+        let dir = std::env::temp_dir();
+        assert!(std::env::set_current_dir(&dir).is_ok());
+
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
         let mut discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .build()
             .expect("Failed to build discovery service");
+        discovery.store.path = dir.join("bootstore.json");
 
         discovery.init().await;
 
