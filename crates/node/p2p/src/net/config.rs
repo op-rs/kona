@@ -3,7 +3,7 @@
 use crate::{PeerScoreLevel, peers::PeerMonitoring};
 use alloy_primitives::Address;
 use libp2p::identity::Keypair;
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 use tokio::time::Duration;
 
 /// Configuration for kona's P2P stack.
@@ -27,4 +27,6 @@ pub struct Config {
     pub monitor_peers: Option<PeerMonitoring>,
     /// The L2 Block Time.
     pub block_time: u64,
+    /// An optional path to the bootstore.
+    pub bootstore: Option<PathBuf>,
 }

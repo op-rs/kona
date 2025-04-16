@@ -5,7 +5,7 @@ use discv5::{Config as Discv5Config, ListenConfig};
 use kona_genesis::RollupConfig;
 use libp2p::{Multiaddr, identity::Keypair};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
@@ -35,6 +35,7 @@ pub struct NetworkBuilder {
 impl From<Config> for NetworkBuilder {
     fn from(config: Config) -> Self {
         Self::new()
+            .with_bootstore(config.bootstore)
             .with_discovery_interval(config.discovery_interval)
             .with_discovery_address(config.discovery_address)
             .with_gossip_address(config.gossip_address)
@@ -58,6 +59,14 @@ impl NetworkBuilder {
             publish_rx: None,
             cfg: None,
         }
+    }
+
+    /// Sets the bootstore path for the [`crate::Discv5Driver`].
+    pub fn with_bootstore(self, bootstore: Option<PathBuf>) -> Self {
+        if let Some(bootstore) = bootstore {
+            return Self { discovery: self.discovery.with_bootstore(bootstore), ..self };
+        }
+        self
     }
 
     /// Sets the block time used by peer scoring.

@@ -122,6 +122,9 @@ pub struct P2PArgs {
         env = "KONA_NODE_P2P_DISCOVERY_INTERVAL"
     )]
     pub discovery_interval: u64,
+    /// The directory to store the bootstore.
+    #[arg(long = "p2p.bootstore", env = "KONA_NODE_P2P_BOOTSTORE")]
+    pub bootstore: Option<PathBuf>,
 }
 
 impl Default for P2PArgs {
@@ -147,6 +150,7 @@ impl Default for P2PArgs {
             ban_threshold: 0,
             ban_duration: 30,
             discovery_interval: 5,
+            bootstore: None,
         }
     }
 }
@@ -224,6 +228,7 @@ impl P2PArgs {
             scoring: self.scoring,
             block_time,
             monitor_peers,
+            bootstore: self.bootstore.clone(),
         })
     }
 
