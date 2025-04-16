@@ -113,6 +113,15 @@ pub struct P2PArgs {
     /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
     #[arg(long = "p2p.ban.duration", default_value = "30", env = "KONA_NODE_P2P_BAN_DURATION")]
     pub ban_duration: u32,
+
+    /// The interval in seconds to find peers using the discovery service.
+    /// Defaults to 5 seconds.
+    #[arg(
+        long = "p2p.discovery.interval",
+        default_value = "5",
+        env = "KONA_NODE_P2P_DISCOVERY_INTERVAL"
+    )]
+    pub discovery_interval: u64,
 }
 
 impl Default for P2PArgs {
@@ -137,6 +146,7 @@ impl Default for P2PArgs {
             ban_enabled: false,
             ban_threshold: 0,
             ban_duration: 30,
+            discovery_interval: 5,
         }
     }
 }
@@ -205,6 +215,7 @@ impl P2PArgs {
         };
 
         Ok(Config {
+            discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
             gossip_address: multiaddr,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),

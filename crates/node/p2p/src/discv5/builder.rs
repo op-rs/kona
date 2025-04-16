@@ -5,6 +5,7 @@ use discv5::{
     enr::{CombinedKey, Enr},
 };
 use std::net::SocketAddr;
+use tokio::time::Duration;
 
 use crate::{Discv5BuilderError, Discv5Driver, OpStackEnr};
 
@@ -15,9 +16,10 @@ pub struct Discv5Builder {
     address: Option<SocketAddr>,
     /// The chain ID of the network.
     chain_id: Option<u64>,
+    /// The interval to find peers.
+    interval: Option<Duration>,
     /// The listen config for the discovery service.
     listen_config: Option<ListenConfig>,
-
     /// The discovery config for the discovery service.
     discovery_config: Option<Config>,
 }
@@ -25,7 +27,13 @@ pub struct Discv5Builder {
 impl Discv5Builder {
     /// Creates a new [`Discv5Builder`] instance.
     pub const fn new() -> Self {
-        Self { address: None, chain_id: None, listen_config: None, discovery_config: None }
+        Self {
+            address: None,
+            chain_id: None,
+            interval: None,
+            listen_config: None,
+            discovery_config: None,
+        }
     }
 
     /// Sets the discovery service address.
@@ -37,6 +45,12 @@ impl Discv5Builder {
     /// Sets the chain ID of the network.
     pub fn with_chain_id(mut self, chain_id: u64) -> Self {
         self.chain_id = Some(chain_id);
+        self
+    }
+
+    /// Sets the interval to find peers.
+    pub fn with_interval(mut self, interval: Duration) -> Self {
+        self.interval = Some(interval);
         self
     }
 
@@ -91,10 +105,11 @@ impl Discv5Builder {
         }
         let enr = enr_builder.build(&key).map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
 
+        let interval = self.interval.unwrap_or(Duration::from_secs(5));
         let disc =
             Discv5::new(enr, key, config).map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
 
-        Ok(Discv5Driver::new(disc, chain_id))
+        Ok(Discv5Driver::new(disc, interval, chain_id))
     }
 }
 

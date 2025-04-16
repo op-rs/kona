@@ -35,6 +35,7 @@ pub struct NetworkBuilder {
 impl From<Config> for NetworkBuilder {
     fn from(config: Config) -> Self {
         Self::new()
+            .with_discovery_interval(config.discovery_interval)
             .with_discovery_address(config.discovery_address)
             .with_gossip_address(config.gossip_address)
             .with_unsafe_block_signer(config.unsafe_block_signer)
@@ -69,8 +70,14 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_peer_scoring(level), ..self }
     }
 
+    /// Sets the peer monitoring for the [`crate::GossipDriver`].
     pub fn with_peer_monitoring(self, peer_monitoring: Option<PeerMonitoring>) -> Self {
         Self { gossip: self.gossip.with_peer_monitoring(peer_monitoring), ..self }
+    }
+
+    /// Sets the discovery interval for the [`crate::Discv5Driver`].
+    pub fn with_discovery_interval(self, interval: tokio::time::Duration) -> Self {
+        Self { discovery: self.discovery.with_interval(interval), ..self }
     }
 
     /// Sets the address for the [`crate::Discv5Driver`].

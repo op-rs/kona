@@ -72,9 +72,9 @@ impl Discv5Driver {
     }
 
     /// Instantiates a new [`Discv5Driver`].
-    pub fn new(disc: Discv5, chain_id: u64) -> Self {
+    pub fn new(disc: Discv5, interval: Duration, chain_id: u64) -> Self {
         let store = BootStore::from_chain_id(chain_id, None);
-        Self { disc, chain_id, store, interval: Duration::from_secs(10) }
+        Self { disc, chain_id, store, interval }
     }
 
     /// Starts the inner [`Discv5`] service.
