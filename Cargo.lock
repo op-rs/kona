@@ -4564,6 +4564,7 @@ dependencies = [
  "brotli",
  "derive_more",
  "kona-genesis",
+ "kona-protocol",
  "miniz_oxide",
  "op-alloy-consensus",
  "op-alloy-rpc-types",

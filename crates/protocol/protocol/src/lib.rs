@@ -61,5 +61,5 @@ pub use info::{
 mod predeploys;
 pub use predeploys::Predeploys;
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(feature = "test-utils")]
 pub mod test_utils;
