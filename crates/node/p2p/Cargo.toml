@@ -58,6 +58,11 @@ arbtest.workspace = true
 arbitrary = { workspace = true, features = ["derive"] }
 alloy-primitives = { workspace = true, features = ["arbitrary"] }
 alloy-rpc-types-engine = { workspace = true, features = ["std"] }
+alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
+alloy-eips.workspace = true
+
+op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
+rand = { workspace = true, features = ["thread_rng"] }
 
 [features]
 default = []

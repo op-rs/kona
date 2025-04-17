@@ -25,3 +25,5 @@ pub use handler::{BlockHandler, Handler};
 
 mod driver;
 pub use driver::GossipDriver;
+
+mod block_validity;

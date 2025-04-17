@@ -4439,6 +4439,8 @@ dependencies = [
 name = "kona-p2p"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types-engine",
@@ -4455,8 +4457,10 @@ dependencies = [
  "lazy_static",
  "libp2p",
  "multihash",
+ "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
  "openssl",
+ "rand 0.9.0",
  "secp256k1",
  "serde",
  "serde_json",
