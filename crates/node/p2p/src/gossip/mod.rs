@@ -27,3 +27,6 @@ mod driver;
 pub use driver::GossipDriver;
 
 mod block_validity;
+
+#[cfg(test)]
+pub(crate) use block_validity::tests::*;
