@@ -50,9 +50,10 @@ target "docker-metadata-action" {
 target "kona-host" {
   inherits = ["docker-metadata-action"]
   context = "."
-  dockerfile = "docker/apps/kona_host.dockerfile"
+  dockerfile = "docker/apps/kona_app_generic.dockerfile"
   args = {
-    CLIENT_TAG = "${GIT_REF_NAME}"
+    TAG = "${GIT_REF_NAME}"
+    BIN_TARGET = "kona-host"
   }
   platforms = split(",", PLATFORMS)
 }
