@@ -91,13 +91,10 @@ impl EngineClient {
         numtag: BlockNumberOrTag,
     ) -> Result<Option<L2BlockInfo>, EngineClientError> {
         let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag).full().await?;
-
-        match block.map(|b| b.into_consensus()) {
-            Some(block) => {
-                Ok(Some(L2BlockInfo::from_block_and_genesis(&block, &self.cfg.genesis)?))
-            }
-            None => Ok(None),
-        }
+        let Some(block) = block else {
+            return Ok(None);
+        };
+        Ok(Some(L2BlockInfo::from_rpc_block_and_genesis(&block, &self.cfg.genesis)?))
     }
 }
 

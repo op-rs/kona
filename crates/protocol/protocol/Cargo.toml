@@ -20,12 +20,14 @@ kona-genesis.workspace = true
 
 # OP Alloy
 op-alloy-consensus.workspace = true
+op-alloy-rpc-types.workspace = true
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
 alloy-rlp.workspace = true
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
+alloy-rpc-types-eth.workspace = true
 alloy-rpc-types-engine.workspace = true
 
 # Misc
