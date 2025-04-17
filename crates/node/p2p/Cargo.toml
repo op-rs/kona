@@ -24,6 +24,7 @@ alloy-rpc-types-engine.workspace = true
 alloy-consensus.workspace = true
 
 # Op Alloy
+op-alloy-consensus = { workspace = true, features = ["k256"] }
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 
 # Networking
