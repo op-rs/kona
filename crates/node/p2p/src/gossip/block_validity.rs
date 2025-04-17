@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use alloy_consensus::Block;
 use alloy_primitives::{Address, B256};
-use alloy_rpc_types_engine::{ExecutionPayloadV2, ExecutionPayloadV3, PayloadError};
+use alloy_rpc_types_engine::{ExecutionPayloadV3, PayloadError};
 use libp2p::gossipsub::MessageAcceptance;
 use op_alloy_consensus::OpTxEnvelope;
 use op_alloy_rpc_types_engine::{
@@ -26,8 +26,6 @@ pub enum BlockInvalidError {
     /// Invalid block.
     #[error(transparent)]
     InvalidBlock(#[from] OpPayloadError),
-    #[error("Payload is on v2+ topic, but has non-empty withdrawals")]
-    Withdrawals,
     #[error("Payload is on v3+ topic, but has empty parent beacon root")]
     ParentBeaconRoot,
     #[error("Payload is on v3+ topic, but has non-zero blob gas used")]
@@ -118,14 +116,8 @@ pub fn validate_version_specific_payload(
     //    decoder, this causes a hash mismatch. See tests)
 
     // Same as v1, except:
-    // 1. The block should have an empty withdrawals list
-    fn validate_v2(block: &ExecutionPayloadV2) -> Result<(), BlockInvalidError> {
-        if !block.withdrawals.is_empty() {
-            return Err(BlockInvalidError::Withdrawals);
-        }
-
-        Ok(())
-    }
+    // 1. The block should have an empty withdrawals list. This is checked during the call to
+    //    [`OpExecutionPayload::try_into_block`].
 
     // Same as v2, except:
     // 1. The block should have a zero blob gas used
@@ -135,8 +127,6 @@ pub fn validate_version_specific_payload(
         block: &ExecutionPayloadV3,
         parent_beacon_block_root: Option<B256>,
     ) -> Result<(), BlockInvalidError> {
-        validate_v2(&block.payload_inner)?;
-
         if block.blob_gas_used != 0 {
             return Err(BlockInvalidError::BlobGasUsed);
         }
@@ -163,7 +153,7 @@ pub fn validate_version_specific_payload(
 
     match &envelope.payload {
         OpExecutionPayload::V1(_) => Ok(()),
-        OpExecutionPayload::V2(payload) => validate_v2(payload),
+        OpExecutionPayload::V2(_) => Ok(()),
         OpExecutionPayload::V3(payload) => validate_v3(payload, envelope.parent_beacon_block_root),
         OpExecutionPayload::V4(payload) => validate_v4(payload, envelope.parent_beacon_block_root),
     }
@@ -443,7 +433,7 @@ pub mod tests {
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
 
-        let block = v1_valid_block();
+        let block = v2_valid_block();
 
         let v2 = ExecutionPayloadV2::from_block_slow(&block);
 
@@ -532,9 +522,10 @@ pub mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
-        println!("handler.block_valid(&envelope): {:?}", handler.block_valid(&envelope));
-
-        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Withdrawals)));
+        assert!(matches!(
+            handler.block_valid(&envelope),
+            Err(BlockInvalidError::InvalidBlock(OpPayloadError::NonEmptyL1Withdrawals))
+        ));
     }
 
     #[test]
@@ -587,7 +578,10 @@ pub mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
-        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Withdrawals)));
+        assert!(matches!(
+            handler.block_valid(&envelope),
+            Err(BlockInvalidError::InvalidBlock(OpPayloadError::NonEmptyL1Withdrawals))
+        ));
     }
 
     #[test]
