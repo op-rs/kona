@@ -94,7 +94,7 @@ impl EngineClient {
         let Some(block) = block else {
             return Ok(None);
         };
-        Ok(Some(L2BlockInfo::from_rpc_block_and_genesis(&block, &self.cfg.genesis)?))
+        Ok(Some(L2BlockInfo::from_rpc_block_and_genesis(block, &self.cfg.genesis)?))
     }
 }
 

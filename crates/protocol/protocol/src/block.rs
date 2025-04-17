@@ -144,7 +144,7 @@ impl L2BlockInfo {
     /// Constructs an [`L2BlockInfo`] from a given [`alloy_rpc_types_eth::Block`] and
     /// [`ChainGenesis`].
     pub fn from_rpc_block_and_genesis(
-        block: &alloy_rpc_types_eth::Block<op_alloy_rpc_types::Transaction>,
+        block: alloy_rpc_types_eth::Block<op_alloy_rpc_types::Transaction>,
         genesis: &ChainGenesis,
     ) -> Result<Self, FromBlockError> {
         let block_info = BlockInfo::new(
@@ -159,7 +159,7 @@ impl L2BlockInfo {
             }
             return Ok(Self { block_info, l1_origin: genesis.l1, seq_num: 0 })
         }
-        Self::from_block_and_genesis(&block.clone().into_consensus(), genesis)
+        Self::from_block_and_genesis(&block.into_consensus(), genesis)
     }
 
     /// Constructs an [L2BlockInfo] from a given OP [Block] and [ChainGenesis].
