@@ -4385,6 +4385,7 @@ dependencies = [
  "alloy-rpc-types-engine",
  "anyhow",
  "clap",
+ "discv5",
  "jsonrpsee",
  "kona-cli",
  "kona-engine",

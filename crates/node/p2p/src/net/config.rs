@@ -9,6 +9,8 @@ use tokio::time::Duration;
 /// Configuration for kona's P2P stack.
 #[derive(Debug, Clone)]
 pub struct Config {
+    /// Discovery Config.
+    pub discovery_config: discv5::Config,
     /// The discovery address.
     pub discovery_address: SocketAddr,
     /// The interval to find peers.

@@ -30,6 +30,7 @@ op-alloy-provider.workspace = true
 
 # general
 url.workspace = true
+discv5.workspace = true
 tabled.workspace = true
 libp2p.workspace = true
 anyhow.workspace = true

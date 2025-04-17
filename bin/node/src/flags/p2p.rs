@@ -188,8 +188,10 @@ impl P2PArgs {
 
     /// Returns the [`discv5::Config`] from the CLI arguments.
     pub fn discv5_config(&self) -> discv5::Config {
-        discv5::ConfigBuilder::new()
-            .with_ban_duration(Some(self.ban_duration))
+        // We can use a default listen config here since it
+        // will be overridden by the discovery service builder.
+        discv5::ConfigBuilder::new(discv5::ListenConfig::default())
+            .ban_duration(Some(Duration::from_secs(self.ban_duration as u64)))
             .build()
     }
 
