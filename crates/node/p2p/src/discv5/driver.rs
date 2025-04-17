@@ -3,6 +3,7 @@
 use derive_more::Debug;
 use discv5::{Discv5, Enr, Event, enr::NodeId};
 use libp2p::Multiaddr;
+use std::path::PathBuf;
 use tokio::{
     sync::mpsc::channel,
     time::{Duration, sleep},
@@ -72,8 +73,13 @@ impl Discv5Driver {
     }
 
     /// Instantiates a new [`Discv5Driver`].
-    pub fn new(disc: Discv5, interval: Duration, chain_id: u64) -> Self {
-        let store = BootStore::from_chain_id(chain_id, None);
+    pub fn new(
+        disc: Discv5,
+        interval: Duration,
+        chain_id: u64,
+        bootstore: Option<PathBuf>,
+    ) -> Self {
+        let store = BootStore::from_chain_id(chain_id, bootstore);
         Self { disc, chain_id, store, interval }
     }
 
