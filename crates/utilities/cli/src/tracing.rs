@@ -20,13 +20,8 @@ pub fn init_tracing_subscriber(
         1 => Level::DEBUG,
         _ => Level::TRACE,
     };
+    let filter = env_filter.map(|e| e.into()).unwrap_or(EnvFilter::from_default_env());
+    let filter = filter.add_directive(level.into());
     let subscriber = tracing_subscriber::fmt().with_max_level(level);
-
-    if let Some(env_filter) = env_filter {
-        let env_filter = env_filter.into();
-        let env_filter = env_filter.add_directive(level.into());
-        tracing::subscriber::set_global_default(subscriber.with_env_filter(env_filter).finish())
-    } else {
-        tracing::subscriber::set_global_default(subscriber.finish())
-    }
+    tracing::subscriber::set_global_default(subscriber.with_env_filter(filter).finish())
 }
