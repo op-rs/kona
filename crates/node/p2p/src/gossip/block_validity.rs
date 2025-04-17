@@ -27,6 +27,9 @@ pub enum BlockInvalidError {
     #[error(transparent)]
     InvalidBlock(#[from] OpPayloadError),
     // TODO: add the rest of the errors variants in follow-up PRs
+    /// Invalid block.
+    #[error(transparent)]
+    InvalidBlock(#[from] OpPayloadError),
 }
 
 impl From<BlockInvalidError> for MessageAcceptance {
