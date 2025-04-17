@@ -1,8 +1,15 @@
 use std::time::SystemTime;
 
-use alloy_primitives::Address;
+use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header};
+use alloy_primitives::{Address, B256};
+use alloy_rlp::BufMut;
+use alloy_rpc_types_engine::{
+    ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3, PayloadError,
+};
 use libp2p::gossipsub::MessageAcceptance;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::{
+    OpExecutionPayload, OpExecutionPayloadV4, OpNetworkPayloadEnvelope,
+};
 
 use super::BlockHandler;
 
@@ -12,6 +19,10 @@ use super::BlockHandler;
 pub enum BlockInvalidError {
     #[error("Invalid timestamp. Current: {current}, Received: {received}")]
     Timestamp { current: u64, received: u64 },
+    #[error("Base fee per gas overflow")]
+    BaseFeePerGasOverflow(#[from] PayloadError),
+    #[error("Invalid block hash. Expected: {expected}, Received: {received}")]
+    BlockHash { expected: B256, received: B256 },
     #[error("Invalid signature.")]
     Signature,
     #[error("Invalid signer, expected: {expected}, received: {received}")]
@@ -53,6 +64,9 @@ impl BlockHandler {
             });
         }
 
+        // CHECK: Ensure the block hash is valid.
+        check_block_hash(&envelope.payload, envelope.parent_beacon_block_root)?;
+
         // CHECK: The signature is valid.
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.signer_recv.borrow();
@@ -69,6 +83,112 @@ impl BlockHandler {
 
         Ok(())
     }
+}
+
+/// Checks that the block hash is valid. For that we need to recreate the header, recompute the
+/// associated block hash and compare it with the one in the block.
+pub fn check_block_hash(
+    block: &OpExecutionPayload,
+    parent_beacon_block_root: Option<B256>,
+) -> Result<(), BlockInvalidError> {
+    // Computes the associated block header given an [`ExecutionPayloadV1`].
+    let block_v1_header = |block: &ExecutionPayloadV1| -> Result<Header, PayloadError> {
+        // Reuse the encoded bytes for root calculation
+        let transactions_root = alloy_consensus::proofs::ordered_trie_root_with_encoder(
+            &block.transactions,
+            |item, buf| buf.put_slice(item),
+        );
+
+        let header = Header {
+            parent_hash: block.parent_hash,
+            beneficiary: block.fee_recipient,
+            state_root: block.state_root,
+            transactions_root,
+            receipts_root: block.receipts_root,
+            withdrawals_root: None,
+            logs_bloom: block.logs_bloom,
+            number: block.block_number,
+            gas_limit: block.gas_limit,
+            gas_used: block.gas_used,
+            timestamp: block.timestamp,
+            mix_hash: block.prev_randao,
+            // WARNING: It’s allowed for a base fee in EIP1559 to increase unbounded. We assume that
+            // it will fit in an u64. This is not always necessarily true, although it is extremely
+            // unlikely not to be the case, a u64 maximum would have 2^64 which equates to 18 ETH
+            // per gas.
+            base_fee_per_gas: Some(
+                block
+                    .base_fee_per_gas
+                    .try_into()
+                    .map_err(|_| PayloadError::BaseFee(block.base_fee_per_gas))?,
+            ),
+            blob_gas_used: None,
+            excess_blob_gas: None,
+            parent_beacon_block_root,
+            requests_hash: None,
+            // Unfortunately we need to clone the extra data because we only have a reference to it.
+            extra_data: block.extra_data.clone(),
+            // Defaults
+            ommers_hash: EMPTY_OMMER_ROOT_HASH,
+            difficulty: Default::default(),
+            nonce: Default::default(),
+        };
+
+        Ok(header)
+    };
+
+    // Computes the associated block header given an [`ExecutionPayloadV2`].
+    // Basically the same as [`block_v1_header`], but with the withdrawals root.
+    let block_v2_header = |block: &ExecutionPayloadV2,
+                           withdrawals_hint: Option<B256>|
+     -> Result<Header, PayloadError> {
+        let mut header = block_v1_header(&block.payload_inner)?;
+
+        let withdrawals_root = withdrawals_hint.unwrap_or_else(|| {
+            alloy_consensus::proofs::calculate_withdrawals_root(&block.withdrawals)
+        });
+        header.withdrawals_root = Some(withdrawals_root);
+
+        Ok(header)
+    };
+
+    // Computes the associated block header given an [`ExecutionPayloadV3`].
+    // Basically the same as [`block_v2_header`], but with the excess blob gas and blob gas used.
+    let block_v3_header = |block: &ExecutionPayloadV3,
+                           withdrawals_hint: Option<B256>|
+     -> Result<Header, PayloadError> {
+        let mut header = block_v2_header(&block.payload_inner, withdrawals_hint)?;
+
+        header.blob_gas_used = Some(block.blob_gas_used);
+        header.excess_blob_gas = Some(block.excess_blob_gas);
+
+        Ok(header)
+    };
+
+    let block_v4_header = |block: &OpExecutionPayloadV4| -> Result<Header, PayloadError> {
+        let header = block_v3_header(&block.payload_inner, Some(block.withdrawals_root))?;
+
+        Ok(header)
+    };
+
+    let header = match block {
+        OpExecutionPayload::V1(payload) => block_v1_header(payload),
+        OpExecutionPayload::V2(payload) => block_v2_header(payload, None),
+        OpExecutionPayload::V3(payload) => block_v3_header(payload, None),
+        OpExecutionPayload::V4(payload) => block_v4_header(payload),
+    }?;
+
+    let block_hash = block.block_hash();
+    let real_header_hash = header.hash_slow();
+
+    if real_header_hash != block_hash {
+        return Err(BlockInvalidError::BlockHash {
+            expected: block_hash,
+            received: real_header_hash,
+        });
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -246,6 +366,31 @@ pub mod tests {
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Timestamp { .. })));
+    }
+
+    /// Generates a random block with an invalid hash and ensure it is rejected
+    #[test]
+    fn test_block_invalid_hash() {
+        let block = v1_valid_block();
+
+        let mut v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+        v1.block_hash = B256::ZERO;
+
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
     }
 
     #[test]

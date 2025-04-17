@@ -20,6 +20,8 @@ kona-rpc = { workspace = true, features = ["jsonrpsee", "reqwest", "std"] }
 # Alloy
 alloy-rlp.workspace = true
 alloy-primitives = { workspace = true, features = ["k256", "getrandom"] }
+alloy-rpc-types-engine.workspace = true
+alloy-consensus.workspace = true
 
 # Op Alloy
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
