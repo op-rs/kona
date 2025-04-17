@@ -2,15 +2,15 @@ use std::time::SystemTime;
 
 use alloy_consensus::Block;
 use alloy_primitives::{Address, B256};
-use alloy_rpc_types_engine::PayloadError;
+use alloy_rpc_types_engine::{ExecutionPayloadV2, ExecutionPayloadV3, PayloadError};
 use libp2p::gossipsub::MessageAcceptance;
 use op_alloy_consensus::OpTxEnvelope;
-use op_alloy_rpc_types_engine::{OpNetworkPayloadEnvelope, OpPayloadError};
+use op_alloy_rpc_types_engine::{
+    OpExecutionPayload, OpExecutionPayloadV4, OpNetworkPayloadEnvelope, OpPayloadError,
+};
 
 use super::BlockHandler;
 
-/// These errors are returned by the [`BlockHandler::block_valid`] method.
-/// They specify the reason for which a block has been rejected/ignored.
 #[derive(Debug, thiserror::Error)]
 pub enum BlockInvalidError {
     #[error("Invalid timestamp. Current: {current}, Received: {received}")]
@@ -26,6 +26,16 @@ pub enum BlockInvalidError {
     /// Invalid block.
     #[error(transparent)]
     InvalidBlock(#[from] OpPayloadError),
+    #[error("Payload is on v2+ topic, but has non-empty withdrawals")]
+    Withdrawals,
+    #[error("Payload is on v3+ topic, but has empty parent beacon root")]
+    ParentBeaconRoot,
+    #[error("Payload is on v3+ topic, but has non-zero blob gas used")]
+    BlobGasUsed,
+    #[error("Payload is on v3+ topic, but has non-zero excess blob gas")]
+    ExcessBlobGas,
+    #[error("Payload is on v4+ topic, but has non-empty withdrawals root")]
+    WithdrawalsRoot,
     // TODO: add the rest of the errors variants in follow-up PRs
 }
 
@@ -72,6 +82,9 @@ impl BlockHandler {
             return Err(BlockInvalidError::BlockHash { expected, received });
         }
 
+        // CHECK: The payload is valid for the specific version of this block.
+        validate_version_specific_payload(envelope)?;
+
         // CHECK: The signature is valid.
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.signer_recv.borrow();
@@ -90,13 +103,79 @@ impl BlockHandler {
     }
 }
 
+// Validate version specific contents of the payload.
+pub fn validate_version_specific_payload(
+    envelope: &OpNetworkPayloadEnvelope,
+) -> Result<(), BlockInvalidError> {
+    // Validation for v1 payloads are mostly ensured by type-safety, by decoding the
+    // payload to the ExecutionPayloadV1 type:
+    // 1. The block should not have any withdrawals
+    // 2. The block should not have any withdrawals list
+    // 3. The block should not have any blob gas used
+    // 4. The block should not have any excess blob gas
+    // 5. The block should not have any withdrawals root
+    // 6. The block should not have any parent beacon block root (validated because ignored by the
+    //    decoder, this causes a hash mismatch. See tests)
+
+    // Same as v1, except:
+    // 1. The block should have an empty withdrawals list
+    fn validate_v2(block: &ExecutionPayloadV2) -> Result<(), BlockInvalidError> {
+        if !block.withdrawals.is_empty() {
+            return Err(BlockInvalidError::Withdrawals);
+        }
+
+        Ok(())
+    }
+
+    // Same as v2, except:
+    // 1. The block should have a zero blob gas used
+    // 2. The block should have a zero excess blob gas
+    // 3. The block should have a non empty parent beacon block root
+    fn validate_v3(
+        block: &ExecutionPayloadV3,
+        parent_beacon_block_root: Option<B256>,
+    ) -> Result<(), BlockInvalidError> {
+        validate_v2(&block.payload_inner)?;
+
+        if block.blob_gas_used != 0 {
+            return Err(BlockInvalidError::BlobGasUsed);
+        }
+
+        if block.excess_blob_gas != 0 {
+            return Err(BlockInvalidError::ExcessBlobGas);
+        }
+
+        if parent_beacon_block_root.is_none() {
+            return Err(BlockInvalidError::ParentBeaconRoot);
+        }
+
+        Ok(())
+    }
+
+    // Same as v3, except:
+    // 1. The block should have an non-empty withdrawals root (checked by type-safety)
+    fn validate_v4(
+        block: &OpExecutionPayloadV4,
+        parent_beacon_block_root: Option<B256>,
+    ) -> Result<(), BlockInvalidError> {
+        validate_v3(&block.payload_inner, parent_beacon_block_root)
+    }
+
+    match &envelope.payload {
+        OpExecutionPayload::V1(_) => Ok(()),
+        OpExecutionPayload::V2(payload) => validate_v2(payload),
+        OpExecutionPayload::V3(payload) => validate_v3(payload, envelope.parent_beacon_block_root),
+        OpExecutionPayload::V4(payload) => validate_v4(payload, envelope.parent_beacon_block_root),
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
 
     use super::*;
     use alloy_consensus::{Block, EMPTY_OMMER_ROOT_HASH};
-    use alloy_eips::eip2718::Encodable2718;
-    use alloy_primitives::{B256, Bytes, Signature};
+    use alloy_eips::{eip2718::Encodable2718, eip4895::Withdrawal};
+    use alloy_primitives::{Address, B256, Bytes, Signature};
     use alloy_rlp::BufMut;
     use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
     use arbitrary::{Arbitrary, Unstructured};
@@ -292,6 +371,98 @@ pub mod tests {
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
     }
 
+    /// Blocks with invalid signatures should be rejected.
+    #[test]
+    fn test_invalid_signature() {
+        let block = v1_valid_block();
+
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V1(v1);
+        let mut envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        let mut signature_bytes = envelope.signature.as_bytes();
+        signature_bytes[0] = !signature_bytes[0];
+        envelope.signature = Signature::from_raw_array(&signature_bytes).unwrap();
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Signature { .. })));
+    }
+
+    /// Blocks with invalid signers should be rejected.
+    #[test]
+    fn test_invalid_signer() {
+        let block = v1_valid_block();
+
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let (_, unsafe_signer) = tokio::sync::watch::channel(Address::default());
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Signer { .. })));
+    }
+
+    /// If we specify a non empty parent beacon block root for blocks with v1/v2 payloads we
+    /// get a hash mismatch error because the decoder enforces that these versions of the execution
+    /// payload don't contain the parent beacon block root.
+    #[test]
+    fn test_v1_v2_block_invalid_parent_beacon_block_root() {
+        let block = v1_valid_block();
+
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: Some(B256::ZERO),
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
+
+        let block = v1_valid_block();
+
+        let v2 = ExecutionPayloadV2::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V2(v2);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: Some(B256::ZERO),
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
+    }
+
     #[test]
     fn test_block_invalid_base_fee() {
         let mut block = v1_valid_block();
@@ -338,6 +509,35 @@ pub mod tests {
     }
 
     #[test]
+    fn test_v2_non_empty_withdrawals() {
+        let mut block = v2_valid_block();
+        block.body.withdrawals = Some(vec![Withdrawal::default()].into());
+        let withdrawals_root = alloy_consensus::proofs::calculate_withdrawals_root(
+            &block.body.withdrawals.clone().unwrap_or_default(),
+        );
+        block.header.withdrawals_root = Some(withdrawals_root);
+
+        let v2 = ExecutionPayloadV2::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V2(v2);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        println!("handler.block_valid(&envelope): {:?}", handler.block_valid(&envelope));
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Withdrawals)));
+    }
+
+    #[test]
     fn test_v3_block() {
         let block = v3_valid_block();
 
@@ -359,6 +559,77 @@ pub mod tests {
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
         assert!(handler.block_valid(&envelope).is_ok());
+    }
+
+    #[test]
+    fn test_v3_non_empty_withdrawals() {
+        let mut block = v3_valid_block();
+        block.body.withdrawals = Some(vec![Withdrawal::default()].into());
+        let withdrawals_root = alloy_consensus::proofs::calculate_withdrawals_root(
+            &block.body.withdrawals.clone().unwrap_or_default(),
+        );
+        block.header.withdrawals_root = Some(withdrawals_root);
+
+        let v3 = ExecutionPayloadV3::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V3(v3);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: Some(
+                block.header.parent_beacon_block_root.unwrap_or_default(),
+            ),
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Withdrawals)));
+    }
+
+    #[test]
+    fn test_v3_gas_params() {
+        let mut block = v3_valid_block();
+        block.header.blob_gas_used = Some(1);
+
+        let v3 = ExecutionPayloadV3::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V3(v3);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: Some(
+                block.header.parent_beacon_block_root.unwrap_or_default(),
+            ),
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlobGasUsed)));
+
+        block.header.blob_gas_used = Some(0);
+        block.header.excess_blob_gas = Some(1);
+
+        let v3 = ExecutionPayloadV3::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V3(v3);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: Some(
+                block.header.parent_beacon_block_root.unwrap_or_default(),
+            ),
+        };
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::ExcessBlobGas)));
     }
 
     #[test]
