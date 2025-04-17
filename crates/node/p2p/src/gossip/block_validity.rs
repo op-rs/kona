@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use alloy_consensus::Block;
 use alloy_primitives::{Address, B256};
-use alloy_rpc_types_engine::{ExecutionPayloadV3, PayloadError};
+use alloy_rpc_types_engine::{ExecutionPayloadV2, ExecutionPayloadV3, PayloadError};
 use libp2p::gossipsub::MessageAcceptance;
 use op_alloy_consensus::OpTxEnvelope;
 use op_alloy_rpc_types_engine::{
