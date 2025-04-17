@@ -105,24 +105,30 @@ impl BlockHandler {
         // CHECK: The payload is valid for the specific version of this block.
         validate_version_specific_payload(envelope)?;
 
-        let payload_v1 = envelope.payload.as_v1();
-
-        if let Some(seen_hashes_at_height) = self.seen_hashes.get_mut(&payload_v1.block_number) {
+        if let Some(seen_hashes_at_height) =
+            self.seen_hashes.get_mut(&envelope.payload.block_number())
+        {
             // CHECK: If more than [`Self::MAX_BLOCKS_TO_KEEP`] different blocks have been received
             // for the same height, reject the block.
             if seen_hashes_at_height.len() > Self::MAX_BLOCKS_TO_KEEP {
-                return Err(BlockInvalidError::TooManyBlocks { height: payload_v1.block_number });
+                return Err(BlockInvalidError::TooManyBlocks {
+                    height: envelope.payload.block_number(),
+                });
             }
 
             // CHECK: If the block has already been seen, ignore it.
-            if seen_hashes_at_height.contains(&payload_v1.block_hash) {
-                return Err(BlockInvalidError::BlockSeen { block_hash: payload_v1.block_hash });
+            if seen_hashes_at_height.contains(&envelope.payload.block_hash()) {
+                return Err(BlockInvalidError::BlockSeen {
+                    block_hash: envelope.payload.block_hash(),
+                });
             }
 
-            seen_hashes_at_height.insert(payload_v1.block_hash);
+            seen_hashes_at_height.insert(envelope.payload.block_hash());
         } else {
-            self.seen_hashes
-                .insert(payload_v1.block_number, HashSet::from([payload_v1.block_hash]));
+            self.seen_hashes.insert(
+                envelope.payload.block_number(),
+                HashSet::from([envelope.payload.block_hash()]),
+            );
         }
 
         // CHECK: The signature is valid.
