@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::{collections::HashSet, time::SystemTime};
 
 use alloy_consensus::Block;
 use alloy_primitives::{Address, B256};
@@ -34,16 +34,38 @@ pub enum BlockInvalidError {
     ExcessBlobGas,
     #[error("Payload is on v4+ topic, but has non-empty withdrawals root")]
     WithdrawalsRoot,
-    // TODO: add the rest of the errors variants in follow-up PRs
+    #[error("Too many blocks seen for height {height}")]
+    TooManyBlocks { height: u64 },
+    #[error("Block seen before")]
+    BlockSeen { block_hash: B256 },
 }
 
 impl From<BlockInvalidError> for MessageAcceptance {
-    fn from(_value: BlockInvalidError) -> Self {
-        MessageAcceptance::Reject
+    fn from(value: BlockInvalidError) -> Self {
+        // We only want to ignore blocks that we have already seen.
+        match value {
+            BlockInvalidError::BlockSeen { block_hash: _ } => MessageAcceptance::Ignore,
+            _ => MessageAcceptance::Reject,
+        }
     }
 }
 
 impl BlockHandler {
+    /// The maximum number of blocks to keep in the seen hashes map.
+    ///
+    /// Note: this value must be high enough to ensure we prevent replay attacks.
+    /// Ie, the entries pruned must be old enough blocks to be considered invalid
+    /// if new blocks for that height are received.
+    ///
+    /// This value is chosen to match `op-node` validator's lru cache size.
+    /// See: `<https://github.com/ethereum-optimism/optimism/blob/836d50be5d5f4ae14ffb2ea6106720a2b080cdae/op-node/p2p/gossip.go#L266>``
+    pub const SEEN_HASH_CACHE_SIZE: usize = 1_000;
+
+    /// The maximum number of blocks to keep per height.
+    /// This value is chosen according to the optimism specs:
+    /// `<https://specs.optimism.io/protocol/rollup-node-p2p.html#block-validation>`
+    const MAX_BLOCKS_TO_KEEP: usize = 5;
+
     /// Determines if a block is valid.
     ///
     /// We validate the block according to the rules defined here:
@@ -83,6 +105,26 @@ impl BlockHandler {
         // CHECK: The payload is valid for the specific version of this block.
         validate_version_specific_payload(envelope)?;
 
+        let payload_v1 = envelope.payload.as_v1();
+
+        if let Some(seen_hashes_at_height) = self.seen_hashes.get_mut(&payload_v1.block_number) {
+            // CHECK: If more than [`Self::MAX_BLOCKS_TO_KEEP`] different blocks have been received
+            // for the same height, reject the block.
+            if seen_hashes_at_height.len() > Self::MAX_BLOCKS_TO_KEEP {
+                return Err(BlockInvalidError::TooManyBlocks { height: payload_v1.block_number });
+            }
+
+            // CHECK: If the block has already been seen, ignore it.
+            if seen_hashes_at_height.contains(&payload_v1.block_hash) {
+                return Err(BlockInvalidError::BlockSeen { block_hash: payload_v1.block_hash });
+            }
+
+            seen_hashes_at_height.insert(payload_v1.block_hash);
+        } else {
+            self.seen_hashes
+                .insert(payload_v1.block_number, HashSet::from([payload_v1.block_hash]));
+        }
+
         // CHECK: The signature is valid.
         let msg = envelope.payload_hash.signature_message(self.chain_id);
         let block_signer = *self.signer_recv.borrow();
@@ -95,6 +137,11 @@ impl BlockHandler {
         // The block is signed by the expected signer (the unsafe block signer).
         if msg_signer != block_signer {
             return Err(BlockInvalidError::Signer { expected: msg_signer, received: block_signer });
+        }
+
+        // Mark the block as seen.
+        if self.seen_hashes.len() >= Self::SEEN_HASH_CACHE_SIZE {
+            self.seen_hashes.pop_first();
         }
 
         Ok(())
@@ -359,6 +406,81 @@ pub mod tests {
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
+    }
+
+    #[test]
+    fn test_cannot_validate_same_block_twice() {
+        let block = v1_valid_block();
+
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(handler.block_valid(&envelope).is_ok());
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockSeen { .. })));
+    }
+
+    #[test]
+    fn test_cannot_have_too_many_blocks_for_the_same_height() {
+        let first_block = v1_valid_block();
+
+        let initial_height = first_block.header.number;
+
+        let v1 = ExecutionPayloadV1::from_block_slow(&first_block);
+
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(handler.block_valid(&envelope).is_ok());
+
+        let next_payloads = (0..=BlockHandler::MAX_BLOCKS_TO_KEEP)
+            .map(|_| {
+                let mut block = v1_valid_block();
+                // The blocks have the same height
+                block.header.number = initial_height;
+
+                let v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+                let payload = OpExecutionPayload::V1(v1);
+                OpNetworkPayloadEnvelope {
+                    payload,
+                    signature: Signature::test_signature(),
+                    payload_hash: PayloadHash(B256::ZERO),
+                    parent_beacon_block_root: None,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        for envelope in next_payloads[..next_payloads.len() - 1].iter() {
+            assert!(handler.block_valid(envelope).is_ok());
+        }
+
+        // The last envelope should fail
+        assert!(matches!(
+            handler.block_valid(next_payloads.last().unwrap()),
+            Err(BlockInvalidError::TooManyBlocks { .. })
+        ));
     }
 
     /// Blocks with invalid signatures should be rejected.

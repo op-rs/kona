@@ -1,10 +1,11 @@
 //! Block Handler
 
 use crate::HandlerEncodeError;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, B256};
 use kona_genesis::RollupConfig;
 use libp2p::gossipsub::{IdentTopic, Message, MessageAcceptance, TopicHash};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use std::collections::{BTreeMap, HashSet};
 use tokio::sync::watch::Receiver;
 
 /// This trait defines the functionality required to process incoming messages
@@ -38,6 +39,9 @@ pub struct BlockHandler {
     pub blocks_v3_topic: IdentTopic,
     /// The libp2p topic for V4 blocks.
     pub blocks_v4_topic: IdentTopic,
+    /// A map of seen block height to block hash set.
+    /// This map is pruned when it contains more than [`Self::SEEN_HASH_CACHE_SIZE`] entries.
+    pub seen_hashes: BTreeMap<u64, HashSet<B256>>,
 }
 
 impl Handler for BlockHandler {
@@ -95,6 +99,7 @@ impl BlockHandler {
             blocks_v2_topic: IdentTopic::new(format!("/optimism/{}/1/blocks", chain_id)),
             blocks_v3_topic: IdentTopic::new(format!("/optimism/{}/2/blocks", chain_id)),
             blocks_v4_topic: IdentTopic::new(format!("/optimism/{}/3/blocks", chain_id)),
+            seen_hashes: BTreeMap::new(),
         }
     }
 
