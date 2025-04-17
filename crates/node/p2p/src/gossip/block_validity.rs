@@ -23,10 +23,10 @@ pub enum BlockInvalidError {
     Signature,
     #[error("Invalid signer, expected: {expected}, received: {received}")]
     Signer { expected: Address, received: Address },
-    // TODO: add the rest of the errors variants in follow-up PRs
     /// Invalid block.
     #[error(transparent)]
     InvalidBlock(#[from] OpPayloadError),
+    // TODO: add the rest of the errors variants in follow-up PRs
 }
 
 impl From<BlockInvalidError> for MessageAcceptance {
@@ -125,10 +125,10 @@ pub mod tests {
 
         block.header.transactions_root = transactions_root;
 
-        // That is an edge case: if the base fee per gas is not set, the block will be rejected
-        // because we don't know if the field is `None` or `Some(0)`. By default, we assume
-        // it is `Some(0)` See the conversion here: `<https://github.com/alloy-rs/alloy/blob/033878d34177450028d1d37afd0fd20e08c99244/crates/rpc-types-engine/src/payload.rs#L345>`
-        block.header.base_fee_per_gas = Some(block.header.base_fee_per_gas.unwrap_or_default());
+        // We always need to set the base fee per gas to a positive value to ensure the block is
+        // valid.
+        block.header.base_fee_per_gas =
+            Some(block.header.base_fee_per_gas.unwrap_or_default().saturating_add(1));
 
         let current_timestamp =
             SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
@@ -290,6 +290,29 @@ pub mod tests {
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
+    }
+
+    #[test]
+    fn test_block_invalid_base_fee() {
+        let mut block = v1_valid_block();
+        block.header.base_fee_per_gas = Some(0);
+
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(10, unsafe_signer);
+
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::InvalidBlock(_))));
     }
 
     #[test]
