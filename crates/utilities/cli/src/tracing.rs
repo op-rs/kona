@@ -31,7 +31,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn init_test_tracing(){
+    fn init_test_tracing() {
         let _ = init_tracing_subscriber(2, Some(EnvFilter::from_default_env()));
     }
 }
