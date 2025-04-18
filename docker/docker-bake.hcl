@@ -21,6 +21,11 @@ variable "GIT_REF_NAME" {
   default = "main"
 }
 
+variable "BIN_TARGET" {
+  // The binary target to build in the generic target
+  default = "kona-host"
+}
+
 variable "ASTERISC_TAG" {
   // The tag of `asterisc` to use in the `kona-asterisc-prestate` target.
   //
@@ -47,13 +52,13 @@ target "docker-metadata-action" {
   tags = ["${DEFAULT_TAG}"]
 }
 
-target "kona-host" {
+target "generic" {
   inherits = ["docker-metadata-action"]
   context = "."
   dockerfile = "docker/apps/kona_app_generic.dockerfile"
   args = {
     TAG = "${GIT_REF_NAME}"
-    BIN_TARGET = "kona-host"
+    BIN_TARGET = "${BIN_TARGET}"
   }
   platforms = split(",", PLATFORMS)
 }

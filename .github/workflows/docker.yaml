@@ -12,6 +12,7 @@ on:
           - asterisc-builder
           - cannon-builder
           - kona-asterisc-prestate
+          - kona-cannon-prestate
   push:
     tags:
       # matches tags like `service/v1.0.0`
@@ -29,9 +30,20 @@ jobs:
     outputs:
       matrix: ${{ steps.platforms.outputs.matrix }}
       target: ${{ steps.target-spec.outputs.target }}
+      bake_target: ${{ steps.target-spec.outputs.bake_target }}
+      bin_target: ${{ steps.target-spec.outputs.bin_target }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Get Valid Targets
+        id: get-targets
+        run: |
+          # Extract target names from docker-bake.hcl, excluding docker-metadata-action
+          TARGETS=$(awk '/^target "[^"]*" {/ { gsub(/"/, "", $2); if ($2 != "docker-metadata-action") print $2 }' docker/docker-bake.hcl | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "targets=$TARGETS" >> $GITHUB_OUTPUT
+          echo "Available targets: $TARGETS"
+      
       - name: Specify Target
         id: target-spec
         run: |
@@ -41,13 +53,31 @@ jobs:
           fi
           echo "Target: $TARGET"
           echo "target=$TARGET" >> $GITHUB_OUTPUT
+          
+          # Check if target is in valid targets list
+          if echo "${{ steps.get-targets.outputs.targets }}" | jq -e 'contains(["'"$TARGET"'"])' > /dev/null; then
+            echo "bake_target=$TARGET" >> $GITHUB_OUTPUT
+            echo "bin_target=" >> $GITHUB_OUTPUT
+            echo "Target '$TARGET' is a valid bake target"
+          else
+            echo "bake_target=generic" >> $GITHUB_OUTPUT
+            echo "bin_target=$TARGET" >> $GITHUB_OUTPUT
+            echo "Target '$TARGET' will use generic build with BIN_TARGET=$TARGET"
+          fi
+      
       - name: Create matrix
         id: platforms
         run: |
-          echo "matrix=$(docker buildx bake -f docker/docker-bake.hcl ${{ steps.target-spec.outputs.target }} --print | jq -cr '.target."${{ steps.target-spec.outputs.target }}".platforms')" >> ${GITHUB_OUTPUT}
+          if [[ "${{ steps.target-spec.outputs.bake_target }}" == "generic" ]]; then
+            echo 'matrix=["linux/amd64", "linux/arm64"]' >> $GITHUB_OUTPUT
+          else
+            echo "matrix=$(docker buildx bake -f docker/docker-bake.hcl ${{ steps.target-spec.outputs.bake_target }} --print | jq -cr '.target."${{ steps.target-spec.outputs.bake_target }}".platforms')" >> ${GITHUB_OUTPUT}
+          fi
+      
       - name: Show matrix
         run: |
           echo ${{ steps.platforms.outputs.matrix }}
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -154,4 +184,3 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}/${{ needs.prepare.outputs.target }}:$(jq -r '.target."docker-metadata-action".args.DOCKER_META_VERSION' ${{ runner.temp }}/bake-meta.json)
-
