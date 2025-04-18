@@ -69,11 +69,7 @@ jobs:
       - name: Create matrix
         id: platforms
         run: |
-          if [[ "${{ steps.target-spec.outputs.bake_target }}" == "generic" ]]; then
-            echo 'matrix=["linux/amd64", "linux/arm64"]' >> $GITHUB_OUTPUT
-          else
-            echo "matrix=$(docker buildx bake -f docker/docker-bake.hcl ${{ steps.target-spec.outputs.bake_target }} --print | jq -cr '.target."${{ steps.target-spec.outputs.bake_target }}".platforms')" >> ${GITHUB_OUTPUT}
-          fi
+          echo "matrix=$(docker buildx bake -f docker/docker-bake.hcl ${{ steps.target-spec.outputs.bake_target }} --print | jq -cr '.target."${{ steps.target-spec.outputs.bake_target }}".platforms')" >> ${GITHUB_OUTPUT}
 
       - name: Show matrix
         run: |
