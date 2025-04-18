@@ -149,6 +149,7 @@ jobs:
             cwd://${{ runner.temp }}/bake-meta.json
           targets: ${{ needs.prepare.outputs.bake_target }}
           set: |
+            *.tags=
             *.platform=${{ matrix.platform }}
             *.output=type=image,"name=${{ env.REGISTRY_IMAGE }}/${{ needs.prepare.outputs.target }}",push-by-digest=true,name-canonical=true,push=true
 
