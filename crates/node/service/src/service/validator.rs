@@ -9,9 +9,9 @@ use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
-use kona_p2p::Network;
+use kona_p2p::{Network, NetworkRpc};
 use kona_protocol::BlockInfo;
-use kona_rpc::{RpcLauncher, RpcLauncherError};
+use kona_rpc::{OpP2PApiServer, RpcLauncher, RpcLauncherError};
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;
@@ -80,7 +80,7 @@ pub trait ValidatorNodeService {
     ) -> Result<(L2ForkchoiceState, Self::DerivationPipeline), Self::Error>;
 
     /// Creates a new instance of the [`Network`].
-    async fn init_network(&self) -> Result<Option<Network>, Self::Error>;
+    async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
 
     /// Returns the [`EngineLauncher`]
     fn engine(&self) -> EngineLauncher;
@@ -127,9 +127,11 @@ pub trait ValidatorNodeService {
         );
         let engine = Some(engine);
 
+        let mut p2p_module = None;
         let network = (self.init_network().await?).map_or_else(
             || None,
-            |driver| {
+            |(driver, module)| {
+                p2p_module = Some(module);
                 Some(NetworkActor::new(
                     driver,
                     unsafe_block_tx,
@@ -141,6 +143,9 @@ pub trait ValidatorNodeService {
 
         // The RPC Server should go last to let other actors register their rpc modules.
         let rpc = if let Some(mut rpc) = self.rpc() {
+            if let Some(p2p_module) = p2p_module {
+                rpc = rpc.merge(p2p_module.into_rpc()).expect("failed to merge p2p rpc module");
+            }
             let handle = rpc.start().await?;
             Some(RpcActor::new(handle, cancellation.clone()))
         } else {

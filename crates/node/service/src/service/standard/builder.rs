@@ -8,7 +8,7 @@ use url::Url;
 
 use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
-use kona_p2p::{NetworkRpc, Config};
+use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::RpcConfig;
 
@@ -115,10 +115,7 @@ impl RollupNodeBuilder {
         let l2_rpc_url = self.l2_provider_rpc_url.expect("l2 provider rpc url not set");
         let l2_provider = RootProvider::new_http(l2_rpc_url.clone());
 
-        let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        let mut rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
-        let p2p_module = NetworkRpc::new(tx.clone()).into_rpc();
-        let rpc_launcher = rpc_config.merge(p2p_module).expect("failed to merge p2p rpc module");
+        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
 
         let config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {

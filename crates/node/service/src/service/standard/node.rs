@@ -7,6 +7,7 @@ use crate::{
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use kona_p2p::NetworkRpc;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -104,7 +105,7 @@ impl ValidatorNodeService for RollupNode {
         Some(self.rpc_launcher.clone())
     }
 
-    async fn init_network(&self) -> Result<Option<Network>, Self::Error> {
+    async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error> {
         if self.network_disabled {
             return Ok(None);
         }
@@ -116,11 +117,14 @@ impl ValidatorNodeService for RollupNode {
             return Ok(None);
         };
         let chain_id = self.config.l2_chain_id;
-        NetworkBuilder::from(p2p_config.clone())
+        let (tx, rx) = tokio::sync::mpsc::channel(1024);
+        let p2p_module = NetworkRpc::new(tx);
+        let builder = NetworkBuilder::from(p2p_config.clone())
             .with_chain_id(chain_id)
+            .with_rpc_receiver(rx)
             .build()
-            .map(Some)
-            .map_err(RollupNodeError::Network)
+            .map_err(RollupNodeError::Network)?;
+        Ok(Some((builder, p2p_module)))
     }
 
     async fn init_derivation(&self) -> Result<(L2ForkchoiceState, OnlinePipeline), Self::Error> {
