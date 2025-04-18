@@ -146,7 +146,7 @@ jobs:
         with:
           files: |
             ./docker/docker-bake.hcl
-            ${{ runner.temp }}/bake-meta.json
+            cwd://${{ runner.temp }}/bake-meta.json
           targets: ${{ needs.prepare.outputs.bake_target }}
           set: |
             *.platform=${{ matrix.platform }}
