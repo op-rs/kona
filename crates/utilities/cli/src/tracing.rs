@@ -25,3 +25,13 @@ pub fn init_tracing_subscriber(
     let subscriber = tracing_subscriber::fmt().with_max_level(level);
     tracing::subscriber::set_global_default(subscriber.with_env_filter(filter).finish())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_test_tracing(){
+        let _ = init_tracing_subscriber(2, Some(EnvFilter::from_default_env()));
+    }
+}
