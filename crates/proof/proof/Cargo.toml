@@ -47,6 +47,11 @@ tracing.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
 thiserror.workspace = true
+lazy_static.workspace = true
+
+# KZG
+ark-ff.workspace = true
+ark-bls12-381.workspace = true
 
 # `std` feature dependencies
 tokio = { workspace = true, features = ["full"], optional = true }
@@ -54,6 +59,9 @@ tokio = { workspace = true, features = ["full"], optional = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
 rstest.workspace = true
+rand.workspace = true
+c-kzg.workspace = true
+rayon.workspace = true
 
 [features]
 std = ["dep:tokio"]

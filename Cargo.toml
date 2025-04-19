@@ -140,12 +140,13 @@ alloy-op-evm = { version = "0.5.0", default-features = false }
 
 # General
 url = "2.5.4"
-lru = "0.13.0"
+lru = "0.14.0"
 dirs = "6.0.0"
 spin = "0.10.0"
 clap = "4.5.32"
 tower = "0.5.2"
 tokio = "1.44.2"
+rayon = "1.10.0"
 cfg-if = "1.0.0"
 rstest = "0.25.0"
 futures = "0.3.31"
@@ -162,8 +163,6 @@ unsigned-varint = "0.8.0"
 linked_list_allocator = "0.10.5"
 
 rand = { version = "0.9.0", default-features = false }
-sha2 = { version = "0.10.8", default-features = false }
-c-kzg = { version = "2.0.0", default-features = false }
 tabled = { version = "0.18", default-features = false }
 anyhow = { version = "1.0.97", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
@@ -205,5 +204,8 @@ serde_json = { version = "1.0.140", default-features = false }
 rocksdb = { version = "0.23.0", default-features = false }
 
 # Cryptography
-# The same library that is used by reth.
+sha2 = { version = "0.10.8", default-features = false }
+c-kzg = { version = "2.0.0", default-features = false }
+ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.30", default-features = false }
+ark-bls12-381 = { version = "0.5.0", default-features = false }

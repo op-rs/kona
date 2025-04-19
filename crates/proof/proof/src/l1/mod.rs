@@ -6,7 +6,7 @@ pub use pipeline::{
 };
 
 mod blob_provider;
-pub use blob_provider::OracleBlobProvider;
+pub use blob_provider::{OracleBlobProvider, ROOTS_OF_UNITY};
 
 mod chain_provider;
 pub use chain_provider::OracleL1ChainProvider;
