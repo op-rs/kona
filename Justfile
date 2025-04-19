@@ -15,12 +15,16 @@ default:
 tests: test test-docs
 
 # Test for the native target with all features. By default, excludes online tests.
-test *args="-E '!test(test_online)'":
+test *args="-E '!test(/test_online|test_slow/)'":
   cargo nextest run --workspace --all-features {{args}}
 
 # Run all online tests
 test-online:
   just test "-E 'test(test_online)'"
+
+# Run all slow tests
+test-slow:
+  just test "-E 'test(test_slow)'"
 
 # Installs the latest version of foundry using the monorepo
 install-foundry:

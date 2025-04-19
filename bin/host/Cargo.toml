@@ -67,6 +67,9 @@ clap = { workspace = true, features = ["derive", "env"] }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 thiserror.workspace = true
 
+# KZG
+ark-ff.workspace = true
+
 [dev-dependencies]
 proptest.workspace = true
 
