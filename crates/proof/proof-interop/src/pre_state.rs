@@ -264,13 +264,10 @@ mod test {
     #[test]
     fn test_static_transition_state_roundtrip() {
         let transition_state = TransitionState::new(
-            SuperRoot::new(
-                10,
-                vec![
-                    (OutputRootWithChain::new(1, B256::default())),
-                    (OutputRootWithChain::new(2, B256::default())),
-                ],
-            ),
+            SuperRoot::new(10, vec![
+                (OutputRootWithChain::new(1, B256::default())),
+                (OutputRootWithChain::new(2, B256::default())),
+            ]),
             vec![OptimisticBlock::default(), OptimisticBlock::default()],
             1,
         );
