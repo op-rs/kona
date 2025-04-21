@@ -14,7 +14,9 @@ use tokio::{
     time::Duration,
 };
 
-use crate::{Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder};
+use crate::{
+    Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder, enr_to_multiaddr,
+};
 
 /// Network
 ///
@@ -174,7 +176,12 @@ impl Network {
                                 let chain_id = handler.chain_id;
                                 let enr = handler.local_enr().await.unwrap();
                                 let node_id = handler.local_enr().await.unwrap().id().unwrap_or_default();
-                                let addresses = self.gossip.swarm.external_addresses().map(|a| a.to_string()).collect::<Vec<String>>();
+
+                                // We need to add the local multiaddr to the list of known addresses.
+                                let mut addresses = enr_to_multiaddr(&enr).map(|addr| vec![addr.to_string()]).unwrap_or_default();
+
+                                addresses.extend(self.gossip.swarm.external_addresses().map(|a| a.to_string()));
+
                                 let peer_info = kona_rpc::PeerInfo {
                                     peer_id,
                                     node_id,
