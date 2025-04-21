@@ -85,7 +85,7 @@ where
             .map_err(|e| TrieDBError::Provider(e.to_string()))?;
 
         info!(
-            target: "block-builder",
+            target: "block_builder",
             block_number = block_env.number,
             block_timestamp = block_env.timestamp,
             block_gas_limit = block_env.gas_limit,
@@ -116,7 +116,7 @@ where
         let ex_result = executor.execute_block(transactions.iter())?;
 
         info!(
-            target: "block-builder",
+            target: "block_builder",
             gas_used = ex_result.gas_used,
             gas_limit = block_env.gas_limit,
             "Finished block building. Beginning sealing job."
@@ -128,7 +128,7 @@ where
         let header = self.seal_block(&attrs, parent_hash, &block_env, &ex_result, bundle)?;
 
         info!(
-            target: "block-builder",
+            target: "block_builder",
             number = header.number,
             hash = ?header.seal(),
             state_root = ?header.state_root,

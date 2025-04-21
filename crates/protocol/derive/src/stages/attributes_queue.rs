@@ -127,7 +127,7 @@ where
         }
 
         info!(
-            target: "attributes-queue",
+            target: "attributes_queue",
             txs = tx_count,
             timestamp = batch.timestamp,
             "generated attributes in payload queue",

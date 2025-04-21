@@ -92,7 +92,7 @@ impl BootInfo {
         let raw_pre_state = read_raw_pre_state(oracle, l2_pre).await?;
         if raw_pre_state == INVALID_TRANSITION {
             warn!(
-                target: "boot-loader",
+                target: "boot_loader",
                 "Invalid pre-state, short-circuiting to check post-state claim."
             );
 
@@ -121,7 +121,7 @@ impl BootInfo {
             chain_ids.iter().map(|id| (*id, ROLLUP_CONFIGS[id].clone())).collect()
         } else {
             warn!(
-                target: "boot-loader",
+                target: "boot_loader",
                 "No rollup config found for chain IDs {:?}, falling back to preimage oracle. This is insecure in production without additional validation!",
                 chain_ids
             );

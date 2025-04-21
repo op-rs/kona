@@ -73,7 +73,7 @@ impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
         let block = match self.block {
             Some(block) => block,
             None => {
-                warn!(target: "l1-traversal",  "Missing current block, can't advance origin with no reference.");
+                warn!(target: "l1_traversal",  "Missing current block, can't advance origin with no reference.");
                 return Err(PipelineError::Eof.temp());
             }
         };

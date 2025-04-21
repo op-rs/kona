@@ -75,7 +75,7 @@ impl<T: CommsClient> OracleBlobProvider<T> {
         }
 
         tracing::info!(
-            target: "client-blob-oracle",
+            target: "client_blob_oracle",
             index = blob_hash.index,
             hash = ?blob_hash.hash,
             "Retrieved blob"

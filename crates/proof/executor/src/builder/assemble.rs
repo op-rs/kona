@@ -122,7 +122,7 @@ where
         let parent_number = self.trie_db.parent_block_header().number;
 
         info!(
-            target: "block-builder",
+            target: "block_builder",
             version = OUTPUT_ROOT_VERSION,
             state_root = ?self.trie_db.parent_block_header().state_root,
             block_number = parent_number,
@@ -141,7 +141,7 @@ where
         let output_root = keccak256(raw_output);
 
         info!(
-            target: "block-builder",
+            target: "block_builder",
             block_number = parent_number,
             output_root = ?output_root,
             "Computed output root",

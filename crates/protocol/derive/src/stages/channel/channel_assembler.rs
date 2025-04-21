@@ -70,7 +70,7 @@ where
         if let Some(channel) = self.channel.as_ref() {
             if self.is_timed_out()? {
                 warn!(
-                    target: "channel-assembler",
+                    target: "channel_assembler",
                     "Channel (ID: {}) timed out at L1 origin #{}, open block #{}. Discarding channel.",
                     hex::encode(channel.id()),
                     origin.number,
@@ -86,7 +86,7 @@ where
         // Start a new channel if the frame number is 0.
         if next_frame.number == 0 {
             info!(
-                target: "channel-assembler",
+                target: "channel_assembler",
                 "Starting new channel (ID: {}) at L1 origin #{}",
                 hex::encode(next_frame.id),
                 origin.number
@@ -98,7 +98,7 @@ where
             // Add the frame to the channel. If this fails, return NotEnoughData and discard the
             // frame.
             debug!(
-                target: "channel-assembler",
+                target: "channel_assembler",
                 "Adding frame #{} to channel (ID: {}) at L1 origin #{}",
                 next_frame.number,
                 hex::encode(channel.id()),
@@ -106,7 +106,7 @@ where
             );
             if channel.add_frame(next_frame, origin).is_err() {
                 error!(
-                    target: "channel-assembler",
+                    target: "channel_assembler",
                     "Failed to add frame to channel (ID: {}) at L1 origin #{}",
                     hex::encode(channel.id()),
                     origin.number
@@ -121,7 +121,7 @@ where
             };
             if channel.size() > max_rlp_bytes_per_channel as usize {
                 warn!(
-                    target: "channel-assembler",
+                    target: "channel_assembler",
                     "Compressed channel size exceeded max RLP bytes per channel, dropping channel (ID: {}) with {} bytes",
                     hex::encode(channel.id()),
                     channel.size()
@@ -136,7 +136,7 @@ where
                     channel.frame_data().ok_or(PipelineError::ChannelNotFound.crit())?;
 
                 info!(
-                    target: "channel-assembler",
+                    target: "channel_assembler",
                     "Channel (ID: {}) ready for decompression.",
                     hex::encode(channel.id()),
                 );
