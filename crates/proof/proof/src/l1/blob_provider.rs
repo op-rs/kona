@@ -74,7 +74,12 @@ impl<T: CommsClient> OracleBlobProvider<T> {
             blob[(i as usize) << 5..(i as usize + 1) << 5].copy_from_slice(field_element.as_ref());
         }
 
-        tracing::info!(target: "client_oracle", "Retrieved blob {blob_hash:?} from the oracle.");
+        tracing::info!(
+            target: "client-blob-oracle",
+            index = blob_hash.index,
+            hash = ?blob_hash.hash,
+            "Retrieved blob"
+        );
 
         Ok(blob)
     }
