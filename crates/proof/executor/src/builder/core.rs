@@ -8,7 +8,7 @@ use alloy_evm::{
     block::{BlockExecutionResult, BlockExecutor, BlockExecutorFactory},
 };
 use alloy_op_evm::{OpBlockExecutionCtx, OpBlockExecutorFactory, block::OpAlloyReceiptBuilder};
-use alloy_primitives::{SignatureError, hex};
+use alloy_primitives::SignatureError;
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
@@ -85,7 +85,7 @@ where
             .map_err(|e| TrieDBError::Provider(e.to_string()))?;
 
         info!(
-            target: "block_builder",
+            target: "block-builder",
             block_number = block_env.number,
             block_timestamp = block_env.timestamp,
             block_gas_limit = block_env.gas_limit,
@@ -116,7 +116,7 @@ where
         let ex_result = executor.execute_block(transactions.iter())?;
 
         info!(
-            target: "block_builder",
+            target: "block-builder",
             gas_used = ex_result.gas_used,
             gas_limit = block_env.gas_limit,
             "Finished block building. Beginning sealing job."
@@ -128,12 +128,12 @@ where
         let header = self.seal_block(&attrs, parent_hash, &block_env, &ex_result, bundle)?;
 
         info!(
-            target: "block_builder",
+            target: "block-builder",
             number = header.number,
-            hash = hex::encode(header.seal()),
-            state_root = hex::encode(header.state_root),
-            transactions_root = hex::encode(header.transactions_root),
-            receipts_root = hex::encode(header.receipts_root),
+            hash = ?header.seal(),
+            state_root = ?header.state_root,
+            transactions_root = ?header.transactions_root,
+            receipts_root = ?header.receipts_root,
             "Sealed new block",
         );
 

@@ -16,6 +16,7 @@ use alloy_provider::Provider;
 use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
+use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
 use kona_driver::Driver;
 use kona_executor::TrieDBProvider;
@@ -26,7 +27,7 @@ use kona_preimage::{
 use kona_proof::{
     CachingOracle, Hint,
     executor::KonaExecutor,
-    l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
+    l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline, ROOTS_OF_UNITY},
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
 };
@@ -124,11 +125,13 @@ impl HintHandler for InteropHintHandler {
 
                 // Write all the field elements to the key-value store. There should be 4096.
                 // The preimage oracle key for each field element is the keccak256 hash of
-                // `abi.encodePacked(sidecar.KZGCommitment, uint256(i))`
+                // `abi.encodePacked(sidecar.KZGCommitment, bytes32(ROOTS_OF_UNITY[i]))`.
                 let mut blob_key = [0u8; 80];
                 blob_key[..48].copy_from_slice(sidecar.kzg_commitment.as_ref());
                 for i in 0..FIELD_ELEMENTS_PER_BLOB {
-                    blob_key[72..].copy_from_slice(i.to_be_bytes().as_ref());
+                    blob_key[48..].copy_from_slice(
+                        ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().as_ref(),
+                    );
                     let blob_key_hash = keccak256(blob_key.as_ref());
 
                     kv_lock
@@ -140,6 +143,8 @@ impl HintHandler for InteropHintHandler {
                 }
 
                 // Write the KZG Proof as the 4096th element.
+                // Note: This is not associated with a root of unity, as to be backwards compatible
+                // with ZK users of kona that use this proof for the overall blob.
                 blob_key[72..].copy_from_slice((FIELD_ELEMENTS_PER_BLOB).to_be_bytes().as_ref());
                 let blob_key_hash = keccak256(blob_key.as_ref());
 

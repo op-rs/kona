@@ -14,9 +14,10 @@ use alloy_provider::Provider;
 use alloy_rlp::Decodable;
 use alloy_rpc_types::{Block, debug::ExecutionWitness};
 use anyhow::{Result, anyhow, ensure};
+use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
-use kona_proof::{Hint, HintType};
+use kona_proof::{Hint, HintType, l1::ROOTS_OF_UNITY};
 use kona_protocol::BlockInfo;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use tracing::warn;
@@ -108,11 +109,13 @@ impl HintHandler for SingleChainHintHandler {
 
                 // Write all the field elements to the key-value store. There should be 4096.
                 // The preimage oracle key for each field element is the keccak256 hash of
-                // `abi.encodePacked(sidecar.KZGCommitment, uint256(i))`
+                // `abi.encodePacked(sidecar.KZGCommitment, bytes32(ROOTS_OF_UNITY[i]))`.
                 let mut blob_key = [0u8; 80];
                 blob_key[..48].copy_from_slice(sidecar.kzg_commitment.as_ref());
                 for i in 0..FIELD_ELEMENTS_PER_BLOB {
-                    blob_key[72..].copy_from_slice(i.to_be_bytes().as_ref());
+                    blob_key[48..].copy_from_slice(
+                        ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().as_ref(),
+                    );
                     let blob_key_hash = keccak256(blob_key.as_ref());
 
                     kv_lock
@@ -124,7 +127,9 @@ impl HintHandler for SingleChainHintHandler {
                 }
 
                 // Write the KZG Proof as the 4096th element.
-                blob_key[72..].copy_from_slice((FIELD_ELEMENTS_PER_BLOB).to_be_bytes().as_ref());
+                // Note: This is not associated with a root of unity, as to be backwards compatible
+                // with ZK users of kona that use this proof for the overall blob.
+                blob_key[72..].copy_from_slice(FIELD_ELEMENTS_PER_BLOB.to_be_bytes().as_ref());
                 let blob_key_hash = keccak256(blob_key.as_ref());
 
                 kv_lock.set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;

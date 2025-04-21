@@ -34,10 +34,14 @@ where
         loop {
             match self.step(l2_safe_head).await {
                 StepResult::PreparedAttributes => {
-                    info!(target: "client_derivation_driver", "Stepped derivation pipeline")
+                    info!(target: "client-derivation-driver", "Stepped derivation pipeline")
                 }
                 StepResult::AdvancedOrigin => {
-                    info!(target: "client_derivation_driver", "Advanced origin")
+                    info!(
+                        target: "client-derivation-driver",
+                        l1_block_number = self.origin().map(|o| o.number).ok_or(PipelineError::MissingOrigin.crit())?,
+                        "Advanced origin"
+                    )
                 }
                 StepResult::OriginAdvanceErr(e) | StepResult::StepFailed(e) => {
                     // Break the loop unless the error signifies that there is not enough data to
@@ -45,11 +49,11 @@ where
                     // stages can make progress.
                     match e {
                         PipelineErrorKind::Temporary(_) => {
-                            trace!(target: "client_derivation_driver", "Failed to step derivation pipeline temporarily: {:?}", e);
+                            trace!(target: "client-derivation-driver", "Failed to step derivation pipeline temporarily: {:?}", e);
                             continue;
                         }
                         PipelineErrorKind::Reset(e) => {
-                            warn!(target: "client_derivation_driver", "Failed to step derivation pipeline due to reset: {:?}", e);
+                            warn!(target: "client-derivation-driver", "Failed to step derivation pipeline due to reset: {:?}", e);
                             let system_config = self
                                 .system_config_by_number(l2_safe_head.block_info.number)
                                 .await?;
@@ -88,7 +92,7 @@ where
                             }
                         }
                         PipelineErrorKind::Critical(_) => {
-                            warn!(target: "client_derivation_driver", "Failed to step derivation pipeline: {:?}", e);
+                            warn!(target: "client-derivation-driver", "Failed to step derivation pipeline: {:?}", e);
                             return Err(e);
                         }
                     }

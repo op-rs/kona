@@ -128,8 +128,9 @@ where
 
         info!(
             target: "attributes-queue",
-            "generated attributes in payload queue: txs={}, timestamp={}",
-            tx_count, batch.timestamp
+            txs = tx_count,
+            timestamp = batch.timestamp,
+            "generated attributes in payload queue",
         );
 
         Ok(attributes)

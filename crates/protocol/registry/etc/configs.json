@@ -3460,7 +3460,8 @@
             "fjord_time": 0,
             "granite_time": 1723478400,
             "holocene_time": 1732633200,
-            "pectra_blob_schedule_time": 1742486400
+            "pectra_blob_schedule_time": 1742486400,
+            "isthmus_time": 1744905600
           },
           "optimism": {
             "eip1559Elasticity": "0xa",

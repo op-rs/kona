@@ -9,7 +9,7 @@ env:
 jobs:
   cargo-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     name: test
     steps:
       - name: Checkout sources
@@ -24,7 +24,7 @@ jobs:
         run: just test
   cargo-lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
       matrix:
         target: ["native", "cannon", "asterisc"]
@@ -52,7 +52,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) ./target
   cargo-build-benches:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     name: build-benchmarks
     continue-on-error: true
     steps:
@@ -68,7 +68,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) ./target
   cargo-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
       matrix:
         target: ["native", "cannon-client", "asterisc-client"]
@@ -96,7 +96,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) ./target
   cargo-udeps:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     name: check-udeps
     steps:
       - name: Checkout sources
@@ -112,7 +112,7 @@ jobs:
         run: just check-udeps
   cargo-doc-lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -123,7 +123,7 @@ jobs:
         run: just lint-docs
   cargo-doc-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -134,7 +134,7 @@ jobs:
         run: just test-docs
   cargo-hack:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
