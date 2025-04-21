@@ -2,7 +2,6 @@
 
 use crate::{BootInfo, OptimisticBlock, OracleInteropProvider, PreState};
 use alloc::{boxed::Box, vec::Vec};
-use alloy_consensus::{Header, Sealed};
 use alloy_op_evm::OpEvmFactory;
 use alloy_primitives::Sealable;
 use alloy_rpc_types_engine::PayloadAttributes;
@@ -32,8 +31,6 @@ where
     interop_provider: OracleInteropProvider<C>,
     /// The [OracleL2ChainProvider]s used for re-execution of invalid blocks, keyed by chain ID.
     l2_providers: HashMap<u64, OracleL2ChainProvider<C>>,
-    /// The [Header]s and their respective chain IDs to consolidate.
-    headers: Vec<(u64, Sealed<Header>)>,
 }
 
 impl<'a, C> SuperchainConsolidator<'a, C>
@@ -41,13 +38,14 @@ where
     C: CommsClient + Send + Sync,
 {
     /// Creates a new [SuperchainConsolidator] with the given providers and [Header]s.
+    ///
+    /// [Header]: alloy_consensus::Header
     pub fn new(
         boot_info: &'a mut BootInfo,
         interop_provider: OracleInteropProvider<C>,
         l2_providers: HashMap<u64, OracleL2ChainProvider<C>>,
-        headers: Vec<(u64, Sealed<Header>)>,
     ) -> Self {
-        Self { boot_info, interop_provider, l2_providers, headers }
+        Self { boot_info, interop_provider, l2_providers }
     }
 
     /// Recursively consolidates the dependencies of the blocks within the [MessageGraph].
@@ -76,14 +74,16 @@ where
     /// Performs a single iteration of the consolidation process.
     ///
     /// Step-wise:
-    /// 1. Derive a new [MessageGraph] from the current set of [Header]s.
+    /// 1. Derive a new [MessageGraph] from the current set of local safe [Header]s.
     /// 2. Resolve the [MessageGraph].
     /// 3. If any invalid messages are found, re-execute the bad block(s) only deposit transactions,
     ///    and bubble up the error.
+    ///
+    /// [Header]: alloy_consensus::Header
     async fn consolidate_once(&mut self) -> Result<(), ConsolidationError> {
         // Derive the message graph from the current set of block headers.
         let graph = MessageGraph::derive(
-            self.headers.as_slice(),
+            self.interop_provider.local_safe_heads(),
             &self.interop_provider,
             &self.boot_info.rollup_configs,
         )
@@ -108,10 +108,9 @@ where
         for chain_id in chain_ids {
             // Find the optimistic block header for the chain ID.
             let header = self
-                .headers
-                .iter_mut()
-                .find(|(id, _)| id == chain_id)
-                .map(|(_, header)| header)
+                .interop_provider
+                .local_safe_heads()
+                .get(chain_id)
                 .ok_or(MessageGraphError::EmptyDependencySet)?;
 
             // Look up the parent header for the block.
@@ -133,6 +132,16 @@ where
                 "Impossible case; Block with only deposits found to be invalid. Something has gone horribly wrong!"
             );
 
+            // Fetch the rollup config + provider for the current chain ID.
+            let rollup_config = ROLLUP_CONFIGS
+                .get(chain_id)
+                .or_else(|| self.boot_info.rollup_configs.get(chain_id))
+                .ok_or(ConsolidationError::MissingRollupConfig(*chain_id))?;
+            let l2_provider = self
+                .l2_providers
+                .get(chain_id)
+                .ok_or(ConsolidationError::MissingLocalProvider(*chain_id))?;
+
             // Re-craft the execution payload, trimming off all non-deposit transactions.
             let deposit_only_payload = OpPayloadAttributes {
                 payload_attributes: PayloadAttributes {
@@ -150,15 +159,18 @@ where
                 ),
                 no_tx_pool: Some(true),
                 gas_limit: Some(header.gas_limit),
-                eip_1559_params: Some(header.extra_data[1..].try_into().unwrap()),
+                eip_1559_params: rollup_config.is_holocene_active(header.timestamp).then(|| {
+                    // SAFETY: After the Holocene hardfork, blocks must have the EIP-1559 parameters
+                    // of the chain placed within the header's `extra_data`
+                    // field. This slice index + conversion cannot fail
+                    // unless the protocol rules have been violated.
+                    header
+                        .extra_data
+                        .get(1..9)
+                        .and_then(|s| s.try_into().ok())
+                        .expect("slice conversion cannot fail")
+                }),
             };
-
-            // Fetch the rollup config + provider for the current chain ID.
-            let rollup_config = ROLLUP_CONFIGS
-                .get(chain_id)
-                .or_else(|| self.boot_info.rollup_configs.get(chain_id))
-                .ok_or(ConsolidationError::MissingRollupConfig(*chain_id))?;
-            let l2_provider = self.l2_providers.get(chain_id).expect("TODO: Handle gracefully");
 
             // Create a new stateless L2 block executor for the current chain.
             let mut executor = StatelessL2Builder::new(
@@ -171,8 +183,8 @@ where
 
             // Execute the block and take the new header. At this point, the block is guaranteed to
             // be canonical.
-            let new_header = executor.build_block(deposit_only_payload).unwrap().header;
-            let new_output_root = executor.compute_output_root().unwrap();
+            let new_header = executor.build_block(deposit_only_payload)?.header;
+            let new_output_root = executor.compute_output_root()?;
 
             // Replace the original optimistic block with the deposit only block.
             let PreState::TransitionState(ref mut transition_state) =
@@ -188,7 +200,7 @@ where
             *original_optimistic_block = OptimisticBlock::new(new_header.hash(), new_output_root);
 
             // Replace the original header with the new header.
-            *header = new_header;
+            self.interop_provider.replace_local_safe_head(*chain_id, new_header);
         }
 
         Ok(())
@@ -204,6 +216,9 @@ pub enum ConsolidationError {
     /// Missing a rollup configuration.
     #[error("Missing rollup configuration for chain ID {0}")]
     MissingRollupConfig(u64),
+    /// Missing a local L2 chain provider.
+    #[error("Missing local L2 chain provider for chain ID {0}")]
+    MissingLocalProvider(u64),
     /// An error occurred during consolidation.
     #[error(transparent)]
     MessageGraph(#[from] MessageGraphError<OracleProviderError>),

@@ -8,9 +8,9 @@ use crate::{
 };
 use alloc::vec::Vec;
 use alloy_consensus::{Header, Sealed};
-use alloy_primitives::{hex, keccak256, map::HashMap};
+use alloy_primitives::{hex, keccak256};
 use kona_genesis::RollupConfig;
-use kona_registry::ROLLUP_CONFIGS;
+use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use tracing::{info, warn};
 
 /// The message graph represents a set of blocks at a given timestamp and the interop
@@ -47,7 +47,7 @@ where
     ///
     /// [ExecutingMessage]: crate::ExecutingMessage
     pub async fn derive(
-        blocks: &[(u64, Sealed<Header>)],
+        blocks: &HashMap<u64, Sealed<Header>>,
         provider: &'a P,
         rollup_configs: &'a HashMap<u64, RollupConfig>,
     ) -> MessageGraphResult<Self, P> {
@@ -261,7 +261,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         graph.resolve().await.unwrap();
     }
 
@@ -283,7 +283,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         graph.resolve().await.unwrap();
     }
 
@@ -302,7 +302,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),
             MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
@@ -324,7 +324,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),
             MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
@@ -348,7 +348,7 @@ mod test {
                 ..Default::default()
             },
         );
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),
             MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
@@ -370,7 +370,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),
             MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
@@ -392,7 +392,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),
             MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
@@ -415,7 +415,7 @@ mod test {
         let (headers, provider) = superchain.build();
 
         let cfgs = HashMap::default();
-        let graph = MessageGraph::derive(headers.as_slice(), &provider, &cfgs).await.unwrap();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
         assert_eq!(
             graph.resolve().await.unwrap_err(),
             MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
