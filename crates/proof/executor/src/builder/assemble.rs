@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header, Sealed};
 use alloy_eips::Encodable2718;
 use alloy_evm::{EvmFactory, block::BlockExecutionResult};
-use alloy_primitives::{B256, Sealable, U256, hex, keccak256, logs_bloom};
+use alloy_primitives::{B256, Sealable, U256, keccak256, logs_bloom};
 use alloy_trie::EMPTY_ROOT_HASH;
 use kona_genesis::RollupConfig;
 use kona_mpt::{TrieHinter, ordered_trie_with_encoder};
@@ -124,7 +124,7 @@ where
         info!(
             target: "block_builder",
             version = OUTPUT_ROOT_VERSION,
-            state_root = hex::encode(self.trie_db.parent_block_header().state_root),
+            state_root = ?self.trie_db.parent_block_header().state_root,
             block_number = parent_number,
             "Computing output root",
         );
@@ -143,7 +143,7 @@ where
         info!(
             target: "block_builder",
             block_number = parent_number,
-            output_root = hex::encode(output_root),
+            output_root = ?output_root,
             "Computed output root",
         );
 

@@ -4087,7 +4087,7 @@ dependencies = [
  "kona-registry",
  "kona-std-fpvm",
  "kona-std-fpvm-proc",
- "lru 0.13.0",
+ "lru 0.14.0",
  "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
  "op-revm",
@@ -4302,6 +4302,7 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "anyhow",
+ "ark-ff 0.5.0",
  "async-trait",
  "clap",
  "kona-cli",
@@ -4499,7 +4500,10 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-trie",
+ "ark-bls12-381",
+ "ark-ff 0.5.0",
  "async-trait",
+ "c-kzg",
  "kona-derive",
  "kona-driver",
  "kona-executor",
@@ -4509,10 +4513,13 @@ dependencies = [
  "kona-protocol",
  "kona-registry",
  "kona-rpc",
- "lru 0.13.0",
+ "lazy_static",
+ "lru 0.14.0",
  "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
  "op-revm",
+ "rand 0.9.0",
+ "rayon",
  "rstest",
  "serde",
  "serde_json",
@@ -4602,7 +4609,7 @@ dependencies = [
  "kona-genesis",
  "kona-protocol",
  "kona-rpc",
- "lru 0.13.0",
+ "lru 0.14.0",
  "op-alloy-consensus",
  "op-alloy-network",
  "reqwest",
@@ -5216,6 +5223,15 @@ name = "lru"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "227748d55f2f0ab4735d87fd623798cb6b664512fe979705f829c9f81c934465"
+dependencies = [
+ "hashbrown 0.15.2",
+]
+
+[[package]]
+name = "lru"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f8cc7106155f10bdf99a6f379688f543ad6596a415375b36a59a054ceda1198"
 dependencies = [
  "hashbrown 0.15.2",
 ]

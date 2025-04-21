@@ -66,7 +66,7 @@ impl BuildTask {
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
         debug!(
-            target: "engine-builder",
+            target: "engine_builder",
             txs = attributes_envelope.attributes.transactions.as_ref().map_or(0, |txs| txs.len()),
             "Starting new build job"
         );
@@ -96,14 +96,14 @@ impl BuildTask {
             }
         }
         .map_err(|e| {
-            error!(target: "engine-builder", "Forkchoice update failed: {}", e);
+            error!(target: "engine_builder", "Forkchoice update failed: {}", e);
             BuildTaskError::ForkchoiceUpdateFailed(e)
         })?;
 
         match update.payload_status.status {
             PayloadStatusEnum::Valid => {
                 debug!(
-                    target: "engine-builder",
+                    target: "engine_builder",
                     unsafe_hash = forkchoice.head_block_hash.to_string(),
                     safe_hash = forkchoice.safe_block_hash.to_string(),
                     finalized_hash = forkchoice.finalized_block_hash.to_string(),
@@ -111,13 +111,13 @@ impl BuildTask {
                 );
             }
             PayloadStatusEnum::Invalid { validation_error } => {
-                error!(target: "engine-builder", "Forkchoice update failed: {}", validation_error);
+                error!(target: "engine_builder", "Forkchoice update failed: {}", validation_error);
                 return Err(BuildTaskError::ForkchoiceUpdateFailed(RpcError::local_usage_str(
                     &validation_error,
                 )));
             }
             PayloadStatusEnum::Syncing => {
-                warn!(target: "engine-builder", "Forkchoice update failed temporarily: EL is syncing");
+                warn!(target: "engine_builder", "Forkchoice update failed temporarily: EL is syncing");
                 return Err(BuildTaskError::EngineSyncing);
             }
             s => {
@@ -152,7 +152,7 @@ impl BuildTask {
         let payload_timestamp = payload_attrs.attributes.payload_attributes.timestamp;
 
         debug!(
-            target: "engine-builder",
+            target: "engine_builder",
             payload_id = payload_id.to_string(),
             l2_time = payload_timestamp,
             "Inserting payload"
@@ -162,7 +162,7 @@ impl BuildTask {
         let (payload, response) = match get_payload_version {
             EngineGetPayloadVersion::V4 => {
                 let payload = engine.get_payload_v4(payload_id).await.map_err(|e| {
-                    error!(target: "engine-builder", "Payload fetch failed: {e}");
+                    error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
                 let response = engine
@@ -172,7 +172,7 @@ impl BuildTask {
                     )
                     .await
                     .map_err(|e| {
-                        error!(target: "engine-builder", "Payload import failed: {e}");
+                        error!(target: "engine_builder", "Payload import failed: {e}");
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
@@ -180,7 +180,7 @@ impl BuildTask {
             }
             EngineGetPayloadVersion::V3 => {
                 let payload = engine.get_payload_v3(payload_id).await.map_err(|e| {
-                    error!(target: "engine-builder", "Payload fetch failed: {e}");
+                    error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
                 let response = engine
@@ -190,7 +190,7 @@ impl BuildTask {
                     )
                     .await
                     .map_err(|e| {
-                        error!(target: "engine-builder", "Payload import failed: {e}");
+                        error!(target: "engine_builder", "Payload import failed: {e}");
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
@@ -198,7 +198,7 @@ impl BuildTask {
             }
             EngineGetPayloadVersion::V2 => {
                 let payload = engine.get_payload_v2(payload_id).await.map_err(|e| {
-                    error!(target: "engine-builder", "Payload fetch failed: {e}");
+                    error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
                 let response = match payload.execution_payload {
@@ -208,13 +208,13 @@ impl BuildTask {
                             withdrawals: Some(payload.withdrawals.clone()),
                         };
                         engine.new_payload_v2(payload_input).await.map_err(|e| {
-                            error!(target: "engine-builder", "Payload import failed: {e}");
+                            error!(target: "engine_builder", "Payload import failed: {e}");
                             BuildTaskError::NewPayloadFailed(e)
                         })?
                     }
                     ExecutionPayloadFieldV2::V1(ref payload) => {
                         engine.new_payload_v1(payload.clone()).await.map_err(|e| {
-                            error!(target: "engine-builder", "Payload import failed: {e}");
+                            error!(target: "engine_builder", "Payload import failed: {e}");
                             BuildTaskError::NewPayloadFailed(e)
                         })?
                     }
@@ -226,7 +226,7 @@ impl BuildTask {
 
         match response.status {
             PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing => {
-                debug!(target: "engine-builder", "Payload import successful");
+                debug!(target: "engine_builder", "Payload import successful");
 
                 let imported_info =
                     L2BlockInfo::from_payload_and_genesis(&payload, &cfg.genesis).unwrap();
@@ -240,11 +240,11 @@ impl BuildTask {
             }
             PayloadStatusEnum::Invalid { validation_error } => {
                 if payload_attrs.is_deposits_only() {
-                    error!(target: "engine-builder", "Critical: Deposit-only payload import failed: {validation_error}");
+                    error!(target: "engine_builder", "Critical: Deposit-only payload import failed: {validation_error}");
                     Err(BuildTaskError::DepositOnlyPayloadFailed)
                 } else {
-                    warn!(target: "engine-builder", "Payload import failed: {validation_error}");
-                    warn!(target: "engine-builder", "Re-attempting payload import with deposits only.");
+                    warn!(target: "engine_builder", "Payload import failed: {validation_error}");
+                    warn!(target: "engine_builder", "Re-attempting payload import with deposits only.");
                     unimplemented!("HOLOCENE: Re-attempt payload import with deposits only");
                 }
             }
@@ -294,7 +294,7 @@ impl EngineTaskExt for BuildTask {
         let block_import_duration = block_import_start_time.elapsed();
 
         info!(
-            target: "engine-builder",
+            target: "engine_builder",
             l2_number = new_block_ref.block_info.number,
             l2_time = new_block_ref.block_info.timestamp,
             fcu_duration = ?fcu_duration,

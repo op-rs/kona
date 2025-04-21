@@ -13,10 +13,13 @@ use kona_cli::cli_styles;
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Runs the consensus node.
+    #[command(alias = "n")]
     Node(NodeCommand),
     /// Runs the networking stack for the node.
+    #[command(alias = "p2p", alias = "network")]
     Net(NetCommand),
     /// Lists the OP Stack chains available in the superchain-registry.
+    #[command(alias = "r", alias = "scr")]
     Registry(RegistryCommand),
 }
 
