@@ -35,6 +35,10 @@ pub struct GossipDriverBuilder {
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     peer_monitoring: Option<PeerMonitoring>,
+    /// The number of times to redial a peer.
+    /// If unset, peers will not be redialed.
+    /// If set to `0`, peers will be redialed indefinitely.
+    peer_redial: Option<u64>,
 }
 
 impl GossipDriverBuilder {
@@ -50,7 +54,16 @@ impl GossipDriverBuilder {
             config: None,
             block_time: None,
             peer_monitoring: None,
+            peer_redial: None,
         }
+    }
+
+    /// Sets the number of times to redial a peer.
+    /// If unset, peers will not be redialed.
+    /// If set to `0`, peers will be redialed indefinitely.
+    pub fn with_peer_redial(mut self, peer_redial: Option<u64>) -> Self {
+        self.peer_redial = peer_redial;
+        self
     }
 
     /// Specifies the chain ID of the gossip driver.
@@ -162,6 +175,8 @@ impl GossipDriverBuilder {
             .with_swarm_config(|c| c.with_idle_connection_timeout(timeout))
             .build();
 
-        Ok(GossipDriver::new(swarm, addr, handler.clone()))
+        let redialing = self.peer_redial;
+
+        Ok(GossipDriver::new(swarm, addr, redialing, handler.clone()))
     }
 }

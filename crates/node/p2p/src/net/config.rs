@@ -31,4 +31,6 @@ pub struct Config {
     pub block_time: u64,
     /// An optional path to the bootstore.
     pub bootstore: Option<PathBuf>,
+    /// The optional number of times to redial a peer.
+    pub redial: Option<u64>,
 }

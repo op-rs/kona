@@ -125,6 +125,11 @@ pub struct P2PArgs {
     /// The directory to store the bootstore.
     #[arg(long = "p2p.bootstore", env = "KONA_NODE_P2P_BOOTSTORE")]
     pub bootstore: Option<PathBuf>,
+    /// Peer Redialing threshold is the maximum amount of times to attempt to redial a peer that
+    /// disconnects. By default, peers are *not* redialed. If set to 0, the peer will be
+    /// redialed indefinitely.
+    #[arg(long = "p2p.redial", env = "KONA_NODE_P2P_REDIAL")]
+    pub peer_redial: Option<u64>,
 }
 
 impl Default for P2PArgs {
@@ -151,6 +156,7 @@ impl Default for P2PArgs {
             ban_duration: 30,
             discovery_interval: 5,
             bootstore: None,
+            peer_redial: None,
         }
     }
 }
@@ -240,6 +246,7 @@ impl P2PArgs {
             block_time,
             monitor_peers,
             bootstore: self.bootstore.clone(),
+            redial: self.peer_redial,
         })
     }
 

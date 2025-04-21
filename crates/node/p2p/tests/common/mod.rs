@@ -38,5 +38,5 @@ pub fn gossip_driver(port: u16) -> GossipDriver {
         .with_swarm_config(|c| c.with_idle_connection_timeout(timeout))
         .build();
 
-    GossipDriver::new(swarm, addr, handler)
+    GossipDriver::new(swarm, addr, Some(2), handler)
 }

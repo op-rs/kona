@@ -93,7 +93,6 @@ impl Network {
                 select! {
                     block = publish.recv() => {
                         let Some(block) = block else {
-                            trace!(target: "p2p::driver", "Receiver `None` unsafe block");
                             continue;
                         };
                         let timestamp = block.payload.timestamp();

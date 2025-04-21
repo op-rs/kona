@@ -45,6 +45,7 @@ impl From<Config> for NetworkBuilder {
             .with_peer_scoring(config.scoring)
             .with_block_time(config.block_time)
             .with_keypair(config.keypair)
+            .with_peer_redial(config.redial)
     }
 }
 
@@ -60,6 +61,11 @@ impl NetworkBuilder {
             publish_rx: None,
             cfg: None,
         }
+    }
+
+    /// Sets the number of times to redial a peer.
+    pub fn with_peer_redial(self, redial: Option<u64>) -> Self {
+        Self { gossip: self.gossip.with_peer_redial(redial), ..self }
     }
 
     /// Sets the bootstore path for the [`crate::Discv5Driver`].
