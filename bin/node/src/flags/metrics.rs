@@ -12,13 +12,28 @@ use kona_cli::init_prometheus_server;
 pub struct MetricsArgs {
     /// Controls whether prometheus metrics are enabled.
     /// Disabled by default.
-    #[arg(long = "metrics.enabled", default_value_t = false, env = "KONA_NODE_METRICS_ENABLED")]
+    #[arg(
+        long = "metrics.enabled",
+        global = true,
+        default_value_t = false,
+        env = "KONA_NODE_METRICS_ENABLED"
+    )]
     pub enabled: bool,
     /// The port to serve prometheus metrics on
-    #[arg(long = "metrics.port", default_value = "9090", env = "KONA_NODE_METRICS_PORT")]
+    #[arg(
+        long = "metrics.port",
+        global = true,
+        default_value = "9090",
+        env = "KONA_NODE_METRICS_PORT"
+    )]
     pub port: u16,
     /// The ip address to use to emit prometheus metrics.
-    #[arg(long = "metrics.address", default_value = "0.0.0.0", env = "KONA_NODE_METRICS_ADDR")]
+    #[arg(
+        long = "metrics.address",
+        global = true,
+        default_value = "0.0.0.0",
+        env = "KONA_NODE_METRICS_ADDR"
+    )]
     pub addr: IpAddr,
 }
 
