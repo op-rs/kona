@@ -11,3 +11,6 @@ pub use rpc::RpcArgs;
 
 mod metrics;
 pub use metrics::MetricsArgs;
+
+mod sequencer;
+pub use sequencer::SequencerArgs;
