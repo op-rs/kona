@@ -9,6 +9,9 @@ pub use node::NodeCommand;
 mod bootstore;
 pub use bootstore::BootstoreCommand;
 
+mod discover;
+pub use discover::DiscoverCommand;
+
 mod net;
 pub use net::NetCommand;
 

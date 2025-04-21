@@ -52,10 +52,10 @@ impl BootStore {
         if self.peers.contains(&enr) {
             return;
         }
-        info!("adding enr to the boot store: {}", enr);
+        info!(target: "bootstore", "Adding enr to the boot store: {}", enr);
         self.peers.push(enr);
         if let Err(e) = self.write_to_file() {
-            warn!("Failed to write boot store to disk: {:?}", e);
+            warn!(target: "bootstore", "Failed to write boot store to disk: {:?}", e);
         }
     }
 
@@ -107,7 +107,7 @@ impl BootStore {
     pub fn sync(&mut self) {
         let _ = self.peers();
         if let Err(e) = self.write_to_file() {
-            warn!("Failed to write boot store to disk: {:?}", e);
+            warn!(target: "bootstore", "Failed to write boot store to disk: {:?}", e);
         }
     }
 
@@ -168,11 +168,11 @@ impl BootStore {
         let peers = File::open(path)
             .map(|file| {
                 let reader = BufReader::new(file);
-                debug!("Reading boot store from disk: {:?}", p);
+                debug!(target: "bootstore", "Reading boot store from disk: {:?}", p);
                 match serde_json::from_reader(reader).map(|s: BootStore| s.peers) {
                     Ok(peers) => peers,
                     Err(e) => {
-                        warn!("Failed to read boot store from disk: {:?}", e);
+                        warn!(target: "bootstore", "Failed to read boot store from disk: {:?}", e);
                         Vec::new()
                     }
                 }

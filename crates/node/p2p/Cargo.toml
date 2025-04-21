@@ -47,6 +47,7 @@ thiserror.workspace = true
 lazy_static.workspace = true
 async-trait.workspace = true
 unsigned-varint.workspace = true
+rand = { workspace = true, features = ["thread_rng"] }
 jsonrpsee = { workspace = true, features = ["server"] }
 serde_json = { workspace = true, features = ["alloc"] }
 derive_more = { workspace = true, features = ["display", "deref", "debug"] }

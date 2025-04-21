@@ -63,6 +63,14 @@ pub struct Discv5Driver {
     pub chain_id: u64,
     /// The interval to discovery random nodes.
     pub interval: Duration,
+    /// Whether to forward ENRs to the enr receiver on startup.
+    pub forward: bool,
+    /// The interval at which to store the ENRs in the bootstore.
+    /// This is set to 60 seconds by default.
+    pub store_interval: Duration,
+    /// The frequency at which to remove random nodes from the discovery table.
+    /// This is not enabled (`None`) by default.
+    pub remove_interval: Option<Duration>,
 }
 
 impl Discv5Driver {
@@ -79,16 +87,24 @@ impl Discv5Driver {
         bootstore: Option<PathBuf>,
     ) -> Self {
         let store = BootStore::from_chain_id(chain_id, bootstore);
-        Self { disc, chain_id, store, interval }
+        Self {
+            disc,
+            chain_id,
+            store,
+            interval,
+            forward: true,
+            store_interval: Duration::from_secs(60),
+            remove_interval: None,
+        }
     }
 
     /// Starts the inner [`Discv5`] service.
     async fn init(&mut self) {
         loop {
             if let Err(e) = self.disc.start().await {
-                warn!("Failed to start discovery service: {:?}", e);
+                warn!(target: "discovery", "Failed to start discovery service: {:?}", e);
                 sleep(Duration::from_secs(2)).await;
-                info!("Retrying discovery startup...");
+                info!(target: "discovery", "Retrying discovery startup...");
                 continue;
             }
             break;
@@ -100,10 +116,11 @@ impl Discv5Driver {
         let enr = match self.disc.request_enr(enode.clone()).await {
             Ok(enr) => enr,
             Err(err) => {
-                error!(
+                debug!(
+                    target: "discovery",
                     ?enode,
                     %err,
-                    "failed to add boot node"
+                    "Failed to request boot node ENR"
                 );
 
                 return None;
@@ -111,10 +128,11 @@ impl Discv5Driver {
         };
 
         if let Err(err) = self.disc.add_enr(enr.clone()) {
-            warn!(
+            debug!(
+                    target: "discovery",
                 ?enode,
                 %err,
-                "failed to add boot node"
+                "Failed to add boot ENR"
             );
 
             return None;
@@ -203,6 +221,9 @@ impl Discv5Driver {
 
     /// Sends ENRs from the boot store to the enr receiver.
     pub async fn forward(&mut self, enr_sender: tokio::sync::mpsc::Sender<Enr>) {
+        if !self.forward {
+            return;
+        }
         for enr in self.store.peers() {
             if let Err(e) = enr_sender.send(enr.clone()).await {
                 info!(target: "discovery", "Failed to forward enr: {:?}", e);
@@ -219,6 +240,12 @@ impl Discv5Driver {
         let (enr_sender, enr_recv) = channel::<Enr>(1024);
 
         tokio::spawn(async move {
+            let remove = self.remove_interval.is_some();
+            let remove_dur = self.remove_interval.unwrap_or(std::time::Duration::from_secs(600));
+            let mut removal_interval = tokio::time::interval(remove_dur);
+            let mut interval = tokio::time::interval(self.interval);
+            let mut store_interval = tokio::time::interval(self.store_interval);
+
             // Step 1: Start the discovery service.
             self.init().await;
             info!(target: "discovery", "Started Discv5 Peer Discovery");
@@ -231,13 +258,7 @@ impl Discv5Driver {
             // Step 3: Forward ENRs in the bootstore to the enr receiver.
             self.forward(enr_sender.clone()).await;
 
-            // Interval to find new nodes.
-            let mut interval = tokio::time::interval(self.interval);
-
-            // Interval at which to sync the boot store.
-            let mut store_interval = tokio::time::interval(Duration::from_secs(60));
-
-            // Step 3: Run the core driver loop.
+            // Step 4: Run the core driver loop.
             loop {
                 tokio::select! {
                     msg = req_recv.recv() => {
@@ -293,25 +314,40 @@ impl Discv5Driver {
                         }
                     }
                     _ = interval.tick() => {
-                        match self.disc.find_node(NodeId::random()).await {
-                            Ok(nodes) => {
-                                let enrs =
-                                    nodes.into_iter().filter(|node| OpStackEnr::is_valid_node(node, self.chain_id));
-
-                                for enr in enrs {
-                                    self.store.add_enr(enr.clone());
-                                    _ = enr_sender.send(enr).await;
+                        let id = NodeId::random();
+                        debug!(target: "discovery", "Finding random node: {}", id);
+                        let fut = self.disc.find_node(id);
+                        let enr_sender = enr_sender.clone();
+                        tokio::spawn(async move {
+                            match fut.await {
+                                Ok(nodes) => {
+                                    let enrs = nodes.into_iter().filter(|node| OpStackEnr::is_valid_node(node, chain_id));
+                                    for enr in enrs {
+                                        _ = enr_sender.send(enr).await;
+                                    }
+                                }
+                                Err(err) => {
+                                    info!(target: "discovery", "Failed to find node: {:?}", err);
                                 }
                             }
-                            Err(err) => {
-                                debug!(target: "discovery", "Failed to find node: {:?}", err);
-                            }
-                        }
+                        });
                     }
                     _ = store_interval.tick() => {
                         let enrs = self.disc.table_entries_enr();
                         self.store.merge(enrs);
                         self.store.sync();
+                    }
+                    _ = removal_interval.tick() => {
+                        if remove {
+                            let enrs = self.disc.table_entries_enr();
+                            if enrs.len() > 20 {
+                                let mut rng = rand::rng();
+                                let index = rand::Rng::random_range(&mut rng, 0..enrs.len());
+                                let enr = enrs[index].clone();
+                                debug!(target: "removal", "Removing random ENR: {:?}", enr);
+                                self.disc.remove_node(&enr.node_id());
+                            }
+                        }
                     }
                 }
             }

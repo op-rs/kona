@@ -28,8 +28,16 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 # op-alloy
 op-alloy-provider.workspace = true
 
+# tui
+ratatui.workspace = true
+color-eyre.workspace = true
+crossterm = { workspace = true, features = ["event-stream"] }
+
 # general
+dirs.workspace = true
 url.workspace = true
+tokio-stream.workspace = true
+tracing-appender.workspace = true
 discv5.workspace = true
 tabled.workspace = true
 libp2p.workspace = true

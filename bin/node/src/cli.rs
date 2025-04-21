@@ -1,7 +1,9 @@
 //! Contains the node CLI.
 
 use crate::{
-    commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
+    commands::{
+        BootstoreCommand, DiscoverCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand,
+    },
     flags::{GlobalArgs, MetricsArgs},
 };
 use anyhow::Result;
@@ -22,24 +24,28 @@ pub enum Commands {
     #[command(alias = "r", alias = "scr")]
     Registry(RegistryCommand),
     /// Utility tool to interact with local bootstores.
+    #[command(alias = "b", alias = "boot", alias = "store")]
     Bootstore(BootstoreCommand),
     /// Get info about op chain.
     Info(InfoCommand),
+    /// Discover runs only discovery to bootstrap the list of peers.
+    #[command(alias = "d", alias = "disc", alias = "discovery")]
+    Discover(DiscoverCommand),
 }
 
 /// The node CLI.
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, styles = cli_styles(), long_about = None)]
 pub struct Cli {
+    /// The subcommand to run.
+    #[command(subcommand)]
+    pub subcommand: Commands,
     /// Global arguments for the CLI.
     #[command(flatten)]
     pub global: GlobalArgs,
     /// Prometheus CLI arguments.
     #[command(flatten)]
     pub metrics: MetricsArgs,
-    /// The subcommand to run.
-    #[command(subcommand)]
-    pub subcommand: Commands,
 }
 
 impl Cli {
@@ -56,6 +62,9 @@ impl Cli {
                 bootstore.init_telemetry(&self.global, &self.metrics)?
             }
             Commands::Info(ref info) => info.init_telemetry(&self.global, &self.metrics)?,
+            Commands::Discover(ref discover) => {
+                discover.init_telemetry(&self.global, &self.metrics)?
+            }
         }
 
         // Run the subcommand.
@@ -65,6 +74,7 @@ impl Cli {
             Commands::Registry(registry) => registry.run(&self.global),
             Commands::Bootstore(bootstore) => bootstore.run(&self.global),
             Commands::Info(info) => info.run(&self.global),
+            Commands::Discover(discover) => Self::run_until_ctrl_c(discover.run(&self.global)),
         }
     }
 
