@@ -18,7 +18,7 @@ pub struct MetricsArgs {
     #[arg(long = "metrics.port", default_value = "9090", env = "KONA_NODE_METRICS_PORT")]
     pub port: u16,
     /// The ip address to use to emit prometheus metrics.
-    #[arg(long = "metrics.address", default_value = "0.0.0.0", env = "KONA_NODE_METRICS_ADDR")]
+    #[arg(long = "metrics.addr", default_value = "0.0.0.0", env = "KONA_NODE_METRICS_ADDR")]
     pub addr: IpAddr,
 }
 
@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_metrics_args_listen_ip() {
-        let args = MockCommand::parse_from(["test", "--metrics.address", "127.0.0.1"]);
+        let args = MockCommand::parse_from(["test", "--metrics.addr", "127.0.0.1"]);
         let expected: IpAddr = "127.0.0.1".parse().unwrap();
         assert_eq!(args.metrics.addr, expected);
     }
