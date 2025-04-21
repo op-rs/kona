@@ -23,8 +23,11 @@ kona-rpc.workspace = true
 alloy-serde.workspace = true
 alloy-eips = { workspace = true, features = ["kzg"] }
 alloy-transport.workspace = true
+alloy-transport-http = { workspace = true, features = ["reqwest", "hyper", "jwt-auth"] }
 alloy-consensus.workspace = true
 alloy-rpc-types-beacon.workspace = true
+alloy-rpc-types-engine.workspace = true
+alloy-rpc-client.workspace = true
 alloy-provider = { workspace = true, features = ["ipc", "ws", "reqwest"] }
 alloy-primitives = { workspace = true, features = ["map"] }
 
@@ -38,6 +41,8 @@ serde.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 reqwest = { workspace = true, features = ["json"] }
+tower.workspace = true
+http-body-util.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true

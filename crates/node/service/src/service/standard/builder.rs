@@ -1,9 +1,18 @@
 //! Contains the builder for the [`RollupNode`].
 
 use crate::{EngineLauncher, NodeMode, RollupNode};
+use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
+use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::JwtSecret;
+use alloy_transport_http::{
+    AuthLayer, Http, HyperClient,
+    hyper_util::{client::legacy::Client, rt::TokioExecutor},
+};
+use http_body_util::Full;
+use op_alloy_network::Optimism;
 use std::sync::Arc;
+use tower::ServiceBuilder;
 use url::Url;
 
 use kona_engine::SyncConfig;
@@ -112,8 +121,18 @@ impl RollupNodeBuilder {
         let l1_beacon = OnlineBeaconClient::new_http(
             self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
         );
+
         let l2_rpc_url = self.l2_provider_rpc_url.expect("l2 provider rpc url not set");
-        let l2_provider = RootProvider::new_http(l2_rpc_url.clone());
+        let jwt_secret = self.jwt_secret.expect("jwt secret not set");
+        let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
+
+        let auth_layer = AuthLayer::new(jwt_secret);
+        let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
+
+        let layer_transport = HyperClient::with_service(service);
+        let http_hyper = Http::with_client(layer_transport, l2_rpc_url.clone());
+        let rpc_client = RpcClient::new(http_hyper, true);
+        let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
         let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
 
@@ -123,7 +142,7 @@ impl RollupNodeBuilder {
             sync: self.sync_config.expect("missing sync config"),
             l2_rpc_url,
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
-            jwt_secret: self.jwt_secret.expect("missing jwt secret"),
+            jwt_secret,
         };
 
         RollupNode {

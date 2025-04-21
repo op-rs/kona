@@ -1,9 +1,17 @@
 //! Providers that use alloy provider types on the backend.
 
 use alloy_eips::BlockId;
+use alloy_primitives::Bytes;
 use alloy_provider::{Provider, RootProvider};
+use alloy_rpc_client::RpcClient;
+use alloy_rpc_types_engine::JwtSecret;
 use alloy_transport::{RpcError, TransportErrorKind};
+use alloy_transport_http::{
+    AuthLayer, Http, HyperClient,
+    hyper_util::{client::legacy::Client, rt::TokioExecutor},
+};
 use async_trait::async_trait;
+use http_body_util::Full;
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind},
     traits::L2ChainProvider,
@@ -14,6 +22,7 @@ use lru::LruCache;
 use op_alloy_consensus::OpBlock;
 use op_alloy_network::Optimism;
 use std::{num::NonZeroUsize, sync::Arc};
+use tower::ServiceBuilder;
 
 /// The [AlloyL2ChainProvider] is a concrete implementation of the [L2ChainProvider] trait,
 /// providing data over Ethereum JSON-RPC using an alloy provider as the backend.
@@ -93,9 +102,19 @@ impl AlloyL2ChainProvider {
         url: reqwest::Url,
         rollup_config: Arc<RollupConfig>,
         cache_size: usize,
+        jwt: JwtSecret,
     ) -> Self {
-        let inner = RootProvider::new_http(url);
-        Self::new(inner, rollup_config, cache_size)
+        let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
+
+        let auth_layer = AuthLayer::new(jwt);
+        let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
+
+        let layer_transport = HyperClient::with_service(service);
+        let http_hyper = Http::with_client(layer_transport, url);
+        let rpc_client = RpcClient::new(http_hyper, true);
+
+        let rpc = RootProvider::<Optimism>::new(rpc_client);
+        Self::new(rpc, rollup_config, cache_size)
     }
 }
 

@@ -1,7 +1,7 @@
 //! An Engine API Client.
 
 use alloy_eips::eip1898::BlockNumberOrTag;
-use alloy_network::AnyNetwork;
+use alloy_network::{AnyNetwork, Network};
 use alloy_primitives::{B256, BlockHash, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_client::RpcClient;
@@ -61,19 +61,23 @@ pub struct EngineClient {
 }
 
 impl EngineClient {
-    /// Creates a new [`EngineClient`] from the provided [Url] and [JwtSecret].
-    pub fn new_http(engine: Url, rpc: Url, cfg: Arc<RollupConfig>, jwt: JwtSecret) -> Self {
+    /// Creates a new RPC client for the given address and JWT secret.
+    fn rpc_client<T: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<T> {
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
-
         let auth_layer = AuthLayer::new(jwt);
         let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
-
         let layer_transport = HyperClient::with_service(service);
-        let http_hyper = Http::with_client(layer_transport, engine);
-        let rpc_client = RpcClient::new(http_hyper, true);
-        let engine = RootProvider::<AnyNetwork>::new(rpc_client);
 
-        let rpc = RootProvider::<Optimism>::new_http(rpc);
+        let http_hyper = Http::with_client(layer_transport, addr);
+        let rpc_client = RpcClient::new(http_hyper, true);
+        RootProvider::<T>::new(rpc_client)
+    }
+
+    /// Creates a new [`EngineClient`] from the provided [Url] and [JwtSecret].
+    pub fn new_http(engine: Url, rpc: Url, cfg: Arc<RollupConfig>, jwt: JwtSecret) -> Self {
+        let engine = Self::rpc_client::<AnyNetwork>(engine, jwt);
+        let rpc = Self::rpc_client::<Optimism>(rpc, jwt);
+
         Self { engine, rpc, cfg }
     }
 
