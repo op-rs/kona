@@ -31,7 +31,7 @@ pub struct GossipDriver {
     pub handler: BlockHandler,
     /// A mapping from [`Multiaddr`] to the number of times it has been dialed.
     ///
-    /// A peer cannot be redialed more than [`GossipDriverBuilder::peer_redialing`] times.
+    /// A peer cannot be redialed more than [`GossipDriverBuilder.peer_redialing`] times.
     pub dialed_peers: HashMap<Multiaddr, u64>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
     pub peerstore: HashMap<PeerId, Multiaddr>,
