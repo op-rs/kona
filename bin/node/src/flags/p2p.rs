@@ -9,6 +9,7 @@ use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
 use discv5::Enr;
+use kona_genesis::RollupConfig;
 use kona_p2p::{Config, PeerMonitoring, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::{
@@ -218,7 +219,7 @@ impl P2PArgs {
     /// - [`GlobalArgs`]: required to fetch the genesis unsafe block signer.
     ///
     /// Errors if the genesis unsafe block signer isn't available for the specified L2 Chain ID.
-    pub fn config(&self, args: &GlobalArgs) -> anyhow::Result<Config> {
+    pub fn config(&self, config: &RollupConfig, args: &GlobalArgs) -> anyhow::Result<Config> {
         let mut multiaddr = libp2p::Multiaddr::from(self.listen_ip);
         multiaddr.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
         let gossip_config = kona_p2p::default_config_builder()
@@ -228,7 +229,7 @@ impl P2PArgs {
             .gossip_lazy(self.gossip_mesh_dlazy)
             .flood_publish(self.gossip_flood_publish)
             .build()?;
-        let block_time = args.block_time()?;
+        let block_time = config.block_time;
 
         let monitor_peers = if self.ban_enabled {
             Some(PeerMonitoring {
@@ -246,7 +247,11 @@ impl P2PArgs {
             discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
             gossip_address: multiaddr,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
-            unsafe_block_signer: args.genesis_signer()?,
+            unsafe_block_signer: config
+                .genesis
+                .system_config
+                .map(|config| Ok(config.batcher_address))
+                .unwrap_or_else(|| args.genesis_signer())?,
             gossip_config,
             scoring: self.scoring,
             block_time,

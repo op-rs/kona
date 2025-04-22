@@ -20,15 +20,6 @@ pub struct GlobalArgs {
 }
 
 impl GlobalArgs {
-    /// Returns the block time for the L2 chain.
-    pub fn block_time(&self) -> anyhow::Result<u64> {
-        let id = self.l2_chain_id;
-        Ok(OPCHAINS
-            .get(&id)
-            .ok_or(anyhow::anyhow!("No chain config found for chain ID: {id}"))?
-            .block_time)
-    }
-
     pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
         Ok(init_tracing_subscriber(self.v, filter)?)
     }

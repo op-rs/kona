@@ -58,7 +58,7 @@ impl NetCommand {
 
         // Start the Network Stack
         self.p2p.check_ports()?;
-        let p2p_config = self.p2p.config(args)?;
+        let p2p_config = self.p2p.config(&rollup_config, args)?;
         let mut network = NetworkBuilder::from(p2p_config)
             .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)
