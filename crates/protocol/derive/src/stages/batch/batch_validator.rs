@@ -89,7 +89,7 @@ where
                 self.l1_blocks.clear();
             }
             debug!(
-                target: "batch-validator",
+                target: "batch_validator",
                 "Advancing batch validator origin to L1 block #{}.{}",
                 self.origin.map(|b| b.number).unwrap_or_default(),
                 origin_behind.then_some(" (origin behind)").unwrap_or_default()
@@ -105,7 +105,7 @@ where
             for (i, block) in self.l1_blocks.iter().enumerate() {
                 if parent.l1_origin.number == block.number {
                     self.l1_blocks.drain(0..i);
-                    debug!(target: "batch-validator", "Advancing internal L1 epoch");
+                    debug!(target: "batch_validator", "Advancing internal L1 epoch");
                     break;
                 }
             }
@@ -155,7 +155,7 @@ where
         // to preserve that L2 time >= L1 time. If this is the first block of the epoch, always
         // generate a batch to ensure that we at least have one batch per epoch.
         if next_timestamp < next_epoch.timestamp || first_of_epoch {
-            info!(target: "batch-validator", "Generating empty batch for epoch #{}", epoch.number);
+            info!(target: "batch_validator", "Generating empty batch for epoch #{}", epoch.number);
             return Ok(SingleBatch {
                 parent_hash: parent.block_info.hash,
                 epoch_num: epoch.number,
@@ -168,7 +168,7 @@ where
         // At this point we have auto generated every batch for the current epoch
         // that we can, so we can advance to the next epoch.
         debug!(
-            target: "batch-validator",
+            target: "batch_validator",
             "Advancing batch validator epoch: {}, timestamp: {}, epoch timestamp: {}",
             next_epoch.number, next_timestamp, next_epoch.timestamp
         );
@@ -224,7 +224,7 @@ where
         // The batch must be a single batch - this stage does not support span batches.
         let Batch::Single(mut next_batch) = next_batch else {
             error!(
-                target: "batch-validator",
+                target: "batch_validator",
                 "BatchValidator received a batch that is not a SingleBatch"
             );
             return Err(PipelineError::InvalidBatchType.crit());
@@ -239,21 +239,21 @@ where
             &stage_origin,
         ) {
             BatchValidity::Accept => {
-                info!(target: "batch-validator", "Found next batch (epoch #{})", next_batch.epoch_num);
+                info!(target: "batch_validator", "Found next batch (epoch #{})", next_batch.epoch_num);
                 Ok(next_batch)
             }
             BatchValidity::Past => {
-                warn!(target: "batch-validator", "Dropping old batch");
+                warn!(target: "batch_validator", "Dropping old batch");
                 Err(PipelineError::NotEnoughData.temp())
             }
             BatchValidity::Drop => {
-                warn!(target: "batch-validator", "Invalid singular batch, flushing current channel.");
+                warn!(target: "batch_validator", "Invalid singular batch, flushing current channel.");
                 self.prev.flush();
                 Err(PipelineError::NotEnoughData.temp())
             }
             BatchValidity::Undecided => Err(PipelineError::NotEnoughData.temp()),
             BatchValidity::Future => {
-                error!(target: "batch-validator", "Future batch detected in BatchValidator.");
+                error!(target: "batch_validator", "Future batch detected in BatchValidator.");
                 Err(PipelineError::InvalidBatchValidity.crit())
             }
         }

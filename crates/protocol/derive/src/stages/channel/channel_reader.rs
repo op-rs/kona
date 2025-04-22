@@ -105,13 +105,13 @@ where
     ///
     /// SAFETY: Only called post-holocene activation.
     fn flush(&mut self) {
-        debug!(target: "channel-reader", "[POST-HOLOCENE] Flushing channel");
+        debug!(target: "channel_reader", "[POST-HOLOCENE] Flushing channel");
         self.next_channel();
     }
 
     async fn next_batch(&mut self) -> PipelineResult<Batch> {
         if let Err(e) = self.set_batch_reader().await {
-            debug!(target: "channel-reader", "Failed to set batch reader: {:?}", e);
+            debug!(target: "channel_reader", "Failed to set batch reader: {:?}", e);
             self.next_channel();
             return Err(e);
         }
@@ -149,7 +149,7 @@ where
         match signal {
             Signal::FlushChannel => {
                 // Drop the current in-progress channel.
-                warn!(target: "channel-reader", "Flushed channel");
+                warn!(target: "channel_reader", "Flushed channel");
                 self.next_batch = None;
             }
             s => {

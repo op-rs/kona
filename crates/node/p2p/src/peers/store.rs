@@ -18,7 +18,7 @@ pub struct BootStore {
     #[serde(skip)]
     pub path: PathBuf,
     /// [`Enr`]s for peers.
-    peers: Vec<Enr>,
+    pub peers: Vec<Enr>,
 }
 
 // This custom implementation of `Deserialize` allows us to avignore
@@ -68,6 +68,13 @@ impl BootStore {
             .collect()
     }
 
+    /// Returns the number of peers that contain the
+    /// [`crate::OpStackEnr::OP_CL_KEY`] in the ENR *and*
+    /// have the correct chain id and version.
+    pub fn valid_peers_with_chain_id(&self, chain_id: u64) -> Vec<&Enr> {
+        self.peers.iter().filter(|enr| crate::OpStackEnr::is_valid_node(enr, chain_id)).collect()
+    }
+
     /// Returns the number of peers in the in-memory store.
     pub fn len(&self) -> usize {
         self.peers.len()
@@ -113,6 +120,24 @@ impl BootStore {
         let file = File::create(&self.path)?;
         serde_json::to_writer(file, &self.peers)?;
         Ok(())
+    }
+
+    /// Returns all available bootstores for the given data directory.
+    pub fn available(datadir: Option<PathBuf>) -> Vec<u64> {
+        let mut bootstores = Vec::new();
+        let path = datadir.unwrap_or_else(|| {
+            let mut home = dirs::home_dir().expect("Failed to get home directory");
+            home.push(".kona");
+            home
+        });
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                if let Ok(chain_id) = entry.file_name().to_string_lossy().parse::<u64>() {
+                    bootstores.push(chain_id);
+                }
+            }
+        }
+        bootstores
     }
 
     /// Returns the [`PathBuf`] for the given chain id.

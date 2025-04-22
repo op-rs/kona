@@ -11,10 +11,10 @@ use tracing_subscriber::EnvFilter;
 #[derive(Parser, Default, Clone, Debug)]
 pub struct GlobalArgs {
     /// Verbosity level (0-2)
-    #[arg(long, short, action = ArgAction::Count)]
+    #[arg(long, short, global=true, action = ArgAction::Count)]
     pub v: u8,
     /// The L2 chain ID to use.
-    #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
+    #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
 }
 

@@ -8,7 +8,7 @@ use alloy_evm::{
     block::{BlockExecutionResult, BlockExecutor, BlockExecutorFactory},
 };
 use alloy_op_evm::{OpBlockExecutionCtx, OpBlockExecutorFactory, block::OpAlloyReceiptBuilder};
-use alloy_primitives::{SignatureError, hex};
+use alloy_primitives::SignatureError;
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
@@ -130,10 +130,10 @@ where
         info!(
             target: "block_builder",
             number = header.number,
-            hash = hex::encode(header.seal()),
-            state_root = hex::encode(header.state_root),
-            transactions_root = hex::encode(header.transactions_root),
-            receipts_root = hex::encode(header.receipts_root),
+            hash = ?header.seal(),
+            state_root = ?header.state_root,
+            transactions_root = ?header.transactions_root,
+            receipts_root = ?header.receipts_root,
             "Sealed new block",
         );
 

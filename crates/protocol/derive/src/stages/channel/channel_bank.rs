@@ -99,7 +99,7 @@ where
             origin.number
         {
             warn!(
-                target: "channel-bank",
+                target: "channel_bank",
                 "Channel (ID: {}) timed out", hex::encode(frame.id)
             );
             return Ok(());
@@ -108,7 +108,7 @@ where
         // Ingest the frame. If it fails, ignore the frame.
         let frame_id = frame.id;
         if current_channel.add_frame(frame, origin).is_err() {
-            warn!(target: "channel-bank", "Failed to add frame to channel: {:?}", frame_id);
+            warn!(target: "channel_bank", "Failed to add frame to channel: {:?}", frame_id);
             return Ok(());
         }
 
@@ -121,7 +121,7 @@ where
     pub fn read(&mut self) -> PipelineResult<Option<Bytes>> {
         // Bail if there are no channels to read from.
         if self.channel_queue.is_empty() {
-            trace!(target: "channel-bank", "No channels to read from");
+            trace!(target: "channel_bank", "No channels to read from");
             return Err(PipelineError::Eof.temp());
         }
 
@@ -134,7 +134,7 @@ where
         if channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp) < origin.number
         {
             warn!(
-                target: "channel-bank",
+                target: "channel_bank",
                 "Channel (ID: {}) timed out", hex::encode(first)
             );
             self.channels.remove(&first);

@@ -78,9 +78,9 @@ where
     if boot.claimed_l2_block_number < safe_head.number {
         error!(
             target: "client",
-            "Claimed L2 block number {claimed} is less than the safe head {safe}",
             claimed = boot.claimed_l2_block_number,
-            safe = safe_head.number
+            safe = safe_head.number,
+            "Claimed L2 block number is less than the safe head",
         );
         return Err(FaultProofProgramError::InvalidClaim(
             boot.agreed_l2_output_root,
@@ -139,18 +139,18 @@ where
     if output_root != boot.claimed_l2_output_root {
         error!(
             target: "client",
-            "Failed to validate L2 block #{number} with output root {output_root}",
             number = safe_head.block_info.number,
-            output_root = output_root
+            output_root = ?output_root,
+            "Failed to validate L2 block",
         );
         return Err(FaultProofProgramError::InvalidClaim(output_root, boot.claimed_l2_output_root));
     }
 
     info!(
         target: "client",
-        "Successfully validated L2 block #{number} with output root {output_root}",
         number = safe_head.block_info.number,
-        output_root = output_root
+        output_root = ?output_root,
+        "Successfully validated L2 block",
     );
 
     Ok(())
