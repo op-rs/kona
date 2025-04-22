@@ -11,7 +11,7 @@ pub use clap::cli_styles;
 pub mod backtrace;
 
 mod tracing;
-pub use tracing::init_tracing_subscriber;
+pub use tracing::{init_test_tracing, init_tracing_subscriber};
 
 mod prometheus;
 pub use prometheus::init_prometheus_server;

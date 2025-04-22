@@ -109,7 +109,7 @@ impl BootInfo {
             config.clone()
         } else {
             warn!(
-                target: "boot-loader",
+                target: "boot_loader",
                 "No rollup config found for chain ID {}, falling back to preimage oracle. This is insecure in production without additional validation!",
                 chain_id
             );

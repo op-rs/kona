@@ -37,7 +37,11 @@ where
                     info!(target: "client_derivation_driver", "Stepped derivation pipeline")
                 }
                 StepResult::AdvancedOrigin => {
-                    info!(target: "client_derivation_driver", "Advanced origin")
+                    info!(
+                        target: "client_derivation_driver",
+                        l1_block_number = self.origin().map(|o| o.number).ok_or(PipelineError::MissingOrigin.crit())?,
+                        "Advanced origin"
+                    )
                 }
                 StepResult::OriginAdvanceErr(e) | StepResult::StepFailed(e) => {
                     // Break the loop unless the error signifies that there is not enough data to

@@ -89,7 +89,7 @@ where
                     TxEnvelope::Eip4844(blob_tx_wrapper) => Some(blob_tx_wrapper.hash()),
                     _ => None,
                 };
-                warn!(target: "blob-source", "Blob tx has calldata, which will be ignored: {hash:?}");
+                warn!(target: "blob_source", "Blob tx has calldata, which will be ignored: {hash:?}");
             }
             let blob_hashes = if let Some(b) = blob_hashes {
                 b
@@ -132,7 +132,7 @@ where
         }
 
         let blobs = self.blob_fetcher.get_blobs(block_ref, &blob_hashes).await.map_err(|e| {
-            warn!(target: "blob-source", "Failed to fetch blobs: {e}");
+            warn!(target: "blob_source", "Failed to fetch blobs: {e}");
             BlobProviderError::Backend(e.to_string())
         })?;
 
@@ -194,7 +194,7 @@ where
         match next_data.decode() {
             Ok(d) => Ok(d),
             Err(_) => {
-                warn!(target: "blob-source", "Failed to decode blob data, skipping");
+                warn!(target: "blob_source", "Failed to decode blob data, skipping");
                 self.next(block_ref, batcher_address).await
             }
         }

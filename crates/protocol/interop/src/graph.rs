@@ -52,7 +52,7 @@ where
         rollup_configs: &'a HashMap<u64, RollupConfig>,
     ) -> MessageGraphResult<Self, P> {
         info!(
-            target: "message-graph",
+            target: "message_graph",
             "Deriving message graph from {} blocks.",
             blocks.len()
         );
@@ -68,7 +68,7 @@ where
         }
 
         info!(
-            target: "message-graph",
+            target: "message_graph",
             "Derived {} executing messages from {} blocks.",
             messages.len(),
             blocks.len()
@@ -79,7 +79,7 @@ where
     /// Checks the validity of all messages within the graph.
     pub async fn resolve(mut self) -> MessageGraphResult<(), P> {
         info!(
-            target: "message-graph",
+            target: "message_graph",
             "Checking the message graph for invalid messages."
         );
 
@@ -94,7 +94,7 @@ where
             bad_block_chain_ids.dedup_by(|a, b| a == b);
 
             warn!(
-                target: "message-graph",
+                target: "message_graph",
                 "Failed to reduce the message graph entirely. Invalid messages found in chains {}",
                 bad_block_chain_ids
                     .iter()
@@ -121,7 +121,7 @@ where
         for message in core::mem::take(&mut self.messages) {
             if let Err(e) = self.check_single_dependency(&message).await {
                 warn!(
-                    target: "message-graph",
+                    target: "message_graph",
                     "Invalid ExecutingMessage found - relayed on chain {} with message hash {}.",
                     message.executing_chain_id,
                     hex::encode(message.inner.payloadHash)
@@ -132,7 +132,7 @@ where
         }
 
         info!(
-            target: "message-graph",
+            target: "message_graph",
             "Successfully reduced the message graph. {} invalid messages found.",
             invalid_messages.len()
         );

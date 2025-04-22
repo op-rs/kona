@@ -1,7 +1,7 @@
 //! Contains the node CLI.
 
 use crate::{
-    commands::{InfoCommand, NetCommand, NodeCommand, RegistryCommand},
+    commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
     flags::{GlobalArgs, MetricsArgs},
 };
 use anyhow::Result;
@@ -13,11 +13,16 @@ use kona_cli::cli_styles;
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Runs the consensus node.
+    #[command(alias = "n")]
     Node(NodeCommand),
     /// Runs the networking stack for the node.
+    #[command(alias = "p2p", alias = "network")]
     Net(NetCommand),
     /// Lists the OP Stack chains available in the superchain-registry.
+    #[command(alias = "r", alias = "scr")]
     Registry(RegistryCommand),
+    /// Utility tool to interact with local bootstores.
+    Bootstore(BootstoreCommand),
     /// Get info about op chain.
     Info(InfoCommand),
 }
@@ -47,6 +52,9 @@ impl Cli {
             Commands::Registry(ref registry) => {
                 registry.init_telemetry(&self.global, &self.metrics)?
             }
+            Commands::Bootstore(ref bootstore) => {
+                bootstore.init_telemetry(&self.global, &self.metrics)?
+            }
             Commands::Info(ref info) => info.init_telemetry(&self.global, &self.metrics)?,
         }
 
@@ -55,6 +63,7 @@ impl Cli {
             Commands::Node(node) => Self::run_until_ctrl_c(node.run(&self.global)),
             Commands::Net(net) => Self::run_until_ctrl_c(net.run(&self.global)),
             Commands::Registry(registry) => registry.run(&self.global),
+            Commands::Bootstore(bootstore) => bootstore.run(&self.global),
             Commands::Info(info) => info.run(&self.global),
         }
     }

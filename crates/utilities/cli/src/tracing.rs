@@ -25,3 +25,13 @@ pub fn init_tracing_subscriber(
     let subscriber = tracing_subscriber::fmt().with_max_level(level);
     tracing::subscriber::set_global_default(subscriber.with_env_filter(filter).finish())
 }
+
+/// This provides function for init tracing in testing
+///
+/// # Functions
+/// - `init_test_tracing`: A helper function for initializing tracing in test environments.
+/// - `init_tracing_subscriber`: Initializes the tracing subscriber with a specified verbosity level
+///   and optional environment filter.
+pub fn init_test_tracing() {
+    let _ = init_tracing_subscriber(2, None::<EnvFilter>);
+}

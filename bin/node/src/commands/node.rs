@@ -12,7 +12,7 @@ use std::{fs::File, path::PathBuf};
 use tracing::{debug, error};
 use url::Url;
 
-use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
+use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs, SequencerArgs};
 
 /// The Node subcommand.
 ///
@@ -58,6 +58,9 @@ pub struct NodeCommand {
     /// RPC CLI arguments.
     #[command(flatten)]
     pub rpc_flags: RpcArgs,
+    /// SEQUENCER CLI arguments.
+    #[command(flatten)]
+    pub sequencer_flags: SequencerArgs,
 }
 
 impl NodeCommand {

@@ -95,12 +95,12 @@ where
 {
     /// Set the last hint to be received.
     async fn route_hint(&self, hint: String) -> PreimageOracleResult<()> {
-        trace!(target: "host-backend", "Received hint: {hint}");
+        trace!(target: "host_backend", "Received hint: {hint}");
 
         let parsed_hint =
             hint.parse::<Hint<C::HintType>>().map_err(|_| PreimageOracleError::KeyNotFound)?;
         if self.proactive_hints.contains(&parsed_hint.ty) {
-            debug!(target: "host-backend", "Proactive hint received; Immediately fetching {hint}");
+            debug!(target: "host_backend", "Proactive hint received; Immediately fetching {hint}");
             H::fetch_hint(parsed_hint, &self.cfg, &self.providers, self.kv.clone())
                 .await
                 .map_err(|e| PreimageOracleError::Other(e.to_string()))?;
@@ -121,7 +121,7 @@ where
 {
     /// Get the preimage for the given key.
     async fn get_preimage(&self, key: PreimageKey) -> PreimageOracleResult<Vec<u8>> {
-        trace!(target: "host-backend", "Pre-image requested. Key: {key}");
+        trace!(target: "host_backend", "Pre-image requested. Key: {key}");
 
         // Acquire a read lock on the key-value store.
         let kv_lock = self.kv.read().await;
@@ -137,7 +137,7 @@ where
                     H::fetch_hint(hint.clone(), &self.cfg, &self.providers, self.kv.clone()).await;
 
                 if let Err(e) = value {
-                    error!(target: "host-backend", "Failed to prefetch hint: {e}");
+                    error!(target: "host_backend", "Failed to prefetch hint: {e}");
                     continue;
                 }
 

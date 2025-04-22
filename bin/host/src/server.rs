@@ -64,7 +64,7 @@ where
         oracle_server: P,
         backend: Arc<B>,
     ) -> Result<(), PreimageServerError> {
-        info!(target: "host-server", "Starting oracle server");
+        info!(target: "host_server", "Starting oracle server");
         loop {
             // Serve the next preimage request. This `await` will yield to the runtime
             // if no progress can be made.
@@ -82,7 +82,7 @@ where
     /// Starts the hint router, which waits for incoming hints and routes them to the appropriate
     /// handler.
     async fn start_hint_router(hint_reader: H, backend: Arc<B>) -> Result<(), PreimageServerError> {
-        info!(target: "host-server", "Starting hint router");
+        info!(target: "host_server", "Starting hint router");
         loop {
             // Route the next hint. This `await` will yield to the runtime if no progress can be
             // made.
