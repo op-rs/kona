@@ -33,18 +33,13 @@ impl InfoCommand {
         let op_rollup_config =
             ROLLUP_CONFIGS.get(&args.l2_chain_id).expect("No Rollup config found");
 
-        println!("-------------");
-        println!("CHAIN ID: {}", args.l2_chain_id);
-        println!("-------------");
-        println!("--> Block Time: {}", op_chain_config.block_time);
-        println!("--> Name: {}", op_chain_config.name);
-        println!("--> Identifier: {}", op_chain_config.chain_id);
-        println!("--> Public RPC - {}", op_chain_config.public_rpc);
-        println!("--> Sequencer RPC - {}", op_chain_config.sequencer_rpc);
-        println!("--> Explorer - {}", op_chain_config.explorer);
-
-        println!("--> Hardforks: {}", op_rollup_config.hardforks);
-
+        println!("Name: {}", op_chain_config.name);
+        println!("Block Time: {}", op_chain_config.block_time);
+        println!("Identifier: {}", op_chain_config.chain_id);
+        println!("Public RPC - {}", op_chain_config.public_rpc);
+        println!("Sequencer RPC - {}", op_chain_config.sequencer_rpc);
+        println!("Explorer - {}", op_chain_config.explorer);
+        println!("Hardforks: {}", op_rollup_config.hardforks);
         println!("-------------");
 
         Ok(())
