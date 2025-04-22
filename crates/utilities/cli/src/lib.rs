@@ -12,6 +12,7 @@ pub mod backtrace;
 
 mod tracing;
 pub use tracing::{init_test_tracing, init_tracing_subscriber};
+
 mod prometheus;
 pub use prometheus::init_prometheus_server;
 
