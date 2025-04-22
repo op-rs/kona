@@ -10,4 +10,4 @@ mod driver;
 pub use driver::Discv5Driver;
 
 mod handler;
-pub use handler::{Discv5Handler, HandlerRequest, HandlerResponse};
+pub use handler::{Discv5Handler, HandlerRequest};

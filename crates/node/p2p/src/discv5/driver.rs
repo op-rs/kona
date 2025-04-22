@@ -1,7 +1,7 @@
 //! Discovery Module.
 
 use derive_more::Debug;
-use discv5::{Discv5, Enr, Event, enr::NodeId};
+use discv5::{Discv5, Enr, enr::NodeId};
 use libp2p::Multiaddr;
 use std::path::PathBuf;
 use tokio::{
@@ -11,7 +11,7 @@ use tokio::{
 
 use crate::{
     BootNode, BootNodes, BootStore, Discv5Builder, Discv5Handler, EnrValidation, HandlerRequest,
-    HandlerResponse, OpStackEnr, enr_to_multiaddr,
+    OpStackEnr, enr_to_multiaddr,
 };
 
 /// The [`Discv5Driver`] drives the discovery service.
@@ -43,10 +43,10 @@ use crate::{
 ///         .with_chain_id(10) // OP Mainnet chain id
 ///         .build()
 ///         .expect("Failed to build discovery service");
-///     let mut handler = disc.start();
+///     let (_, enr_receiver) = disc.start();
 ///
 ///     loop {
-///         if let Some(enr) = handler.enr_receiver.recv().await {
+///         if let Some(enr) = enr_receiver.recv().await {
 ///             println!("Received peer enr: {:?}", enr);
 ///         }
 ///     }
@@ -61,7 +61,6 @@ pub struct Discv5Driver {
     pub store: BootStore,
     /// The chain ID of the network.
     pub chain_id: u64,
-    ///
     /// The interval to discovery random nodes.
     pub interval: Duration,
 }
@@ -214,12 +213,10 @@ impl Discv5Driver {
     /// Spawns a new [`Discv5`] discovery service in a new tokio task.
     ///
     /// Returns a [`Discv5Handler`] to communicate with the spawned task.
-    pub fn start(mut self) -> Discv5Handler {
+    pub fn start(mut self) -> (Discv5Handler, tokio::sync::mpsc::Receiver<Enr>) {
         let chain_id = self.chain_id;
         let (req_sender, mut req_recv) = channel::<HandlerRequest>(1024);
-        let (res_sender, res_recv) = channel::<HandlerResponse>(1024);
         let (enr_sender, enr_recv) = channel::<Enr>(1024);
-        let (_events_sender, events_recv) = channel::<Event>(1024);
 
         tokio::spawn(async move {
             // Step 1: Start the discovery service.
@@ -246,17 +243,23 @@ impl Discv5Driver {
                     msg = req_recv.recv() => {
                         match msg {
                             Some(msg) => match msg {
-                                HandlerRequest::Metrics => {
+                                HandlerRequest::Metrics(tx) => {
                                     let metrics = self.disc.metrics();
-                                    let _ = res_sender.send(HandlerResponse::Metrics(metrics)).await;
+                                    if let Err(e) = tx.send(metrics) {
+                                        warn!(target: "discovery", "Failed to send metrics: {:?}", e);
+                                    }
                                 }
-                                HandlerRequest::PeerCount => {
+                                HandlerRequest::PeerCount(tx) => {
                                     let peers = self.disc.connected_peers();
-                                    let _ = res_sender.send(HandlerResponse::PeerCount(peers)).await;
+                                    if let Err(e) = tx.send(peers) {
+                                        warn!(target: "discovery", "Failed to send peer count: {:?}", e);
+                                    }
                                 }
-                                HandlerRequest::LocalEnr => {
+                                HandlerRequest::LocalEnr(tx) => {
                                     let enr = self.disc.local_enr().clone();
-                                    let _ = res_sender.send(HandlerResponse::LocalEnr(enr)).await;
+                                    if let Err(e) = tx.send(enr.clone()) {
+                                        warn!(target: "discovery", "Failed to send local enr: {:?}", e);
+                                    }
                                 }
                                 HandlerRequest::AddEnr(enr) => {
                                     let _ = self.disc.add_enr(enr);
@@ -264,9 +267,11 @@ impl Discv5Driver {
                                 HandlerRequest::RequestEnr(enode) => {
                                     let _ = self.disc.request_enr(enode).await;
                                 }
-                                HandlerRequest::TableEnrs => {
+                                HandlerRequest::TableEnrs(tx) => {
                                     let enrs = self.disc.table_entries_enr();
-                                    let _ = res_sender.send(HandlerResponse::TableEnrs(enrs)).await;
+                                    if let Err(e) = tx.send(enrs) {
+                                        warn!(target: "discovery", "Failed to send table enrs: {:?}", e);
+                                    }
                                 },
                                 HandlerRequest::BanAddrs{addrs_to_ban, ban_duration} => {
                                     let enrs = self.disc.table_entries_enr();
@@ -312,7 +317,7 @@ impl Discv5Driver {
             }
         });
 
-        Discv5Handler::new(chain_id, req_sender, res_recv, events_recv, enr_recv)
+        (Discv5Handler::new(chain_id, req_sender), enr_recv)
     }
 }
 
@@ -333,7 +338,7 @@ mod tests {
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .build()
             .expect("Failed to build discovery service");
-        let handle = discovery.start();
+        let (handle, _) = discovery.start();
         assert_eq!(handle.chain_id, OP_SEPOLIA_CHAIN_ID);
     }
 

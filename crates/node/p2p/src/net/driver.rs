@@ -14,9 +14,7 @@ use tokio::{
     time::Duration,
 };
 
-use crate::{
-    Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder, enr_to_multiaddr,
-};
+use crate::{Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder};
 
 /// Network
 ///
@@ -69,7 +67,7 @@ impl Network {
     pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
-        let mut handler = self.discovery.start();
+        let (handler, mut enr_receiver) = self.discovery.start();
 
         // We are checking the peer scores every [`Self::PEER_SCORE_INSPECT_FREQUENCY`] seconds.
         let mut peer_score_inspector = tokio::time::interval(Self::PEER_SCORE_INSPECT_FREQUENCY);
@@ -113,7 +111,7 @@ impl Network {
                             unsafe_blocks.push_back(payload);
                         }
                     },
-                    enr = handler.enr_receiver.recv() => {
+                    enr = enr_receiver.recv() => {
                         let Some(enr) = enr else {
                             trace!("Receiver `None` peer enr");
                             continue;
@@ -153,7 +151,6 @@ impl Network {
 
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
                                 self.gossip.dialed_peers.remove(&addr);
-
                                 return Some(addr);
                             }
 
@@ -170,46 +167,7 @@ impl Network {
                             trace!("Receiver `None` rpc request");
                             continue;
                         };
-                        match req {
-                            crate::NetRpcRequest::PeerInfo(sender) => {
-                                let peer_id = self.gossip.local_peer_id().to_string();
-                                let chain_id = handler.chain_id;
-                                let enr = handler.local_enr().await.unwrap();
-                                let node_id = handler.local_enr().await.unwrap().id().unwrap_or_default();
-
-                                // We need to add the local multiaddr to the list of known addresses.
-                                let mut addresses = enr_to_multiaddr(&enr).map(|addr| vec![addr.to_string()]).unwrap_or_default();
-
-                                addresses.extend(self.gossip.swarm.external_addresses().map(|a| a.to_string()));
-
-                                let peer_info = kona_rpc::PeerInfo {
-                                    peer_id,
-                                    node_id,
-                                    user_agent: "kona".to_string(),
-                                    protocol_version: "1".to_string(),
-                                    enr: enr.to_string(),
-                                    addresses,
-                                    protocols: None, // TODO: peer supported protocols
-                                    connectedness: kona_rpc::Connectedness::Connected,
-                                    direction: kona_rpc::Direction::Inbound,
-                                    protected: false,
-                                    chain_id,
-                                    latency: 0,
-                                    gossip_blocks: false,
-                                    peer_scores: kona_rpc::PeerScores::default(),
-                                };
-                                if let Err(e) = sender.send(peer_info) {
-                                    warn!("Failed to send peer info through response channel: {:?}", e);
-                                }
-                            }
-                            crate::NetRpcRequest::PeerCount(sender) => {
-                                let disc_pc = handler.peers();
-                                let gossip_pc = self.gossip.connected_peers();
-                                if let Err(e) = sender.send((disc_pc, gossip_pc)) {
-                                    warn!("Failed to send peer count through response channel: {:?}", e);
-                                }
-                            }
-                        }
+                        req.handle(&self.gossip, &handler);
                     },
                 }
             }
