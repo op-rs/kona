@@ -339,14 +339,14 @@ impl Discv5Driver {
 mod tests {
     use crate::BootNodes;
     use discv5::{enr::CombinedPublicKey, handler::NodeContact};
-    use kona_genesis::OP_SEPOLIA_CHAIN_ID;
+    use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
 
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[tokio::test]
     async fn test_discv5_driver() {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         let discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
@@ -408,6 +408,64 @@ mod tests {
         // Those 8 ENRs should be in the discovery table.
         let disc_enrs = discovery.disc.table_entries_enr();
         for public_key in testnet {
+            assert!(
+                disc_enrs.iter().any(|enr| enr.public_key() == public_key),
+                "Discovery table does not contain testnet ENR: {:?}",
+                public_key
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_discv5_driver_bootstrap_mainnet() {
+        // Use a test directory to make sure bootstore
+        // doesn't conflict with a local bootstore.
+        let dir = std::env::temp_dir();
+        assert!(std::env::set_current_dir(&dir).is_ok());
+
+        // Filter out ENRs that are not valid.
+        let mainnet = BootNodes::mainnet();
+        let mainnet: Vec<CombinedPublicKey> = mainnet
+            .iter()
+            .filter_map(|node| {
+                if let BootNode::Enr(enr) = node {
+                    // Check that the ENR is valid for the mainnet.
+                    if !OpStackEnr::is_valid_node(enr, OP_MAINNET_CHAIN_ID) {
+                        return None;
+                    }
+                }
+                let node_contact =
+                    NodeContact::try_from_multiaddr(node.to_multiaddr().unwrap()).unwrap();
+
+                Some(node_contact.public_key())
+            })
+            .collect();
+
+        // There should be 8 valid ENRs for the mainnet.
+        assert_eq!(mainnet.len(), 13);
+
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+        let mut discovery = Discv5Driver::builder()
+            .with_address(socket)
+            .with_chain_id(OP_MAINNET_CHAIN_ID)
+            .build()
+            .expect("Failed to build discovery service");
+        discovery.store.path = dir.join("bootstore.json");
+
+        discovery.init().await;
+
+        // There are no ENRs for op mainnet in the bootstore.
+        // If an ENR is added, this check will fail.
+        discovery.bootnode_bootstrap();
+        assert_eq!(discovery.disc.table_entries_enr().len(), 0);
+
+        // Now add the ENODEs
+        discovery.enode_bootstrap().await;
+        assert_eq!(discovery.disc.table_entries_enr().len(), 13);
+
+        // Those 13 ENRs should be in the discovery table.
+        let disc_enrs = discovery.disc.table_entries_enr();
+        for public_key in mainnet {
             assert!(
                 disc_enrs.iter().any(|enr| enr.public_key() == public_key),
                 "Discovery table does not contain testnet ENR: {:?}",
