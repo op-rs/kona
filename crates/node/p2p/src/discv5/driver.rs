@@ -43,7 +43,7 @@ use crate::{
 ///         .with_chain_id(10) // OP Mainnet chain id
 ///         .build()
 ///         .expect("Failed to build discovery service");
-///     let (_, enr_receiver) = disc.start();
+///     let (_, mut enr_receiver) = disc.start();
 ///
 ///     loop {
 ///         if let Some(enr) = enr_receiver.recv().await {
