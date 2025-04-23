@@ -4,17 +4,14 @@ use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use tokio::{
     select,
-    sync::{
-        broadcast::{Receiver as BroadcastReceiver, Sender as BroadcastSender},
-        watch::Sender,
-    },
+    sync::{broadcast::Receiver as BroadcastReceiver, watch::Sender},
     time::Duration,
 };
 
-use crate::{Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder};
+use crate::{Broadcast, Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder};
 
 /// Network
 ///
@@ -24,8 +21,8 @@ use crate::{Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBu
 /// - Peer discovery with `discv5`.
 #[derive(Debug)]
 pub struct Network {
-    /// Channel to send unsafe blocks.
-    pub(crate) payload_tx: BroadcastSender<OpNetworkPayloadEnvelope>,
+    /// The broadcast handler to broadcast unsafe payloads.
+    pub(crate) broadcast: Broadcast,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
     /// Handler for RPC Requests.
@@ -54,7 +51,7 @@ impl Network {
 
     /// Take the unsafe block receiver.
     pub fn unsafe_block_recv(&mut self) -> BroadcastReceiver<OpNetworkPayloadEnvelope> {
-        self.payload_tx.subscribe()
+        self.broadcast.subscribe()
     }
 
     /// Take the unsafe block signer sender.
@@ -68,28 +65,18 @@ impl Network {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let (handler, mut enr_receiver) = self.discovery.start();
+        let mut broadcast = self.broadcast;
 
         // We are checking the peer scores every [`Self::PEER_SCORE_INSPECT_FREQUENCY`] seconds.
         let mut peer_score_inspector = tokio::time::interval(Self::PEER_SCORE_INSPECT_FREQUENCY);
 
+        // Start the libp2p Swarm
         self.gossip.listen()?;
+
+        // Spawn the network handler
         tokio::spawn(async move {
-            // A vec deque that holds unsafe blocks to be sent over the channel.
-            let mut unsafe_blocks = VecDeque::<OpNetworkPayloadEnvelope>::new();
             loop {
-                // Attempt to send the unsafe blocks over the channel **in order**.
-                loop {
-                    if unsafe_blocks.is_empty() {
-                        break;
-                    }
-                    if let Some(block) = unsafe_blocks.front() {
-                        if let Err(e) = self.payload_tx.send(block.clone()) {
-                            trace!("Failed to send unsafe block through channel: {:?}", e);
-                            break;
-                        }
-                        unsafe_blocks.pop_front();
-                    }
-                }
+                broadcast.broadcast();
                 select! {
                     block = publish.recv() => {
                         let Some(block) = block else {
@@ -107,7 +94,7 @@ impl Network {
                     event = self.gossip.select_next_some() => {
                         trace!("Received event: {:?}", event);
                         if let Some(payload) = self.gossip.handle_event(event) {
-                            unsafe_blocks.push_back(payload);
+                            broadcast.push(payload);
                         }
                     },
                     enr = enr_receiver.recv() => {
