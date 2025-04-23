@@ -443,7 +443,7 @@ mod tests {
             })
             .collect();
 
-        // There should be 8 valid ENRs for the mainnet.
+        // There should be 13 valid ENRs for the mainnet.
         assert_eq!(mainnet.len(), 13);
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
