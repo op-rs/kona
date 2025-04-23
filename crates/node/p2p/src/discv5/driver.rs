@@ -346,7 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_discv5_driver() {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
@@ -363,7 +363,7 @@ mod tests {
         let dir = std::env::temp_dir();
         assert!(std::env::set_current_dir(&dir).is_ok());
 
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let mut discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
@@ -418,6 +418,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_discv5_driver_bootstrap_mainnet() {
+        kona_cli::init_test_tracing();
+
         // Use a test directory to make sure bootstore
         // doesn't conflict with a local bootstore.
         let dir = std::env::temp_dir();
@@ -444,7 +446,7 @@ mod tests {
         // There should be 8 valid ENRs for the mainnet.
         assert_eq!(mainnet.len(), 13);
 
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let mut discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_MAINNET_CHAIN_ID)

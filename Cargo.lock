@@ -4490,6 +4490,7 @@ dependencies = [
  "discv5",
  "futures",
  "jsonrpsee",
+ "kona-cli",
  "kona-genesis",
  "kona-rpc",
  "lazy_static",
