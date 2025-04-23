@@ -1,7 +1,7 @@
 //! Contains the node CLI.
 
 use crate::{
-    commands::{BootstoreCommand, NetCommand, NodeCommand, RegistryCommand},
+    commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
     flags::{GlobalArgs, MetricsArgs},
 };
 use anyhow::Result;
@@ -23,6 +23,8 @@ pub enum Commands {
     Registry(RegistryCommand),
     /// Utility tool to interact with local bootstores.
     Bootstore(BootstoreCommand),
+    /// Get info about op chain.
+    Info(InfoCommand),
 }
 
 /// The node CLI.
@@ -53,6 +55,7 @@ impl Cli {
             Commands::Bootstore(ref bootstore) => {
                 bootstore.init_telemetry(&self.global, &self.metrics)?
             }
+            Commands::Info(ref info) => info.init_telemetry(&self.global, &self.metrics)?,
         }
 
         // Run the subcommand.
@@ -61,6 +64,7 @@ impl Cli {
             Commands::Net(net) => Self::run_until_ctrl_c(net.run(&self.global)),
             Commands::Registry(registry) => registry.run(&self.global),
             Commands::Bootstore(bootstore) => bootstore.run(&self.global),
+            Commands::Info(info) => info.run(&self.global),
         }
     }
 
