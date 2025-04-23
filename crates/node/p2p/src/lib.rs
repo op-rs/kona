@@ -11,7 +11,7 @@
 extern crate tracing;
 
 mod net;
-pub use net::{Config, Network, NetworkBuilder, NetworkBuilderError};
+pub use net::{Broadcast, Config, Network, NetworkBuilder, NetworkBuilderError};
 
 mod rpc;
 pub use rpc::{NetRpcRequest, NetworkRpc};

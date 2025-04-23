@@ -9,8 +9,8 @@ use std::{net::SocketAddr, path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
-    Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network, NetworkBuilderError,
-    PeerMonitoring, PeerScoreLevel,
+    Broadcast, Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network,
+    NetworkBuilderError, PeerMonitoring, PeerScoreLevel,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -194,7 +194,7 @@ impl NetworkBuilder {
             discovery,
             unsafe_block_signer_sender,
             rpc,
-            payload_tx,
+            broadcast: Broadcast::new(payload_tx),
             publish_rx,
             cfg,
         })
