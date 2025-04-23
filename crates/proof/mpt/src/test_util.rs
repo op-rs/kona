@@ -19,7 +19,8 @@ pub(crate) struct TestTrieProviderError(&'static str);
 pub(crate) async fn get_live_derivable_receipts_list()
 -> Result<(B256, BTreeMap<B256, Bytes>, Vec<ReceiptEnvelope>), TestTrieProviderError> {
     // Initialize the provider.
-    let provider = ProviderBuilder::new().on_http(Url::parse(RPC_URL).expect("invalid rpc url"));
+    let provider =
+        ProviderBuilder::new().connect_http(Url::parse(RPC_URL).expect("invalid rpc url"));
 
     let block_number = 19005266;
     let block = provider
@@ -88,7 +89,8 @@ pub(crate) async fn get_live_derivable_receipts_list()
 pub(crate) async fn get_live_derivable_transactions_list()
 -> Result<(B256, BTreeMap<B256, Bytes>, Vec<TxEnvelope>), TestTrieProviderError> {
     // Initialize the provider.
-    let provider = ProviderBuilder::new().on_http(Url::parse(RPC_URL).expect("invalid rpc url"));
+    let provider =
+        ProviderBuilder::new().connect_http(Url::parse(RPC_URL).expect("invalid rpc url"));
 
     let block_number = 19005266;
     let block = provider
