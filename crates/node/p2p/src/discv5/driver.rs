@@ -123,8 +123,8 @@ impl Discv5Driver {
         Some(enr)
     }
 
-    /// Bootstraps the [`Discv5`] service with the bootnodes.
-    async fn bootstrap(&mut self) {
+    /// Bootstraps the [`Discv5`] table with bootnodes.
+    fn bootnode_bootstrap(&mut self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
         let boot_enrs: Vec<Enr> = nodes
@@ -151,11 +151,22 @@ impl Discv5Driver {
         }
         info!(target: "discovery", "Added {} Bootnode ENRs to discovery table", count);
 
+        // Merge the bootnodes into the bootstore.
+        self.store.merge(boot_enrs);
+        debug!(target: "discovery",
+            new=%count,
+            total=%self.store.len(),
+            "Added new ENRs to discv5 bootstore"
+        );
+    }
+
+    /// Adds ENRs from the bootstore to the discovery table.
+    fn bootstore_bootstrap(&mut self) {
         // Add ENRs in the bootstore to the discovery table.
         //
         // Note, discv5's table may not accept new ENRs above a certain limit.
         // Instead of erroring, we log the failure as a debug log.
-        count = 0;
+        let mut count = 0;
         for enr in self.store.valid_peers() {
             let validation = EnrValidation::validate(enr, self.chain_id);
             if validation.is_invalid() {
@@ -168,14 +179,11 @@ impl Discv5Driver {
             }
         }
         info!(target: "discovery", "Added {} Bootstore ENRs to discovery table", count);
+    }
 
-        // Merge the bootnodes into the bootstore.
-        self.store.merge(boot_enrs);
-        debug!(target: "discovery",
-            new=%count,
-            total=%self.store.len(),
-            "Added new ENRs to discv5 bootstore"
-        );
+    /// Bootstraps the [`Discv5`] service with the enodes from the bootnodes.
+    async fn enode_bootstrap(&mut self) {
+        let nodes = BootNodes::from_chain_id(self.chain_id);
 
         let mut boot_enodes_enrs = Vec::new();
         for node in nodes.0 {
@@ -195,10 +203,16 @@ impl Discv5Driver {
         // Merge the bootnodes into the bootstore.
         self.store.merge(boot_enodes_enrs);
         debug!(target: "discovery",
-            new=%count,
             total=%self.store.len(),
             "Added new ENRs to discv5 bootstore"
         );
+    }
+
+    /// Bootstraps the [`Discv5`] service with the bootnodes.
+    async fn bootstrap(&mut self) {
+        self.bootnode_bootstrap();
+        self.bootstore_bootstrap();
+        self.enode_bootstrap().await;
     }
 
     /// Sends ENRs from the boot store to the enr receiver.
@@ -349,7 +363,7 @@ mod tests {
         let dir = std::env::temp_dir();
         assert!(std::env::set_current_dir(&dir).is_ok());
 
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         let mut discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
@@ -359,12 +373,14 @@ mod tests {
 
         discovery.init().await;
 
-        discovery.bootstrap().await;
+        // There are no ENRs for `OP_SEPOLIA_CHAIN_ID` in the bootstore.
+        // If an ENR is added, this check will fail.
+        discovery.bootnode_bootstrap();
+        assert_eq!(discovery.disc.table_entries_enr().len(), 0);
 
-        // Verify bootstore has entries.
-        assert!(!discovery.store.is_empty(), "No nodes were added to the bootstore");
-        // Verify discv5 has entries in its enr table.
-        assert!(!discovery.disc.table_entries_enr().is_empty());
+        // Now add the ENODEs
+        discovery.enode_bootstrap().await;
+        assert_eq!(discovery.disc.table_entries_enr().len(), 8);
 
         // It should have the same number of entries as the testnet table.
         let testnet = BootNodes::testnet();
@@ -386,6 +402,10 @@ mod tests {
             })
             .collect();
 
+        // There should be 8 valid ENRs for the testnet.
+        assert_eq!(testnet.len(), 8);
+
+        // Those 8 ENRs should be in the discovery table.
         let disc_enrs = discovery.disc.table_entries_enr();
         for public_key in testnet {
             assert!(
