@@ -9,7 +9,7 @@ use libp2p::gossipsub::{PeerScoreParams, PeerScoreThresholds, TopicHash, TopicSc
 pub enum PeerScoreLevel {
     /// No peer scoring is applied.
     #[default]
-    r#None,
+    Off,
     /// Light peer scoring is applied.
     Light,
 }
@@ -100,7 +100,7 @@ impl PeerScoreLevel {
             topic_scores.insert(topic, Self::topic_score_params(block_time));
         }
         match self {
-            Self::r#None => None,
+            Self::Off => None,
             Self::Light => Some(PeerScoreParams {
                 topics: topic_scores,
                 topic_score_cap: 34.0,
