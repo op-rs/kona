@@ -10,8 +10,9 @@ use tracing_subscriber::EnvFilter;
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
 pub struct GlobalArgs {
-    /// Verbosity level (0-2)
-    #[arg(long, short, global=true, action = ArgAction::Count)]
+    /// Verbosity level (0-4)
+    /// If set to 0, no logs are printed.
+    #[arg(long, short, global=true, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]

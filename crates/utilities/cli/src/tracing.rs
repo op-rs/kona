@@ -16,8 +16,10 @@ pub fn init_tracing_subscriber(
     env_filter: Option<impl Into<EnvFilter>>,
 ) -> Result<(), SetGlobalDefaultError> {
     let level = match verbosity_level {
-        0 => Level::INFO,
-        1 => Level::DEBUG,
+        1 => Level::ERROR,
+        2 => Level::WARN,
+        3 => Level::INFO,
+        4 => Level::DEBUG,
         _ => Level::TRACE,
     };
     let filter = env_filter.map(|e| e.into()).unwrap_or(EnvFilter::from_default_env());
