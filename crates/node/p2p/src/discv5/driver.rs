@@ -376,7 +376,7 @@ mod tests {
         // There are no ENRs for `OP_SEPOLIA_CHAIN_ID` in the bootstore.
         // If an ENR is added, this check will fail.
         discovery.bootnode_bootstrap();
-        assert_eq!(discovery.disc.table_entries_enr().len(), 0);
+        assert!(discovery.disc.table_entries_enr().is_empty());
 
         // Now add the ENODEs
         discovery.enode_bootstrap().await;
