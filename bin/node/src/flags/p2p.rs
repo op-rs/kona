@@ -38,13 +38,35 @@ pub struct P2PArgs {
     /// The hex-encoded 32-byte private key for the peer ID.
     #[arg(long = "p2p.priv.raw", env = "KONA_NODE_P2P_PRIV_RAW")]
     pub private_key: Option<B256>,
-    /// IP to bind LibP2P and Discv5 to.
+
+    /// IP to advertise to external peers from Discv5.
+    /// Optional argument. Use the `p2p.listen.ip` if not set.
+    #[arg(long = "p2p.advertise.ip", env = "KONA_NODE_P2P_ADVERTISE_IP")]
+    pub advertise_ip: Option<IpAddr>,
+    /// TCP port to advertise to external peers from the discovery layer. Same as `p2p.listen.tcp`
+    /// if set to zero.
+    #[arg(
+        long = "p2p.advertise.tcp",
+        default_value = "0",
+        env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT"
+    )]
+    pub advertise_tcp_port: u16,
+    /// UDP port to advertise to external peers from the discovery layer.
+    /// Same as `p2p.listen.udp` if set to zero.
+    #[arg(
+        long = "p2p.advertise.udp",
+        default_value = "0",
+        env = "KONA_NODE_P2P_ADVERTISE_UDP_PORT"
+    )]
+    pub advertise_udp_port: u16,
+
+    /// IP to bind LibP2P/Discv5 to.
     #[arg(long = "p2p.listen.ip", default_value = "0.0.0.0", env = "KONA_NODE_P2P_LISTEN_IP")]
     pub listen_ip: IpAddr,
-    /// TCP port to bind LibP2P to. Any available system port if set to 0.
+    /// TCP port to bind LibP2P/Discv5 to. Any available system port if set to 0.
     #[arg(long = "p2p.listen.tcp", default_value = "9222", env = "KONA_NODE_P2P_LISTEN_TCP_PORT")]
     pub listen_tcp_port: u16,
-    /// UDP port to bind Discv5 to. Same as TCP port if left 0.
+    /// UDP port to bind LibP2P/Discv5 to. Same as TCP port if left 0.
     #[arg(long = "p2p.listen.udp", default_value = "9223", env = "KONA_NODE_P2P_LISTEN_UDP_PORT")]
     pub listen_udp_port: u16,
     /// Low-tide peer count. The node actively searches for new peer connections if below this
@@ -154,6 +176,9 @@ impl Default for P2PArgs {
             no_discovery: false,
             priv_path: None,
             private_key: None,
+            advertise_ip: None,
+            advertise_tcp_port: 0,
+            advertise_udp_port: 0,
             listen_ip: "0.0.0.0".parse().unwrap(),
             listen_tcp_port: 9222,
             listen_udp_port: 9223,
@@ -179,6 +204,29 @@ impl Default for P2PArgs {
 }
 
 impl P2PArgs {
+    fn check_ports_inner(ip_addr: IpAddr, tcp_port: u16, udp_port: u16) -> Result<()> {
+        if tcp_port == 0 {
+            return Ok(());
+        }
+        if udp_port == 0 {
+            return Ok(());
+        }
+        let tcp_socket = std::net::TcpListener::bind((ip_addr, tcp_port));
+        let udp_socket = std::net::UdpSocket::bind((ip_addr, udp_port));
+        if tcp_socket.is_err() {
+            tracing::error!(target: "p2p::flags", "TCP port {} is already in use", tcp_port);
+            tracing::warn!(target: "p2p::flags", "Specify a different TCP port with --p2p.listen.tcp");
+            anyhow::bail!("TCP port {} is already in use", tcp_port);
+        }
+        if udp_socket.is_err() {
+            tracing::error!(target: "p2p::flags", "UDP port {} is already in use", udp_port);
+            tracing::warn!(target: "p2p::flags", "Specify a different UDP port with --p2p.listen.udp");
+            anyhow::bail!("UDP port {} is already in use", udp_port);
+        }
+
+        Ok(())
+    }
+
     /// Checks if the ports are available on the system.
     ///
     /// If either of the ports are `0`, this check is skipped.
@@ -192,32 +240,22 @@ impl P2PArgs {
             tracing::debug!(target: "p2p::flags", "P2P is disabled, skipping port check");
             return Ok(());
         }
-        if self.listen_tcp_port == 0 {
-            return Ok(());
-        }
-        if self.listen_udp_port == 0 {
-            return Ok(());
-        }
-        let tcp_socket = std::net::TcpListener::bind((self.listen_ip, self.listen_tcp_port));
-        let udp_socket = std::net::UdpSocket::bind((self.listen_ip, self.listen_udp_port));
-        if tcp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "TCP port {} is already in use", self.listen_tcp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different TCP port with --p2p.listen.tcp");
-            anyhow::bail!("TCP port {} is already in use", self.listen_tcp_port);
-        }
-        if udp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "UDP port {} is already in use", self.listen_udp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different UDP port with --p2p.listen.udp");
-            anyhow::bail!("UDP port {} is already in use", self.listen_udp_port);
-        }
+        Self::check_ports_inner(
+            // If the advertised ip is not specified, we use the listen ip.
+            self.advertise_ip.unwrap_or(self.listen_ip),
+            self.advertise_tcp_port,
+            self.advertise_udp_port,
+        )?;
+        Self::check_ports_inner(self.listen_ip, self.listen_tcp_port, self.listen_udp_port)?;
+
         Ok(())
     }
 
     /// Returns the [`discv5::Config`] from the CLI arguments.
-    pub fn discv5_config(&self) -> discv5::Config {
+    pub fn discv5_config(&self, listen_config: discv5::ListenConfig) -> discv5::Config {
         // We can use a default listen config here since it
         // will be overridden by the discovery service builder.
-        discv5::ConfigBuilder::new(discv5::ListenConfig::default())
+        discv5::ConfigBuilder::new(listen_config)
             .ban_duration(Some(Duration::from_secs(self.ban_duration as u64)))
             .build()
     }
@@ -260,8 +298,20 @@ impl P2PArgs {
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
     ) -> anyhow::Result<Config> {
-        let mut multiaddr = libp2p::Multiaddr::from(self.listen_ip);
-        multiaddr.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
+        // Note: the advertised address is contained in the ENR for external peers from the
+        // discovery layer to use.
+
+        // Fallback to the listen ip if the advertise ip is not specified
+        let advertise_ip = self.advertise_ip.unwrap_or(self.listen_ip);
+
+        // If the advertise tcp port is null, use the listen tcp port
+        let advertise_tcp_port = if self.advertise_tcp_port != 0 {
+            self.advertise_tcp_port
+        } else {
+            self.listen_tcp_port
+        };
+
+        let discovery_address = SocketAddr::new(advertise_ip, advertise_tcp_port);
         let gossip_config = kona_p2p::default_config_builder()
             .mesh_n(self.gossip_mesh_d)
             .mesh_n_low(self.gossip_mesh_dlo)
@@ -280,12 +330,17 @@ impl P2PArgs {
             None
         };
 
-        let discovery_config = self.discv5_config();
+        let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
+        let discovery_config = self.discv5_config(discovery_listening_address.into());
+
+        let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
+        gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
+
         Ok(Config {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
-            discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
-            gossip_address: multiaddr,
+            discovery_address,
+            gossip_address,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
             unsafe_block_signer: self.unsafe_block_signer(args, l1_rpc).await?,
             gossip_config,

@@ -6,6 +6,12 @@ use thiserror::Error;
 /// An error that can occur when building the discovery service.
 #[derive(Debug, Clone, Copy, PartialEq, From, Eq, Error)]
 pub enum Discv5BuilderError {
+    /// The node discovery config is not set
+    #[error("The node discovery config is not set")]
+    DiscoveryConfigNotSet,
+    /// The node advertised address is not set
+    #[error("The node advertised address is not set")]
+    AdvertisedAddrNotSet,
     /// The chain ID is not set.
     #[error("chain ID not set")]
     ChainIdNotSet,
