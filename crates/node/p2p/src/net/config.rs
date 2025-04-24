@@ -12,7 +12,8 @@ use tokio::time::Duration;
 pub struct Config {
     /// Discovery Config.
     pub discovery_config: discv5::Config,
-    /// The discovery address.
+    /// The local node's advertised address to external peers.
+    /// Note: This may be different from the node's discovery listen address.
     pub discovery_address: SocketAddr,
     /// The interval to find peers.
     pub discovery_interval: Duration,

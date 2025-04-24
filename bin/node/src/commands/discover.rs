@@ -109,7 +109,7 @@ impl Discovery {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.port);
         tracing::info!("Starting discovery service on {:?}", socket);
 
-        let mut discovery_builder =
+        let discovery_builder =
             Discv5Builder::new().with_address(socket).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(2);

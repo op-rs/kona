@@ -1,6 +1,6 @@
 //! Contains a builder for the discovery service.
 
-use discv5::{Config, ConfigBuilder, Discv5, Enr, ListenConfig, enr::CombinedKey};
+use discv5::{Config, Discv5, Enr, ListenConfig, enr::CombinedKey};
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::time::Duration;
 
@@ -9,8 +9,8 @@ use crate::{Discv5BuilderError, Discv5Driver, OpStackEnr};
 /// Discovery service builder.
 #[derive(Debug, Default, Clone)]
 pub struct Discv5Builder {
-    /// The discovery service address.
-    address: Option<SocketAddr>,
+    /// The discovery service advertised address.
+    advertised_address: Option<SocketAddr>,
     /// The chain ID of the network.
     chain_id: Option<u64>,
     /// The interval to find peers.
@@ -29,7 +29,7 @@ impl Discv5Builder {
     /// Creates a new [`Discv5Builder`] instance.
     pub const fn new() -> Self {
         Self {
-            address: None,
+            advertised_address: None,
             chain_id: None,
             interval: None,
             listen_config: None,
@@ -53,7 +53,7 @@ impl Discv5Builder {
 
     /// Sets the discovery service address.
     pub fn with_address(mut self, address: SocketAddr) -> Self {
-        self.address = Some(address);
+        self.advertised_address = Some(address);
         self
     }
 
@@ -82,40 +82,28 @@ impl Discv5Builder {
     }
 
     /// Builds a [`Discv5Driver`].
-    pub fn build(&mut self) -> Result<Discv5Driver, Discv5BuilderError> {
+    pub fn build(self) -> Result<Discv5Driver, Discv5BuilderError> {
         let chain_id = self.chain_id.ok_or(Discv5BuilderError::ChainIdNotSet)?;
         let opstack = OpStackEnr::from_chain_id(chain_id);
         let mut opstack_data = Vec::new();
         use alloy_rlp::Encodable;
         opstack.encode(&mut opstack_data);
 
-        let config = if let Some(mut discovery_config) = self.discovery_config.take() {
-            if let Some(listen_config) = self.listen_config.take() {
-                discovery_config.listen_config = listen_config;
-            }
-            Ok::<Config, Discv5BuilderError>(discovery_config)
-        } else {
-            let listen_config = self
-                .listen_config
-                .take()
-                .or_else(|| self.address.map(ListenConfig::from))
-                .ok_or(Discv5BuilderError::ListenConfigNotSet)?;
-            Ok(ConfigBuilder::new(listen_config).build())
-        }?;
+        let config = self.discovery_config.ok_or(Discv5BuilderError::DiscoveryConfigNotSet)?;
 
+        // Build the local node ENR. This should contain the information we wish to
+        // broadcast to the other nodes in the network. See
+        // [the op-node implementation](https://github.com/ethereum-optimism/optimism/blob/174e55f0a1e73b49b80a561fd3fedd4fea5770c6/op-node/p2p/discovery.go#L61-L97)
+        // for the go equivalent
         let key = CombinedKey::generate_secp256k1();
         let mut enr_builder = Enr::builder();
         enr_builder.add_value_rlp(OpStackEnr::OP_CL_KEY, opstack_data.into());
-        match config.listen_config {
-            ListenConfig::Ipv4 { ip, port } => {
-                enr_builder.ip4(ip).tcp4(port);
+        match self.advertised_address.ok_or(Discv5BuilderError::AdvertisedAddrNotSet)? {
+            SocketAddr::V4(addr) => {
+                enr_builder.ip4(*addr.ip()).tcp4(addr.port());
             }
-            ListenConfig::Ipv6 { ip, port } => {
-                enr_builder.ip6(ip).tcp6(port);
-            }
-            ListenConfig::DualStack { ipv4, ipv4_port, ipv6, ipv6_port } => {
-                enr_builder.ip4(ipv4).tcp4(ipv4_port);
-                enr_builder.ip6(ipv6).tcp6(ipv6_port);
+            SocketAddr::V6(addr) => {
+                enr_builder.ip6(*addr.ip()).tcp6(addr.port());
             }
         }
         let enr = enr_builder.build(&key).map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
@@ -136,6 +124,8 @@ impl Discv5Builder {
 
 #[cfg(test)]
 mod tests {
+    use discv5::ConfigBuilder;
+
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -145,6 +135,7 @@ mod tests {
         let mut builder = Discv5Builder::new();
         builder = builder.with_address(addr);
         builder = builder.with_chain_id(10);
+        builder = builder.with_discovery_config(ConfigBuilder::new(addr.into()).build());
         let driver = builder.build().unwrap();
         let enr = driver.disc.local_enr();
         assert!(OpStackEnr::is_valid_node(&enr, 10));

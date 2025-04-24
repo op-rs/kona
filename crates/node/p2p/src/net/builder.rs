@@ -245,7 +245,8 @@ mod tests {
     fn test_build_simple_succeeds() {
         let id = 10;
         let signer = Address::random();
-        let disc = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098);
+        let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9097);
+        let disc_enr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098);
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
@@ -254,7 +255,8 @@ mod tests {
             .with_chain_id(id)
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_gossip_address(gossip_addr.clone())
-            .with_discovery_address(disc)
+            .with_discovery_address(disc_enr)
+            .with_discovery_config(ConfigBuilder::new(disc_listen.into()).build())
             .build()
             .unwrap();
 
@@ -296,6 +298,6 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9098);
+        assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9097);
     }
 }

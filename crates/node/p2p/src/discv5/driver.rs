@@ -375,7 +375,7 @@ impl Discv5Driver {
 #[cfg(test)]
 mod tests {
     use crate::BootNodes;
-    use discv5::{enr::CombinedPublicKey, handler::NodeContact};
+    use discv5::{ConfigBuilder, enr::CombinedPublicKey, handler::NodeContact};
     use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
 
     use super::*;
@@ -387,6 +387,7 @@ mod tests {
         let discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
+            .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
             .expect("Failed to build discovery service");
         let (handle, _) = discovery.start();
@@ -404,6 +405,7 @@ mod tests {
         let mut discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
+            .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
             .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
@@ -487,6 +489,7 @@ mod tests {
         let mut discovery = Discv5Driver::builder()
             .with_address(socket)
             .with_chain_id(OP_MAINNET_CHAIN_ID)
+            .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
             .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
