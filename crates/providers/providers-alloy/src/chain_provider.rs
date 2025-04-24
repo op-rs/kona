@@ -19,7 +19,7 @@ use std::{boxed::Box, num::NonZeroUsize, vec::Vec};
 #[derive(Debug, Clone)]
 pub struct AlloyChainProvider {
     /// The inner Ethereum JSON-RPC provider.
-    inner: RootProvider,
+    pub inner: RootProvider,
     /// `header_by_hash` LRU cache.
     header_by_hash_cache: LruCache<B256, Header>,
     /// `receipts_by_hash_cache` LRU cache.

@@ -92,10 +92,10 @@ impl SuperchainBuilder {
     }
 
     /// Builds the scenario into the format needed for testing
-    pub fn build(self) -> (Vec<(u64, Sealed<Header>)>, MockInteropProvider) {
+    pub fn build(self) -> (HashMap<u64, Sealed<Header>>, MockInteropProvider) {
         let mut headers_map = HashMap::default();
         let mut receipts_map = HashMap::default();
-        let mut sealed_headers = Vec::new();
+        let mut sealed_headers = HashMap::default();
 
         for (chain_id, chain) in self.chains {
             let header = chain.header;
@@ -110,7 +110,7 @@ impl SuperchainBuilder {
             chain_receipts.insert(0, chain.receipts);
             receipts_map.insert(chain_id, chain_receipts);
 
-            sealed_headers.push((chain_id, sealed_header));
+            sealed_headers.insert(chain_id, sealed_header);
         }
 
         (sealed_headers, MockInteropProvider::new(headers_map, receipts_map))

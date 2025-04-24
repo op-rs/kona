@@ -7,7 +7,7 @@ use alloc::{
 use core::array::TryFromSliceError;
 
 use alloy_primitives::{B64, B256};
-use derive_more::derive::{Display, From};
+use derive_more::derive::Display;
 
 /// Superchain Signal information.
 ///
@@ -51,13 +51,13 @@ pub enum ProtocolVersion {
 }
 
 /// An error that can occur when encoding or decoding a ProtocolVersion.
-#[derive(Copy, Clone, Debug, Display, From)]
+#[derive(Copy, thiserror::Error, Clone, Debug)]
 pub enum ProtocolVersionError {
     /// An unsupported version was encountered.
-    #[display("Unsupported version: {_0}")]
+    #[error("Unsupported version: {0}")]
     UnsupportedVersion(u8),
     /// An invalid length was encountered.
-    #[display("Invalid length: got {}, expected {}", got, expected)]
+    #[error("Invalid length: got {}, expected {}", got, expected)]
     InvalidLength {
         /// The length that was encountered.
         got: usize,
@@ -65,9 +65,8 @@ pub enum ProtocolVersionError {
         expected: usize,
     },
     /// Failed to convert slice to array.
-    #[display("Failed to convert slice to array")]
-    #[from(TryFromSliceError)]
-    TryFromSlice,
+    #[error("Failed to convert slice to array")]
+    TryFromSlice(#[from] TryFromSliceError),
 }
 
 impl ProtocolVersion {
@@ -197,7 +196,7 @@ impl<'de> serde::Deserialize<'de> for ProtocolVersion {
 /// <patch> ::= <big-endian uint32>
 /// <pre-release> ::= <big-endian uint32>
 /// ```
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
 pub struct ProtocolVersionFormatV0 {
     /// Differentiates forks and custom-builds of standard protocol
     pub build: B64,

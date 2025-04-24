@@ -13,15 +13,20 @@ rust-version.workspace = true
 
 [dependencies]
 # workspace
+kona-derive.workspace = true
+kona-providers-alloy.workspace = true
 kona-cli.workspace = true
 kona-p2p.workspace = true
 kona-engine.workspace = true
 kona-genesis.workspace = true
+kona-protocol.workspace = true
 kona-registry = { workspace = true, features = ["tabled"] }
 kona-node-service.workspace = true
 kona-rpc = { workspace = true, features = ["std"] }
 
 # alloy
+alloy-provider.workspace = true
+alloy-transport.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 
@@ -34,7 +39,9 @@ color-eyre.workspace = true
 crossterm = { workspace = true, features = ["event-stream"] }
 
 # general
+lru.workspace = true
 dirs.workspace = true
+thiserror.workspace = true
 url.workspace = true
 tokio-stream.workspace = true
 tracing-appender.workspace = true

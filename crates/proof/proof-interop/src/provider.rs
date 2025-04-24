@@ -1,8 +1,8 @@
 //! [InteropProvider] trait implementation using a [CommsClient] data source.
 
-use crate::{BootInfo, HintType, PreState};
+use crate::{BootInfo, HintType};
 use alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
-use alloy_consensus::Header;
+use alloy_consensus::{Header, Sealed};
 use alloy_eips::eip2718::Decodable2718;
 use alloy_primitives::{Address, B256};
 use alloy_rlp::Decodable;
@@ -17,29 +17,43 @@ use spin::RwLock;
 
 /// A [CommsClient] backed [InteropProvider] implementation.
 #[derive(Debug, Clone)]
-pub struct OracleInteropProvider<T> {
+pub struct OracleInteropProvider<C> {
     /// The oracle client.
-    oracle: Arc<T>,
-    /// The [PreState] for the current program execution.
+    oracle: Arc<C>,
+    /// The [BootInfo] for the current program execution.
     boot: BootInfo,
-    /// The safe head block header cache, keyed by chain ID.
-    safe_head_cache: Arc<RwLock<HashMap<u64, Header>>>,
+    /// The local safe head block header cache.
+    local_safe_heads: HashMap<u64, Sealed<Header>>,
     /// The chain ID for the current call context. Used to declare the chain ID for the trie hints.
     chain_id: Arc<RwLock<Option<u64>>>,
 }
 
-impl<T> OracleInteropProvider<T>
+impl<C> OracleInteropProvider<C>
 where
-    T: CommsClient + Send + Sync,
+    C: CommsClient + Send + Sync,
 {
-    /// Creates a new [OracleInteropProvider] with the given oracle client and [PreState].
-    pub fn new(oracle: Arc<T>, boot: BootInfo) -> Self {
+    /// Creates a new [OracleInteropProvider] with the given oracle client and [BootInfo].
+    pub fn new(
+        oracle: Arc<C>,
+        boot: BootInfo,
+        local_safe_headers: HashMap<u64, Sealed<Header>>,
+    ) -> Self {
         Self {
             oracle,
             boot,
-            safe_head_cache: Arc::new(RwLock::new(HashMap::default())),
+            local_safe_heads: local_safe_headers,
             chain_id: Arc::new(RwLock::new(None)),
         }
+    }
+
+    /// Returns a reference to the local safe heads map.
+    pub const fn local_safe_heads(&self) -> &HashMap<u64, Sealed<Header>> {
+        &self.local_safe_heads
+    }
+
+    /// Replaces a local safe head with the given header.
+    pub fn replace_local_safe_head(&mut self, chain_id: u64, header: Sealed<Header>) {
+        self.local_safe_heads.insert(chain_id, header);
     }
 
     /// Fetch the [Header] for the block with the given hash.
@@ -93,49 +107,18 @@ where
 }
 
 #[async_trait]
-impl<T> InteropProvider for OracleInteropProvider<T>
+impl<C> InteropProvider for OracleInteropProvider<C>
 where
-    T: CommsClient + Send + Sync,
+    C: CommsClient + Send + Sync,
 {
     type Error = OracleProviderError;
 
     /// Fetch a [Header] by its number.
     async fn header_by_number(&self, chain_id: u64, number: u64) -> Result<Header, Self::Error> {
-        // Find the safe head for the given chain ID.
-        //
-        // If the safe head is not in the cache, we need to fetch it from the oracle.
-        let mut header = if let Some(header) = self.safe_head_cache.read().get(&chain_id) {
-            header.clone()
-        } else {
-            let pre_state = match &self.boot.agreed_pre_state {
-                PreState::SuperRoot(super_root) => super_root,
-                PreState::TransitionState(transition_state) => &transition_state.pre_state,
-            };
-            let output = pre_state
-                .output_roots
-                .iter()
-                .find(|o| o.chain_id == chain_id)
-                .ok_or(OracleProviderError::UnknownChainId(chain_id))?;
-            HintType::L2OutputRoot
-                .with_data(&[
-                    output.output_root.as_slice(),
-                    output.chain_id.to_be_bytes().as_slice(),
-                ])
-                .send(self.oracle.as_ref())
-                .await?;
-            let output_preimage = self
-                .oracle
-                .get(PreimageKey::new(*output.output_root, PreimageKeyType::Keccak256))
-                .await
-                .map_err(OracleProviderError::Preimage)?;
-            let safe_head_hash = output_preimage[96..128]
-                .try_into()
-                .map_err(OracleProviderError::SliceConversion)?;
-
-            // Fetch the starting block header.
-            let header = self.header_by_hash(chain_id, safe_head_hash).await?;
-            self.safe_head_cache.write().insert(chain_id, header.clone());
-            header
+        let Some(mut header) =
+            self.local_safe_heads.get(&chain_id).cloned().map(|h| h.into_inner())
+        else {
+            return Err(PreimageOracleError::Other("Missing local safe header".to_string()).into());
         };
 
         // Check if the block number is in range. If not, we can fail early.
@@ -200,9 +183,9 @@ where
     }
 }
 
-impl<T> TrieProvider for OracleInteropProvider<T>
+impl<C> TrieProvider for OracleInteropProvider<C>
 where
-    T: CommsClient + Send + Sync + Clone,
+    C: CommsClient + Send + Sync + Clone,
 {
     type Error = OracleProviderError;
 
@@ -218,7 +201,7 @@ where
     }
 }
 
-impl<T: CommsClient> TrieHinter for OracleInteropProvider<T> {
+impl<C: CommsClient> TrieHinter for OracleInteropProvider<C> {
     type Error = OracleProviderError;
 
     fn hint_trie_node(&self, hash: B256) -> Result<(), Self::Error> {

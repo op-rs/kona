@@ -3,7 +3,7 @@
 use alloc::sync::Arc;
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
-use core::fmt::Debug;
+use core::{cmp::Ordering, fmt::Debug};
 use kona_derive::errors::PipelineErrorKind;
 use kona_driver::DriverError;
 use kona_executor::ExecutorError;
@@ -105,10 +105,18 @@ where
 
             // If the pre-state is a transition state, the sub-problem is selected based on the
             // current step.
-            if transition_state.step < TRANSITION_STATE_MAX_STEPS {
-                sub_transition(oracle, boot).await
-            } else {
-                consolidate_dependencies(oracle, boot).await
+            match transition_state.step.cmp(&TRANSITION_STATE_MAX_STEPS) {
+                Ordering::Equal => consolidate_dependencies(oracle, boot).await,
+                Ordering::Less => sub_transition(oracle, boot).await,
+                Ordering::Greater => {
+                    error!(
+                        target: "client_interop",
+                        transition_state_step = transition_state.step,
+                        transition_state_max_steps = TRANSITION_STATE_MAX_STEPS,
+                        "Invalid transition state step; 'step' is greater than maximum value."
+                    );
+                    Err(FaultProofProgramError::StateTransitionFailed)
+                }
             }
         }
     }
