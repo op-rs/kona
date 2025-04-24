@@ -29,8 +29,9 @@ use url::Url;
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Creates a static test fixture for `kona-executor` from a live chain")]
 pub struct ExecutionFixtureCommand {
-    /// Verbosity level (0-2)
-    #[arg(long, short, action = ArgAction::Count)]
+    /// Verbosity level (0-4)
+    /// If set to 0, no logs are printed.
+    #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
     /// The L2 archive EL to use.
     #[arg(long, short = 'r')]

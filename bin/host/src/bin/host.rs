@@ -23,8 +23,9 @@ primary thread.
 #[derive(Parser, Serialize, Clone, Debug)]
 #[command(about = ABOUT, version, styles = cli_styles())]
 pub struct HostCli {
-    /// Verbosity level (0-2)
-    #[arg(long, short, action = ArgAction::Count)]
+    /// Verbosity level (0-4)
+    /// If set to 0, no logs are printed.
+    #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
     /// Host mode
     #[command(subcommand)]
