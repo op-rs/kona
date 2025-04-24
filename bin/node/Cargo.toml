@@ -17,7 +17,7 @@ workspace = true
 [dependencies]
 # workspace
 kona-derive.workspace = true
-kona-providers-alloy.workspace = true
+kona-sources.workspace = true
 kona-cli.workspace = true
 kona-p2p.workspace = true
 kona-engine.workspace = true
@@ -42,9 +42,7 @@ color-eyre.workspace = true
 crossterm = { workspace = true, features = ["event-stream"] }
 
 # general
-lru.workspace = true
 dirs.workspace = true
-thiserror.workspace = true
 url.workspace = true
 tokio-stream.workspace = true
 tracing-appender.workspace = true

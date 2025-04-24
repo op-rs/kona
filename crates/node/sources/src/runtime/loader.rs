@@ -1,8 +1,8 @@
 //! Contains the [`RuntimeLoader`] implementation.
 
-use super::{RuntimeConfig, RuntimeLoaderError};
+use crate::{RuntimeConfig, RuntimeLoaderError};
 use alloy_primitives::{Address, B256, b256};
-use alloy_provider::{Provider, RootProvider};
+use alloy_provider::Provider;
 use kona_derive::traits::ChainProvider;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
@@ -72,7 +72,7 @@ impl RuntimeLoader {
             // Only use the cached config if the block hash matches.
             let block = self.provider.inner.get_block(block_info.hash.into()).await?;
             if block.is_some_and(|block| block.header.hash == block_info.hash) {
-                tracing::debug!(target: "runtime_loader", "Using cached runtime config");
+                debug!(target: "runtime_loader", "Using cached runtime config");
                 return Ok(*config);
             }
         }
@@ -92,7 +92,7 @@ impl RuntimeLoader {
         let unsafe_block_signer_address = alloy_primitives::Address::from_slice(
             &unsafe_block_signer_address.to_be_bytes_vec()[12..],
         );
-        tracing::debug!(target: "runtime_loader", "Unsafe block signer address: {:#x}", unsafe_block_signer_address);
+        debug!(target: "runtime_loader", "Unsafe block signer address: {:#x}", unsafe_block_signer_address);
 
         // If the protocol versions address is not set, return the default config.
         let mut required_protocol_version = ProtocolVersion::V0(Default::default());
@@ -110,7 +110,7 @@ impl RuntimeLoader {
                 .hash(block_info.hash)
                 .await?;
             required_protocol_version = ProtocolVersion::decode(required.into())?;
-            tracing::debug!(target: "runtime_loader", "Required protocol version: {:?}", required_protocol_version);
+            debug!(target: "runtime_loader", "Required protocol version: {:?}", required_protocol_version);
 
             let recommended = self
                 .provider
@@ -122,10 +122,10 @@ impl RuntimeLoader {
                 .hash(block_info.hash)
                 .await?;
             recommended_protocol_version = ProtocolVersion::decode(recommended.into())?;
-            tracing::debug!(target: "runtime_loader", "Recommended protocol version: {:?}", recommended_protocol_version);
+            debug!(target: "runtime_loader", "Recommended protocol version: {:?}", recommended_protocol_version);
         } else {
-            tracing::warn!(target: "runtime_loader", "Protocol versions address is not set in Rollup Config.");
-            tracing::warn!(target: "runtime_loader", "Using default protocol version: {:?}", required_protocol_version);
+            warn!(target: "runtime_loader", "Protocol versions address is not set in Rollup Config.");
+            warn!(target: "runtime_loader", "Using default protocol version: {:?}", required_protocol_version);
         }
 
         // Construct the runtime config.
@@ -134,7 +134,7 @@ impl RuntimeLoader {
             required_protocol_version,
             recommended_protocol_version,
         };
-        tracing::debug!(target: "runtime_loader", "{}", runtime_config);
+        debug!(target: "runtime_loader", "{}", runtime_config);
 
         // Cache the runtime config.
         self.cache.put(block_info, runtime_config);

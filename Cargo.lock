@@ -4726,16 +4726,14 @@ dependencies = [
  "kona-node-service",
  "kona-p2p",
  "kona-protocol",
- "kona-providers-alloy",
  "kona-registry",
  "kona-rpc",
+ "kona-sources",
  "libp2p",
- "lru 0.14.0",
  "op-alloy-provider",
  "ratatui",
  "serde_json",
  "tabled",
- "thiserror 2.0.12",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -5012,6 +5010,27 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "kona-sources"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-transport",
+ "kona-cli",
+ "kona-derive",
+ "kona-genesis",
+ "kona-protocol",
+ "kona-providers-alloy",
+ "kona-registry",
+ "kona-rpc",
+ "lru 0.14.0",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+ "url",
 ]
 
 [[package]]

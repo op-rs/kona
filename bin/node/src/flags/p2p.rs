@@ -4,13 +4,14 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
-use crate::{flags::GlobalArgs, runtime::RuntimeLoader};
+use crate::flags::GlobalArgs;
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
 use kona_p2p::{AdvertisedIpAndPort, Config, PeerMonitoring, PeerScoreLevel};
+use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
