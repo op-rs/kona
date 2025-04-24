@@ -38,7 +38,7 @@ derive_more = { workspace = true, default-features = false, features = [
 serde = { workspace = true, optional = true }
 
 # `jsonrpsee`
-jsonrpsee = { workspace = true, optional = true }
+jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"] }
 getrandom = { workspace = true, optional = true, features = ["wasm_js"] } # req for wasm32-unknown-unknown
 kona-genesis = { workspace = true, optional = true }
 op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
