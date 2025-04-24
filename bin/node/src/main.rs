@@ -9,6 +9,7 @@
 mod cli;
 mod commands;
 mod flags;
+mod runtime;
 
 fn main() {
     use clap::Parser;

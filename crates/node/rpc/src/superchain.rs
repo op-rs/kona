@@ -197,7 +197,7 @@ impl<'de> serde::Deserialize<'de> for ProtocolVersion {
 /// <patch> ::= <big-endian uint32>
 /// <pre-release> ::= <big-endian uint32>
 /// ```
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
 pub struct ProtocolVersionFormatV0 {
     /// Differentiates forks and custom-builds of standard protocol
     pub build: B64,
