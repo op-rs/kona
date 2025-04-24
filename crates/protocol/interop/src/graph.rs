@@ -1,7 +1,7 @@
 //! Interop [MessageGraph].
 
 use crate::{
-    RawMessagePayload,
+    MESSAGE_EXPIRY_WINDOW, RawMessagePayload,
     errors::{MessageGraphError, MessageGraphResult},
     message::{EnrichedExecutingMessage, extract_executing_messages},
     traits::InteropProvider,
@@ -91,7 +91,7 @@ where
             // Collect the chain IDs for all blocks containing invalid messages.
             let mut bad_block_chain_ids =
                 self.messages.into_iter().map(|e| e.executing_chain_id).collect::<Vec<_>>();
-            bad_block_chain_ids.dedup_by(|a, b| a == b);
+            bad_block_chain_ids.dedup();
 
             warn!(
                 target: "message_graph",
@@ -177,6 +177,14 @@ where
             ));
         }
 
+        // Message expiry invariant: The timestamp of the initiating message must be no more than
+        // `MESSAGE_EXPIRY_WINDOW` seconds in the past, relative to the timestamp of the executing
+        // message.
+        if initiating_timestamp < message.executing_timestamp.saturating_sub(MESSAGE_EXPIRY_WINDOW)
+        {
+            return Err(MessageGraphError::MessageExpired(initiating_timestamp));
+        }
+
         // Fetch the header & receipts for the message's claimed origin block on the remote chain.
         let remote_header = self
             .provider
@@ -237,7 +245,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::MessageGraph;
+    use super::{MESSAGE_EXPIRY_WINDOW, MessageGraph};
     use crate::{MessageGraphError, test_util::SuperchainBuilder};
     use alloy_primitives::{Address, hex, keccak256, map::HashMap};
     use kona_genesis::{HardForkConfig, RollupConfig};
@@ -407,6 +415,28 @@ mod test {
         superchain.chain(BASE_CHAIN_ID).add_executing_message_with_origin(
             keccak256(MESSAGE),
             Address::left_padding_from(&[0x01]),
+            0,
+            OP_CHAIN_ID,
+            0,
+        );
+
+        let (headers, provider) = superchain.build();
+
+        let cfgs = HashMap::default();
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        assert_eq!(
+            graph.resolve().await.unwrap_err(),
+            MessageGraphError::InvalidMessages(vec![BASE_CHAIN_ID])
+        );
+    }
+
+    #[tokio::test]
+    async fn test_derive_and_reduce_simple_graph_message_expired() {
+        let mut superchain = SuperchainBuilder::new(MESSAGE_EXPIRY_WINDOW + 1);
+
+        superchain.chain(OP_CHAIN_ID).add_initiating_message(MESSAGE.into());
+        superchain.chain(BASE_CHAIN_ID).add_executing_message(
+            keccak256(MESSAGE),
             0,
             OP_CHAIN_ID,
             0,

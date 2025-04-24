@@ -35,6 +35,9 @@ pub enum MessageGraphError<E> {
     /// Message is in the future
     #[error("Message is in the future. Expected timestamp to be <= {0}, got {1}")]
     MessageInFuture(u64, u64),
+    /// Message has exceeded the expiry window.
+    #[error("Message has exceeded the expiry window. Timestamp: {0}")]
+    MessageExpired(u64),
     /// Invalid messages were found
     #[error("Invalid messages found on chains: {0:?}")]
     InvalidMessages(Vec<u64>),
