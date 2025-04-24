@@ -13,7 +13,7 @@ use kona_genesis::RollupConfig;
 use kona_p2p::{Config, PeerMonitoring, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
 };
@@ -145,7 +145,7 @@ impl Default for P2PArgs {
             no_discovery: false,
             priv_path: None,
             private_key: None,
-            listen_ip: "0.0.0.0".parse().unwrap(),
+            listen_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             listen_tcp_port: 9222,
             listen_udp_port: 9223,
             peers_lo: 20,
