@@ -16,10 +16,6 @@ use std::{boxed::Box, num::NonZeroUsize, vec::Vec};
 
 /// The [AlloyChainProvider] is a concrete implementation of the [ChainProvider] trait, providing
 /// data over Ethereum JSON-RPC using an alloy provider as the backend.
-///
-/// **Note**:
-/// This provider fetches data using the `debug_getRawHeader`, `debug_getRawReceipts`, and
-/// `debug_getRawBlock` methods. The RPC must support this namespace.
 #[derive(Debug, Clone)]
 pub struct AlloyChainProvider {
     /// The inner Ethereum JSON-RPC provider.
