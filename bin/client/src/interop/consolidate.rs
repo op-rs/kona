@@ -11,7 +11,7 @@ use kona_proof_interop::{
     BootInfo, HintType, OracleInteropProvider, PreState, SuperchainConsolidator,
 };
 use kona_registry::{HashMap, ROLLUP_CONFIGS};
-use tracing::info;
+use tracing::{error, info};
 
 /// Executes the consolidation phase of the interop proof with the given [PreimageOracleClient] and
 /// [HintWriterClient].
@@ -111,8 +111,19 @@ where
 
     // Ensure that the post-state matches the claimed post-state.
     if post_commitment != boot.claimed_post_state {
+        error!(
+            target: "client_interop",
+            claimed = ?boot.claimed_post_state,
+            actual = ?post_commitment,
+            "Post state validation failed",
+        );
         return Err(FaultProofProgramError::InvalidClaim(boot.claimed_post_state, post_commitment));
     }
 
+    info!(
+        target: "client_interop",
+        root = ?boot.claimed_post_state,
+        "Super root validation succeeded"
+    );
     Ok(())
 }

@@ -2,8 +2,10 @@
 
 use crate::{BootInfo, OptimisticBlock, OracleInteropProvider, PreState};
 use alloc::{boxed::Box, vec::Vec};
+use alloy_consensus::{Header, Sealed};
+use alloy_eips::Encodable2718;
 use alloy_op_evm::OpEvmFactory;
-use alloy_primitives::Sealable;
+use alloy_primitives::{Address, B256, Bytes, Sealable, TxKind, U256, address};
 use alloy_rpc_types_engine::PayloadAttributes;
 use kona_executor::{ExecutorError, StatelessL2Builder};
 use kona_interop::{MessageGraph, MessageGraphError};
@@ -11,7 +13,7 @@ use kona_mpt::OrderedListWalker;
 use kona_preimage::CommsClient;
 use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider};
 use kona_registry::{HashMap, ROLLUP_CONFIGS};
-use op_alloy_consensus::OpTxType;
+use op_alloy_consensus::{InteropBlockReplacementDepositSource, OpTxEnvelope, OpTxType, TxDeposit};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use thiserror::Error;
 use tracing::{error, info};
@@ -142,6 +144,29 @@ where
                 .get(chain_id)
                 .ok_or(ConsolidationError::MissingLocalProvider(*chain_id))?;
 
+            let PreState::TransitionState(ref mut transition_state) =
+                self.boot_info.agreed_pre_state
+            else {
+                return Err(ConsolidationError::InvalidPreStateVariant);
+            };
+            let original_optimistic_block = transition_state
+                .pending_progress
+                .iter_mut()
+                .find(|block| block.block_hash == header.hash())
+                .ok_or(MessageGraphError::EmptyDependencySet)?;
+
+            // Filter out all transactions that are not deposits to start.
+            let mut transactions = transactions
+                .into_iter()
+                .filter(|t| !t.is_empty() && t[0] == OpTxType::Deposit)
+                .collect::<Vec<_>>();
+
+            // Add the deposit replacement system transaction at the end of the list.
+            transactions.push(Self::craft_replacement_transaction(
+                header,
+                original_optimistic_block.output_root,
+            ));
+
             // Re-craft the execution payload, trimming off all non-deposit transactions.
             let deposit_only_payload = OpPayloadAttributes {
                 payload_attributes: PayloadAttributes {
@@ -151,12 +176,7 @@ where
                     withdrawals: Default::default(),
                     parent_beacon_block_root: header.parent_beacon_block_root,
                 },
-                transactions: Some(
-                    transactions
-                        .into_iter()
-                        .filter(|t| !t.is_empty() && t[0] == OpTxType::Deposit as u8)
-                        .collect(),
-                ),
+                transactions: Some(transactions),
                 no_tx_pool: Some(true),
                 gas_limit: Some(header.gas_limit),
                 eip_1559_params: rollup_config.is_holocene_active(header.timestamp).then(|| {
@@ -187,16 +207,6 @@ where
             let new_output_root = executor.compute_output_root()?;
 
             // Replace the original optimistic block with the deposit only block.
-            let PreState::TransitionState(ref mut transition_state) =
-                self.boot_info.agreed_pre_state
-            else {
-                return Err(ConsolidationError::InvalidPreStateVariant);
-            };
-            let original_optimistic_block = transition_state
-                .pending_progress
-                .iter_mut()
-                .find(|block| block.block_hash == header.hash())
-                .ok_or(MessageGraphError::EmptyDependencySet)?;
             *original_optimistic_block = OptimisticBlock::new(new_header.hash(), new_output_root);
 
             // Replace the original header with the new header.
@@ -204,6 +214,41 @@ where
         }
 
         Ok(())
+    }
+
+    /// Forms the replacement transaction inserted into a deposit-only block in the event that a
+    /// block is reduced due to invalid messages.
+    ///
+    /// <https://specs.optimism.io/interop/derivation.html#optimistic-block-deposited-transaction>
+    fn craft_replacement_transaction(old_header: &Sealed<Header>, old_output_root: B256) -> Bytes {
+        const REPLACEMENT_SENDER: Address = address!("deaddeaddeaddeaddeaddeaddeaddeaddead0002");
+        const REPLACEMENT_GAS: u64 = 36000;
+
+        let source = InteropBlockReplacementDepositSource::new(old_output_root);
+        let output_root_preimage = {
+            let mut raw_output = [0u8; 128];
+            raw_output[31] = 0x0;
+            raw_output[32..64].copy_from_slice(old_header.state_root.as_ref());
+            raw_output[64..96]
+                .copy_from_slice(old_header.withdrawals_root.unwrap_or_default().as_ref());
+            raw_output[96..128].copy_from_slice(old_header.hash().as_ref());
+            raw_output
+        };
+        let replacement_tx = OpTxEnvelope::Deposit(
+            TxDeposit {
+                source_hash: source.source_hash(),
+                from: REPLACEMENT_SENDER,
+                to: TxKind::Call(Address::ZERO),
+                mint: None,
+                value: U256::ZERO,
+                gas_limit: REPLACEMENT_GAS,
+                is_system_transaction: false,
+                input: output_root_preimage.into(),
+            }
+            .seal(),
+        );
+
+        replacement_tx.encoded_2718().into()
     }
 }
 
