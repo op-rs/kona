@@ -13,7 +13,7 @@ pub struct GlobalArgs {
     /// Verbosity level (0-5).
     /// If set to 0, no logs are printed.
     /// By default, the verbosity level is set to 3 (info level).
-    #[arg(long, short, global=true, default_value = "3", action = ArgAction::Count)]
+    #[arg(long, short, global = true, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]

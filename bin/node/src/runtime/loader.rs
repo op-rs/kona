@@ -3,8 +3,10 @@
 use super::{RuntimeConfig, RuntimeLoaderError};
 use alloy_primitives::{Address, B256, b256};
 use alloy_provider::{Provider, RootProvider};
+use kona_derive::traits::ChainProvider;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
+use kona_providers_alloy::AlloyChainProvider;
 use kona_rpc::ProtocolVersion;
 use lru::LruCache;
 use std::{num::NonZeroUsize, sync::Arc};
@@ -32,7 +34,7 @@ const RECOMMENDED_PROTOCOL_VERSION_STORAGE_SLOT: B256 =
 #[derive(Debug, Clone)]
 pub struct RuntimeLoader {
     /// The L1 Client
-    pub provider: RootProvider,
+    pub provider: AlloyChainProvider,
     /// The rollup config.
     pub config: Arc<RollupConfig>,
     /// Cache mapping [`BlockInfo`] to the [`RuntimeConfig`].
@@ -45,12 +47,19 @@ pub struct RuntimeLoader {
 impl RuntimeLoader {
     /// Constructs a new [`RuntimeLoader`] with the given provider [`Url`].
     pub fn new(l1_eth_rpc: Url, config: Arc<RollupConfig>) -> Self {
-        let provider = RootProvider::new_http(l1_eth_rpc);
+        let provider = AlloyChainProvider::new_http(l1_eth_rpc, DEFAULT_CACHE_SIZE);
         Self {
             provider,
             config,
             cache: LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap()),
         }
+    }
+
+    /// Loads the [`RuntimeConfig`] for the latest block.
+    pub async fn load_latest(&mut self) -> Result<RuntimeConfig, RuntimeLoaderError> {
+        let latest_block_num = self.provider.latest_block_number().await?;
+        let block_info = self.provider.block_info_by_number(latest_block_num).await?;
+        self.load(block_info).await
     }
 
     /// Loads the [`RuntimeConfig`] for the given [`BlockInfo`].
@@ -61,15 +70,17 @@ impl RuntimeLoader {
         // Check if the runtime config is already cached.
         if let Some(config) = self.cache.get(&block_info) {
             // Only use the cached config if the block hash matches.
-            let block = self.provider.get_block(block_info.hash.into()).await?;
+            let block = self.provider.inner.get_block(block_info.hash.into()).await?;
             if block.is_some_and(|block| block.header.hash == block_info.hash) {
-                return Ok(config.clone());
+                tracing::debug!(target: "runtime_loader", "Using cached runtime config");
+                return Ok(*config);
             }
         }
 
         // Fetch the unsafe block signer address from the system config.
         let unsafe_block_signer_address = self
             .provider
+            .inner
             .get_storage_at(
                 self.config.l1_system_config_address,
                 UNSAFE_BLOCK_SIGNER_ADDRESS_STORAGE_SLOT.into(),
@@ -78,42 +89,55 @@ impl RuntimeLoader {
             .await?;
 
         // Convert the unsafe block signer address to the correct type.
-        let unsafe_block_signer_address =
-            alloy_primitives::Address::from(unsafe_block_signer_address);
+        let unsafe_block_signer_address = alloy_primitives::Address::from_slice(
+            &unsafe_block_signer_address.to_be_bytes_vec()[12..],
+        );
+        tracing::debug!(target: "runtime_loader", "Unsafe block signer address: {:#x}", unsafe_block_signer_address);
 
+        // If the protocol versions address is not set, return the default config.
         let mut required_protocol_version = ProtocolVersion::V0(Default::default());
         let mut recommended_protocol_version = ProtocolVersion::V0(Default::default());
 
         // Fetch the required protocol version from the system config.
         if self.config.protocol_versions_address != Address::ZERO {
-            required_protocol_version = self
+            let required = self
                 .provider
+                .inner
                 .get_storage_at(
                     self.config.protocol_versions_address,
                     REQUIRED_PROTOCOL_VERSION_STORAGE_SLOT.into(),
                 )
                 .hash(block_info.hash)
                 .await?;
+            required_protocol_version = ProtocolVersion::decode(required.into())?;
+            tracing::debug!(target: "runtime_loader", "Required protocol version: {:?}", required_protocol_version);
 
-            recommended_protocol_version = self
+            let recommended = self
                 .provider
+                .inner
                 .get_storage_at(
                     self.config.protocol_versions_address,
                     RECOMMENDED_PROTOCOL_VERSION_STORAGE_SLOT.into(),
                 )
                 .hash(block_info.hash)
                 .await?;
+            recommended_protocol_version = ProtocolVersion::decode(recommended.into())?;
+            tracing::debug!(target: "runtime_loader", "Recommended protocol version: {:?}", recommended_protocol_version);
+        } else {
+            tracing::warn!(target: "runtime_loader", "Protocol versions address is not set in Rollup Config.");
+            tracing::warn!(target: "runtime_loader", "Using default protocol version: {:?}", required_protocol_version);
         }
 
         // Construct the runtime config.
         let runtime_config = RuntimeConfig {
-            unsafe_block_signer_address: alloy_primitives::Address::ZERO,
-            required_protocol_version: ProtocolVersion::V0(Default::default()),
-            recommended_protocol_version: ProtocolVersion::V0(Default::default()),
+            unsafe_block_signer_address,
+            required_protocol_version,
+            recommended_protocol_version,
         };
+        tracing::debug!(target: "runtime_loader", "{}", runtime_config);
 
         // Cache the runtime config.
-        self.cache.put(block_info, runtime_config.clone());
+        self.cache.put(block_info, runtime_config);
 
         Ok(runtime_config)
     }
@@ -122,16 +146,33 @@ impl RuntimeLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_primitives::address;
+    use kona_rpc::ProtocolVersionFormatV0;
+
+    const RPC_URL: &str = "https://docs-demo.quiknode.pro/";
 
     #[tokio::test]
-    async fn test_runtime_loader() {
-        let config = Arc::new(RollupConfig::default());
-        let url = Url::parse("http://localhost:8545").unwrap();
-        let mut loader = RuntimeLoader::new(url, config);
+    async fn test_online_runtime_loader() {
+        kona_cli::init_test_tracing();
 
-        let block_info = BlockInfo { number: 1, ..Default::default() };
+        // Load the OP Mainnet config.
+        let chain_id = kona_genesis::OP_MAINNET_CHAIN_ID;
+        let config =
+            kona_registry::ROLLUP_CONFIGS.get(&chain_id).expect("Invalid chain ID").clone();
 
-        let runtime_config = loader.load(block_info).await.unwrap();
-        assert_eq!(runtime_config.unsafe_block_signer_address, alloy_primitives::Address::ZERO);
+        // Construct the runtime loader.
+        let config = Arc::new(config);
+        let url = Url::parse(RPC_URL).unwrap();
+        let mut loader = RuntimeLoader::new(url.clone(), config);
+
+        // Load the runtime config.
+        let version = ProtocolVersionFormatV0 { major: 9, ..Default::default() };
+        let expected = RuntimeConfig {
+            unsafe_block_signer_address: address!("aaaa45d9549eda09e70937013520214382ffc4a2"),
+            required_protocol_version: ProtocolVersion::V0(version),
+            recommended_protocol_version: ProtocolVersion::V0(version),
+        };
+        let runtime_config = loader.load_latest().await.unwrap();
+        assert_eq!(runtime_config, expected);
     }
 }

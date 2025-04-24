@@ -114,7 +114,7 @@ impl NodeCommand {
         };
 
         self.p2p_flags.check_ports()?;
-        let p2p_config = self.p2p_flags.config(&cfg, args)?;
+        let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
 
         RollupNode::builder(cfg)
