@@ -27,6 +27,7 @@ alloy-eips = { workspace = true, features = ["serde"] }
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 
 # Misc
+thiserror.workspace = true
 derive_more = { workspace = true, default-features = false, features = [
     "display",
     "from",
@@ -46,7 +47,6 @@ op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
 alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
 
 # `interop` feature
-thiserror = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 kona-interop = { workspace = true, features = ["serde"], optional = true }
 
@@ -59,7 +59,6 @@ serde_json.workspace = true
 [features]
 default = []
 std = [
-    "dep:thiserror",
     "dep:jsonrpsee",
     "jsonrpsee/server",
     "kona-protocol/std",
@@ -99,7 +98,6 @@ client = [
 interop = [
     "client",
     "jsonrpsee",
-    "dep:thiserror",
     "dep:kona-interop",
     "dep:async-trait",
 ]

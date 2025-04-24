@@ -4,7 +4,7 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
-use crate::flags::GlobalArgs;
+use crate::{flags::GlobalArgs, runtime::RuntimeLoader};
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
@@ -16,8 +16,10 @@ use std::{
     net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
+    sync::Arc,
 };
 use tokio::time::Duration;
+use url::Url;
 
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -221,10 +223,25 @@ impl P2PArgs {
     }
 
     /// Returns the unsafe block signer from the CLI arguments.
-    pub fn unsafe_block_signer(
+    pub async fn unsafe_block_signer(
         &self,
         args: &GlobalArgs,
+        l1_rpc: Option<Url>,
     ) -> anyhow::Result<alloy_primitives::Address> {
+        // First attempt to load the unsafe block signer from the runtime loader.
+        if let Some(url) = l1_rpc {
+            let config = args.rollup_config().ok_or_else(|| {
+                anyhow::anyhow!("No rollup config found for chain ID: {}", args.l2_chain_id)
+            })?;
+            let mut loader = RuntimeLoader::new(url, Arc::new(config));
+            let runtime = loader
+                .load_latest()
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to load runtime: {}", e))?;
+            return Ok(runtime.unsafe_block_signer_address);
+        }
+
+        // Otherwise use the genesis signer or the configured unsafe block signer.
         args.genesis_signer().or_else(|_| {
             self.unsafe_block_signer.ok_or(anyhow::anyhow!("Unsafe block signer not provided"))
         })
@@ -237,7 +254,12 @@ impl P2PArgs {
     /// - [`GlobalArgs`]: required to fetch the genesis unsafe block signer.
     ///
     /// Errors if the genesis unsafe block signer isn't available for the specified L2 Chain ID.
-    pub fn config(&self, config: &RollupConfig, args: &GlobalArgs) -> anyhow::Result<Config> {
+    pub async fn config(
+        &self,
+        config: &RollupConfig,
+        args: &GlobalArgs,
+        l1_rpc: Option<Url>,
+    ) -> anyhow::Result<Config> {
         let mut multiaddr = libp2p::Multiaddr::from(self.listen_ip);
         multiaddr.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
         let gossip_config = kona_p2p::default_config_builder()
@@ -265,7 +287,7 @@ impl P2PArgs {
             discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
             gossip_address: multiaddr,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
-            unsafe_block_signer: self.unsafe_block_signer(args)?,
+            unsafe_block_signer: self.unsafe_block_signer(args, l1_rpc).await?,
             gossip_config,
             scoring: self.scoring,
             block_time,
