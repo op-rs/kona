@@ -136,6 +136,13 @@ pub struct P2PArgs {
     /// An optional list of bootnode ENRs to start the node with.
     #[arg(long = "p2p.bootnodes", value_delimiter = ',', env = "KONA_NODE_P2P_BOOTNODES")]
     pub bootnodes: Vec<Enr>,
+
+    /// An optional unsafe block signer address.
+    ///
+    /// By default, this is fetched from the chain config in the superchain-registry using the
+    /// specified L2 chain ID.
+    #[arg(long = "p2p.unsafe.block.signer", env = "KONA_NODE_P2P_UNSAFE_BLOCK_SIGNER")]
+    pub unsafe_block_signer: Option<alloy_primitives::Address>,
 }
 
 impl Default for P2PArgs {
@@ -164,6 +171,7 @@ impl Default for P2PArgs {
             bootnodes: Vec::new(),
             bootstore: None,
             peer_redial: None,
+            unsafe_block_signer: None,
         }
     }
 }
@@ -212,6 +220,16 @@ impl P2PArgs {
             .build()
     }
 
+    /// Returns the unsafe block signer from the CLI arguments.
+    pub fn unsafe_block_signer(
+        &self,
+        args: &GlobalArgs,
+    ) -> anyhow::Result<alloy_primitives::Address> {
+        args.genesis_signer().or_else(|_| {
+            self.unsafe_block_signer.ok_or(anyhow::anyhow!("Unsafe block signer not provided"))
+        })
+    }
+
     /// Constructs kona's P2P network [`Config`] from CLI arguments.
     ///
     /// ## Parameters
@@ -247,11 +265,7 @@ impl P2PArgs {
             discovery_address: SocketAddr::new(self.listen_ip, self.listen_udp_port),
             gossip_address: multiaddr,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
-            unsafe_block_signer: config
-                .genesis
-                .system_config
-                .map(|config| Ok(config.batcher_address))
-                .unwrap_or_else(|| args.genesis_signer())?,
+            unsafe_block_signer: self.unsafe_block_signer(args)?,
             gossip_config,
             scoring: self.scoring,
             block_time,
