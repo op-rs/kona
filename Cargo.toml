@@ -124,12 +124,12 @@ alloy-network-primitives = { version = "0.15.0", default-features = false }
 alloy-hardforks = { version = "0.2.0", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.15.0", default-features = false }
-op-alloy-provider = { version = "0.15.0", default-features = false }
-op-alloy-consensus = { version = "0.15.0", default-features = false }
-op-alloy-rpc-types = { version = "0.15.0", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.15.0", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.15.0", default-features = false }
+op-alloy-network = { version = "0.15.1", default-features = false }
+op-alloy-provider = { version = "0.15.1", default-features = false }
+op-alloy-consensus = { version = "0.15.1", default-features = false }
+op-alloy-rpc-types = { version = "0.15.1", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.15.1", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.15.1", default-features = false }
 alloy-op-hardforks = { version = "0.2.0", default-features = false }
 
 # Execution
