@@ -58,7 +58,7 @@ mod tests {
     /// A mock command that uses the MetricsArgs.
     #[derive(Parser, Debug, Clone)]
     #[command(about = "Mock command")]
-    pub struct MockCommand {
+    struct MockCommand {
         /// Metrics CLI Flags
         #[clap(flatten)]
         pub metrics: MetricsArgs,

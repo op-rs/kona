@@ -6,10 +6,10 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-mod cli;
-mod commands;
-mod flags;
-mod runtime;
+pub mod cli;
+pub mod commands;
+pub mod flags;
+pub mod runtime;
 
 fn main() {
     use clap::Parser;

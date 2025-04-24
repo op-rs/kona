@@ -26,7 +26,7 @@ pub struct RpcArgs {
 
 impl From<&RpcArgs> for RpcConfig {
     fn from(args: &RpcArgs) -> Self {
-        RpcConfig {
+        Self {
             listen_addr: args.listen_addr,
             listen_port: args.listen_port,
             enable_admin: args.enable_admin,
@@ -37,6 +37,6 @@ impl From<&RpcArgs> for RpcConfig {
 
 impl From<RpcArgs> for RpcConfig {
     fn from(args: RpcArgs) -> Self {
-        RpcConfig::from(&args)
+        Self::from(&args)
     }
 }

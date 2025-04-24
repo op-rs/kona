@@ -169,9 +169,8 @@ impl NodeCommand {
     /// If the file is not found, it will return `None`.
     pub fn default_jwt_secret() -> Option<JwtSecret> {
         let cur_dir = std::env::current_dir().ok()?;
-        match std::fs::read_to_string(cur_dir.join("jwt.hex")) {
-            Ok(content) => JwtSecret::from_hex(content).ok(),
-            Err(_) => {
+        std::fs::read_to_string(cur_dir.join("jwt.hex")).map_or_else(
+            |_| {
                 use std::io::Write;
                 let secret = JwtSecret::random();
                 if let Ok(mut file) = File::create("jwt.hex") {
@@ -182,7 +181,8 @@ impl NodeCommand {
                     }
                 }
                 Some(secret)
-            }
-        }
+            },
+            |content| JwtSecret::from_hex(content).ok(),
+        )
     }
 }

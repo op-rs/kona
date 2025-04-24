@@ -386,7 +386,7 @@ mod tests {
     /// A mock command that uses the P2PArgs.
     #[derive(Parser, Debug, Clone)]
     #[command(about = "Mock command")]
-    pub struct MockCommand {
+    struct MockCommand {
         /// P2P CLI Flags
         #[clap(flatten)]
         pub p2p: P2PArgs,

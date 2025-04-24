@@ -26,6 +26,7 @@ impl InfoCommand {
         metrics.init_metrics()
     }
 
+    /// Runs the information stack for the kona-node.
     pub fn run(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         info!("Running info command");
 

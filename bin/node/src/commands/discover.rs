@@ -52,7 +52,7 @@ pub struct DiscoverCommand {
 
 /// The Discovery TUI
 #[derive(Debug, Default)]
-struct Discovery {
+pub struct Discovery {
     /// If the application should quit.
     should_quit: bool,
     /// The chain id.
@@ -212,7 +212,7 @@ impl Discovery {
         Ok(())
     }
 
-    fn draw(&self, frame: &mut Frame) {
+    fn draw(&self, frame: &mut Frame<'_>) {
         let [top, bottom] = Layout::vertical([Constraint::Fill(1); 2]).areas(frame.area());
         let [peers, store, valids] = Layout::horizontal([Constraint::Fill(1); 3]).areas(top);
         let [logs] = Layout::horizontal([Constraint::Fill(1)]).areas(bottom);
@@ -223,7 +223,7 @@ impl Discovery {
         self.render_logs(frame, logs);
     }
 
-    fn render_logs(&self, frame: &mut Frame, area: Rect) {
+    fn render_logs(&self, frame: &mut Frame<'_>, area: Rect) {
         let Some(home) = dirs::home_dir() else {
             tracing::warn!("Failed to get home directory");
             return;
@@ -231,7 +231,7 @@ impl Discovery {
         let log_file = home.join(".kona").join("tracing.log");
         let log_lines =
             std::fs::read_to_string(&log_file).unwrap_or_else(|_| "No logs available".to_string());
-        let log_lines: Vec<Line> =
+        let log_lines: Vec<Line<'_>> =
             log_lines.lines().map(|line| Line::from(Span::raw(line))).rev().collect();
         let log_lines = log_lines.into_iter().take(20).collect::<Vec<_>>();
         let paragraph = ratatui::widgets::Paragraph::new(log_lines)
@@ -242,7 +242,7 @@ impl Discovery {
         frame.render_widget(paragraph, area);
     }
 
-    fn render_peer_chart(&self, frame: &mut Frame, area: Rect) {
+    fn render_peer_chart(&self, frame: &mut Frame<'_>, area: Rect) {
         let x_labels = vec![
             Span::styled(
                 format!("{:.0}", self.peer_window[0]),
@@ -287,7 +287,7 @@ impl Discovery {
         frame.render_widget(chart, area);
     }
 
-    fn render_store_chart(&self, frame: &mut Frame, area: Rect) {
+    fn render_store_chart(&self, frame: &mut Frame<'_>, area: Rect) {
         let x_labels = vec![
             Span::styled(
                 format!("{:.0}", self.store_window[0]),
@@ -341,7 +341,7 @@ impl Discovery {
         frame.render_widget(chart, area);
     }
 
-    fn render_valid_chart(&self, frame: &mut Frame, area: Rect) {
+    fn render_valid_chart(&self, frame: &mut Frame<'_>, area: Rect) {
         let x_labels = vec![
             Span::styled(
                 format!("{:.0}", self.valid_peer_window[0]),
