@@ -19,8 +19,8 @@
 
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::Discv5Builder;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use kona_p2p::{AdvertisedIpAndPort, Discv5Builder};
+use std::net::{IpAddr, Ipv4Addr};
 
 /// The discovery command.
 #[derive(Parser, Debug, Clone)]
@@ -49,7 +49,11 @@ impl DiscCommand {
             .add_directive("discv5=error".parse()?);
         init_tracing_subscriber(self.v, Some(filter))?;
 
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.disc_port);
+        let socket = AdvertisedIpAndPort::new(
+            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            self.disc_port,
+            self.disc_port,
+        );
         tracing::info!("Starting discovery service on {:?}", socket);
 
         let discovery_builder =

@@ -5,7 +5,7 @@
 use crate::flags::{GlobalArgs, MetricsArgs};
 use clap::Parser;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind};
-use kona_p2p::{BootStore, Discv5Builder};
+use kona_p2p::{AdvertisedIpAndPort, BootStore, Discv5Builder};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio_stream::StreamExt;
 use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
@@ -106,11 +106,12 @@ impl Discovery {
 
     /// Runs the main app.
     pub async fn run(mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.port);
-        tracing::info!("Starting discovery service on {:?}", socket);
+        let ip_and_port =
+            AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.port, self.port);
+        tracing::info!("Starting discovery service on {:?}", ip_and_port);
 
         let discovery_builder =
-            Discv5Builder::new().with_address(socket).with_chain_id(self.l2_chain_id);
+            Discv5Builder::new().with_address(ip_and_port).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(2);
         discovery.forward = false;

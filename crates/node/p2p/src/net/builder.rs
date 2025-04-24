@@ -1,16 +1,16 @@
 //! Network Builder Module.
 
 use alloy_primitives::Address;
-use discv5::{Config as Discv5Config, Enr, ListenConfig};
+use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
 use libp2p::{Multiaddr, identity::Keypair};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::{net::SocketAddr, path::PathBuf, time::Duration};
+use std::{path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Broadcast, Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network,
-    NetworkBuilderError, PeerMonitoring, PeerScoreLevel,
+    NetworkBuilderError, PeerMonitoring, PeerScoreLevel, discv5::AdvertisedIpAndPort,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -102,7 +102,7 @@ impl NetworkBuilder {
     }
 
     /// Sets the address for the [`crate::Discv5Driver`].
-    pub fn with_discovery_address(self, address: SocketAddr) -> Self {
+    pub fn with_discovery_address(self, address: AdvertisedIpAndPort) -> Self {
         Self { discovery: self.discovery.with_address(address), ..self }
     }
 
@@ -136,11 +136,6 @@ impl NetworkBuilder {
     /// Sets the rpc receiver for the [`crate::Network`].
     pub fn with_rpc_receiver(self, rpc_recv: tokio::sync::mpsc::Receiver<NetRpcRequest>) -> Self {
         Self { rpc_recv: Some(rpc_recv), ..self }
-    }
-
-    /// Sets the listen config for the [`crate::Discv5Driver`].
-    pub fn with_listen_config(self, config: ListenConfig) -> Self {
-        Self { discovery: self.discovery.with_listen_config(config), ..self }
     }
 
     /// Sets the [`Discv5Config`] for the [`crate::Discv5Driver`].
@@ -246,7 +241,7 @@ mod tests {
         let id = 10;
         let signer = Address::random();
         let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9097);
-        let disc_enr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098);
+        let disc_enr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098, 9098);
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
@@ -284,7 +279,7 @@ mod tests {
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
-        let disc = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9097);
+        let disc = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9097, 9097);
         let discovery_config =
             ConfigBuilder::new(ListenConfig::from_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098))
                 .build();

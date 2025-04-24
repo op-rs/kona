@@ -1,10 +1,10 @@
 //! Configuration for the `Network`.
 
-use crate::{PeerScoreLevel, peers::PeerMonitoring};
+use crate::{PeerScoreLevel, discv5::AdvertisedIpAndPort, peers::PeerMonitoring};
 use alloy_primitives::Address;
 use discv5::Enr;
 use libp2p::identity::Keypair;
-use std::{net::SocketAddr, path::PathBuf};
+use std::path::PathBuf;
 use tokio::time::Duration;
 
 /// Configuration for kona's P2P stack.
@@ -14,7 +14,7 @@ pub struct Config {
     pub discovery_config: discv5::Config,
     /// The local node's advertised address to external peers.
     /// Note: This may be different from the node's discovery listen address.
-    pub discovery_address: SocketAddr,
+    pub discovery_address: AdvertisedIpAndPort,
     /// The interval to find peers.
     pub discovery_interval: Duration,
     /// The gossip address.

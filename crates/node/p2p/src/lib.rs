@@ -33,7 +33,10 @@ pub use peers::{
 };
 
 mod discv5;
-pub use discv5::{Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler, HandlerRequest};
+pub use discv5::{
+    AdvertisedIpAndPort, Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler,
+    HandlerRequest,
+};
 
 mod utils;
 pub use utils::{KeypairError, ParseKeyError, get_keypair, parse_key};

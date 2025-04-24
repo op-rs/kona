@@ -10,7 +10,7 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, PeerMonitoring, PeerScoreLevel};
+use kona_p2p::{AdvertisedIpAndPort, Config, PeerMonitoring, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -311,7 +311,14 @@ impl P2PArgs {
             self.listen_tcp_port
         };
 
-        let discovery_address = SocketAddr::new(advertise_ip, advertise_tcp_port);
+        let advertise_udp_port = if self.advertise_udp_port != 0 {
+            self.advertise_udp_port
+        } else {
+            self.listen_udp_port
+        };
+
+        let discovery_address =
+            AdvertisedIpAndPort::new(advertise_ip, advertise_tcp_port, advertise_udp_port);
         let gossip_config = kona_p2p::default_config_builder()
             .mesh_n(self.gossip_mesh_d)
             .mesh_n_low(self.gossip_mesh_dlo)
