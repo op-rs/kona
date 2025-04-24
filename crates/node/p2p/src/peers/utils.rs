@@ -34,6 +34,7 @@ pub fn peer_id_to_secp256k1_pubkey(id: PeerId) -> Result<secp256k1::PublicKey, s
     secp256k1::PublicKey::from_slice(&full_pubkey)
 }
 
+/// An error that can occur when converting a [`PeerId`] to a [`libp2p::PeerId`].
 #[derive(Debug, thiserror::Error)]
 pub enum PeerIdConversionError {
     /// The peer id is not valid and cannot be converted to a secp256k1 public key.
@@ -61,11 +62,9 @@ pub fn local_id_to_p2p_id(peer_id: PeerId) -> Result<libp2p::PeerId, PeerIdConve
 
 #[cfg(test)]
 mod tests {
-    use alloy_primitives::hex::FromHex;
-
-    use crate::{PeerId, peers::utils::peer_id_to_secp256k1_pubkey};
-
     use super::*;
+    use crate::PeerId;
+    use alloy_primitives::hex::FromHex;
 
     #[test]
     fn test_convert_local_peer_id_to_multi_peer_id() {

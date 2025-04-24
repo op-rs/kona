@@ -15,7 +15,7 @@ pub struct Broadcast {
 
 impl Broadcast {
     /// Creates a new `Broadcast` instance with the given channel.
-    pub fn new(channel: BroadcastSender<OpNetworkPayloadEnvelope>) -> Self {
+    pub const fn new(channel: BroadcastSender<OpNetworkPayloadEnvelope>) -> Self {
         Self { buffer: VecDeque::new(), channel }
     }
 

@@ -6,7 +6,7 @@ use libp2p::{Multiaddr, SwarmBuilder, identity::Keypair, multiaddr::Protocol};
 use std::net::Ipv4Addr;
 
 /// Helper function to create a new gossip driver instance.
-pub fn gossip_driver(port: u16) -> GossipDriver {
+pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
     let chain_id = 10;
     let timeout = std::time::Duration::from_secs(60);
     let mut addr = Multiaddr::empty();

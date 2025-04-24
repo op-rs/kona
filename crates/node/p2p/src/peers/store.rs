@@ -26,7 +26,7 @@ pub struct BootStore {
 impl<'de> serde::Deserialize<'de> for BootStore {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let peers: Vec<serde_json::Value> = serde::Deserialize::deserialize(deserializer)?;
-        let mut store = BootStore { path: PathBuf::new(), peers: Vec::new() };
+        let mut store = Self { path: PathBuf::new(), peers: Vec::new() };
         for peer in peers {
             match serde_json::from_value::<Enr>(peer) {
                 Ok(enr) => {
@@ -174,7 +174,7 @@ impl BootStore {
             .map(|file| {
                 let reader = BufReader::new(file);
                 debug!(target: "bootstore", "Reading boot store from disk: {:?}", p);
-                match serde_json::from_reader(reader).map(|s: BootStore| s.peers) {
+                match serde_json::from_reader(reader).map(|s: Self| s.peers) {
                     Ok(peers) => peers,
                     Err(e) => {
                         warn!(target: "bootstore", "Failed to read boot store from disk: {:?}", e);

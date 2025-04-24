@@ -6,9 +6,12 @@ use tokio::time::Duration;
 
 use crate::{Discv5BuilderError, Discv5Driver, OpStackEnr};
 
+/// The advertised address and ports for the discovery service.
 #[derive(Debug, Clone)]
 pub struct AdvertisedIpAndPort {
+    /// The IP address to advertise.
     pub ip: IpAddr,
+    /// The TCP port to advertise.
     pub tcp_port: u16,
     /// Fallback UDP port.
     pub udp_port: u16,
@@ -16,7 +19,7 @@ pub struct AdvertisedIpAndPort {
 
 impl AdvertisedIpAndPort {
     /// Creates a new [`AdvertisedIpAndPort`] instance.
-    pub fn new(ip: IpAddr, tcp_port: u16, udp_port: u16) -> Self {
+    pub const fn new(ip: IpAddr, tcp_port: u16, udp_port: u16) -> Self {
         Self { ip, tcp_port, udp_port }
     }
 }
@@ -90,19 +93,19 @@ impl Discv5Builder {
     }
 
     /// Sets the discovery service advertised address and ports.
-    pub fn with_address(mut self, address: AdvertisedIpAndPort) -> Self {
+    pub const fn with_address(mut self, address: AdvertisedIpAndPort) -> Self {
         self.advertised_address = Some(address);
         self
     }
 
     /// Sets the chain ID of the network.
-    pub fn with_chain_id(mut self, chain_id: u64) -> Self {
+    pub const fn with_chain_id(mut self, chain_id: u64) -> Self {
         self.chain_id = Some(chain_id);
         self
     }
 
     /// Sets the interval to find peers.
-    pub fn with_interval(mut self, interval: Duration) -> Self {
+    pub const fn with_interval(mut self, interval: Duration) -> Self {
         self.interval = Some(interval);
         self
     }
@@ -131,13 +134,7 @@ impl Discv5Builder {
         let disc =
             Discv5::new(enr, key, config).map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
 
-        Ok(Discv5Driver::new(
-            disc,
-            interval,
-            chain_id,
-            self.bootstore.clone(),
-            self.bootnodes.clone(),
-        ))
+        Ok(Discv5Driver::new(disc, interval, chain_id, self.bootstore.clone(), self.bootnodes))
     }
 }
 

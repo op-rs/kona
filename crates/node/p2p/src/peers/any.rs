@@ -18,10 +18,13 @@ pub enum AnyNode {
     PeerId(PeerId),
 }
 
+/// An error that can occur when converting an [`AnyNode`] to [`DialOpts`].
 #[derive(Debug, thiserror::Error)]
 pub enum DialOptsError {
+    /// The peer id is not valid and cannot be converted to a secp256k1 public key.
     #[error("Invalid peer id. Error: {0}")]
     InvalidPeerId(secp256k1::Error),
+    /// The secp256k1 public key cannot be converted to a libp2p peer id.
     #[error("Invalid public key. Error: {0}")]
     InvalidPublicKey(#[from] discv5::libp2p_identity::DecodingError),
 }

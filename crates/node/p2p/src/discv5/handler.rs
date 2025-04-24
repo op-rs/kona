@@ -23,7 +23,12 @@ pub enum HandlerRequest {
     /// Requests the table ENRs.
     TableEnrs(tokio::sync::oneshot::Sender<Vec<Enr>>),
     /// Bans the nodes matching the given set of [`Multiaddr`] for the given duration.
-    BanAddrs { addrs_to_ban: Arc<HashSet<Multiaddr>>, ban_duration: Duration },
+    BanAddrs {
+        /// The set of [`Multiaddr`] to ban.
+        addrs_to_ban: Arc<HashSet<Multiaddr>>,
+        /// The duration to ban the nodes for.
+        ban_duration: Duration,
+    },
 }
 
 /// Handler to the spawned [`discv5::Discv5`] service.
@@ -41,7 +46,7 @@ pub struct Discv5Handler {
 
 impl Discv5Handler {
     /// Creates a new [`Discv5Handler`] service.
-    pub fn new(chain_id: u64, sender: Sender<HandlerRequest>) -> Self {
+    pub const fn new(chain_id: u64, sender: Sender<HandlerRequest>) -> Self {
         Self { sender, chain_id }
     }
 

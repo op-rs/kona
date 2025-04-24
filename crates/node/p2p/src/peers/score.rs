@@ -122,7 +122,7 @@ impl PeerScoreLevel {
     }
 
     /// Returns the [`PeerScoreThresholds`].
-    pub fn thresholds() -> PeerScoreThresholds {
+    pub const fn thresholds() -> PeerScoreThresholds {
         Self::DEFAULT_PEER_SCORE_THRESHOLDS
     }
 }

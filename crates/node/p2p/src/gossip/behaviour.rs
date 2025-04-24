@@ -1,5 +1,6 @@
 //! Network Behaviour Module.
 
+use derive_more::Debug;
 use libp2p::{
     gossipsub::{Config, IdentTopic, MessageAuthenticity},
     swarm::NetworkBehaviour,
@@ -22,10 +23,11 @@ pub enum BehaviourError {
 }
 
 /// Specifies the [`NetworkBehaviour`] of the node
-#[derive(NetworkBehaviour)]
+#[derive(NetworkBehaviour, Debug)]
 #[behaviour(out_event = "Event")]
 pub struct Behaviour {
     /// Responds to inbound pings and send outbound pings.
+    #[debug(skip)]
     pub ping: libp2p::ping::Behaviour,
     /// Enables gossipsub as the routing layer.
     pub gossipsub: libp2p::gossipsub::Behaviour,

@@ -18,18 +18,20 @@ pub use rpc::{NetRpcRequest, NetworkRpc};
 
 mod gossip;
 pub use gossip::{
-    Behaviour, BehaviourError, BlockHandler, DEFAULT_MESH_D, DEFAULT_MESH_DHI, DEFAULT_MESH_DLAZY,
-    DEFAULT_MESH_DLO, Event, GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GossipDriver,
-    GossipDriverBuilder, GossipDriverBuilderError, Handler, HandlerEncodeError, MAX_GOSSIP_SIZE,
-    MAX_OUTBOUND_QUEUE, MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE, PEER_SCORE_INSPECT_FREQUENCY,
-    PublishError, SEEN_MESSAGES_TTL, default_config, default_config_builder,
+    Behaviour, BehaviourError, BlockHandler, BlockInvalidError, DEFAULT_MESH_D, DEFAULT_MESH_DHI,
+    DEFAULT_MESH_DLAZY, DEFAULT_MESH_DLO, Event, GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT,
+    GossipDriver, GossipDriverBuilder, GossipDriverBuilderError, Handler, HandlerEncodeError,
+    MAX_GOSSIP_SIZE, MAX_OUTBOUND_QUEUE, MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE,
+    PEER_SCORE_INSPECT_FREQUENCY, PublishError, SEEN_MESSAGES_TTL, default_config,
+    default_config_builder,
 };
 
 mod peers;
 pub use peers::{
-    AnyNode, BootNode, BootNodes, BootStore, EnrValidation, NodeRecord, NodeRecordParseError,
-    OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId, PeerMonitoring, PeerScoreLevel,
-    enr_to_multiaddr,
+    AnyNode, BootNode, BootNodes, BootStore, DialOptsError, EnrValidation, NodeRecord,
+    NodeRecordParseError, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId,
+    PeerIdConversionError, PeerMonitoring, PeerScoreLevel, enr_to_multiaddr, local_id_to_p2p_id,
+    peer_id_to_secp256k1_pubkey,
 };
 
 mod discv5;

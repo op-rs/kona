@@ -76,7 +76,7 @@ pub struct Discv5Driver {
 
 impl Discv5Driver {
     /// Returns a new [`Discv5Builder`] instance.
-    pub fn builder() -> Discv5Builder {
+    pub const fn builder() -> Discv5Builder {
         Discv5Builder::new()
     }
 

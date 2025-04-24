@@ -77,6 +77,7 @@ impl NetworkBuilder {
         self
     }
 
+    /// Sets the initial bootnodes to add to the bootstore.
     pub fn with_bootnodes(self, bootnodes: Vec<Enr>) -> Self {
         Self { discovery: self.discovery.with_bootnodes(bootnodes), ..self }
     }

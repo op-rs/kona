@@ -172,7 +172,7 @@ mod tests {
         // TRICK: Since the decode method recomputes the payload hash, we need to change the unsafe
         // signer in the handler to ensure that the payload won't be rejected for invalid
         // signature.
-        let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope).unwrap();
         let decoded = OpNetworkPayloadEnvelope::decode_v2(&encoded).unwrap();
 
         let msg = decoded.payload_hash.signature_message(10);
@@ -216,7 +216,7 @@ mod tests {
             source: None,
             sequence_number: None,
             topic: handler.blocks_v2_topic.clone().into(),
-            data: handler.encode(handler.blocks_v2_topic.clone(), envelope.clone()).unwrap(),
+            data: handler.encode(handler.blocks_v2_topic.clone(), envelope).unwrap(),
         };
 
         assert!(matches!(handler.handle(message).0, MessageAcceptance::Reject));
@@ -242,7 +242,7 @@ mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
-        let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope).unwrap();
 
         // Let's try to encode a message.
         let message = Message {
@@ -278,7 +278,7 @@ mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
-        let encoded = handler.encode(handler.blocks_v3_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v3_topic.clone(), envelope).unwrap();
 
         // Let's try to encode a message.
         let message = Message {
@@ -314,7 +314,7 @@ mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
-        let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope).unwrap();
 
         // Let's try to encode a message.
         let message = Message {
@@ -354,7 +354,7 @@ mod tests {
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(10, unsafe_signer);
 
-        let encoded = handler.encode(handler.blocks_v4_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v4_topic.clone(), envelope).unwrap();
 
         // Let's try to encode a message.
         let message = Message {
@@ -396,7 +396,7 @@ mod tests {
         // TRICK: Since the decode method recomputes the payload hash, we need to change the unsafe
         // signer in the handler to ensure that the payload won't be rejected for invalid
         // signature.
-        let encoded = handler.encode(handler.blocks_v4_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v4_topic.clone(), envelope).unwrap();
         let decoded = OpNetworkPayloadEnvelope::decode_v4(&encoded).unwrap();
 
         let msg = decoded.payload_hash.signature_message(10);
@@ -439,7 +439,7 @@ mod tests {
         // TRICK: Since the decode method recomputes the payload hash, we need to change the unsafe
         // signer in the handler to ensure that the payload won't be rejected for invalid
         // signature.
-        let encoded = handler.encode(handler.blocks_v3_topic.clone(), envelope.clone()).unwrap();
+        let encoded = handler.encode(handler.blocks_v3_topic.clone(), envelope).unwrap();
         let decoded = OpNetworkPayloadEnvelope::decode_v3(&encoded).unwrap();
 
         let msg = decoded.payload_hash.signature_message(10);
