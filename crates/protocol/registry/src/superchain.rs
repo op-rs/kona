@@ -118,18 +118,18 @@ mod tests {
                 proxy_admin: address!("0475cBCAebd9CE8AfA5025828d5b98DFb67E059E"),
                 superchain_config: None,
                 anchor_state_registry_proxy: Some(address!(
-                    "db9091e48b1c42992a1213e6916184f9ebdbfedf"
+                    "496286e5eE7758de84Dd17e6d2d97afC2ACE4cc7"
                 )),
-                delayed_weth_proxy: Some(address!("a2f2ac6f5af72e494a227d79db20473cf7a1ffe8")),
+                delayed_weth_proxy: Some(address!("3E8a0B63f57e975c268d610ece93da5f78c01321")),
                 dispute_game_factory_proxy: Some(address!(
                     "43edb88c4b80fdd2adff2412a7bebf9df42cb40e"
                 )),
-                fault_dispute_game: Some(address!("cd3c0194db74c23807d4b90a5181e1b28cf7007c")),
-                mips: Some(address!("16e83ce5ce29bf90ad9da06d2fe6a15d5f344ce4")),
+                fault_dispute_game: Some(address!("E17d670043c3cDd705a3223B3D89A228A1f07F0f")),
+                mips: Some(address!("F027F4A985560fb13324e943edf55ad6F1d15Dc1")),
                 permissioned_dispute_game: Some(address!(
-                    "19009debf8954b610f207d5925eede827805986e"
+                    "E749aA49c3eDAF1DCb997eA3DAC23dff72bcb826"
                 )),
-                preimage_oracle: Some(address!("9c065e11870b891d214bc2da7ef1f9ddfa1be277")),
+                preimage_oracle: Some(address!("1fb8cdFc6831fc866Ed9C51aF8817Da5c287aDD3")),
                 data_availability_challenge: None,
             }),
             gas_paying_token: None,
