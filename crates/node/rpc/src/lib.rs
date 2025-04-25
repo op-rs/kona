@@ -21,7 +21,7 @@ pub use launcher::{RpcLauncher, RpcLauncherError};
 
 mod net;
 pub use net::{
-    Connectedness, Direction, GossipScores, PeerDump, PeerInfo, PeerScores, PeerStats,
+    Connectedness, Direction, GossipScores, PeerCount, PeerDump, PeerInfo, PeerScores, PeerStats,
     ReqRespScores, TopicScores,
 };
 

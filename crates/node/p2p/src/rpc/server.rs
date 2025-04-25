@@ -11,7 +11,7 @@ use jsonrpsee::{
     core::RpcResult,
     types::{ErrorCode, ErrorObject},
 };
-use kona_rpc::{OpP2PApiServer, PeerDump, PeerInfo, PeerStats};
+use kona_rpc::{OpP2PApiServer, PeerCount, PeerDump, PeerInfo, PeerStats};
 use std::net::IpAddr;
 
 /// A type alias for the sender of a [`NetRpcRequest`].
@@ -45,6 +45,19 @@ impl OpP2PApiServer for NetworkRpc {
         rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
+    async fn opp2p_peer_count(&self) -> RpcResult<PeerCount> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(NetRpcRequest::PeerCount(tx))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        let (connected_discovery, connected_gossip) =
+            rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        Ok(PeerCount { connected_discovery, connected_gossip })
+    }
+
     async fn opp2p_peers(&self) -> RpcResult<PeerDump> {
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
@@ -56,8 +69,13 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_discovery_table(&self) -> RpcResult<Vec<String>> {
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(NetRpcRequest::DiscoveryTable(tx))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_block_peer(&self, _peer: String) -> RpcResult<()> {

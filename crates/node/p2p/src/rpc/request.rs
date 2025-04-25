@@ -9,6 +9,8 @@ use tokio::sync::oneshot::Sender;
 pub enum NetRpcRequest {
     /// Returns [`PeerInfo`] for the [`crate::Network`].
     PeerInfo(Sender<PeerInfo>),
+    /// Dumps the node's discovery table from the [`crate::Discv5Driver`].
+    DiscoveryTable(Sender<Vec<String>>),
     /// Returns the current peer count for both the
     /// - Discovery Service ([`crate::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
@@ -20,8 +22,27 @@ impl NetRpcRequest {
     pub fn handle(self, gossip: &GossipDriver, disc: &Discv5Handler) {
         match self {
             Self::PeerCount(s) => Self::handle_peer_count(s, gossip, disc),
+            Self::DiscoveryTable(s) => Self::handle_discovery_table(s, disc),
             Self::PeerInfo(s) => Self::handle_peer_info(s, gossip, disc),
         }
+    }
+
+    fn handle_discovery_table(sender: Sender<Vec<String>>, disc: &Discv5Handler) {
+        let enrs = disc.table_enrs();
+        tokio::spawn(async move {
+            let dt = match enrs.await {
+                Ok(dt) => dt.into_iter().map(|e| e.to_string()).collect(),
+
+                Err(e) => {
+                    warn!("Failed to receive peer count: {:?}", e);
+                    return;
+                }
+            };
+
+            if let Err(e) = sender.send(dt) {
+                warn!("Failed to send peer count through response channel: {:?}", e);
+            }
+        });
     }
 
     /// Handles a peer info request by spawning a task.

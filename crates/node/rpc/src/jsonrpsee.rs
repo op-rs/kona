@@ -2,7 +2,7 @@
 
 use crate::{
     OutputResponse, PeerDump, PeerInfo, PeerStats, ProtocolVersion, SafeHeadResponse,
-    SuperchainSignal,
+    SuperchainSignal, net::PeerCount,
 };
 use alloc::{boxed::Box, string::String, vec::Vec};
 use alloy_eips::BlockNumberOrTag;
@@ -61,6 +61,10 @@ pub trait OpP2PApi {
     /// Returns information of node
     #[method(name = "self")]
     async fn opp2p_self(&self) -> RpcResult<PeerInfo>;
+
+    /// Returns information of peers
+    #[method(name = "peerCount")]
+    async fn opp2p_peer_count(&self) -> RpcResult<PeerCount>;
 
     /// Returns information of peers
     #[method(name = "peers")]
