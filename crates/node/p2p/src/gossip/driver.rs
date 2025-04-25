@@ -221,6 +221,9 @@ impl GossipDriver {
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) -> Option<OpNetworkPayloadEnvelope> {
         if let SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } = event {
+            let peer_count = self.swarm.connected_peers().count();
+            trace!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
+            crate::set!(PEER_COUNT, peer_count as i64);
             self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
             return None;
         }
@@ -232,7 +235,9 @@ impl GossipDriver {
             return None;
         }
         if let SwarmEvent::ConnectionClosed { peer_id, cause, .. } = event {
-            trace!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?}", peer_id, cause);
+            let peer_count = self.swarm.connected_peers().count();
+            trace!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
+            crate::set!(PEER_COUNT, peer_count as i64);
             self.redial(peer_id);
             return None;
         }

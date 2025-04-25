@@ -155,6 +155,7 @@ futures = "0.3.31"
 reqwest = "0.12.15"
 tempfile = "3.19.1"
 arbitrary = "1.4.1"
+multihash = "0.19.3"
 crossterm = "0.29.0"
 color-eyre = "0.6.3"
 jsonrpsee = "0.25.1"
@@ -191,6 +192,7 @@ openssl = "0.10.72"
 tracing-loki = "0.2.6"
 tracing-subscriber = "0.3.19"
 tracing = { version = "0.1.41", default-features = false }
+prometheus = { version = "0.14.0", default-features = false }
 metrics-exporter-prometheus = { version = "0.17.0", default-features = false }
 
 # Testing
