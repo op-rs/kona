@@ -18,8 +18,9 @@
 #![warn(unused_crate_dependencies)]
 
 use clap::{ArgAction, Parser};
+use discv5::enr::CombinedKey;
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::{AdvertisedIpAndPort, Network};
+use kona_p2p::{LocalNode, Network};
 use kona_registry::ROLLUP_CONFIGS;
 use libp2p::Multiaddr;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -68,7 +69,12 @@ impl GossipCommand {
 
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
-        let disc_addr = AdvertisedIpAndPort::new(
+
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+        let disc_addr = LocalNode::new(
+            secret_key,
             IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             self.disc_port,
             self.disc_port,

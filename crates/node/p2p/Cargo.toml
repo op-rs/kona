@@ -70,7 +70,6 @@ alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 alloy-eips.workspace = true
 
 op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
-rand = { workspace = true, features = ["thread_rng"] }
 
 [features]
 default = []

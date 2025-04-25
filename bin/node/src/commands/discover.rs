@@ -5,7 +5,8 @@
 use crate::flags::{GlobalArgs, MetricsArgs};
 use clap::Parser;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind};
-use kona_p2p::{AdvertisedIpAndPort, BootStore, Discv5Builder};
+use discv5::enr::{CombinedKey, k256};
+use kona_p2p::{BootStore, Discv5Builder, LocalNode};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio_stream::StreamExt;
 use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
@@ -51,7 +52,7 @@ pub struct DiscoverCommand {
 }
 
 /// The Discovery TUI
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Discovery {
     /// If the application should quit.
     should_quit: bool,
@@ -90,6 +91,7 @@ impl Discovery {
     pub fn new(l2_chain_id: u64, port: u16, data_points: usize) -> Self {
         let now = std::time::SystemTime::now();
         let now = now.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
+
         Self {
             should_quit: false,
             l2_chain_id,
@@ -106,12 +108,15 @@ impl Discovery {
 
     /// Runs the main app.
     pub async fn run(mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
         let ip_and_port =
-            AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.port, self.port);
+            LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.port, self.port);
         tracing::info!("Starting discovery service on {:?}", ip_and_port);
 
         let discovery_builder =
-            Discv5Builder::new().with_address(ip_and_port).with_chain_id(self.l2_chain_id);
+            Discv5Builder::new().with_local_node(ip_and_port).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(2);
         discovery.forward = false;

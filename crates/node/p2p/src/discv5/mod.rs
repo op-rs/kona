@@ -1,7 +1,7 @@
 //! Discv5 Service for the OP Stack
 
 mod builder;
-pub use builder::{AdvertisedIpAndPort, Discv5Builder};
+pub use builder::{Discv5Builder, LocalNode};
 
 mod error;
 pub use error::Discv5BuilderError;

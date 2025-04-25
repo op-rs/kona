@@ -10,7 +10,7 @@ use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Broadcast, Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network,
-    NetworkBuilderError, PeerMonitoring, PeerScoreLevel, discv5::AdvertisedIpAndPort,
+    NetworkBuilderError, PeerMonitoring, PeerScoreLevel, discv5::LocalNode,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -103,8 +103,8 @@ impl NetworkBuilder {
     }
 
     /// Sets the address for the [`crate::Discv5Driver`].
-    pub fn with_discovery_address(self, address: AdvertisedIpAndPort) -> Self {
-        Self { discovery: self.discovery.with_address(address), ..self }
+    pub fn with_discovery_address(self, address: LocalNode) -> Self {
+        Self { discovery: self.discovery.with_local_node(address), ..self }
     }
 
     /// Sets the chain ID for both the [`crate::Discv5Driver`] and [`crate::GossipDriver`].
@@ -201,7 +201,7 @@ impl NetworkBuilder {
 mod tests {
     use super::*;
     use crate::GossipDriverBuilderError;
-    use discv5::{ConfigBuilder, ListenConfig};
+    use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
     use libp2p::gossipsub::IdentTopic;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -241,8 +241,11 @@ mod tests {
     fn test_build_simple_succeeds() {
         let id = 10;
         let signer = Address::random();
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
         let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097);
-        let disc_enr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
+        let disc_enr = LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
@@ -280,7 +283,12 @@ mod tests {
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
-        let disc = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097, 9097);
+
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+
+        let disc = LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097, 9097);
         let discovery_config =
             ConfigBuilder::new(ListenConfig::from_ip(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098))
                 .build();

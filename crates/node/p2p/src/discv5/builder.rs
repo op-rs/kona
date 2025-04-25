@@ -1,14 +1,17 @@
 //! Contains a builder for the discovery service.
 
-use discv5::{Config, Discv5, Enr, enr::CombinedKey};
+use discv5::{Config, Discv5, Enr, enr::k256};
 use std::{net::IpAddr, path::PathBuf};
 use tokio::time::Duration;
 
 use crate::{Discv5BuilderError, Discv5Driver, OpStackEnr};
 
-/// The advertised address and ports for the discovery service.
-#[derive(Debug, Clone)]
-pub struct AdvertisedIpAndPort {
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// The local node information exposed by the discovery service to the network.
+pub struct LocalNode {
+    /// The keypair to use for the local node. Should match the keypair used by the
+    /// gossip service.
+    pub signing_key: k256::ecdsa::SigningKey,
     /// The IP address to advertise.
     pub ip: IpAddr,
     /// The TCP port to advertise.
@@ -17,19 +20,24 @@ pub struct AdvertisedIpAndPort {
     pub udp_port: u16,
 }
 
-impl AdvertisedIpAndPort {
-    /// Creates a new [`AdvertisedIpAndPort`] instance.
-    pub const fn new(ip: IpAddr, tcp_port: u16, udp_port: u16) -> Self {
-        Self { ip, tcp_port, udp_port }
+impl LocalNode {
+    /// Creates a new [`LocalNode`] instance.
+    pub const fn new(
+        signing_key: k256::ecdsa::SigningKey,
+        ip: IpAddr,
+        tcp_port: u16,
+        udp_port: u16,
+    ) -> Self {
+        Self { signing_key, ip, tcp_port, udp_port }
     }
 }
 
-impl AdvertisedIpAndPort {
+impl LocalNode {
     /// Build the local node ENR. This should contain the information we wish to
     /// broadcast to the other nodes in the network. See
     /// [the op-node implementation](https://github.com/ethereum-optimism/optimism/blob/174e55f0a1e73b49b80a561fd3fedd4fea5770c6/op-node/p2p/discovery.go#L61-L97)
     /// for the go equivalent
-    fn build_enr(&self, key: &CombinedKey, chain_id: u64) -> Result<Enr, discv5::enr::Error> {
+    fn build_enr(self, chain_id: u64) -> Result<Enr, discv5::enr::Error> {
         let opstack = OpStackEnr::from_chain_id(chain_id);
         let mut opstack_data = Vec::new();
         use alloy_rlp::Encodable;
@@ -46,15 +54,15 @@ impl AdvertisedIpAndPort {
             }
         }
 
-        enr_builder.build(key)
+        enr_builder.build(&self.signing_key.into())
     }
 }
 
 /// Discovery service builder.
 #[derive(Debug, Default, Clone)]
 pub struct Discv5Builder {
-    /// The discovery service advertised address.
-    advertised_address: Option<AdvertisedIpAndPort>,
+    /// The node information advertised by the discovery service.
+    local_node: Option<LocalNode>,
     /// The chain ID of the network.
     chain_id: Option<u64>,
     /// The interval to find peers.
@@ -71,7 +79,7 @@ impl Discv5Builder {
     /// Creates a new [`Discv5Builder`] instance.
     pub const fn new() -> Self {
         Self {
-            advertised_address: None,
+            local_node: None,
             chain_id: None,
             interval: None,
             discovery_config: None,
@@ -92,9 +100,9 @@ impl Discv5Builder {
         self
     }
 
-    /// Sets the discovery service advertised address and ports.
-    pub const fn with_address(mut self, address: AdvertisedIpAndPort) -> Self {
-        self.advertised_address = Some(address);
+    /// Sets the discovery service advertised local node information.
+    pub fn with_local_node(mut self, local_node: LocalNode) -> Self {
+        self.local_node = Some(local_node);
         self
     }
 
@@ -122,17 +130,14 @@ impl Discv5Builder {
 
         let config = self.discovery_config.ok_or(Discv5BuilderError::DiscoveryConfigNotSet)?;
 
-        let key = CombinedKey::generate_secp256k1();
+        let local_node = self.local_node.ok_or(Discv5BuilderError::LocalNodeNotSet)?;
+        let key = local_node.signing_key.clone();
 
-        let enr = self
-            .advertised_address
-            .ok_or(Discv5BuilderError::AdvertisedAddrNotSet)?
-            .build_enr(&key, chain_id)
-            .map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
+        let enr = local_node.build_enr(chain_id).map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
 
         let interval = self.interval.unwrap_or(Duration::from_secs(5));
-        let disc =
-            Discv5::new(enr, key, config).map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
+        let disc = Discv5::new(enr, key.into(), config)
+            .map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
 
         Ok(Discv5Driver::new(disc, interval, chain_id, self.bootstore.clone(), self.bootnodes))
     }
@@ -140,16 +145,20 @@ impl Discv5Builder {
 
 #[cfg(test)]
 mod tests {
-    use discv5::{ConfigBuilder, ListenConfig};
+    use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
 
     use super::*;
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
     fn test_builds_valid_enr() {
-        let addr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099, 9099);
+        let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+
+        let addr = LocalNode::new(k256_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099, 9099);
         let mut builder = Discv5Builder::new();
-        builder = builder.with_address(addr);
+        builder = builder.with_local_node(addr);
         builder = builder.with_chain_id(10);
         builder = builder.with_discovery_config(
             ConfigBuilder::new(ListenConfig::Ipv4 { ip: Ipv4Addr::UNSPECIFIED, port: 9099 })
