@@ -1,11 +1,9 @@
 //! Discover Subcommand
 
-#![allow(unused_imports)]
-
 use crate::flags::{GlobalArgs, MetricsArgs};
 use clap::Parser;
 use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind};
-use discv5::enr::{CombinedKey, k256};
+use discv5::enr::CombinedKey;
 use kona_p2p::{BootStore, Discv5Builder, LocalNode};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tokio_stream::StreamExt;
@@ -15,9 +13,9 @@ use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
-    symbols::{self, Marker},
+    symbols,
     text::{Line, Span},
-    widgets::{Axis, Block, Chart, Dataset, GraphType, LegendPosition},
+    widgets::{Axis, Block, Chart, Dataset, LegendPosition},
 };
 
 /// The `discover` Subcommand
@@ -120,8 +118,10 @@ impl Discovery {
             .ban_duration(Some(std::time::Duration::from_secs(30)))
             .build();
 
-        let discovery_builder =
-            Discv5Builder::new().with_local_node(ip_and_port).with_chain_id(self.l2_chain_id);
+        let discovery_builder = Discv5Builder::new()
+            .with_discovery_config(config)
+            .with_local_node(ip_and_port)
+            .with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(2);
         discovery.forward = false;
