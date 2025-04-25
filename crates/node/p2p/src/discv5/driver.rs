@@ -383,7 +383,7 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[tokio::test]
-    async fn test_discv5_driver() {
+    async fn test_online_discv5_driver() {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let discovery = Discv5Driver::builder()
             .with_address(AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
@@ -396,7 +396,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_discv5_driver_bootstrap_testnet() {
+    async fn test_online_discv5_driver_bootstrap_testnet() {
         // Use a test directory to make sure bootstore
         // doesn't conflict with a local bootstore.
         let dir = std::env::temp_dir();
@@ -457,7 +457,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_discv5_driver_bootstrap_mainnet() {
+    async fn test_online_discv5_driver_bootstrap_mainnet() {
         kona_cli::init_test_tracing();
 
         // Use a test directory to make sure bootstore
