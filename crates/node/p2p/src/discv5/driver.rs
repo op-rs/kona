@@ -32,14 +32,15 @@ use crate::{
 /// ## Example
 ///
 /// ```no_run
-/// use kona_p2p::Discv5Driver;
-/// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+/// use kona_p2p::{AdvertisedIpAndPort, Discv5Driver};
+/// use std::net::{IpAddr, Ipv4Addr};
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+///     let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+///     let addr = AdvertisedIpAndPort::new(advertise_ip, 9099, 9098);
 ///     let mut disc = Discv5Driver::builder()
-///         .with_address(socket)
+///         .with_address(addr)
 ///         .with_chain_id(10) // OP Mainnet chain id
 ///         .build()
 ///         .expect("Failed to build discovery service");
