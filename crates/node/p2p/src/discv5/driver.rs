@@ -32,14 +32,15 @@ use crate::{
 /// ## Example
 ///
 /// ```no_run
-/// use kona_p2p::Discv5Driver;
-/// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+/// use kona_p2p::{AdvertisedIpAndPorts, Discv5Driver};
+/// use std::net::{IpAddr, Ipv4Addr};
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+///     let advertised_ip =
+///         AdvertisedIpAndPorts::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098, 9098);
 ///     let mut disc = Discv5Driver::builder()
-///         .with_address(socket)
+///         .with_address(advertised_ip)
 ///         .with_chain_id(10) // OP Mainnet chain id
 ///         .build()
 ///         .expect("Failed to build discovery service");
@@ -374,7 +375,7 @@ impl Discv5Driver {
 
 #[cfg(test)]
 mod tests {
-    use crate::BootNodes;
+    use crate::{BootNodes, discv5::builder::AdvertisedIpAndPorts};
     use discv5::{ConfigBuilder, enr::CombinedPublicKey, handler::NodeContact};
     use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
 
@@ -385,7 +386,7 @@ mod tests {
     async fn test_discv5_driver() {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let discovery = Discv5Driver::builder()
-            .with_address(socket)
+            .with_address(AdvertisedIpAndPorts::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
@@ -403,7 +404,7 @@ mod tests {
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let mut discovery = Discv5Driver::builder()
-            .with_address(socket)
+            .with_address(AdvertisedIpAndPorts::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
@@ -487,7 +488,7 @@ mod tests {
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let mut discovery = Discv5Driver::builder()
-            .with_address(socket)
+            .with_address(AdvertisedIpAndPorts::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
             .with_chain_id(OP_MAINNET_CHAIN_ID)
             .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
