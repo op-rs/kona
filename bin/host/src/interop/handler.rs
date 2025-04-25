@@ -36,7 +36,7 @@ use kona_protocol::BlockInfo;
 use kona_registry::ROLLUP_CONFIGS;
 use std::sync::Arc;
 use tokio::task;
-use tracing::warn;
+use tracing::{debug, warn};
 
 /// The [HintHandler] for the [InteropHost].
 #[derive(Debug, Clone, Copy)]
@@ -407,6 +407,18 @@ impl HintHandler for InteropHintHandler {
                 let disputed_block_hash = B256::from_slice(&hint.data.as_ref()[32..64]);
                 let chain_id = u64::from_be_bytes(hint.data.as_ref()[64..72].try_into()?);
 
+                // Return early if the agreed and disputed block are the same. This can occur when
+                // the chain has not progressed past its prestate, but the super root timestamp has
+                // progressed.
+                if agreed_block_hash == disputed_block_hash {
+                    debug!(
+                        target: "interop_hint_handler",
+                        chain_id,
+                        "Chain has not progressed. Skipping block data hint."
+                    );
+                    return Ok(());
+                }
+
                 let l2_provider = providers.l2(&chain_id)?;
                 let rollup_config = ROLLUP_CONFIGS
                     .get(&chain_id)
@@ -431,6 +443,12 @@ impl HintHandler for InteropHintHandler {
                 // Return early if the disputed block is canonical - preimages can be fetched
                 // through the normal flow.
                 if disputed_block.header.hash == disputed_block_hash {
+                    debug!(
+                        target: "interop_hint_handler",
+                        number = disputed_block.header.number,
+                        hash = ?disputed_block.header.hash,
+                        "Block is already canonical. Skipping re-derivation + execution."
+                    );
                     return Ok(());
                 }
 
