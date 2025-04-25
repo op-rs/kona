@@ -32,15 +32,20 @@ use crate::{
 /// ## Example
 ///
 /// ```no_run
-/// use kona_p2p::{AdvertisedIpAndPort, Discv5Driver};
+/// use discv5::enr::CombinedKey;
+/// use kona_p2p::{Discv5Driver, LocalNode};
 /// use std::net::{IpAddr, Ipv4Addr};
 ///
 /// #[tokio::main]
 /// async fn main() {
+///     let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
+///         unreachable!()
+///     };
+///
 ///     let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-///     let addr = AdvertisedIpAndPort::new(advertise_ip, 9099, 9098);
+///     let addr = LocalNode::new(k256_key, advertise_ip, 9099, 9098);
 ///     let mut disc = Discv5Driver::builder()
-///         .with_address(addr)
+///         .with_local_node(addr)
 ///         .with_chain_id(10) // OP Mainnet chain id
 ///         .build()
 ///         .expect("Failed to build discovery service");
@@ -375,8 +380,12 @@ impl Discv5Driver {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BootNodes, discv5::builder::AdvertisedIpAndPort};
-    use discv5::{ConfigBuilder, enr::CombinedPublicKey, handler::NodeContact};
+    use crate::{BootNodes, discv5::builder::LocalNode};
+    use discv5::{
+        ConfigBuilder,
+        enr::{CombinedKey, CombinedPublicKey},
+        handler::NodeContact,
+    };
     use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
 
     use super::*;
@@ -384,9 +393,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_online_discv5_driver() {
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let discovery = Discv5Driver::builder()
-            .with_address(AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
+            .with_local_node(LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
@@ -403,8 +416,11 @@ mod tests {
         assert!(std::env::set_current_dir(&dir).is_ok());
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
         let mut discovery = Discv5Driver::builder()
-            .with_address(AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
+            .with_local_node(LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
             .with_chain_id(OP_SEPOLIA_CHAIN_ID)
             .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()
@@ -487,8 +503,13 @@ mod tests {
         assert_eq!(mainnet.len(), 13);
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
+
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+
         let mut discovery = Discv5Driver::builder()
-            .with_address(AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
+            .with_local_node(LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
             .with_chain_id(OP_MAINNET_CHAIN_ID)
             .with_discovery_config(ConfigBuilder::new(socket.into()).build())
             .build()

@@ -18,8 +18,9 @@
 #![warn(unused_crate_dependencies)]
 
 use clap::{ArgAction, Parser};
+use discv5::enr::CombinedKey;
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::{AdvertisedIpAndPort, Discv5Builder};
+use kona_p2p::{Discv5Builder, LocalNode};
 use std::net::{IpAddr, Ipv4Addr};
 
 /// The discovery command.
@@ -49,7 +50,12 @@ impl DiscCommand {
             .add_directive("discv5=error".parse()?);
         init_tracing_subscriber(self.v, Some(filter))?;
 
-        let socket = AdvertisedIpAndPort::new(
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+
+        let socket = LocalNode::new(
+            secret_key,
             IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             self.disc_port,
             self.disc_port,
@@ -57,7 +63,7 @@ impl DiscCommand {
         tracing::info!("Starting discovery service on {:?}", socket);
 
         let discovery_builder =
-            Discv5Builder::new().with_address(socket).with_chain_id(self.l2_chain_id);
+            Discv5Builder::new().with_local_node(socket).with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(self.interval);
         discovery.forward = false;

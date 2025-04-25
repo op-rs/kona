@@ -43,8 +43,7 @@ pub use peers::{
 
 mod discv5;
 pub use discv5::{
-    AdvertisedIpAndPort, Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler,
-    HandlerRequest,
+    Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler, HandlerRequest, LocalNode,
 };
 
 mod utils;

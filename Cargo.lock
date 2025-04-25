@@ -2805,6 +2805,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "discv5",
  "kona-cli",
  "kona-p2p",
  "tokio",
@@ -2818,6 +2819,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "discv5",
  "kona-cli",
  "kona-p2p",
  "kona-registry",

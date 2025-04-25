@@ -116,6 +116,17 @@ pub struct PeerInfo {
     pub peer_scores: PeerScores,
 }
 
+/// Peer count data.
+#[derive(Clone, Default, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct PeerCount {
+    /// The total number of connected peers to the discovery service.
+    pub connected_discovery: Option<usize>,
+    /// The total number of connected peers to the gossip service.
+    pub connected_gossip: usize,
+}
+
 /// A raw peer dump.
 ///
 /// <https://github.com/ethereum-optimism/optimism/blob/40750a58e7a4a6f06370d18dfe6c6eab309012d9/op-node/p2p/rpc_api.go#L36>

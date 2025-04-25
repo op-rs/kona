@@ -1,6 +1,6 @@
 //! Configuration for the `Network`.
 
-use crate::{PeerScoreLevel, discv5::AdvertisedIpAndPort, peers::PeerMonitoring};
+use crate::{PeerScoreLevel, discv5::LocalNode, peers::PeerMonitoring};
 use alloy_primitives::Address;
 use discv5::Enr;
 use libp2p::identity::Keypair;
@@ -14,7 +14,7 @@ pub struct Config {
     pub discovery_config: discv5::Config,
     /// The local node's advertised address to external peers.
     /// Note: This may be different from the node's discovery listen address.
-    pub discovery_address: AdvertisedIpAndPort,
+    pub discovery_address: LocalNode,
     /// The interval to find peers.
     pub discovery_interval: Duration,
     /// The gossip address.

@@ -8,9 +8,9 @@ use crate::flags::GlobalArgs;
 use alloy_primitives::B256;
 use anyhow::Result;
 use clap::Parser;
-use discv5::Enr;
+use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{AdvertisedIpAndPort, Config, PeerMonitoring, PeerScoreLevel};
+use kona_p2p::{Config, LocalNode, PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
@@ -316,8 +316,15 @@ impl P2PArgs {
             self.listen_udp_port
         };
 
+        let keypair = self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1());
+        let secp256k1_key = keypair.clone().try_into_secp256k1()
+            .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to secp256k1. This is a bug since we only support secp256k1 keys: {e}"))?
+            .secret().to_bytes();
+        let local_node_key = k256::ecdsa::SigningKey::from_bytes(&secp256k1_key.into())
+            .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to k256 signing key. This is a bug since we only support secp256k1 keys: {e}"))?;
+
         let discovery_address =
-            AdvertisedIpAndPort::new(advertise_ip, advertise_tcp_port, advertise_udp_port);
+            LocalNode::new(local_node_key, advertise_ip, advertise_tcp_port, advertise_udp_port);
         let gossip_config = kona_p2p::default_config_builder()
             .mesh_n(self.gossip_mesh_d)
             .mesh_n_low(self.gossip_mesh_dlo)

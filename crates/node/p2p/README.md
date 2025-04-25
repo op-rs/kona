@@ -16,8 +16,9 @@ Contains a gossipsub driver to run discv5 peer discovery and block gossip.
 ```rust,no_run
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use alloy_primitives::address;
-use kona_p2p::{AdvertisedIpAndPort, Network};
+use kona_p2p::{LocalNode, Network};
 use libp2p::Multiaddr;
+use discv5::enr::CombinedKey;
 
 // Construct the Network
 let signer = address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
@@ -25,7 +26,11 @@ let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
 let mut gossip_addr = Multiaddr::from(gossip.ip());
 gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
 let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-let disc = AdvertisedIpAndPort::new(advertise_ip, 9097, 9098);
+
+let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
+    unreachable!()
+};
+let disc = LocalNode::new(k256_key, advertise_ip, 9097, 9098);
 let network = Network::builder()
     .with_chain_id(10) // op mainnet chain id
     .with_unsafe_block_signer(signer)
