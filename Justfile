@@ -49,6 +49,13 @@ action-tests test_name='Test_ProgramAction' *args='':
   cd monorepo/op-e2e/actions/proofs && \
     GITHUB_ACTIONS=false gotestsum --format=testname -- -run "{{test_name}}" {{args}} -count=1 ./...
 
+# Runs the tests with llvm-cov
+llvm-tests:
+  cargo llvm-cov nextest --locked --workspace --lcov \
+    --output-path lcov.info --all-features \
+    --exclude kona-node --exclude kona-p2p \
+    --ignore-run-fail --profile ci -E '!test(test_online)'
+
 # Clean the action tests directory
 clean-actions:
   rm -rf monorepo/
