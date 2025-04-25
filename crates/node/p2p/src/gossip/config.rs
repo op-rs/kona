@@ -103,20 +103,20 @@ pub fn default_config() -> Config {
 /// Computes the [MessageId] of a `gossipsub` message.
 fn compute_message_id(msg: &Message) -> MessageId {
     let mut decoder = Decoder::new();
-    let id = match decoder.decompress_vec(&msg.data) {
-        Ok(data) => {
-            let domain_valid_snappy: Vec<u8> = vec![0x1, 0x0, 0x0, 0x0];
-            sha256([domain_valid_snappy.as_slice(), data.as_slice()].concat().as_slice())[..20]
-                .to_vec()
-        }
-        Err(_) => {
+    let id = decoder.decompress_vec(&msg.data).map_or_else(
+        |_| {
             warn!(target: "cfg", "Failed to decompress message, using invalid snappy");
             let domain_invalid_snappy: Vec<u8> = vec![0x0, 0x0, 0x0, 0x0];
             sha256([domain_invalid_snappy.as_slice(), msg.data.as_slice()].concat().as_slice())
                 [..20]
                 .to_vec()
-        }
-    };
+        },
+        |data| {
+            let domain_valid_snappy: Vec<u8> = vec![0x1, 0x0, 0x0, 0x0];
+            sha256([domain_valid_snappy.as_slice(), data.as_slice()].concat().as_slice())[..20]
+                .to_vec()
+        },
+    );
 
     MessageId(id)
 }

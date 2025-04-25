@@ -51,12 +51,12 @@ impl EnrValidation {
     }
 
     /// Returns `true` if the ENR is valid.
-    pub fn is_valid(&self) -> bool {
+    pub const fn is_valid(&self) -> bool {
         matches!(self, Self::Valid)
     }
 
     /// Returns `true` if the ENR is invalid.
-    pub fn is_invalid(&self) -> bool {
+    pub const fn is_invalid(&self) -> bool {
         !self.is_valid()
     }
 }
@@ -76,14 +76,14 @@ impl OpStackEnr {
     pub const OP_CL_KEY: &str = "opstack";
 
     /// Constructs an [`OpStackEnr`] from a chain id.
-    pub fn from_chain_id(chain_id: u64) -> Self {
+    pub const fn from_chain_id(chain_id: u64) -> Self {
         Self { chain_id, version: 0 }
     }
 
     /// Returns `true` if a node [`Enr`] contains an `opstack` key and is on the same network.
     pub fn is_valid_node(node: &Enr, chain_id: u64) -> bool {
         node.get_raw_rlp(Self::OP_CL_KEY).is_some_and(|mut opstack| {
-            OpStackEnr::decode(&mut opstack)
+            Self::decode(&mut opstack)
                 .is_ok_and(|opstack| opstack.chain_id == chain_id && opstack.version == 0)
         })
     }

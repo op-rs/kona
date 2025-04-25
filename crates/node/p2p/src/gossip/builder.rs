@@ -61,31 +61,31 @@ impl GossipDriverBuilder {
     /// Sets the number of times to redial a peer.
     /// If unset, peers will not be redialed.
     /// If set to `0`, peers will be redialed indefinitely.
-    pub fn with_peer_redial(mut self, peer_redial: Option<u64>) -> Self {
+    pub const fn with_peer_redial(mut self, peer_redial: Option<u64>) -> Self {
         self.peer_redial = peer_redial;
         self
     }
 
     /// Specifies the chain ID of the gossip driver.
-    pub fn with_chain_id(mut self, chain_id: u64) -> Self {
+    pub const fn with_chain_id(mut self, chain_id: u64) -> Self {
         self.chain_id = Some(chain_id);
         self
     }
 
     /// Sets the block time for the peer scoring.
-    pub fn with_block_time(mut self, block_time: u64) -> Self {
+    pub const fn with_block_time(mut self, block_time: u64) -> Self {
         self.block_time = Some(block_time);
         self
     }
 
     /// Sets the [`PeerScoreLevel`] for the [`Behaviour`].
-    pub fn with_peer_scoring(mut self, level: PeerScoreLevel) -> Self {
+    pub const fn with_peer_scoring(mut self, level: PeerScoreLevel) -> Self {
         self.scoring = Some(level);
         self
     }
 
     /// Sets the [`PeerMonitoring`] configuration for the gossip driver.
-    pub fn with_peer_monitoring(mut self, peer_monitoring: Option<PeerMonitoring>) -> Self {
+    pub const fn with_peer_monitoring(mut self, peer_monitoring: Option<PeerMonitoring>) -> Self {
         self.peer_monitoring = peer_monitoring;
         self
     }
@@ -103,7 +103,7 @@ impl GossipDriverBuilder {
     }
 
     /// Sets the swarm's idle connection timeout.
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+    pub const fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
@@ -177,6 +177,6 @@ impl GossipDriverBuilder {
 
         let redialing = self.peer_redial;
 
-        Ok(GossipDriver::new(swarm, addr, redialing, handler.clone()))
+        Ok(GossipDriver::new(swarm, addr, redialing, handler))
     }
 }

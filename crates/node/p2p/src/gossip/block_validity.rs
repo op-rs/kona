@@ -11,41 +11,74 @@ use op_alloy_rpc_types_engine::{
 
 use super::BlockHandler;
 
+/// Error that can occur when validating a block.
 #[derive(Debug, thiserror::Error)]
 pub enum BlockInvalidError {
+    /// The block has an invalid timestamp.
     #[error("Invalid timestamp. Current: {current}, Received: {received}")]
-    Timestamp { current: u64, received: u64 },
+    Timestamp {
+        /// The current timestamp.
+        current: u64,
+        /// The received timestamp.
+        received: u64,
+    },
+    /// The block has an invalid base fee per gas.
     #[error("Base fee per gas overflow")]
     BaseFeePerGasOverflow(#[from] PayloadError),
+    /// The block has an invalid hash.
     #[error("Invalid block hash. Expected: {expected}, Received: {received}")]
-    BlockHash { expected: B256, received: B256 },
+    BlockHash {
+        /// The expected block hash.
+        expected: B256,
+        /// The received block hash.
+        received: B256,
+    },
+    /// The block has an invalid signature.
     #[error("Invalid signature.")]
     Signature,
+    /// The block has an invalid signer.
     #[error("Invalid signer, expected: {expected}, received: {received}")]
-    Signer { expected: Address, received: Address },
+    Signer {
+        /// The expected signer.
+        expected: Address,
+        /// The received signer.
+        received: Address,
+    },
     /// Invalid block.
     #[error(transparent)]
     InvalidBlock(#[from] OpPayloadError),
+    /// The block has an invalid parent beacon block root.
     #[error("Payload is on v3+ topic, but has empty parent beacon root")]
     ParentBeaconRoot,
+    /// The block has an invalid blob gas used.
     #[error("Payload is on v3+ topic, but has non-zero blob gas used")]
     BlobGasUsed,
+    /// The block has an invalid excess blob gas.
     #[error("Payload is on v3+ topic, but has non-zero excess blob gas")]
     ExcessBlobGas,
+    /// The block has an invalid withdrawals root.
     #[error("Payload is on v4+ topic, but has non-empty withdrawals root")]
     WithdrawalsRoot,
+    /// Too many blocks were validated for the same height.
     #[error("Too many blocks seen for height {height}")]
-    TooManyBlocks { height: u64 },
+    TooManyBlocks {
+        /// The height of the block.
+        height: u64,
+    },
+    /// The block has already been seen.
     #[error("Block seen before")]
-    BlockSeen { block_hash: B256 },
+    BlockSeen {
+        /// The hash of the block.
+        block_hash: B256,
+    },
 }
 
 impl From<BlockInvalidError> for MessageAcceptance {
     fn from(value: BlockInvalidError) -> Self {
         // We only want to ignore blocks that we have already seen.
         match value {
-            BlockInvalidError::BlockSeen { block_hash: _ } => MessageAcceptance::Ignore,
-            _ => MessageAcceptance::Reject,
+            BlockInvalidError::BlockSeen { block_hash: _ } => Self::Ignore,
+            _ => Self::Reject,
         }
     }
 }
@@ -58,12 +91,12 @@ impl BlockHandler {
     /// if new blocks for that height are received.
     ///
     /// This value is chosen to match `op-node` validator's lru cache size.
-    /// See: `<https://github.com/ethereum-optimism/optimism/blob/836d50be5d5f4ae14ffb2ea6106720a2b080cdae/op-node/p2p/gossip.go#L266>``
+    /// See: <https://github.com/ethereum-optimism/optimism/blob/836d50be5d5f4ae14ffb2ea6106720a2b080cdae/op-node/p2p/gossip.go#L266>
     pub const SEEN_HASH_CACHE_SIZE: usize = 1_000;
 
     /// The maximum number of blocks to keep per height.
     /// This value is chosen according to the optimism specs:
-    /// `<https://specs.optimism.io/protocol/rollup-node-p2p.html#block-validation>`
+    /// <https://specs.optimism.io/protocol/rollup-node-p2p.html#block-validation>
     const MAX_BLOCKS_TO_KEEP: usize = 5;
 
     /// Determines if a block is valid.
@@ -103,7 +136,7 @@ impl BlockHandler {
         }
 
         // CHECK: The payload is valid for the specific version of this block.
-        validate_version_specific_payload(envelope)?;
+        Self::validate_version_specific_payload(envelope)?;
 
         if let Some(seen_hashes_at_height) =
             self.seen_hashes.get_mut(&envelope.payload.block_number())
@@ -152,69 +185,72 @@ impl BlockHandler {
 
         Ok(())
     }
-}
 
-// Validate version specific contents of the payload.
-pub fn validate_version_specific_payload(
-    envelope: &OpNetworkPayloadEnvelope,
-) -> Result<(), BlockInvalidError> {
-    // Validation for v1 payloads are mostly ensured by type-safety, by decoding the
-    // payload to the ExecutionPayloadV1 type:
-    // 1. The block should not have any withdrawals
-    // 2. The block should not have any withdrawals list
-    // 3. The block should not have any blob gas used
-    // 4. The block should not have any excess blob gas
-    // 5. The block should not have any withdrawals root
-    // 6. The block should not have any parent beacon block root (validated because ignored by the
-    //    decoder, this causes a hash mismatch. See tests)
-
-    // Same as v1, except:
-    // 1. The block should have an empty withdrawals list. This is checked during the call to
-    //    [`OpExecutionPayload::try_into_block`].
-
-    // Same as v2, except:
-    // 1. The block should have a zero blob gas used
-    // 2. The block should have a zero excess blob gas
-    // 3. The block should have a non empty parent beacon block root
-    fn validate_v3(
-        block: &ExecutionPayloadV3,
-        parent_beacon_block_root: Option<B256>,
+    /// Validate version specific contents of the payload.
+    pub const fn validate_version_specific_payload(
+        envelope: &OpNetworkPayloadEnvelope,
     ) -> Result<(), BlockInvalidError> {
-        if block.blob_gas_used != 0 {
-            return Err(BlockInvalidError::BlobGasUsed);
+        // Validation for v1 payloads are mostly ensured by type-safety, by decoding the
+        // payload to the ExecutionPayloadV1 type:
+        // 1. The block should not have any withdrawals
+        // 2. The block should not have any withdrawals list
+        // 3. The block should not have any blob gas used
+        // 4. The block should not have any excess blob gas
+        // 5. The block should not have any withdrawals root
+        // 6. The block should not have any parent beacon block root (validated because ignored by
+        //    the decoder, this causes a hash mismatch. See tests)
+
+        // Same as v1, except:
+        // 1. The block should have an empty withdrawals list. This is checked during the call to
+        //    [`OpExecutionPayload::try_into_block`].
+
+        // Same as v2, except:
+        // 1. The block should have a zero blob gas used
+        // 2. The block should have a zero excess blob gas
+        // 3. The block should have a non empty parent beacon block root
+        const fn validate_v3(
+            block: &ExecutionPayloadV3,
+            parent_beacon_block_root: Option<B256>,
+        ) -> Result<(), BlockInvalidError> {
+            if block.blob_gas_used != 0 {
+                return Err(BlockInvalidError::BlobGasUsed);
+            }
+
+            if block.excess_blob_gas != 0 {
+                return Err(BlockInvalidError::ExcessBlobGas);
+            }
+
+            if parent_beacon_block_root.is_none() {
+                return Err(BlockInvalidError::ParentBeaconRoot);
+            }
+
+            Ok(())
         }
 
-        if block.excess_blob_gas != 0 {
-            return Err(BlockInvalidError::ExcessBlobGas);
+        // Same as v3, except:
+        // 1. The block should have an non-empty withdrawals root (checked by type-safety)
+        const fn validate_v4(
+            block: &OpExecutionPayloadV4,
+            parent_beacon_block_root: Option<B256>,
+        ) -> Result<(), BlockInvalidError> {
+            validate_v3(&block.payload_inner, parent_beacon_block_root)
         }
 
-        if parent_beacon_block_root.is_none() {
-            return Err(BlockInvalidError::ParentBeaconRoot);
+        match &envelope.payload {
+            OpExecutionPayload::V1(_) => Ok(()),
+            OpExecutionPayload::V2(_) => Ok(()),
+            OpExecutionPayload::V3(payload) => {
+                validate_v3(payload, envelope.parent_beacon_block_root)
+            }
+            OpExecutionPayload::V4(payload) => {
+                validate_v4(payload, envelope.parent_beacon_block_root)
+            }
         }
-
-        Ok(())
-    }
-
-    // Same as v3, except:
-    // 1. The block should have an non-empty withdrawals root (checked by type-safety)
-    fn validate_v4(
-        block: &OpExecutionPayloadV4,
-        parent_beacon_block_root: Option<B256>,
-    ) -> Result<(), BlockInvalidError> {
-        validate_v3(&block.payload_inner, parent_beacon_block_root)
-    }
-
-    match &envelope.payload {
-        OpExecutionPayload::V1(_) => Ok(()),
-        OpExecutionPayload::V2(_) => Ok(()),
-        OpExecutionPayload::V3(payload) => validate_v3(payload, envelope.parent_beacon_block_root),
-        OpExecutionPayload::V4(payload) => validate_v4(payload, envelope.parent_beacon_block_root),
     }
 }
 
 #[cfg(test)]
-pub mod tests {
-
+pub(crate) mod tests {
     use super::*;
     use alloy_consensus::{Block, EMPTY_OMMER_ROOT_HASH};
     use alloy_eips::{eip2718::Encodable2718, eip4895::Withdrawal};
@@ -275,7 +311,7 @@ pub mod tests {
     }
 
     /// Make the block v2 compatible
-    pub fn v2_valid_block() -> Block<OpTxEnvelope> {
+    pub(crate) fn v2_valid_block() -> Block<OpTxEnvelope> {
         let mut block = v1_valid_block();
 
         block.body.withdrawals = Some(vec![].into());
@@ -289,7 +325,7 @@ pub mod tests {
     }
 
     /// Make the block v3 compatible
-    pub fn v3_valid_block() -> Block<OpTxEnvelope> {
+    pub(crate) fn v3_valid_block() -> Block<OpTxEnvelope> {
         let mut block = valid_block();
 
         block.body.withdrawals = Some(vec![].into());
@@ -312,7 +348,7 @@ pub mod tests {
     }
 
     /// Make the block v4 compatible
-    pub fn v4_valid_block() -> Block<OpTxEnvelope> {
+    pub(crate) fn v4_valid_block() -> Block<OpTxEnvelope> {
         v3_valid_block()
     }
 
