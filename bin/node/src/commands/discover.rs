@@ -109,9 +109,16 @@ impl Discovery {
         let ip_and_port =
             AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.port, self.port);
         tracing::info!("Starting discovery service on {:?}", ip_and_port);
+        let discovery_listening_address =
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.port);
+        let config = discv5::ConfigBuilder::new(discovery_listening_address.into())
+            .ban_duration(Some(std::time::Duration::from_secs(30)))
+            .build();
 
-        let discovery_builder =
-            Discv5Builder::new().with_address(ip_and_port).with_chain_id(self.l2_chain_id);
+        let discovery_builder = Discv5Builder::new()
+            .with_discovery_config(config)
+            .with_address(ip_and_port)
+            .with_chain_id(self.l2_chain_id);
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(2);
         discovery.forward = false;
