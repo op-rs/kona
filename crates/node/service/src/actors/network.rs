@@ -28,7 +28,7 @@ use tokio_util::sync::CancellationToken;
 ///
 /// let chain_id = 10;
 /// let signer = Address::random();
-/// let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+/// let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
 ///
 /// // Construct the `Network` using the builder.
 /// // let mut driver = Network::builder()

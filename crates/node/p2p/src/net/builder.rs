@@ -241,9 +241,9 @@ mod tests {
     fn test_build_simple_succeeds() {
         let id = 10;
         let signer = Address::random();
-        let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9097);
-        let disc_enr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098, 9098);
-        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+        let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097);
+        let disc_enr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
+        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
         let driver = NetworkBuilder::new()
@@ -277,12 +277,12 @@ mod tests {
     fn test_build_network_custom_configs() {
         let id = 10;
         let signer = Address::random();
-        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
-        let disc = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9097, 9097);
+        let disc = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097, 9097);
         let discovery_config =
-            ConfigBuilder::new(ListenConfig::from_ip(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9098))
+            ConfigBuilder::new(ListenConfig::from_ip(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098))
                 .build();
         let driver = NetworkBuilder::new()
             .with_unsafe_block_signer(signer)

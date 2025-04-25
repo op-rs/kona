@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_builds_valid_enr() {
-        let addr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099, 9099);
+        let addr = AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099, 9099);
         let mut builder = Discv5Builder::new();
         builder = builder.with_address(addr);
         builder = builder.with_chain_id(10);

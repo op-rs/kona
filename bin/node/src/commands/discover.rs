@@ -107,7 +107,7 @@ impl Discovery {
     /// Runs the main app.
     pub async fn run(mut self, mut terminal: DefaultTerminal) -> anyhow::Result<()> {
         let ip_and_port =
-            AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.port, self.port);
+            AdvertisedIpAndPort::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.port, self.port);
         tracing::info!("Starting discovery service on {:?}", ip_and_port);
 
         let discovery_builder =

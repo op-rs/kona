@@ -50,7 +50,7 @@ impl DiscCommand {
         init_tracing_subscriber(self.v, Some(filter))?;
 
         let socket = AdvertisedIpAndPort::new(
-            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             self.disc_port,
             self.disc_port,
         );

@@ -21,7 +21,7 @@ use libp2p::Multiaddr;
 
 // Construct the Network
 let signer = address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9099);
+let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
 let mut gossip_addr = Multiaddr::from(gossip.ip());
 gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
 let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);

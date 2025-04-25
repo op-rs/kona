@@ -63,13 +63,13 @@ impl GossipCommand {
             .batcher_address;
         tracing::info!("Gossip configured with signer: {:?}", signer);
 
-        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.gossip_port);
+        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.gossip_port);
         tracing::info!("Starting gossip driver on {:?}", gossip);
 
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
         let disc_addr = AdvertisedIpAndPort::new(
-            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             self.disc_port,
             self.disc_port,
         );

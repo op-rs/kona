@@ -10,7 +10,7 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
     let chain_id = 10;
     let timeout = std::time::Duration::from_secs(60);
     let mut addr = Multiaddr::empty();
-    addr.push(Protocol::Ip4(Ipv4Addr::new(0, 0, 0, 0)));
+    addr.push(Protocol::Ip4(Ipv4Addr::UNSPECIFIED));
     addr.push(Protocol::Tcp(port));
 
     // Use the default `kona_p2p` config for the gossipsub protocol.
