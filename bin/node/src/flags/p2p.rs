@@ -264,15 +264,13 @@ impl P2PArgs {
     /// Returns the unsafe block signer from the CLI arguments.
     pub async fn unsafe_block_signer(
         &self,
+        config: &RollupConfig,
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
     ) -> anyhow::Result<alloy_primitives::Address> {
         // First attempt to load the unsafe block signer from the runtime loader.
         if let Some(url) = l1_rpc {
-            let config = args.rollup_config().ok_or_else(|| {
-                anyhow::anyhow!("No rollup config found for chain ID: {}", args.l2_chain_id)
-            })?;
-            let mut loader = RuntimeLoader::new(url, Arc::new(config));
+            let mut loader = RuntimeLoader::new(url, Arc::new(config.clone()));
             let runtime = loader
                 .load_latest()
                 .await
@@ -350,7 +348,7 @@ impl P2PArgs {
             discovery_address,
             gossip_address,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
-            unsafe_block_signer: self.unsafe_block_signer(args, l1_rpc).await?,
+            unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
             gossip_config,
             scoring: self.scoring,
             block_time,
