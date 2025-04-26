@@ -3,17 +3,18 @@
 use super::StatelessL2Builder;
 use crate::{
     ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
-    constants::{L2_TO_L1_BRIDGE, OUTPUT_ROOT_VERSION, SHA256_EMPTY},
+    constants::{L2_TO_L1_BRIDGE, SHA256_EMPTY},
     util::encode_holocene_eip_1559_params,
 };
 use alloc::vec::Vec;
 use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header, Sealed};
 use alloy_eips::Encodable2718;
 use alloy_evm::{EvmFactory, block::BlockExecutionResult};
-use alloy_primitives::{B256, Sealable, U256, keccak256, logs_bloom};
+use alloy_primitives::{B256, Sealable, U256, logs_bloom};
 use alloy_trie::EMPTY_ROOT_HASH;
 use kona_genesis::RollupConfig;
 use kona_mpt::{TrieHinter, ordered_trie_with_encoder};
+use kona_protocol::OutputRoot;
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{context::BlockEnv, database::BundleState};
@@ -123,7 +124,6 @@ where
 
         info!(
             target: "block_builder",
-            version = OUTPUT_ROOT_VERSION,
             state_root = ?self.trie_db.parent_block_header().state_root,
             block_number = parent_number,
             "Computing output root",
@@ -133,22 +133,19 @@ where
         let parent_header = self.trie_db.parent_block_header();
 
         // Construct the raw output and hash it.
-        let mut raw_output = [0u8; 128];
-        raw_output[31] = OUTPUT_ROOT_VERSION;
-        raw_output[32..64].copy_from_slice(parent_header.state_root.as_ref());
-        raw_output[64..96].copy_from_slice(storage_root.as_ref());
-        raw_output[96..128].copy_from_slice(parent_header.seal().as_ref());
-        let output_root = keccak256(raw_output);
+        let output_root_hash =
+            OutputRoot::from_parts(parent_header.state_root, storage_root, parent_header.seal())
+                .hash();
 
         info!(
             target: "block_builder",
             block_number = parent_number,
-            output_root = ?output_root,
+            output_root = ?output_root_hash,
             "Computed output root",
         );
 
         // Hash the output and return
-        Ok(output_root)
+        Ok(output_root_hash)
     }
 
     /// Fetches the L2 to L1 message passer account from the cache or underlying trie.

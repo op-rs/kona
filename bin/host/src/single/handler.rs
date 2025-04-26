@@ -18,7 +18,7 @@ use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType, l1::ROOTS_OF_UNITY};
-use kona_protocol::BlockInfo;
+use kona_protocol::{BlockInfo, OutputRoot};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use tracing::warn;
 
@@ -193,7 +193,6 @@ impl HintHandler for SingleChainHintHandler {
                 store_ordered_trie(kv.as_ref(), encoded_transactions.as_slice()).await?;
             }
             HintType::StartingL2Output => {
-                const OUTPUT_ROOT_VERSION: u8 = 0;
                 const L2_TO_L1_MESSAGE_PASSER_ADDRESS: Address =
                     address!("4200000000000000000000000000000000000016");
 
@@ -214,21 +213,23 @@ impl HintHandler for SingleChainHintHandler {
                     .block_id(cfg.agreed_l2_head_hash.into())
                     .await?;
 
-                let mut raw_output = [0u8; 128];
-                raw_output[31] = OUTPUT_ROOT_VERSION;
-                raw_output[32..64].copy_from_slice(header.state_root.as_ref());
-                raw_output[64..96].copy_from_slice(l2_to_l1_message_passer.storage_hash.as_ref());
-                raw_output[96..128].copy_from_slice(cfg.agreed_l2_head_hash.as_ref());
-                let output_root = keccak256(raw_output);
+                let output_root = OutputRoot::from_parts(
+                    header.state_root,
+                    l2_to_l1_message_passer.storage_hash,
+                    cfg.agreed_l2_head_hash,
+                );
+                let output_root_hash = output_root.hash();
 
                 ensure!(
-                    output_root == cfg.agreed_l2_output_root,
+                    output_root_hash == cfg.agreed_l2_output_root,
                     "Output root does not match L2 head."
                 );
 
                 let mut kv_write_lock = kv.write().await;
-                kv_write_lock
-                    .set(PreimageKey::new_keccak256(*output_root).into(), raw_output.into())?;
+                kv_write_lock.set(
+                    PreimageKey::new_keccak256(*output_root_hash).into(),
+                    output_root.encode().into(),
+                )?;
             }
             HintType::L2Code => {
                 // geth hashdb scheme code hash key prefix

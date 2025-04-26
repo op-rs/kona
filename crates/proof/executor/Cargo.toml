@@ -15,6 +15,7 @@ workspace = true
 # Workspace
 kona-mpt.workspace = true
 kona-genesis = { workspace = true, features = ["revm"] }
+kona-protocol.workspace = true
 
 # Alloy
 alloy-consensus = { workspace = true, features = ["k256"] }

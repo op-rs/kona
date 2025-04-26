@@ -20,6 +20,7 @@ kona-mpt.workspace = true
 kona-executor.workspace = true
 kona-registry.workspace = true
 kona-genesis = { workspace = true, features = ["serde"] }
+kona-protocol.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

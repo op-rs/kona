@@ -61,5 +61,8 @@ pub use info::{
 mod predeploys;
 pub use predeploys::Predeploys;
 
+mod output_root;
+pub use output_root::OutputRoot;
+
 #[cfg(feature = "test-utils")]
 pub mod test_utils;

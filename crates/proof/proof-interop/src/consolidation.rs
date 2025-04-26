@@ -12,6 +12,7 @@ use kona_interop::{MessageGraph, MessageGraphError};
 use kona_mpt::OrderedListWalker;
 use kona_preimage::CommsClient;
 use kona_proof::{errors::OracleProviderError, l2::OracleL2ChainProvider};
+use kona_protocol::OutputRoot;
 use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::{InteropBlockReplacementDepositSource, OpTxEnvelope, OpTxType, TxDeposit};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -225,15 +226,11 @@ where
         const REPLACEMENT_GAS: u64 = 36000;
 
         let source = InteropBlockReplacementDepositSource::new(old_output_root);
-        let output_root_preimage = {
-            let mut raw_output = [0u8; 128];
-            raw_output[31] = 0x0;
-            raw_output[32..64].copy_from_slice(old_header.state_root.as_ref());
-            raw_output[64..96]
-                .copy_from_slice(old_header.withdrawals_root.unwrap_or_default().as_ref());
-            raw_output[96..128].copy_from_slice(old_header.hash().as_ref());
-            raw_output
-        };
+        let output_root = OutputRoot::from_parts(
+            old_header.state_root,
+            old_header.withdrawals_root.unwrap_or_default(),
+            old_header.hash(),
+        );
         let replacement_tx = OpTxEnvelope::Deposit(
             TxDeposit {
                 source_hash: source.source_hash(),
@@ -243,7 +240,7 @@ where
                 value: U256::ZERO,
                 gas_limit: REPLACEMENT_GAS,
                 is_system_transaction: false,
-                input: output_root_preimage.into(),
+                input: output_root.encode().into(),
             }
             .seal(),
         );

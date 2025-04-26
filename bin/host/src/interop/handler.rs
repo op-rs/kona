@@ -32,7 +32,7 @@ use kona_proof::{
     sync::new_pipeline_cursor,
 };
 use kona_proof_interop::{HintType, PreState};
-use kona_protocol::BlockInfo;
+use kona_protocol::{BlockInfo, OutputRoot};
 use kona_registry::ROLLUP_CONFIGS;
 use std::sync::Arc;
 use tokio::task;
@@ -195,7 +195,6 @@ impl HintHandler for InteropHintHandler {
                 )?;
             }
             HintType::L2OutputRoot => {
-                const OUTPUT_ROOT_VERSION: u8 = 0;
                 const L2_TO_L1_MESSAGE_PASSER_ADDRESS: Address =
                     address!("4200000000000000000000000000000000000016");
 
@@ -241,20 +240,23 @@ impl HintHandler for InteropHintHandler {
                     .block_id(block_number.into())
                     .await?;
 
-                let mut raw_output = [0u8; 128];
-                raw_output[31] = OUTPUT_ROOT_VERSION;
-                raw_output[32..64].copy_from_slice(header.state_root.as_ref());
-                raw_output[64..96].copy_from_slice(l2_to_l1_message_passer.storage_hash.as_ref());
-                raw_output[96..128].copy_from_slice(header.hash_slow().as_ref());
-                let output_root = keccak256(raw_output);
+                let output_root = OutputRoot::from_parts(
+                    header.state_root,
+                    l2_to_l1_message_passer.storage_hash,
+                    header.hash_slow(),
+                );
+                let output_root_hash = output_root.hash();
 
                 ensure!(
-                    output_root == hash,
-                    "Output root does not match L2 head. Expected: {hash}, got: {output_root}"
+                    output_root_hash == hash,
+                    "Output root does not match L2 head. Expected: {hash}, got: {output_root_hash}"
                 );
 
                 let mut kv_lock = kv.write().await;
-                kv_lock.set(PreimageKey::new_keccak256(*output_root).into(), raw_output.into())?;
+                kv_lock.set(
+                    PreimageKey::new_keccak256(*output_root_hash).into(),
+                    output_root.encode().into(),
+                )?;
             }
             HintType::L2BlockHeader => {
                 ensure!(hint.data.len() == 40, "Invalid hint data length");
