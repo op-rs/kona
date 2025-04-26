@@ -32,10 +32,6 @@ ignore:
   - "crates/providers"
   # Ignore noop files
   - "**/noop.rs"
-  # Interop - WIP
-  - "crates/proof/proof-interop"
-  - "bin/host/src/interop"
-  - "bin/client/src/interop"
   # Node - WIP
   - "bin/node"
   - "crates/node/engine"
