@@ -8,9 +8,12 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   action-tests:
-    name: FPP actions
+    name: FPP actions (${{ matrix.kind }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      matrix:
+        kind: ["single", "interop"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -24,11 +27,11 @@ jobs:
           components: llvm-tools-preview
           toolchain: 1.85
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Clone monorepo
-        run: just monorepo
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+      - name: Prep action test environment
+        run: just monorepo
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
@@ -49,10 +52,10 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: ${{ steps.collect-versions.outputs.forge-version }}
-      - name: Run Action Tests
+      - name: Run Action Tests (${{ matrix.kind }})
         run: |
           source <(cargo llvm-cov show-env --export-prefix)
-          just action-tests
+          just "action-tests-${{ matrix.kind }}"
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5

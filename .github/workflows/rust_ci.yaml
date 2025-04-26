@@ -163,7 +163,7 @@ jobs:
         run: cargo generate-lockfile
       - name: cargo llvm-cov
         run: |
-           just llvm-tests && mv ./target/nextest/ci/junit.xml ./junit.xml
+           just llvm-cov-tests && mv ./target/nextest/ci/junit.xml ./junit.xml
       - name: Record Rust version
         run: echo "RUST=$(rustc --version)" >> "$GITHUB_ENV"
       - name: Upload coverage to codecov.io
