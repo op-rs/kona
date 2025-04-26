@@ -1442,7 +1442,10 @@
             "canyon_time": 0,
             "delta_time": 0,
             "ecotone_time": 0,
-            "fjord_time": 0
+            "fjord_time": 0,
+            "granite_time": 1726185601,
+            "holocene_time": 1736445601,
+            "isthmus_time": 1746806401
           },
           "optimism": {
             "eip1559Elasticity": "0x6",
