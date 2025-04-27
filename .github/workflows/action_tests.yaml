@@ -32,6 +32,15 @@ jobs:
           cache-on-failure: true
       - name: Prep action test environment
         run: just monorepo
+      - name: Restore cached Forge artifacts
+        id: cache-forge-build-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            monorepo/packages/contracts-bedrock/forge-artifacts
+            monorepo/packages/contracts-bedrock/artifacts
+            monorepo/packages/contracts-bedrock/cache
+          key: ${{ matrix.kind }}-forge-artifacts
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
@@ -57,6 +66,15 @@ jobs:
           source <(cargo llvm-cov show-env --export-prefix)
           just "action-tests-${{ matrix.kind }}"
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
+      - name: Cache forge artifacts
+        id: cache-forge-build-save
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            monorepo/packages/contracts-bedrock/forge-artifacts
+            monorepo/packages/contracts-bedrock/artifacts
+            monorepo/packages/contracts-bedrock/cache
+          key: ${{ matrix.kind }}-forge-artifacts
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
