@@ -15,6 +15,9 @@ exclude.workspace = true
 workspace = true
 
 [dependencies]
+# Workspace
+kona-protocol.workspace = true
+
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["rlp"] }

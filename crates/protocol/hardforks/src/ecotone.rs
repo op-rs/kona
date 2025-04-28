@@ -3,6 +3,7 @@
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use kona_protocol::Predeploys;
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -19,13 +20,6 @@ impl Ecotone {
 
     /// The depositor account address.
     pub const DEPOSITOR_ACCOUNT: Address = address!("DeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001");
-
-    /// The Gas Price Oracle Proxy Address
-    pub const GAS_PRICE_ORACLE_PROXY: Address =
-        address!("420000000000000000000000000000000000000F");
-
-    /// The L1 Block Proxy Address
-    pub const L1_BLOCK_PROXY: Address = address!("4200000000000000000000000000000000000015");
 
     /// The Enable Ecotone Input Method 4Byte Signature
     pub const ENABLE_ECOTONE_INPUT: [u8; 4] = hex!("22b908b3");
@@ -135,7 +129,7 @@ impl Ecotone {
             TxDeposit {
                 source_hash: Self::update_l1_block_source(),
                 from: Address::ZERO,
-                to: TxKind::Call(Self::L1_BLOCK_PROXY),
+                to: TxKind::Call(Predeploys::L1_BLOCK_INFO),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 50_000,
@@ -147,7 +141,7 @@ impl Ecotone {
             TxDeposit {
                 source_hash: Self::update_gas_price_oracle_source(),
                 from: Address::ZERO,
-                to: TxKind::Call(Self::GAS_PRICE_ORACLE_PROXY),
+                to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 50_000,
@@ -159,7 +153,7 @@ impl Ecotone {
             TxDeposit {
                 source_hash: Self::enable_ecotone_source(),
                 from: Self::DEPOSITOR_ACCOUNT,
-                to: TxKind::Call(Self::GAS_PRICE_ORACLE_PROXY),
+                to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 80_000,

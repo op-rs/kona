@@ -2,8 +2,7 @@
 
 use super::StatelessL2Builder;
 use crate::{
-    ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
-    constants::{L2_TO_L1_BRIDGE, SHA256_EMPTY},
+    ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider, constants::SHA256_EMPTY,
     util::encode_holocene_eip_1559_params,
 };
 use alloc::vec::Vec;
@@ -14,7 +13,7 @@ use alloy_primitives::{B256, Sealable, U256, logs_bloom};
 use alloy_trie::EMPTY_ROOT_HASH;
 use kona_genesis::RollupConfig;
 use kona_mpt::{TrieHinter, ordered_trie_with_encoder};
-use kona_protocol::OutputRoot;
+use kona_protocol::{OutputRoot, Predeploys};
 use op_alloy_consensus::OpReceiptEnvelope;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use revm::{context::BlockEnv, database::BundleState};
@@ -150,11 +149,11 @@ where
 
     /// Fetches the L2 to L1 message passer account from the cache or underlying trie.
     fn message_passer_account(&mut self, block_number: u64) -> Result<B256, TrieDBError> {
-        match self.trie_db.storage_roots().get(&L2_TO_L1_BRIDGE) {
+        match self.trie_db.storage_roots().get(&Predeploys::L2_TO_L1_MESSAGE_PASSER) {
             Some(storage_root) => Ok(storage_root.blind()),
             None => Ok(self
                 .trie_db
-                .get_trie_account(&L2_TO_L1_BRIDGE, block_number)?
+                .get_trie_account(&Predeploys::L2_TO_L1_MESSAGE_PASSER, block_number)?
                 .ok_or(TrieDBError::MissingAccountInfo)?
                 .storage_root),
         }

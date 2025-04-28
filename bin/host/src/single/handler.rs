@@ -9,7 +9,7 @@ use alloy_eips::{
     eip2718::Encodable2718,
     eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
-use alloy_primitives::{Address, B256, Bytes, address, keccak256};
+use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::Decodable;
 use alloy_rpc_types::{Block, debug::ExecutionWitness};
@@ -18,7 +18,7 @@ use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
 use kona_proof::{Hint, HintType, l1::ROOTS_OF_UNITY};
-use kona_protocol::{BlockInfo, OutputRoot};
+use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use tracing::warn;
 
@@ -193,9 +193,6 @@ impl HintHandler for SingleChainHintHandler {
                 store_ordered_trie(kv.as_ref(), encoded_transactions.as_slice()).await?;
             }
             HintType::StartingL2Output => {
-                const L2_TO_L1_MESSAGE_PASSER_ADDRESS: Address =
-                    address!("4200000000000000000000000000000000000016");
-
                 ensure!(hint.data.len() == 32, "Invalid hint data length");
 
                 // Fetch the header for the L2 head block.
@@ -209,7 +206,7 @@ impl HintHandler for SingleChainHintHandler {
                 // Fetch the storage root for the L2 head block.
                 let l2_to_l1_message_passer = providers
                     .l2
-                    .get_proof(L2_TO_L1_MESSAGE_PASSER_ADDRESS, Default::default())
+                    .get_proof(Predeploys::L2_TO_L1_MESSAGE_PASSER, Default::default())
                     .block_id(cfg.agreed_l2_head_hash.into())
                     .await?;
 

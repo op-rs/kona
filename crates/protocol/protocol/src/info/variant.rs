@@ -9,13 +9,11 @@ use op_alloy_consensus::{DepositSourceDomain, L1InfoDepositSource, TxDeposit};
 
 use crate::{
     BlockInfoError, DecodeError, L1BlockInfoBedrock, L1BlockInfoEcotone, L1BlockInfoIsthmus,
+    Predeploys,
 };
 
 /// The system transaction gas limit post-Regolith
 const REGOLITH_SYSTEM_TX_GAS: u64 = 1_000_000;
-
-/// The address of the L1 Block contract
-pub(crate) const L1_BLOCK_ADDRESS: Address = address!("4200000000000000000000000000000000000015");
 
 /// The depositor address of the L1 info transaction
 pub(crate) const L1_INFO_DEPOSITOR_ADDRESS: Address =
@@ -156,7 +154,7 @@ impl L1BlockInfoTx {
         let mut deposit_tx = TxDeposit {
             source_hash: source.source_hash(),
             from: L1_INFO_DEPOSITOR_ADDRESS,
-            to: TxKind::Call(L1_BLOCK_ADDRESS),
+            to: TxKind::Call(Predeploys::L1_BLOCK_INFO),
             mint: None,
             value: U256::ZERO,
             gas_limit: 150_000_000,
@@ -1002,7 +1000,7 @@ mod test {
 
         assert!(matches!(l1_info, L1BlockInfoTx::Isthmus(_)));
         assert_eq!(deposit_tx.from, L1_INFO_DEPOSITOR_ADDRESS);
-        assert_eq!(deposit_tx.to, TxKind::Call(L1_BLOCK_ADDRESS));
+        assert_eq!(deposit_tx.to, TxKind::Call(Predeploys::L1_BLOCK_INFO));
         assert_eq!(deposit_tx.mint, None);
         assert_eq!(deposit_tx.value, U256::ZERO);
         assert_eq!(deposit_tx.gas_limit, REGOLITH_SYSTEM_TX_GAS);

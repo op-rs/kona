@@ -40,7 +40,7 @@ mod derived;
 pub use derived::DerivedIdPair;
 
 mod constants;
-pub use constants::{CROSS_L2_INBOX_ADDRESS, MESSAGE_EXPIRY_WINDOW, SUPER_ROOT_VERSION};
+pub use constants::{MESSAGE_EXPIRY_WINDOW, SUPER_ROOT_VERSION};
 
 #[cfg(test)]
 mod test_util;

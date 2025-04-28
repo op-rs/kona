@@ -7,6 +7,7 @@
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use kona_protocol::Predeploys;
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -30,24 +31,13 @@ impl Isthmus {
     /// L1 Block Deployer Address
     pub const L1_BLOCK_DEPLOYER: Address = address!("4210000000000000000000000000000000000003");
 
-    /// The L1 Block Proxy Address
-    pub const L1_BLOCK_PROXY: Address = address!("4200000000000000000000000000000000000015");
-
     /// The Gas Price Oracle Deployer Address
     pub const GAS_PRICE_ORACLE_DEPLOYER: Address =
         address!("4210000000000000000000000000000000000004");
 
-    /// The address of the Gas Price Oracle Proxy
-    pub const GAS_PRICE_ORACLE_PROXY: Address =
-        address!("420000000000000000000000000000000000000F");
-
     /// The Operator Fee Vault Deployer Address
     pub const OPERATOR_FEE_VAULT_DEPLOYER: Address =
         address!("4210000000000000000000000000000000000005");
-
-    /// The address of the Operator Fee Vault Proxy
-    pub const OPERATOR_FEE_VAULT_PROXY: Address =
-        address!("420000000000000000000000000000000000001B");
 
     /// The new L1 Block Address
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
@@ -175,7 +165,7 @@ impl Isthmus {
             TxDeposit {
                 source_hash: Self::update_l1_block_source(),
                 from: Address::default(),
-                to: TxKind::Call(Self::L1_BLOCK_PROXY),
+                to: TxKind::Call(Predeploys::L1_BLOCK_INFO),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 50_000,
@@ -185,7 +175,7 @@ impl Isthmus {
             TxDeposit {
                 source_hash: Self::update_gas_price_oracle_source(),
                 from: Address::default(),
-                to: TxKind::Call(Self::GAS_PRICE_ORACLE_PROXY),
+                to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 50_000,
@@ -195,7 +185,7 @@ impl Isthmus {
             TxDeposit {
                 source_hash: Self::update_operator_fee_vault_source(),
                 from: Address::default(),
-                to: TxKind::Call(Self::OPERATOR_FEE_VAULT_PROXY),
+                to: TxKind::Call(Predeploys::OPERATOR_FEE_VAULT),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 50_000,
@@ -205,7 +195,7 @@ impl Isthmus {
             TxDeposit {
                 source_hash: Self::enable_isthmus_source(),
                 from: Self::DEPOSITOR_ACCOUNT,
-                to: TxKind::Call(Self::GAS_PRICE_ORACLE_PROXY),
+                to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 90_000,

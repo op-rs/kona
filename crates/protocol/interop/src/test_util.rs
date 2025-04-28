@@ -2,11 +2,12 @@
 
 #![allow(missing_docs, unreachable_pub)]
 
-use crate::{CROSS_L2_INBOX_ADDRESS, ExecutingMessage, MessageIdentifier, traits::InteropProvider};
+use crate::{ExecutingMessage, MessageIdentifier, traits::InteropProvider};
 use alloy_consensus::{Header, Receipt, ReceiptWithBloom, Sealed};
 use alloy_primitives::{Address, B256, Bytes, Log, LogData, U256, map::HashMap};
 use alloy_sol_types::{SolEvent, SolValue};
 use async_trait::async_trait;
+use kona_protocol::Predeploys;
 use op_alloy_consensus::OpReceiptEnvelope;
 
 #[derive(Debug, Clone, Default)]
@@ -164,7 +165,7 @@ impl ChainBuilder {
         let receipt = OpReceiptEnvelope::Eip1559(ReceiptWithBloom {
             receipt: Receipt {
                 logs: vec![Log {
-                    address: CROSS_L2_INBOX_ADDRESS,
+                    address: Predeploys::CROSS_L2_INBOX,
                     data: LogData::new(
                         vec![ExecutingMessage::SIGNATURE_HASH, message_hash],
                         MessageIdentifier {

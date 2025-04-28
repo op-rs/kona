@@ -4610,6 +4610,7 @@ version = "0.3.0"
 dependencies = [
  "alloy-eips 0.15.6",
  "alloy-primitives",
+ "kona-protocol",
  "op-alloy-consensus",
 ]
 
@@ -4675,6 +4676,7 @@ dependencies = [
  "async-trait",
  "derive_more",
  "kona-genesis",
+ "kona-protocol",
  "kona-registry",
  "op-alloy-consensus",
  "rand 0.9.1",

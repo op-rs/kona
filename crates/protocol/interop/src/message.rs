@@ -3,11 +3,11 @@
 //! <https://specs.optimism.io/interop/messaging.html#messaging>
 //! <https://github.com/ethereum-optimism/optimism/blob/34d5f66ade24bd1f3ce4ce7c0a6cfc1a6540eca1/packages/contracts-bedrock/src/L2/CrossL2Inbox.sol>
 
-use crate::constants::CROSS_L2_INBOX_ADDRESS;
 use alloc::{vec, vec::Vec};
 use alloy_primitives::{Bytes, Log, keccak256};
 use alloy_sol_types::{SolEvent, sol};
 use derive_more::{AsRef, From};
+use kona_protocol::Predeploys;
 use op_alloy_consensus::OpReceiptEnvelope;
 
 sol! {
@@ -143,7 +143,7 @@ pub fn parse_logs_to_executing_msgs<'a>(
 /// Max one [`ExecutingMessage`] event can exist per log. Returns `None` if log doesn't contain
 /// executing message event.
 pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
-    (log.address == CROSS_L2_INBOX_ADDRESS && log.topics().len() == 2)
+    (log.address == Predeploys::CROSS_L2_INBOX && log.topics().len() == 2)
         .then(|| ExecutingMessage::decode_log_data(&log.data).ok())
         .flatten()
 }

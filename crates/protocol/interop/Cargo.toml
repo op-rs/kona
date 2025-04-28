@@ -15,6 +15,7 @@ workspace = true
 # Workspace
 kona-genesis.workspace = true
 kona-registry.workspace = true
+kona-protocol.workspace = true
 
 # General
 thiserror.workspace = true

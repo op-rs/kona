@@ -3,6 +3,7 @@
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256, address, hex};
+use kona_protocol::Predeploys;
 use op_alloy_consensus::{TxDeposit, UpgradeDepositSource};
 
 use crate::Hardfork;
@@ -16,10 +17,6 @@ impl Fjord {
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
     /// with the Gas Price Oracle Deployer Address and nonce 0.
     pub const GAS_PRICE_ORACLE: Address = address!("b528d11cc114e026f138fe568744c6d45ce6da7a");
-
-    /// The gas price oracle proxy address.
-    pub const GAS_PRICE_ORACLE_PROXY: Address =
-        address!("420000000000000000000000000000000000000F");
 
     /// The L1 Info Depositer Address.
     pub const L1_INFO_DEPOSITER: Address = address!("deaddeaddeaddeaddeaddeaddeaddeaddead0001");
@@ -80,7 +77,7 @@ impl Fjord {
             TxDeposit {
                 source_hash: Self::update_fjord_gas_price_oracle_source(),
                 from: Address::ZERO,
-                to: TxKind::Call(Self::GAS_PRICE_ORACLE_PROXY),
+                to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 50_000,
@@ -92,7 +89,7 @@ impl Fjord {
             TxDeposit {
                 source_hash: Self::enable_fjord_source(),
                 from: Self::L1_INFO_DEPOSITER,
-                to: TxKind::Call(Self::GAS_PRICE_ORACLE_PROXY),
+                to: TxKind::Call(Predeploys::GAS_PRICE_ORACLE),
                 mint: 0.into(),
                 value: U256::ZERO,
                 gas_limit: 90_000,

@@ -11,7 +11,7 @@ use alloy_eips::{
     eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
 use alloy_op_evm::OpEvmFactory;
-use alloy_primitives::{Address, B256, Bytes, address, keccak256};
+use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
 use alloy_rlp::{Decodable, Encodable};
 use alloy_rpc_types::Block;
@@ -32,7 +32,7 @@ use kona_proof::{
     sync::new_pipeline_cursor,
 };
 use kona_proof_interop::{HintType, PreState};
-use kona_protocol::{BlockInfo, OutputRoot};
+use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
 use kona_registry::ROLLUP_CONFIGS;
 use std::sync::Arc;
 use tokio::task;
@@ -195,9 +195,6 @@ impl HintHandler for InteropHintHandler {
                 )?;
             }
             HintType::L2OutputRoot => {
-                const L2_TO_L1_MESSAGE_PASSER_ADDRESS: Address =
-                    address!("4200000000000000000000000000000000000016");
-
                 ensure!(hint.data.len() >= 32 && hint.data.len() <= 40, "Invalid hint data length");
 
                 let hash = B256::from_slice(&hint.data.as_ref()[0..32]);
@@ -236,7 +233,7 @@ impl HintHandler for InteropHintHandler {
 
                 // Fetch the storage root for the L2 head block.
                 let l2_to_l1_message_passer = l2_provider
-                    .get_proof(L2_TO_L1_MESSAGE_PASSER_ADDRESS, Default::default())
+                    .get_proof(Predeploys::L2_TO_L1_MESSAGE_PASSER, Default::default())
                     .block_id(block_number.into())
                     .await?;
 

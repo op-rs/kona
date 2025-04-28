@@ -1,6 +1,6 @@
-use crate::CROSS_L2_INBOX_ADDRESS;
 use alloy_eips::eip2930::AccessListItem;
 use alloy_primitives::B256;
+use kona_protocol::Predeploys;
 
 /// Parses [`AccessListItem`]s to inbox entries.
 ///
@@ -13,14 +13,16 @@ pub fn parse_access_list_items_to_inbox_entries<'a>(
 }
 
 /// Parse [`AccessListItem`] to inbox entries, if any.
-/// Max 3 inbox entries can exist per [`AccessListItem`] that points to [`CROSS_L2_INBOX_ADDRESS`].
+/// Max 3 inbox entries can exist per [`AccessListItem`] that points to
+/// [`Predeploys::CROSS_L2_INBOX`].
 ///
-/// Returns `Vec::new()` if [`AccessListItem`] address doesn't point to [`CROSS_L2_INBOX_ADDRESS`].
+/// Returns `Vec::new()` if [`AccessListItem`] address doesn't point to
+/// [`Predeploys::CROSS_L2_INBOX`].
 ///
 /// See: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/predeploys.md#access-list>
 pub fn parse_access_list_item_to_inbox_entries(
     access_list_item: &AccessListItem,
 ) -> Option<impl Iterator<Item = &B256>> {
-    (access_list_item.address == CROSS_L2_INBOX_ADDRESS)
+    (access_list_item.address == Predeploys::CROSS_L2_INBOX)
         .then(|| access_list_item.storage_keys.iter())
 }

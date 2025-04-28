@@ -8,17 +8,16 @@ use crate::{
 use alloc::{boxed::Box, fmt::Debug, string::ToString, sync::Arc, vec, vec::Vec};
 use alloy_consensus::{Eip658Value, Receipt};
 use alloy_eips::{BlockNumHash, eip2718::Encodable2718};
-use alloy_primitives::{Address, B256, Bytes, address};
+use alloy_primitives::{Address, B256, Bytes};
 use alloy_rlp::Encodable;
 use alloy_rpc_types_engine::PayloadAttributes;
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_hardforks::{Hardfork, Hardforks};
-use kona_protocol::{DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, decode_deposit};
+use kona_protocol::{
+    DEPOSIT_EVENT_ABI_HASH, L1BlockInfoTx, L2BlockInfo, Predeploys, decode_deposit,
+};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
-
-/// The sequencer fee vault address.
-const SEQUENCER_FEE_VAULT_ADDRESS: Address = address!("4200000000000000000000000000000000000011");
 
 /// A stateful implementation of the [AttributesBuilder].
 #[derive(Debug, Default)]
@@ -180,7 +179,7 @@ where
             payload_attributes: PayloadAttributes {
                 timestamp: next_l2_time,
                 prev_randao: l1_header.mix_hash,
-                suggested_fee_recipient: SEQUENCER_FEE_VAULT_ADDRESS,
+                suggested_fee_recipient: Predeploys::SEQUENCER_FEE_VAULT,
                 parent_beacon_block_root: parent_beacon_root,
                 withdrawals,
             },
@@ -239,7 +238,7 @@ mod tests {
     };
     use alloc::vec;
     use alloy_consensus::Header;
-    use alloy_primitives::{B256, Log, LogData, U64, U256};
+    use alloy_primitives::{B256, Log, LogData, U64, U256, address};
     use kona_genesis::{HardForkConfig, SystemConfig};
     use kona_protocol::{BlockInfo, DepositError};
 
@@ -452,7 +451,7 @@ mod tests {
             payload_attributes: PayloadAttributes {
                 timestamp: next_l2_time,
                 prev_randao,
-                suggested_fee_recipient: SEQUENCER_FEE_VAULT_ADDRESS,
+                suggested_fee_recipient: Predeploys::SEQUENCER_FEE_VAULT,
                 parent_beacon_block_root: None,
                 withdrawals: None,
             },
@@ -502,7 +501,7 @@ mod tests {
             payload_attributes: PayloadAttributes {
                 timestamp: next_l2_time,
                 prev_randao,
-                suggested_fee_recipient: SEQUENCER_FEE_VAULT_ADDRESS,
+                suggested_fee_recipient: Predeploys::SEQUENCER_FEE_VAULT,
                 parent_beacon_block_root: None,
                 withdrawals: Some(Vec::default()),
             },
@@ -553,7 +552,7 @@ mod tests {
             payload_attributes: PayloadAttributes {
                 timestamp: next_l2_time,
                 prev_randao,
-                suggested_fee_recipient: SEQUENCER_FEE_VAULT_ADDRESS,
+                suggested_fee_recipient: Predeploys::SEQUENCER_FEE_VAULT,
                 parent_beacon_block_root,
                 withdrawals: Some(vec![]),
             },
@@ -603,7 +602,7 @@ mod tests {
             payload_attributes: PayloadAttributes {
                 timestamp: next_l2_time,
                 prev_randao,
-                suggested_fee_recipient: SEQUENCER_FEE_VAULT_ADDRESS,
+                suggested_fee_recipient: Predeploys::SEQUENCER_FEE_VAULT,
                 parent_beacon_block_root: Some(B256::ZERO),
                 withdrawals: Some(vec![]),
             },
