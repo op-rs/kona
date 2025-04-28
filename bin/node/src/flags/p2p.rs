@@ -51,7 +51,7 @@ pub struct P2PArgs {
         default_value = "0",
         env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT"
     )]
-    pub advertise_tcp_port: u16,
+    pub advertise_tcp_port: Option<u16>,
     /// UDP port to advertise to external peers from the discovery layer.
     /// Same as `p2p.listen.udp` if set to zero.
     #[arg(
@@ -178,7 +178,7 @@ impl Default for P2PArgs {
             priv_path: None,
             private_key: None,
             advertise_ip: None,
-            advertise_tcp_port: 0,
+            advertise_tcp_port: Some(0),
             advertise_udp_port: 0,
             listen_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             listen_tcp_port: 9222,
@@ -244,7 +244,7 @@ impl P2PArgs {
         Self::check_ports_inner(
             // If the advertised ip is not specified, we use the listen ip.
             self.advertise_ip.unwrap_or(self.listen_ip),
-            self.advertise_tcp_port,
+            self.advertise_tcp_port.unwrap_or(self.listen_tcp_port),
             self.advertise_udp_port,
         )?;
         Self::check_ports_inner(self.listen_ip, self.listen_tcp_port, self.listen_udp_port)?;
@@ -304,11 +304,7 @@ impl P2PArgs {
         let advertise_ip = self.advertise_ip.unwrap_or(self.listen_ip);
 
         // If the advertise tcp port is null, use the listen tcp port
-        let advertise_tcp_port = if self.advertise_tcp_port != 0 {
-            self.advertise_tcp_port
-        } else {
-            self.listen_tcp_port
-        };
+        let advertise_tcp_port = self.advertise_tcp_port.unwrap_or(self.listen_tcp_port);
 
         let advertise_udp_port = if self.advertise_udp_port != 0 {
             self.advertise_udp_port
