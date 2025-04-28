@@ -72,7 +72,10 @@ impl BootStore {
     /// [`crate::OpStackEnr::OP_CL_KEY`] in the ENR *and*
     /// have the correct chain id and version.
     pub fn valid_peers_with_chain_id(&self, chain_id: u64) -> Vec<&Enr> {
-        self.peers.iter().filter(|enr| crate::OpStackEnr::is_valid_node(enr, chain_id)).collect()
+        self.peers
+            .iter()
+            .filter(|enr| crate::EnrValidation::validate(enr, chain_id).is_valid())
+            .collect()
     }
 
     /// Returns the number of peers in the in-memory store.

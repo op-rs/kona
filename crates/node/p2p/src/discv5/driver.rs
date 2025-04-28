@@ -11,7 +11,7 @@ use tokio::{
 
 use crate::{
     BootNode, BootNodes, BootStore, Discv5Builder, Discv5Handler, EnrValidation, HandlerRequest,
-    OpStackEnr, enr_to_multiaddr,
+    enr_to_multiaddr,
 };
 
 /// The [`Discv5Driver`] drives the discovery service.
@@ -342,7 +342,7 @@ impl Discv5Driver {
                         tokio::spawn(async move {
                             match fut.await {
                                 Ok(nodes) => {
-                                    let enrs = nodes.into_iter().filter(|node| OpStackEnr::is_valid_node(node, chain_id));
+                                    let enrs = nodes.into_iter().filter(|node| EnrValidation::validate(node, chain_id).is_valid());
                                     for enr in enrs {
                                         _ = enr_sender.send(enr).await;
                                     }
@@ -447,7 +447,7 @@ mod tests {
             .filter_map(|node| {
                 if let BootNode::Enr(enr) = node {
                     // Check that the ENR is valid for the testnet.
-                    if !OpStackEnr::is_valid_node(enr, OP_SEPOLIA_CHAIN_ID) {
+                    if EnrValidation::validate(enr, OP_SEPOLIA_CHAIN_ID).is_invalid() {
                         return None;
                     }
                 }
@@ -487,8 +487,7 @@ mod tests {
             .iter()
             .filter_map(|node| {
                 if let BootNode::Enr(enr) = node {
-                    // Check that the ENR is valid for the mainnet.
-                    if !OpStackEnr::is_valid_node(enr, OP_MAINNET_CHAIN_ID) {
+                    if EnrValidation::validate(enr, OP_MAINNET_CHAIN_ID).is_invalid() {
                         return None;
                     }
                 }

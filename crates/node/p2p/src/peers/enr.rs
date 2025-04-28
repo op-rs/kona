@@ -79,14 +79,6 @@ impl OpStackEnr {
     pub const fn from_chain_id(chain_id: u64) -> Self {
         Self { chain_id, version: 0 }
     }
-
-    /// Returns `true` if a node [`Enr`] contains an `opstack` key and is on the same network.
-    pub fn is_valid_node(node: &Enr, chain_id: u64) -> bool {
-        node.get_raw_rlp(Self::OP_CL_KEY).is_some_and(|mut opstack| {
-            Self::decode(&mut opstack)
-                .is_ok_and(|opstack| opstack.chain_id == chain_id && opstack.version == 0)
-        })
-    }
 }
 
 impl Encodable for OpStackEnr {
@@ -132,19 +124,19 @@ mod tests {
     }
 
     #[test]
-    fn test_is_valid_node() {
+    fn test_enr_validation() {
         let key = CombinedKey::generate_secp256k1();
         let mut enr = Enr::builder().build(&key).unwrap();
         let op_stack_enr = OpStackEnr::from_chain_id(10);
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
         enr.insert_raw_rlp(OpStackEnr::OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
-        assert!(OpStackEnr::is_valid_node(&enr, 10));
-        assert!(!OpStackEnr::is_valid_node(&enr, 11));
+        assert!(EnrValidation::validate(&enr, 10).is_valid());
+        assert!(EnrValidation::validate(&enr, 11).is_invalid());
     }
 
     #[test]
-    fn test_is_valid_node_invalid_version() {
+    fn test_enr_validation_invalid_version() {
         let key = CombinedKey::generate_secp256k1();
         let mut enr = Enr::builder().build(&key).unwrap();
         let mut op_stack_enr = OpStackEnr::from_chain_id(10);
@@ -152,7 +144,7 @@ mod tests {
         let mut op_stack_bytes = Vec::new();
         op_stack_enr.encode(&mut op_stack_bytes);
         enr.insert_raw_rlp(OpStackEnr::OP_CL_KEY, op_stack_bytes.into(), &key).unwrap();
-        assert!(!OpStackEnr::is_valid_node(&enr, 10));
+        assert!(EnrValidation::validate(&enr, 10).is_invalid());
     }
 
     #[test]

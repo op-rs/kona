@@ -166,6 +166,6 @@ mod tests {
         );
         let driver = builder.build().unwrap();
         let enr = driver.disc.local_enr();
-        assert!(OpStackEnr::is_valid_node(&enr, 10));
+        assert!(crate::EnrValidation::validate(&enr, 10).is_valid());
     }
 }
