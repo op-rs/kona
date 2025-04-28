@@ -120,13 +120,13 @@ impl Discovery {
 
         let discovery_builder = Discv5Builder::new()
             .with_discovery_config(config)
+            .with_interval(std::time::Duration::from_secs(2))
+            .with_discovery_randomize(Some(std::time::Duration::from_secs(2)))
             .with_local_node(ip_and_port)
-            .with_chain_id(self.l2_chain_id);
-        let mut discovery = discovery_builder.build()?;
-        discovery.interval = std::time::Duration::from_secs(2);
-        discovery.forward = false;
-        discovery.remove_interval = Some(std::time::Duration::from_secs(2));
-        discovery.store_interval = std::time::Duration::from_secs(5);
+            .with_store_interval(std::time::Duration::from_secs(5))
+            .with_chain_id(self.l2_chain_id)
+            .disable_forward();
+        let discovery = discovery_builder.build()?;
         let (handler, mut enr_receiver) = discovery.start();
         tracing::info!("Discovery service started, receiving peers.");
 

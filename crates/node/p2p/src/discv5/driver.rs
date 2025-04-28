@@ -100,8 +100,8 @@ impl Discv5Driver {
             store,
             interval,
             forward: true,
-            store_interval: Duration::from_secs(60),
             remove_interval: None,
+            store_interval: Duration::from_secs(60),
         }
     }
 
@@ -114,6 +114,7 @@ impl Discv5Driver {
                 info!(target: "discovery", "Retrying discovery startup...");
                 continue;
             }
+            debug!(target: "discovery", "Discovery service enr: {:?}", self.disc.local_enr());
             break;
         }
     }
@@ -245,9 +246,9 @@ impl Discv5Driver {
         if !self.forward {
             return;
         }
-        for enr in self.store.peers() {
+        for enr in self.store.valid_peers_with_chain_id(self.chain_id) {
             if let Err(e) = enr_sender.send(enr.clone()).await {
-                info!(target: "discovery", "Failed to forward enr: {:?}", e);
+                debug!(target: "discovery", "Failed to forward enr: {:?}", e);
             }
         }
     }
@@ -423,9 +424,13 @@ impl Discv5Driver {
                         });
                     }
                     _ = store_interval.tick() => {
+                        // Track the amount of time it takes to store the ENRs.
+                        let start = std::time::Instant::now();
                         let enrs = self.disc.table_entries_enr();
                         self.store.merge(enrs);
                         self.store.sync();
+                        let elapsed = start.elapsed();
+                        debug!(target: "discovery", "Bootstore ENRs stored in {:?}", elapsed);
                     }
                     _ = removal_interval.tick() => {
                         if remove {

@@ -36,6 +36,7 @@ impl From<Config> for NetworkBuilder {
     fn from(config: Config) -> Self {
         Self::new()
             .with_discovery_config(config.discovery_config)
+            .with_discovery_randomize(config.discovery_randomize)
             .with_bootstore(config.bootstore)
             .with_bootnodes(config.bootnodes)
             .with_discovery_interval(config.discovery_interval)
@@ -75,6 +76,11 @@ impl NetworkBuilder {
             return Self { discovery: self.discovery.with_bootstore(bootstore), ..self };
         }
         self
+    }
+
+    /// Sets the interval at which to randomize discovery peers.
+    pub fn with_discovery_randomize(self, randomize: Option<Duration>) -> Self {
+        Self { discovery: self.discovery.with_discovery_randomize(randomize), ..self }
     }
 
     /// Sets the initial bootnodes to add to the bootstore.

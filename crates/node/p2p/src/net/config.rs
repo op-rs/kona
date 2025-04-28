@@ -17,6 +17,8 @@ pub struct Config {
     pub discovery_address: LocalNode,
     /// The interval to find peers.
     pub discovery_interval: Duration,
+    /// The interval to remove peers from the discovery service.
+    pub discovery_randomize: Option<Duration>,
     /// The gossip address.
     pub gossip_address: libp2p::Multiaddr,
     /// The unsafe block signer.

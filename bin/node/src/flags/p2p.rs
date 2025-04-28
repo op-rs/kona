@@ -168,6 +168,15 @@ pub struct P2PArgs {
     /// specified L2 chain ID.
     #[arg(long = "p2p.unsafe.block.signer", env = "KONA_NODE_P2P_UNSAFE_BLOCK_SIGNER")]
     pub unsafe_block_signer: Option<alloy_primitives::Address>,
+
+    /// An optional flag to remove random peers from discovery to rotate the peer set.
+    ///
+    /// This is the number of seconds to wait before removing a peer from the discovery
+    /// service. By default, peers are not removed from the discovery service.
+    ///
+    /// This is useful for discovering a wider set of peers.
+    #[arg(long = "p2p.discovery.randomize", env = "KONA_NODE_P2P_DISCOVERY_RANDOMIZE")]
+    pub discovery_randomize: Option<u64>,
 }
 
 impl Default for P2PArgs {
@@ -200,6 +209,7 @@ impl Default for P2PArgs {
             bootstore: None,
             peer_redial: None,
             unsafe_block_signer: None,
+            discovery_randomize: None,
         }
     }
 }
@@ -353,6 +363,7 @@ impl P2PArgs {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address,
+            discovery_randomize: self.discovery_randomize.map(Duration::from_secs),
             gossip_address,
             keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
             unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
@@ -444,6 +455,14 @@ mod tests {
     fn test_p2p_args() {
         let args = MockCommand::parse_from(["test"]);
         assert_eq!(args.p2p, P2PArgs::default());
+    }
+
+    #[test]
+    fn test_p2p_args_randomized() {
+        let args = MockCommand::parse_from(["test", "--p2p.discovery.randomize", "10"]);
+        assert_eq!(args.p2p.discovery_randomize, Some(10));
+        let args = MockCommand::parse_from(["test"]);
+        assert_eq!(args.p2p.discovery_randomize, None);
     }
 
     #[test]

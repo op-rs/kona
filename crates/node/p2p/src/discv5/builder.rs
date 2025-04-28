@@ -67,12 +67,18 @@ pub struct Discv5Builder {
     chain_id: Option<u64>,
     /// The interval to find peers.
     interval: Option<Duration>,
+    /// The interval to randomize discovery peers.
+    randomize: Option<Duration>,
     /// The discovery config for the discovery service.
     discovery_config: Option<Config>,
     /// An optional path to the bootstore.
     bootstore: Option<PathBuf>,
     /// Additional bootnodes to manually add to the initial bootstore
     bootnodes: Vec<Enr>,
+    /// The interval to store the bootnodes to disk.
+    store_interval: Option<Duration>,
+    /// Whether or not to forward the initial set of valid ENRs to the gossip layer.
+    forward: bool,
 }
 
 impl Discv5Builder {
@@ -83,8 +89,11 @@ impl Discv5Builder {
             chain_id: None,
             interval: None,
             discovery_config: None,
+            randomize: None,
             bootstore: None,
             bootnodes: Vec::new(),
+            store_interval: None,
+            forward: true,
         }
     }
 
@@ -97,6 +106,12 @@ impl Discv5Builder {
     /// Sets the initial bootnodes to add to the bootstore.
     pub fn with_bootnodes(mut self, bootnodes: Vec<Enr>) -> Self {
         self.bootnodes = bootnodes;
+        self
+    }
+
+    /// Sets the interval to store the bootnodes to disk.
+    pub const fn with_store_interval(mut self, store_interval: Duration) -> Self {
+        self.store_interval = Some(store_interval);
         self
     }
 
@@ -124,6 +139,18 @@ impl Discv5Builder {
         self
     }
 
+    /// Sets the interval to randomize discovery peers.
+    pub const fn with_discovery_randomize(mut self, interval: Option<Duration>) -> Self {
+        self.randomize = interval;
+        self
+    }
+
+    /// Disables forwarding of the initial set of valid ENRs to the gossip layer.
+    pub const fn disable_forward(mut self) -> Self {
+        self.forward = false;
+        self
+    }
+
     /// Builds a [`Discv5Driver`].
     pub fn build(self) -> Result<Discv5Driver, Discv5BuilderError> {
         let chain_id = self.chain_id.ok_or(Discv5BuilderError::ChainIdNotSet)?;
@@ -138,8 +165,12 @@ impl Discv5Builder {
         let interval = self.interval.unwrap_or(Duration::from_secs(5));
         let disc = Discv5::new(enr, key.into(), config)
             .map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
-
-        Ok(Discv5Driver::new(disc, interval, chain_id, self.bootstore.clone(), self.bootnodes))
+        let mut driver =
+            Discv5Driver::new(disc, interval, chain_id, self.bootstore.clone(), self.bootnodes);
+        driver.store_interval = self.store_interval.unwrap_or(Duration::from_secs(60));
+        driver.forward = self.forward;
+        driver.remove_interval = self.randomize;
+        Ok(driver)
     }
 }
 

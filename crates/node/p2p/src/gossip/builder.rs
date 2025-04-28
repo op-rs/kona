@@ -163,7 +163,7 @@ impl GossipDriverBuilder {
         let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_tcp(
-                TcpConfig::default(),
+                TcpConfig::default().nodelay(true),
                 |i: &Keypair| {
                     info!(target: "gossip", "Noise Config Peer ID: {}", i.public().to_peer_id());
                     NoiseConfig::new(i)
