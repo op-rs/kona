@@ -46,11 +46,7 @@ pub struct P2PArgs {
     pub advertise_ip: Option<IpAddr>,
     /// TCP port to advertise to external peers from the discovery layer. Same as `p2p.listen.tcp`
     /// if set to zero.
-    #[arg(
-        long = "p2p.advertise.tcp",
-        default_value = "0",
-        env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT"
-    )]
+    #[arg(long = "p2p.advertise.tcp", env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT")]
     pub advertise_tcp_port: Option<u16>,
     /// UDP port to advertise to external peers from the discovery layer.
     /// Same as `p2p.listen.udp` if set to zero.
@@ -178,7 +174,7 @@ impl Default for P2PArgs {
             priv_path: None,
             private_key: None,
             advertise_ip: None,
-            advertise_tcp_port: Some(0),
+            advertise_tcp_port: None,
             advertise_udp_port: 0,
             listen_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             listen_tcp_port: 9222,
@@ -304,7 +300,11 @@ impl P2PArgs {
         let advertise_ip = self.advertise_ip.unwrap_or(self.listen_ip);
 
         // If the advertise tcp port is null, use the listen tcp port
-        let advertise_tcp_port = self.advertise_tcp_port.unwrap_or(self.listen_tcp_port);
+        let advertise_tcp_port = match self.advertise_tcp_port {
+            Some(0) => 0,
+            Some(port) => port,
+            None => self.listen_tcp_port,
+        };
 
         let advertise_udp_port = if self.advertise_udp_port != 0 {
             self.advertise_udp_port
@@ -488,5 +488,23 @@ mod tests {
     fn test_p2p_args_listen_udp_port() {
         let args = MockCommand::parse_from(["test", "--p2p.listen.udp", "1234"]);
         assert_eq!(args.p2p.listen_udp_port, 1234);
+    }
+
+    #[test]
+    fn test_p2p_args_advertise_port_0() {
+        let args = MockCommand::parse_from(["test", "--p2p.advertise.tcp", "0"]);
+        assert_eq!(args.p2p.advertise_tcp_port.unwrap(), 0);
+    }
+
+    #[test]
+    fn test_p2p_args_advertise_port_none() {
+        let args = MockCommand::parse_from(["test"]);
+        assert!(args.p2p.advertise_tcp_port.is_none());
+    }
+
+    #[test]
+    fn test_p2p_args_advertise_port_some() {
+        let args = MockCommand::parse_from(["test", "--p2p.advertise.tcp", "3030"]);
+        assert!(args.p2p.advertise_tcp_port.is_some());
     }
 }
