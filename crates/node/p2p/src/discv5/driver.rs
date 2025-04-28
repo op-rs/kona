@@ -386,6 +386,20 @@ impl Discv5Driver {
                                     });
                                 }
                             }
+                            discv5::Event::UnverifiableEnr { enr, .. } => {
+                                debug!(target: "discovery", "Unverifiable ENR discovered: {:?}", enr);
+                                if EnrValidation::validate(&enr, chain_id).is_valid() {
+                                    debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
+                                    self.store.add_enr(enr.clone());
+                                    let sender = enr_sender.clone();
+                                    tokio::spawn(async move {
+                                        if let Err(e) = sender.send(enr).await {
+                                            debug!(target: "discovery", "Failed to send enr: {:?}", e);
+                                        }
+                                    });
+                                }
+
+                            }
                             _ => {}
                         }
                     }
