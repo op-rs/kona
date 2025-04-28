@@ -54,7 +54,7 @@ impl Behaviour {
                             .subscribe(&topic)
                             .map_err(|_| BehaviourError::SubscriptionFailed);
                         if res.is_ok() {
-                            info!("libp2p switch subscribed to topic: {}", topic.to_string());
+                            info!(target: "gossip", "Subscribed to topic: {}", topic.to_string());
                         }
                         res
                     })

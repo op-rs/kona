@@ -135,6 +135,7 @@ impl GossipDriverBuilder {
         // Construct the gossip behaviour
         let config = self.config.unwrap_or(crate::default_config());
         info!(
+            target: "gossip",
             "Config [Mesh D: {}] [Mesh L: {}] [Mesh H: {}] [Gossip Lazy: {}] [Flood Publish: {}]",
             config.mesh_n(),
             config.mesh_n_low(),
@@ -158,13 +159,13 @@ impl GossipDriverBuilder {
         }
 
         // Build the swarm.
-        info!("Building Swarm with Peer ID: {}", keypair.public().to_peer_id());
+        info!(target: "gossip", "Building Swarm with Peer ID: {}", keypair.public().to_peer_id());
         let swarm = SwarmBuilder::with_existing_identity(keypair)
             .with_tokio()
             .with_tcp(
                 TcpConfig::default(),
                 |i: &Keypair| {
-                    info!("Noise Config Peer ID: {}", i.public().to_peer_id());
+                    info!(target: "gossip", "Noise Config Peer ID: {}", i.public().to_peer_id());
                     NoiseConfig::new(i)
                 },
                 YamuxConfig::default,

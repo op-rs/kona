@@ -61,7 +61,7 @@ impl Network {
 
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
-    pub fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
+    pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let (handler, mut enr_receiver) = self.discovery.start();
@@ -71,7 +71,7 @@ impl Network {
         let mut peer_score_inspector = tokio::time::interval(Self::PEER_SCORE_INSPECT_FREQUENCY);
 
         // Start the libp2p Swarm
-        self.gossip.listen()?;
+        self.gossip.listen().await?;
 
         // Spawn the network handler
         tokio::spawn(async move {

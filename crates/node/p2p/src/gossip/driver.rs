@@ -93,10 +93,25 @@ impl GossipDriver {
         Ok(Some(id))
     }
 
-    /// Listens on the address.
-    pub fn listen(&mut self) -> Result<(), TransportError<std::io::Error>> {
-        self.swarm.listen_on(self.addr.clone())?;
-        info!(target: "gossip", "Swarm listening on: {:?}", self.addr);
+    /// Tells the swarm to listen on the given [`Multiaddr`].
+    /// Waits for the swarm to start listen before returning and connecting to peers.
+    pub async fn listen(&mut self) -> Result<(), TransportError<std::io::Error>> {
+        match self.swarm.listen_on(self.addr.clone()) {
+            Ok(id) => loop {
+                if let SwarmEvent::NewListenAddr { address, listener_id } =
+                    self.swarm.select_next_some().await
+                {
+                    if id == listener_id {
+                        info!(target: "gossip", "Swarm now listening on: {address}");
+                        break;
+                    }
+                }
+            },
+            Err(err) => {
+                error!(target: "gossip", "Fail to listen on {}: {err}", self.addr);
+                return Err(err);
+            }
+        }
         Ok(())
     }
 
@@ -144,7 +159,7 @@ impl GossipDriver {
     pub fn dial(&mut self, enr: Enr) {
         let validation = EnrValidation::validate(&enr, self.handler.chain_id);
         if validation.is_invalid() {
-            debug!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.chain_id, validation);
+            trace!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.chain_id, validation);
             return;
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
@@ -239,6 +254,10 @@ impl GossipDriver {
             trace!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
             crate::set!(PEER_COUNT, peer_count as i64);
             self.redial(peer_id);
+            return None;
+        }
+        if let SwarmEvent::NewListenAddr { address, .. } = event {
+            debug!(target: "gossip", "Swarm listening on new address: {:?}", address);
             return None;
         }
         let SwarmEvent::Behaviour(event) = event else {

@@ -80,7 +80,7 @@ impl NodeActor for NetworkActor {
         };
 
         // Start the network driver.
-        self.driver.start()?;
+        self.driver.start().await?;
 
         loop {
             select! {

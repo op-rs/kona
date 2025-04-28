@@ -166,7 +166,7 @@ impl Discv5Driver {
         for enr in &boot_enrs {
             let validation = EnrValidation::validate(enr, self.chain_id);
             if validation.is_invalid() {
-                debug!(target: "discovery", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
+                trace!(target: "discovery", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
                 continue;
             }
             match self.disc.add_enr(enr.clone()) {
@@ -195,12 +195,12 @@ impl Discv5Driver {
         for enr in self.store.valid_peers() {
             let validation = EnrValidation::validate(enr, self.chain_id);
             if validation.is_invalid() {
-                debug!(target: "discovery", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
+                trace!(target: "discovery", "Ignoring Invalid Bootnode ENR: {:?}. {:?}", enr, validation);
                 continue;
             }
             match self.disc.add_enr(enr.clone()) {
                 Ok(_) => count += 1,
-                Err(e) => debug!(target: "discovery", "Failed to add ENR to discv5 table: {:?}", e),
+                Err(e) => trace!(target: "discovery", "Failed to add ENR to discv5 table: {:?}", e),
             }
         }
         info!(target: "discovery", "Added {} Bootstore ENRs to discovery table", count);

@@ -41,7 +41,7 @@ impl NetCommand {
     /// Run the Net subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let signer = args.genesis_signer()?;
-        info!("Genesis block signer: {:?}", signer);
+        info!(target: "net", "Genesis block signer: {:?}", signer);
 
         // Setup the RPC server with the P2P RPC Module
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
@@ -49,7 +49,7 @@ impl NetCommand {
         let rpc_config = RpcConfig::from(&self.rpc);
         let mut launcher = rpc_config.as_launcher().merge(p2p_module)?;
         let handle = launcher.start().await?;
-        info!("Started RPC server on {:?}:{}", rpc_config.listen_addr, rpc_config.listen_port);
+        info!(target: "net", "Started RPC server on {:?}:{}", rpc_config.listen_addr, rpc_config.listen_port);
 
         // Get the rollup config from the args
         let rollup_config = args
@@ -65,8 +65,8 @@ impl NetCommand {
             .with_rollup_config(rollup_config)
             .build()?;
         let mut recv = network.unsafe_block_recv();
-        network.start()?;
-        info!("Network started, receiving blocks.");
+        network.start().await?;
+        info!(target: "net", "Network started, receiving blocks.");
 
         // On an interval, use the rpc tx to request stats about the p2p network.
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
@@ -75,14 +75,14 @@ impl NetCommand {
             tokio::select! {
                 payload = recv.recv() => {
                     match payload {
-                        Ok(payload) => info!("Received unsafe payload: {:?}", payload.payload_hash),
-                        Err(e) => debug!("Failed to receive unsafe payload: {:?}", e),
+                        Ok(payload) => info!(target: "net", "Received unsafe payload: {:?}", payload.payload_hash),
+                        Err(e) => debug!(target: "net", "Failed to receive unsafe payload: {:?}", e),
                     }
                 }
                 _ = interval.tick() => {
                     let (otx, mut orx) = tokio::sync::oneshot::channel();
                     if let Err(e) = tx.send(NetRpcRequest::PeerCount(otx)).await {
-                        warn!("Failed to send network rpc request: {:?}", e);
+                        warn!(target: "net", "Failed to send network rpc request: {:?}", e);
                         continue;
                     }
                     tokio::time::timeout(tokio::time::Duration::from_secs(5), async move {
@@ -90,7 +90,7 @@ impl NetCommand {
                             match orx.try_recv() {
                                 Ok((d, g)) => {
                                     let d = d.unwrap_or_default();
-                                    info!("Peer counts: Discovery={} | Swarm={}", d, g);
+                                    info!(target: "net", "Peer counts: Discovery={} | Swarm={}", d, g);
                                     break;
                                 }
                                 Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
@@ -104,7 +104,7 @@ impl NetCommand {
                     }).await.unwrap();
                 }
                 _ = handle.clone().stopped() => {
-                    warn!("RPC server stopped");
+                    warn!(target: "net", "RPC server stopped");
                     return Ok(());
                 }
             }
