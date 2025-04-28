@@ -30,7 +30,7 @@ cfg_if! {
             fn read(fd: FileDescriptor, buf: &mut [u8]) -> IOResult<usize> {
                 unsafe {
                     let mut file = File::from_raw_fd(fd as i32);
-                    file.read(buf).map_err(|_| IOError(-9))?;
+                    file.read_exact(buf).map_err(|_| IOError(-9))?;
                     std::mem::forget(file);
                     Ok(buf.len())
                 }

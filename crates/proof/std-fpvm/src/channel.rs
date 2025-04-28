@@ -123,17 +123,20 @@ impl Future for WriteFuture<'_> {
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
         match io::write(self.channel.write_handle(), &self.buf[self.written..]) {
-            Ok(0) => Poll::Ready(Ok(self.written)), // Finished writing
             Ok(n) => {
                 self.written += n;
 
-                if self.written >= self.buf.len() {
-                    return Poll::Ready(Ok(self.written));
+                match self.written.cmp(&self.buf.len()) {
+                    Ordering::Equal | Ordering::Greater => {
+                        // Finished writing
+                        Poll::Ready(Ok(self.written))
+                    }
+                    Ordering::Less => {
+                        // Register the current task to be woken up when it can make progress
+                        ctx.waker().wake_by_ref();
+                        Poll::Pending
+                    }
                 }
-
-                // Register the current task to be woken up when it can make progress
-                ctx.waker().wake_by_ref();
-                Poll::Pending
             }
             Err(_) => Poll::Ready(Err(ChannelError::Closed)),
         }

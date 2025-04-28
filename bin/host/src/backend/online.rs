@@ -97,8 +97,9 @@ where
     async fn route_hint(&self, hint: String) -> PreimageOracleResult<()> {
         trace!(target: "host_backend", "Received hint: {hint}");
 
-        let parsed_hint =
-            hint.parse::<Hint<C::HintType>>().map_err(|_| PreimageOracleError::KeyNotFound)?;
+        let parsed_hint = hint
+            .parse::<Hint<C::HintType>>()
+            .map_err(|e| PreimageOracleError::HintParseFailed(e.to_string()))?;
         if self.proactive_hints.contains(&parsed_hint.ty) {
             debug!(target: "host_backend", "Proactive hint received; Immediately fetching {hint}");
             H::fetch_hint(parsed_hint, &self.cfg, &self.providers, self.kv.clone())

@@ -22,6 +22,9 @@ pub enum PreimageOracleError {
     /// Buffer length mismatch.
     #[error("Buffer length mismatch. Expected {0}, got {1}.")]
     BufferLengthMismatch(usize, usize),
+    /// Failed to parse hint.
+    #[error("Failed to parse hint: {0}")]
+    HintParseFailed(String),
     /// Other errors.
     #[error("Error in preimage server: {0}")]
     Other(String),
