@@ -20,29 +20,32 @@ use kona_p2p::{LocalNode, Network};
 use libp2p::Multiaddr;
 use discv5::enr::CombinedKey;
 
-// Construct the Network
-let signer = address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
-let mut gossip_addr = Multiaddr::from(gossip.ip());
-gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
-let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+#[tokio::main]
+async fn main() {
+    // Construct the Network
+    let signer = address!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
+    let mut gossip_addr = Multiaddr::from(gossip.ip());
+    gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
+    let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
-let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
-    unreachable!()
-};
-let disc = LocalNode::new(k256_key, advertise_ip, 9097, 9098);
-let network = Network::builder()
-    .with_chain_id(10) // op mainnet chain id
-    .with_unsafe_block_signer(signer)
-    .with_discovery_address(disc)
-    .with_gossip_address(gossip_addr)
-    .build()
-    .expect("Failed to builder network driver");
+    let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
+        unreachable!()
+    };
+    let disc = LocalNode::new(k256_key, advertise_ip, 9097, 9098);
+    let network = Network::builder()
+        .with_chain_id(10) // op mainnet chain id
+        .with_unsafe_block_signer(signer)
+        .with_discovery_address(disc)
+        .with_gossip_address(gossip_addr)
+        .build()
+        .expect("Failed to builder network driver");
 
-// Starting the network spawns gossip and discovery service
-// handling in a new thread so this is a non-blocking,
-// synchronous operation that does not need to be awaited.
-network.start().expect("Failed to start network driver");
+    // Starting the network spawns gossip and discovery service
+    // handling in a new thread so this is a non-blocking,
+    // synchronous operation that does not need to be awaited.
+    network.start().await.expect("Failed to start network driver");
+}
 ```
 
 [!WARNING]: ###example
