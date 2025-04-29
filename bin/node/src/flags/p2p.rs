@@ -424,6 +424,22 @@ mod tests {
     use alloy_primitives::b256;
     use clap::Parser;
 
+    #[test]
+    fn test_key_conversion_roundtrip() {
+        let keypair = Keypair::generate_secp256k1();
+        let secp256k1_key = keypair.try_into_secp256k1()
+            .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to secp256k1. This is a bug since we only support secp256k1 keys: {e}")).unwrap();
+
+        let expected_pubkey = secp256k1_key.public().to_bytes();
+        let private = secp256k1_key.secret();
+
+        let local_node_key = k256::ecdsa::SigningKey::from_bytes(&private.to_bytes().into())
+            .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to k256 signing key. This is a bug since we only support secp256k1 keys: {e}")).unwrap();
+        let local_node_pubkey = local_node_key.verifying_key().to_sec1_bytes();
+
+        assert_eq!(expected_pubkey, *local_node_pubkey);
+    }
+
     /// A mock command that uses the P2PArgs.
     #[derive(Parser, Debug, Clone)]
     #[command(about = "Mock command")]

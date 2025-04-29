@@ -120,6 +120,10 @@ pub static OP_RAW_TESTNET_BOOTNODES: &[&str] = &[
 
 #[cfg(test)]
 mod tests {
+    use discv5::enr::EnrPublicKey;
+
+    use crate::enr_to_multiaddr;
+
     use super::*;
 
     #[test]
@@ -158,6 +162,21 @@ mod tests {
 
         let bootnodes = BootNodes::testnet();
         assert_eq!(bootnodes.len(), 8);
+    }
+
+    #[test]
+    fn parse_enr() {
+        let enr = "enr:-Jy4QHRgJ9rnWbTs0oOfv8IHt77NDhHE3rwXf3fCh8RRN8sze4gyuQ2MkAapZwneDd_LH77TGCRS5N4wPGm-J5Hh-oCDAQKOgmlkgnY0gmlwhC36_pOHb3BzdGFja4Xkq4MBAIlzZWNwMjU2azGhAqUtGspoH5IzIIAwaqcipQFWripEU12KAiKFqRKDCZWxg3RjcIIjK4N1ZHCCIys";
+
+        let bootnode = Enr::from_str(enr).unwrap();
+        let pub_key = bootnode.public_key();
+        let pub_key =
+            libp2p_identity::secp256k1::PublicKey::try_from_bytes(&pub_key.encode()).unwrap();
+
+        assert_eq!(
+            "16Uiu2HAm6YT98Hd3qAtop3TFM75uXvuyEhZYwPCfZ9mzRckmFkmW",
+            libp2p_identity::PeerId::from_public_key(&pub_key.into()).to_string()
+        );
     }
 
     #[test]
