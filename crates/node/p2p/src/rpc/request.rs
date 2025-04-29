@@ -1,6 +1,7 @@
 //! Contains the network RPC request type.
 
 use crate::{Discv5Handler, GossipDriver};
+use discv5::multiaddr::Protocol;
 use kona_rpc::PeerInfo;
 use tokio::sync::oneshot::Sender;
 
@@ -47,35 +48,31 @@ impl NetRpcRequest {
 
     /// Handles a peer info request by spawning a task.
     fn handle_peer_info(sender: Sender<PeerInfo>, gossip: &GossipDriver, disc: &Discv5Handler) {
-        let peer_id = gossip.local_peer_id().to_string();
+        let peer_id = *gossip.local_peer_id();
         let chain_id = disc.chain_id;
         let local_enr = disc.local_enr();
-        let external_addresses =
-            gossip.swarm.external_addresses().map(|a| a.to_string()).collect::<Vec<String>>();
+        let addresses = gossip
+            .swarm
+            .listeners()
+            .map(|a| {
+                let mut addr = a.clone();
+                addr.push(Protocol::P2p(peer_id));
+                addr.to_string()
+            })
+            .collect::<Vec<String>>();
         tokio::spawn(async move {
             let enr = match local_enr.await {
                 Ok(enr) => enr,
                 Err(e) => {
                     warn!("Failed to receive local ENR: {:?}", e);
-                    let key = discv5::enr::CombinedKey::generate_secp256k1();
-                    match discv5::Enr::builder().build(&key) {
-                        Ok(enr) => enr,
-                        Err(e) => {
-                            warn!("Failed to build default ENR: {:?}", e);
-                            return;
-                        }
-                    }
+                    return;
                 }
             };
-            let node_id = enr.id().unwrap_or_default();
+            let node_id = enr.node_id().to_string();
 
             // We need to add the local multiaddr to the list of known addresses.
-            let mut addresses = crate::enr_to_multiaddr(&enr)
-                .map(|addr| vec![addr.to_string()])
-                .unwrap_or_default();
-            addresses.extend(external_addresses);
             let peer_info = kona_rpc::PeerInfo {
-                peer_id,
+                peer_id: peer_id.to_string(),
                 node_id,
                 user_agent: "kona".to_string(),
                 protocol_version: "1".to_string(),
@@ -87,7 +84,7 @@ impl NetRpcRequest {
                 protected: false,
                 chain_id,
                 latency: 0,
-                gossip_blocks: false,
+                gossip_blocks: true,
                 peer_scores: kona_rpc::PeerScores::default(),
             };
             if let Err(e) = sender.send(peer_info) {
