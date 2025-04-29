@@ -280,6 +280,7 @@ impl P2PArgs {
 
         if static_ip {
             builder.disable_enr_update();
+            builder.auto_nat_listen_duration(None);
         }
 
         builder.build()
