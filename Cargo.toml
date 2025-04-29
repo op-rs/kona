@@ -186,6 +186,7 @@ brotli = { version = "8.0.0", default-features = false }
 snap = "1.1.1"
 discv5 = "0.9.1"
 libp2p = "0.55.0"
+libp2p-identity = "0.2.10"
 openssl = "0.10.72"
 
 # Tracing

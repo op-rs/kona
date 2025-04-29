@@ -1,23 +1,44 @@
 //! Utilities to translate types.
 
-use discv5::{Enr, multiaddr::Protocol};
+use discv5::{
+    Enr,
+    enr::{CombinedPublicKey, EnrPublicKey},
+    multiaddr::Protocol,
+};
 use libp2p::Multiaddr;
 
 use super::PeerId;
 
 /// Converts an [`Enr`] into a [`Multiaddr`].
 pub fn enr_to_multiaddr(enr: &Enr) -> Option<Multiaddr> {
-    if let Some(socket) = enr.tcp4_socket() {
+    let mut addr = if let Some(socket) = enr.tcp4_socket() {
         let mut addr = Multiaddr::from(*socket.ip());
         addr.push(Protocol::Tcp(socket.port()));
-        return Some(addr);
-    }
-    if let Some(socket) = enr.tcp6_socket() {
+        addr
+    } else if let Some(socket) = enr.tcp6_socket() {
         let mut addr = Multiaddr::from(*socket.ip());
         addr.push(Protocol::Tcp(socket.port()));
-        return Some(addr);
+        addr
+    } else {
+        return None;
+    };
+
+    if let Some(socket) = enr.udp4_socket() {
+        addr.push(Protocol::Udp(socket.port()));
+    } else if let Some(socket) = enr.udp6_socket() {
+        addr.push(Protocol::Udp(socket.port()));
     }
-    None
+
+    let CombinedPublicKey::Secp256k1(pub_key) = enr.public_key() else {
+        return None;
+    };
+
+    let pub_key = libp2p_identity::secp256k1::PublicKey::try_from_bytes(&pub_key.encode()).ok()?;
+    let pub_key = libp2p_identity::PublicKey::from(pub_key);
+
+    addr.push(Protocol::P2p(libp2p::PeerId::from_public_key(&pub_key)));
+
+    Some(addr)
 }
 
 /// Converts an uncompressed [`PeerId`] to a [`secp256k1::PublicKey`] by prepending the [`PeerId`]
@@ -62,9 +83,104 @@ pub fn local_id_to_p2p_id(peer_id: PeerId) -> Result<libp2p::PeerId, PeerIdConve
 
 #[cfg(test)]
 mod tests {
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
     use super::*;
     use crate::PeerId;
     use alloy_primitives::hex::FromHex;
+    use discv5::enr::{CombinedKey, Enr, EnrKey};
+
+    #[test]
+    fn test_resolve_multiaddr() {
+        let ip = Ipv4Addr::new(132, 145, 16, 10);
+        let tcp_port = 9000;
+        let udp_port = 9001;
+        let private_key = CombinedKey::generate_secp256k1();
+
+        let public_key = private_key.public().encode();
+        let public_key =
+            libp2p_identity::secp256k1::PublicKey::try_from_bytes(&public_key).unwrap();
+        let peer_id = libp2p::PeerId::from_public_key(&public_key.into());
+
+        let enr = Enr::builder().ip4(ip).tcp4(tcp_port).udp4(udp_port).build(&private_key).unwrap();
+
+        let multiaddr = enr_to_multiaddr(&enr).unwrap();
+
+        let mut received_ip = None;
+        let mut received_tcp_port = None;
+        let mut received_udp_port = None;
+        let mut received_p2p_id = None;
+
+        for protocol in multiaddr.iter() {
+            match protocol {
+                Protocol::Ip4(ip) => {
+                    received_ip = Some(ip);
+                }
+                Protocol::Tcp(port) => {
+                    received_tcp_port = Some(port);
+                }
+                Protocol::Udp(port) => {
+                    received_udp_port = Some(port);
+                }
+                Protocol::P2p(id) => {
+                    received_p2p_id = Some(id);
+                }
+                _ => {
+                    panic!("Unexpected protocol: {:?}", protocol);
+                }
+            }
+        }
+        assert_eq!(received_ip, Some(ip));
+        assert_eq!(received_tcp_port, Some(tcp_port));
+        assert_eq!(received_udp_port, Some(udp_port));
+        assert_eq!(received_p2p_id, Some(peer_id));
+    }
+
+    #[test]
+    fn test_resolve_multiaddr_ipv6() {
+        let ip = Ipv6Addr::new(0x2001, 0xdb8, 0x0a, 0x11, 0x1e, 0x8a, 0x2e, 0x3a);
+        let tcp_port = 9000;
+        let udp_port = 9001;
+        let private_key = CombinedKey::generate_secp256k1();
+
+        let public_key = private_key.public().encode();
+        let public_key =
+            libp2p_identity::secp256k1::PublicKey::try_from_bytes(&public_key).unwrap();
+        let peer_id = libp2p::PeerId::from_public_key(&public_key.into());
+
+        let enr = Enr::builder().ip6(ip).tcp6(tcp_port).udp6(udp_port).build(&private_key).unwrap();
+
+        let multiaddr = enr_to_multiaddr(&enr).unwrap();
+
+        let mut received_ip = None;
+        let mut received_tcp_port = None;
+        let mut received_udp_port = None;
+        let mut received_p2p_id = None;
+
+        for protocol in multiaddr.iter() {
+            match protocol {
+                Protocol::Ip6(ip) => {
+                    received_ip = Some(ip);
+                }
+                Protocol::Tcp(port) => {
+                    received_tcp_port = Some(port);
+                }
+                Protocol::Udp(port) => {
+                    received_udp_port = Some(port);
+                }
+                Protocol::P2p(id) => {
+                    received_p2p_id = Some(id);
+                }
+                _ => {
+                    panic!("Unexpected protocol: {:?}", protocol);
+                }
+            }
+        }
+        assert_eq!(received_ip, Some(ip));
+        assert_eq!(received_tcp_port, Some(tcp_port));
+        assert_eq!(received_udp_port, Some(udp_port));
+        assert_eq!(received_p2p_id, Some(peer_id));
+    }
 
     #[test]
     fn test_convert_local_peer_id_to_multi_peer_id() {

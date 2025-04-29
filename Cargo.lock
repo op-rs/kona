@@ -4804,6 +4804,7 @@ dependencies = [
  "kona-rpc",
  "lazy_static",
  "libp2p",
+ "libp2p-identity",
  "multihash",
  "op-alloy-consensus",
  "op-alloy-rpc-types-engine",

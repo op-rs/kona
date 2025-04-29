@@ -35,6 +35,7 @@ snap.workspace = true
 futures.workspace = true
 discv5 = { workspace = true, features = ["libp2p"] }
 libp2p = { workspace = true, features = ["macros", "tokio", "tcp", "noise", "gossipsub", "ping", "yamux"] }
+libp2p-identity.workspace = true
 openssl = { workspace = true, features = ["vendored"] }
 
 # Cryptography
