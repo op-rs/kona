@@ -21,6 +21,9 @@ pub(crate) enum SyscallNumber {
     Read = 5000,
     /// Similar behavior as Linux/MIPS with support for unaligned writes.
     Write = 5001,
+    /// Similar behavior as Linux/MIPS for mapping memory on the host machine. Only accepts 2
+    /// arguments for cannon.
+    Mmap = 5009,
 }
 
 impl BasicKernelInterface for Mips64IO {
@@ -42,6 +45,16 @@ impl BasicKernelInterface for Mips64IO {
                 fd.into(),
                 buf.as_ptr() as usize,
                 buf.len(),
+            ))
+        }
+    }
+
+    fn mmap(size: usize) -> IOResult<usize> {
+        unsafe {
+            crate::linux::from_ret(syscall::syscall2(
+                SyscallNumber::Mmap as usize,
+                0usize, // anonymous map
+                size,
             ))
         }
     }

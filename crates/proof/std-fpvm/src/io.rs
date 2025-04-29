@@ -36,6 +36,10 @@ cfg_if! {
                 }
             }
 
+            fn mmap(_size: usize) -> IOResult<usize> {
+                unimplemented!("mmap is unimplemented for the native target; The default global allocator is favored.");
+            }
+
             fn exit(code: usize) -> ! {
                 std::process::exit(code as i32)
             }
@@ -74,6 +78,12 @@ pub fn write(fd: FileDescriptor, buf: &[u8]) -> IOResult<usize> {
 #[inline]
 pub fn read(fd: FileDescriptor, buf: &mut [u8]) -> IOResult<usize> {
     ClientIO::read(fd, buf)
+}
+
+/// Map new memory of block size `size`. Returns the new heap pointer.
+#[inline]
+pub fn mmap(size: usize) -> IOResult<usize> {
+    ClientIO::mmap(size)
 }
 
 /// Exit the process with the given exit code.

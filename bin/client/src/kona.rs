@@ -27,7 +27,7 @@ static ORACLE_READER: OracleReader<FileChannel> = OracleReader::new(ORACLE_READE
 /// The global hint writer.
 static HINT_WRITER: HintWriter<FileChannel> = HintWriter::new(HINT_WRITER_PIPE);
 
-#[client_entry(100_000_000)]
+#[client_entry]
 fn main() -> Result<(), String> {
     #[cfg(feature = "client-tracing")]
     {

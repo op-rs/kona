@@ -9,7 +9,7 @@
 pub mod global_allocator {
     use linked_list_allocator::LockedHeap;
 
-    /// The global allocator for the program in other profiles uses the [SpinLockedAllocator].
+    /// The global allocator for the program.
     #[global_allocator]
     static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
@@ -41,13 +41,28 @@ pub mod global_allocator {
 )]
 #[macro_export]
 macro_rules! alloc_heap {
-    ($size:expr) => {{
+    () => {{
         #[cfg(any(target_arch = "mips64", target_arch = "riscv64"))]
         {
             use $crate::malloc::global_allocator::init_allocator;
 
-            static mut HEAP: [u8; $size] = [0u8; $size];
-            unsafe { init_allocator(HEAP.as_mut_ptr(), $size) }
+            // The maximum heap size is configured to be an inordinate amount of memory (a
+            // terabyte.) Fault proof VMs do not actually allocate pages when an `mmap`
+            // is received, but instead allocate new pages on the fly. At startup, we
+            // request the FPVM's heap pointer to be bumped to make room for any necessary
+            // allocations throughout the lifecycle of the program.
+            const MAX_HEAP_SIZE: usize = 1 << 40;
+
+            // SAFETY: If the kernel fails to map the virtual memory, a panic is in order and we
+            // should exit immediately. Program execution cannot continue.
+            let region_start =
+                $crate::io::mmap(MAX_HEAP_SIZE).expect("Kernel failed to map memory");
+
+            // SAFETY: The memory region, at this point, is guaranteed to be valid and mapped by the
+            // kernel.
+            unsafe {
+                init_allocator(region_start as *mut u8, MAX_HEAP_SIZE);
+            }
         }
     }};
 }

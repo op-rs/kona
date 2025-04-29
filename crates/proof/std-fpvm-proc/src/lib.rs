@@ -2,31 +2,12 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{
-    ItemFn, LitInt, Result,
-    parse::{Parse, ParseStream},
-    parse_macro_input,
-};
-
-/// The arguments for the `#[client_entry]` attribute proc macro
-struct MacroArgs {
-    /// The heap size to allocate
-    heap_size: LitInt,
-}
-
-impl Parse for MacroArgs {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let heap_size = input.parse()?;
-        Ok(MacroArgs { heap_size })
-    }
-}
+use syn::{ItemFn, parse_macro_input};
 
 #[proc_macro_attribute]
-pub fn client_entry(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(attr as MacroArgs);
+pub fn client_entry(_: TokenStream, input: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(input as ItemFn);
 
-    let heap_size = args.heap_size;
     let fn_body = &input_fn.block;
     let fn_name = &input_fn.sig.ident;
 
@@ -43,12 +24,10 @@ pub fn client_entry(attr: TokenStream, input: TokenStream) -> TokenStream {
 
         cfg_if::cfg_if! {
             if #[cfg(any(target_arch = "mips64", target_arch = "riscv64"))] {
-                const HEAP_SIZE: usize = #heap_size;
-
                 #[doc = "Program entry point"]
                 #[unsafe(no_mangle)]
                 pub extern "C" fn _start() {
-                    kona_std_fpvm::alloc_heap!(HEAP_SIZE);
+                    kona_std_fpvm::alloc_heap!();
                     let _ = #fn_name();
                 }
 

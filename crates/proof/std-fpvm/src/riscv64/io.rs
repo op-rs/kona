@@ -20,6 +20,8 @@ pub(crate) enum SyscallNumber {
     Read = 63,
     /// Similar behavior as Linux with support for unaligned writes.
     Write = 64,
+    /// Similar behavior as Linux for mapping memory on the host machine.
+    Mmap = 222,
 }
 
 impl BasicKernelInterface for RiscV64IO {
@@ -41,6 +43,21 @@ impl BasicKernelInterface for RiscV64IO {
                 fd.into(),
                 buf.as_ptr() as usize,
                 buf.len(),
+            ))
+        }
+    }
+
+    fn mmap(size: usize) -> IOResult<usize> {
+        // https://github.com/ethereum-optimism/asterisc/blob/master/rvgo/fast/vm.go#L360-L398
+        unsafe {
+            crate::linux::from_ret(syscall::syscall6(
+                SyscallNumber::Mmap as usize,
+                0usize,            // address hint - 0 for anonymous maps
+                size,              // block size
+                0usize,            // prot, ignored.
+                0x20,              // flags - set MAP_ANONYMOUS
+                u64::MAX as usize, // fd = -1, anonymous memory maps only.
+                0usize,            // offset - ignored, anonymous memory maps only.
             ))
         }
     }

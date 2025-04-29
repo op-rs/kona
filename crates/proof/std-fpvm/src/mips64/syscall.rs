@@ -65,6 +65,40 @@ pub(crate) unsafe fn syscall1(n: usize, arg1: usize) -> usize {
     if err == 0 { ret } else { ret.wrapping_neg() }
 }
 
+/// Issues a raw system call with 2 arguments. (e.g. cannon's flavor of mmap)
+///
+/// # Safety
+///
+/// Running a system call is inherently unsafe. It is the caller's
+/// responsibility to ensure safety.
+#[inline]
+pub(crate) unsafe fn syscall2(n: usize, arg1: usize, arg2: usize) -> usize {
+    let mut err: usize;
+    let mut ret: usize;
+    unsafe {
+        asm!(
+            "syscall",
+            inlateout("$2") n => ret,
+            lateout("$7") err,
+            in("$4") arg1,
+            in("$5") arg2,
+            // All temporary registers are always clobbered
+            lateout("$8") _,
+            lateout("$9") _,
+            lateout("$10") _,
+            lateout("$11") _,
+            lateout("$12") _,
+            lateout("$13") _,
+            lateout("$14") _,
+            lateout("$15") _,
+            lateout("$24") _,
+            lateout("$25") _,
+            options(nostack, preserves_flags)
+        );
+    }
+    if err == 0 { ret } else { ret.wrapping_neg() }
+}
+
 /// Issues a raw system call with 3 arguments. (e.g. read, write)
 #[inline]
 pub(crate) unsafe fn syscall3(n: usize, arg1: usize, arg2: usize, arg3: usize) -> usize {
