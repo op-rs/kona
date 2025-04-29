@@ -19,7 +19,7 @@ pub trait BasicKernelInterface {
     /// Read from the given file descriptor into the passed buffer.
     fn read(fd: FileDescriptor, buf: &mut [u8]) -> IOResult<usize>;
 
-    /// Map new memory with with block size `size`. Returns the new heap pointer.
+    /// Map new memory with block size `size`. Returns the new heap pointer.
     fn mmap(size: usize) -> IOResult<usize>;
 
     /// Exit the process with the given exit code. The implementation of this function

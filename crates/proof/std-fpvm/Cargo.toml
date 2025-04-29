@@ -18,14 +18,14 @@ kona-preimage.workspace = true
 # External
 cfg-if.workspace = true
 thiserror.workspace = true
-linked_list_allocator.workspace = true
+buddy_system_allocator.workspace = true
 async-trait.workspace = true
 
 # `tracing` feature dependencies
 tracing = { workspace = true, optional = true }
 
 [package.metadata.cargo-udeps.ignore]
-normal = ["linked_list_allocator"]
+normal = ["buddy_system_allocator"]
 
 [features]
 tracing = ["dep:tracing"]

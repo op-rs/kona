@@ -7,11 +7,14 @@
 /// The global allocator for the program in embedded environments.
 #[cfg(any(target_arch = "mips64", target_arch = "riscv64"))]
 pub mod global_allocator {
-    use linked_list_allocator::LockedHeap;
+    use buddy_system_allocator::LockedHeap;
+
+    /// The maximum block size, as a power of two, for the buddy system allocator.
+    const HEAP_ORDER: usize = 32;
 
     /// The global allocator for the program.
     #[global_allocator]
-    static ALLOCATOR: LockedHeap = LockedHeap::empty();
+    static ALLOCATOR: LockedHeap<HEAP_ORDER> = LockedHeap::empty();
 
     /// Initialize the [SpinLockedAllocator] with the following parameters:
     /// * `heap_start_addr` is the starting address of the heap memory region,
@@ -23,7 +26,7 @@ pub mod global_allocator {
     /// * The provided memory region must be valid, non-null, and not used by anything else.
     /// * After aligning the start and end addresses, the size of the heap must be > 0, or the
     ///   function will panic.
-    pub unsafe fn init_allocator(heap_start_addr: *mut u8, heap_size: usize) {
+    pub unsafe fn init_allocator(heap_start_addr: usize, heap_size: usize) {
         unsafe { ALLOCATOR.lock().init(heap_start_addr, heap_size) }
     }
 }
@@ -61,7 +64,7 @@ macro_rules! alloc_heap {
             // SAFETY: The memory region, at this point, is guaranteed to be valid and mapped by the
             // kernel.
             unsafe {
-                init_allocator(region_start as *mut u8, MAX_HEAP_SIZE);
+                init_allocator(region_start, MAX_HEAP_SIZE);
             }
         }
     }};
