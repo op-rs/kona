@@ -371,7 +371,7 @@ impl P2PArgs {
             discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address,
             gossip_address,
-            keypair: self.keypair().unwrap_or_else(|_| Keypair::generate_secp256k1()),
+            keypair,
             unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
             gossip_config,
             scoring: self.scoring,
