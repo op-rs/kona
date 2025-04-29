@@ -42,6 +42,10 @@ pub struct P2PArgs {
 
     /// IP to advertise to external peers from Discv5.
     /// Optional argument. Use the `p2p.listen.ip` if not set.
+    ///
+    /// Technical note: if this argument is set, the dynamic ENR updates from the discovery layer
+    /// will be disabled. This is to allow the advertised IP to be static (to use in a network
+    /// behind a NAT for instance).
     #[arg(long = "p2p.advertise.ip", env = "KONA_NODE_P2P_ADVERTISE_IP")]
     pub advertise_ip: Option<IpAddr>,
     /// TCP port to advertise to external peers from the discovery layer. Same as `p2p.listen.tcp`
@@ -253,12 +257,22 @@ impl P2PArgs {
     }
 
     /// Returns the [`discv5::Config`] from the CLI arguments.
-    pub fn discv5_config(&self, listen_config: discv5::ListenConfig) -> discv5::Config {
+    pub fn discv5_config(
+        &self,
+        listen_config: discv5::ListenConfig,
+        static_ip: bool,
+    ) -> discv5::Config {
         // We can use a default listen config here since it
         // will be overridden by the discovery service builder.
-        discv5::ConfigBuilder::new(listen_config)
-            .ban_duration(Some(Duration::from_secs(self.ban_duration as u64)))
-            .build()
+        let mut builder = discv5::ConfigBuilder::new(listen_config);
+
+        builder.ban_duration(Some(Duration::from_secs(self.ban_duration as u64)));
+
+        if static_ip {
+            builder.disable_enr_update();
+        }
+
+        builder.build()
     }
 
     /// Returns the unsafe block signer from the CLI arguments.
@@ -303,6 +317,9 @@ impl P2PArgs {
         // Fallback to the listen ip if the advertise ip is not specified
         let advertise_ip = self.advertise_ip.unwrap_or(self.listen_ip);
 
+        // If the advertise ip is set, we will disable the dynamic ENR updates.
+        let static_ip = self.advertise_ip.is_some();
+
         // If the advertise tcp port is null, use the listen tcp port
         let advertise_tcp_port = if self.advertise_tcp_port != 0 {
             self.advertise_tcp_port
@@ -344,7 +361,7 @@ impl P2PArgs {
         };
 
         let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
-        let discovery_config = self.discv5_config(discovery_listening_address.into());
+        let discovery_config = self.discv5_config(discovery_listening_address.into(), static_ip);
 
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
