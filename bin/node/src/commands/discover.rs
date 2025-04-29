@@ -125,6 +125,7 @@ impl Discovery {
             .with_local_node(ip_and_port)
             .with_store_interval(std::time::Duration::from_secs(5))
             .with_chain_id(self.l2_chain_id)
+            // Disable forwarding since gossip isn't important for this command.
             .disable_forward();
         let discovery = discovery_builder.build()?;
         let (handler, mut enr_receiver) = discovery.start();
