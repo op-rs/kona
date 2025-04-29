@@ -221,8 +221,10 @@ mod tests {
     #[test]
     fn test_build_missing_chain_id() {
         let builder = NetworkBuilder::new();
+        let keypair = Keypair::generate_secp256k1();
         let err = builder
             .with_unsafe_block_signer(Address::random())
+            .with_keypair(keypair)
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .build()
             .unwrap_err();
@@ -232,9 +234,11 @@ mod tests {
 
     #[test]
     fn test_build_missing_gossip_address() {
+        let keypair = Keypair::generate_secp256k1();
         let builder = NetworkBuilder::new();
         let err = builder
             .with_unsafe_block_signer(Address::random())
+            .with_keypair(keypair)
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_chain_id(1)
             .build()
@@ -251,11 +255,19 @@ mod tests {
             unreachable!()
         };
         let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097);
-        let disc_enr = LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
+        let disc_enr =
+            LocalNode::new(secret_key.clone(), IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
+
+        let secret_key = libp2p_identity::secp256k1::SecretKey::try_from_bytes(
+            secret_key.to_bytes().as_mut_slice(),
+        )
+        .unwrap();
+        let keypair = libp2p_identity::secp256k1::Keypair::from(secret_key);
         let driver = NetworkBuilder::new()
+            .with_keypair(keypair.into())
             .with_unsafe_block_signer(signer)
             .with_chain_id(id)
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
@@ -285,6 +297,7 @@ mod tests {
     #[test]
     fn test_build_network_custom_configs() {
         let id = 10;
+        let keypair = Keypair::generate_secp256k1();
         let signer = Address::random();
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
@@ -301,6 +314,7 @@ mod tests {
         let driver = NetworkBuilder::new()
             .with_unsafe_block_signer(signer)
             .with_chain_id(id)
+            .with_keypair(keypair)
             .with_gossip_address(gossip_addr)
             .with_discovery_address(disc)
             .with_discovery_config(discovery_config)

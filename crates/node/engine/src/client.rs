@@ -69,7 +69,7 @@ impl EngineClient {
         let layer_transport = HyperClient::with_service(service);
 
         let http_hyper = Http::with_client(layer_transport, addr);
-        let rpc_client = RpcClient::new(http_hyper, true);
+        let rpc_client = RpcClient::new(http_hyper, false);
         RootProvider::<T>::new(rpc_client)
     }
 

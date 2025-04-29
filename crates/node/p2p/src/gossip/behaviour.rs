@@ -31,16 +31,28 @@ pub struct Behaviour {
     pub ping: libp2p::ping::Behaviour,
     /// Enables gossipsub as the routing layer.
     pub gossipsub: libp2p::gossipsub::Behaviour,
+    /// Enables the identify protocol.
+    #[debug(skip)]
+    pub identify: libp2p::identify::Behaviour,
 }
 
 impl Behaviour {
     /// Configures the swarm behaviors, subscribes to the gossip topics, and returns a new
     /// [`Behaviour`].
-    pub fn new(cfg: Config, handlers: &[Box<dyn Handler>]) -> Result<Self, BehaviourError> {
+    pub fn new(
+        public_key: libp2p::identity::PublicKey,
+        cfg: Config,
+        handlers: &[Box<dyn Handler>],
+    ) -> Result<Self, BehaviourError> {
         let ping = libp2p::ping::Behaviour::default();
 
         let mut gossipsub = libp2p::gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, cfg)
             .map_err(|_| BehaviourError::GossipsubCreationFailed)?;
+
+        let identify = libp2p::identify::Behaviour::new(
+            libp2p::identify::Config::new("/ipfs/id/1.0.0".to_string(), public_key)
+                .with_agent_version("optimism".to_string()),
+        );
 
         let subscriptions = handlers
             .iter()
@@ -68,7 +80,7 @@ impl Behaviour {
             }
         }
 
-        Ok(Self { ping, gossipsub })
+        Ok(Self { identify, ping, gossipsub })
     }
 }
 
@@ -90,18 +102,20 @@ mod tests {
 
     #[test]
     fn test_behaviour_no_handlers() {
+        let key = libp2p::identity::Keypair::generate_secp256k1();
         let cfg = config::default_config();
         let handlers = vec![];
-        let _ = Behaviour::new(cfg, &handlers).unwrap();
+        let _ = Behaviour::new(key.public(), cfg, &handlers).unwrap();
     }
 
     #[test]
     fn test_behaviour_with_handlers() {
+        let key = libp2p::identity::Keypair::generate_secp256k1();
         let cfg = config::default_config();
         let (_, recv) = tokio::sync::watch::channel(Address::default());
         let block_handler = BlockHandler::new(0, recv);
         let handlers: Vec<Box<dyn Handler>> = vec![Box::new(block_handler)];
-        let behaviour = Behaviour::new(cfg, &handlers).unwrap();
+        let behaviour = Behaviour::new(key.public(), cfg, &handlers).unwrap();
         let mut topics = behaviour.gossipsub.topics().cloned().collect::<Vec<TopicHash>>();
         topics.sort();
         assert_eq!(topics, zero_topics());

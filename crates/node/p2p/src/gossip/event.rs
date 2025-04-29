@@ -1,6 +1,6 @@
 //! Event Handling Module.
 
-use libp2p::{gossipsub, ping};
+use libp2p::{gossipsub, identify, ping};
 
 /// The type of message received
 #[derive(Debug)]
@@ -10,6 +10,8 @@ pub enum Event {
     Ping(ping::Event),
     /// Represents a [gossipsub::Event]
     Gossipsub(gossipsub::Event),
+    /// Represents a [identify::Event]
+    Identify(identify::Event),
 }
 
 impl From<ping::Event> for Event {
@@ -23,6 +25,13 @@ impl From<gossipsub::Event> for Event {
     /// Converts [gossipsub::Event] to [Event]
     fn from(value: gossipsub::Event) -> Self {
         Self::Gossipsub(value)
+    }
+}
+
+impl From<identify::Event> for Event {
+    /// Converts [identify::Event] to [Event]
+    fn from(value: identify::Event) -> Self {
+        Self::Identify(value)
     }
 }
 

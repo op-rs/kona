@@ -78,7 +78,7 @@ impl NetRpcRequest {
                 protocol_version: "1".to_string(),
                 enr: enr.to_string(),
                 addresses,
-                protocols: None, // TODO: peer supported protocols
+                protocols: None,
                 connectedness: kona_rpc::Connectedness::Connected,
                 direction: kona_rpc::Direction::Inbound,
                 protected: false,

@@ -178,12 +178,12 @@ impl GossipDriver {
 
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
-                event!(tracing::Level::TRACE, peer=%addr, "Dialed peer");
+                trace!(peer=?addr, "Dialed peer");
                 let count = self.dialed_peers.entry(addr.clone()).or_insert(0);
                 *count += 1;
             }
             Err(e) => {
-                debug!(target: "gossip", "Failed to connect to peer: {:?}", e);
+                error!(target: "gossip", "Failed to connect to peer: {:?}", e);
             }
         }
     }
@@ -235,42 +235,49 @@ impl GossipDriver {
 
     /// Handles the [`SwarmEvent<Event>`].
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) -> Option<OpNetworkPayloadEnvelope> {
-        if let SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } = event {
-            let peer_count = self.swarm.connected_peers().count();
-            trace!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
-            crate::set!(PEER_COUNT, peer_count as i64);
-            self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
-            return None;
-        }
-        if let SwarmEvent::OutgoingConnectionError { peer_id, error, .. } = event {
-            trace!(target: "gossip", "Outgoing connection error: {:?}", error);
-            if let Some(id) = peer_id {
-                self.redial(id);
+        let event = match event {
+            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+                let peer_count = self.swarm.connected_peers().count();
+                info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
+                crate::set!(PEER_COUNT, peer_count as i64);
+                self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
+                return None;
             }
-            return None;
-        }
-        if let SwarmEvent::ConnectionClosed { peer_id, cause, .. } = event {
-            let peer_count = self.swarm.connected_peers().count();
-            trace!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
-            crate::set!(PEER_COUNT, peer_count as i64);
-            self.redial(peer_id);
-            return None;
-        }
-        if let SwarmEvent::NewListenAddr { address, .. } = event {
-            debug!(target: "gossip", "Swarm listening on new address: {:?}", address);
-            return None;
-        }
-        let SwarmEvent::Behaviour(event) = event else {
-            trace!(target: "gossip", "Ignoring non-behaviour in event handler: {:?}", event);
-            return None;
+            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                warn!(target: "gossip", "Outgoing connection error: {:?}", error);
+                if let Some(id) = peer_id {
+                    self.redial(id);
+                }
+                return None;
+            }
+            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                let peer_count = self.swarm.connected_peers().count();
+                warn!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
+                crate::set!(PEER_COUNT, peer_count as i64);
+                self.redial(peer_id);
+                return None;
+            }
+            SwarmEvent::NewListenAddr { listener_id, address } => {
+                debug!(target: "gossip", reporter_id = ?listener_id, new_address = ?address, "New listen address");
+                return None;
+            }
+            SwarmEvent::Behaviour(event) => event,
+            _ => {
+                debug!(target: "gossip", ?event, "Ignoring non-behaviour in event handler");
+                return None;
+            }
         };
 
         match event {
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
-                trace!(target: "gossip", "Ping from peer: {:?} | Result: {:?}", peer, result);
+                debug!(target: "gossip", ?peer, ?result, "Ping received");
                 None
             }
             Event::Gossipsub(e) => self.handle_gossipsub_event(e),
+            Event::Identify(e) => {
+                debug!(target: "gossip", event = ?e, "Identify event received");
+                None
+            }
         }
     }
 }

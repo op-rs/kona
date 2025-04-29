@@ -124,7 +124,7 @@ impl GossipDriverBuilder {
     pub fn build(mut self) -> Result<GossipDriver, GossipDriverBuilderError> {
         // Extract builder arguments
         let timeout = self.timeout.take().unwrap_or(Duration::from_secs(60));
-        let keypair = self.keypair.take().unwrap_or(Keypair::generate_secp256k1());
+        let keypair = self.keypair.take().ok_or(GossipDriverBuilderError::MissingKeyPair)?;
         let chain_id = self.chain_id.ok_or(GossipDriverBuilderError::MissingChainID)?;
         let addr = self.gossip_addr.take().ok_or(GossipDriverBuilderError::GossipAddrNotSet)?;
         let signer_recv = self.signer.ok_or(GossipDriverBuilderError::MissingUnsafeBlockSigner)?;
@@ -143,7 +143,7 @@ impl GossipDriverBuilder {
             config.gossip_lazy(),
             config.flood_publish()
         );
-        let mut behaviour = Behaviour::new(config, &[Box::new(handler.clone())])?;
+        let mut behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])?;
 
         // If peer scoring is configured, set it on the behaviour.
         if let Some(scoring) = self.scoring {

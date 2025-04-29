@@ -107,7 +107,7 @@ impl AlloyL2ChainProvider {
 
         let layer_transport = HyperClient::with_service(service);
         let http_hyper = Http::with_client(layer_transport, url);
-        let rpc_client = RpcClient::new(http_hyper, true);
+        let rpc_client = RpcClient::new(http_hyper, false);
 
         let rpc = RootProvider::<Optimism>::new(rpc_client);
         Self::new(rpc, rollup_config, cache_size)
