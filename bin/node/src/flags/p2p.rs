@@ -211,7 +211,7 @@ impl Default for P2PArgs {
             discovery_interval: 5,
             bootnodes: Vec::new(),
             bootstore: None,
-            peer_redial: None,
+            peer_redial: Some(10),
             unsafe_block_signer: None,
             discovery_randomize: None,
         }

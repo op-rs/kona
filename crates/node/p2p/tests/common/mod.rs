@@ -16,15 +16,15 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
     // Use the default `kona_p2p` config for the gossipsub protocol.
     let config = kona_p2p::default_config();
 
+    let keypair = Keypair::generate_secp256k1();
+
     // Construct a Behaviour instance
     let unsafe_block_signer = Address::default();
     let (_, unsafe_block_signer_recv) = tokio::sync::watch::channel(unsafe_block_signer);
     let handler = BlockHandler::new(chain_id, unsafe_block_signer_recv);
-    let behaviour =
-        Behaviour::new(config, &[Box::new(handler.clone())]).expect("creates behaviour");
+    let behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])
+        .expect("creates behaviour");
 
-    // Construct the
-    let keypair = Keypair::generate_secp256k1();
     let swarm = SwarmBuilder::with_existing_identity(keypair)
         .with_tokio()
         .with_tcp(

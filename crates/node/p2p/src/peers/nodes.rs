@@ -122,8 +122,6 @@ pub static OP_RAW_TESTNET_BOOTNODES: &[&str] = &[
 mod tests {
     use discv5::enr::EnrPublicKey;
 
-    use crate::enr_to_multiaddr;
-
     use super::*;
 
     #[test]

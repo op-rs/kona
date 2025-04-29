@@ -275,6 +275,10 @@ impl GossipDriver {
                 None
             }
             Event::Gossipsub(e) => self.handle_gossipsub_event(e),
+            Event::Identify(e) => {
+                info!(target: "gossip", event = ?e, "Identify event received");
+                None
+            }
         }
     }
 }

@@ -29,6 +29,9 @@ pub enum HandlerEncodeError {
 /// An error type for the [`crate::GossipDriverBuilder`].
 #[derive(Debug, Clone, PartialEq, Eq, From, Error)]
 pub enum GossipDriverBuilderError {
+    /// Missing key pair.
+    #[error("missing key pair")]
+    MissingKeyPair,
     /// Missing chain id.
     #[error("missing chain id")]
     MissingChainID,
