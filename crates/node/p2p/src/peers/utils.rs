@@ -102,7 +102,6 @@ mod tests {
 
         let mut received_ip = None;
         let mut received_tcp_port = None;
-        let mut received_udp_port = None;
         let mut received_p2p_id = None;
 
         for protocol in multiaddr.iter() {
@@ -112,9 +111,6 @@ mod tests {
                 }
                 Protocol::Tcp(port) => {
                     received_tcp_port = Some(port);
-                }
-                Protocol::Udp(port) => {
-                    received_udp_port = Some(port);
                 }
                 Protocol::P2p(id) => {
                     received_p2p_id = Some(id);
@@ -126,7 +122,6 @@ mod tests {
         }
         assert_eq!(received_ip, Some(ip));
         assert_eq!(received_tcp_port, Some(tcp_port));
-        assert_eq!(received_udp_port, Some(udp_port));
         assert_eq!(received_p2p_id, Some(peer_id));
     }
 
@@ -148,7 +143,6 @@ mod tests {
 
         let mut received_ip = None;
         let mut received_tcp_port = None;
-        let mut received_udp_port = None;
         let mut received_p2p_id = None;
 
         for protocol in multiaddr.iter() {
@@ -158,9 +152,6 @@ mod tests {
                 }
                 Protocol::Tcp(port) => {
                     received_tcp_port = Some(port);
-                }
-                Protocol::Udp(port) => {
-                    received_udp_port = Some(port);
                 }
                 Protocol::P2p(id) => {
                     received_p2p_id = Some(id);
@@ -172,7 +163,6 @@ mod tests {
         }
         assert_eq!(received_ip, Some(ip));
         assert_eq!(received_tcp_port, Some(tcp_port));
-        assert_eq!(received_udp_port, Some(udp_port));
         assert_eq!(received_p2p_id, Some(peer_id));
     }
 
