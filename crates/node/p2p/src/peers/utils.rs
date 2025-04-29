@@ -23,12 +23,6 @@ pub fn enr_to_multiaddr(enr: &Enr) -> Option<Multiaddr> {
         return None;
     };
 
-    if let Some(socket) = enr.udp4_socket() {
-        addr.push(Protocol::Udp(socket.port()));
-    } else if let Some(socket) = enr.udp6_socket() {
-        addr.push(Protocol::Udp(socket.port()));
-    }
-
     let CombinedPublicKey::Secp256k1(pub_key) = enr.public_key() else {
         return None;
     };
