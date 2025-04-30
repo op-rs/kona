@@ -86,7 +86,7 @@ build-node:
     --progress plain \
     -f docker/docker-bake.hcl \
     generic
-  docker image tag ghcr.io/op-rs/kona/kona-node:latest kona-node:latest
+  docker image tag ghcr.io/op-rs/kona/kona-node:local kona-node:local
 
 # Build `kona-client` for the `cannon` target.
 build-cannon-client:
