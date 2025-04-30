@@ -57,7 +57,7 @@ impl Handler for BlockHandler {
         } else if msg.topic == self.blocks_v4_topic.hash() {
             OpNetworkPayloadEnvelope::decode_v4(&msg.data)
         } else {
-            warn!(target: "node::p2p::gossip", topic = ?msg.topic, "Received block with unknown topic");
+            warn!(target: "gossip", topic = ?msg.topic, "Received block with unknown topic");
             return (MessageAcceptance::Reject, None);
         };
 
@@ -65,12 +65,12 @@ impl Handler for BlockHandler {
             Ok(envelope) => match self.block_valid(&envelope) {
                 Ok(()) => (MessageAcceptance::Accept, Some(envelope)),
                 Err(err) => {
-                    warn!(target: "node::p2p::gossip", ?err, ?envelope, "Received invalid block");
+                    warn!(target: "gossip", ?err, hash = ?envelope.payload_hash, "Received invalid block");
                     (err.into(), None)
                 }
             },
             Err(err) => {
-                warn!(target: "node::p2p::gossip", ?err, "Failed to decode block");
+                warn!(target: "gossip", ?err, "Failed to decode block");
                 (MessageAcceptance::Reject, None)
             }
         }
