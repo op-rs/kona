@@ -85,8 +85,8 @@ build-node:
   docker build \
     --progress plain \
     -f docker/apps/kona_app_generic.dockerfile \
-    --build-arg BIN_TARGET=kona-node \
-    --build-arg TAG=main \
+    --build-arg "BIN_TARGET=kona-node" \
+    --build-arg "TAG=$(git rev-parse HEAD)" \
     -t ghcr.io/op-rs/kona/kona-node:latest \
     .
 
