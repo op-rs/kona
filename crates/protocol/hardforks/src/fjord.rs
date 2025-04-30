@@ -114,6 +114,8 @@ impl Hardfork for Fjord {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::check_deployment_code;
+
     use super::*;
     use alloc::vec;
 
@@ -160,5 +162,27 @@ mod tests {
         for (i, expected) in expected_txs.iter().enumerate() {
             assert_eq!(fjord_upgrade_tx[i], *expected);
         }
+    }
+
+    #[test]
+    fn test_verify_fjord_gas_price_oracle_deployment_code_hash() {
+        // Verify code hash of Gas Price Deployment
+        // See: <https://specs.optimism.io/protocol/fjord/derivation.html#gaspriceoracle-deployment>
+        check_deployment_code(
+            TxDeposit {
+                source_hash: Fjord::deploy_fjord_gas_price_oracle_source(),
+                from: Fjord::GAS_PRICE_ORACLE_FJORD_DEPLOYER,
+                to: TxKind::Create,
+                mint: 0.into(),
+                value: U256::ZERO,
+                gas_limit: 1_450_000,
+                is_system_transaction: false,
+                input: Fjord::gas_price_oracle_deployment_bytecode(),
+            },
+            "0xa919894851548179A0750865e7974DA599C0Fac7".parse().unwrap(),
+            alloy_primitives::b256!(
+                "0xa88fa50a2745b15e6794247614b5298483070661adacb8d32d716434ed24c6b2"
+            ),
+        );
     }
 }

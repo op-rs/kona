@@ -190,6 +190,8 @@ impl Hardfork for Ecotone {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::check_deployment_code;
+
     use super::*;
     use alloc::vec;
 
@@ -198,6 +200,49 @@ mod tests {
         assert_eq!(
             Ecotone::deploy_l1_block_source(),
             hex!("877a6077205782ea15a6dc8699fa5ebcec5e0f4389f09cb8eda09488231346f8")
+        );
+    }
+    #[test]
+    fn test_verify_ecotone_l1_deployment_code_hash() {
+        // Verify source hash of L1Block
+        // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#l1block-deployment>
+        check_deployment_code(
+            TxDeposit {
+                source_hash: Ecotone::deploy_l1_block_source(),
+                from: Ecotone::L1_BLOCK_DEPLOYER,
+                to: TxKind::Create,
+                mint: 0.into(),
+                value: U256::ZERO,
+                gas_limit: 375_000,
+                is_system_transaction: false,
+                input: Ecotone::l1_block_deployment_bytecode(),
+            },
+            "0x07dbe8500fc591d1852B76feE44d5a05e13097Ff".parse().unwrap(),
+            alloy_primitives::b256!(
+                "0xc88a313aa75dc4fbf0b6850d9f9ae41e04243b7008cf3eadb29256d4a71c1dfd"
+            ),
+        );
+    }
+
+    #[test]
+    fn test_verify_ecotone_gas_price_oracle_deployment_code_hash() {
+        // Verify GasPrice Oracle source hash
+        // See: <https://specs.optimism.io/protocol/ecotone/derivation.html#gaspriceoracle-deployment>
+        check_deployment_code(
+            TxDeposit {
+                source_hash: Ecotone::deploy_gas_price_oracle_source(),
+                from: Ecotone::GAS_PRICE_ORACLE_DEPLOYER,
+                to: TxKind::Create,
+                mint: 0.into(),
+                value: U256::ZERO,
+                gas_limit: 1_000_000,
+                is_system_transaction: false,
+                input: Ecotone::ecotone_gas_price_oracle_deployment_bytecode(),
+            },
+            "0xb528D11cC114E026F138fE568744c6D45ce6Da7A".parse().unwrap(),
+            alloy_primitives::b256!(
+                "0x8b71360ea773b4cfaf1ae6d2bd15464a4e1e2e360f786e475f63aeaed8da0ae5"
+            ),
         );
     }
 
