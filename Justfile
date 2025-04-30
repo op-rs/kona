@@ -87,7 +87,7 @@ build-node:
     -f docker/apps/kona_app_generic.dockerfile \
     --build-arg BIN_TARGET=kona-node \
     --build-arg TAG=main \
-    -t kona-node:local \
+    -t ghcr.io/op-rs/kona/kona-node:latest \
     .
 
   # BIN_TARGET=kona-node docker buildx bake \
