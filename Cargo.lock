@@ -4631,6 +4631,8 @@ dependencies = [
  "alloy-primitives",
  "kona-protocol",
  "op-alloy-consensus",
+ "op-revm",
+ "revm",
 ]
 
 [[package]]

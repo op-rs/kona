@@ -90,4 +90,7 @@ impl Predeploys {
 
     /// The CrossL2Inbox proxy address.
     pub const CROSS_L2_INBOX: Address = address!("0x4200000000000000000000000000000000000022");
+
+    /// The L2ToL2CrossDomainMessenger proxy address.
+    pub const L2_TO_L2_XDM: Address = address!("0x4200000000000000000000000000000000000023");
 }

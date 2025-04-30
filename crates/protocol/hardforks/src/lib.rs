@@ -24,5 +24,11 @@ pub use ecotone::Ecotone;
 mod isthmus;
 pub use isthmus::Isthmus;
 
+mod interop;
+pub use interop::Interop;
+
 mod utils;
 pub(crate) use utils::upgrade_to_calldata;
+
+#[cfg(test)]
+mod test_utils;

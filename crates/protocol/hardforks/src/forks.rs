@@ -1,6 +1,6 @@
 //! Contains all hardforks represented in the [crate::Hardfork] type.
 
-use crate::{Ecotone, Fjord, Isthmus};
+use crate::{Ecotone, Fjord, Interop, Isthmus};
 
 /// Optimism Hardforks
 ///
@@ -30,6 +30,13 @@ use crate::{Ecotone, Fjord, Isthmus};
 /// let isthmus_upgrade_tx = Hardforks::ISTHMUS.txs();
 /// assert_eq!(isthmus_upgrade_tx.collect::<Vec<_>>().len(), 8);
 /// ```
+///
+/// Build interop hardfork upgrade transaction:
+/// ```rust
+/// use kona_hardforks::{Hardfork, Hardforks};
+/// let interop_upgrade_tx = Hardforks::INTEROP.txs();
+/// assert_eq!(interop_upgrade_tx.collect::<Vec<_>>().len(), 4);
+/// ```
 #[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
 pub struct Hardforks;
@@ -43,6 +50,9 @@ impl Hardforks {
 
     /// The Isthmus hardfork upgrade transactions.
     pub const ISTHMUS: Isthmus = Isthmus;
+
+    /// The Interop hardfork upgrade transactions.
+    pub const INTEROP: Interop = Interop;
 }
 
 #[cfg(test)]
@@ -61,5 +71,8 @@ mod tests {
 
         let isthmus_upgrade_tx = Hardforks::ISTHMUS.txs();
         assert_eq!(isthmus_upgrade_tx.collect::<Vec<_>>().len(), 8);
+
+        let interop_upgrade_tx = Hardforks::INTEROP.txs();
+        assert_eq!(interop_upgrade_tx.collect::<Vec<_>>().len(), 4);
     }
 }
