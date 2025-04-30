@@ -2,6 +2,7 @@
 
 use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 use clap::Parser;
+use url::Url;
 use kona_p2p::{NetRpcRequest, NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};
@@ -18,6 +19,11 @@ use tracing::{debug, info, warn};
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Runs the networking stack for the kona-node.")]
 pub struct NetCommand {
+    /// URL of the L1 execution client RPC API.
+    /// This is used to load the unsafe block signer from runtime.
+    /// Without this, the rollup config unsafe block signer will be used which may be outdated.
+    #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
+    pub l1_eth_rpc: Option<Url>,
     /// P2P CLI Flags
     #[command(flatten)]
     pub p2p: P2PArgs,
@@ -58,7 +64,7 @@ impl NetCommand {
 
         // Start the Network Stack
         self.p2p.check_ports()?;
-        let p2p_config = self.p2p.config(&rollup_config, args, None).await?;
+        let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
         let mut network = NetworkBuilder::from(p2p_config)
             .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)

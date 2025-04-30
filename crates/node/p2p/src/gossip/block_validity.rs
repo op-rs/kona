@@ -130,6 +130,8 @@ impl BlockHandler {
         let expected = envelope.payload.block_hash();
         let mut block: Block<OpTxEnvelope> = envelope.payload.clone().try_into_block()?;
         block.header.parent_beacon_block_root = envelope.parent_beacon_block_root;
+        // If isthmus is active, set the requests hash to the empty hash.
+        block.header.requests_hash = Some(alloy_primitives::b256!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
         let received = block.header.hash_slow();
         if received != expected {
             return Err(BlockInvalidError::BlockHash { expected, received });

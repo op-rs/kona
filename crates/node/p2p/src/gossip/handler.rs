@@ -65,7 +65,12 @@ impl Handler for BlockHandler {
             Ok(envelope) => match self.block_valid(&envelope) {
                 Ok(()) => (MessageAcceptance::Accept, Some(envelope)),
                 Err(err) => {
-                    warn!(target: "node::p2p::gossip", ?err, ?envelope, "Received invalid block");
+                    warn!(target: "node::p2p::gossip", ?err, hash = ?envelope.payload_hash, "Received invalid block");
+                    // Write this to a file.
+                    // let _ = std::fs::write(
+                    //     format!("tmp_invalid_block_{:?}.json", envelope.payload_hash),
+                    //     format!("{:?}", envelope),
+                    // );
                     (err.into(), None)
                 }
             },
