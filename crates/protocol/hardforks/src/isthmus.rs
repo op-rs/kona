@@ -357,7 +357,7 @@ mod tests {
     }
     #[test]
     fn test_verify_isthmus_operator_fee_vault_deployment_code_hash() {
-        // Verify code hash of Gas Price Deployment
+        // Verify code hash of Operator Fee Vault Deployment
         // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#operator-fee-vault-deployment>
         check_deployment_code(
             TxDeposit {
