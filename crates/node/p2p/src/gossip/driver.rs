@@ -178,7 +178,7 @@ impl GossipDriver {
 
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
-                trace!(peer=?addr, "Dialed peer");
+                trace!(target: "gossip", peer=?addr, "Dialed peer");
                 let count = self.dialed_peers.entry(addr.clone()).or_insert(0);
                 *count += 1;
             }
