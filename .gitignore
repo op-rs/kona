@@ -13,5 +13,10 @@ monorepo/
 # kona-host data-dir
 data/
 
-# Exclude maili shadow crate Cargo.lock files
-**/**/**/maili/Cargo.lock
+# FPVM artifacts
+./state.bin.gz
+./meta.json
+./out.json
+
+# Prestate artifacts
+prestate-artifacts-*
