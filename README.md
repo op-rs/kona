@@ -35,12 +35,6 @@ crates that compose into components and services required for the OP Stack.
 The [book][book] contains a more in-depth overview of the project, contributor guidelines, tutorials for
 getting started with building your own programs, and a reference for the libraries and tools provided by Kona.
 
-### Development Status
-
-> [!WARNING]
->
-> `kona` is currently in active development, and is not yet ready for use in production.
-
 ## Overview
 
 > [!NOTE]

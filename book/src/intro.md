@@ -7,8 +7,7 @@
 
 > [!WARNING]
 >
-> `kona` is in **active development**, and is not yet ready for use in production.
-> During development, this book will evolve quickly and may contain inaccuracies.
+> This book may contain inaccuracies as it evolves.
 >
 > Please [open an issue][new-issue] if you find any errors or have any suggestions
 > for improvements, and also feel free to [contribute][contributing] to the project!
@@ -62,10 +61,6 @@ for both performance and portability. In contrast with alternative approaches, s
 much smaller binaries, resulting in fewer instructions that need to be executed on the FPVM.
 In addition, this offers developers more low-level control over interactions with the FPVM
 kernel, which can be useful for optimizing performance-critical code.
-
-## Development Status
-
-Kona is currently in **active development**, and is **not** yet ready for use in production.
 
 ## Contributing
 
