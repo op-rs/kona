@@ -1,13 +1,10 @@
 //! An abstraction for the driver's block executor.
 
-use alloc::{boxed::Box, string::ToString};
+use alloc::boxed::Box;
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use async_trait::async_trait;
-use core::{
-    error::Error,
-    fmt::{Debug, Display},
-};
+use core::error::Error;
 use kona_executor::BlockBuildingOutcome;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
@@ -17,7 +14,7 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 #[async_trait]
 pub trait Executor {
     /// The error type for the Executor.
-    type Error: Error + Debug + Display + ToString;
+    type Error: Error;
 
     /// Waits for the executor to be ready.
     async fn wait_until_ready(&mut self);

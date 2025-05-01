@@ -2,7 +2,6 @@
 //! headers.
 
 use crate::TrieNode;
-use alloc::string::ToString;
 use alloy_primitives::{Address, B256, U256};
 use core::fmt::Display;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -10,7 +9,7 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 /// The [TrieProvider] trait defines the synchronous interface for fetching trie node preimages.
 pub trait TrieProvider {
     /// The error type for fetching trie node preimages.
-    type Error: Display + ToString;
+    type Error: Display;
 
     /// Fetches the preimage for the given trie node hash.
     ///
@@ -27,7 +26,7 @@ pub trait TrieProvider {
 /// node preimages.
 pub trait TrieHinter {
     /// The error type for hinting trie node preimages.
-    type Error: Display + ToString;
+    type Error: Display;
 
     /// Hints the host to fetch the trie node preimage by hash.
     ///

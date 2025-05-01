@@ -1,6 +1,6 @@
 //! Traits for working with protocol types.
 
-use alloc::{boxed::Box, string::ToString};
+use alloc::boxed::Box;
 use async_trait::async_trait;
 use core::fmt::Display;
 use op_alloy_consensus::OpBlock;
@@ -11,7 +11,7 @@ use crate::L2BlockInfo;
 #[async_trait]
 pub trait BatchValidationProvider {
     /// The error type for the [BatchValidationProvider].
-    type Error: Display + ToString;
+    type Error: Display;
 
     /// Returns the [L2BlockInfo] given a block number.
     ///

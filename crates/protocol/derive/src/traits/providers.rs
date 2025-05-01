@@ -1,7 +1,7 @@
 //! Chain providers for the derivation pipeline.
 
 use crate::errors::PipelineErrorKind;
-use alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{Header, Receipt, TxEnvelope};
 use alloy_primitives::B256;
 use async_trait::async_trait;
@@ -13,7 +13,7 @@ use kona_protocol::{BatchValidationProvider, BlockInfo};
 #[async_trait]
 pub trait ChainProvider {
     /// The error type for the [ChainProvider].
-    type Error: Display + ToString + Into<PipelineErrorKind>;
+    type Error: Display + Into<PipelineErrorKind>;
 
     /// Fetch the L1 [Header] for the given [B256] hash.
     async fn header_by_hash(&mut self, hash: B256) -> Result<Header, Self::Error>;
@@ -37,7 +37,7 @@ pub trait ChainProvider {
 #[async_trait]
 pub trait L2ChainProvider: BatchValidationProviderDerive {
     /// The error type for the [L2ChainProvider].
-    type Error: Display + ToString + Into<PipelineErrorKind>;
+    type Error: Display + Into<PipelineErrorKind>;
 
     /// Returns the [SystemConfig] by L2 number.
     async fn system_config_by_number(

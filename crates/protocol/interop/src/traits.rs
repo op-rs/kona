@@ -4,7 +4,7 @@ use alloc::{boxed::Box, vec::Vec};
 use alloy_consensus::Header;
 use alloy_primitives::B256;
 use async_trait::async_trait;
-use core::{error::Error, fmt::Display};
+use core::error::Error;
 use op_alloy_consensus::OpReceiptEnvelope;
 
 /// Describes the interface of the interop data provider. This provider is multiplexed over several
@@ -12,7 +12,7 @@ use op_alloy_consensus::OpReceiptEnvelope;
 #[async_trait]
 pub trait InteropProvider {
     /// The error type for the provider.
-    type Error: Error + Display;
+    type Error: Error;
 
     /// Fetch a [Header] by its number.
     async fn header_by_number(&self, chain_id: u64, number: u64) -> Result<Header, Self::Error>;

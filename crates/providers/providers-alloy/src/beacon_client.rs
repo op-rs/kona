@@ -4,12 +4,7 @@ use alloy_eips::eip4844::IndexedBlobHash;
 use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, BlobData};
 use async_trait::async_trait;
 use reqwest::Client;
-use std::{
-    boxed::Box,
-    format,
-    string::{String, ToString},
-    vec::Vec,
-};
+use std::{boxed::Box, format, string::String, vec::Vec};
 
 /// The config spec engine api method.
 const SPEC_METHOD: &str = "eth/v1/config/spec";
@@ -70,7 +65,7 @@ impl APIGenesisResponse {
 #[async_trait]
 pub trait BeaconClient {
     /// The error type for [BeaconClient] implementations.
-    type Error: core::fmt::Display + ToString;
+    type Error: core::fmt::Display;
 
     /// Returns the config spec.
     async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error>;
