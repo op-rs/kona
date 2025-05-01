@@ -31,4 +31,7 @@ impl Metrics {
 
     /// Identifier for the gauge that tracks the number of peers in the discovery service.
     pub const DISCOVERY_PEER_COUNT: &str = "kona_node_discovery_peer_count";
+
+    /// Indentifier for the gauge that tracks RPC calls.
+    pub const RPC_CALLS: &str = "kona_node_rpc_calls";
 }
