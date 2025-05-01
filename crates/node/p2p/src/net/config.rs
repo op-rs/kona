@@ -3,6 +3,7 @@
 use crate::{PeerScoreLevel, discv5::LocalNode, peers::PeerMonitoring};
 use alloy_primitives::Address;
 use discv5::Enr;
+use kona_genesis::RollupConfig;
 use libp2p::identity::Keypair;
 use std::path::PathBuf;
 use tokio::time::Duration;
@@ -39,4 +40,6 @@ pub struct Config {
     pub redial: Option<u64>,
     /// An optional list of bootnode ENRs to start the node with.
     pub bootnodes: Vec<Enr>,
+    /// The [`RollupConfig`].
+    pub rollup_config: RollupConfig,
 }

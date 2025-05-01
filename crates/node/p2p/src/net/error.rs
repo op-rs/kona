@@ -17,4 +17,7 @@ pub enum NetworkBuilderError {
     /// Missing RPC receiver.
     #[error("missing RPC receiver")]
     MissingRpcReceiver,
+    /// Missing the `RollupConfig`.
+    #[error("missing RollupConfig")]
+    MissingRollupConfig,
 }

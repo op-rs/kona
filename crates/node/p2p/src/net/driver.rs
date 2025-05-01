@@ -1,7 +1,6 @@
 //! Driver for network services.
 
 use alloy_primitives::Address;
-use kona_genesis::RollupConfig;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::collections::HashSet;
@@ -32,8 +31,6 @@ pub struct Network {
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
     /// A channel to publish an unsafe block.
     pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
-    /// Optional [`RollupConfig`] used for selecting the topic to publish to.
-    pub(crate) cfg: Option<RollupConfig>,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
@@ -84,7 +81,7 @@ impl Network {
                         };
                         let timestamp = block.payload.timestamp();
                         let selector = |handler: &crate::BlockHandler| {
-                            handler.topic(timestamp, self.cfg.as_ref())
+                            handler.topic(timestamp)
                         };
                         match self.gossip.publish(selector, Some(block)) {
                             Ok(id) => info!("Published unsafe payload | {:?}", id),

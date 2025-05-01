@@ -89,14 +89,15 @@ mod tests {
     use super::*;
     use crate::gossip::{config, handler::BlockHandler};
     use alloy_primitives::Address;
+    use kona_genesis::RollupConfig;
     use libp2p::gossipsub::{IdentTopic, TopicHash};
 
-    fn zero_topics() -> Vec<TopicHash> {
+    fn op_mainnet_topics() -> Vec<TopicHash> {
         vec![
-            IdentTopic::new("/optimism/0/0/blocks").hash(),
-            IdentTopic::new("/optimism/0/1/blocks").hash(),
-            IdentTopic::new("/optimism/0/2/blocks").hash(),
-            IdentTopic::new("/optimism/0/3/blocks").hash(),
+            IdentTopic::new("/optimism/10/0/blocks").hash(),
+            IdentTopic::new("/optimism/10/1/blocks").hash(),
+            IdentTopic::new("/optimism/10/2/blocks").hash(),
+            IdentTopic::new("/optimism/10/3/blocks").hash(),
         ]
     }
 
@@ -113,11 +114,12 @@ mod tests {
         let key = libp2p::identity::Keypair::generate_secp256k1();
         let cfg = config::default_config();
         let (_, recv) = tokio::sync::watch::channel(Address::default());
-        let block_handler = BlockHandler::new(0, recv);
+        let block_handler =
+            BlockHandler::new(RollupConfig { l2_chain_id: 10, ..Default::default() }, recv);
         let handlers: Vec<Box<dyn Handler>> = vec![Box::new(block_handler)];
         let behaviour = Behaviour::new(key.public(), cfg, &handlers).unwrap();
         let mut topics = behaviour.gossipsub.topics().cloned().collect::<Vec<TopicHash>>();
         topics.sort();
-        assert_eq!(topics, zero_topics());
+        assert_eq!(topics, op_mainnet_topics());
     }
 }

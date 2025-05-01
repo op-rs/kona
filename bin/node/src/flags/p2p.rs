@@ -397,6 +397,7 @@ impl P2PArgs {
             // and that we assume the number of bootnodes explicitly specified
             // through the CLI is small.
             bootnodes: self.bootnodes.clone(),
+            rollup_config: config.clone(),
         })
     }
 

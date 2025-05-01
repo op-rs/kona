@@ -116,11 +116,10 @@ impl ValidatorNodeService for RollupNode {
             );
             return Ok(None);
         };
-        let chain_id = self.config.l2_chain_id;
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
         let p2p_module = NetworkRpc::new(tx);
         let builder = NetworkBuilder::from(p2p_config.clone())
-            .with_chain_id(chain_id)
+            .with_rollup_config((*self.config).clone())
             .with_rpc_receiver(rx)
             .build()
             .map_err(RollupNodeError::Network)?;

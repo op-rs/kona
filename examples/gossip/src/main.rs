@@ -54,9 +54,10 @@ impl GossipCommand {
     pub async fn run(self) -> anyhow::Result<()> {
         init_tracing_subscriber(self.v, None::<EnvFilter>)?;
 
-        let signer = ROLLUP_CONFIGS
+        let rollup_config = ROLLUP_CONFIGS
             .get(&self.l2_chain_id)
-            .ok_or(anyhow::anyhow!("No rollup config found for chain ID"))?
+            .ok_or(anyhow::anyhow!("No rollup config found for chain ID"))?;
+        let signer = rollup_config
             .genesis
             .system_config
             .as_ref()
@@ -81,7 +82,7 @@ impl GossipCommand {
         );
         let mut network = Network::builder()
             .with_discovery_address(disc_addr)
-            .with_chain_id(self.l2_chain_id)
+            .with_rollup_config(rollup_config.clone())
             .with_gossip_address(gossip_addr)
             .with_unsafe_block_signer(signer)
             .build()?;

@@ -1,13 +1,13 @@
 //! Shared code for integration tests.
 
 use alloy_primitives::Address;
+use kona_genesis::RollupConfig;
 use kona_p2p::{Behaviour, BlockHandler, GossipDriver};
 use libp2p::{Multiaddr, SwarmBuilder, identity::Keypair, multiaddr::Protocol};
 use std::net::Ipv4Addr;
 
 /// Helper function to create a new gossip driver instance.
 pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
-    let chain_id = 10;
     let timeout = std::time::Duration::from_secs(60);
     let mut addr = Multiaddr::empty();
     addr.push(Protocol::Ip4(Ipv4Addr::UNSPECIFIED));
@@ -21,7 +21,10 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
     // Construct a Behaviour instance
     let unsafe_block_signer = Address::default();
     let (_, unsafe_block_signer_recv) = tokio::sync::watch::channel(unsafe_block_signer);
-    let handler = BlockHandler::new(chain_id, unsafe_block_signer_recv);
+    let handler = BlockHandler::new(
+        RollupConfig { l2_chain_id: 10, ..Default::default() },
+        unsafe_block_signer_recv,
+    );
     let behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])
         .expect("creates behaviour");
 

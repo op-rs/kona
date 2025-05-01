@@ -1,6 +1,7 @@
 //! A builder for the [`GossipDriver`].
 
 use alloy_primitives::Address;
+use kona_genesis::RollupConfig;
 use libp2p::{
     Multiaddr, SwarmBuilder, gossipsub::Config, identity::Keypair, noise::Config as NoiseConfig,
     tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
@@ -16,8 +17,6 @@ use crate::{
 /// A builder for the [`GossipDriver`].
 #[derive(Debug, Default)]
 pub struct GossipDriverBuilder {
-    /// The chain id of the network.
-    chain_id: Option<u64>,
     /// The idle connection timeout as a [`Duration`].
     timeout: Option<Duration>,
     /// The [`Keypair`] for the node.
@@ -39,13 +38,14 @@ pub struct GossipDriverBuilder {
     /// If unset, peers will not be redialed.
     /// If set to `0`, peers will be redialed indefinitely.
     peer_redial: Option<u64>,
+    /// The [`RollupConfig`] for the network.
+    rollup_config: Option<RollupConfig>,
 }
 
 impl GossipDriverBuilder {
     /// Creates a new [`GossipDriverBuilder`].
     pub const fn new() -> Self {
         Self {
-            chain_id: None,
             timeout: None,
             keypair: None,
             gossip_addr: None,
@@ -55,6 +55,7 @@ impl GossipDriverBuilder {
             block_time: None,
             peer_monitoring: None,
             peer_redial: None,
+            rollup_config: None,
         }
     }
 
@@ -66,9 +67,10 @@ impl GossipDriverBuilder {
         self
     }
 
-    /// Specifies the chain ID of the gossip driver.
-    pub const fn with_chain_id(mut self, chain_id: u64) -> Self {
-        self.chain_id = Some(chain_id);
+    /// Sets the [`RollupConfig`] for the network.
+    /// This is used to determine the topic to publish to.
+    pub fn with_rollup_config(mut self, rollup_config: RollupConfig) -> Self {
+        self.rollup_config = Some(rollup_config);
         self
     }
 
@@ -125,12 +127,13 @@ impl GossipDriverBuilder {
         // Extract builder arguments
         let timeout = self.timeout.take().unwrap_or(Duration::from_secs(60));
         let keypair = self.keypair.take().ok_or(GossipDriverBuilderError::MissingKeyPair)?;
-        let chain_id = self.chain_id.ok_or(GossipDriverBuilderError::MissingChainID)?;
         let addr = self.gossip_addr.take().ok_or(GossipDriverBuilderError::GossipAddrNotSet)?;
         let signer_recv = self.signer.ok_or(GossipDriverBuilderError::MissingUnsafeBlockSigner)?;
+        let rollup_config =
+            self.rollup_config.take().ok_or(GossipDriverBuilderError::MissingRollupConfig)?;
 
         // Block Handler setup
-        let handler = BlockHandler::new(chain_id, signer_recv);
+        let handler = BlockHandler::new(rollup_config, signer_recv);
 
         // Construct the gossip behaviour
         let config = self.config.unwrap_or(crate::default_config());

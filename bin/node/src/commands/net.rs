@@ -2,10 +2,10 @@
 
 use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 use clap::Parser;
-use url::Url;
 use kona_p2p::{NetRpcRequest, NetworkBuilder, NetworkRpc};
 use kona_rpc::{OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};
+use url::Url;
 
 /// The `net` Subcommand
 ///
@@ -66,7 +66,6 @@ impl NetCommand {
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
         let mut network = NetworkBuilder::from(p2p_config)
-            .with_chain_id(args.l2_chain_id)
             .with_rpc_receiver(rx)
             .with_rollup_config(rollup_config)
             .build()?;

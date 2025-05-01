@@ -113,15 +113,6 @@ impl NetworkBuilder {
         Self { discovery: self.discovery.with_local_node(address), ..self }
     }
 
-    /// Sets the chain ID for both the [`crate::Discv5Driver`] and [`crate::GossipDriver`].
-    pub fn with_chain_id(self, id: u64) -> Self {
-        Self {
-            gossip: self.gossip.with_chain_id(id),
-            discovery: self.discovery.with_chain_id(id),
-            ..self
-        }
-    }
-
     /// Sets the gossipsub config for the [`crate::GossipDriver`].
     pub fn with_gossip_config(self, config: libp2p::gossipsub::Config) -> Self {
         Self { gossip: self.gossip.with_config(config), ..self }
@@ -183,13 +174,18 @@ impl NetworkBuilder {
         let signer = self.signer.take().ok_or(NetworkBuilderError::UnsafeBlockSignerNotSet)?;
         let (signer_tx, signer_rx) = tokio::sync::watch::channel(signer);
         let unsafe_block_signer_sender = Some(signer_tx);
-        let gossip = self.gossip.with_unsafe_block_signer_receiver(signer_rx).build()?;
-        let discovery = self.discovery.build()?;
+
+        let cfg = self.cfg.ok_or(NetworkBuilderError::MissingRollupConfig)?;
+        let chain_id = cfg.l2_chain_id;
+        let gossip = self
+            .gossip
+            .with_rollup_config(cfg)
+            .with_unsafe_block_signer_receiver(signer_rx)
+            .build()?;
+        let discovery = self.discovery.with_chain_id(chain_id).build()?;
         let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
-
         let publish_rx = self.publish_rx.take();
-        let cfg = self.cfg.take();
 
         Ok(Network {
             gossip,
@@ -198,7 +194,6 @@ impl NetworkBuilder {
             rpc,
             broadcast: Broadcast::new(payload_tx),
             publish_rx,
-            cfg,
         })
     }
 }
@@ -219,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_missing_chain_id() {
+    fn test_build_missing_rollup_config() {
         let builder = NetworkBuilder::new();
         let keypair = Keypair::generate_secp256k1();
         let err = builder
@@ -228,8 +223,7 @@ mod tests {
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .build()
             .unwrap_err();
-        let gossip_err = GossipDriverBuilderError::MissingChainID;
-        assert_eq!(err, NetworkBuilderError::GossipDriverBuilder(gossip_err));
+        assert_eq!(err, NetworkBuilderError::MissingRollupConfig);
     }
 
     #[test]
@@ -239,8 +233,8 @@ mod tests {
         let err = builder
             .with_unsafe_block_signer(Address::random())
             .with_keypair(keypair)
+            .with_rollup_config(RollupConfig::default())
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
-            .with_chain_id(1)
             .build()
             .unwrap_err();
         let gossip_err = GossipDriverBuilderError::GossipAddrNotSet;
@@ -249,7 +243,6 @@ mod tests {
 
     #[test]
     fn test_build_simple_succeeds() {
-        let id = 10;
         let signer = Address::random();
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
             unreachable!()
@@ -269,7 +262,7 @@ mod tests {
         let driver = NetworkBuilder::new()
             .with_keypair(keypair.into())
             .with_unsafe_block_signer(signer)
-            .with_chain_id(id)
+            .with_rollup_config(RollupConfig { l2_chain_id: 10, ..Default::default() })
             .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .with_gossip_address(gossip_addr.clone())
             .with_discovery_address(disc_enr)
@@ -278,12 +271,13 @@ mod tests {
             .unwrap();
 
         // Driver Assertions
+        let id = 10;
         assert_eq!(driver.gossip.addr, gossip_addr);
         assert_eq!(driver.discovery.chain_id, id);
         assert_eq!(driver.discovery.disc.local_enr().tcp4().unwrap(), 9098);
 
         // Block Handler Assertions
-        assert_eq!(driver.gossip.handler.chain_id, id);
+        assert_eq!(driver.gossip.handler.rollup_config.l2_chain_id, id);
         let v1 = IdentTopic::new(format!("/optimism/{}/0/blocks", id));
         assert_eq!(driver.gossip.handler.blocks_v1_topic.hash(), v1.hash());
         let v2 = IdentTopic::new(format!("/optimism/{}/1/blocks", id));
@@ -296,7 +290,6 @@ mod tests {
 
     #[test]
     fn test_build_network_custom_configs() {
-        let id = 10;
         let keypair = Keypair::generate_secp256k1();
         let signer = Address::random();
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
@@ -313,7 +306,7 @@ mod tests {
                 .build();
         let driver = NetworkBuilder::new()
             .with_unsafe_block_signer(signer)
-            .with_chain_id(id)
+            .with_rollup_config(RollupConfig::default())
             .with_keypair(keypair)
             .with_gossip_address(gossip_addr)
             .with_discovery_address(disc)

@@ -32,9 +32,6 @@ pub enum GossipDriverBuilderError {
     /// Missing key pair.
     #[error("missing key pair")]
     MissingKeyPair,
-    /// Missing chain id.
-    #[error("missing chain id")]
-    MissingChainID,
     /// The unsafe block signer is missing.
     #[error("missing unsafe block signer")]
     MissingUnsafeBlockSigner,
@@ -53,4 +50,7 @@ pub enum GossipDriverBuilderError {
     /// Missing the l2 block time.
     #[error("missing l2 block time")]
     MissingL2BlockTime,
+    /// Missing the rollup config.
+    #[error("missing rollup config")]
+    MissingRollupConfig,
 }

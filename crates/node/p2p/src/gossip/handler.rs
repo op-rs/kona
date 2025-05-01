@@ -25,10 +25,8 @@ pub trait Handler: Send {
 /// Responsible for managing blocks received via p2p gossip
 #[derive(Debug, Clone)]
 pub struct BlockHandler {
-    /// Chain ID.
-    ///
-    /// Used to filter out gossip messages intended for other chains.
-    pub chain_id: u64,
+    /// The rollup config used to validate the block.
+    pub rollup_config: RollupConfig,
     /// A [`Receiver`] to monitor changes to the unsafe block signer.
     pub signer_recv: Receiver<Address>,
     /// The libp2p topic for pre Canyon/Shangai blocks.
@@ -66,11 +64,6 @@ impl Handler for BlockHandler {
                 Ok(()) => (MessageAcceptance::Accept, Some(envelope)),
                 Err(err) => {
                     warn!(target: "node::p2p::gossip", ?err, hash = ?envelope.payload_hash, "Received invalid block");
-                    // Write this to a file.
-                    // let _ = std::fs::write(
-                    //     format!("tmp_invalid_block_{:?}.json", envelope.payload_hash),
-                    //     format!("{:?}", envelope),
-                    // );
                     (err.into(), None)
                 }
             },
@@ -96,9 +89,10 @@ impl BlockHandler {
     /// Creates a new [`BlockHandler`].
     ///
     /// Requires the chain ID and a receiver channel for the unsafe block signer.
-    pub fn new(chain_id: u64, signer_recv: Receiver<Address>) -> Self {
+    pub fn new(rollup_config: RollupConfig, signer_recv: Receiver<Address>) -> Self {
+        let chain_id = rollup_config.l2_chain_id;
         Self {
-            chain_id,
+            rollup_config,
             signer_recv,
             blocks_v1_topic: IdentTopic::new(format!("/optimism/{}/0/blocks", chain_id)),
             blocks_v2_topic: IdentTopic::new(format!("/optimism/{}/1/blocks", chain_id)),
@@ -111,16 +105,12 @@ impl BlockHandler {
     /// Returns the topic using the specified timestamp and optional [`RollupConfig`].
     ///
     /// Reference: <https://github.com/ethereum-optimism/optimism/blob/0bc5fe8d16155dc68bcdf1fa5733abc58689a618/op-node/p2p/gossip.go#L604C1-L612C3>
-    pub fn topic(&self, timestamp: u64, cfg: Option<&RollupConfig>) -> IdentTopic {
-        let Some(cfg) = cfg else {
-            return self.blocks_v4_topic.clone();
-        };
-
-        if cfg.is_isthmus_active(timestamp) {
+    pub fn topic(&self, timestamp: u64) -> IdentTopic {
+        if self.rollup_config.is_isthmus_active(timestamp) {
             self.blocks_v4_topic.clone()
-        } else if cfg.is_ecotone_active(timestamp) {
+        } else if self.rollup_config.is_ecotone_active(timestamp) {
             self.blocks_v3_topic.clone()
-        } else if cfg.is_canyon_active(timestamp) {
+        } else if self.rollup_config.is_canyon_active(timestamp) {
             self.blocks_v2_topic.clone()
         } else {
             self.blocks_v1_topic.clone()
@@ -172,7 +162,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         // TRICK: Since the decode method recomputes the payload hash, we need to change the unsafe
         // signer in the handler to ensure that the payload won't be rejected for invalid
@@ -214,7 +207,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         // Let's try to encode a message.
         let message = Message {
@@ -245,7 +241,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope).unwrap();
 
@@ -281,7 +280,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         let encoded = handler.encode(handler.blocks_v3_topic.clone(), envelope).unwrap();
 
@@ -317,7 +319,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         let encoded = handler.encode(handler.blocks_v2_topic.clone(), envelope).unwrap();
 
@@ -357,7 +362,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         let encoded = handler.encode(handler.blocks_v4_topic.clone(), envelope).unwrap();
 
@@ -396,7 +404,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         // TRICK: Since the decode method recomputes the payload hash, we need to change the unsafe
         // signer in the handler to ensure that the payload won't be rejected for invalid
@@ -439,7 +450,10 @@ mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         // TRICK: Since the decode method recomputes the payload hash, we need to change the unsafe
         // signer in the handler to ensure that the payload won't be rejected for invalid

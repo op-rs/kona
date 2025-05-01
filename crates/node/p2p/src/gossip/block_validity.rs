@@ -131,7 +131,11 @@ impl BlockHandler {
         let mut block: Block<OpTxEnvelope> = envelope.payload.clone().try_into_block()?;
         block.header.parent_beacon_block_root = envelope.parent_beacon_block_root;
         // If isthmus is active, set the requests hash to the empty hash.
-        block.header.requests_hash = Some(alloy_primitives::b256!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+        if self.rollup_config.is_isthmus_active(envelope.payload.timestamp()) {
+            block.header.requests_hash = Some(alloy_primitives::b256!(
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            ));
+        }
         let received = block.header.hash_slow();
         if received != expected {
             return Err(BlockInvalidError::BlockHash { expected, received });
@@ -167,7 +171,7 @@ impl BlockHandler {
         }
 
         // CHECK: The signature is valid.
-        let msg = envelope.payload_hash.signature_message(self.chain_id);
+        let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id);
         let block_signer = *self.signer_recv.borrow();
 
         // The block has a valid signature.
@@ -260,6 +264,7 @@ pub(crate) mod tests {
     use alloy_rlp::BufMut;
     use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
     use arbitrary::{Arbitrary, Unstructured};
+    use kona_genesis::RollupConfig;
     use op_alloy_consensus::OpTxEnvelope;
     use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadV4, PayloadHash};
 
@@ -372,7 +377,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(handler.block_valid(&envelope).is_ok());
     }
@@ -397,7 +405,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Timestamp { .. })));
     }
@@ -422,7 +433,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Timestamp { .. })));
     }
@@ -447,7 +461,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
     }
@@ -469,7 +486,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(handler.block_valid(&envelope).is_ok());
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockSeen { .. })));
@@ -494,7 +514,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(handler.block_valid(&envelope).is_ok());
 
@@ -545,7 +568,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         let mut signature_bytes = envelope.signature.as_bytes();
         signature_bytes[0] = !signature_bytes[0];
@@ -570,7 +596,10 @@ pub(crate) mod tests {
         };
 
         let (_, unsafe_signer) = tokio::sync::watch::channel(Address::default());
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Signer { .. })));
     }
@@ -595,7 +624,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
 
@@ -614,7 +646,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlockHash { .. })));
     }
@@ -637,7 +672,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::InvalidBlock(_))));
     }
@@ -659,7 +697,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(handler.block_valid(&envelope).is_ok());
     }
@@ -686,7 +727,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(
             handler.block_valid(&envelope),
@@ -713,7 +757,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(handler.block_valid(&envelope).is_ok());
     }
@@ -742,7 +789,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(
             handler.block_valid(&envelope),
@@ -770,7 +820,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::BlobGasUsed)));
 
@@ -815,7 +868,10 @@ pub(crate) mod tests {
         let msg = envelope.payload_hash.signature_message(10);
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(10, unsafe_signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            unsafe_signer,
+        );
 
         assert!(handler.block_valid(&envelope).is_ok());
     }
