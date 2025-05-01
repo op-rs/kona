@@ -79,5 +79,5 @@ op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-metrics = ["dep:metrics", "libp2p/metrics", "kona-macros/metrics"]
+metrics = ["dep:metrics", "libp2p/metrics"]
 arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary"]
