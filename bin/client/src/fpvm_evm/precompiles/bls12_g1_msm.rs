@@ -8,7 +8,7 @@
 
 use crate::fpvm_evm::precompiles::utils::{msm_required_gas, precompile_run};
 use alloc::string::ToString;
-use kona_preimage::{Channel, HintWriter, OracleReader};
+use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use revm::precompile::{
     PrecompileError, PrecompileOutput, PrecompileResult, bls12_381,
     bls12_381_const::{DISCOUNT_TABLE_G1_MSM, G1_MSM_BASE_GAS_FEE, G1_MSM_INPUT_LENGTH},
@@ -20,12 +20,16 @@ use revm::precompile::{
 const BLS12_MAX_G1_MSM_SIZE_ISTHMUS: usize = 513760;
 
 /// Performs an FPVM-accelerated `bls12` g1 msm check precompile call after the Isthmus Hardfork.
-pub(crate) fn fpvm_bls12_g1_msm<C: Channel + Send + Sync>(
+pub(crate) fn fpvm_bls12_g1_msm<H, O>(
     input: &[u8],
     gas_limit: u64,
-    hint_writer: &HintWriter<C>,
-    oracle_reader: &OracleReader<C>,
-) -> PrecompileResult {
+    hint_writer: &H,
+    oracle_reader: &O,
+) -> PrecompileResult
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
     if input.len() > BLS12_MAX_G1_MSM_SIZE_ISTHMUS {
         return Err(PrecompileError::Other(alloc::format!(
             "G1MSM input length must be at most {}",

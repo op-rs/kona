@@ -5,7 +5,7 @@ use crate::fpvm_evm::precompiles::{
 };
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use alloy_primitives::{Address, Bytes};
-use kona_preimage::{Channel, HintWriter, OracleReader};
+use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use op_revm::{
     OpSpecId,
     precompiles::{fjord, granite, isthmus},
@@ -20,27 +20,27 @@ use revm::{
 
 /// The FPVM-accelerated precompiles.
 #[derive(Debug)]
-pub struct OpFpvmPrecompiles<C: Channel> {
+pub struct OpFpvmPrecompiles<H, O> {
     /// The default [`EthPrecompiles`] provider.
     inner: EthPrecompiles,
     /// The accelerated precompiles for the current [`OpSpecId`].
-    accelerated_precompiles: HashMap<Address, AcceleratedPrecompileFn<C>>,
+    accelerated_precompiles: HashMap<Address, AcceleratedPrecompileFn<H, O>>,
     /// The [`OpSpecId`] of the precompiles.
     spec: OpSpecId,
-    /// The inner [`HintWriter`].
-    hint_writer: HintWriter<C>,
-    /// The inner [`OracleReader`].
-    oracle_reader: OracleReader<C>,
+    /// The inner [`HintWriterClient`].
+    hint_writer: H,
+    /// The inner [`PreimageOracleClient`].
+    oracle_reader: O,
 }
 
-impl<C: Channel + Send + Sync> OpFpvmPrecompiles<C> {
+impl<H, O> OpFpvmPrecompiles<H, O>
+where
+    H: HintWriterClient + Clone + Send + Sync + 'static,
+    O: PreimageOracleClient + Clone + Send + Sync + 'static,
+{
     /// Create a new precompile provider with the given [`OpSpecId`].
     #[inline]
-    pub fn new_with_spec(
-        spec: OpSpecId,
-        hint_writer: HintWriter<C>,
-        oracle_reader: OracleReader<C>,
-    ) -> Self {
+    pub fn new_with_spec(spec: OpSpecId, hint_writer: H, oracle_reader: O) -> Self {
         let precompiles = match spec {
             spec @ (OpSpecId::BEDROCK |
             OpSpecId::REGOLITH |
@@ -52,10 +52,14 @@ impl<C: Channel + Send + Sync> OpFpvmPrecompiles<C> {
         };
 
         let accelerated_precompiles = match spec {
-            OpSpecId::BEDROCK | OpSpecId::REGOLITH | OpSpecId::CANYON => accelerated_bedrock::<C>(),
-            OpSpecId::ECOTONE | OpSpecId::FJORD => accelerated_ecotone::<C>(),
-            OpSpecId::GRANITE | OpSpecId::HOLOCENE => accelerated_granite::<C>(),
-            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => accelerated_isthmus::<C>(),
+            OpSpecId::BEDROCK | OpSpecId::REGOLITH | OpSpecId::CANYON => {
+                accelerated_bedrock::<H, O>()
+            }
+            OpSpecId::ECOTONE | OpSpecId::FJORD => accelerated_ecotone::<H, O>(),
+            OpSpecId::GRANITE | OpSpecId::HOLOCENE => accelerated_granite::<H, O>(),
+            OpSpecId::ISTHMUS | OpSpecId::INTEROP | OpSpecId::OSAKA => {
+                accelerated_isthmus::<H, O>()
+            }
         };
 
         Self {
@@ -71,9 +75,10 @@ impl<C: Channel + Send + Sync> OpFpvmPrecompiles<C> {
     }
 }
 
-impl<CTX, C> PrecompileProvider<CTX> for OpFpvmPrecompiles<C>
+impl<CTX, H, O> PrecompileProvider<CTX> for OpFpvmPrecompiles<H, O>
 where
-    C: Channel + Clone + Send + Sync,
+    H: HintWriterClient + Clone + Send + Sync + 'static,
+    O: PreimageOracleClient + Clone + Send + Sync + 'static,
     CTX: ContextTr<Cfg: Cfg<Spec = OpSpecId>>,
 {
     type Output = InterpreterResult;
@@ -146,82 +151,100 @@ where
 }
 
 /// A precompile function that can be accelerated by the FPVM.
-type AcceleratedPrecompileFn<C> =
-    fn(&[u8], u64, &HintWriter<C>, &OracleReader<C>) -> PrecompileResult;
+type AcceleratedPrecompileFn<H, O> = fn(&[u8], u64, &H, &O) -> PrecompileResult;
 
 /// A tuple type for accelerated precompiles with an associated [`Address`].
-struct AcceleratedPrecompile<C> {
+struct AcceleratedPrecompile<H, O> {
     /// The address of the precompile.
     address: Address,
     /// The precompile function.
-    precompile: AcceleratedPrecompileFn<C>,
+    precompile: AcceleratedPrecompileFn<H, O>,
 }
 
-impl<C> AcceleratedPrecompile<C> {
+impl<H, O> AcceleratedPrecompile<H, O> {
     /// Create a new accelerated precompile.
-    fn new(address: Address, precompile: AcceleratedPrecompileFn<C>) -> Self {
+    fn new(address: Address, precompile: AcceleratedPrecompileFn<H, O>) -> Self {
         Self { address, precompile }
     }
 }
 
 /// The accelerated precompiles for the bedrock spec.
-fn accelerated_bedrock<C: Channel + Send + Sync>() -> Vec<AcceleratedPrecompile<C>> {
+fn accelerated_bedrock<H, O>() -> Vec<AcceleratedPrecompile<H, O>>
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
     vec![
-        AcceleratedPrecompile::new(ECRECOVER_ADDR, super::ecrecover::fpvm_ec_recover::<C>),
-        AcceleratedPrecompile::new(bn128::pair::ADDRESS, super::bn128_pair::fpvm_bn128_pair::<C>),
+        AcceleratedPrecompile::new(ECRECOVER_ADDR, super::ecrecover::fpvm_ec_recover::<H, O>),
+        AcceleratedPrecompile::new(
+            bn128::pair::ADDRESS,
+            super::bn128_pair::fpvm_bn128_pair::<H, O>,
+        ),
     ]
 }
 
 /// The accelerated precompiles for the ecotone spec.
-fn accelerated_ecotone<C: Channel + Send + Sync>() -> Vec<AcceleratedPrecompile<C>> {
-    let mut base = accelerated_bedrock::<C>();
+fn accelerated_ecotone<H, O>() -> Vec<AcceleratedPrecompile<H, O>>
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
+    let mut base = accelerated_bedrock::<H, O>();
     base.push(AcceleratedPrecompile::new(
         KZG_POINT_EVAL_ADDR,
-        super::kzg_point_eval::fpvm_kzg_point_eval::<C>,
+        super::kzg_point_eval::fpvm_kzg_point_eval::<H, O>,
     ));
     base
 }
 
 /// The accelerated precompiles for the granite spec.
-fn accelerated_granite<C: Channel + Send + Sync>() -> Vec<AcceleratedPrecompile<C>> {
-    let mut base = accelerated_ecotone::<C>();
+fn accelerated_granite<H, O>() -> Vec<AcceleratedPrecompile<H, O>>
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
+    let mut base = accelerated_ecotone::<H, O>();
     base.push(AcceleratedPrecompile::new(
         bn128::pair::ADDRESS,
-        super::bn128_pair::fpvm_bn128_pair_granite::<C>,
+        super::bn128_pair::fpvm_bn128_pair_granite::<H, O>,
     ));
     base
 }
 
 /// The accelerated precompiles for the isthmus spec.
-fn accelerated_isthmus<C: Channel + Send + Sync>() -> Vec<AcceleratedPrecompile<C>> {
-    let mut base = accelerated_granite::<C>();
+fn accelerated_isthmus<H, O>() -> Vec<AcceleratedPrecompile<H, O>>
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
+    let mut base = accelerated_granite::<H, O>();
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::G1_ADD_ADDRESS,
-        super::bls12_g1_add::fpvm_bls12_g1_add::<C>,
+        super::bls12_g1_add::fpvm_bls12_g1_add::<H, O>,
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::G1_MSM_ADDRESS,
-        super::bls12_g1_msm::fpvm_bls12_g1_msm::<C>,
+        super::bls12_g1_msm::fpvm_bls12_g1_msm::<H, O>,
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::G2_ADD_ADDRESS,
-        super::bls12_g2_add::fpvm_bls12_g2_add::<C>,
+        super::bls12_g2_add::fpvm_bls12_g2_add::<H, O>,
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::G2_MSM_ADDRESS,
-        super::bls12_g2_msm::fpvm_bls12_g2_msm::<C>,
+        super::bls12_g2_msm::fpvm_bls12_g2_msm::<H, O>,
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::MAP_FP_TO_G1_ADDRESS,
-        super::bls12_map_fp::fpvm_bls12_map_fp::<C>,
+        super::bls12_map_fp::fpvm_bls12_map_fp::<H, O>,
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::MAP_FP2_TO_G2_ADDRESS,
-        super::bls12_map_fp2::fpvm_bls12_map_fp2::<C>,
+        super::bls12_map_fp2::fpvm_bls12_map_fp2::<H, O>,
     ));
     base.push(AcceleratedPrecompile::new(
         bls12_381_const::PAIRING_ADDRESS,
-        super::bls12_pair::fpvm_bls12_pairing::<C>,
+        super::bls12_pair::fpvm_bls12_pairing::<H, O>,
     ));
     base
 }

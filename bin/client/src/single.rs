@@ -2,7 +2,6 @@
 
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
-use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::errors::PipelineErrorKind;
@@ -17,10 +16,10 @@ use kona_proof::{
     l2::OracleL2ChainProvider,
     sync::new_pipeline_cursor,
 };
-use op_alloy_consensus::OpTxEnvelope;
-use op_revm::OpSpecId;
 use thiserror::Error;
 use tracing::{error, info};
+
+use crate::fpvm_evm::FpvmOpEvmFactory;
 
 /// An error that can occur when running the fault proof program.
 #[derive(Error, Debug)]
@@ -41,16 +40,10 @@ pub enum FaultProofProgramError {
 
 /// Executes the fault proof program with the given [PreimageOracleClient] and [HintWriterClient].
 #[inline]
-pub async fn run<P, H, Evm>(
-    oracle_client: P,
-    hint_client: H,
-    evm_factory: Evm,
-) -> Result<(), FaultProofProgramError>
+pub async fn run<P, H>(oracle_client: P, hint_client: H) -> Result<(), FaultProofProgramError>
 where
-    P: PreimageOracleClient + Send + Sync + Debug + Clone,
-    H: HintWriterClient + Send + Sync + Debug + Clone,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
+    P: PreimageOracleClient + Send + Sync + Debug + Clone + 'static,
+    H: HintWriterClient + Send + Sync + Debug + Clone + 'static,
 {
     const ORACLE_LRU_SIZE: usize = 1024;
 
@@ -58,7 +51,8 @@ where
     //                          PROLOGUE                          //
     ////////////////////////////////////////////////////////////////
 
-    let oracle = Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client, hint_client));
+    let oracle =
+        Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client.clone(), hint_client.clone()));
     let boot = BootInfo::load(oracle.as_ref()).await?;
     let rollup_config = Arc::new(boot.rollup_config);
     let safe_head_hash = fetch_safe_head_hash(oracle.as_ref(), boot.agreed_l2_output_root).await?;
@@ -108,6 +102,7 @@ where
             .await?;
     l2_provider.set_cursor(cursor.clone());
 
+    let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
     let pipeline = OraclePipeline::new(
         rollup_config.clone(),
         cursor.clone(),

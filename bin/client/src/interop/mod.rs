@@ -1,7 +1,6 @@
 //! Multi-chain, interoperable fault proof program entrypoint.
 
 use alloc::sync::Arc;
-use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
 use core::{cmp::Ordering, fmt::Debug};
@@ -13,11 +12,11 @@ use kona_proof::{CachingOracle, errors::OracleProviderError};
 use kona_proof_interop::{
     BootInfo, ConsolidationError, PreState, TRANSITION_STATE_MAX_STEPS, boot::BootstrapError,
 };
-use op_alloy_consensus::OpTxEnvelope;
-use op_revm::OpSpecId;
 use thiserror::Error;
 use tracing::{error, info};
 use transition::sub_transition;
+
+use crate::fpvm_evm::FpvmOpEvmFactory;
 
 pub(crate) mod consolidate;
 pub(crate) mod transition;
@@ -55,21 +54,16 @@ pub enum FaultProofProgramError {
 /// Executes the interop fault proof program with the given [PreimageOracleClient] and
 /// [HintWriterClient].
 #[inline]
-pub async fn run<P, H, Evm>(
-    oracle_client: P,
-    hint_client: H,
-    evm_factory: Evm,
-) -> Result<(), FaultProofProgramError>
+pub async fn run<P, H>(oracle_client: P, hint_client: H) -> Result<(), FaultProofProgramError>
 where
-    P: PreimageOracleClient + Send + Sync + Debug + Clone,
-    H: HintWriterClient + Send + Sync + Debug + Clone,
-    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
-    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
+    P: PreimageOracleClient + Send + Sync + Debug + Clone + 'static,
+    H: HintWriterClient + Send + Sync + Debug + Clone + 'static,
 {
     const ORACLE_LRU_SIZE: usize = 1024;
 
     // Instantiate the oracle and bootstrap the program from local inputs.
-    let oracle = Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client, hint_client));
+    let oracle =
+        Arc::new(CachingOracle::new(ORACLE_LRU_SIZE, oracle_client.clone(), hint_client.clone()));
     let boot = match BootInfo::load(oracle.as_ref()).await {
         Ok(boot) => boot,
         Err(BootstrapError::InvalidToInvalid) => {
@@ -81,6 +75,8 @@ where
             return Err(e.into());
         }
     };
+
+    let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
 
     // Load in the agreed pre-state from the preimage oracle in order to determine the active
     // sub-problem.

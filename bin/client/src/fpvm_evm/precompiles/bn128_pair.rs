@@ -2,7 +2,7 @@
 
 use crate::fpvm_evm::precompiles::utils::precompile_run;
 use alloc::string::ToString;
-use kona_preimage::{Channel, HintWriter, OracleReader};
+use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use revm::precompile::{
     PrecompileError, PrecompileOutput, PrecompileResult,
     bn128::{
@@ -14,12 +14,16 @@ use revm::precompile::{
 const BN256_MAX_PAIRING_SIZE_GRANITE: usize = 112_687;
 
 /// Runs the FPVM-accelerated `ecpairing` precompile call.
-pub(crate) fn fpvm_bn128_pair<C: Channel + Send + Sync>(
+pub(crate) fn fpvm_bn128_pair<H, O>(
     input: &[u8],
     gas_limit: u64,
-    hint_writer: &HintWriter<C>,
-    oracle_reader: &OracleReader<C>,
-) -> PrecompileResult {
+    hint_writer: &H,
+    oracle_reader: &O,
+) -> PrecompileResult
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
     let gas_used =
         (input.len() / PAIR_ELEMENT_LEN) as u64 * ISTANBUL_PAIR_PER_POINT + ISTANBUL_PAIR_BASE;
 
@@ -43,12 +47,16 @@ pub(crate) fn fpvm_bn128_pair<C: Channel + Send + Sync>(
 
 /// Runs the FPVM-accelerated `ecpairing` precompile call, with the input size limited by the
 /// Granite hardfork.
-pub(crate) fn fpvm_bn128_pair_granite<C: Channel + Send + Sync>(
+pub(crate) fn fpvm_bn128_pair_granite<H, O>(
     input: &[u8],
     gas_limit: u64,
-    hint_writer: &HintWriter<C>,
-    oracle_reader: &OracleReader<C>,
-) -> PrecompileResult {
+    hint_writer: &H,
+    oracle_reader: &O,
+) -> PrecompileResult
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
     if input.len() > BN256_MAX_PAIRING_SIZE_GRANITE {
         return Err(PrecompileError::Bn128PairLength);
     }

@@ -3,7 +3,7 @@
 use super::precompiles::OpFpvmPrecompiles;
 use alloy_evm::{Database, EvmEnv, EvmFactory};
 use alloy_op_evm::OpEvm;
-use kona_preimage::{Channel, HintWriter, OracleReader};
+use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use op_revm::{
     DefaultOp, OpContext, OpEvm as RevmOpEvm, OpHaltReason, OpSpecId, OpTransaction,
     OpTransactionError,
@@ -17,38 +17,40 @@ use revm::{
 
 /// Factory producing [`OpEvm`]s with FPVM-accelerated precompile overrides enabled.
 #[derive(Debug, Clone)]
-pub struct FpvmOpEvmFactory<C: Channel + Clone> {
+pub struct FpvmOpEvmFactory<H, O> {
     /// The hint writer.
-    hint_writer: HintWriter<C>,
+    hint_writer: H,
     /// The oracle reader.
-    oracle_reader: OracleReader<C>,
+    oracle_reader: O,
 }
 
-impl<C> FpvmOpEvmFactory<C>
+impl<H, O> FpvmOpEvmFactory<H, O>
 where
-    C: Channel + Clone + Send + Sync + 'static,
+    H: HintWriterClient + Clone + Send + Sync,
+    O: PreimageOracleClient + Clone + Send + Sync,
 {
     /// Creates a new [`FpvmOpEvmFactory`].
-    pub fn new(hint_writer: HintWriter<C>, oracle_reader: OracleReader<C>) -> Self {
+    pub fn new(hint_writer: H, oracle_reader: O) -> Self {
         Self { hint_writer, oracle_reader }
     }
 
-    /// Returns a reference to the inner [`HintWriter`].
-    pub fn hint_writer(&self) -> &HintWriter<C> {
+    /// Returns a reference to the inner [`HintWriterClient`].
+    pub fn hint_writer(&self) -> &H {
         &self.hint_writer
     }
 
-    /// Returns a reference to the inner [`OracleReader`].
-    pub fn oracle_reader(&self) -> &OracleReader<C> {
+    /// Returns a reference to the inner [`PreimageOracleClient`].
+    pub fn oracle_reader(&self) -> &O {
         &self.oracle_reader
     }
 }
 
-impl<C> EvmFactory for FpvmOpEvmFactory<C>
+impl<H, O> EvmFactory for FpvmOpEvmFactory<H, O>
 where
-    C: Channel + Clone + Send + Sync + 'static,
+    H: HintWriterClient + Clone + Send + Sync + 'static,
+    O: PreimageOracleClient + Clone + Send + Sync + 'static,
 {
-    type Evm<DB: Database, I: Inspector<OpContext<DB>>> = OpEvm<DB, I, OpFpvmPrecompiles<C>>;
+    type Evm<DB: Database, I: Inspector<OpContext<DB>>> = OpEvm<DB, I, OpFpvmPrecompiles<H, O>>;
     type Context<DB: Database> = OpContext<DB>;
     type Tx = OpTransaction<TxEnv>;
     type Error<DBError: core::error::Error + Send + Sync + 'static> =

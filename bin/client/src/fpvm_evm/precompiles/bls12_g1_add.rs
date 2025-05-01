@@ -8,7 +8,7 @@
 
 use crate::fpvm_evm::precompiles::utils::precompile_run;
 use alloc::string::ToString;
-use kona_preimage::{Channel, HintWriter, OracleReader};
+use kona_preimage::{HintWriterClient, PreimageOracleClient};
 use revm::precompile::{
     PrecompileError, PrecompileOutput, PrecompileResult, bls12_381,
     bls12_381_const::{G1_ADD_BASE_GAS_FEE, G1_ADD_INPUT_LENGTH},
@@ -18,12 +18,16 @@ use revm::precompile::{
 ///
 /// Notice, there is no input size limit for this precompile.
 /// See: <https://specs.optimism.io/protocol/isthmus/exec-engine.html#evm-changes>
-pub(crate) fn fpvm_bls12_g1_add<C: Channel + Send + Sync>(
+pub(crate) fn fpvm_bls12_g1_add<H, O>(
     input: &[u8],
     gas_limit: u64,
-    hint_writer: &HintWriter<C>,
-    oracle_reader: &OracleReader<C>,
-) -> PrecompileResult {
+    hint_writer: &H,
+    oracle_reader: &O,
+) -> PrecompileResult
+where
+    H: HintWriterClient + Send + Sync,
+    O: PreimageOracleClient + Send + Sync,
+{
     if G1_ADD_BASE_GAS_FEE > gas_limit {
         return Err(PrecompileError::OutOfGas);
     }
