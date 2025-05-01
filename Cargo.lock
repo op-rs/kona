@@ -4904,6 +4904,7 @@ version = "0.2.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 0.15.6",
+ "alloy-evm",
  "alloy-op-evm",
  "alloy-primitives",
  "alloy-rlp",
@@ -4920,7 +4921,9 @@ dependencies = [
  "kona-registry",
  "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
+ "op-revm",
  "rand 0.9.1",
+ "revm",
  "serde",
  "serde_json",
  "spin 0.10.0",

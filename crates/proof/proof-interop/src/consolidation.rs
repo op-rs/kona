@@ -4,9 +4,10 @@ use crate::{BootInfo, OptimisticBlock, OracleInteropProvider, PreState};
 use alloc::{boxed::Box, vec::Vec};
 use alloy_consensus::{Header, Sealed};
 use alloy_eips::Encodable2718;
-use alloy_op_evm::OpEvmFactory;
+use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::{Address, B256, Bytes, Sealable, TxKind, U256, address};
 use alloy_rpc_types_engine::PayloadAttributes;
+use core::fmt::Debug;
 use kona_executor::{ExecutorError, StatelessL2Builder};
 use kona_interop::{MessageGraph, MessageGraphError};
 use kona_mpt::OrderedListWalker;
@@ -16,6 +17,7 @@ use kona_protocol::OutputRoot;
 use kona_registry::{HashMap, ROLLUP_CONFIGS};
 use op_alloy_consensus::{InteropBlockReplacementDepositSource, OpTxEnvelope, OpTxType, TxDeposit};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
+use op_revm::OpSpecId;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -24,7 +26,7 @@ use tracing::{error, info};
 ///
 /// [message validity rules]: https://specs.optimism.io/interop/messaging.html#invalid-messages
 #[derive(Debug)]
-pub struct SuperchainConsolidator<'a, C>
+pub struct SuperchainConsolidator<'a, C, Evm>
 where
     C: CommsClient,
 {
@@ -34,11 +36,15 @@ where
     interop_provider: OracleInteropProvider<C>,
     /// The [OracleL2ChainProvider]s used for re-execution of invalid blocks, keyed by chain ID.
     l2_providers: HashMap<u64, OracleL2ChainProvider<C>>,
+    /// The inner [`EvmFactory`] to create EVM instances for re-execution of bad blocks.
+    evm_factory: Evm,
 }
 
-impl<'a, C> SuperchainConsolidator<'a, C>
+impl<'a, C, Evm> SuperchainConsolidator<'a, C, Evm>
 where
     C: CommsClient + Send + Sync,
+    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
     /// Creates a new [SuperchainConsolidator] with the given providers and [Header]s.
     ///
@@ -47,8 +53,9 @@ where
         boot_info: &'a mut BootInfo,
         interop_provider: OracleInteropProvider<C>,
         l2_providers: HashMap<u64, OracleL2ChainProvider<C>>,
+        evm_factory: Evm,
     ) -> Self {
-        Self { boot_info, interop_provider, l2_providers }
+        Self { boot_info, interop_provider, l2_providers, evm_factory }
     }
 
     /// Recursively consolidates the dependencies of the blocks within the [MessageGraph].
@@ -196,7 +203,7 @@ where
             // Create a new stateless L2 block executor for the current chain.
             let mut executor = StatelessL2Builder::new(
                 rollup_config,
-                OpEvmFactory::default(),
+                self.evm_factory.clone(),
                 l2_provider.clone(),
                 l2_provider.clone(),
                 parent_header.seal_slow(),

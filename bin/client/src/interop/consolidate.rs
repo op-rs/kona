@@ -3,6 +3,7 @@
 use super::FaultProofProgramError;
 use crate::interop::util::fetch_output_block_hash;
 use alloc::sync::Arc;
+use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use core::fmt::Debug;
 use kona_executor::TrieDBProvider;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
@@ -11,6 +12,8 @@ use kona_proof_interop::{
     BootInfo, HintType, OracleInteropProvider, PreState, SuperchainConsolidator,
 };
 use kona_registry::{HashMap, ROLLUP_CONFIGS};
+use op_alloy_consensus::OpTxEnvelope;
+use op_revm::OpSpecId;
 use tracing::{error, info};
 
 /// Executes the consolidation phase of the interop proof with the given [PreimageOracleClient] and
@@ -20,13 +23,16 @@ use tracing::{error, info};
 /// superchain and ensuring that all dependencies are satisfied.
 ///
 /// [OptimisticBlock]: kona_proof_interop::OptimisticBlock
-pub(crate) async fn consolidate_dependencies<P, H>(
+pub(crate) async fn consolidate_dependencies<P, H, Evm>(
     oracle: Arc<CachingOracle<P, H>>,
     mut boot: BootInfo,
+    evm_factory: Evm,
 ) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
+    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
     info!(target: "client_interop", "Deriving local-safe headers from prestate");
 
@@ -100,7 +106,9 @@ where
 
     // Consolidate the superchain
     let global_provider = OracleInteropProvider::new(oracle.clone(), boot.clone(), headers);
-    SuperchainConsolidator::new(&mut boot, global_provider, l2_providers).consolidate().await?;
+    SuperchainConsolidator::new(&mut boot, global_provider, l2_providers, evm_factory)
+        .consolidate()
+        .await?;
 
     // Transition to the Super Root at the next timestamp.
     let post = boot

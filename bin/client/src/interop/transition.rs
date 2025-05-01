@@ -4,7 +4,7 @@ use super::FaultProofProgramError;
 use crate::interop::util::fetch_l2_safe_head_hash;
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
-use alloy_op_evm::OpEvmFactory;
+use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use kona_derive::errors::{PipelineError, PipelineErrorKind};
@@ -19,17 +19,22 @@ use kona_proof::{
     sync::new_pipeline_cursor,
 };
 use kona_proof_interop::{BootInfo, INVALID_TRANSITION_HASH, OptimisticBlock, PreState};
+use op_alloy_consensus::OpTxEnvelope;
+use op_revm::OpSpecId;
 use tracing::{error, info, warn};
 
 /// Executes a sub-transition of the interop proof with the given [PreimageOracleClient] and
 /// [HintWriterClient].
-pub(crate) async fn sub_transition<P, H>(
+pub(crate) async fn sub_transition<P, H, Evm>(
     oracle: Arc<CachingOracle<P, H>>,
     boot: BootInfo,
+    evm_factory: Evm,
 ) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
+    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
     // Check if we can short-circuit the transition, if we are within padding.
     if let PreState::TransitionState(ref transition_state) = boot.agreed_pre_state {
@@ -106,7 +111,7 @@ where
         rollup_config.as_ref(),
         l2_provider.clone(),
         l2_provider,
-        OpEvmFactory::default(),
+        evm_factory,
         None,
     );
     let mut driver = Driver::new(cursor, executor, pipeline);

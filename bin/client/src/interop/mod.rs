@@ -1,6 +1,7 @@
 //! Multi-chain, interoperable fault proof program entrypoint.
 
 use alloc::sync::Arc;
+use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
 use core::{cmp::Ordering, fmt::Debug};
@@ -12,6 +13,8 @@ use kona_proof::{CachingOracle, errors::OracleProviderError};
 use kona_proof_interop::{
     BootInfo, ConsolidationError, PreState, TRANSITION_STATE_MAX_STEPS, boot::BootstrapError,
 };
+use op_alloy_consensus::OpTxEnvelope;
+use op_revm::OpSpecId;
 use thiserror::Error;
 use tracing::{error, info};
 use transition::sub_transition;
@@ -52,10 +55,16 @@ pub enum FaultProofProgramError {
 /// Executes the interop fault proof program with the given [PreimageOracleClient] and
 /// [HintWriterClient].
 #[inline]
-pub async fn run<P, H>(oracle_client: P, hint_client: H) -> Result<(), FaultProofProgramError>
+pub async fn run<P, H, Evm>(
+    oracle_client: P,
+    hint_client: H,
+    evm_factory: Evm,
+) -> Result<(), FaultProofProgramError>
 where
     P: PreimageOracleClient + Send + Sync + Debug + Clone,
     H: HintWriterClient + Send + Sync + Debug + Clone,
+    Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
+    <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
     const ORACLE_LRU_SIZE: usize = 1024;
 
@@ -91,7 +100,7 @@ where
             }
 
             // If the pre-state is a super root, the first sub-problem is always selected.
-            sub_transition(oracle, boot).await
+            sub_transition(oracle, boot, evm_factory).await
         }
         PreState::TransitionState(ref transition_state) => {
             // If the claimed L2 block timestamp is less than the prestate timestamp, the
@@ -106,8 +115,8 @@ where
             // If the pre-state is a transition state, the sub-problem is selected based on the
             // current step.
             match transition_state.step.cmp(&TRANSITION_STATE_MAX_STEPS) {
-                Ordering::Equal => consolidate_dependencies(oracle, boot).await,
-                Ordering::Less => sub_transition(oracle, boot).await,
+                Ordering::Equal => consolidate_dependencies(oracle, boot, evm_factory).await,
+                Ordering::Less => sub_transition(oracle, boot, evm_factory).await,
                 Ordering::Greater => {
                     error!(
                         target: "client_interop",
