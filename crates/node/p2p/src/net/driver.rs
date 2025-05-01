@@ -89,7 +89,7 @@ impl Network {
                         }
                     }
                     event = self.gossip.select_next_some() => {
-                        crate::inc!(GOSSIP_EVENT, "total");
+                        crate::inc!(gauge, GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
                         }
@@ -100,7 +100,7 @@ impl Network {
                             continue;
                         };
                         self.gossip.dial(enr);
-                        crate::inc!(DIAL_PEER);
+                        crate::inc!(gauge, DIAL_PEER);
                     },
 
                     _ = peer_score_inspector.tick(), if self.gossip.peer_monitoring.as_ref().is_some() => {

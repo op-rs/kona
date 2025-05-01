@@ -15,7 +15,7 @@ mod macros;
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "metrics")]
-pub use metrics::{DIAL_PEER, GOSSIP_EVENT, PEER_COUNT, UNSAFE_BLOCK_PUBLISHED};
+pub use metrics::Metrics;
 
 mod net;
 pub use net::{Broadcast, Config, Network, NetworkBuilder, NetworkBuilderError};

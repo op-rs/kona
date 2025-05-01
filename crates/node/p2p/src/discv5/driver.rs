@@ -366,6 +366,7 @@ impl Discv5Driver {
                             discv5::Event::Discovered(enr) => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
+                                    crate::inc!(gauge, DISCOVERY_EVENT, "discovered", "discovered");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -378,6 +379,7 @@ impl Discv5Driver {
                             discv5::Event::SessionEstablished(enr, addr) => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Session established with valid ENR, forwarding to swarm. Address: {:?}, ENR: {:?}", addr, enr);
+                                    crate::inc!(gauge, DISCOVERY_EVENT, "session_established", "session_established");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -388,9 +390,9 @@ impl Discv5Driver {
                                 }
                             }
                             discv5::Event::UnverifiableEnr { enr, .. } => {
-                                debug!(target: "discovery", "Unverifiable ENR discovered: {:?}", enr);
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
+                                    crate::inc!(gauge, DISCOVERY_EVENT, "unverifiable_enr", "unverifiable_enr");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -406,7 +408,8 @@ impl Discv5Driver {
                     }
                     _ = interval.tick() => {
                         let id = NodeId::random();
-                        debug!(target: "discovery", "Finding random node: {}", id);
+                        trace!(target: "discovery", "Finding random node: {}", id);
+                        crate::inc!(gauge, FIND_NODE_REQUEST, "find_node", "find_node");
                         let fut = self.disc.find_node(id);
                         let enr_sender = enr_sender.clone();
                         tokio::spawn(async move {
@@ -424,13 +427,14 @@ impl Discv5Driver {
                         });
                     }
                     _ = store_interval.tick() => {
-                        // Track the amount of time it takes to store the ENRs.
                         let start = std::time::Instant::now();
                         let enrs = self.disc.table_entries_enr();
                         self.store.merge(enrs);
                         self.store.sync();
                         let elapsed = start.elapsed();
                         debug!(target: "discovery", "Bootstore ENRs stored in {:?}", elapsed);
+                        crate::record!(histogram, ENR_STORE_TIME, "store_time", "store_time", elapsed.as_secs_f64());
+                        crate::set!(gauge, DISCOVERY_PEER_COUNT, self.disc.connected_peers() as f64);
                     }
                     _ = removal_interval.tick() => {
                         if remove {
