@@ -90,6 +90,7 @@ impl GossipDriver {
         let topic_hash = topic.hash();
         let data = self.handler.encode(topic, payload)?;
         let id = self.swarm.behaviour_mut().gossipsub.publish(topic_hash, data)?;
+        crate::inc!(UNSAFE_BLOCK_PUBLISHED);
         Ok(Some(id))
     }
 
@@ -239,7 +240,7 @@ impl GossipDriver {
             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
-                crate::set!(PEER_COUNT, peer_count as i64);
+                crate::set!(PEER_COUNT, peer_count as f64);
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
                 return None;
             }
@@ -253,7 +254,7 @@ impl GossipDriver {
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 warn!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
-                crate::set!(PEER_COUNT, peer_count as i64);
+                crate::set!(PEER_COUNT, peer_count as f64);
                 self.redial(peer_id);
                 return None;
             }

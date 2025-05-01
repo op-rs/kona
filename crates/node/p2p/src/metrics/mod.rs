@@ -1,20 +1,13 @@
 //! Metrics for the P2P stack.
 
-use lazy_static::lazy_static;
-use prometheus::{self, HistogramVec, IntGauge, register_histogram_vec, register_int_gauge};
+/// Identifier for the gauge that tracks gossip events.
+pub const GOSSIP_EVENT: &str = "Kona_node_gossip_events";
 
-lazy_static! {
-    /// Gauge of the number of connected peers.
-    pub static ref PEER_COUNT: IntGauge = register_int_gauge!(
-        "kona_node_peer_count",
-        "Count of currently connected p2p peers"
-    ).expect("Peer count failed to register");
+/// Identifier for the gauge that tracks unsafe blocks published.
+pub const UNSAFE_BLOCK_PUBLISHED: &str = "Kona_node_unsafe_block_published";
 
-    /// Histogram of currently connected peer scores.
-    pub static ref PEER_SCORES: HistogramVec = register_histogram_vec!(
-        "kona_node_peer_scores",
-        "Histogram of currently connected peer scores",
-        &["type"],
-        vec![-100.0, -40.0, -20.0, -10.0, -5.0, -2.0, -1.0, -0.5, -0.05, 0.0, 0.05, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 40.0]
-    ).expect("Peer scores failed to register");
-}
+/// Identifier for the gauge that tracks the number of connected peers.
+pub const PEER_COUNT: &str = "Kona_node_peer_count";
+
+/// Identifier for the gauge that tracks the number of dialed peers.
+pub const DIAL_PEER: &str = "Kona_node_dial_peer";

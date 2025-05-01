@@ -60,7 +60,7 @@ derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 arbitrary = { workspace = true, features = ["derive"], optional = true }
 
 # `metrics` feature
-prometheus = { workspace = true, features = ["process"], optional = true }
+metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
 arbtest.workspace = true
@@ -78,5 +78,5 @@ op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-metrics = ["dep:prometheus"]
+metrics = ["dep:metrics"]
 arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary"]
