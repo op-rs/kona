@@ -245,7 +245,7 @@ impl GossipDriver {
             }
             libp2p::gossipsub::Event::SlowPeer { peer_id, .. } => {
                 trace!(target: "gossip", "Slow peer: {:?}", peer_id);
-                kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "slow_peer", "slow_peer");
+                kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "slow_peer", peer_id.to_string());
             }
             libp2p::gossipsub::Event::GossipsubNotSupported { peer_id } => {
                 trace!(target: "gossip", "Peer: {:?} does not support gossipsub", peer_id);
@@ -253,7 +253,7 @@ impl GossipDriver {
                     gauge,
                     crate::Metrics::GOSSIP_EVENT,
                     "not_supported",
-                    "not_supported"
+                    peer_id.to_string()
                 );
             }
         }
@@ -266,7 +266,7 @@ impl GossipDriver {
             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 debug!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
-                kona_macros::inc!(gauge, crate::Metrics::GOSSIPSUB_CONNECTION, "type", "connected");
+                kona_macros::inc!(gauge, crate::Metrics::GOSSIPSUB_CONNECTION, "connected", peer_id.to_string());
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
                 return None;
@@ -276,21 +276,21 @@ impl GossipDriver {
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
-                    "type",
-                    "outgoing_error"
+                    "outgoing_error",
+                    peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
                 if let Some(id) = peer_id {
                     self.redial(id);
                 }
                 return None;
             }
-            SwarmEvent::IncomingConnectionError { error, .. } => {
+            SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
                 trace!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
-                    "type",
-                    "incoming_error"
+                    "incoming_error",
+                    connection_id.to_string()
                 );
                 return None;
             }
