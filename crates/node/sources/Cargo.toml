@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 # Workspace
 kona-rpc.workspace = true
+kona-macros.workspace = true
 kona-derive.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
@@ -32,6 +33,13 @@ lru.workspace = true
 url.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+
+# `metrics` feature
+metrics = { workspace = true, optional = true }
+
+[features]
+default = []
+metrics = ["dep:metrics", "kona-macros/metrics"]
 
 [dev-dependencies]
 tokio.workspace = true

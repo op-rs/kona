@@ -89,7 +89,7 @@ impl Network {
                         }
                     }
                     event = self.gossip.select_next_some() => {
-                        crate::inc!(gauge, GOSSIP_EVENT, "total", "total");
+                        kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
                         }
@@ -100,7 +100,7 @@ impl Network {
                             continue;
                         };
                         self.gossip.dial(enr);
-                        crate::inc!(gauge, DIAL_PEER);
+                        kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER);
                     },
 
                     _ = peer_score_inspector.tick(), if self.gossip.peer_monitoring.as_ref().is_some() => {

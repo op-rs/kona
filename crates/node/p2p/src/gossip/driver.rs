@@ -90,7 +90,7 @@ impl GossipDriver {
         let topic_hash = topic.hash();
         let data = self.handler.encode(topic, payload)?;
         let id = self.swarm.behaviour_mut().gossipsub.publish(topic_hash, data)?;
-        crate::inc!(gauge, UNSAFE_BLOCK_PUBLISHED);
+        kona_macros::inc!(gauge, crate::Metrics::UNSAFE_BLOCK_PUBLISHED);
         Ok(Some(id))
     }
 
@@ -209,7 +209,12 @@ impl GossipDriver {
                 message,
             } => {
                 trace!(target: "gossip", "Received message with topic: {}", message.topic);
-                crate::inc!(gauge, GOSSIP_EVENT, "message", message.topic.to_string());
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIP_EVENT,
+                    "message",
+                    message.topic.to_string()
+                );
                 if self.handler.topics().contains(&message.topic) {
                     let (status, payload) = self.handler.handle(message);
                     _ = self
@@ -222,19 +227,34 @@ impl GossipDriver {
             }
             libp2p::gossipsub::Event::Subscribed { peer_id, topic } => {
                 trace!(target: "gossip", "Peer: {:?} subscribed to topic: {:?}", peer_id, topic);
-                crate::inc!(gauge, GOSSIP_EVENT, "subscribed", topic.to_string());
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIP_EVENT,
+                    "subscribed",
+                    topic.to_string()
+                );
             }
             libp2p::gossipsub::Event::Unsubscribed { peer_id, topic } => {
                 trace!(target: "gossip", "Peer: {:?} unsubscribed from topic: {:?}", peer_id, topic);
-                crate::inc!(gauge, GOSSIP_EVENT, "unsubscribed", topic.to_string());
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIP_EVENT,
+                    "unsubscribed",
+                    topic.to_string()
+                );
             }
             libp2p::gossipsub::Event::SlowPeer { peer_id, .. } => {
                 trace!(target: "gossip", "Slow peer: {:?}", peer_id);
-                crate::inc!(gauge, GOSSIP_EVENT, "slow_peer", "slow_peer");
+                kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "slow_peer", "slow_peer");
             }
             libp2p::gossipsub::Event::GossipsubNotSupported { peer_id } => {
                 trace!(target: "gossip", "Peer: {:?} does not support gossipsub", peer_id);
-                crate::inc!(gauge, GOSSIP_EVENT, "not_supported", "not_supported");
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIP_EVENT,
+                    "not_supported",
+                    "not_supported"
+                );
             }
         }
         None
@@ -246,14 +266,19 @@ impl GossipDriver {
             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 debug!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
-                crate::inc!(gauge, GOSSIPSUB_CONNECTION, "type", "connected");
-                crate::set!(gauge, GOSSIP_PEER_COUNT, peer_count as f64);
+                kona_macros::inc!(gauge, crate::Metrics::GOSSIPSUB_CONNECTION, "type", "connected");
+                kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
                 return None;
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 debug!(target: "gossip", "Outgoing connection error: {:?}", error);
-                crate::inc!(gauge, GOSSIPSUB_CONNECTION, "type", "outgoing_error");
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIPSUB_CONNECTION,
+                    "type",
+                    "outgoing_error"
+                );
                 if let Some(id) = peer_id {
                     self.redial(id);
                 }
@@ -261,14 +286,19 @@ impl GossipDriver {
             }
             SwarmEvent::IncomingConnectionError { error, .. } => {
                 trace!(target: "gossip", "Incoming connection error: {:?}", error);
-                crate::inc!(gauge, GOSSIPSUB_CONNECTION, "type", "incoming_error");
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIPSUB_CONNECTION,
+                    "type",
+                    "incoming_error"
+                );
                 return None;
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 debug!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
-                crate::inc!(gauge, GOSSIPSUB_CONNECTION, "type", "closed");
-                crate::set!(gauge, GOSSIP_PEER_COUNT, peer_count as f64);
+                kona_macros::inc!(gauge, crate::Metrics::GOSSIPSUB_CONNECTION, "type", "closed");
+                kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
                 self.redial(peer_id);
                 return None;
             }

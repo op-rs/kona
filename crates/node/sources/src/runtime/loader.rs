@@ -128,6 +128,29 @@ impl RuntimeLoader {
             warn!(target: "runtime_loader", "Using default protocol version: {:?}", required_protocol_version);
         }
 
+        // Metrics
+        kona_macros::record!(
+            histogram,
+            crate::Metrics::RUNTIME_LOADER,
+            "unsafe_block_signer",
+            format!("{:#x}", unsafe_block_signer_address),
+            1
+        );
+        kona_macros::record!(
+            histogram,
+            crate::Metrics::RUNTIME_LOADER,
+            "recommended_version",
+            recommended_protocol_version.to_string(),
+            1
+        );
+        kona_macros::record!(
+            histogram,
+            crate::Metrics::RUNTIME_LOADER,
+            "required_version",
+            required_protocol_version.to_string(),
+            1
+        );
+
         // Construct the runtime config.
         let runtime_config = RuntimeConfig {
             unsafe_block_signer_address,

@@ -17,6 +17,7 @@ workspace = true
 
 [dependencies]
 # Kona
+kona-macros.workspace = true
 kona-genesis.workspace = true
 kona-rpc = { workspace = true, features = ["jsonrpsee", "reqwest", "std"] }
 
@@ -78,5 +79,5 @@ op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-metrics = ["dep:metrics", "libp2p/metrics"]
+metrics = ["dep:metrics", "libp2p/metrics", "kona-macros/metrics"]
 arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary"]

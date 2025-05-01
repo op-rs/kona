@@ -4709,6 +4709,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-macros"
+version = "0.1.0"
+
+[[package]]
 name = "kona-mpt"
 version = "0.2.0"
 dependencies = [
@@ -4822,6 +4826,7 @@ dependencies = [
  "jsonrpsee 0.25.1",
  "kona-cli",
  "kona-genesis",
+ "kona-macros",
  "kona-rpc",
  "lazy_static",
  "libp2p",
@@ -5051,11 +5056,13 @@ dependencies = [
  "kona-cli",
  "kona-derive",
  "kona-genesis",
+ "kona-macros",
  "kona-protocol",
  "kona-providers-alloy",
  "kona-registry",
  "kona-rpc",
  "lru 0.14.0",
+ "metrics",
  "thiserror 2.0.12",
  "tokio",
  "tracing",

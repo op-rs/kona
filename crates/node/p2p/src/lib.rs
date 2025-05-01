@@ -10,8 +10,6 @@
 #[macro_use]
 extern crate tracing;
 
-mod macros;
-
 #[cfg(feature = "metrics")]
 mod metrics;
 #[cfg(feature = "metrics")]
