@@ -71,7 +71,7 @@ COPY --from=client-build /kona-client-elf $CLIENT_BIN_PATH
 RUN $CANNON_BIN_PATH load-elf \
   --path=$CLIENT_BIN_PATH \
   --out=$PRESTATE_OUT_PATH \
-  --type multithreaded64-3
+  --type multithreaded64-4
 
 # Create `prestate-proof.json`
 RUN $CANNON_BIN_PATH run \
@@ -93,3 +93,4 @@ COPY --from=prestate-build /cannon .
 COPY --from=prestate-build /kona-client-elf .
 COPY --from=prestate-build /prestate.bin.gz .
 COPY --from=prestate-build /prestate-proof.json .
+COPY --from=prestate-build /meta.json .

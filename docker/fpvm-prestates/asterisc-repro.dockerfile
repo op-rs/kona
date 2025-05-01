@@ -91,3 +91,4 @@ COPY --from=prestate-build /asterisc .
 COPY --from=prestate-build /kona-client-elf .
 COPY --from=prestate-build /prestate.bin.gz .
 COPY --from=prestate-build /prestate-proof.json .
+COPY --from=prestate-build /meta.json .

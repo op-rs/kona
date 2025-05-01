@@ -39,12 +39,7 @@ variable "CANNON_TAG" {
   //
   // You can override this if you'd like to use a different tag to generate the prestate.
   // https://github.com/ethereum-optimism/optimism/releases
-  //
-  // NOTE: This version of cannon will not run `kona-client`. This is just a stub tag.
-  // https://github.com/ethereum-optimism/optimism/pull/14454 must be merged and included
-  // in order for `kona-client` to run on cannon. Once this tag is updated to a version that
-  // does support kona, remove this comment.
-  default = "cannon/v1.4.0"
+  default = "cannon/v1.5.0-alpha.1"
 }
 
 // Special target: https://github.com/docker/metadata-action#bake-definition
