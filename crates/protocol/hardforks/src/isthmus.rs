@@ -54,6 +54,22 @@ impl Isthmus {
     /// with the Operator Fee Vault Deployer Address and nonce 0.
     pub const OPERATOR_FEE_VAULT: Address = address!("4fa2be8cd41504037f1838bce3bcc93bc68ff537");
 
+    /// The Isthmus L1 Block Deployer Code Hash
+    /// See: <https://specs.optimism.io/protocol/isthmus/derivation.html#l1block-deployment>
+    pub const L1_BLOCK_DEPLOYER_CODE_HASH: B256 = alloy_primitives::b256!(
+        "0x8e3fe7a416d3e5f3b7be74ddd4e7e58e516fa3f80b67c6d930e3cd7297da4a4b"
+    );
+
+    /// The Isthmus Gas Price Oracle Code Hash
+    /// See: <https://specs.optimism.io/protocol/isthmus/derivation.html#gaspriceoracle-deployment>
+    pub const GAS_PRICE_ORACLE_CODE_HASH: B256 = alloy_primitives::b256!(
+        "0x4d195a9d7caf9fb6d4beaf80de252c626c853afd5868c4f4f8d19c9d301c2679"
+    );
+    /// The Isthmus Operatpr Fee Vault Code Hash
+    /// See: <https://specs.optimism.io/protocol/isthmus/derivation.html#operator-fee-vault-deployment>
+    pub const OPERATOR_FEE_VAULT_CODE_HASH: B256 = alloy_primitives::b256!(
+        "0x57dc55c9c09ca456fa728f253fe7b895d3e6aae0706104935fe87c7721001971"
+    );
     /// Returns the source hash for the Isthmus Gas Price Oracle activation.
     pub fn enable_isthmus_source() -> B256 {
         UpgradeDepositSource { intent: String::from("Isthmus: Gas Price Oracle Set Isthmus") }
@@ -315,65 +331,31 @@ mod tests {
     }
     #[test]
     fn test_verify_isthmus_l1_block_deployment_code_hash() {
-        // Verify code hash of Gas Price Deployment
-        // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#l1block-deployment>
+        let txs = Isthmus::deposits().collect::<Vec<_>>();
         check_deployment_code(
-            TxDeposit {
-                source_hash: Isthmus::deploy_l1_block_source(),
-                from: Isthmus::L1_BLOCK_DEPLOYER,
-                to: TxKind::Create,
-                mint: 0.into(),
-                value: U256::ZERO,
-                gas_limit: 425_000,
-                is_system_transaction: false,
-                input: Isthmus::l1_block_deployment_bytecode(),
-            },
-            "0xFf256497D61dcd71a9e9Ff43967C13fdE1F72D12".parse().unwrap(),
-            alloy_primitives::b256!(
-                "0x8e3fe7a416d3e5f3b7be74ddd4e7e58e516fa3f80b67c6d930e3cd7297da4a4b"
-            ),
+            txs[0].clone(),
+            Isthmus::NEW_L1_BLOCK,
+            Isthmus::L1_BLOCK_DEPLOYER_CODE_HASH,
         );
     }
     #[test]
     fn test_verify_isthmus_gas_price_oracle_deployment_code_hash() {
-        // Verify code hash of Gas Price Deployment
-        // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#gaspriceoracle-deployment>
+        let txs = Isthmus::deposits().collect::<Vec<_>>();
+
         check_deployment_code(
-            TxDeposit {
-                source_hash: Isthmus::deploy_gas_price_oracle_source(),
-                from: Isthmus::GAS_PRICE_ORACLE_DEPLOYER,
-                to: TxKind::Create,
-                mint: 0.into(),
-                value: U256::ZERO,
-                gas_limit: 1_625_000,
-                is_system_transaction: false,
-                input: Isthmus::gas_price_oracle_deployment_bytecode(),
-            },
-            "0x93e57A196454CB919193fa9946f14943cf733845".parse().unwrap(),
-            alloy_primitives::b256!(
-                "0x4d195a9d7caf9fb6d4beaf80de252c626c853afd5868c4f4f8d19c9d301c2679"
-            ),
+            txs[1].clone(),
+            Isthmus::GAS_PRICE_ORACLE,
+            Isthmus::GAS_PRICE_ORACLE_CODE_HASH,
         );
     }
     #[test]
     fn test_verify_isthmus_operator_fee_vault_deployment_code_hash() {
-        // Verify code hash of Operator Fee Vault Deployment
-        // See: <https://specs.optimism.io/protocol/isthmus/derivation.html#operator-fee-vault-deployment>
+        let txs = Isthmus::deposits().collect::<Vec<_>>();
+
         check_deployment_code(
-            TxDeposit {
-                source_hash: Isthmus::deploy_operator_fee_vault_source(),
-                from: Isthmus::OPERATOR_FEE_VAULT_DEPLOYER,
-                to: TxKind::Create,
-                mint: 0.into(),
-                value: U256::ZERO,
-                gas_limit: 500_000,
-                is_system_transaction: false,
-                input: Isthmus::operator_fee_vault_deployment_bytecode(),
-            },
-            "0x4fa2Be8cd41504037F1838BcE3bCC93bC68Ff537".parse().unwrap(),
-            alloy_primitives::b256!(
-                "0x57dc55c9c09ca456fa728f253fe7b895d3e6aae0706104935fe87c7721001971"
-            ),
+            txs[2].clone(),
+            Isthmus::OPERATOR_FEE_VAULT,
+            Isthmus::OPERATOR_FEE_VAULT_CODE_HASH,
         );
     }
 }
