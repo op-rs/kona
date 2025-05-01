@@ -33,6 +33,7 @@ RUN git clone https://github.com/ethereum-optimism/optimism && \
 FROM ghcr.io/op-rs/kona/cannon-builder:0.1.0 AS client-build
 SHELL ["/bin/bash", "-c"]
 
+ARG CLIENT_BIN
 ARG CLIENT_TAG
 
 # Install deps
@@ -44,8 +45,8 @@ RUN git clone https://github.com/op-rs/kona
 # Build kona-client on the selected tag
 RUN cd kona && \
   git checkout $CLIENT_TAG && \
-  cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --locked --profile release-client-lto && \
-  mv ./target/mips64-unknown-none/release-client-lto/kona /kona-client-elf
+  cargo build -Zbuild-std=core,alloc -p kona-client --bin $CLIENT_BIN --locked --profile release-client-lto && \
+  mv ./target/mips64-unknown-none/release-client-lto/$CLIENT_BIN /kona-client-elf
 
 ################################################################
 #      Create `prestate.bin.gz` + `prestate-proof.json`        #

@@ -42,6 +42,18 @@ variable "CANNON_TAG" {
   default = "cannon/v1.5.0-alpha.1"
 }
 
+variable "CLIENT_BIN" {
+  // The `kona-client` binary to use in the `kona-{asterisc/cannon}-prestate` targets.
+  //
+  // You can override this if you'd like to use a different `kona-client` binary to generate
+  // the prestate.
+  //
+  // Valid options:
+  // - `kona` (single-chain)
+  // - `kona-int` (interop)
+  default = "kona"
+}
+
 // Special target: https://github.com/docker/metadata-action#bake-definition
 target "docker-metadata-action" {
   tags = ["${DEFAULT_TAG}"]
@@ -77,6 +89,7 @@ target "kona-asterisc-prestate" {
   context = "."
   dockerfile = "docker/fpvm-prestates/asterisc-repro.dockerfile"
   args = {
+    CLIENT_BIN = "${CLIENT_BIN}"
     CLIENT_TAG = "${GIT_REF_NAME}"
     ASTERISC_TAG = "${ASTERISC_TAG}"
   }
@@ -89,6 +102,7 @@ target "kona-cannon-prestate" {
   context = "."
   dockerfile = "docker/fpvm-prestates/cannon-repro.dockerfile"
   args = {
+    CLIENT_BIN = "${CLIENT_BIN}"
     CLIENT_TAG = "${GIT_REF_NAME}"
     CANNON_TAG = "${CANNON_TAG}"
   }
