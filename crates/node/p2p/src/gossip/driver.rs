@@ -245,7 +245,12 @@ impl GossipDriver {
             }
             libp2p::gossipsub::Event::SlowPeer { peer_id, .. } => {
                 trace!(target: "gossip", "Slow peer: {:?}", peer_id);
-                kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "slow_peer", peer_id.to_string());
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIP_EVENT,
+                    "slow_peer",
+                    peer_id.to_string()
+                );
             }
             libp2p::gossipsub::Event::GossipsubNotSupported { peer_id } => {
                 trace!(target: "gossip", "Peer: {:?} does not support gossipsub", peer_id);
@@ -266,7 +271,12 @@ impl GossipDriver {
             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 debug!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
-                kona_macros::inc!(gauge, crate::Metrics::GOSSIPSUB_CONNECTION, "connected", peer_id.to_string());
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIPSUB_CONNECTION,
+                    "connected",
+                    peer_id.to_string()
+                );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
                 return None;
