@@ -7,6 +7,7 @@ use alloy_primitives::{BlockHash, Bytes};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use kona_genesis::RollupConfig;
 use op_alloy_consensus::OpTxType;
+use tracing::warn;
 
 /// Represents a single batch: a single encoded L2 block
 #[derive(Debug, Default, RlpDecodable, RlpEncodable, Clone, PartialEq, Eq)]
@@ -155,6 +156,19 @@ impl SingleBatch {
             }
         }
 
+        // If this is the first block in the interop hardfork, and the batch contains any
+        // transactions, it must be dropped.
+        if !cfg.is_interop_active(self.timestamp - cfg.block_time) &&
+            cfg.is_interop_active(self.timestamp) &&
+            !self.transactions.is_empty()
+        {
+            warn!(
+                target: "single_batch",
+                "Sequencer included user transactions in interop transition block. Dropping batch."
+            );
+            return BatchValidity::Drop;
+        }
+
         // We can do this check earlier, but it's intensive so we do it last for the sad-path.
         for tx in self.transactions.iter() {
             if tx.is_empty() {
@@ -177,6 +191,8 @@ impl SingleBatch {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::{CollectingLayer, TraceStorage};
+
     use super::*;
     use alloc::vec;
     use alloy_consensus::{SignableTransaction, TxEip1559, TxEip7702, TxEnvelope};
@@ -184,6 +200,8 @@ mod tests {
     use alloy_primitives::{Address, Sealed, Signature, TxKind, U256};
     use kona_genesis::HardForkConfig;
     use op_alloy_consensus::{OpTxEnvelope, TxDeposit};
+    use tracing::Level;
+    use tracing_subscriber::layer::SubscriberExt;
 
     #[test]
     fn test_empty_l1_blocks() {
@@ -579,5 +597,46 @@ mod tests {
             single_batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block),
             BatchValidity::Drop
         );
+    }
+
+    #[test]
+    fn test_check_batch_drop_non_empty_interop_transition() {
+        let trace_store: TraceStorage = Default::default();
+        let layer = CollectingLayer::new(trace_store.clone());
+        let subscriber = tracing_subscriber::Registry::default().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        // Gather a few test transactions for the batch.
+        let transactions = example_transactions();
+
+        // Construct a basic `SingleBatch`
+        let parent_hash = BlockHash::ZERO;
+        let epoch_num = 1;
+        let epoch_hash = BlockHash::ZERO;
+        let timestamp = 1;
+
+        let single_batch =
+            SingleBatch { parent_hash, epoch_num, epoch_hash, timestamp, transactions };
+
+        let cfg = RollupConfig {
+            max_sequencer_drift: 1,
+            block_time: 1,
+            hardforks: HardForkConfig { interop_time: Some(1), ..Default::default() },
+            ..Default::default()
+        };
+        let l1_blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let l2_safe_head = L2BlockInfo {
+            block_info: BlockInfo { timestamp: 0, ..Default::default() },
+            ..Default::default()
+        };
+        let inclusion_block = BlockInfo::default();
+        assert_eq!(
+            single_batch.check_batch(&cfg, &l1_blocks, l2_safe_head, &inclusion_block),
+            BatchValidity::Drop
+        );
+
+        assert!(trace_store.get_by_level(Level::WARN).iter().any(|s| {
+            s.contains("Sequencer included user transactions in interop transition block.")
+        }))
     }
 }

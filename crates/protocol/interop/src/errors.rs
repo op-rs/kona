@@ -32,6 +32,11 @@ pub enum MessageGraphError<E> {
     /// Invalid message timestamp
     #[error("Invalid message timestamp. Expected {0}, got {1}")]
     InvalidMessageTimestamp(u64, u64),
+    /// Interop not activated yet
+    #[error(
+        "Interop hardfork has not been activated yet. Activation time: {0}, initiating message time: {1}"
+    )]
+    InteropNotActivated(u64, u64),
     /// Message is in the future
     #[error("Message is in the future. Expected timestamp to be <= {0}, got {1}")]
     MessageInFuture(u64, u64),
