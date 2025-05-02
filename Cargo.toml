@@ -111,7 +111,7 @@ alloy-eips = { version = "0.15.6", default-features = false }
 alloy-serde = { version = "0.15.6", default-features = false }
 alloy-network = { version = "0.15.6", default-features = false }
 alloy-provider = { version = "0.15.6", default-features = false }
-alloy-sol-types = { version = "1.0.0", default-features = false }
+alloy-sol-types = { version = "1.1.0", default-features = false }
 alloy-consensus = { version = "0.15.6", default-features = false }
 alloy-transport = { version = "0.15.6", default-features = false }
 alloy-rpc-types = { version = "0.15.6", default-features = false }
@@ -220,5 +220,5 @@ rocksdb = { version = "0.23.0", default-features = false }
 sha2 = { version = "0.10.8", default-features = false }
 c-kzg = { version = "2.0.0", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
-secp256k1 = { version = "0.30.0", default-features = false }
+secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }

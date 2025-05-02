@@ -1,7 +1,7 @@
 //! The gas limit update type.
 
-use alloy_primitives::{U64, U256};
-use alloy_sol_types::{SolType, SolValue, sol};
+use alloy_primitives::{LogData, U64, U256};
+use alloy_sol_types::{SolType, sol};
 
 use crate::{GasLimitUpdateError, SystemConfig, SystemConfigLog};
 
@@ -24,36 +24,26 @@ impl TryFrom<&SystemConfigLog> for GasLimitUpdate {
     type Error = GasLimitUpdateError;
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
-        let log = &log.log;
-        if log.data.data.len() != 96 {
-            return Err(GasLimitUpdateError::InvalidDataLen(log.data.data.len()));
+        let LogData { data, .. } = &log.log.data;
+        if data.len() != 96 {
+            return Err(GasLimitUpdateError::InvalidDataLen(data.len()));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| GasLimitUpdateError::PointerTypeCheck)?;
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
             return Err(GasLimitUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(GasLimitUpdateError::InvalidDataPointer(pointer));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| GasLimitUpdateError::LengthTypeCheck)?;
-        let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
             return Err(GasLimitUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(GasLimitUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(gas_limit) = <sol!(uint256)>::abi_decode(&log.data.data[64..]) else {
+        let Ok(gas_limit) = <sol!(uint256)>::abi_decode_validate(&data[64..]) else {
             return Err(GasLimitUpdateError::GasLimitDecodingError);
         };
 
@@ -121,7 +111,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = GasLimitUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, GasLimitUpdateError::PointerTypeCheck);
+        assert_eq!(err, GasLimitUpdateError::PointerDecodingError);
     }
 
     #[test]
@@ -159,7 +149,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = GasLimitUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, GasLimitUpdateError::LengthTypeCheck);
+        assert_eq!(err, GasLimitUpdateError::LengthDecodingError);
     }
 
     #[test]

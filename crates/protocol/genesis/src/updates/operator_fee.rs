@@ -1,6 +1,7 @@
 //! The Operator Fee update type.
 
-use alloy_sol_types::{SolType, SolValue, sol};
+use alloy_primitives::LogData;
+use alloy_sol_types::{SolType, sol};
 
 use crate::{OperatorFeeUpdateError, SystemConfig, SystemConfigLog};
 
@@ -26,29 +27,19 @@ impl TryFrom<&SystemConfigLog> for OperatorFeeUpdate {
     type Error = OperatorFeeUpdateError;
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
-        let log = &log.log;
-        if log.data.data.len() != 96 {
-            return Err(OperatorFeeUpdateError::InvalidDataLen(log.data.data.len()));
+        let LogData { data, .. } = &log.log.data;
+        if data.len() != 96 {
+            return Err(OperatorFeeUpdateError::InvalidDataLen(data.len()));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| OperatorFeeUpdateError::PointerTypeCheck)?;
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
             return Err(OperatorFeeUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(OperatorFeeUpdateError::InvalidDataPointer(pointer));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| OperatorFeeUpdateError::LengthTypeCheck)?;
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
             return Err(OperatorFeeUpdateError::LengthDecodingError);
         };
         if length != 32 {
@@ -65,11 +56,11 @@ impl TryFrom<&SystemConfigLog> for OperatorFeeUpdate {
         // |----------|-------------|----------|
 
         let mut be_bytes = [0u8; 4];
-        be_bytes[0..4].copy_from_slice(&log.data.data[84..88]);
+        be_bytes[0..4].copy_from_slice(&data[84..88]);
         let operator_fee_scalar = u32::from_be_bytes(be_bytes);
 
         let mut be_bytes = [0u8; 8];
-        be_bytes[0..8].copy_from_slice(&log.data.data[88..96]);
+        be_bytes[0..8].copy_from_slice(&data[88..96]);
         let operator_fee_constant = u64::from_be_bytes(be_bytes);
 
         Ok(Self { operator_fee_scalar, operator_fee_constant })
@@ -125,7 +116,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = OperatorFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, OperatorFeeUpdateError::PointerTypeCheck);
+        assert_eq!(err, OperatorFeeUpdateError::PointerDecodingError);
     }
 
     #[test]
@@ -163,7 +154,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = OperatorFeeUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, OperatorFeeUpdateError::LengthTypeCheck);
+        assert_eq!(err, OperatorFeeUpdateError::LengthDecodingError);
     }
 
     #[test]

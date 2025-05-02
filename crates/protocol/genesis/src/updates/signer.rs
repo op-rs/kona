@@ -1,7 +1,7 @@
 //! The unsafe block signer update.
 
-use alloy_primitives::Address;
-use alloy_sol_types::{SolType, SolValue, sol};
+use alloy_primitives::{Address, LogData};
+use alloy_sol_types::{SolType, sol};
 
 use crate::{SystemConfigLog, UnsafeBlockSignerUpdateError};
 
@@ -17,41 +17,26 @@ impl TryFrom<&SystemConfigLog> for UnsafeBlockSignerUpdate {
     type Error = UnsafeBlockSignerUpdateError;
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
-        let log = &log.log;
-        if log.data.data.len() != 96 {
-            return Err(UnsafeBlockSignerUpdateError::InvalidDataLen(log.data.data.len()));
+        let LogData { data, .. } = &log.log.data;
+        if data.len() != 96 {
+            return Err(UnsafeBlockSignerUpdateError::InvalidDataLen(data.len()));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| UnsafeBlockSignerUpdateError::PointerTypeCheck)?;
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&log.data.data[0..32]) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
             return Err(UnsafeBlockSignerUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataPointer(pointer));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| UnsafeBlockSignerUpdateError::LengthTypeCheck)?;
-        let Ok(length) = <sol!(uint64)>::abi_decode(&log.data.data[32..64]) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
             return Err(UnsafeBlockSignerUpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(UnsafeBlockSignerUpdateError::InvalidDataLength(length));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[64..96].try_into().unwrap();
-        <sol!(address)>::type_check(&word.tokenize())
-            .map_err(|_| UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressTypeCheck)?;
-        let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode(&log.data.data[64..]) else {
+        let Ok(unsafe_block_signer) = <sol!(address)>::abi_decode_validate(&data[64..]) else {
             return Err(UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError);
         };
 
@@ -115,7 +100,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = UnsafeBlockSignerUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, UnsafeBlockSignerUpdateError::PointerTypeCheck);
+        assert_eq!(err, UnsafeBlockSignerUpdateError::PointerDecodingError);
     }
 
     #[test]
@@ -153,7 +138,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = UnsafeBlockSignerUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, UnsafeBlockSignerUpdateError::LengthTypeCheck);
+        assert_eq!(err, UnsafeBlockSignerUpdateError::LengthDecodingError);
     }
 
     #[test]
@@ -191,6 +176,6 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = UnsafeBlockSignerUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressTypeCheck);
+        assert_eq!(err, UnsafeBlockSignerUpdateError::UnsafeBlockSignerAddressDecodingError);
     }
 }

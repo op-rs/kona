@@ -1,7 +1,7 @@
 //! The gas config update type.
 
-use alloy_primitives::U256;
-use alloy_sol_types::{SolType, SolValue, sol};
+use alloy_primitives::{LogData, U256};
+use alloy_sol_types::{SolType, sol};
 
 use crate::{GasConfigUpdateError, RollupConfig, SystemConfig, SystemConfigLog};
 
@@ -31,39 +31,29 @@ impl TryFrom<&SystemConfigLog> for GasConfigUpdate {
     type Error = GasConfigUpdateError;
 
     fn try_from(sys_log: &SystemConfigLog) -> Result<Self, Self::Error> {
-        let log = &sys_log.log;
-        if log.data.data.len() != 128 {
-            return Err(GasConfigUpdateError::InvalidDataLen(log.data.data.len()));
+        let LogData { data, .. } = &sys_log.log.data;
+        if data.len() != 128 {
+            return Err(GasConfigUpdateError::InvalidDataLen(data.len()));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| GasConfigUpdateError::PointerTypeCheck)?;
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
             return Err(GasConfigUpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(GasConfigUpdateError::InvalidDataPointer(pointer));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| GasConfigUpdateError::LengthTypeCheck)?;
-        let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
             return Err(GasConfigUpdateError::LengthDecodingError);
         };
         if length != 64 {
             return Err(GasConfigUpdateError::InvalidDataLength(length));
         }
 
-        let Ok(overhead) = <sol!(uint256)>::abi_decode(&log.data.data[64..96]) else {
+        let Ok(overhead) = <sol!(uint256)>::abi_decode_validate(&data[64..96]) else {
             return Err(GasConfigUpdateError::OverheadDecodingError);
         };
-        let Ok(scalar) = <sol!(uint256)>::abi_decode(&log.data.data[96..]) else {
+        let Ok(scalar) = <sol!(uint256)>::abi_decode_validate(&data[96..]) else {
             return Err(GasConfigUpdateError::ScalarDecodingError);
         };
 
@@ -136,7 +126,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = GasConfigUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, GasConfigUpdateError::PointerTypeCheck);
+        assert_eq!(err, GasConfigUpdateError::PointerDecodingError);
     }
 
     #[test]
@@ -174,7 +164,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = GasConfigUpdate::try_from(&system_log).unwrap_err();
-        assert_eq!(err, GasConfigUpdateError::LengthTypeCheck);
+        assert_eq!(err, GasConfigUpdateError::LengthDecodingError);
     }
 
     #[test]

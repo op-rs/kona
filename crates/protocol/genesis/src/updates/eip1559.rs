@@ -1,6 +1,7 @@
 //! The EIP-1559 update type.
 
-use alloy_sol_types::{SolType, SolValue, sol};
+use alloy_primitives::LogData;
+use alloy_sol_types::{SolType, sol};
 
 use crate::{EIP1559UpdateError, SystemConfig, SystemConfigLog};
 
@@ -26,41 +27,26 @@ impl TryFrom<&SystemConfigLog> for Eip1559Update {
     type Error = EIP1559UpdateError;
 
     fn try_from(log: &SystemConfigLog) -> Result<Self, Self::Error> {
-        let log = &log.log;
-        if log.data.data.len() != 96 {
-            return Err(EIP1559UpdateError::InvalidDataLen(log.data.data.len()));
+        let LogData { data, .. } = &log.log.data;
+        if data.len() != 96 {
+            return Err(EIP1559UpdateError::InvalidDataLen(data.len()));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[0..32].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| EIP1559UpdateError::PointerTypeCheck)?;
-        let Ok(pointer) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(pointer) = <sol!(uint64)>::abi_decode_validate(&data[0..32]) else {
             return Err(EIP1559UpdateError::PointerDecodingError);
         };
         if pointer != 32 {
             return Err(EIP1559UpdateError::InvalidDataPointer(pointer));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[32..64].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| EIP1559UpdateError::LengthTypeCheck)?;
-        let Ok(length) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(length) = <sol!(uint64)>::abi_decode_validate(&data[32..64]) else {
             return Err(EIP1559UpdateError::LengthDecodingError);
         };
         if length != 32 {
             return Err(EIP1559UpdateError::InvalidDataLength(length));
         }
 
-        // SAFETY: The data's length is 32 bytes, conversion from the slice to `[u8; 32]`
-        // can never fail.
-        let word: [u8; 32] = log.data.data[64..96].try_into().unwrap();
-        <sol!(uint64)>::type_check(&word.tokenize())
-            .map_err(|_| EIP1559UpdateError::EIP1559TypeCheckError)?;
-        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode(&word) else {
+        let Ok(eip1559_params) = <sol!(uint64)>::abi_decode_validate(&data[64..96]) else {
             return Err(EIP1559UpdateError::EIP1559DecodingError);
         };
 
@@ -126,7 +112,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = Eip1559Update::try_from(&system_log).unwrap_err();
-        assert_eq!(err, EIP1559UpdateError::PointerTypeCheck);
+        assert_eq!(err, EIP1559UpdateError::PointerDecodingError);
     }
 
     #[test]
@@ -164,7 +150,7 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = Eip1559Update::try_from(&system_log).unwrap_err();
-        assert_eq!(err, EIP1559UpdateError::LengthTypeCheck);
+        assert_eq!(err, EIP1559UpdateError::LengthDecodingError);
     }
 
     #[test]
@@ -202,6 +188,6 @@ mod tests {
 
         let system_log = SystemConfigLog::new(log, false);
         let err = Eip1559Update::try_from(&system_log).unwrap_err();
-        assert_eq!(err, EIP1559UpdateError::EIP1559TypeCheckError);
+        assert_eq!(err, EIP1559UpdateError::EIP1559DecodingError);
     }
 }
