@@ -147,7 +147,6 @@ impl NodeActor for EngineActor {
                     if let Err(e) = res {
                         warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
                     }
-                    self.check_sync();
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
@@ -180,6 +179,7 @@ impl NodeActor for EngineActor {
                     let task = EngineTask::InsertUnsafe(task);
                     self.engine.enqueue(task);
                     debug!(target: "engine", "Enqueued unsafe block task.");
+                    self.check_sync();
                 }
             }
         }
