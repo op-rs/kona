@@ -167,7 +167,7 @@ impl BuildTask {
                 })?;
                 let response = engine
                     .new_payload_v4(
-                        payload.execution_payload.payload_inner.clone(),
+                        payload.execution_payload.clone(),
                         payload.parent_beacon_block_root,
                     )
                     .await

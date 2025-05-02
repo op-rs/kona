@@ -128,7 +128,7 @@ impl EngineTaskExt for InsertUnsafeTask {
                 self.client.new_payload_v3(payload, block_root).await
             }
             OpExecutionPayload::V4(payload) => {
-                self.client.new_payload_v4(payload.payload_inner, block_root).await
+                self.client.new_payload_v4(payload, block_root).await
             }
         };
 
