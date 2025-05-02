@@ -37,7 +37,8 @@ impl NetCommand {
     pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("discv5=error".parse()?);
+            .add_directive("discv5=error".parse()?)
+            .add_directive("bootstore=debug".parse()?);
 
         // Initialize the telemetry stack.
         args.init_tracing(Some(filter))?;

@@ -52,7 +52,7 @@ impl BootStore {
         if self.peers.contains(&enr) {
             return;
         }
-        info!(target: "bootstore", "Adding enr to the boot store: {}", enr);
+        debug!(target: "bootstore", "Adding enr to the boot store: {}", enr);
         self.peers.push(enr);
         if let Err(e) = self.write_to_file() {
             warn!(target: "bootstore", "Failed to write boot store to disk: {:?}", e);
