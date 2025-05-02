@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_consensus::OpBlock;
+use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{OpExecutionPayload, OpNetworkPayloadEnvelope};
 use std::{sync::Arc, time::Instant};
 
@@ -124,11 +125,11 @@ impl EngineTaskExt for InsertUnsafeTask {
                 self.client.new_payload_v2(payload_input).await
             }
             OpExecutionPayload::V3(payload) => {
-                self.client.new_payload_v3(payload, Vec::new(), block_root).await
+                self.client.new_payload_v3(payload, block_root).await
             }
             OpExecutionPayload::V4(payload) => {
                 self.client
-                    .new_payload_v4(payload.payload_inner, Vec::new(), block_root, Vec::new())
+                    .new_payload_v4(payload.payload_inner, block_root)
                     .await
             }
         };
