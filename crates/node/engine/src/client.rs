@@ -9,7 +9,7 @@ use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
     ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
 };
-use alloy_rpc_types_eth::Block;
+use alloy_rpc_types_eth::{Block, SyncStatus};
 use alloy_transport::{RpcError, TransportErrorKind, TransportResult};
 use alloy_transport_http::{
     AuthLayer, AuthService, Http, HyperClient,
@@ -80,6 +80,12 @@ impl EngineClient {
         let rpc = Self::rpc_client::<Optimism>(rpc, jwt);
 
         Self { engine, rpc, cfg }
+    }
+
+    /// Returns the [`SyncStatus`] of the engine.
+    pub async fn syncing(&self) -> Result<SyncStatus, EngineClientError> {
+        let status = <RootProvider<AnyNetwork>>::syncing(&self.engine).await?;
+        Ok(status)
     }
 
     /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].

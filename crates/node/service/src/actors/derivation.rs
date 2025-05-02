@@ -30,6 +30,10 @@ where
     pipeline: P,
     /// The latest L2 safe head.
     l2_safe_head: L2BlockInfo,
+    /// A receiver that tells derivation to begin.
+    sync_complete_rx: UnboundedReceiver<()>,
+    /// A flag indicating whether the derivation pipeline is ready to start.
+    engine_ready: bool,
     /// The sender for derived [OpAttributesWithParent]s produced by the actor.
     attributes_out: UnboundedSender<OpAttributesWithParent>,
     /// The receiver for L1 head update notifications.
@@ -46,11 +50,20 @@ where
     pub const fn new(
         pipeline: P,
         l2_safe_head: L2BlockInfo,
+        sync_complete_rx: UnboundedReceiver<()>,
         attributes_out: UnboundedSender<OpAttributesWithParent>,
         l1_head_updates: UnboundedReceiver<BlockInfo>,
         cancellation: CancellationToken,
     ) -> Self {
-        Self { pipeline, l2_safe_head, attributes_out, l1_head_updates, cancellation }
+        Self {
+            pipeline,
+            l2_safe_head,
+            sync_complete_rx,
+            engine_ready: false,
+            attributes_out,
+            l1_head_updates,
+            cancellation,
+        }
     }
 
     /// Attempts to step the derivation pipeline forward as much as possible in order to produce the
@@ -169,6 +182,16 @@ where
                     );
                     return Ok(());
                 }
+                _ = self.sync_complete_rx.recv() => {
+                    if self.engine_ready {
+                        // Already received the signal, ignore.
+                        continue;
+                    }
+                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
+                    self.engine_ready = true;
+                    // Optimistically process the first message.
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
+                }
                 msg = self.l1_head_updates.recv() => {
                     if msg.is_none() {
                         error!(
@@ -185,6 +208,12 @@ where
     }
 
     async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
+        // Only attempt derivation once the engine finishes syncing.
+        if !self.engine_ready {
+            trace!(target: "derivation", "Engine not ready, skipping derivation.");
+            return Ok(());
+        }
+
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
         let payload_attrs = match self.produce_next_safe_payload().await {

@@ -10,7 +10,7 @@ use kona_genesis::RollupConfig;
 use kona_rpc::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -31,6 +31,11 @@ pub struct EngineActor {
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
     pub engine: Engine,
+    /// A channel to send a signal that syncing is complete.
+    /// Informs the derivation actor to start.
+    sync_complete_tx: UnboundedSender<()>,
+    /// A flag to indicate whether to broadcast if syncing is complete.
+    sync_complete_sent: bool,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
     attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
     /// A channel to receive [`OpNetworkPayloadEnvelope`] from the network actor.
@@ -41,11 +46,13 @@ pub struct EngineActor {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Arc<RollupConfig>,
         sync: SyncConfig,
         client: EngineClient,
         engine: Engine,
+        sync_complete_tx: UnboundedSender<()>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
         cancellation: CancellationToken,
@@ -54,11 +61,35 @@ impl EngineActor {
             config,
             sync: Arc::new(sync),
             client: Arc::new(client),
+            sync_complete_tx,
+            sync_complete_sent: false,
             engine,
             attributes_rx,
             unsafe_block_rx,
             cancellation,
         }
+    }
+
+    /// Checks if the engine is syncing, notifying the derivation actor if necessary.
+    pub fn check_sync(&self) {
+        if self.sync_complete_sent {
+            // If the sync status is already complete, do nothing.
+            return;
+        }
+        let client = Arc::clone(&self.client);
+        let channel = self.sync_complete_tx.clone();
+        tokio::task::spawn(async move {
+            if let Ok(sync_status) = client.syncing().await {
+                // If the sync status is not `None`, continue syncing.
+                if !matches!(sync_status, alloy_rpc_types_eth::SyncStatus::None) {
+                    info!(target: "engine", ?sync_status, "SYNCING");
+                    return;
+                }
+                // If the sync status is `None`, begin derivation.
+                info!(target: "engine", "Engine finished syncing, starting derivation.");
+                channel.send(()).ok();
+            }
+        });
     }
 }
 
@@ -116,6 +147,7 @@ impl NodeActor for EngineActor {
                     if let Err(e) = res {
                         warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
                     }
+                    self.check_sync();
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {

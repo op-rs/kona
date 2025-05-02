@@ -97,6 +97,7 @@ pub trait ValidatorNodeService {
         let (new_head_tx, new_head_rx) = mpsc::unbounded_channel();
         let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
+        let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let da_watcher =
@@ -106,6 +107,7 @@ pub trait ValidatorNodeService {
         let derivation = DerivationActor::new(
             derivation_pipeline,
             l2_forkchoice_state.safe,
+            sync_complete_rx,
             derived_payload_tx,
             new_head_rx,
             cancellation.clone(),
@@ -121,6 +123,7 @@ pub trait ValidatorNodeService {
             sync,
             client,
             engine,
+            sync_complete_tx,
             derived_payload_rx,
             unsafe_block_rx,
             cancellation.clone(),
