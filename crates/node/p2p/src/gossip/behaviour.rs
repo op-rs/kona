@@ -62,22 +62,20 @@ impl Behaviour {
                     .iter()
                     .map(|topic| {
                         let topic = IdentTopic::new(topic.to_string());
-                        let res = gossipsub
+                        gossipsub
                             .subscribe(&topic)
-                            .map_err(|_| BehaviourError::SubscriptionFailed);
-                        if res.is_ok() {
-                            info!(target: "gossip", "Subscribed to topic: {}", topic.to_string());
-                        }
-                        res
+                            .map_err(|_| BehaviourError::SubscriptionFailed)?;
+                        Ok(topic.to_string())
                     })
                     .collect::<Vec<_>>()
             })
-            .collect::<Result<Vec<bool>, BehaviourError>>()?;
+            .collect::<Result<Vec<String>, BehaviourError>>()?;
 
-        for sub in subscriptions {
-            if !sub {
-                return Err(BehaviourError::SubscriptionFailed);
-            }
+        if !subscriptions.is_empty() {
+            tracing::info!(target: "gossip", "Subscribed to topics:");
+        }
+        for topic in subscriptions {
+            tracing::info!(target: "gossip", "-> {}", topic);
         }
 
         Ok(Self { identify, ping, gossipsub })

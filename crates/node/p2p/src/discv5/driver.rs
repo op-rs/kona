@@ -270,12 +270,12 @@ impl Discv5Driver {
 
             // Step 1: Start the discovery service.
             self.init().await;
-            info!(target: "discovery", "Started Discv5 Peer Discovery");
+            trace!(target: "discovery", "Discv5 Initialized");
 
             // Step 2: Bootstrap discovery service bootnodes.
             self.bootstrap().await;
             let enrs = self.disc.table_entries_enr();
-            info!(target: "discovery", "Bootstrapped Discv5 Enr Table with {} ENRs", enrs.len());
+            info!(target: "discovery", "Discv5 Started with {} ENRs", enrs.len());
 
             // Step 3: Forward ENRs in the bootstore to the enr receiver.
             self.forward(enr_sender.clone()).await;
