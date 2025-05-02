@@ -2,7 +2,6 @@
 
 use crate::{EngineClient, EngineState, SyncStatus, client::EngineClientError};
 use alloy_eips::eip1898::BlockNumberOrTag;
-use kona_genesis::ChainGenesis;
 use thiserror::Error;
 
 use kona_protocol::L2BlockInfo;
@@ -34,8 +33,6 @@ pub enum EngineStateBuilderError {
 pub struct EngineStateBuilder {
     /// The engine client.
     client: EngineClient,
-    /// The chain genesis.
-    genesis: ChainGenesis,
     /// The sync status of the engine.
     sync_status: Option<SyncStatus>,
     /// Most recent block found on the p2p network
@@ -58,10 +55,9 @@ pub struct EngineStateBuilder {
 
 impl EngineStateBuilder {
     /// Constructs a new [`EngineStateBuilder`] from the provided client.
-    pub const fn new(client: EngineClient, genesis: ChainGenesis) -> Self {
+    pub const fn new(client: EngineClient) -> Self {
         Self {
             client,
-            genesis,
             sync_status: None,
             unsafe_head: None,
             cross_unsafe_head: None,
@@ -88,8 +84,8 @@ impl EngineStateBuilder {
             {
                 Ok(Some(safe_head)) => Some(safe_head),
                 Ok(None) => {
-                    debug!(target: "engine", "No safe head, falling back to genesis");
-                    self.finalized_head
+                    debug!(target: "engine", "No safe head, using empty block info to kick off EL sync");
+                    Some(Default::default())
                 }
                 Err(e) => return Err(e.into()),
             };
@@ -105,9 +101,8 @@ impl EngineStateBuilder {
                     self.finalized_head = Some(finalized_head);
                 }
                 Ok(None) => {
-                    debug!(target: "engine", "No finalized head, falling back to genesis");
-                    self.finalized_head =
-                        self.client.l2_block_info_by_label(self.genesis.l2.number.into()).await?;
+                    debug!(target: "engine", "No finalized head, using empty block info to kick off EL sync");
+                    self.finalized_head = Some(Default::default());
                 }
                 Err(e) => return Err(e.into()),
             }
