@@ -136,7 +136,7 @@ alloy-op-hardforks = { version = "0.2.0", default-features = false }
 
 # Execution
 revm = { version = "22.0.1", default-features = false }
-op-revm = { version = "3.0.2", default-features = false }
+op-revm = { version = "3.0.1", default-features = false }
 alloy-evm = { version = "0.6.0", default-features = false, features = ["op"] }
 alloy-op-evm = { version = "0.6.0", default-features = false }
 
