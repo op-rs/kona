@@ -82,7 +82,7 @@ impl EngineActor {
             if let Ok(sync_status) = client.syncing().await {
                 // If the sync status is not `None`, continue syncing.
                 if !matches!(sync_status, alloy_rpc_types_eth::SyncStatus::None) {
-                    info!(target: "engine", ?sync_status, "SYNCING");
+                    trace!(target: "engine", ?sync_status, "SYNCING");
                     return;
                 }
                 // If the sync status is `None`, begin derivation.
