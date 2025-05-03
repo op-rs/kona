@@ -139,12 +139,20 @@ impl GossipDriverBuilder {
         let config = self.config.unwrap_or(crate::default_config());
         info!(
             target: "gossip",
-            "Config [Mesh D: {}] [Mesh L: {}] [Mesh H: {}] [Gossip Lazy: {}] [Flood Publish: {}]",
+            "CONFIG: [Mesh D: {}] [Mesh L: {}] [Mesh H: {}] [Gossip Lazy: {}] [Flood Publish: {}]",
             config.mesh_n(),
             config.mesh_n_low(),
             config.mesh_n_high(),
             config.gossip_lazy(),
             config.flood_publish()
+        );
+        info!(
+            target: "gossip",
+            "CONFIG: [Heartbeat: {}] [Floodsub: {}] [Validation: {:?}] [Max Transmit: {} bytes]",
+            config.heartbeat_interval().as_secs(),
+            config.support_floodsub(),
+            config.validation_mode(),
+            config.max_transmit_size()
         );
         let mut behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])?;
 

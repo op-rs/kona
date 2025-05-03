@@ -12,7 +12,7 @@ pub fn init_prometheus_server(addr: IpAddr, metrics_port: u16) -> Result<(), Bui
     builder.install()?;
     info!(
         target: "prometheus",
-        "Metrics server initialized. Serving Prometheus metrics at: http://{}",
+        "Serving metrics at: http://{}",
         prometheus_addr
     );
 
