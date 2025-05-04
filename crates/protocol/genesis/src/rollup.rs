@@ -195,10 +195,22 @@ impl RollupConfig {
             self.is_canyon_active(timestamp)
     }
 
+    /// Returns true if the timestamp marks the first Regolith block.
+    pub fn is_first_regolith_block(&self, timestamp: u64) -> bool {
+        self.is_regolith_active(timestamp) &&
+            !self.is_regolith_active(timestamp.saturating_sub(self.block_time))
+    }
+
     /// Returns true if Canyon is active at the given timestamp.
     pub fn is_canyon_active(&self, timestamp: u64) -> bool {
         self.hardforks.canyon_time.is_some_and(|t| timestamp >= t) ||
             self.is_delta_active(timestamp)
+    }
+
+    /// Returns true if the timestamp marks the first Canyon block.
+    pub fn is_first_canyon_block(&self, timestamp: u64) -> bool {
+        self.is_canyon_active(timestamp) &&
+            !self.is_canyon_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if Delta is active at the given timestamp.
@@ -207,10 +219,22 @@ impl RollupConfig {
             self.is_ecotone_active(timestamp)
     }
 
+    /// Returns true if the timestamp marks the first Delta block.
+    pub fn is_first_delta_block(&self, timestamp: u64) -> bool {
+        self.is_delta_active(timestamp) &&
+            !self.is_delta_active(timestamp.saturating_sub(self.block_time))
+    }
+
     /// Returns true if Ecotone is active at the given timestamp.
     pub fn is_ecotone_active(&self, timestamp: u64) -> bool {
         self.hardforks.ecotone_time.is_some_and(|t| timestamp >= t) ||
             self.is_fjord_active(timestamp)
+    }
+
+    /// Returns true if the timestamp marks the first Ecotone block.
+    pub fn is_first_ecotone_block(&self, timestamp: u64) -> bool {
+        self.is_ecotone_active(timestamp) &&
+            !self.is_ecotone_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if Fjord is active at the given timestamp.
@@ -219,10 +243,22 @@ impl RollupConfig {
             self.is_granite_active(timestamp)
     }
 
+    /// Returns true if the timestamp marks the first Fjord block.
+    pub fn is_first_fjord_block(&self, timestamp: u64) -> bool {
+        self.is_fjord_active(timestamp) &&
+            !self.is_fjord_active(timestamp.saturating_sub(self.block_time))
+    }
+
     /// Returns true if Granite is active at the given timestamp.
     pub fn is_granite_active(&self, timestamp: u64) -> bool {
         self.hardforks.granite_time.is_some_and(|t| timestamp >= t) ||
             self.is_holocene_active(timestamp)
+    }
+
+    /// Returns true if the timestamp marks the first Granite block.
+    pub fn is_first_granite_block(&self, timestamp: u64) -> bool {
+        self.is_granite_active(timestamp) &&
+            !self.is_granite_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if Holocene is active at the given timestamp.
@@ -231,9 +267,21 @@ impl RollupConfig {
             self.is_isthmus_active(timestamp)
     }
 
+    /// Returns true if the timestamp marks the first Holocene block.
+    pub fn is_first_holocene_block(&self, timestamp: u64) -> bool {
+        self.is_holocene_active(timestamp) &&
+            !self.is_holocene_active(timestamp.saturating_sub(self.block_time))
+    }
+
     /// Returns true if the pectra blob schedule is active at the given timestamp.
     pub fn is_pectra_blob_schedule_active(&self, timestamp: u64) -> bool {
         self.hardforks.pectra_blob_schedule_time.is_some_and(|t| timestamp >= t)
+    }
+
+    /// Returns true if the timestamp marks the first pectra blob schedule block.
+    pub fn is_first_pectra_blob_schedule_block(&self, timestamp: u64) -> bool {
+        self.is_pectra_blob_schedule_active(timestamp) &&
+            !self.is_pectra_blob_schedule_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if Isthmus is active at the given timestamp.
@@ -242,9 +290,21 @@ impl RollupConfig {
             self.is_interop_active(timestamp)
     }
 
+    /// Returns true if the timestamp marks the first Isthmus block.
+    pub fn is_first_isthmus_block(&self, timestamp: u64) -> bool {
+        self.is_isthmus_active(timestamp) &&
+            !self.is_isthmus_active(timestamp.saturating_sub(self.block_time))
+    }
+
     /// Returns true if Interop is active at the given timestamp.
     pub fn is_interop_active(&self, timestamp: u64) -> bool {
         self.hardforks.interop_time.is_some_and(|t| timestamp >= t)
+    }
+
+    /// Returns true if the timestamp marks the first Interop block.
+    pub fn is_first_interop_block(&self, timestamp: u64) -> bool {
+        self.is_interop_active(timestamp) &&
+            !self.is_interop_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if a DA Challenge proxy Address is provided in the rollup config and the
@@ -556,6 +616,71 @@ mod tests {
         assert!(config.is_isthmus_active(10));
         assert!(config.is_interop_active(10));
         assert!(!config.is_interop_active(9));
+    }
+
+    #[test]
+    fn test_is_first_fork_block() {
+        let cfg = RollupConfig {
+            hardforks: HardForkConfig {
+                regolith_time: Some(10),
+                canyon_time: Some(20),
+                delta_time: Some(30),
+                ecotone_time: Some(40),
+                fjord_time: Some(50),
+                granite_time: Some(60),
+                holocene_time: Some(70),
+                pectra_blob_schedule_time: Some(80),
+                isthmus_time: Some(90),
+                interop_time: Some(100),
+            },
+            block_time: 2,
+            ..Default::default()
+        };
+
+        // Regolith
+        assert!(!cfg.is_first_regolith_block(8));
+        assert!(cfg.is_first_regolith_block(10));
+        assert!(!cfg.is_first_regolith_block(12));
+
+        // Canyon
+        assert!(!cfg.is_first_canyon_block(18));
+        assert!(cfg.is_first_canyon_block(20));
+        assert!(!cfg.is_first_canyon_block(22));
+
+        // Delta
+        assert!(!cfg.is_first_delta_block(28));
+        assert!(cfg.is_first_delta_block(30));
+        assert!(!cfg.is_first_delta_block(32));
+
+        // Ecotone
+        assert!(!cfg.is_first_ecotone_block(38));
+        assert!(cfg.is_first_ecotone_block(40));
+        assert!(!cfg.is_first_ecotone_block(42));
+
+        // Fjord
+        assert!(!cfg.is_first_fjord_block(48));
+        assert!(cfg.is_first_fjord_block(50));
+        assert!(!cfg.is_first_fjord_block(52));
+
+        // Granite
+        assert!(!cfg.is_first_granite_block(58));
+        assert!(cfg.is_first_granite_block(60));
+        assert!(!cfg.is_first_granite_block(62));
+
+        // Holocene
+        assert!(!cfg.is_first_holocene_block(68));
+        assert!(cfg.is_first_holocene_block(70));
+        assert!(!cfg.is_first_holocene_block(72));
+
+        // Pectra blob schedule
+        assert!(!cfg.is_first_pectra_blob_schedule_block(78));
+        assert!(cfg.is_first_pectra_blob_schedule_block(80));
+        assert!(!cfg.is_first_pectra_blob_schedule_block(82));
+
+        // Isthmus
+        assert!(!cfg.is_first_isthmus_block(88));
+        assert!(cfg.is_first_isthmus_block(90));
+        assert!(!cfg.is_first_isthmus_block(92));
     }
 
     #[test]

@@ -47,11 +47,9 @@ impl L1BlockInfoTx {
         // In the first block of Ecotone, the L1Block contract has not been upgraded yet due to the
         // upgrade transactions being placed after the L1 info transaction. Because of this,
         // for the first block of Ecotone, we send a Bedrock style L1 block info transaction
-        let is_first_ecotone_block =
-            rollup_config.hardforks.ecotone_time.unwrap_or_default() == l2_block_time;
-
-        // If ecotone is *not* active or this is the first block of ecotone, use Bedrock block info.
-        if !rollup_config.is_ecotone_active(l2_block_time) || is_first_ecotone_block {
+        if !rollup_config.is_ecotone_active(l2_block_time) ||
+            rollup_config.is_first_ecotone_block(l2_block_time)
+        {
             return Ok(Self::Bedrock(L1BlockInfoBedrock {
                 number: l1_header.number,
                 time: l1_header.timestamp,
@@ -100,7 +98,7 @@ impl L1BlockInfoTx {
             .unwrap_or(BlobParams::cancun());
 
         if rollup_config.is_isthmus_active(l2_block_time) &&
-            rollup_config.hardforks.isthmus_time.unwrap_or_default() != l2_block_time
+            !rollup_config.is_first_isthmus_block(l2_block_time)
         {
             let operator_fee_scalar = system_config.operator_fee_scalar.unwrap_or_default();
             let operator_fee_constant = system_config.operator_fee_constant.unwrap_or_default();

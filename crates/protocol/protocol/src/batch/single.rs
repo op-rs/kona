@@ -158,10 +158,7 @@ impl SingleBatch {
 
         // If this is the first block in the interop hardfork, and the batch contains any
         // transactions, it must be dropped.
-        if !cfg.is_interop_active(self.timestamp - cfg.block_time) &&
-            cfg.is_interop_active(self.timestamp) &&
-            !self.transactions.is_empty()
-        {
+        if cfg.is_first_interop_block(self.timestamp) && !self.transactions.is_empty() {
             warn!(
                 target: "single_batch",
                 "Sequencer included user transactions in interop transition block. Dropping batch."
