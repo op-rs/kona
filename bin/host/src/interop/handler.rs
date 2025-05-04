@@ -220,8 +220,7 @@ impl HintHandler for InteropHintHandler {
                         local_cfgs.get(&chain_id).cloned()
                     })
                     .ok_or(anyhow!("No rollup config found for chain ID: {chain_id}"))?;
-                let block_number =
-                    (timestamp - rollup_config.genesis.l2_time) / rollup_config.block_time;
+                let block_number = rollup_config.block_number_from_timestamp(timestamp);
 
                 // Fetch the header for the L2 head block.
                 let raw_header: Bytes = l2_provider

@@ -346,6 +346,15 @@ impl RollupConfig {
         self.hardforks
     }
 
+    /// Computes a block number from a timestamp, relative to the L2 genesis time and the block
+    /// time.
+    ///
+    /// This function assumes that the timestamp is aligned with the block time, and uses floor
+    /// division in its computation.
+    pub const fn block_number_from_timestamp(&self, timestamp: u64) -> u64 {
+        timestamp.saturating_sub(self.genesis.l2_time).saturating_div(self.block_time)
+    }
+
     /// Checks the scalar value in Ecotone.
     pub fn check_ecotone_l1_system_config_scalar(scalar: [u8; 32]) -> Result<(), &'static str> {
         let version_byte = scalar[0];
@@ -865,5 +874,17 @@ mod tests {
 
         let err = serde_json::from_str::<RollupConfig>(raw).unwrap_err();
         assert_eq!(err.classify(), serde_json::error::Category::Data);
+    }
+
+    #[test]
+    fn test_compute_block_number_from_time() {
+        let cfg = RollupConfig {
+            genesis: ChainGenesis { l2_time: 10, ..Default::default() },
+            block_time: 2,
+            ..Default::default()
+        };
+
+        assert_eq!(cfg.block_number_from_timestamp(20), 5);
+        assert_eq!(cfg.block_number_from_timestamp(30), 10);
     }
 }
