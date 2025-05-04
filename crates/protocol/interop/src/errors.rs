@@ -1,8 +1,9 @@
 //! Error types for the `kona-interop` crate.
 
 use crate::{InteropProvider, SafetyLevel};
-use alloc::vec::Vec;
 use alloy_primitives::{Address, B256};
+use core::fmt::Debug;
+use kona_registry::HashMap;
 use thiserror::Error;
 
 /// Derived from op-supervisor
@@ -16,7 +17,7 @@ const MINIMUM_SAFETY_MSG: &str = "does not meet the minimum safety";
 ///
 /// [MessageGraph]: crate::MessageGraph
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum MessageGraphError<E> {
+pub enum MessageGraphError<E: Debug> {
     /// Dependency set is impossibly empty
     #[error("Dependency set is impossibly empty")]
     EmptyDependencySet,
@@ -90,7 +91,7 @@ pub enum MessageGraphError<E> {
     },
     /// Invalid messages were found
     #[error("Invalid messages found on chains: {0:?}")]
-    InvalidMessages(Vec<u64>),
+    InvalidMessages(HashMap<u64, MessageGraphError<E>>),
 }
 
 /// A [Result] alias for the [MessageGraphError] type.

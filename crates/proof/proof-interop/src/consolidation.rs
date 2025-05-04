@@ -101,9 +101,10 @@ where
 
         // Attempt to resolve the message graph. If there were any invalid messages found, we must
         // initiate a re-execution of the original block, with only deposit transactions.
-        if let Err(MessageGraphError::InvalidMessages(chain_ids)) = graph.resolve().await {
-            self.re_execute_deposit_only(&chain_ids).await?;
-            return Err(MessageGraphError::InvalidMessages(chain_ids).into());
+        if let Err(MessageGraphError::InvalidMessages(invalid_chains)) = graph.resolve().await {
+            self.re_execute_deposit_only(&invalid_chains.keys().copied().collect::<Vec<_>>())
+                .await?;
+            return Err(MessageGraphError::InvalidMessages(invalid_chains).into());
         }
 
         Ok(())

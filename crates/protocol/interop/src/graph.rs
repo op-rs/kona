@@ -87,57 +87,27 @@ where
     /// terminal case being all blocks reduced to deposits-only.
     ///
     /// [int-block-replacement]: https://specs.optimism.io/interop/derivation.html#replacing-invalid-blocks
-    pub async fn resolve(mut self) -> MessageGraphResult<(), P> {
+    pub async fn resolve(self) -> MessageGraphResult<(), P> {
         info!(
             target: "message_graph",
             "Checking the message graph for invalid messages"
         );
 
-        // Reduce the graph to remove all valid messages.
-        self.reduce().await?;
-
-        // Check if the graph is now empty. If not, there are invalid messages.
-        if !self.messages.is_empty() {
-            // Collect the chain IDs for all blocks containing invalid messages.
-            let mut bad_block_chain_ids =
-                self.messages.into_iter().map(|e| e.executing_chain_id).collect::<Vec<_>>();
-            bad_block_chain_ids.dedup();
-
-            warn!(
-                target: "message_graph",
-                bad_chain_ids = %bad_block_chain_ids
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                "Failed to reduce the message graph entirely",
-            );
-
-            // Return an error with the chain IDs of the blocks containing invalid messages.
-            return Err(MessageGraphError::InvalidMessages(bad_block_chain_ids));
-        }
-
-        Ok(())
-    }
-
-    /// Attempts to remove as many edges from the graph as possible by resolving the dependencies
-    /// of each message. If a message cannot be resolved, it is considered invalid. After this
-    /// function is called, any outstanding messages are invalid.
-    async fn reduce(&mut self) -> MessageGraphResult<(), P> {
         // Create a new vector to store invalid edges
-        let mut invalid_messages = Vec::with_capacity(self.messages.len());
+        let mut invalid_messages = HashMap::default();
 
-        // Prune all valid edges.
-        for message in core::mem::take(&mut self.messages) {
-            if let Err(e) = self.check_single_dependency(&message).await {
+        // Prune all valid messages, collecting errors for any chain whose block contains an invalid
+        // message. Errors are de-duplicated by chain ID in a map, since a single invalid
+        // message is cause for invalidating a block.
+        for message in self.messages.iter() {
+            if let Err(e) = self.check_single_dependency(message).await {
                 warn!(
                     target: "message_graph",
                     executing_chain_id =  message.executing_chain_id,
                     message_hash = ?message.inner.payloadHash,
-                    "Invalid ExecutingMessage found",
+                    "Invalid ExecutingMessage found: {e}",
                 );
-                warn!("Invalid message error: {}", e);
-                invalid_messages.push(message);
+                invalid_messages.insert(message.executing_chain_id, e);
             }
         }
 
@@ -147,8 +117,21 @@ where
             "Successfully reduced the message graph",
         );
 
-        // Replace the old edges with the filtered list
-        self.messages = invalid_messages;
+        // Check if the graph is now empty. If not, there are invalid messages.
+        if !invalid_messages.is_empty() {
+            warn!(
+                target: "message_graph",
+                bad_chain_ids = %invalid_messages
+                    .keys()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                "Failed to reduce the message graph entirely",
+            );
+
+            // Return an error with the chain IDs of the blocks containing invalid messages.
+            return Err(MessageGraphError::InvalidMessages(invalid_messages));
+        }
 
         Ok(())
     }
@@ -290,7 +273,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_simple_graph_no_cycles() {
+    async fn test_derive_and_resolve_simple_graph_no_cycles() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -310,7 +293,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_simple_graph_with_cycles() {
+    async fn test_derive_and_resolve_simple_graph_with_cycles() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -342,7 +325,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_graph_message_in_future() {
+    async fn test_derive_and_resolve_graph_message_in_future() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -358,14 +341,21 @@ mod test {
         let (headers, cfgs, provider) = superchain.build();
 
         let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::MessageInFuture { max: 2, actual: chain_a_time + 1 }
         );
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_graph_initiating_before_interop() {
+    async fn test_derive_and_resolve_graph_initiating_before_interop() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -384,14 +374,24 @@ mod test {
         let (headers, cfgs, provider) = superchain.build();
 
         let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::InteropNotActivated {
+                activation_time: 50,
+                initiating_message_time: chain_a_time
+            }
         );
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_graph_initiating_at_interop_activation() {
+    async fn test_derive_and_resolve_graph_initiating_at_interop_activation() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -410,14 +410,24 @@ mod test {
         let (headers, cfgs, provider) = superchain.build();
 
         let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::InteropNotActivated {
+                activation_time: 2,
+                initiating_message_time: 2
+            }
         );
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_graph_message_expired() {
+    async fn test_derive_and_resolve_graph_message_expired() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -436,14 +446,24 @@ mod test {
         let (headers, cfgs, provider) = superchain.build();
 
         let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::MessageExpired {
+                initiating_timestamp: chain_a_time,
+                executing_timestamp: chain_a_time + MESSAGE_EXPIRY_WINDOW + 1
+            }
         );
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_graph_remote_message_not_found() {
+    async fn test_derive_and_resolve_graph_remote_message_not_found() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -458,14 +478,93 @@ mod test {
         let (headers, cfgs, provider) = superchain.build();
 
         let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::RemoteMessageNotFound {
+                chain_id: CHAIN_A_ID,
+                message_hash: keccak256(MOCK_MESSAGE)
+            }
         );
     }
 
     #[tokio::test]
-    async fn test_derive_and_reduce_graph_invalid_origin_address() {
+    async fn test_derive_and_resolve_graph_invalid_origin_address() {
+        let mut superchain = default_superchain();
+        let mock_address = Address::left_padding_from(&[0xFF]);
+
+        let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
+
+        superchain.chain(CHAIN_A_ID).add_initiating_message(MOCK_MESSAGE.into());
+        superchain.chain(CHAIN_B_ID).add_executing_message(
+            ExecutingMessageBuilder::default()
+                .with_message_hash(keccak256(MOCK_MESSAGE))
+                .with_origin_chain_id(CHAIN_A_ID)
+                .with_origin_address(mock_address)
+                .with_origin_timestamp(chain_a_time),
+        );
+
+        let (headers, cfgs, provider) = superchain.build();
+
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
+        assert_eq!(
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::InvalidMessageOrigin {
+                expected: mock_address,
+                actual: Address::ZERO
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_derive_and_resolve_graph_invalid_message_hash() {
+        let mut superchain = default_superchain();
+        let mock_message_hash = keccak256([0xBE, 0xEF]);
+
+        let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
+
+        superchain.chain(CHAIN_A_ID).add_initiating_message(MOCK_MESSAGE.into());
+        superchain.chain(CHAIN_B_ID).add_executing_message(
+            ExecutingMessageBuilder::default()
+                .with_message_hash(mock_message_hash)
+                .with_origin_chain_id(CHAIN_A_ID)
+                .with_origin_timestamp(chain_a_time),
+        );
+
+        let (headers, cfgs, provider) = superchain.build();
+
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
+        assert_eq!(
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::InvalidMessageHash {
+                expected: mock_message_hash,
+                actual: keccak256(MOCK_MESSAGE)
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_derive_and_resolve_graph_invalid_timestamp() {
         let mut superchain = default_superchain();
 
         let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
@@ -475,60 +574,25 @@ mod test {
             ExecutingMessageBuilder::default()
                 .with_message_hash(keccak256(MOCK_MESSAGE))
                 .with_origin_chain_id(CHAIN_A_ID)
-                .with_origin_address(Address::left_padding_from(&[0xFF]))
-                .with_origin_timestamp(chain_a_time),
+                .with_origin_timestamp(chain_a_time - 1),
         );
 
         let (headers, cfgs, provider) = superchain.build();
 
         let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
-        );
-    }
-
-    #[tokio::test]
-    async fn test_derive_and_reduce_graph_invalid_message_hash() {
-        let mut superchain = default_superchain();
-
-        let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
-
-        superchain.chain(CHAIN_A_ID).add_initiating_message(MOCK_MESSAGE.into());
-        superchain.chain(CHAIN_B_ID).add_executing_message(
-            ExecutingMessageBuilder::default()
-                .with_message_hash(keccak256([0xBE, 0xEF]))
-                .with_origin_chain_id(CHAIN_A_ID)
-                .with_origin_timestamp(chain_a_time),
-        );
-
-        let (headers, cfgs, provider) = superchain.build();
-
-        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
-        assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
-        );
-    }
-
-    #[tokio::test]
-    async fn test_derive_and_reduce_graph_invalid_timestamp() {
-        let mut superchain = default_superchain();
-
-        superchain.chain(CHAIN_A_ID).add_initiating_message(MOCK_MESSAGE.into());
-        superchain.chain(CHAIN_B_ID).add_executing_message(
-            ExecutingMessageBuilder::default()
-                .with_message_hash(keccak256(MOCK_MESSAGE))
-                .with_origin_chain_id(CHAIN_A_ID)
-                .with_origin_timestamp(1),
-        );
-
-        let (headers, cfgs, provider) = superchain.build();
-
-        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
-        assert_eq!(
-            graph.resolve().await.unwrap_err(),
-            MessageGraphError::InvalidMessages([CHAIN_B_ID].into())
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::InvalidMessageTimestamp {
+                expected: chain_a_time - 1,
+                actual: chain_a_time
+            }
         );
     }
 }
