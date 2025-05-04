@@ -61,11 +61,11 @@ pub enum MessageGraphError<E: Debug> {
         /// The actual timestamp
         actual: u64,
     },
-    /// Interop not activated yet
+    /// Interop has not been activated for at least one block on the initiating message's chain.
     #[error(
-        "Interop hardfork has not been active for at least one block. Activation time: {activation_time}, initiating message time: {initiating_message_time}"
+        "Interop has not been active for at least one block on initiating message's chain. Activation time: {activation_time}, initiating message time: {initiating_message_time}"
     )]
-    InteropNotActivated {
+    InitiatedTooEarly {
         /// The timestamp of the interop activation
         activation_time: u64,
         /// The timestamp of the initiating message

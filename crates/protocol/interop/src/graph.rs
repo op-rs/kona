@@ -159,14 +159,16 @@ where
 
         // Timestamp invariant: The timestamp at the time of inclusion of the initiating message
         // MUST be less than or equal to the timestamp of the executing message as well as greater
-        // than the Interop Start Timestamp.
+        // than the Interop activation block's timestamp.
         if initiating_timestamp > message.executing_timestamp {
             return Err(MessageGraphError::MessageInFuture {
                 max: message.executing_timestamp,
                 actual: initiating_timestamp,
             });
-        } else if initiating_timestamp <= rollup_config.hardforks.interop_time.unwrap_or_default() {
-            return Err(MessageGraphError::InteropNotActivated {
+        } else if initiating_timestamp <
+            rollup_config.hardforks.interop_time.unwrap_or_default() + rollup_config.block_time
+        {
+            return Err(MessageGraphError::InitiatedTooEarly {
                 activation_time: rollup_config.hardforks.interop_time.unwrap_or_default(),
                 initiating_message_time: initiating_timestamp,
             });
@@ -384,8 +386,46 @@ mod test {
         assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
             *invalid_messages.get(&CHAIN_B_ID).unwrap(),
-            MessageGraphError::InteropNotActivated {
+            MessageGraphError::InitiatedTooEarly {
                 activation_time: 50,
+                initiating_message_time: chain_a_time
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_derive_and_resolve_graph_initiating_before_interop_unaligned_activation() {
+        let mut superchain = default_superchain();
+
+        let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
+
+        // Chain A activates @ `1s`, which is unaligned with the block time of `2s`. The first
+        // block, at `2s`, should be the activation block.
+        superchain
+            .chain(CHAIN_A_ID)
+            .with_interop_activation_time(1)
+            .add_initiating_message(MOCK_MESSAGE.into());
+        superchain.chain(CHAIN_B_ID).add_executing_message(
+            ExecutingMessageBuilder::default()
+                .with_message_hash(keccak256(MOCK_MESSAGE))
+                .with_origin_chain_id(CHAIN_A_ID)
+                .with_origin_timestamp(chain_a_time),
+        );
+
+        let (headers, cfgs, provider) = superchain.build();
+
+        let graph = MessageGraph::derive(&headers, &provider, &cfgs).await.unwrap();
+        let MessageGraphError::InvalidMessages(invalid_messages) =
+            graph.resolve().await.unwrap_err()
+        else {
+            panic!("Expected invalid messages")
+        };
+
+        assert_eq!(invalid_messages.len(), 1);
+        assert_eq!(
+            *invalid_messages.get(&CHAIN_B_ID).unwrap(),
+            MessageGraphError::InitiatedTooEarly {
+                activation_time: 1,
                 initiating_message_time: chain_a_time
             }
         );
@@ -420,10 +460,7 @@ mod test {
         assert_eq!(invalid_messages.len(), 1);
         assert_eq!(
             *invalid_messages.get(&CHAIN_B_ID).unwrap(),
-            MessageGraphError::InteropNotActivated {
-                activation_time: 2,
-                initiating_message_time: 2
-            }
+            MessageGraphError::InitiatedTooEarly { activation_time: 2, initiating_message_time: 2 }
         );
     }
 
@@ -568,10 +605,10 @@ mod test {
     async fn test_derive_and_resolve_graph_invalid_timestamp() {
         let mut superchain = default_superchain();
 
-        let chain_a_time = superchain.chain(CHAIN_A_ID).header.timestamp;
+        let chain_a_time = superchain.chain(CHAIN_A_ID).with_timestamp(4).header.timestamp;
 
         superchain.chain(CHAIN_A_ID).add_initiating_message(MOCK_MESSAGE.into());
-        superchain.chain(CHAIN_B_ID).add_executing_message(
+        superchain.chain(CHAIN_B_ID).with_timestamp(4).add_executing_message(
             ExecutingMessageBuilder::default()
                 .with_message_hash(keccak256(MOCK_MESSAGE))
                 .with_origin_chain_id(CHAIN_A_ID)
