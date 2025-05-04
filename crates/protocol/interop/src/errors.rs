@@ -20,32 +20,6 @@ pub enum MessageGraphError<E> {
     /// Dependency set is impossibly empty
     #[error("Dependency set is impossibly empty")]
     EmptyDependencySet,
-    /// Remote message not found
-    #[error("Remote message not found on chain ID {0} with message hash {1}")]
-    RemoteMessageNotFound(u64, B256),
-    /// Invalid message origin
-    #[error("Invalid message origin. Expected {0}, got {1}")]
-    InvalidMessageOrigin(Address, Address),
-    /// Invalid message payload hash
-    #[error("Invalid message hash. Expected {0}, got {1}")]
-    InvalidMessageHash(B256, B256),
-    /// Invalid message timestamp
-    #[error("Invalid message timestamp. Expected {0}, got {1}")]
-    InvalidMessageTimestamp(u64, u64),
-    /// Interop not activated yet
-    #[error(
-        "Interop hardfork has not been activated yet. Activation time: {0}, initiating message time: {1}"
-    )]
-    InteropNotActivated(u64, u64),
-    /// Message is in the future
-    #[error("Message is in the future. Expected timestamp to be <= {0}, got {1}")]
-    MessageInFuture(u64, u64),
-    /// Message has exceeded the expiry window.
-    #[error("Message has exceeded the expiry window. Timestamp: {0}")]
-    MessageExpired(u64),
-    /// Invalid messages were found
-    #[error("Invalid messages found on chains: {0:?}")]
-    InvalidMessages(Vec<u64>),
     /// Missing a [RollupConfig] for a chain ID
     ///
     /// [RollupConfig]: kona_genesis::RollupConfig
@@ -54,6 +28,69 @@ pub enum MessageGraphError<E> {
     /// Interop provider error
     #[error("Interop provider: {0}")]
     InteropProviderError(#[from] E),
+    /// Remote message not found
+    #[error("Remote message not found on chain ID {chain_id} with message hash {message_hash}")]
+    RemoteMessageNotFound {
+        /// The remote chain ID
+        chain_id: u64,
+        /// The message hash
+        message_hash: B256,
+    },
+    /// Invalid message origin
+    #[error("Invalid message origin. Expected {expected}, got {actual}")]
+    InvalidMessageOrigin {
+        /// The expected message origin
+        expected: Address,
+        /// The actual message origin
+        actual: Address,
+    },
+    /// Invalid message payload hash
+    #[error("Invalid message hash. Expected {expected}, got {actual}")]
+    InvalidMessageHash {
+        /// The expected message hash
+        expected: B256,
+        /// The actual message hash
+        actual: B256,
+    },
+    /// Invalid message timestamp
+    #[error("Invalid message timestamp. Expected {expected}, got {actual}")]
+    InvalidMessageTimestamp {
+        /// The expected timestamp
+        expected: u64,
+        /// The actual timestamp
+        actual: u64,
+    },
+    /// Interop not activated yet
+    #[error(
+        "Interop hardfork has not been active for at least one block. Activation time: {activation_time}, initiating message time: {initiating_message_time}"
+    )]
+    InteropNotActivated {
+        /// The timestamp of the interop activation
+        activation_time: u64,
+        /// The timestamp of the initiating message
+        initiating_message_time: u64,
+    },
+    /// Message is in the future
+    #[error("Message is in the future. Expected timestamp to be <= {max}, got {actual}")]
+    MessageInFuture {
+        /// The expected max timestamp
+        max: u64,
+        /// The actual timestamp
+        actual: u64,
+    },
+    /// Message has exceeded the expiry window.
+    #[error(
+        "Message has exceeded the expiry window. Initiating Timestamp: {initiating_timestamp}, Executing Timestamp: {executing_timestamp}"
+    )]
+    MessageExpired {
+        /// The timestamp of the initiating message
+        initiating_timestamp: u64,
+        /// The timestamp of the executing message
+        executing_timestamp: u64,
+    },
+    /// Invalid messages were found
+    #[error("Invalid messages found on chains: {0:?}")]
+    InvalidMessages(Vec<u64>),
 }
 
 /// A [Result] alias for the [MessageGraphError] type.
