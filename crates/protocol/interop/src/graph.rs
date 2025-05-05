@@ -105,7 +105,12 @@ where
                     target: "message_graph",
                     executing_chain_id =  message.executing_chain_id,
                     message_hash = ?message.inner.payloadHash,
-                    "Invalid ExecutingMessage found: {e}",
+                    warn!(
+                    target: "message_graph",
+                    executing_chain_id =  message.executing_chain_id,
+                    message_hash = ?message.inner.payloadHash,
+                    err = e,
+                    "Invalid ExecutingMessage found",
                 );
                 invalid_messages.insert(message.executing_chain_id, e);
             }
