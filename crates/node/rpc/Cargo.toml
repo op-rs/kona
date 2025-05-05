@@ -106,6 +106,7 @@ interop = [
     "client",
     "jsonrpsee",
     "dep:kona-interop",
+    "dep:async-trait",
     "dep:tokio"
 ]
 metrics = ["dep:metrics"]
