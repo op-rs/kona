@@ -10,16 +10,17 @@
 #[macro_use]
 extern crate tracing;
 
-#[cfg(feature = "metrics")]
 mod metrics;
-#[cfg(feature = "metrics")]
 pub use metrics::Metrics;
 
 mod net;
 pub use net::{Broadcast, Config, Network, NetworkBuilder, NetworkBuilderError};
 
 mod rpc;
-pub use rpc::{NetRpcRequest, NetworkRpc};
+pub use rpc::{
+    Connectedness, Direction, GossipScores, P2pRpcRequest, PeerCount, PeerDump, PeerInfo,
+    PeerScores, PeerStats, ReqRespScores, TopicScores,
+};
 
 mod gossip;
 pub use gossip::{

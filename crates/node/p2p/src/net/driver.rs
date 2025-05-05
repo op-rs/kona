@@ -10,7 +10,7 @@ use tokio::{
     time::Duration,
 };
 
-use crate::{Broadcast, Discv5Driver, GossipDriver, HandlerRequest, NetRpcRequest, NetworkBuilder};
+use crate::{Broadcast, Discv5Driver, GossipDriver, HandlerRequest, NetworkBuilder, P2pRpcRequest};
 
 /// Network
 ///
@@ -28,7 +28,7 @@ pub struct Network {
     ///
     /// This is allowed to be optional since it may not be desirable
     /// run a networking stack with RPC access.
-    pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
+    pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
     pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
     /// The swarm instance.

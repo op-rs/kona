@@ -7,7 +7,6 @@ use crate::{
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
-use kona_p2p::NetworkRpc;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -22,7 +21,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
     OnlinePipeline,
 };
-use kona_rpc::RpcLauncher;
+use kona_rpc::{NetworkRpc, RpcLauncher};
 
 /// The size of the cache used in the derivation pipeline's providers.
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;

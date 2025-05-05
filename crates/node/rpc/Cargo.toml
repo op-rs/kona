@@ -17,6 +17,8 @@ workspace = true
 [dependencies]
 # Workspace
 kona-protocol.workspace = true
+kona-p2p = {workspace = true, optional = true}
+kona-macros = {workspace = true, optional = true}
 
 # OP Alloy
 op-alloy-consensus.workspace = true
@@ -33,6 +35,8 @@ derive_more = { workspace = true, default-features = false, features = [
     "from",
     "constructor"
 ] }
+async-trait = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["time"] }
 
 # `serde`
 serde = { workspace = true, optional = true }
@@ -47,11 +51,10 @@ op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
 alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
 
 # `interop` feature
-async-trait = { workspace = true, optional = true }
 kona-interop = { workspace = true, features = ["serde"], optional = true }
 
-# `client` feature
-tokio = { workspace = true, features = ["time"], optional = true }
+# `metrics` feature
+metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json.workspace = true
@@ -60,6 +63,10 @@ serde_json.workspace = true
 default = []
 std = [
     "dep:jsonrpsee",
+    "dep:kona-p2p",
+    "dep:kona-macros",
+    "dep:tokio",
+    "dep:async-trait",
     "jsonrpsee/server",
     "kona-protocol/std",
     "kona-genesis?/std",
@@ -81,6 +88,7 @@ serde = [
 jsonrpsee = [
     "serde",
     "dep:kona-genesis",
+    "dep:kona-p2p",
     "dep:kona-interop",
     "dep:jsonrpsee",
     "dep:getrandom",
@@ -88,7 +96,6 @@ jsonrpsee = [
 ]
 reqwest = ["dep:alloy-rpc-client"]
 client = [
-    "dep:tokio",
     "dep:jsonrpsee",
     "dep:kona-interop",
     "jsonrpsee/client",
@@ -99,6 +106,6 @@ interop = [
     "client",
     "jsonrpsee",
     "dep:kona-interop",
-    "dep:async-trait",
+    "dep:tokio"
 ]
-
+metrics = ["dep:metrics"]

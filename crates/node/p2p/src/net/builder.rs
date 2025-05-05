@@ -9,8 +9,8 @@ use std::{path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
-    Broadcast, Config, Discv5Builder, GossipDriverBuilder, NetRpcRequest, Network,
-    NetworkBuilderError, PeerMonitoring, PeerScoreLevel, discv5::LocalNode,
+    Broadcast, Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError,
+    P2pRpcRequest, PeerMonitoring, PeerScoreLevel, discv5::LocalNode,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -25,7 +25,7 @@ pub struct NetworkBuilder {
     /// The [`RollupConfig`] only used to select which topic to publish blocks to.
     cfg: Option<RollupConfig>,
     /// A receiver for network RPC requests.
-    rpc_recv: Option<tokio::sync::mpsc::Receiver<NetRpcRequest>>,
+    rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
     payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
     /// A receiver for unsafe blocks to publish.
@@ -132,7 +132,7 @@ impl NetworkBuilder {
     }
 
     /// Sets the rpc receiver for the [`crate::Network`].
-    pub fn with_rpc_receiver(self, rpc_recv: tokio::sync::mpsc::Receiver<NetRpcRequest>) -> Self {
+    pub fn with_rpc_receiver(self, rpc_recv: tokio::sync::mpsc::Receiver<P2pRpcRequest>) -> Self {
         Self { rpc_recv: Some(rpc_recv), ..self }
     }
 

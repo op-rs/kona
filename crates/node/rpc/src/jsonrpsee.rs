@@ -1,9 +1,6 @@
 //! The Optimism RPC API using `jsonrpsee`
 
-use crate::{
-    OutputResponse, PeerDump, PeerInfo, PeerStats, ProtocolVersion, SafeHeadResponse,
-    SuperchainSignal, net::PeerCount,
-};
+use crate::{OutputResponse, ProtocolVersion, SafeHeadResponse, SuperchainSignal};
 use alloc::{boxed::Box, string::String, vec::Vec};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
@@ -11,6 +8,7 @@ use core::net::IpAddr;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use kona_genesis::RollupConfig;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]

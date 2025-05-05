@@ -19,11 +19,13 @@ mod launcher;
 #[cfg(feature = "std")]
 pub use launcher::{RpcLauncher, RpcLauncherError};
 
+#[cfg(feature = "std")]
 mod net;
-pub use net::{
-    Connectedness, Direction, GossipScores, PeerCount, PeerDump, PeerInfo, PeerScores, PeerStats,
-    ReqRespScores, TopicScores,
-};
+#[cfg(feature = "std")]
+pub use net::NetworkRpc;
+
+#[cfg(feature = "std")]
+mod p2p;
 
 mod response;
 pub use response::SafeHeadResponse;

@@ -1,13 +1,14 @@
-//! Contains the network RPC request type.
+//! Contains the p2p RPC request type.
 
 use crate::{Discv5Handler, GossipDriver};
 use discv5::multiaddr::Protocol;
-use kona_rpc::PeerInfo;
 use tokio::sync::oneshot::Sender;
 
-/// A network RPC Request.
+use super::types::{Connectedness, Direction, PeerInfo, PeerScores};
+
+/// A p2p RPC Request.
 #[derive(Debug)]
-pub enum NetRpcRequest {
+pub enum P2pRpcRequest {
     /// Returns [`PeerInfo`] for the [`crate::Network`].
     PeerInfo(Sender<PeerInfo>),
     /// Dumps the node's discovery table from the [`crate::Discv5Driver`].
@@ -18,7 +19,7 @@ pub enum NetRpcRequest {
     PeerCount(Sender<(Option<usize>, usize)>),
 }
 
-impl NetRpcRequest {
+impl P2pRpcRequest {
     /// Handles the peer count request.
     pub fn handle(self, gossip: &GossipDriver, disc: &Discv5Handler) {
         match self {
@@ -71,7 +72,7 @@ impl NetRpcRequest {
             let node_id = enr.node_id().to_string();
 
             // We need to add the local multiaddr to the list of known addresses.
-            let peer_info = kona_rpc::PeerInfo {
+            let peer_info = PeerInfo {
                 peer_id: peer_id.to_string(),
                 node_id,
                 user_agent: "kona".to_string(),
@@ -79,13 +80,13 @@ impl NetRpcRequest {
                 enr: enr.to_string(),
                 addresses,
                 protocols: None,
-                connectedness: kona_rpc::Connectedness::Connected,
-                direction: kona_rpc::Direction::Inbound,
+                connectedness: Connectedness::Connected,
+                direction: Direction::Inbound,
                 protected: false,
                 chain_id,
                 latency: 0,
                 gossip_blocks: true,
-                peer_scores: kona_rpc::PeerScores::default(),
+                peer_scores: PeerScores::default(),
             };
             if let Err(e) = sender.send(peer_info) {
                 warn!("Failed to send peer info through response channel: {:?}", e);

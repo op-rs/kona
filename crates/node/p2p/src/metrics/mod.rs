@@ -40,12 +40,14 @@ impl Metrics {
     /// This does two things:
     /// * Describes various metrics.
     /// * Initializes metrics to 0 so they can be queried immediately.
+    #[cfg(feature = "metrics")]
     pub fn init() {
         Self::describe();
         Self::zero();
     }
 
     /// Describes metrics used in [`kona_p2p`][crate].
+    #[cfg(feature = "metrics")]
     pub fn describe() {
         metrics::describe_gauge!(Self::RPC_CALLS, "Calls made to the P2P RPC module");
         metrics::describe_gauge!(Self::GOSSIP_EVENT, "Gossip events received by the libp2p Swarm");
@@ -79,6 +81,7 @@ impl Metrics {
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
     /// metrics.
+    #[cfg(feature = "metrics")]
     pub fn zero() {
         // RPC Calls
         kona_macros::set!(gauge, Self::RPC_CALLS, "method", "opp2p_self", 0);

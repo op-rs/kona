@@ -1,7 +1,10 @@
-//! Contains RPC types specific to Kona's network stack.
+//! Contains RPC types specific to Kona's p2p stack.
 
 mod request;
-pub use request::NetRpcRequest;
+pub use request::P2pRpcRequest;
 
-mod server;
-pub use server::NetworkRpc;
+mod types;
+pub use types::{
+    Connectedness, Direction, GossipScores, PeerCount, PeerDump, PeerInfo, PeerScores, PeerStats,
+    ReqRespScores, TopicScores,
+};

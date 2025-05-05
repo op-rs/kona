@@ -2,8 +2,8 @@
 
 use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 use clap::Parser;
-use kona_p2p::{NetRpcRequest, NetworkBuilder, NetworkRpc};
-use kona_rpc::{OpP2PApiServer, RpcConfig};
+use kona_p2p::{NetworkBuilder, P2pRpcRequest};
+use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};
 use url::Url;
 
@@ -86,7 +86,7 @@ impl NetCommand {
                 }
                 _ = interval.tick() => {
                     let (otx, mut orx) = tokio::sync::oneshot::channel();
-                    if let Err(e) = tx.send(NetRpcRequest::PeerCount(otx)).await {
+                    if let Err(e) = tx.send(P2pRpcRequest::PeerCount(otx)).await {
                         warn!(target: "net", "Failed to send network rpc request: {:?}", e);
                         continue;
                     }
