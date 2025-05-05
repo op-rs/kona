@@ -103,13 +103,9 @@ where
             if let Err(e) = self.check_single_dependency(message).await {
                 warn!(
                     target: "message_graph",
-                    executing_chain_id =  message.executing_chain_id,
+                    executing_chain_id = message.executing_chain_id,
                     message_hash = ?message.inner.payloadHash,
-                    warn!(
-                    target: "message_graph",
-                    executing_chain_id =  message.executing_chain_id,
-                    message_hash = ?message.inner.payloadHash,
-                    err = e,
+                    err = %e,
                     "Invalid ExecutingMessage found",
                 );
                 invalid_messages.insert(message.executing_chain_id, e);
