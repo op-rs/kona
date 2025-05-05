@@ -2,7 +2,8 @@
 
 use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 use clap::Parser;
-use kona_p2p::{NetworkBuilder, P2pRpcRequest};
+use kona_net::NetworkBuilder;
+use kona_p2p::P2pRpcRequest;
 use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};
 use url::Url;
@@ -50,8 +51,10 @@ impl NetCommand {
         info!(target: "net", "Genesis block signer: {:?}", signer);
 
         // Setup the RPC server with the P2P RPC Module
-        let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        let p2p_module = NetworkRpc::new(tx.clone()).into_rpc();
+        let (p2p_tx, p2p_rx) = tokio::sync::mpsc::channel(1024);
+        // Setup the RPC server with the Rollup RPC Module
+        let (rollup_tx, rollup_rx) = tokio::sync::mpsc::channel(1024);
+        let p2p_module = NetworkRpc::new(p2p_tx.clone(), rollup_tx.clone()).into_rpc();
         let rpc_config = RpcConfig::from(&self.rpc);
         let mut launcher = rpc_config.as_launcher().merge(p2p_module)?;
         let handle = launcher.start().await?;
@@ -66,7 +69,8 @@ impl NetCommand {
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
         let mut network = NetworkBuilder::from(p2p_config)
-            .with_rpc_receiver(rx)
+            .with_p2p_rpc_receiver(p2p_rx)
+            .with_rollup_rpc_receiver(rollup_rx)
             .with_rollup_config(rollup_config)
             .build()?;
         let mut recv = network.unsafe_block_recv();
@@ -86,7 +90,7 @@ impl NetCommand {
                 }
                 _ = interval.tick() => {
                     let (otx, mut orx) = tokio::sync::oneshot::channel();
-                    if let Err(e) = tx.send(P2pRpcRequest::PeerCount(otx)).await {
+                    if let Err(e) = p2p_tx.send(P2pRpcRequest::PeerCount(otx)).await {
                         warn!(target: "net", "Failed to send network rpc request: {:?}", e);
                         continue;
                     }

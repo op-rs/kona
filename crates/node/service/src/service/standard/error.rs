@@ -3,7 +3,7 @@
 use crate::SyncStartError;
 use kona_derive::errors::PipelineErrorKind;
 use kona_engine::EngineStateBuilderError;
-use kona_p2p::NetworkBuilderError;
+use kona_net::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
 use kona_rpc::RpcLauncherError;
 

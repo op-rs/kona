@@ -1,6 +1,7 @@
 //! Driver for network services.
 
 use alloy_primitives::Address;
+use kona_rpc::RollupRpcRequest;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::collections::HashSet;
@@ -10,7 +11,8 @@ use tokio::{
     time::Duration,
 };
 
-use crate::{Broadcast, Discv5Driver, GossipDriver, HandlerRequest, NetworkBuilder, P2pRpcRequest};
+use crate::{Broadcast, NetworkBuilder};
+use kona_p2p::{BlockHandler, Discv5Driver, GossipDriver, HandlerRequest, P2pRpcRequest};
 
 /// Network
 ///
@@ -24,11 +26,16 @@ pub struct Network {
     pub(crate) broadcast: Broadcast,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
-    /// Handler for RPC Requests.
+    /// Handler for P2p RPC Requests.
     ///
     /// This is allowed to be optional since it may not be desirable
-    /// run a networking stack with RPC access.
-    pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
+    /// run a networking stack with RPC access for the P2P module.
+    pub(crate) p2p_rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
+    /// Handler for P2p RPC Requests.
+    ///
+    /// This is allowed to be optional since it may not be desirable
+    /// run a networking stack with RPC access to the rollup information.
+    pub(crate) rollup_rpc: Option<tokio::sync::mpsc::Receiver<RollupRpcRequest>>,
     /// A channel to publish an unsafe block.
     pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
     /// The swarm instance.
@@ -59,7 +66,8 @@ impl Network {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
-        let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
+        let mut p2p_rpc = self.p2p_rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
+        let mut rollup_rpc = self.rollup_rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
         let (handler, mut enr_receiver) = self.discovery.start();
         let mut broadcast = self.broadcast;
@@ -80,7 +88,7 @@ impl Network {
                             continue;
                         };
                         let timestamp = block.payload.timestamp();
-                        let selector = |handler: &crate::BlockHandler| {
+                        let selector = |handler: &BlockHandler| {
                             handler.topic(timestamp)
                         };
                         match self.gossip.publish(selector, Some(block)) {
@@ -89,7 +97,7 @@ impl Network {
                         }
                     }
                     event = self.gossip.select_next_some() => {
-                        kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
+                        kona_macros::inc!(gauge, kona_p2p::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
                         }
@@ -100,7 +108,7 @@ impl Network {
                             continue;
                         };
                         self.gossip.dial(enr);
-                        kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER);
+                        kona_macros::inc!(gauge, kona_p2p::Metrics::DIAL_PEER);
                     },
 
                     _ = peer_score_inspector.tick(), if self.gossip.peer_monitoring.as_ref().is_some() => {
@@ -146,12 +154,20 @@ impl Network {
                             warn!(err = ?send_err, "Impossible to send a request to the discovery handler. The channel connection is dropped.");
                         }
                     },
-                    req = rpc.recv() => {
+                    req = p2p_rpc.recv() => {
                         let Some(req) = req else {
                             trace!("Receiver `None` rpc request");
                             continue;
                         };
                         req.handle(&self.gossip, &handler);
+                    },
+                    req = rollup_rpc.recv() => {
+                        let Some(req) = req else {
+                            trace!("Receiver `None` rpc request");
+                            continue;
+                        };
+                        // TODO(@theochap): add engine driver here.
+                        req.handle();
                     },
                 }
             }

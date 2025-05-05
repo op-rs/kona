@@ -2822,6 +2822,7 @@ dependencies = [
  "clap",
  "discv5",
  "kona-cli",
+ "kona-net",
  "kona-p2p",
  "kona-registry",
  "libp2p",
@@ -4695,6 +4696,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-net"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "discv5",
+ "kona-genesis",
+ "kona-macros",
+ "kona-p2p",
+ "kona-rpc",
+ "libp2p",
+ "metrics",
+ "op-alloy-rpc-types-engine",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "kona-node"
 version = "0.1.0"
 dependencies = [
@@ -4713,6 +4732,7 @@ dependencies = [
  "kona-derive",
  "kona-engine",
  "kona-genesis",
+ "kona-net",
  "kona-node-service",
  "kona-p2p",
  "kona-protocol",
@@ -4752,6 +4772,7 @@ dependencies = [
  "kona-derive",
  "kona-engine",
  "kona-genesis",
+ "kona-net",
  "kona-p2p",
  "kona-protocol",
  "kona-providers-alloy",

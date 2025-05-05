@@ -27,6 +27,11 @@ pub use net::NetworkRpc;
 #[cfg(feature = "std")]
 mod p2p;
 
+#[cfg(feature = "std")]
+mod rollup;
+#[cfg(feature = "std")]
+pub use rollup::RollupRpcRequest;
+
 mod response;
 pub use response::SafeHeadResponse;
 

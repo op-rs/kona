@@ -1,5 +1,3 @@
-//! Configuration for the `Network`.
-
 use crate::{PeerScoreLevel, discv5::LocalNode, peers::PeerMonitoring};
 use alloy_primitives::Address;
 use discv5::Enr;

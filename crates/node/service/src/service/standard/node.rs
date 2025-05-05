@@ -15,7 +15,8 @@ use tracing::info;
 
 use kona_derive::traits::ChainProvider;
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, Network, NetworkBuilder};
+use kona_net::{Network, NetworkBuilder};
+use kona_p2p::Config;
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
@@ -115,11 +116,13 @@ impl ValidatorNodeService for RollupNode {
             );
             return Ok(None);
         };
-        let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        let p2p_module = NetworkRpc::new(tx);
+        let (p2p_tx, p2p_rx) = tokio::sync::mpsc::channel(1024);
+        let (rollup_tx, rollup_rx) = tokio::sync::mpsc::channel(1024);
+        let p2p_module = NetworkRpc::new(p2p_tx, rollup_tx);
         let builder = NetworkBuilder::from(p2p_config.clone())
             .with_rollup_config((*self.config).clone())
-            .with_rpc_receiver(rx)
+            .with_p2p_rpc_receiver(p2p_rx)
+            .with_rollup_rpc_receiver(rollup_rx)
             .build()
             .map_err(RollupNodeError::Network)?;
         Ok(Some((builder, p2p_module)))

@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
-use kona_p2p::Network;
+use kona_net::Network;
 use kona_protocol::BlockInfo;
 use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcLauncher, RpcLauncherError};
 use std::fmt::Display;

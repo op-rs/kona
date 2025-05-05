@@ -4,7 +4,7 @@ use crate::NodeActor;
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use derive_more::Debug;
-use kona_p2p::Network;
+use kona_net::Network;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use thiserror::Error;

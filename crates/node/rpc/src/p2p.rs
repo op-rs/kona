@@ -21,7 +21,7 @@ impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();
-        self.sender
+        self.p2p_sender
             .send(P2pRpcRequest::PeerInfo(tx))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -32,7 +32,7 @@ impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_peer_count(&self) -> RpcResult<PeerCount> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_peerCount");
         let (tx, rx) = tokio::sync::oneshot::channel();
-        self.sender
+        self.p2p_sender
             .send(P2pRpcRequest::PeerCount(tx))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
@@ -58,7 +58,7 @@ impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_discovery_table(&self) -> RpcResult<Vec<String>> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_discoveryTable");
         let (tx, rx) = tokio::sync::oneshot::channel();
-        self.sender
+        self.p2p_sender
             .send(P2pRpcRequest::DiscoveryTable(tx))
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;

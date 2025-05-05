@@ -1,0 +1,44 @@
+[package]
+name = "kona-net"
+version = "0.1.0"
+description = "Networking library for the OP Stack"
+
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Kona dependencies
+kona-p2p.workspace = true
+kona-rpc = { workspace = true, features = ["std"] }
+kona-macros.workspace = true
+kona-genesis.workspace = true
+
+# alloy
+op-alloy-rpc-types-engine.workspace = true
+alloy-primitives.workspace = true
+
+# External dependencies
+thiserror.workspace = true
+tokio.workspace = true
+
+# `metrics` feature
+metrics = { workspace = true, optional = true }
+
+tracing.workspace = true
+
+# p2p stack
+discv5.workspace = true
+libp2p.workspace = true
+
+[features]
+default = []
+metrics = ["dep:metrics", "libp2p/metrics"]

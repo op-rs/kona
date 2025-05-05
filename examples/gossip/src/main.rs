@@ -20,7 +20,8 @@
 use clap::{ArgAction, Parser};
 use discv5::enr::CombinedKey;
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::{LocalNode, Network};
+use kona_net::Network;
+use kona_p2p::LocalNode;
 use kona_registry::ROLLUP_CONFIGS;
 use libp2p::Multiaddr;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};

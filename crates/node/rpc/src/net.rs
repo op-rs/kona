@@ -2,8 +2,11 @@
 
 use kona_p2p::P2pRpcRequest;
 
+use crate::rollup::RollupRpcRequest;
+
 /// A type alias for the sender of a [`P2pRpcRequest`].
 type P2pReqSender = tokio::sync::mpsc::Sender<P2pRpcRequest>;
+type RollupReqSender = tokio::sync::mpsc::Sender<RollupRpcRequest>;
 
 /// NetworkRpc
 ///
@@ -11,12 +14,14 @@ type P2pReqSender = tokio::sync::mpsc::Sender<P2pRpcRequest>;
 #[derive(Debug)]
 pub struct NetworkRpc {
     /// The channel to send [`P2pRpcRequest`]s.
-    pub sender: P2pReqSender,
+    pub p2p_sender: P2pReqSender,
+    /// The channel to send [`RollupRpcRequest`]s.
+    pub rollup_sender: RollupReqSender,
 }
 
 impl NetworkRpc {
     /// Constructs a new [`NetworkRpc`] given a sender channel.
-    pub const fn new(sender: P2pReqSender) -> Self {
-        Self { sender }
+    pub const fn new(p2p_sender: P2pReqSender, rollup_sender: RollupReqSender) -> Self {
+        Self { p2p_sender, rollup_sender }
     }
 }

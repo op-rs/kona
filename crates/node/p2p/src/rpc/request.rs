@@ -9,7 +9,7 @@ use super::types::{Connectedness, Direction, PeerInfo, PeerScores};
 /// A p2p RPC Request.
 #[derive(Debug)]
 pub enum P2pRpcRequest {
-    /// Returns [`PeerInfo`] for the [`crate::Network`].
+    /// Returns [`PeerInfo`] for the p2p network.
     PeerInfo(Sender<PeerInfo>),
     /// Dumps the node's discovery table from the [`crate::Discv5Driver`].
     DiscoveryTable(Sender<Vec<String>>),
