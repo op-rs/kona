@@ -30,7 +30,7 @@ use kona_proof::{
     executor::KonaExecutor,
     l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline, ROOTS_OF_UNITY},
     l2::OracleL2ChainProvider,
-    sync::new_pipeline_cursor,
+    sync::new_oracle_pipeline_cursor,
 };
 use kona_proof_interop::{HintType, PreState};
 use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
@@ -490,7 +490,7 @@ impl HintHandler for InteropHintHandler {
                             .map(|header| Sealed::new_unchecked(header, agreed_block_hash))?;
                         let target_block = safe_head.number + 1;
 
-                        let cursor = new_pipeline_cursor(
+                        let cursor = new_oracle_pipeline_cursor(
                             rollup_config.as_ref(),
                             safe_head,
                             &mut l1_provider,

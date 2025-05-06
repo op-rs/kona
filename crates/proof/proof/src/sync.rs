@@ -1,26 +1,28 @@
 //! Sync Start
 
+use crate::errors::OracleProviderError;
 use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::{prelude::L2ChainProvider, traits::ChainProvider};
+use kona_derive::traits::ChainProvider;
 use kona_driver::{PipelineCursor, TipCursor};
 use kona_protocol::BatchValidationProvider;
 use kona_registry::RollupConfig;
 use spin::RwLock;
 
 /// Constructs a [`PipelineCursor`] from the caching oracle, boot info, and providers.
-pub async fn new_pipeline_cursor<L1, L2>(
+pub async fn new_oracle_pipeline_cursor<L1, L2>(
     rollup_config: &RollupConfig,
     safe_header: Sealed<Header>,
     chain_provider: &mut L1,
     l2_chain_provider: &mut L2,
-) -> Result<Arc<RwLock<PipelineCursor>>, <L2 as BatchValidationProvider>::Error>
+) -> Result<Arc<RwLock<PipelineCursor>>, OracleProviderError>
 where
     L1: ChainProvider + Send + Sync + Debug + Clone,
-    L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    <L2 as BatchValidationProvider>::Error: From<<L1 as ChainProvider>::Error>,
+    L2: BatchValidationProvider + Send + Sync + Debug + Clone,
+    OracleProviderError:
+        From<<L1 as ChainProvider>::Error> + From<<L2 as BatchValidationProvider>::Error>,
 {
     let safe_head_info = l2_chain_provider.l2_block_info_by_number(safe_header.number).await?;
     let l1_origin = chain_provider.block_info_by_number(safe_head_info.l1_origin.number).await?;

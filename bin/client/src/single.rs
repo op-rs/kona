@@ -15,7 +15,7 @@ use kona_proof::{
     executor::KonaExecutor,
     l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
     l2::OracleL2ChainProvider,
-    sync::new_pipeline_cursor,
+    sync::new_oracle_pipeline_cursor,
 };
 use thiserror::Error;
 use tracing::{error, info};
@@ -96,9 +96,13 @@ where
     ////////////////////////////////////////////////////////////////
 
     // Create a new derivation driver with the given boot information and oracle.
-    let cursor =
-        new_pipeline_cursor(rollup_config.as_ref(), safe_head, &mut l1_provider, &mut l2_provider)
-            .await?;
+    let cursor = new_oracle_pipeline_cursor(
+        rollup_config.as_ref(),
+        safe_head,
+        &mut l1_provider,
+        &mut l2_provider,
+    )
+    .await?;
     l2_provider.set_cursor(cursor.clone());
 
     let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
