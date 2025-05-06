@@ -11,9 +11,11 @@ use kona_protocol::L2BlockInfo;
 /// the remaining block info via the [`EngineClient`].
 ///
 /// Notice, the finalized and safe heads do *not* fall back to genesis.
-/// This is because Reth has a special branch for the `op-node` (and now `kona-node`)
+/// This is because Reth has a [special branch][reth-sync] for the `op-node` (and now `kona-node`)
 /// that kicks off EL sync if the finalized head is not set (e.g. the
 /// finalized head hash is the zero hash).
+///
+/// [reth-sync]: https://github.com/paradigmxyz/reth/blob/39305dda1c60b4d51333282f408d8c744c34a206/crates/engine/tree/src/tree/mod.rs#L2045-L2065
 #[derive(Debug, Clone)]
 pub struct EngineStateBuilder {
     /// The engine client.
