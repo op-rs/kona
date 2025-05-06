@@ -77,10 +77,22 @@ impl ConsolidateTask {
         // If this is successful, the forkchoice change synchronizes.
         // Otherwise, the attributes need to be processed.
         if crate::AttributesMatch::check(&self.cfg, &self.attributes, &block).is_match() {
+            debug!(
+                target: "engine",
+                attributes = ?self.attributes,
+                block_hash = %block.header.hash,
+                "Consolidating engine state",
+            );
             return self.execute_forkchoice_task(state).await;
         }
 
         // Otherwise, the attributes need to be processed.
+        debug!(
+            target: "engine",
+            attributes = ?self.attributes,
+            block_hash = %block.header.hash,
+            "No consolidation needed executing build task",
+        );
         self.execute_build_task(state).await
     }
 }

@@ -136,7 +136,7 @@ impl AttributesMatch {
             };
 
             if &attr_tx != block_tx.inner.inner.inner() {
-                // Transaction mismatch!
+                debug!(target: "engine", ?attr_tx, ?block_tx, "Transaction mismatch");
                 return AttributesMismatch::TransactionContent(attr_tx.tx_hash(), block_tx.tx_hash())
                     .into()
             }

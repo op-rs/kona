@@ -203,7 +203,11 @@ pub(crate) fn unmarshal_deposit_version0(
 
     // 0 mint is represented as nil to skip minting code
     if mint == 0 {
-        tx.mint = None;
+        // Since `None` is functionally equivalent to `Some(0)` in revm, we need to make sure
+        // that the attributes produced by the derivation pipeline are consistent with the block
+        // received over the engine api. Instead of setting `mint` to `None`, we set it to
+        // `Some(0)` to ensure that the produced attributes are consistent.
+        tx.mint = Some(0);
     } else {
         tx.mint = Some(mint);
     }
