@@ -121,9 +121,10 @@ impl AttributesMatch {
         // beforehand.
         for (attr_tx_bytes, block_tx) in attributes_txs.iter().zip(block_txs) {
             debug!(
-                "Checking transaction {} against block transaction {}",
-                attr_tx_bytes,
-                block_tx.tx_hash()
+                target: "engine",
+                ?attr_tx_bytes,
+                block_tx_hash = %block_tx.tx_hash(),
+                "Checking attributes transaction against block transaction",
             );
             // Let's try to deserialize the attributes transaction
             use alloy_eips::Decodable2718;
