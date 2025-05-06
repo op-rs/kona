@@ -5,10 +5,9 @@ use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    attributes::StatefulAttributesBuilder,
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
-    prelude::AttributesQueueStage,
+    prelude::{AttributesQueueStage, StatefulAttributesBuilder},
     traits::{
         ChainProvider, DataAvailabilityProvider, L2ChainProvider, OriginProvider, Pipeline,
         SignalReceiver,
