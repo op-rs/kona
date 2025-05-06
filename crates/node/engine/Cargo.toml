@@ -18,7 +18,6 @@ metrics = ["dep:metrics", "dep:kona-macros"]
 # workspace
 kona-genesis.workspace = true
 kona-protocol.workspace = true
-kona-rpc.workspace = true
 kona-macros = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
 

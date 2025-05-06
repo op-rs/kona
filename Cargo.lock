@@ -4502,7 +4502,6 @@ dependencies = [
  "kona-macros",
  "kona-protocol",
  "kona-registry",
- "kona-rpc",
  "metrics",
  "metrics-exporter-prometheus",
  "op-alloy-consensus",
