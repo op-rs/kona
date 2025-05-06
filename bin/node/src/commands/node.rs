@@ -52,6 +52,16 @@ pub struct NodeCommand {
         help = "The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
     )]
     pub l2_engine_kind: EngineKind,
+    /// Poll interval (in seconds) for reloading the runtime config.
+    /// Provides a backup for when config events are not being picked up.
+    /// Disabled if `0`.
+    #[arg(
+        long,
+        visible_alias = "l1.runtime-config-reload-interval",
+        default_value = "600", // 10 minutes in seconds
+        env = "L1_RUNTIME_CONFIG_RELOAD_INTERVAL",
+    )]
+    pub l1_runtime_config_reload_interval: u64,
     /// P2P CLI arguments.
     #[command(flatten)]
     pub p2p_flags: P2PArgs,
@@ -188,5 +198,90 @@ impl NodeCommand {
             },
             |content| JwtSecret::from_hex(content).ok(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const fn default_flags() -> &'static [&'static str] {
+        &[
+            "--l1-eth-rpc",
+            "http://localhost:8545",
+            "--l1-beacon",
+            "http://localhost:5052",
+            "--l2-engine-rpc",
+            "http://localhost:8551",
+            "--l2-provider-rpc",
+            "http://localhost:8545",
+        ]
+    }
+
+    #[test]
+    fn test_node_cli_missing_l1_eth_rpc() {
+        let err = NodeCommand::try_parse_from(["node"]).unwrap_err();
+        assert!(err.to_string().contains("--l1-eth-rpc"));
+    }
+
+    #[test]
+    fn test_node_cli_missing_l1_beacon() {
+        let err = NodeCommand::try_parse_from(["node", "--l1-eth-rpc", "http://localhost:8545"])
+            .unwrap_err();
+        assert!(err.to_string().contains("--l1-beacon"));
+    }
+
+    #[test]
+    fn test_node_cli_missing_l2_engine_rpc() {
+        let err = NodeCommand::try_parse_from([
+            "node",
+            "--l1-eth-rpc",
+            "http://localhost:8545",
+            "--l1-beacon",
+            "http://localhost:5052",
+        ])
+        .unwrap_err();
+        assert!(err.to_string().contains("--l2-engine-rpc"));
+    }
+
+    #[test]
+    fn test_node_cli_missing_l2_provider_rpc() {
+        let err = NodeCommand::try_parse_from([
+            "node",
+            "--l1-eth-rpc",
+            "http://localhost:8545",
+            "--l1-beacon",
+            "http://localhost:5052",
+            "--l2-engine-rpc",
+            "http://localhost:8551",
+        ])
+        .unwrap_err();
+        assert!(err.to_string().contains("--l2-provider-rpc"));
+    }
+
+    #[test]
+    fn test_node_cli_defaults() {
+        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
+        assert_eq!(args.l2_engine_kind, EngineKind::Geth);
+        assert_eq!(args.l1_runtime_config_reload_interval, 600);
+    }
+
+    #[test]
+    fn test_node_cli_runtime_config_default() {
+        let args = NodeCommand::parse_from(
+            ["node", "--l1.runtime-config-reload-interval", "0"]
+                .iter()
+                .chain(default_flags().iter())
+                .copied(),
+        );
+        assert_eq!(args.l1_runtime_config_reload_interval, 0);
+    }
+
+    #[test]
+    fn test_node_cli_engine_kind() {
+        let args = NodeCommand::parse_from(
+            ["node", "--l2.enginekind", "reth"].iter().chain(default_flags().iter()).copied(),
+        );
+        assert_eq!(args.l2_engine_kind, EngineKind::Reth);
     }
 }
