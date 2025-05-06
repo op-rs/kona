@@ -1,34 +1,19 @@
 //! An [`EngineState`] builder.
 
-use crate::{EngineClient, EngineState, SyncStatus, client::EngineClientError};
+use crate::{EngineClient, EngineState, EngineStateBuilderError, SyncStatus};
 use alloy_eips::eip1898::BlockNumberOrTag;
-use thiserror::Error;
 
 use kona_protocol::L2BlockInfo;
 
-/// An error that occurs in the [`EngineStateBuilder`].
-#[derive(Error, Debug)]
-pub enum EngineStateBuilderError {
-    /// A temporary error within the engine.
-    #[error("Temporary engine task error: {0}")]
-    EngineClientError(#[from] EngineClientError),
-    /// Missing unsafe head when building the [`EngineState`].
-    #[error("The unsafe head is required to build the EngineState")]
-    MissingUnsafeHead,
-    /// Missing the finalized head when building the [`EngineState`].
-    #[error("The finalized head is required to build the EngineState")]
-    MissingFinalizedHead,
-    /// Missing the safe head when building the [`EngineState`].
-    #[error("The safe head is required to build the EngineState")]
-    MissingSafeHead,
-}
-
 /// A builder for the [`EngineState`].
 ///
-/// When the [`EngineState`] is first created, only the finalized
-/// block is specified. The `StateBuilder` constructs the
-/// [`EngineState`] by fetching the remaining block info via the
-/// client.
+/// The [`EngineStateBuilder`] constructs the [`EngineState`] by fetching
+/// the remaining block info via the [`EngineClient`].
+///
+/// Notice, the finalized and safe heads do *not* fall back to genesis.
+/// This is because Reth has a special branch for the `op-node` (and now `kona-node`)
+/// that kicks off EL sync if the finalized head is not set (e.g. the
+/// finalized head hash is the zero hash).
 #[derive(Debug, Clone)]
 pub struct EngineStateBuilder {
     /// The engine client.
@@ -110,13 +95,13 @@ impl EngineStateBuilder {
         Ok(self)
     }
 
-    /// Append the sync status to the [EngineStateBuilder].
+    /// Append the sync status to the [`EngineStateBuilder`].
     pub fn with_sync_status(&mut self, sync_status: SyncStatus) -> &mut Self {
         self.sync_status = Some(sync_status);
         self
     }
 
-    /// Builds the [EngineState], fetching missing block info if necessary.
+    /// Builds the [`EngineState`], fetching missing block info if necessary.
     pub async fn build(self) -> Result<EngineState, EngineStateBuilderError> {
         let mut builder = self;
         debug!(target: "engine", "Building engine state");
