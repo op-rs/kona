@@ -53,6 +53,7 @@ impl InsertUnsafeTask {
         status: &PayloadStatusEnum,
     ) -> bool {
         if self.sync_config.sync_mode == SyncMode::ExecutionLayer {
+            debug!(target: "engine", ?status, "Checking payload status");
             if matches!(status, PayloadStatusEnum::Valid) {
                 debug!(target: "engine", "Valid new payload status. Finished execution layer sync");
                 state.sync_status = SyncStatus::ExecutionLayerFinished;
