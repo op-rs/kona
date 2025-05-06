@@ -26,6 +26,9 @@ pub use brotli::{BrotliDecompressionError, decompress_brotli};
 mod sync;
 pub use sync::SyncStatus;
 
+mod attributes;
+pub use attributes::OpAttributesWithParent;
+
 mod errors;
 pub use errors::OpBlockConversionError;
 

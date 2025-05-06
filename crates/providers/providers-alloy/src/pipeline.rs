@@ -4,7 +4,7 @@ use crate::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, Online
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    attributes::{OpAttributesWithParent, StatefulAttributesBuilder},
+    attributes::StatefulAttributesBuilder,
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
     prelude::AttributesQueueStage,
@@ -13,7 +13,7 @@ use kona_derive::{
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
 use kona_genesis::{RollupConfig, SystemConfig};
-use kona_protocol::{BlockInfo, L2BlockInfo};
+use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use std::sync::Arc;
 
 /// An online derivation pipeline.

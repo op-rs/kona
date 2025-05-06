@@ -21,6 +21,7 @@ kona-genesis.workspace = true
 # OP Alloy
 op-alloy-consensus.workspace = true
 op-alloy-rpc-types.workspace = true
+op-alloy-rpc-types-engine.workspace = true
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
@@ -104,6 +105,7 @@ serde = [
   "dep:alloy-serde",
   "kona-genesis/serde",
   "op-alloy-consensus/serde",
+  "op-alloy-rpc-types-engine/serde",
   "alloy-consensus/serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",

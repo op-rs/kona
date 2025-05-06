@@ -3,12 +3,11 @@
 use crate::NodeActor;
 use async_trait::async_trait;
 use kona_derive::{
-    attributes::OpAttributesWithParent,
     errors::{PipelineError, PipelineErrorKind, ResetError},
     traits::{Pipeline, SignalReceiver},
     types::{ActivationSignal, ResetSignal, StepResult},
 };
-use kona_protocol::{BlockInfo, L2BlockInfo};
+use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
 use tokio::{
     select,
