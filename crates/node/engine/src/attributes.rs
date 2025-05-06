@@ -1,6 +1,6 @@
 //! Contains a utility method to check if attributes match a block.
 
-use alloy_eips::eip1559::BaseFeeParams;
+use alloy_eips::{Decodable2718, eip1559::BaseFeeParams};
 use alloy_network::TransactionResponse;
 use alloy_primitives::{Address, B256, Bytes};
 use alloy_rpc_types_eth::{Block, BlockTransactions, Withdrawals};
@@ -127,7 +127,6 @@ impl AttributesMatch {
                 "Checking attributes transaction against block transaction",
             );
             // Let's try to deserialize the attributes transaction
-            use alloy_eips::Decodable2718;
             let Ok(attr_tx) = OpTxEnvelope::decode_2718(&mut &attr_tx_bytes[..]) else {
                 error!(
                     "Impossible to deserialize transaction from attributes. If we have stored these attributes it means the transactions where well formatted. This is a bug"
