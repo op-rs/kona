@@ -37,7 +37,7 @@ use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
 use kona_registry::ROLLUP_CONFIGS;
 use std::sync::Arc;
 use tokio::task;
-use tracing::{debug, warn};
+use tracing::{Instrument, debug, info, info_span, warn};
 
 /// The [HintHandler] for the [InteropHost].
 #[derive(Debug, Clone, Copy)]
@@ -451,6 +451,12 @@ impl HintHandler for InteropHintHandler {
                     return Ok(());
                 }
 
+                info!(
+                    target: "interop_hint_handler",
+                    optimistic_hash = ?disputed_block_hash,
+                    "Re-executing optimistic block for witness collection"
+                );
+
                 // Reproduce the preimages for the optimistic block's derivation + execution and
                 // store them in the key-value store.
                 let hint = BidirectionalChannel::new()?;
@@ -530,6 +536,10 @@ impl HintHandler for InteropHintHandler {
                             .safe_head_artifacts
                             .ok_or_else(|| anyhow!("No artifacts found for the safe head"))
                     }
+                    .instrument(info_span!(
+                        "OptimisticBlockReexecution",
+                        block_number = disputed_block.header.number
+                    ))
                 });
 
                 // Wait on both the server and client tasks to complete.
@@ -560,6 +570,13 @@ impl HintHandler for InteropHintHandler {
 
                 // Store tx root preimages.
                 store_ordered_trie(kv.as_ref(), raw_transactions.as_slice()).await?;
+
+                info!(
+                    target: "interop_hint_handler",
+                    number = build_outcome.header.number,
+                    hash = ?build_outcome.header.hash(),
+                    "Re-executed optimistic block and collected witness"
+                );
             }
             HintType::L2PayloadWitness => {
                 warn!(
