@@ -5,6 +5,9 @@
 mod traits;
 pub use traits::NodeActor;
 
+mod runtime;
+pub use runtime::{RuntimeActor, RuntimeLauncher};
+
 mod engine;
 pub use engine::{EngineActor, EngineError, EngineLauncher};
 

@@ -15,6 +15,7 @@ workspace = true
 # workspace
 kona-p2p.workspace = true
 kona-engine.workspace = true
+kona-sources.workspace = true
 kona-genesis.workspace = true
 kona-derive.workspace = true
 kona-protocol.workspace = true

@@ -2,7 +2,8 @@
 
 use crate::{
     EngineLauncher, L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
-    RollupNodeService, SequencerNodeService, ValidatorNodeService, find_starting_forkchoice,
+    RollupNodeService, RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
+    find_starting_forkchoice,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
@@ -48,6 +49,8 @@ pub struct RollupNode {
     pub(crate) p2p_config: Option<Config>,
     /// Whether p2p networking is entirely disabled.
     pub(crate) network_disabled: bool,
+    /// The [`RuntimeLauncher`] for the runtime loading service.
+    pub(crate) runtime_launcher: RuntimeLauncher,
 }
 
 impl RollupNode {
@@ -94,6 +97,10 @@ impl ValidatorNodeService for RollupNode {
             block_signer_tx,
             cancellation,
         )
+    }
+
+    fn runtime(&self) -> RuntimeLauncher {
+        self.runtime_launcher.clone()
     }
 
     fn engine(&self) -> EngineLauncher {

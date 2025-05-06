@@ -2,7 +2,7 @@
 
 use crate::{
     DerivationActor, EngineActor, EngineLauncher, L2ForkchoiceState, NetworkActor, NodeActor,
-    RpcActor, service::spawn_and_wait,
+    RpcActor, RuntimeLauncher, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -82,6 +82,9 @@ pub trait ValidatorNodeService {
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
 
+    /// Returns the [`RuntimeLauncher`] for the node.
+    fn runtime(&self) -> RuntimeLauncher;
+
     /// Returns the [`EngineLauncher`]
     fn engine(&self) -> EngineLauncher;
 
@@ -98,6 +101,7 @@ pub trait ValidatorNodeService {
         let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
         let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
+        let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let da_watcher =
@@ -114,6 +118,12 @@ pub trait ValidatorNodeService {
         );
         let derivation = Some(derivation);
 
+        let runtime = self
+            .runtime()
+            .with_tx(runtime_config_tx)
+            .with_cancellation(cancellation.clone())
+            .launch();
+
         let launcher = self.engine();
         let client = launcher.client();
         let sync = launcher.sync.clone();
@@ -124,6 +134,7 @@ pub trait ValidatorNodeService {
             client,
             engine,
             sync_complete_tx,
+            runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,
             cancellation.clone(),
@@ -155,7 +166,10 @@ pub trait ValidatorNodeService {
             None
         };
 
-        spawn_and_wait!(cancellation, actors = [da_watcher, rpc, derivation, engine, network]);
+        spawn_and_wait!(
+            cancellation,
+            actors = [da_watcher, runtime, rpc, derivation, engine, network]
+        );
         Ok(())
     }
 }

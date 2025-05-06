@@ -19,7 +19,7 @@ mod actors;
 pub use actors::{
     DerivationActor, DerivationError, EngineActor, EngineError, EngineLauncher,
     InboundDerivationMessage, L1WatcherRpc, L1WatcherRpcError, NetworkActor, NetworkActorError,
-    NodeActor, RpcActor, RpcActorError,
+    NodeActor, RpcActor, RpcActorError, RuntimeActor, RuntimeLauncher,
 };
 
 mod sync_start;
