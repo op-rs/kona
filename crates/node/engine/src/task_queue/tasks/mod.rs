@@ -1,7 +1,7 @@
 //! Tasks to update the engine state.
 
 mod task;
-pub use task::{EngineTask, EngineTaskError, EngineTaskExt};
+pub use task::{EngineTask, EngineTaskError, EngineTaskExt, EngineTaskType};
 
 mod forkchoice;
 pub use forkchoice::{ForkchoiceTask, ForkchoiceTaskError};

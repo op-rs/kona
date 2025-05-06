@@ -7,6 +7,34 @@ use crate::EngineState;
 use async_trait::async_trait;
 use thiserror::Error;
 
+/// The type of engine task.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum EngineTaskType {
+    /// Perform a `engine_forkchoiceUpdated` call with the current [EngineState]'s forkchoice,
+    /// and no payload attributes.
+    ForkchoiceUpdate,
+    /// Inserts an unsafe payload into the execution engine.
+    InsertUnsafe,
+    /// Builds a new block with the given attributes, and inserts it into the execution engine.
+    BuildBlock,
+    /// Performs consolidation on the engine state, reverting to payload attribute processing
+    /// via the [`BuildTask`] if consolidation fails.
+    Consolidate,
+}
+
+impl EngineTaskType {
+    /// Returns the next task type in a round-robin fashion.
+    pub const fn next(&self) -> Self {
+        match self {
+            Self::ForkchoiceUpdate => Self::InsertUnsafe,
+            Self::InsertUnsafe => Self::BuildBlock,
+            Self::BuildBlock => Self::Consolidate,
+            Self::Consolidate => Self::ForkchoiceUpdate,
+        }
+    }
+}
+
 /// Tasks that may be inserted into and executed by the [Engine].
 ///
 /// [Engine]: crate::Engine
@@ -32,6 +60,16 @@ impl EngineTask {
             Self::InsertUnsafe(task) => task.execute(state).await,
             Self::BuildBlock(task) => task.execute(state).await,
             Self::Consolidate(task) => task.execute(state).await,
+        }
+    }
+
+    /// Returns the [`EngineTaskType`] for the [`EngineTask`].
+    pub const fn ty(&self) -> EngineTaskType {
+        match &self {
+            Self::ForkchoiceUpdate(_) => EngineTaskType::ForkchoiceUpdate,
+            Self::InsertUnsafe(_) => EngineTaskType::InsertUnsafe,
+            Self::BuildBlock(_) => EngineTaskType::BuildBlock,
+            Self::Consolidate(_) => EngineTaskType::Consolidate,
         }
     }
 }
