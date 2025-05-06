@@ -200,7 +200,11 @@ impl NodeActor for EngineActor {
                         };
                         match client.signal(signal).await {
                             Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
-                            Err(e) => error!(target: "engine", ?e, "Failed to send signal"),
+                            Err(e) => {
+                                // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                                // a warning is logged instead of an error.
+                                warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                            }
                         }
                     });
                 }
