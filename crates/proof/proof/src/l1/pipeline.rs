@@ -9,9 +9,9 @@ use kona_derive::{
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
     prelude::AttributesQueueStage,
-    sources::EthereumDataSource,
     traits::{
-        BlobProvider, ChainProvider, L2ChainProvider, OriginProvider, Pipeline, SignalReceiver,
+        ChainProvider, DataAvailabilityProvider, L2ChainProvider, OriginProvider, Pipeline,
+        SignalReceiver,
     },
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
@@ -23,46 +23,41 @@ use kona_rpc::OpAttributesWithParent;
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.
-pub type OracleDerivationPipeline<L1, L2, B> = DerivationPipeline<
-    AttributesQueueStage<OracleDataProvider<L1, B>, L1, L2, OracleAttributesBuilder<L1, L2>>,
-    L2,
->;
-
-/// An oracle-backed Ethereum data source.
-pub type OracleDataProvider<L1, B> = EthereumDataSource<L1, B>;
+pub type ProviderDerivationPipeline<L1, L2, DA> =
+    DerivationPipeline<AttributesQueueStage<DA, L1, L2, ProviderAttributesBuilder<L1, L2>>, L2>;
 
 /// An oracle-backed payload attributes builder for the `AttributesQueue` stage of the derivation
 /// pipeline.
-pub type OracleAttributesBuilder<L1, L2> = StatefulAttributesBuilder<L1, L2>;
+pub type ProviderAttributesBuilder<L1, L2> = StatefulAttributesBuilder<L1, L2>;
 
 /// An oracle-backed derivation pipeline.
 #[derive(Debug)]
-pub struct OraclePipeline<O, L1, L2, B>
+pub struct OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     /// The internal derivation pipeline.
-    pub pipeline: OracleDerivationPipeline<L1, L2, B>,
+    pub pipeline: ProviderDerivationPipeline<L1, L2, DA>,
     /// The caching oracle.
     pub caching_oracle: Arc<O>,
 }
 
-impl<O, L1, L2, B> OraclePipeline<O, L1, L2, B>
+impl<O, L1, L2, DA> OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     /// Constructs a new oracle-backed derivation pipeline.
     pub async fn new(
         cfg: Arc<RollupConfig>,
         sync_start: Arc<RwLock<PipelineCursor>>,
         caching_oracle: Arc<O>,
-        blob_provider: B,
+        da_provider: DA,
         chain_provider: L1,
         mut l2_chain_provider: L2,
     ) -> PipelineResult<Self> {
@@ -71,11 +66,10 @@ where
             l2_chain_provider.clone(),
             chain_provider.clone(),
         );
-        let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
 
         let mut pipeline = PipelineBuilder::new()
             .rollup_config(cfg.clone())
-            .dap_source(dap)
+            .dap_source(da_provider)
             .l2_chain_provider(l2_chain_provider.clone())
             .chain_provider(chain_provider)
             .builder(attributes)
@@ -102,13 +96,13 @@ where
     }
 }
 
-impl<O, L1, L2, B> DriverPipeline<OracleDerivationPipeline<L1, L2, B>>
-    for OraclePipeline<O, L1, L2, B>
+impl<O, L1, L2, DA> DriverPipeline<ProviderDerivationPipeline<L1, L2, DA>>
+    for OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     /// Flushes the cache on re-org.
     fn flush(&mut self) {
@@ -117,12 +111,12 @@ where
 }
 
 #[async_trait]
-impl<O, L1, L2, B> SignalReceiver for OraclePipeline<O, L1, L2, B>
+impl<O, L1, L2, DA> SignalReceiver for OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     /// Receives a signal from the driver.
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
@@ -130,12 +124,12 @@ where
     }
 }
 
-impl<O, L1, L2, B> OriginProvider for OraclePipeline<O, L1, L2, B>
+impl<O, L1, L2, DA> OriginProvider for OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     /// Returns the optional L1 [BlockInfo] origin.
     fn origin(&self) -> Option<BlockInfo> {
@@ -143,12 +137,12 @@ where
     }
 }
 
-impl<O, L1, L2, B> Iterator for OraclePipeline<O, L1, L2, B>
+impl<O, L1, L2, DA> Iterator for OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     type Item = OpAttributesWithParent;
 
@@ -158,12 +152,12 @@ where
 }
 
 #[async_trait]
-impl<O, L1, L2, B> Pipeline for OraclePipeline<O, L1, L2, B>
+impl<O, L1, L2, DA> Pipeline for OraclePipeline<O, L1, L2, DA>
 where
     O: CommsClient + FlushableCache + Send + Sync + Debug,
     L1: ChainProvider + Send + Sync + Debug + Clone,
     L2: L2ChainProvider + Send + Sync + Debug + Clone,
-    B: BlobProvider + Send + Sync + Debug + Clone,
+    DA: DataAvailabilityProvider + Send + Sync + Debug + Clone,
 {
     /// Peeks at the next [OpAttributesWithParent] from the pipeline.
     fn peek(&self) -> Option<&OpAttributesWithParent> {

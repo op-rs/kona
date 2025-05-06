@@ -7,7 +7,10 @@ use alloy_consensus::Sealed;
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::errors::{PipelineError, PipelineErrorKind};
+use kona_derive::{
+    errors::{PipelineError, PipelineErrorKind},
+    sources::EthereumDataSource,
+};
 use kona_driver::{Driver, DriverError};
 use kona_executor::TrieDBProvider;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};
@@ -98,11 +101,13 @@ where
             .await?;
     l2_provider.set_cursor(cursor.clone());
 
+    let da_provider =
+        EthereumDataSource::new_from_parts(l1_provider.clone(), beacon, &rollup_config);
     let pipeline = OraclePipeline::new(
         rollup_config.clone(),
         cursor.clone(),
         oracle.clone(),
-        beacon,
+        da_provider,
         l1_provider.clone(),
         l2_provider.clone(),
     )

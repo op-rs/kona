@@ -1,10 +1,11 @@
 //! Single-chain fault proof program entrypoint.
 
+use crate::fpvm_evm::FpvmOpEvmFactory;
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::errors::PipelineErrorKind;
+use kona_derive::{errors::PipelineErrorKind, prelude::EthereumDataSource};
 use kona_driver::{Driver, DriverError};
 use kona_executor::{ExecutorError, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
@@ -18,8 +19,6 @@ use kona_proof::{
 };
 use thiserror::Error;
 use tracing::{error, info};
-
-use crate::fpvm_evm::FpvmOpEvmFactory;
 
 /// An error that can occur when running the fault proof program.
 #[derive(Error, Debug)]
@@ -103,11 +102,13 @@ where
     l2_provider.set_cursor(cursor.clone());
 
     let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
+    let da_provider =
+        EthereumDataSource::new_from_parts(l1_provider.clone(), beacon, &rollup_config);
     let pipeline = OraclePipeline::new(
         rollup_config.clone(),
         cursor.clone(),
         oracle.clone(),
-        beacon,
+        da_provider,
         l1_provider.clone(),
         l2_provider.clone(),
     )

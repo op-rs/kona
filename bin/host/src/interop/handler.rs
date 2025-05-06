@@ -18,6 +18,7 @@ use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
+use kona_derive::prelude::EthereumDataSource;
 use kona_driver::Driver;
 use kona_executor::TrieDBProvider;
 use kona_preimage::{
@@ -498,11 +499,16 @@ impl HintHandler for InteropHintHandler {
                         .await?;
                         l2_provider.set_cursor(cursor.clone());
 
+                        let da_provider = EthereumDataSource::new_from_parts(
+                            l1_provider.clone(),
+                            beacon,
+                            &rollup_config,
+                        );
                         let pipeline = OraclePipeline::new(
                             rollup_config.clone(),
                             cursor.clone(),
                             oracle,
-                            beacon,
+                            da_provider,
                             l1_provider,
                             l2_provider.clone(),
                         )
