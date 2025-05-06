@@ -11,10 +11,16 @@ homepage.workspace = true
 [lints]
 workspace = true
 
+[features]
+metrics = ["dep:metrics", "dep:kona-macros"]
+
 [dependencies]
 # workspace
 kona-genesis.workspace = true
 kona-protocol.workspace = true
+kona-rpc.workspace = true
+kona-macros = { workspace = true, optional = true }
+metrics = { workspace = true, optional = true }
 
 # alloy
 alloy-eips.workspace = true
@@ -53,3 +59,4 @@ kona-registry.workspace = true
 rand = {workspace = true, features = ["thread_rng"]}
 arbitrary.workspace = true
 op-alloy-rpc-types = {workspace = true, features = ["arbitrary", "k256"]}
+metrics-exporter-prometheus.workspace = true

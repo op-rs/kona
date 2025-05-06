@@ -131,8 +131,11 @@ impl AttributesMatch {
 
             if &attr_tx != block_tx.inner.inner.inner() {
                 // Transaction mismatch!
-                return AttributesMismatch::TransactionContent(attr_tx.tx_hash(), block_tx.tx_hash())
-                    .into()
+                return AttributesMismatch::TransactionContent(
+                    attr_tx.tx_hash(),
+                    block_tx.tx_hash(),
+                )
+                .into();
             }
         }
 
@@ -209,7 +212,7 @@ impl AttributesMatch {
                 BaseFeeParams { max_change_denominator: ad, elasticity_multiplier: ae },
                 BaseFeeParams { max_change_denominator: bd, elasticity_multiplier: be },
             )
-            .into()
+            .into();
         }
 
         Self::Match
@@ -255,7 +258,7 @@ impl AttributesMatch {
 
         // Check transactions
         if let mismatch @ Self::Mismatch(_) = Self::check_transactions(attributes_txs, block) {
-            return mismatch
+            return mismatch;
         }
 
         let Some(gas_limit) = attributes.attributes.gas_limit else {
