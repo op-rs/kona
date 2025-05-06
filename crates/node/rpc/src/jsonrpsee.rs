@@ -1,7 +1,6 @@
 //! The Optimism RPC API using `jsonrpsee`
 
 use crate::{OutputResponse, ProtocolVersion, SafeHeadResponse, SuperchainSignal};
-use alloc::{boxed::Box, string::String, vec::Vec};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
@@ -160,7 +159,7 @@ pub trait SupervisorApi {
     ) -> RpcResult<()>;
 }
 
-#[cfg(all(feature = "interop", feature = "client"))]
+#[cfg(feature = "client")]
 impl<T> crate::CheckAccessList for T
 where
     T: SupervisorApiClient + Send + Sync,

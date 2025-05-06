@@ -5,8 +5,8 @@ use crate::{
     ForkchoiceTask,
 };
 use async_trait::async_trait;
+use kona_derive::attributes::OpAttributesWithParent;
 use kona_genesis::RollupConfig;
-use kona_rpc::OpAttributesWithParent;
 use std::sync::Arc;
 
 /// The [`ConsolidateTask`] attempts to consolidate the engine state

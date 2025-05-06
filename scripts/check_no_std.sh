@@ -18,9 +18,6 @@ no_std_packages=(
   kona-driver
   kona-interop
 
-  # node crates
-  kona-rpc
-
   # utilities
   kona-serde
 )

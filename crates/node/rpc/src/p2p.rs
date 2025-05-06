@@ -5,7 +5,6 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/7a6788836984996747193b91901a824c39032bd8/op-node/p2p/rpc_api.go#L45
 
-use alloc::{boxed::Box, string::String, vec::Vec};
 use async_trait::async_trait;
 use jsonrpsee::{
     core::RpcResult,

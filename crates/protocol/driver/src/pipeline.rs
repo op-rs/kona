@@ -2,8 +2,8 @@
 
 use alloc::boxed::Box;
 use async_trait::async_trait;
+use kona_derive::attributes::OpAttributesWithParent;
 use kona_protocol::L2BlockInfo;
-use kona_rpc::OpAttributesWithParent;
 
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},

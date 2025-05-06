@@ -17,7 +17,6 @@ rust-version.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 kona-derive.workspace = true
-kona-rpc.workspace = true
 
 # Alloy
 alloy-serde.workspace = true

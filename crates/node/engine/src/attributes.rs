@@ -4,8 +4,8 @@ use alloy_eips::eip1559::BaseFeeParams;
 use alloy_network::TransactionResponse;
 use alloy_primitives::{Address, B256, Bytes};
 use alloy_rpc_types_eth::{Block, BlockTransactions, Withdrawals};
+use kona_derive::prelude::OpAttributesWithParent;
 use kona_genesis::RollupConfig;
-use kona_rpc::OpAttributesWithParent;
 use op_alloy_consensus::{EIP1559ParamError, OpTxEnvelope, decode_holocene_extra_data};
 use op_alloy_rpc_types::Transaction;
 

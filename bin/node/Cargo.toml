@@ -23,7 +23,7 @@ kona-engine.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 
-kona-rpc = { workspace = true, features = ["std"] }
+kona-rpc.workspace = true
 kona-p2p = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }
 kona-node-service = { workspace = true, features = ["metrics"] }

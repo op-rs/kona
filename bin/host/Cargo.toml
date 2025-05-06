@@ -30,7 +30,6 @@ kona-genesis = { workspace = true, features = ["std", "serde"] }
 
 # Services
 kona-cli.workspace = true
-kona-rpc.workspace = true
 kona-providers-alloy.workspace = true
 
 # Alloy

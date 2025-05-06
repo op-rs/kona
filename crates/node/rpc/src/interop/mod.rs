@@ -9,7 +9,6 @@ pub use api::CheckAccessList;
 mod error;
 pub use error::InteropTxValidatorError;
 
-use alloc::boxed::Box;
 use alloy_eips::eip2930::AccessListItem;
 use alloy_primitives::B256;
 use core::time::Duration;

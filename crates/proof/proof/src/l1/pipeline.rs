@@ -5,7 +5,7 @@ use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    attributes::StatefulAttributesBuilder,
+    attributes::{OpAttributesWithParent, StatefulAttributesBuilder},
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
     prelude::AttributesQueueStage,
@@ -17,7 +17,6 @@ use kona_driver::{DriverPipeline, PipelineCursor};
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_preimage::CommsClient;
 use kona_protocol::{BlockInfo, L2BlockInfo};
-use kona_rpc::OpAttributesWithParent;
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.

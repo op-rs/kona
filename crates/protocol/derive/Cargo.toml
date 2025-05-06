@@ -12,9 +12,6 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
-# Services
-kona-rpc.workspace = true
-
 # Protocol
 kona-genesis.workspace = true
 kona-protocol.workspace = true
@@ -29,16 +26,17 @@ alloy-primitives = { workspace = true, features = ["rlp", "k256", "map"] }
 
 # Op Alloy
 op-alloy-rpc-types-engine.workspace = true
+op-alloy-consensus = { workspace = true, features = ["k256"] }
 
 # General
 tracing.workspace = true
 async-trait.workspace = true
 thiserror.workspace = true
+serde = { workspace = true, optional = true }
 
 # `test-utils` feature dependencies
 spin = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
-op-alloy-consensus = { workspace = true, optional = true, features = ["k256"] }
 
 [dev-dependencies]
 kona-derive = { workspace = true, features = ["test-utils"] }
@@ -55,6 +53,7 @@ op-alloy-consensus = { workspace = true, features = ["k256"] }
 [features]
 default = []
 serde = [
+  "dep:serde",
   "kona-protocol/serde",
   "kona-genesis/serde",
   "alloy-primitives/serde",
@@ -64,7 +63,6 @@ serde = [
 test-utils = [
   "dep:spin",
   "dep:tracing-subscriber",
-  "dep:op-alloy-consensus",
 ]
 
 [package.metadata.cargo-udeps.ignore]

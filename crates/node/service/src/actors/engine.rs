@@ -2,12 +2,12 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
+use kona_derive::attributes::OpAttributesWithParent;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
     InsertUnsafeTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
-use kona_rpc::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};

@@ -12,9 +12,9 @@ use alloy_rpc_types_engine::{
 };
 use alloy_transport::RpcError;
 use async_trait::async_trait;
+use kona_derive::attributes::OpAttributesWithParent;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use kona_rpc::OpAttributesWithParent;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use std::{sync::Arc, time::Instant};
 

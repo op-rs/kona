@@ -1,11 +1,10 @@
 //! Contains traits for working with payload attributes and their providers.
 
-use crate::types::PipelineResult;
+use crate::{attributes::OpAttributesWithParent, types::PipelineResult};
 use alloc::boxed::Box;
 use alloy_eips::BlockNumHash;
 use async_trait::async_trait;
 use kona_protocol::{L2BlockInfo, SingleBatch};
-use kona_rpc::OpAttributesWithParent;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// [AttributesProvider] is a trait abstraction that generalizes the [BatchQueue] stage.

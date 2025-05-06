@@ -19,7 +19,7 @@ kona-genesis.workspace = true
 kona-derive.workspace = true
 kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
-kona-rpc = { workspace = true, features = ["std"] }
+kona-rpc.workspace = true
 
 # alloy
 alloy-primitives.workspace = true

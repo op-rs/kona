@@ -15,7 +15,6 @@ workspace = true
 # Workspace
 kona-derive.workspace = true
 kona-executor.workspace = true
-kona-rpc.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 

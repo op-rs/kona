@@ -1,6 +1,5 @@
 //! Interop supervisor RPC client errors.
 
-use alloc::boxed::Box;
 use core::error;
 use kona_interop::InvalidInboxEntry;
 
@@ -36,7 +35,7 @@ impl InteropTxValidatorError {
     }
 }
 
-#[cfg(feature = "jsonrpsee")]
+#[cfg(feature = "client")]
 impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
@@ -46,7 +45,6 @@ impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     }
 }
 
-#[cfg(feature = "jsonrpsee")]
 impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
     fn from(err: jsonrpsee::types::ErrorObjectOwned) -> Self {
         InvalidInboxEntry::parse_err_msg(err.message())
@@ -58,7 +56,7 @@ impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonrpsee::{core::ClientError, types::ErrorObjectOwned};
+    use jsonrpsee::types::ErrorObjectOwned;
     use kona_interop::{InvalidInboxEntry, SafetyLevel};
 
     const MIN_SAFETY_LOCAL_SAFE_ERROR: &str = r#"{"code":-32000,"message":"message {0x4200000000000000000000000000000000000023 4 1 1728507701 901} (safety level: cross-unsafe) does not meet the minimum safety local-safe"}"#;
@@ -67,7 +65,6 @@ mod tests {
     const RANDOM_VALIDATION_ERROR: &str = r#"{"code":-32000,"message":"gibberish error"}"#;
 
     #[test]
-    #[cfg(feature = "jsonrpsee")]
     fn test_jsonrpsee_client_error_parsing() {
         assert!(matches!(
             InteropTxValidatorError::from(
@@ -103,8 +100,9 @@ mod tests {
             InteropTxValidatorError::SupervisorServerError(_)
         ));
 
+        #[cfg(feature = "client")]
         assert!(matches!(
-            InteropTxValidatorError::from(ClientError::RequestTimeout),
+            InteropTxValidatorError::from(jsonrpsee::core::ClientError::RequestTimeout),
             InteropTxValidatorError::RpcClientError(_)
         ));
     }

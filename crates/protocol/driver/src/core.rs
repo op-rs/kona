@@ -7,6 +7,7 @@ use alloy_primitives::{B256, Bytes};
 use alloy_rlp::Decodable;
 use core::fmt::Debug;
 use kona_derive::{
+    attributes::OpAttributesWithParent,
     errors::{PipelineError, PipelineErrorKind},
     traits::{Pipeline, SignalReceiver},
     types::Signal,
@@ -14,7 +15,6 @@ use kona_derive::{
 use kona_executor::BlockBuildingOutcome;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use kona_rpc::OpAttributesWithParent;
 use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType};
 use spin::RwLock;
 

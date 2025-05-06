@@ -18,7 +18,6 @@ kona-derive.workspace = true
 kona-driver.workspace = true
 kona-preimage.workspace = true
 kona-executor.workspace = true
-kona-rpc.workspace = true
 kona-protocol.workspace = true
 kona-registry.workspace = true
 kona-genesis = { workspace = true, features = ["serde"] }

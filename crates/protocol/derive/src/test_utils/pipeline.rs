@@ -2,6 +2,7 @@
 //! as well as its stages and providers.
 
 use crate::{
+    attributes::OpAttributesWithParent,
     stages::BatchProvider,
     test_utils::{TestChainProvider, TestL2ChainProvider},
     types::PipelineResult,
@@ -9,7 +10,6 @@ use crate::{
 use alloc::{boxed::Box, sync::Arc};
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
-use kona_rpc::OpAttributesWithParent;
 
 // Re-export these types used internally to the test pipeline.
 use crate::{

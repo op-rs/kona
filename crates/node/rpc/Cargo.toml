@@ -16,42 +16,43 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-protocol.workspace = true
-kona-p2p = {workspace = true, optional = true}
-kona-macros = {workspace = true, optional = true}
+kona-protocol = {workspace = true, features = ["serde", "std"]}
+kona-p2p.workspace = true
+kona-macros.workspace = true
+kona-genesis = {workspace = true, features = ["serde", "std"]}
+
+# `interop` feature
+kona-interop = { workspace = true, features = ["serde"] }
 
 # OP Alloy
 op-alloy-consensus.workspace = true
-op-alloy-rpc-types-engine.workspace = true
+op-alloy-rpc-types-engine = {workspace = true, features = ["serde", "std"]}
 
 # Alloy
-alloy-eips = { workspace = true, features = ["serde"] }
-alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-eips = { workspace = true, features = ["serde", "std"] }
+alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "std"] }
 
 # Misc
 thiserror.workspace = true
 derive_more = { workspace = true, default-features = false, features = [
     "display",
     "from",
-    "constructor"
+    "constructor",
+    "std",
 ] }
-async-trait = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true, features = ["time"] }
+async-trait.workspace = true
+tokio = { workspace = true, features = ["time"] }
 
 # `serde`
-serde = { workspace = true, optional = true }
+serde = { workspace = true, features = ["std"] }
 
 # `jsonrpsee`
-jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"] }
-getrandom = { workspace = true, optional = true, features = ["wasm_js"] } # req for wasm32-unknown-unknown
-kona-genesis = { workspace = true, optional = true }
-op-alloy-rpc-jsonrpsee = { workspace = true, optional = true }
+jsonrpsee = { workspace = true, features = ["macros", "server"] }
+getrandom = { workspace = true, features = ["wasm_js"] } # req for wasm32-unknown-unknown
+op-alloy-rpc-jsonrpsee.workspace = true
 
 # `reqwest` feature
 alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
-
-# `interop` feature
-kona-interop = { workspace = true, features = ["serde"], optional = true }
 
 # `metrics` feature
 metrics = { workspace = true, optional = true }
@@ -61,52 +62,10 @@ serde_json.workspace = true
 
 [features]
 default = []
-std = [
-    "dep:jsonrpsee",
-    "dep:kona-p2p",
-    "dep:kona-macros",
-    "dep:tokio",
-    "dep:async-trait",
-    "jsonrpsee/server",
-    "kona-protocol/std",
-    "kona-genesis?/std",
-    "alloy-eips/std",
-    "alloy-primitives/std",
-    "op-alloy-rpc-types-engine/std",
-    "derive_more/std",
-    "serde?/std",
-]
-serde = [
-    "dep:serde",
-    "kona-protocol/serde",
-    "kona-genesis?/serde",
-    "alloy-eips/serde",
-    "alloy-primitives/serde",
-    "op-alloy-rpc-types-engine/serde",
-    "kona-interop?/serde"
-]
-jsonrpsee = [
-    "serde",
-    "dep:kona-genesis",
-    "dep:kona-p2p",
-    "dep:kona-interop",
-    "dep:jsonrpsee",
-    "dep:getrandom",
-    "dep:op-alloy-rpc-jsonrpsee",
-]
 reqwest = ["dep:alloy-rpc-client"]
 client = [
-    "dep:jsonrpsee",
-    "dep:kona-interop",
     "jsonrpsee/client",
     "jsonrpsee/async-client",
     "op-alloy-rpc-jsonrpsee/client",
-]
-interop = [
-    "client",
-    "jsonrpsee",
-    "dep:kona-interop",
-    "dep:async-trait",
-    "dep:tokio"
 ]
 metrics = ["dep:metrics"]

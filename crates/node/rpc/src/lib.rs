@@ -5,26 +5,16 @@
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate alloc;
-
-#[cfg(feature = "std")]
 mod config;
-#[cfg(feature = "std")]
 pub use config::RpcConfig;
 
-#[cfg(feature = "std")]
 mod launcher;
-#[cfg(feature = "std")]
 pub use launcher::{RpcLauncher, RpcLauncherError};
 
-#[cfg(feature = "std")]
 mod net;
-#[cfg(feature = "std")]
 pub use net::NetworkRpc;
 
-#[cfg(feature = "std")]
 mod p2p;
 
 mod response;
@@ -38,30 +28,22 @@ pub use superchain::{
 mod output;
 pub use output::OutputResponse;
 
-mod attributes;
-pub use attributes::OpAttributesWithParent;
-
-#[cfg(feature = "jsonrpsee")]
 mod jsonrpsee;
-#[cfg(all(feature = "jsonrpsee", feature = "interop", feature = "client"))]
+#[cfg(feature = "client")]
 pub use jsonrpsee::SupervisorApiClient;
-#[cfg(all(feature = "jsonrpsee", feature = "interop"))]
-pub use jsonrpsee::SupervisorApiServer;
-#[cfg(all(feature = "jsonrpsee", feature = "client"))]
+#[cfg(feature = "client")]
 pub use jsonrpsee::{
     EngineApiExtClient, MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient,
 };
-#[cfg(feature = "jsonrpsee")]
 pub use jsonrpsee::{
     EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
+    SupervisorApiServer,
 };
 
-#[cfg(all(feature = "reqwest", feature = "interop"))]
+#[cfg(feature = "reqwest")]
 pub mod reqwest;
-#[cfg(all(feature = "reqwest", feature = "interop", feature = "client"))]
+#[cfg(all(feature = "reqwest", feature = "client"))]
 pub use reqwest::SupervisorClient;
 
-#[cfg(feature = "interop")]
 mod interop;
-#[cfg(feature = "interop")]
 pub use interop::{CheckAccessList, InteropTxValidator, InteropTxValidatorError};
