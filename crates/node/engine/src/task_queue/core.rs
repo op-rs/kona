@@ -85,6 +85,7 @@ impl Engine {
                     self.tasks.remove(&ty);
                 }
             };
+            self.cursor = self.cursor.next();
         }
     }
 }
