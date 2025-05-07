@@ -70,6 +70,7 @@ impl Engine {
                 // No more tasks to_process..
                 continue;
             };
+            self.cursor = self.cursor.next();
             match task.execute(&mut self.state).await {
                 Ok(_) => {}
                 Err(EngineTaskError::Reset(e)) => {
@@ -85,7 +86,6 @@ impl Engine {
                     self.tasks.remove(&ty);
                 }
             };
-            self.cursor = self.cursor.next();
         }
     }
 }
