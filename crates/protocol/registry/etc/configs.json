@@ -3004,7 +3004,7 @@
             "ProxyAdminOwner": "0x1eb2ffc903729a0f03966b917003800b145f56e2",
             "Guardian": "0x7a50f00e8d05b95f98fe38d8bee366a7324dcf7e",
             "Challenger": "0x45effbd799ab49122eeeab75b78d9c56a187f9a7",
-            "Proposer": null,
+            "Proposer": "0x2d70f9a866de34c0f738f8cb2af1361b5af18caa",
             "UnsafeBlockSigner": null,
             "BatchSubmitter": "0xdb80eca386ac72a55510e33cf9cf7533e75916ee"
           },
