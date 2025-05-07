@@ -2,6 +2,7 @@
 
 use super::{EngineTaskError, EngineTaskExt};
 use crate::{EngineState, EngineTask, EngineTaskType};
+use kona_protocol::L2BlockInfo;
 use std::collections::{HashMap, VecDeque};
 use tokio::sync::watch::Sender;
 
@@ -43,6 +44,11 @@ impl Engine {
     /// Enqueues a new [EngineTask] for execution.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.entry(task.ty()).or_default().push_back(task);
+    }
+
+    /// Returns the L2 Safe Head [`L2BlockInfo`] from the state.
+    pub const fn safe_head(&self) -> L2BlockInfo {
+        self.state.safe_head()
     }
 
     /// Clears the task queue.

@@ -7,11 +7,14 @@ use kona_engine::{
     InsertUnsafeTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::OpAttributesWithParent;
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    watch::Sender as WatchSender,
+};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -32,6 +35,8 @@ pub struct EngineActor {
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
     pub engine: Engine,
+    /// The channel to send the l2 safe head to the derivation actor.
+    engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
@@ -53,6 +58,7 @@ impl EngineActor {
         sync: SyncConfig,
         client: EngineClient,
         engine: Engine,
+        engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
         sync_complete_tx: UnboundedSender<()>,
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
@@ -65,6 +71,7 @@ impl EngineActor {
             client: Arc::new(client),
             sync_complete_tx,
             engine,
+            engine_l2_safe_head_tx,
             runtime_config_rx,
             attributes_rx,
             unsafe_block_rx,
@@ -152,6 +159,17 @@ impl NodeActor for EngineActor {
                     if let Err(e) = res {
                         warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
                     }
+                    // Update the l2 safe head if needed.
+                    let state_safe_head = self.engine.safe_head();
+                    let update = |head: &mut L2BlockInfo| {
+                        if head != &state_safe_head {
+                            *head = state_safe_head;
+                            return true;
+                        }
+                        false
+                    };
+                    let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
+                    trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {

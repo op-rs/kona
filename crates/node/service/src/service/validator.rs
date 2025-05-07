@@ -108,9 +108,12 @@ pub trait ValidatorNodeService {
             Some(self.new_da_watcher(new_head_tx, block_signer_tx, cancellation.clone()));
 
         let (l2_forkchoice_state, derivation_pipeline) = self.init_derivation().await?;
+        let (engine_l2_safe_tx, engine_l2_safe_rx) =
+            tokio::sync::watch::channel(l2_forkchoice_state.safe);
         let derivation = DerivationActor::new(
             derivation_pipeline,
             l2_forkchoice_state.safe,
+            engine_l2_safe_rx,
             sync_complete_rx,
             derived_payload_tx,
             new_head_rx,
@@ -133,6 +136,7 @@ pub trait ValidatorNodeService {
             sync,
             client,
             engine,
+            engine_l2_safe_tx,
             sync_complete_tx,
             runtime_config_rx,
             derived_payload_rx,

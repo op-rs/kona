@@ -11,7 +11,10 @@ use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
 use tokio::{
     select,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError},
+    sync::{
+        mpsc::{UnboundedReceiver, UnboundedSender, error::SendError},
+        watch::Receiver as WatchReceiver,
+    },
 };
 use tokio_util::sync::CancellationToken;
 
@@ -29,6 +32,8 @@ where
     pipeline: P,
     /// The latest L2 safe head.
     l2_safe_head: L2BlockInfo,
+    /// The l2 safe head from the engine.
+    engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
     /// A receiver that tells derivation to begin.
     sync_complete_rx: UnboundedReceiver<()>,
     /// A flag indicating whether the derivation pipeline is ready to start.
@@ -49,6 +54,7 @@ where
     pub const fn new(
         pipeline: P,
         l2_safe_head: L2BlockInfo,
+        engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
         sync_complete_rx: UnboundedReceiver<()>,
         attributes_out: UnboundedSender<OpAttributesWithParent>,
         l1_head_updates: UnboundedReceiver<BlockInfo>,
@@ -57,6 +63,7 @@ where
         Self {
             pipeline,
             l2_safe_head,
+            engine_l2_safe_head,
             sync_complete_rx,
             engine_ready: false,
             attributes_out,
@@ -211,6 +218,11 @@ where
         // Only attempt derivation once the engine finishes syncing.
         if !self.engine_ready {
             trace!(target: "derivation", "Engine not ready, skipping derivation.");
+            return Ok(());
+        }
+
+        // The L2 Safe Head must be advanced before producing new payload attributes.
+        if *self.engine_l2_safe_head.borrow() == self.l2_safe_head {
             return Ok(());
         }
 
