@@ -245,7 +245,8 @@ impl BuildTask {
                 } else {
                     warn!(target: "engine_builder", "Payload import failed: {validation_error}");
                     warn!(target: "engine_builder", "Re-attempting payload import with deposits only.");
-                    unimplemented!("HOLOCENE: Re-attempt payload import with deposits only");
+                    // HOLOCENE: Re-attempt payload import with deposits only
+                    Err(BuildTaskError::HoloceneInvalidFlush)
                 }
             }
             s => {

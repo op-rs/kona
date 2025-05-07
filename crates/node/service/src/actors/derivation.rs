@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
     traits::{Pipeline, SignalReceiver},
-    types::{ActivationSignal, ResetSignal, StepResult},
+    types::{ActivationSignal, ResetSignal, Signal, StepResult},
 };
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
@@ -31,10 +31,29 @@ where
     l2_safe_head: L2BlockInfo,
     /// A receiver that tells derivation to begin.
     sync_complete_rx: UnboundedReceiver<()>,
+    /// A receiver that sends a [`Signal`] to the derivation pipeline.
+    ///
+    /// The derivation actor steps over the derivation pipeline to generate
+    /// [`OpAttributesWithParent`]. These attributes then need to be executed
+    /// via the engine api, which is done by sending them through the
+    /// [`Self::attributes_out`] channel.
+    ///
+    /// When the engine api receives an `INVALID` response for a new block (
+    /// the new [`OpAttributesWithParent`]) during block building, the payload
+    /// is reduced to "deposits-only". When this happens, the channel and
+    /// remaining buffered batches need to be flushed out of the derivation
+    /// pipeline.
+    ///
+    /// This channel allows the engine to send a [`Signal::FlushChannel`]
+    /// message back to the derivation pipeline when an `INVALID` response
+    /// occurs.
+    ///
+    /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
+    derivation_signal_rx: UnboundedReceiver<Signal>,
     /// A flag indicating whether the derivation pipeline is ready to start.
     engine_ready: bool,
     /// The sender for derived [OpAttributesWithParent]s produced by the actor.
-    attributes_out: UnboundedSender<OpAttributesWithParent>,
+    pub attributes_out: UnboundedSender<OpAttributesWithParent>,
     /// The receiver for L1 head update notifications.
     l1_head_updates: UnboundedReceiver<BlockInfo>,
     /// The cancellation token, shared between all tasks.
@@ -50,6 +69,7 @@ where
         pipeline: P,
         l2_safe_head: L2BlockInfo,
         sync_complete_rx: UnboundedReceiver<()>,
+        derivation_signal_rx: UnboundedReceiver<Signal>,
         attributes_out: UnboundedSender<OpAttributesWithParent>,
         l1_head_updates: UnboundedReceiver<BlockInfo>,
         cancellation: CancellationToken,
@@ -58,10 +78,21 @@ where
             pipeline,
             l2_safe_head,
             sync_complete_rx,
+            derivation_signal_rx,
             engine_ready: false,
             attributes_out,
             l1_head_updates,
             cancellation,
+        }
+    }
+
+    /// Handles a [`Signal`] received over the derivation signal receiver channel.
+    async fn signal(&mut self, signal: Signal) {
+        match self.pipeline.signal(signal).await {
+            Ok(_) => info!(target: "derivation", ?signal, "[SIGNAL] Executed Successfully"),
+            Err(e) => {
+                error!(target: "derivation", ?e, ?signal, "Failed to signal derivation pipeline")
+            }
         }
     }
 
@@ -203,6 +234,18 @@ where
 
                     self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }
+                signal = self.derivation_signal_rx.recv() => {
+                    let Some(signal) = signal else {
+                        error!(
+                            target: "derivation",
+                            ?signal,
+                            "DerivationActor failed to receive signal"
+                        );
+                        return Err(DerivationError::SignalReceiveFailed);
+                    };
+
+                    self.signal(signal).await;
+                }
             }
         }
     }
@@ -251,4 +294,7 @@ pub enum DerivationError {
     /// An error originating from the broadcast sender.
     #[error("Failed to send event to broadcast sender")]
     Sender(#[from] Box<SendError<OpAttributesWithParent>>),
+    /// An error from the signal receiver.
+    #[error("Failed to receive signal")]
+    SignalReceiveFailed,
 }

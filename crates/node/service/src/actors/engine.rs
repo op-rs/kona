@@ -2,9 +2,10 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
+use kona_derive::types::Signal;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
-    InsertUnsafeTask, SyncConfig,
+    EngineTaskError, InsertUnsafeTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
@@ -35,6 +36,9 @@ pub struct EngineActor {
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
+    /// A way for the engine actor to signal back to the derivation actor
+    /// if a block building task produced an `INVALID` response.
+    derivation_signal_tx: UnboundedSender<Signal>,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
@@ -54,6 +58,7 @@ impl EngineActor {
         client: EngineClient,
         engine: Engine,
         sync_complete_tx: UnboundedSender<()>,
+        derivation_signal_tx: UnboundedSender<Signal>,
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
@@ -64,6 +69,7 @@ impl EngineActor {
             sync: Arc::new(sync),
             client: Arc::new(client),
             sync_complete_tx,
+            derivation_signal_tx,
             engine,
             runtime_config_rx,
             attributes_rx,
@@ -149,9 +155,24 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
                 res = self.engine.drain() => {
-                    if let Err(e) = res {
-                        warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
-                    }
+                    match res {
+                        Ok(_) => trace!(target: "engine", "[ENGINE] tasks drained"),
+                        Err(EngineTaskError::Flush(e)) => {
+                            // This error is encountered when the payload is marked INVALID
+                            // by the engine api. Post-holocene, the payload is replaced by
+                            // a "deposits-only" block and re-executed. At the same time,
+                            // the channel and any remaining buffered batches are flushed.
+                            warn!(target: "engine", ?e, "[HOLOCENE] Invalid payload, Flushing derivation pipeline.");
+                            match self.derivation_signal_tx.send(Signal::FlushChannel) {
+                                Ok(_) => debug!(target: "engine", "[SENT] flush signal to derivation actor"),
+                                Err(e) => {
+                                    error!(target: "engine", ?e, "[ENGINE] Failed to send flush signal to the derivation actor.");
+                                    self.cancellation.cancel();
+                                    return Err(EngineError::ChannelClosed);
+                                }
+                            }
+                        }
+                        Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),                    }
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
