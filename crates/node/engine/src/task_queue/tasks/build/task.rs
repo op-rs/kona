@@ -246,6 +246,20 @@ impl BuildTask {
                     warn!(target: "engine_builder", "Payload import failed: {validation_error}");
                     warn!(target: "engine_builder", "Re-attempting payload import with deposits only.");
                     // HOLOCENE: Re-attempt payload import with deposits only
+                    match Self::new(
+                        self.engine.clone(),
+                        self.cfg.clone(),
+                        self.attributes.as_deposits_only(),
+                        self.is_attributes_derived,
+                    )
+                    .execute(state)
+                    .await
+                    {
+                        Ok(_) => {
+                            info!(target: "engine_builder", "Successfully imported deposits-only payload")
+                        }
+                        Err(_) => return Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
+                    }
                     Err(BuildTaskError::HoloceneInvalidFlush)
                 }
             }

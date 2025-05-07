@@ -48,6 +48,22 @@ impl OpAttributesWithParent {
             .iter()
             .all(|tx| tx.first().is_some_and(|tx| tx[0] == OpTxType::Deposit as u8))
     }
+
+    /// Converts the [`OpAttributesWithParent`] into a deposits-only payload.
+    pub fn as_deposits_only(&self) -> Self {
+        Self {
+            attributes: OpPayloadAttributes {
+                transactions: self.attributes.transactions.as_ref().map(|txs| {
+                    txs.iter()
+                        .map(|_| alloy_primitives::Bytes::from(vec![OpTxType::Deposit as u8]))
+                        .collect()
+                }),
+                ..self.attributes.clone()
+            },
+            parent: self.parent,
+            is_last_in_span: self.is_last_in_span,
+        }
+    }
 }
 
 #[cfg(test)]
