@@ -91,7 +91,7 @@ impl EngineActor {
                     return;
                 }
                 // If the sync status is `None`, begin derivation.
-                info!(target: "engine", "Engine finished syncing, starting derivation.");
+                trace!(target: "engine", "Sending signal to start derivation");
                 channel.send(()).ok();
             }
         });
@@ -175,6 +175,7 @@ impl NodeActor for EngineActor {
                         self.cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
+                    let hash = envelope.payload_hash;
                     let task = InsertUnsafeTask::new(
                         Arc::clone(&self.client),
                         Arc::clone(&self.sync),
@@ -183,7 +184,7 @@ impl NodeActor for EngineActor {
                     );
                     let task = EngineTask::InsertUnsafe(task);
                     self.engine.enqueue(task);
-                    debug!(target: "engine", "Enqueued unsafe block task.");
+                    debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
                     self.check_sync();
                 }
                 Some(config) = self.runtime_config_rx.recv() => {
