@@ -225,7 +225,6 @@ where
         if *self.engine_l2_safe_head.borrow() == self.l2_safe_head {
             return Ok(());
         }
-        self.l2_safe_head = *self.engine_l2_safe_head.borrow();
 
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
@@ -241,6 +240,7 @@ where
         };
 
         self.attributes_out.send(payload_attrs).map_err(Box::new)?;
+        self.l2_safe_head = *self.engine_l2_safe_head.borrow();
         Ok(())
     }
 }
