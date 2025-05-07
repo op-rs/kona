@@ -64,6 +64,11 @@ impl Engine {
         ty
     }
 
+    /// Returns a receiver that can be used to listen to engine state updates.
+    pub fn subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
+        self.state_sender.subscribe()
+    }
+
     /// Attempts to drain the queue by executing all [EngineTask]s in-order. If any task returns an
     /// error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
@@ -89,9 +94,7 @@ impl Engine {
             }
 
             // Update the state and notify the engine actor.
-            if let Err(e) = self.state_sender.send(self.state) {
-                error!(target: "engine", err=?e, "Failed to send engine state update");
-            }
+            self.state_sender.send_replace(self.state);
 
             let ty = task.ty();
             if let Some(queue) = self.tasks.get_mut(&ty) {

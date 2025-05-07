@@ -3,8 +3,8 @@
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineState, EngineStateBuilder,
-    EngineStateBuilderError, EngineTask, InsertUnsafeTask, SyncConfig,
+    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
+    InsertUnsafeTask, SyncConfig,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
@@ -32,9 +32,6 @@ pub struct EngineActor {
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
     pub engine: Engine,
-    /// A channel to receive engine state updates.
-    #[allow(unused)]
-    engine_state_recv: tokio::sync::watch::Receiver<EngineState>,
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
@@ -58,7 +55,6 @@ impl EngineActor {
         sync: SyncConfig,
         client: EngineClient,
         engine: Engine,
-        engine_state_recv: tokio::sync::watch::Receiver<EngineState>,
         sync_complete_tx: UnboundedSender<()>,
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
@@ -72,7 +68,6 @@ impl EngineActor {
             sync_complete_tx,
             sync_complete_sent: false,
             engine,
-            engine_state_recv,
             runtime_config_rx,
             attributes_rx,
             unsafe_block_rx,
@@ -121,13 +116,11 @@ pub struct EngineLauncher {
 impl EngineLauncher {
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
-    pub async fn launch(
-        self,
-    ) -> Result<(Engine, tokio::sync::watch::Receiver<EngineState>), EngineStateBuilderError> {
+    pub async fn launch(self) -> Result<Engine, EngineStateBuilderError> {
         let state = self.state_builder().build().await?;
-        let (engine_state_send, engine_state_recv) = tokio::sync::watch::channel(state);
+        let (engine_state_send, _) = tokio::sync::watch::channel(state);
 
-        Ok((Engine::new(state, engine_state_send), engine_state_recv))
+        Ok(Engine::new(state, engine_state_send))
     }
 
     /// Returns the [`EngineClient`].

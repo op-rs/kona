@@ -127,13 +127,12 @@ pub trait ValidatorNodeService {
         let launcher = self.engine();
         let client = launcher.client();
         let sync = launcher.sync.clone();
-        let (engine, engine_state_recv) = launcher.launch().await?;
+        let engine = launcher.launch().await?;
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
             sync,
             client,
             engine,
-            engine_state_recv,
             sync_complete_tx,
             runtime_config_rx,
             derived_payload_rx,
