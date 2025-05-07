@@ -186,7 +186,8 @@ impl NodeActor for EngineActor {
                                 }
                             }
                         }
-                        Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),                    }
+                        Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
+                    }
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
