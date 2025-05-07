@@ -188,6 +188,7 @@ where
                     }
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
                     self.engine_ready = true;
+                    self.sync_complete_rx.close();
                     // Optimistically process the first message.
                     self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }

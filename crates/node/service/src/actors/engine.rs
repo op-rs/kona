@@ -35,8 +35,6 @@ pub struct EngineActor {
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
-    /// A flag to indicate whether to broadcast if syncing is complete.
-    sync_complete_sent: bool,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
@@ -66,7 +64,6 @@ impl EngineActor {
             sync: Arc::new(sync),
             client: Arc::new(client),
             sync_complete_tx,
-            sync_complete_sent: false,
             engine,
             runtime_config_rx,
             attributes_rx,
@@ -77,8 +74,8 @@ impl EngineActor {
 
     /// Checks if the engine is syncing, notifying the derivation actor if necessary.
     pub fn check_sync(&self) {
-        if self.sync_complete_sent {
-            // If the sync status is already complete, do nothing.
+        // If the channel is closed, the receiver already marked engine ready.
+        if self.sync_complete_tx.is_closed() {
             return;
         }
         let client = Arc::clone(&self.client);
