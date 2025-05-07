@@ -46,6 +46,20 @@ impl Engine {
         self.tasks.clear();
     }
 
+    /// Returns the next task type to be executed.
+    pub fn next(&self) -> EngineTaskType {
+        let mut ty = self.cursor;
+        let task_len = self.tasks.len();
+        for _ in 0..task_len {
+            if !self.tasks.contains_key(&ty) {
+                ty = ty.next();
+            } else {
+                break;
+            }
+        }
+        ty
+    }
+
     /// Attempts to drain the queue by executing all [EngineTask]s in-order. If any task returns an
     /// error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
@@ -53,24 +67,14 @@ impl Engine {
     /// If an [EngineTaskError::Reset] is encountered, the remaining tasks in the queue are cleared.
     pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
         loop {
-            let mut ty = self.cursor;
-            let task_len = self.tasks.len();
-            for _ in 0..task_len {
-                if !self.tasks.contains_key(&ty) {
-                    ty = ty.next();
-                } else {
-                    break;
-                }
-            }
+            let ty = self.next();
+            self.cursor = self.cursor.next();
             let Some(task) = self.tasks.get(&ty) else {
-                // No more tasks to process.
                 return Ok(());
             };
             let Some(task) = task.front() else {
-                // No more tasks to_process..
-                continue;
+                return Ok(());
             };
-            self.cursor = self.cursor.next();
             match task.execute(&mut self.state).await {
                 Ok(_) => {}
                 Err(EngineTaskError::Reset(e)) => {
@@ -82,9 +86,6 @@ impl Engine {
             let ty = task.ty();
             if let Some(queue) = self.tasks.get_mut(&ty) {
                 queue.pop_front();
-                if queue.is_empty() {
-                    self.tasks.remove(&ty);
-                }
             };
         }
     }
