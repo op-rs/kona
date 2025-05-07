@@ -6,6 +6,10 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+#[cfg(feature = "metrics")]
+#[macro_use]
+extern crate kona_macros;
+
 #[macro_use]
 extern crate tracing;
 
@@ -33,3 +37,6 @@ pub use state::{EngineState, EngineStateBuilder, EngineStateBuilderError};
 
 mod kinds;
 pub use kinds::EngineKind;
+
+mod metrics;
+pub use metrics::describe_engine_metrics;

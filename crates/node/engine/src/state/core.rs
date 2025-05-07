@@ -4,6 +4,9 @@ use crate::SyncStatus;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 
+#[cfg(feature = "metrics")]
+use crate::metrics::ENGINE_UNSAFE_HEAD_HEIGHT_NAME;
+
 /// The chain state viewed by the engine controller.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EngineState {
@@ -106,6 +109,11 @@ impl EngineState {
 
     /// Set the unsafe head.
     pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
+        #[cfg(feature = "metrics")]
+        {
+            let height = unsafe_head.block_info.number;
+            set!(gauge, ENGINE_UNSAFE_HEAD_HEIGHT_NAME, height as f64);
+        }
         self.unsafe_head = unsafe_head;
         self.forkchoice_update_needed = true;
     }
@@ -141,5 +149,146 @@ impl EngineState {
     pub fn set_backup_unsafe_head(&mut self, backup_unsafe_head: L2BlockInfo, reorg: bool) {
         self.backup_unsafe_head = Some(backup_unsafe_head);
         self.need_fcu_call_backup_unsafe_reorg = reorg;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SyncStatus;
+    use alloy_eips::BlockNumHash;
+    use alloy_primitives::B256;
+    use kona_protocol::BlockInfo;
+
+    #[cfg(feature = "metrics")]
+    use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+    #[cfg(feature = "metrics")]
+    use std::sync::Mutex;
+
+    #[cfg(feature = "metrics")]
+    static GLOBAL_TEST_PROMETHEUS_HANDLE: Mutex<Option<PrometheusHandle>> = Mutex::new(None);
+
+    #[cfg(feature = "metrics")]
+    fn init_test_recorder() -> PrometheusHandle {
+        let mut guard = GLOBAL_TEST_PROMETHEUS_HANDLE.lock().unwrap_or_else(|poisoned| {
+            panic!("Prometheus handle mutex was poisoned: {:?}", poisoned);
+        });
+
+        if let Some(handle) = guard.as_ref() {
+            return handle.clone();
+        }
+
+        let builder = PrometheusBuilder::new();
+        let handle =
+            builder.install_recorder().expect("Failed to install Prometheus recorder for tests");
+
+        *guard = Some(handle.clone());
+
+        handle
+    }
+
+    fn dummy_b256(val: u64, differentiator: u8) -> B256 {
+        let mut bytes = [0u8; 32];
+        bytes[0] = differentiator;
+        bytes[24..32].copy_from_slice(&val.to_be_bytes());
+        B256::new(bytes)
+    }
+
+    fn l2_block_info(number: u64) -> L2BlockInfo {
+        let l1_origin_block_info = BlockInfo {
+            hash: dummy_b256(number.saturating_sub(1), 1),
+            number: number.saturating_sub(1),
+            parent_hash: dummy_b256(number.saturating_sub(2), 2),
+            timestamp: 10000 + number.saturating_sub(1) * 12,
+        };
+        let l1_origin =
+            BlockNumHash { hash: l1_origin_block_info.hash, number: l1_origin_block_info.number };
+
+        L2BlockInfo {
+            block_info: BlockInfo {
+                hash: dummy_b256(number, 3),
+                number,
+                parent_hash: dummy_b256(number.saturating_sub(1), 4),
+                timestamp: 20000 + number * 2,
+            },
+            l1_origin,
+            seq_num: number,
+        }
+    }
+
+    fn initial_engine_state() -> EngineState {
+        let genesis_l2_info = l2_block_info(0);
+        EngineState {
+            unsafe_head: genesis_l2_info,
+            cross_unsafe_head: genesis_l2_info,
+            pending_safe_head: genesis_l2_info,
+            local_safe_head: genesis_l2_info,
+            safe_head: genesis_l2_info,
+            finalized_head: genesis_l2_info,
+            backup_unsafe_head: None,
+            sync_status: SyncStatus::default(),
+            forkchoice_update_needed: false,
+            need_fcu_call_backup_unsafe_reorg: false,
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "metrics")]
+    fn test_unsafe_head_height_metric() {
+        let handle = init_test_recorder();
+
+        let mut state = initial_engine_state();
+
+        let new_unsafe_height = 123u64;
+        let new_unsafe_info = l2_block_info(new_unsafe_height);
+        state.set_unsafe_head(new_unsafe_info);
+
+        let rendered = handle.render();
+
+        let expected_metric_line = format!(
+            "{name} {value}",
+            name = ENGINE_UNSAFE_HEAD_HEIGHT_NAME,
+            value = new_unsafe_height as f64
+        );
+
+        assert!(
+            rendered.contains(&format!("# TYPE {} gauge", ENGINE_UNSAFE_HEAD_HEIGHT_NAME)) ||
+                rendered.contains(ENGINE_UNSAFE_HEAD_HEIGHT_NAME),
+            "Metric name or type for '{}' not found in output:\n{}",
+            ENGINE_UNSAFE_HEAD_HEIGHT_NAME,
+            rendered
+        );
+        assert!(
+            rendered.lines().any(|line| line.trim() == expected_metric_line.trim()),
+            "Expected metric line '{}' not found in output:\n{}",
+            expected_metric_line,
+            rendered
+        );
+
+        let newer_unsafe_height = 456u64;
+        let newer_unsafe_info = l2_block_info(newer_unsafe_height);
+        state.set_unsafe_head(newer_unsafe_info);
+
+        let rendered_updated = handle.render();
+
+        let expected_updated_metric_line = format!(
+            "{name} {value}",
+            name = ENGINE_UNSAFE_HEAD_HEIGHT_NAME,
+            value = newer_unsafe_height as f64
+        );
+        let previous_metric_line = expected_metric_line;
+
+        assert!(
+            rendered_updated.lines().any(|line| line.trim() == expected_updated_metric_line.trim()),
+            "Expected updated metric line '{}' not found in output:\n{}",
+            expected_updated_metric_line,
+            rendered_updated
+        );
+        assert!(
+            !rendered_updated.lines().any(|line| line.trim() == previous_metric_line.trim()),
+            "Previous metric line '{}' should not be present in updated output:\n{}",
+            previous_metric_line,
+            rendered_updated
+        );
     }
 }
