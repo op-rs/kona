@@ -186,11 +186,7 @@ impl NodeActor for EngineActor {
                     debug!(target: "engine", "Enqueued unsafe block task.");
                     self.check_sync();
                 }
-                runtime_config = self.runtime_config_rx.recv() => {
-                    let Some(config) = runtime_config else {
-                        error!(target: "engine", "Runtime config receiver closed unexpectedly, exiting node");
-                        continue;
-                    };
+                Some(config) = self.runtime_config_rx.recv() => {
                     let client = Arc::clone(&self.client);
                     tokio::task::spawn(async move {
                         debug!(target: "engine", config = ?config, "Received runtime config");

@@ -131,6 +131,9 @@ impl NodeCommand {
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
 
+        let runtime_interval =
+            std::time::Duration::from_secs(self.l1_runtime_config_reload_interval);
+
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
             .with_sync_config(sync_config)
@@ -138,6 +141,7 @@ impl NodeCommand {
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
             .with_network_disabled(self.p2p_flags.disabled)
             .with_rpc_config(rpc_config)

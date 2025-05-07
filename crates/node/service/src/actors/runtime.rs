@@ -69,6 +69,9 @@ impl RuntimeLauncher {
     pub fn launch(self) -> Option<RuntimeActor> {
         let cancellation = self.cancellation?;
         let tx = self.tx?;
+        if self.interval.is_some() {
+            info!(target: "runtime", interval = ?self.interval, "Launched Runtime Actor");
+        }
         self.interval.map(|i| RuntimeActor::new(self.loader, i, tx, cancellation))
     }
 }
