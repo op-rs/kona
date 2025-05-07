@@ -53,7 +53,9 @@ impl InsertUnsafeTask {
         status: &PayloadStatusEnum,
     ) -> bool {
         if self.sync_config.sync_mode == SyncMode::ExecutionLayer {
+            debug!(target: "engine", ?status, "Checking payload status");
             if matches!(status, PayloadStatusEnum::Valid) {
+                debug!(target: "engine", "Valid new payload status. Finished execution layer sync");
                 state.sync_status = SyncStatus::ExecutionLayerFinished;
             }
             return matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing);
@@ -87,7 +89,8 @@ impl InsertUnsafeTask {
 impl EngineTaskExt for InsertUnsafeTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         // If there is a finalized head block, transition to EL sync.
-        if state.sync_status == SyncStatus::ExecutionLayerStarted {
+        if state.sync_status == SyncStatus::ExecutionLayerWillStart {
+            debug!(target: "engine", "Checking finalized block");
             let finalized_block =
                 self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await;
             match finalized_block {

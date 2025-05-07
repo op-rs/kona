@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineLauncher, NodeMode, RollupNode};
+use crate::{EngineLauncher, NodeMode, RollupNode, RuntimeLauncher};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -42,6 +42,8 @@ pub struct RollupNodeBuilder {
     p2p_config: Option<Config>,
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
+    /// An interval to load the runtime config.
+    runtime_load_interval: Option<std::time::Duration>,
     /// The mode to run the node in.
     mode: NodeMode,
     /// If p2p networking is entirely disabled.
@@ -99,6 +101,11 @@ impl RollupNodeBuilder {
         Self { rpc_config: Some(rpc_config), ..self }
     }
 
+    /// Sets the runtime load interval on the [`RollupNodeBuilder`].
+    pub fn with_runtime_load_interval(self, interval: std::time::Duration) -> Self {
+        Self { runtime_load_interval: Some(interval), ..self }
+    }
+
     /// Appends whether p2p networking is entirely disabled to the builder.
     pub fn with_network_disabled(self, network_disabled: bool) -> Self {
         Self { network_disabled, ..self }
@@ -116,8 +123,8 @@ impl RollupNodeBuilder {
     /// - The sync config is not set.
     /// - The jwt secret is not set.
     pub fn build(self) -> RollupNode {
-        let l1_provider =
-            RootProvider::new_http(self.l1_provider_rpc_url.expect("l1 provider rpc url not set"));
+        let l1_rpc_url = self.l1_provider_rpc_url.expect("l1 provider rpc url not set");
+        let l1_provider = RootProvider::new_http(l1_rpc_url.clone());
         let l1_beacon = OnlineBeaconClient::new_http(
             self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
         );
@@ -145,6 +152,11 @@ impl RollupNodeBuilder {
             jwt_secret,
         };
 
+        let runtime_launcher = RuntimeLauncher::new(
+            kona_sources::RuntimeLoader::new(l1_rpc_url, config.clone()),
+            self.runtime_load_interval,
+        );
+
         RollupNode {
             mode: self.mode,
             config,
@@ -155,6 +167,7 @@ impl RollupNodeBuilder {
             rpc_launcher,
             p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,
+            runtime_launcher,
         }
     }
 }

@@ -8,6 +8,7 @@ use kona_engine::{
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
+use kona_sources::RuntimeConfig;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -36,6 +37,8 @@ pub struct EngineActor {
     sync_complete_tx: UnboundedSender<()>,
     /// A flag to indicate whether to broadcast if syncing is complete.
     sync_complete_sent: bool,
+    /// A channel to receive [`RuntimeConfig`] from the runtime actor.
+    runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
     attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
     /// A channel to receive [`OpNetworkPayloadEnvelope`] from the network actor.
@@ -53,6 +56,7 @@ impl EngineActor {
         client: EngineClient,
         engine: Engine,
         sync_complete_tx: UnboundedSender<()>,
+        runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
         cancellation: CancellationToken,
@@ -64,6 +68,7 @@ impl EngineActor {
             sync_complete_tx,
             sync_complete_sent: false,
             engine,
+            runtime_config_rx,
             attributes_rx,
             unsafe_block_rx,
             cancellation,
@@ -180,6 +185,28 @@ impl NodeActor for EngineActor {
                     self.engine.enqueue(task);
                     debug!(target: "engine", "Enqueued unsafe block task.");
                     self.check_sync();
+                }
+                runtime_config = self.runtime_config_rx.recv() => {
+                    let Some(config) = runtime_config else {
+                        error!(target: "engine", "Runtime config receiver closed unexpectedly, exiting node");
+                        continue;
+                    };
+                    let client = Arc::clone(&self.client);
+                    tokio::task::spawn(async move {
+                        debug!(target: "engine", config = ?config, "Received runtime config");
+                        let signal = op_alloy_rpc_types_engine::SuperchainSignal {
+                            recommended: config.recommended_protocol_version.into(),
+                            required: config.required_protocol_version.into(),
+                        };
+                        match client.signal(signal).await {
+                            Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
+                            Err(e) => {
+                                // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                                // a warning is logged instead of an error.
+                                warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                            }
+                        }
+                    });
                 }
             }
         }

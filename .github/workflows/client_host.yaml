@@ -49,7 +49,7 @@ jobs:
       - name: Build `asterisc`
         if: "!contains(matrix.target, 'native')"
         run: |
-          cd asterisc && git checkout v1.2.0 && make build-rvgo
+          cd asterisc && git checkout v1.3.0 && make build-rvgo
           mv ./rvgo/bin/asterisc /usr/local/bin/
       - name: Set run environment
         run: |

@@ -74,6 +74,7 @@ impl BuildTask {
             &self.cfg,
             attributes_envelope.attributes.payload_attributes.timestamp,
         );
+        debug!(target: "engine_builder", ?forkchoice_version, "Forkchoice version");
         let update = match forkchoice_version {
             EngineForkchoiceVersion::V3 => {
                 engine_client

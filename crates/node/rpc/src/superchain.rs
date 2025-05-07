@@ -45,6 +45,14 @@ pub enum ProtocolVersion {
     V0(ProtocolVersionFormatV0),
 }
 
+impl From<ProtocolVersion> for op_alloy_rpc_types_engine::ProtocolVersion {
+    fn from(value: ProtocolVersion) -> Self {
+        match value {
+            ProtocolVersion::V0(value) => Self::V0(value.into()),
+        }
+    }
+}
+
 /// An error that can occur when encoding or decoding a ProtocolVersion.
 #[derive(Copy, thiserror::Error, Clone, Debug)]
 pub enum ProtocolVersionError {
@@ -201,6 +209,18 @@ pub struct ProtocolVersionFormatV0 {
     pub patch: u32,
     /// Identifies unstable versions that may not satisfy the above
     pub pre_release: u32,
+}
+
+impl From<ProtocolVersionFormatV0> for op_alloy_rpc_types_engine::ProtocolVersionFormatV0 {
+    fn from(value: ProtocolVersionFormatV0) -> Self {
+        Self {
+            build: value.build,
+            major: value.major,
+            minor: value.minor,
+            patch: value.patch,
+            pre_release: value.pre_release,
+        }
+    }
 }
 
 impl core::fmt::Display for ProtocolVersionFormatV0 {

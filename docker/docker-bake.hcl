@@ -31,7 +31,7 @@ variable "ASTERISC_TAG" {
   //
   // You can override this if you'd like to use a different tag to generate the prestate.
   // https://github.com/ethereum-optimism/asterisc/releases
-  default = "v1.2.0"
+  default = "v1.3.0"
 }
 
 variable "CANNON_TAG" {

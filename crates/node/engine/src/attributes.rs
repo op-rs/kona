@@ -1,6 +1,6 @@
 //! Contains a utility method to check if attributes match a block.
 
-use alloy_eips::eip1559::BaseFeeParams;
+use alloy_eips::{Decodable2718, eip1559::BaseFeeParams};
 use alloy_network::TransactionResponse;
 use alloy_primitives::{Address, B256, Bytes};
 use alloy_rpc_types_eth::{Block, BlockTransactions, Withdrawals};
@@ -120,8 +120,14 @@ impl AttributesMatch {
         // Note that it is safe to zip both iterators because we checked their length
         // beforehand.
         for (attr_tx_bytes, block_tx) in attributes_txs.iter().zip(block_txs) {
+            debug!(
+                target: "engine",
+                ?attr_tx_bytes,
+                block_tx_hash = %block_tx.tx_hash(),
+                "Checking attributes transaction against block transaction",
+            );
             // Let's try to deserialize the attributes transaction
-            let Ok(attr_tx) = serde_json::from_slice::<OpTxEnvelope>(attr_tx_bytes) else {
+            let Ok(attr_tx) = OpTxEnvelope::decode_2718(&mut &attr_tx_bytes[..]) else {
                 error!(
                     "Impossible to deserialize transaction from attributes. If we have stored these attributes it means the transactions where well formatted. This is a bug"
                 );
@@ -528,11 +534,10 @@ mod tests {
             transactions
                 .iter()
                 .map(|tx| {
-                    Bytes::from_iter(
-                        serde_json::to_vec(tx.inner.inner.inner())
-                            .expect("Impossible to serialize")
-                            .iter(),
-                    )
+                    use alloy_eips::Encodable2718;
+                    let mut buf = vec![];
+                    tx.inner.inner.inner().encode_2718(&mut buf);
+                    Bytes::from(buf)
                 })
                 .collect::<Vec<_>>(),
         );
