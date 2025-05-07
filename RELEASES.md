@@ -1,6 +1,10 @@
 # Releases
 
 This is a concise guide for cutting a release for `kona` crates.
+> [!TIP]
+>
+> Ensure you have permission to update any affected crates before cutting a release.
+
 
 ### cargo-release
 
