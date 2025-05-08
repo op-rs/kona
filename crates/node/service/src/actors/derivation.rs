@@ -70,6 +70,7 @@ where
     P: Pipeline + SignalReceiver,
 {
     /// Creates a new instance of the [DerivationActor].
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pipeline: P,
         l2_safe_head: L2BlockInfo,
