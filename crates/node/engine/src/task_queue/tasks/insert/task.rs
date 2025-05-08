@@ -2,9 +2,8 @@
 
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
-    InsertUnsafeTaskError, SyncConfig, SyncMode, SyncStatus,
+    InsertUnsafeTaskError, SyncStatus,
 };
-use alloy_eips::BlockNumberOrTag;
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
     ExecutionPayloadInputV2, ForkchoiceState, INVALID_FORK_CHOICE_STATE_ERROR, PayloadStatusEnum,
@@ -22,8 +21,6 @@ use std::{sync::Arc, time::Instant};
 pub struct InsertUnsafeTask {
     /// The engine client.
     client: Arc<EngineClient>,
-    /// The sync config.
-    sync_config: Arc<SyncConfig>,
     /// The rollup config.
     rollup_config: Arc<RollupConfig>,
     /// The engine forkchoice version.
@@ -36,13 +33,12 @@ impl InsertUnsafeTask {
     /// Creates a new insert task.
     pub fn new(
         client: Arc<EngineClient>,
-        sync_config: Arc<SyncConfig>,
         rollup_config: Arc<RollupConfig>,
         envelope: OpNetworkPayloadEnvelope,
     ) -> Self {
         let version =
             EngineForkchoiceVersion::from_cfg(rollup_config.as_ref(), envelope.payload.timestamp());
-        Self { client, sync_config, rollup_config, version, envelope }
+        Self { client, rollup_config, version, envelope }
     }
 
     /// Checks the response of the `engine_newPayload` call, and updates the sync status if
@@ -52,16 +48,12 @@ impl InsertUnsafeTask {
         state: &mut EngineState,
         status: &PayloadStatusEnum,
     ) -> bool {
-        if self.sync_config.sync_mode == SyncMode::ExecutionLayer {
-            debug!(target: "engine", ?status, "Checking payload status");
-            if matches!(status, PayloadStatusEnum::Valid) {
-                debug!(target: "engine", "Valid new payload status. Finished execution layer sync");
-                state.sync_status = SyncStatus::ExecutionLayerFinished;
-            }
-            return matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing);
+        debug!(target: "engine", ?status, "Checking payload status");
+        if matches!(status, PayloadStatusEnum::Valid) {
+            debug!(target: "engine", "Valid new payload status. Finished execution layer sync");
+            state.sync_status = SyncStatus::ExecutionLayerFinished;
         }
-
-        matches!(status, PayloadStatusEnum::Valid)
+        matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
 
     /// Checks the response of the `engine_forkchoiceUpdated` call, and updates the sync status if
@@ -71,46 +63,22 @@ impl InsertUnsafeTask {
         state: &mut EngineState,
         status: &PayloadStatusEnum,
     ) -> bool {
-        if self.sync_config.sync_mode == SyncMode::ExecutionLayer {
-            if matches!(status, PayloadStatusEnum::Valid) &&
-                state.sync_status == SyncStatus::ExecutionLayerStarted
-            {
-                state.sync_status = SyncStatus::ExecutionLayerNotFinalized;
-            }
-
-            return matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing);
+        if matches!(status, PayloadStatusEnum::Valid) &&
+            state.sync_status == SyncStatus::ExecutionLayerStarted
+        {
+            state.sync_status = SyncStatus::ExecutionLayerNotFinalized;
         }
-
-        matches!(status, PayloadStatusEnum::Valid)
+        matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
 }
 
 #[async_trait]
 impl EngineTaskExt for InsertUnsafeTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // If there is a finalized head block, transition to EL sync.
+        // Always transition to EL sync on startup.
         if state.sync_status == SyncStatus::ExecutionLayerWillStart {
-            debug!(target: "engine", "Checking finalized block");
-            let finalized_block =
-                self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await;
-            match finalized_block {
-                Ok(finalized_block) => {
-                    let finalized_genesis = finalized_block
-                        .is_some_and(|b| b.block_info.hash == self.rollup_config.genesis.l2.hash);
-
-                    if finalized_block.is_none() ||
-                        finalized_genesis ||
-                        self.sync_config.supports_post_finalization_elsync
-                    {
-                        info!(target: "engine", "Starting execution layer sync");
-                        state.sync_status = SyncStatus::ExecutionLayerStarted;
-                    } else if finalized_block.is_some() {
-                        info!(target: "engine", "Found finalized block; Skipping EL sync and starting CL sync.");
-                        state.sync_status = SyncStatus::ExecutionLayerFinished;
-                    }
-                }
-                Err(_) => return Err(InsertUnsafeTaskError::FinalizedBlockFetch.into()),
-            }
+            info!(target: "engine", "Starting execution layer sync");
+            state.sync_status = SyncStatus::ExecutionLayerStarted;
         }
 
         let time_start = Instant::now();
