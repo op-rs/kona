@@ -15,7 +15,6 @@ use std::sync::Arc;
 use tower::ServiceBuilder;
 use url::Url;
 
-use kona_engine::SyncConfig;
 use kona_genesis::RollupConfig;
 use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
@@ -26,8 +25,6 @@ use kona_rpc::RpcConfig;
 pub struct RollupNodeBuilder {
     /// The rollup configuration.
     config: RollupConfig,
-    /// The sync configuration.
-    sync_config: Option<SyncConfig>,
     /// The L1 EL provider RPC URL.
     l1_provider_rpc_url: Option<Url>,
     /// The L1 beacon API URL.
@@ -59,11 +56,6 @@ impl RollupNodeBuilder {
     /// Sets the mode on the [`RollupNodeBuilder`].
     pub fn with_mode(self, mode: NodeMode) -> Self {
         Self { mode, ..self }
-    }
-
-    /// Appends a [`SyncConfig`] to the builder.
-    pub fn with_sync_config(self, sync_config: SyncConfig) -> Self {
-        Self { sync_config: Some(sync_config), ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.
@@ -146,7 +138,6 @@ impl RollupNodeBuilder {
         let config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {
             config: Arc::clone(&config),
-            sync: self.sync_config.expect("missing sync config"),
             l2_rpc_url,
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,

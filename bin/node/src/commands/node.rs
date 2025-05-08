@@ -3,7 +3,7 @@
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use clap::Parser;
-use kona_engine::{EngineKind, SyncConfig, SyncMode};
+use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -49,7 +49,7 @@ pub struct NodeCommand {
         visible_alias = "l2.enginekind",
         default_value = "geth",
         env = "L2_ENGINE_KIND",
-        help = "The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
+        help = "DEPRECATED. The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
     )]
     pub l2_engine_kind: EngineKind,
     /// Poll interval (in seconds) for reloading the runtime config.
@@ -118,14 +118,6 @@ impl NodeCommand {
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
         let jwt_secret = self.validate_jwt(&cfg).await?;
-        let kind = self.l2_engine_kind;
-        let sync_config = SyncConfig {
-            sync_mode: SyncMode::ExecutionLayer,
-            // Skip sync start check is deprecated in the op-node,
-            // so set it to false here without needing a cli flag.
-            skip_sync_start_check: false,
-            supports_post_finalization_elsync: kind.supports_post_finalization_elsync(),
-        };
 
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
@@ -136,7 +128,6 @@ impl NodeCommand {
 
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
-            .with_sync_config(sync_config)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
