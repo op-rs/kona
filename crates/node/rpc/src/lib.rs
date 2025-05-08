@@ -47,3 +47,6 @@ pub use reqwest::SupervisorClient;
 
 mod interop;
 pub use interop::{CheckAccessList, InteropTxValidator, InteropTxValidatorError};
+
+mod rollup;
+pub use rollup::RollupRpc;

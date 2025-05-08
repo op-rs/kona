@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 # workspace
 kona-genesis.workspace = true
-kona-protocol.workspace = true
+kona-protocol = {workspace = true, features = ["serde", "std"]}
 
 # alloy
 alloy-eips.workspace = true
@@ -37,6 +37,7 @@ op-alloy-rpc-types.workspace = true
 op-alloy-rpc-types-engine.workspace = true
 
 # general
+serde.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tracing.workspace = true

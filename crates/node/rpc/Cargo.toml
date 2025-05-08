@@ -18,6 +18,7 @@ workspace = true
 # Workspace
 kona-protocol = {workspace = true, features = ["serde", "std"]}
 kona-p2p.workspace = true
+kona-engine.workspace = true
 kona-macros.workspace = true
 kona-genesis = {workspace = true, features = ["serde", "std"]}
 

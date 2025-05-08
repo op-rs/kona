@@ -33,3 +33,6 @@ pub use state::{EngineState, EngineStateBuilder, EngineStateBuilderError};
 
 mod kinds;
 pub use kinds::EngineKind;
+
+mod query;
+pub use query::{EngineQuerySender, EngineStateQuery};

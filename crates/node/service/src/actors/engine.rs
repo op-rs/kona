@@ -4,8 +4,8 @@ use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_derive::types::Signal;
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
-    EngineTaskError, InsertUnsafeTask,
+    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError,
+    EngineStateQuery, EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
@@ -13,7 +13,7 @@ use kona_sources::RuntimeConfig;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
+    mpsc::{Receiver, UnboundedReceiver, UnboundedSender},
     watch::Sender as WatchSender,
 };
 use tokio_util::sync::CancellationToken;
@@ -36,6 +36,8 @@ pub struct EngineActor {
     pub engine: Engine,
     /// The channel to send the l2 safe head to the derivation actor.
     engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
+    /// Handler for inbound queries to the engine.
+    inbound_queries: Option<tokio::sync::mpsc::Receiver<EngineStateQuery>>,
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
@@ -65,6 +67,7 @@ impl EngineActor {
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
+        inbound_queries: Option<Receiver<EngineStateQuery>>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
@@ -75,6 +78,7 @@ impl EngineActor {
             engine,
             engine_l2_safe_head_tx,
             runtime_config_rx,
+            inbound_queries,
             attributes_rx,
             unsafe_block_rx,
             cancellation,
@@ -149,6 +153,36 @@ impl NodeActor for EngineActor {
     type Error = EngineError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
+        // Start the engine query server in a separate task to avoid blocking the main task.
+        if let Some(mut inbound_query_channel) = std::mem::take(&mut self.inbound_queries) {
+            let cancellation_token = self.cancellation.clone();
+            let state_recv = self.engine.subscribe();
+
+            tokio::spawn(async move {
+                loop {
+                    tokio::select! {
+                            _ = cancellation_token.cancelled() => {
+                                warn!(target: "engine", "EngineActor received shutdown signal.");
+                                return;
+                            },
+                            req = inbound_query_channel.recv() => {
+                                if let Some(req) = req {
+                                    trace!(target: "engine", ?req, "Received engine query request.");
+
+                                    if req.handle(&state_recv).is_none() {
+                                        warn!(target: "engine", "Failed to handle engine query request.");
+                                    }
+                                } else {
+                                    warn!(target: "engine", "Engine query channel closed unexpectedly, shutting down query receiver task.");
+                                    return;
+                                }
+                            }
+
+                    }
+                }
+            });
+        }
+
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {

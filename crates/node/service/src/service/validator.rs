@@ -11,7 +11,9 @@ use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::BlockInfo;
-use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcLauncher, RpcLauncherError};
+use kona_rpc::{
+    NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher, RpcLauncherError,
+};
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;
@@ -123,6 +125,12 @@ pub trait ValidatorNodeService {
         );
         let derivation = Some(derivation);
 
+        /// The size of the RPC channel buffer for the engine actor.
+        const ENGINE_RPC_CHANNEL_SIZE: usize = 1024;
+
+        let (engine_query_sender, engine_query_recv) =
+            tokio::sync::mpsc::channel(ENGINE_RPC_CHANNEL_SIZE);
+
         let runtime = self
             .runtime()
             .with_tx(runtime_config_tx)
@@ -142,6 +150,7 @@ pub trait ValidatorNodeService {
             runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,
+            Some(engine_query_recv),
             cancellation.clone(),
         );
         let engine = Some(engine);
@@ -160,11 +169,15 @@ pub trait ValidatorNodeService {
             },
         );
 
+        let rollup_rpc = RollupRpc::new(engine_query_sender);
+
         // The RPC Server should go last to let other actors register their rpc modules.
         let rpc = if let Some(mut rpc) = self.rpc() {
             if let Some(p2p_module) = p2p_module {
                 rpc = rpc.merge(p2p_module.into_rpc()).expect("failed to merge p2p rpc module");
             }
+
+            rpc = rpc.merge(rollup_rpc.into_rpc()).expect("failed to merge engine rpc module");
             let handle = rpc.start().await?;
             Some(RpcActor::new(handle, cancellation.clone()))
         } else {
