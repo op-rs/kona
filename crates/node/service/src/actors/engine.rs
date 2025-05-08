@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use kona_derive::types::Signal;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
-    EngineTaskError, InsertUnsafeTask, SyncConfig,
+    EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::OpAttributesWithParent;
@@ -27,8 +27,6 @@ use crate::NodeActor;
 pub struct EngineActor {
     /// The [`RollupConfig`] used to build tasks.
     pub config: Arc<RollupConfig>,
-    /// The [`SyncConfig`] for engine api tasks.
-    pub sync: Arc<SyncConfig>,
     /// An [`EngineClient`] used for creating engine tasks.
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
@@ -54,7 +52,6 @@ impl EngineActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Arc<RollupConfig>,
-        sync: SyncConfig,
         client: EngineClient,
         engine: Engine,
         sync_complete_tx: UnboundedSender<()>,
@@ -66,7 +63,6 @@ impl EngineActor {
     ) -> Self {
         Self {
             config,
-            sync: Arc::new(sync),
             client: Arc::new(client),
             sync_complete_tx,
             derivation_signal_tx,
@@ -106,8 +102,6 @@ impl EngineActor {
 pub struct EngineLauncher {
     /// The [`RollupConfig`].
     pub config: Arc<RollupConfig>,
-    /// The [`SyncConfig`] for engine tasks.
-    pub sync: SyncConfig,
     /// The engine rpc url.
     pub engine_url: Url,
     /// The l2 rpc url.
@@ -199,7 +193,6 @@ impl NodeActor for EngineActor {
                     let hash = envelope.payload_hash;
                     let task = InsertUnsafeTask::new(
                         Arc::clone(&self.client),
-                        Arc::clone(&self.sync),
                         Arc::clone(&self.config),
                         envelope,
                     );

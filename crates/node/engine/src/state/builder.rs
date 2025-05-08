@@ -64,35 +64,18 @@ impl EngineStateBuilder {
         Ok(self)
     }
 
-    /// Fetches the safe head block info if it is not already set.
-    async fn fetch_safe_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
+    /// Initializes the safe head block info if it is not already set.
+    fn init_safe_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
         if self.safe_head.is_none() {
-            self.safe_head = match self.client.l2_block_info_by_label(BlockNumberOrTag::Safe).await
-            {
-                Ok(Some(safe_head)) => Some(safe_head),
-                Ok(None) => {
-                    debug!(target: "engine", "No safe head, using empty block info to kick off EL sync");
-                    Some(Default::default())
-                }
-                Err(e) => return Err(e.into()),
-            };
+            self.safe_head = Some(Default::default());
         }
         Ok(self)
     }
 
-    /// Fetches the finalized head block info if it is not already set.
-    async fn fetch_finalized_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
+    /// Initializes the finalized head block info if it is not already set.
+    fn init_finalized_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
         if self.finalized_head.is_none() {
-            match self.client.l2_block_info_by_label(BlockNumberOrTag::Finalized).await {
-                Ok(Some(finalized_head)) => {
-                    self.finalized_head = Some(finalized_head);
-                }
-                Ok(None) => {
-                    debug!(target: "engine", "No finalized head, using empty block info to kick off EL sync");
-                    self.finalized_head = Some(Default::default());
-                }
-                Err(e) => return Err(e.into()),
-            }
+            self.finalized_head = Some(Default::default());
         }
         Ok(self)
     }
@@ -109,10 +92,10 @@ impl EngineStateBuilder {
         debug!(target: "engine", "Building engine state");
         builder.fetch_unsafe_head().await?;
         debug!(target: "engine", "Fetched unsafe head: {:?}", builder.unsafe_head);
-        builder.fetch_finalized_head().await?;
-        debug!(target: "engine", "Fetched finalized head: {:?}", builder.finalized_head);
-        builder.fetch_safe_head().await?;
-        debug!(target: "engine", "Fetched safe head: {:?}", builder.safe_head);
+        builder.init_finalized_head()?;
+        debug!(target: "engine", "Initialized finalized head: {:?}", builder.finalized_head);
+        builder.init_safe_head()?;
+        debug!(target: "engine", "Initialized safe head: {:?}", builder.safe_head);
 
         let unsafe_head = builder.unsafe_head.ok_or(EngineStateBuilderError::MissingUnsafeHead)?;
         let finalized_head =

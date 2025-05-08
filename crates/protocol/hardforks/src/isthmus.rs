@@ -76,8 +76,8 @@ impl Isthmus {
             .source_hash()
     }
 
-    /// Returns the source hash for the Isthmus Deposit Contract deployment.
-    pub fn deposit_contract_source() -> B256 {
+    /// Returns the source hash for the EIP-2935 block hash history contract deployment.
+    pub fn block_hash_history_contract_source() -> B256 {
         UpgradeDepositSource { intent: String::from("Isthmus: EIP-2935 Contract Deployment") }
             .source_hash()
     }
@@ -219,7 +219,7 @@ impl Isthmus {
                 input: Self::ENABLE_ISTHMUS_INPUT.into(),
             },
             TxDeposit {
-                source_hash: Self::deposit_contract_source(),
+                source_hash: Self::block_hash_history_contract_source(),
                 from: Self::EIP2935_FROM,
                 to: TxKind::Create,
                 mint: 0.into(),
