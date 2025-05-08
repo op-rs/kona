@@ -46,8 +46,7 @@ where
             |tx, buf| buf.put_slice(tx.as_ref()),
         )
         .root();
-        let receipts_root =
-            Self::compute_receipts_root(&ex_result.receipts, self.config, timestamp);
+        let receipts_root = compute_receipts_root(&ex_result.receipts, self.config, timestamp);
         let withdrawals_root = if self.config.is_isthmus_active(timestamp) {
             Some(self.message_passer_account(block_env.number)?)
         } else if self.config.is_canyon_active(timestamp) {
@@ -158,37 +157,36 @@ where
                 .storage_root),
         }
     }
+}
 
-    /// Computes the receipts root from the given set of receipts.
-    fn compute_receipts_root(
-        receipts: &[OpReceiptEnvelope],
-        config: &RollupConfig,
-        timestamp: u64,
-    ) -> B256 {
-        // There is a minor bug in op-geth and op-erigon where in the Regolith hardfork,
-        // the receipt root calculation does not inclide the deposit nonce in the
-        // receipt encoding. In the Regolith hardfork, we must strip the deposit nonce
-        // from the receipt encoding to match the receipt root calculation.
-        if config.is_regolith_active(timestamp) && !config.is_canyon_active(timestamp) {
-            let receipts = receipts
-                .iter()
-                .cloned()
-                .map(|receipt| match receipt {
-                    OpReceiptEnvelope::Deposit(mut deposit_receipt) => {
-                        deposit_receipt.receipt.deposit_nonce = None;
-                        OpReceiptEnvelope::Deposit(deposit_receipt)
-                    }
-                    _ => receipt,
-                })
-                .collect::<Vec<_>>();
-
-            ordered_trie_with_encoder(receipts.as_ref(), |receipt, mut buf| {
-                receipt.encode_2718(&mut buf)
+/// Computes the receipts root from the given set of receipts.
+pub fn compute_receipts_root(
+    receipts: &[OpReceiptEnvelope],
+    config: &RollupConfig,
+    timestamp: u64,
+) -> B256 {
+    // There is a minor bug in op-geth and op-erigon where in the Regolith hardfork,
+    // the receipt root calculation does not inclide the deposit nonce in the
+    // receipt encoding. In the Regolith hardfork, we must strip the deposit nonce
+    // from the receipt encoding to match the receipt root calculation.
+    if config.is_regolith_active(timestamp) && !config.is_canyon_active(timestamp) {
+        let receipts = receipts
+            .iter()
+            .cloned()
+            .map(|receipt| match receipt {
+                OpReceiptEnvelope::Deposit(mut deposit_receipt) => {
+                    deposit_receipt.receipt.deposit_nonce = None;
+                    OpReceiptEnvelope::Deposit(deposit_receipt)
+                }
+                _ => receipt,
             })
-            .root()
-        } else {
-            ordered_trie_with_encoder(receipts, |receipt, mut buf| receipt.encode_2718(&mut buf))
-                .root()
-        }
+            .collect::<Vec<_>>();
+
+        ordered_trie_with_encoder(receipts.as_ref(), |receipt, mut buf| {
+            receipt.encode_2718(&mut buf)
+        })
+        .root()
+    } else {
+        ordered_trie_with_encoder(receipts, |receipt, mut buf| receipt.encode_2718(&mut buf)).root()
     }
 }
