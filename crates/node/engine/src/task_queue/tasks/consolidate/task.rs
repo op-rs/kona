@@ -6,7 +6,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
-use kona_protocol::OpAttributesWithParent;
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use std::sync::Arc;
 
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
@@ -83,7 +83,25 @@ impl ConsolidateTask {
                 block_hash = %block.header.hash,
                 "Consolidating engine state",
             );
-            return self.execute_forkchoice_task(state).await;
+            match self.execute_forkchoice_task(state).await {
+                Ok(()) => {
+                    debug!(target: "engine", "Consolidation successful");
+                    debug!(target: "engine", "Promoting safe head");
+                    match L2BlockInfo::from_rpc_block_and_genesis(block, &self.cfg.genesis) {
+                        Ok(block_info) => {
+                            state.set_safe_head(block_info);
+                        }
+                        Err(e) => {
+                            warn!(target: "engine", ?e, "Failed to create L2BlockInfo and promote safe head");
+                        }
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!(target: "engine", ?e, "Consolidation failed");
+                    return Err(e);
+                }
+            }
         }
 
         // Otherwise, the attributes need to be processed.
