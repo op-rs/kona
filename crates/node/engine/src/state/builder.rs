@@ -64,7 +64,7 @@ impl EngineStateBuilder {
         Ok(self)
     }
 
-    /// Initilizes the safe head block info if it is not already set.
+    /// Initializes the safe head block info if it is not already set.
     fn init_safe_head(&mut self) -> Result<&mut Self, EngineStateBuilderError> {
         if self.safe_head.is_none() {
             self.safe_head = Some(Default::default());
