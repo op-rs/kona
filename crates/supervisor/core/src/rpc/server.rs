@@ -15,16 +15,16 @@ use tracing::{trace, warn};
 
 /// The server-side implementation struct for the `SupervisorApi`.
 /// It holds a reference to the core Supervisor logic.
-#[derive(Debug, Clone)]
-pub struct SupervisorRpc {
+#[derive(Debug)]
+pub struct SupervisorRpc<T> {
     /// Reference to the core Supervisor logic.
     /// Using Arc allows sharing the Supervisor instance if needed,
-    supervisor: Arc<dyn SupervisorService + Send + Sync + 'static>,
+    supervisor: Arc<T>,
 }
 
-impl SupervisorRpc {
+impl<T> SupervisorRpc<T> {
     /// Creates a new [`SupervisorRpc`] instance.
-    pub fn new(supervisor: Arc<dyn SupervisorService + Send + Sync + 'static>) -> Self {
+    pub fn new(supervisor: Arc<T>) -> Self {
         super::Metrics::init();
         trace!("Creating new SupervisorRpc handler");
         Self { supervisor }
@@ -32,7 +32,10 @@ impl SupervisorRpc {
 }
 
 #[async_trait]
-impl SupervisorApiServer for SupervisorRpc {
+impl<T> SupervisorApiServer for SupervisorRpc<T>
+where
+    T: SupervisorService + 'static,
+{
     async fn local_unsafe(&self, _chain_id: ChainId) -> RpcResult<BlockNumHash> {
         trace!("Received local_unsafe request");
         // self.supervisor.local_unsafe()
@@ -91,5 +94,11 @@ impl SupervisorApiServer for SupervisorRpc {
                     ErrorObject::from(ErrorCode::InternalError)
                 })
         }.await)
+    }
+}
+
+impl<T> Clone for SupervisorRpc<T> {
+    fn clone(&self) -> Self {
+        Self { supervisor: self.supervisor.clone() }
     }
 }

@@ -15,7 +15,7 @@ pub enum SupervisorError {
 
 /// Defines the service for the Supervisor core logic.
 #[async_trait]
-pub trait SupervisorService: Debug {
+pub trait SupervisorService: Debug + Send + Sync {
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
         &self,

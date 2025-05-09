@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use kona_supervisor_core::{Supervisor, SupervisorRpc};
+use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService};
 use kona_supervisor_rpc::SupervisorApiServer;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{info, warn};
@@ -16,13 +16,13 @@ pub struct Config {
     // Add other configuration fields as needed (e.g., connection details for L1/L2 nodes)
 }
 
-/// The main service structure for the Kona Supervisor.
-/// orchestrates the various components of the supervisor
+/// The main service structure for the Kona [`SupervisorService`]. Orchestrates the various
+/// components of the supervisor.
 #[derive(Debug)]
-pub struct Service {
+pub struct Service<T = Supervisor> {
     config: Config,
-    _supervisor: Arc<dyn kona_supervisor_core::SupervisorService + Send + Sync>,
-    rpc_impl: SupervisorRpc,
+    _supervisor: Arc<T>,
+    rpc_impl: SupervisorRpc<T>,
     rpc_server_handle: Option<ServerHandle>,
     // TODO:: add other actors
 }
@@ -41,7 +41,12 @@ impl Service {
 
         Ok(Self { config, _supervisor: supervisor, rpc_impl, rpc_server_handle: None })
     }
+}
 
+impl<T> Service<T>
+where
+    T: SupervisorService + 'static,
+{
     /// Runs the Supervisor service.
     /// This function will typically run indefinitely until interrupted.
     pub async fn run(&mut self) -> Result<()> {
