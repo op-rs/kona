@@ -242,7 +242,9 @@ impl BuildTask {
                 if payload_attrs.is_deposits_only() {
                     error!(target: "engine_builder", "Critical: Deposit-only payload import failed: {validation_error}");
                     Err(BuildTaskError::DepositOnlyPayloadFailed)
-                } else {
+                } else if cfg
+                    .is_holocene_active(payload_attrs.attributes.payload_attributes.timestamp)
+                {
                     warn!(target: "engine_builder", "Payload import failed: {validation_error}");
                     warn!(target: "engine_builder", "Re-attempting payload import with deposits only.");
                     // HOLOCENE: Re-attempt payload import with deposits only
@@ -261,6 +263,11 @@ impl BuildTask {
                         Err(_) => return Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
                     }
                     Err(BuildTaskError::HoloceneInvalidFlush)
+                } else {
+                    error!(target: "engine_builder", "Payload import failed: {validation_error}");
+                    Err(BuildTaskError::NewPayloadFailed(RpcError::local_usage_str(
+                        &validation_error,
+                    )))
                 }
             }
             s => {
