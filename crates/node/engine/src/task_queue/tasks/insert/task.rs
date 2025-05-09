@@ -144,7 +144,10 @@ impl EngineTaskExt for InsertUnsafeTask {
         // Send the forkchoice update to finalize the payload insertion.
         let fcu_time_start = Instant::now();
         let response = match self.version {
-            EngineForkchoiceVersion::V1 => self.client.fork_choice_updated_v1(fcu, None).await,
+            EngineForkchoiceVersion::V1 => {
+                debug!(target = "engine:forkchoice", "Send FCU to engine");
+                self.client.fork_choice_updated_v1(fcu, None).await
+            }
             EngineForkchoiceVersion::V2 => self.client.fork_choice_updated_v2(fcu, None).await,
             EngineForkchoiceVersion::V3 => self.client.fork_choice_updated_v3(fcu, None).await,
         };
