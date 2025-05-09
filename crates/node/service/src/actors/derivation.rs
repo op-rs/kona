@@ -30,8 +30,6 @@ where
 {
     /// The derivation pipeline.
     pipeline: P,
-    /// The latest L2 safe head.
-    l2_safe_head: L2BlockInfo,
     /// The l2 safe head from the engine.
     engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
     /// A receiver that tells derivation to begin.
@@ -73,7 +71,6 @@ where
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pipeline: P,
-        l2_safe_head: L2BlockInfo,
         engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
         sync_complete_rx: UnboundedReceiver<()>,
         derivation_signal_rx: UnboundedReceiver<Signal>,
@@ -83,7 +80,6 @@ where
     ) -> Self {
         Self {
             pipeline,
-            l2_safe_head,
             engine_l2_safe_head,
             sync_complete_rx,
             derivation_signal_rx,
@@ -113,7 +109,8 @@ where
         // first attributes are produced. All batches at and before the safe head will be
         // dropped, so the first payload will always be the disputed one.
         loop {
-            match self.pipeline.step(self.l2_safe_head).await {
+            let l2_safe_head = *self.engine_l2_safe_head.borrow();
+            match self.pipeline.step(l2_safe_head).await {
                 StepResult::PreparedAttributes => { /* continue; attributes will be sent off. */ }
                 StepResult::AdvancedOrigin => {
                     info!(
@@ -142,7 +139,7 @@ where
 
                             let system_config = self
                                 .pipeline
-                                .system_config_by_number(self.l2_safe_head.block_info.number)
+                                .system_config_by_number(l2_safe_head.block_info.number)
                                 .await?;
 
                             if matches!(e, ResetError::HoloceneActivation) {
@@ -153,7 +150,7 @@ where
                                 self.pipeline
                                     .signal(
                                         ActivationSignal {
-                                            l2_safe_head: self.l2_safe_head,
+                                            l2_safe_head,
                                             l1_origin,
                                             system_config: Some(system_config),
                                         }
@@ -177,7 +174,7 @@ where
                                 self.pipeline
                                     .signal(
                                         ResetSignal {
-                                            l2_safe_head: self.l2_safe_head,
+                                            l2_safe_head,
                                             l1_origin,
                                             system_config: Some(system_config),
                                         }
@@ -265,11 +262,10 @@ where
             return Ok(());
         }
 
-        // The L2 Safe Head must be advanced before producing new payload attributes.
-        if self.engine_l2_safe_head.borrow().block_info.number <=
-            self.l2_safe_head.block_info.number
-        {
-            debug!(target: "derivation", engine_safe_head = ?self.engine_l2_safe_head.borrow().block_info.number, l2_safe_head = ?self.l2_safe_head.block_info.number, "L2 safe head unchanged");
+        // Wait for the engine to initialize unknowns prior to kicking off derivation.
+        let engine_safe_head = *self.engine_l2_safe_head.borrow();
+        if engine_safe_head.block_info.hash.is_zero() {
+            warn!(target: "derivation", engine_safe_head = ?engine_safe_head.block_info.number, "Waiting for engine to initialize state prior to derivation.");
             return Ok(());
         }
 
@@ -287,7 +283,6 @@ where
         };
 
         self.attributes_out.send(payload_attrs).map_err(Box::new)?;
-        self.l2_safe_head = *self.engine_l2_safe_head.borrow();
         Ok(())
     }
 }
