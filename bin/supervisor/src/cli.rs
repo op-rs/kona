@@ -57,7 +57,7 @@ impl Cli {
         rt.block_on(fut)
     }
 
-    /// Creates a new default tokio multi-thread [Runtime](tokio::runtime::Runtime) with all
+    /// Creates a new default tokio multi-thread [`Runtime`](tokio::runtime::Runtime) with all
     /// features enabled
     pub fn tokio_runtime() -> Result<tokio::runtime::Runtime, std::io::Error> {
         tokio::runtime::Builder::new_multi_thread().enable_all().build()

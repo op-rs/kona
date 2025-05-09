@@ -4,60 +4,40 @@ use std::net::IpAddr;
 /// Supervisor configuration arguments.
 #[derive(Args, Debug)]
 pub struct SupervisorArgs {
-    /// L1 RPC source.
-    #[arg(long, env = "L1_RPC", help = "L1 RPC source")]
+    /// L1 RPC source
+    #[arg(long, env = "L1_RPC")]
     pub l1_rpc: String,
 
     /// L2 consensus rollup node RPC addresses.
-    #[arg(
-        long = "l2-consensus.nodes",
-        env = "L2_CONSENSUS_NODES",
-        help = "L2 consensus node RPCs",
-        value_delimiter = ','
-    )]
+    #[arg(long = "l2-consensus.nodes", env = "L2_CONSENSUS_NODES", value_delimiter = ',')]
     pub l2_consensus_nodes: Vec<String>,
 
     /// JWT secrets for L2 consensus nodes.
     #[arg(
         long = "l2-consensus.jwt-secret",
         env = "L2_CONSENSUS_JWT_SECRET",
-        help = "JWT secrets for L2 consensus nodes",
         value_delimiter = ','
     )]
     pub l2_consensus_jwt_secret: Vec<String>,
 
     /// Directory to store supervisor data.
-    #[arg(long, env = "DATADIR", help = "Directory to store data")]
+    #[arg(long, env = "DATADIR")]
     pub datadir: String,
 
     /// Optional endpoint to sync data from another supervisor.
-    #[arg(
-        long = "datadir.sync-endpoint",
-        env = "DATADIR_SYNC_ENDPOINT",
-        help = "Sync endpoint for supervisor"
-    )]
+    #[arg(long = "datadir.sync-endpoint", env = "DATADIR_SYNC_ENDPOINT")]
     pub datadir_sync_endpoint: Option<String>,
 
     /// Path to the dependency-set JSON config file.
-    #[arg(long = "dependency-set", env = "DEPENDENCY_SET", help = "Path to dependency-set config")]
+    #[arg(long = "dependency-set", env = "DEPENDENCY_SET")]
     pub dependency_set: Option<String>,
 
     /// IP address for the Supervisor RPC server to listen on.
-    #[arg(
-        long = "rpc.addr",
-        env = "RPC_ADDR",
-        help = "Supervisor RPC listening address",
-        default_value = "127.0.0.1"
-    )]
+    #[arg(long = "rpc.addr", env = "RPC_ADDR", default_value = "0.0.0.0")]
     pub rpc_address: IpAddr,
 
     /// Port for the Supervisor RPC server to listen on.
-    #[arg(
-        long = "rpc.port",
-        env = "RPC_PORT",
-        help = "Supervisor RPC listening port",
-        default_value_t = 9000
-    )]
+    #[arg(long = "rpc.port", env = "RPC_PORT", default_value_t = 8545)]
     pub rpc_port: u16,
 }
 

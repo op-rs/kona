@@ -1,5 +1,5 @@
 [package]
-name = "supervisor"
+name = "kona-supervisor"
 version = "0.1.0"
 
 edition.workspace = true
