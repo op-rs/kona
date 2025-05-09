@@ -1,8 +1,8 @@
 //! [ValidatorNodeService] trait.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, L2ForkchoiceState, NetworkActor, NodeActor,
-    RpcActor, RuntimeLauncher, service::spawn_and_wait,
+    DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
+    RuntimeLauncher, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -10,11 +10,12 @@ use kona_derive::traits::{Pipeline, SignalReceiver};
 use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
-use kona_protocol::BlockInfo;
+use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{
     L1WatcherQueries, NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher,
     RpcLauncherError,
 };
+use kona_sources::L2ForkchoiceState;
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;
@@ -120,12 +121,11 @@ pub trait ValidatorNodeService {
             Some(l1_watcher_queries_recv),
         ));
 
-        let (l2_forkchoice_state, derivation_pipeline) = self.init_derivation().await?;
+        let (_, derivation_pipeline) = self.init_derivation().await?;
         let (engine_l2_safe_tx, engine_l2_safe_rx) =
-            tokio::sync::watch::channel(l2_forkchoice_state.safe);
+            tokio::sync::watch::channel(L2BlockInfo::default());
         let derivation = DerivationActor::new(
             derivation_pipeline,
-            l2_forkchoice_state.safe,
             engine_l2_safe_rx,
             sync_complete_rx,
             derivation_signal_rx,

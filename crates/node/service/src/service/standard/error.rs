@@ -7,6 +7,7 @@ use kona_engine::EngineStateBuilderError;
 use kona_p2p::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
 use kona_rpc::RpcLauncherError;
+use kona_sources::SyncStartError;
 
 /// Errors that can occur during the operation of the [`crate::RollupNode`].
 #[derive(thiserror::Error, Debug)]

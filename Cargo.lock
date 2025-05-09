@@ -4975,6 +4975,7 @@ dependencies = [
 name = "kona-sources"
 version = "0.1.0"
 dependencies = [
+ "alloy-eips 0.15.10",
  "alloy-primitives",
  "alloy-provider",
  "alloy-transport",
