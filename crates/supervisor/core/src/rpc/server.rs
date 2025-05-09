@@ -13,7 +13,7 @@ use kona_supervisor_rpc::SupervisorApiServer;
 use std::sync::Arc;
 use tracing::{trace, warn};
 
-/// The server-side implementation struct for the `SupervisorApi`.
+/// The server-side implementation struct for the [`SupervisorApiServer`].
 /// It holds a reference to the core Supervisor logic.
 #[derive(Debug)]
 pub struct SupervisorRpc<T> {
