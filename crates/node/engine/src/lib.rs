@@ -35,4 +35,4 @@ mod kinds;
 pub use kinds::EngineKind;
 
 mod query;
-pub use query::{EngineQuerySender, EngineStateQuery};
+pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};

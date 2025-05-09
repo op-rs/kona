@@ -61,6 +61,7 @@ where
     pub attributes_out: UnboundedSender<OpAttributesWithParent>,
     /// The receiver for L1 head update notifications.
     l1_head_updates: UnboundedReceiver<BlockInfo>,
+
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }

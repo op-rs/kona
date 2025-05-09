@@ -1,7 +1,7 @@
 //! Output Types
 
 use alloy_primitives::B256;
-use kona_protocol::{L2BlockInfo, SyncStatus};
+use kona_protocol::{L2BlockInfo, OutputRoot, SyncStatus};
 
 /// An [output response][or] for Optimism Rollup.
 ///
@@ -21,4 +21,18 @@ pub struct OutputResponse {
     pub state_root: B256,
     /// The status of the node sync.
     pub sync_status: SyncStatus,
+}
+
+impl OutputResponse {
+    /// Builds an [`OutputResponse`] from its parts.
+    pub fn from_v0(v0: OutputRoot, sync_status: SyncStatus, block_ref: L2BlockInfo) -> Self {
+        Self {
+            version: v0.version(),
+            output_root: v0.hash(),
+            block_ref,
+            withdrawal_storage_root: v0.bridge_storage_root,
+            state_root: v0.state_root,
+            sync_status,
+        }
+    }
 }

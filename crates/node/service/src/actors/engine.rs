@@ -4,8 +4,8 @@ use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_derive::types::Signal;
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError,
-    EngineStateQuery, EngineTask, EngineTaskError, InsertUnsafeTask,
+    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineStateBuilder,
+    EngineStateBuilderError, EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
@@ -40,7 +40,7 @@ pub struct EngineActor {
     /// The channel to send the l2 safe head to the derivation actor.
     engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
     /// Handler for inbound queries to the engine.
-    inbound_queries: Option<tokio::sync::mpsc::Receiver<EngineStateQuery>>,
+    inbound_queries: Option<tokio::sync::mpsc::Receiver<EngineQueries>>,
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
@@ -70,7 +70,7 @@ impl EngineActor {
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
-        inbound_queries: Option<Receiver<EngineStateQuery>>,
+        inbound_queries: Option<Receiver<EngineQueries>>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
@@ -113,17 +113,19 @@ impl EngineActor {
     /// Starts a task to handle engine queries.
     fn start_query_task(
         &self,
-        mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineStateQuery>,
+        mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
     ) -> JoinHandle<()> {
         let state_recv = self.engine.subscribe();
+        let engine_client = self.client.clone();
+        let rollup_config = self.config.clone();
 
         tokio::spawn(async move {
             while let Some(req) = inbound_query_channel.recv().await {
                 {
                     trace!(target: "engine", ?req, "Received engine query request.");
 
-                    if req.handle(&state_recv).is_none() {
-                        warn!(target: "engine", "Failed to handle engine query request.");
+                    if let Err(e) = req.handle(&state_recv, &engine_client, &rollup_config).await {
+                        warn!(target: "engine", err = ?e, "Failed to handle engine query request.");
                     }
                 }
             }

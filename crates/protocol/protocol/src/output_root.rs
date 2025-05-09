@@ -30,6 +30,12 @@ impl OutputRoot {
     /// commitment.
     pub const VERSION: u8 = 0;
 
+    /// Returns the version of the [`OutputRoot`]. Currently, the protocol only supports the version
+    /// number 0.
+    pub const fn version(&self) -> B256 {
+        B256::ZERO
+    }
+
     /// Constructs a V0 [`OutputRoot`] from its parts.
     pub const fn from_parts(state_root: B256, bridge_storage_root: B256, block_hash: B256) -> Self {
         Self { state_root, bridge_storage_root, block_hash }
