@@ -266,7 +266,10 @@ where
         }
 
         // The L2 Safe Head must be advanced before producing new payload attributes.
-        if *self.engine_l2_safe_head.borrow() == self.l2_safe_head {
+        if self.engine_l2_safe_head.borrow().block_info.number <=
+            self.l2_safe_head.block_info.number
+        {
+            debug!(target: "derivation", engine_safe_head = ?self.engine_l2_safe_head.borrow().block_info.number, l2_safe_head = ?self.l2_safe_head.block_info.number, "L2 safe head unchanged");
             return Ok(());
         }
 
