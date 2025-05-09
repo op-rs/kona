@@ -61,7 +61,10 @@ pub trait ValidatorNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError> + From<EngineStateBuilderError> + std::fmt::Debug;
+    type Error: From<RpcLauncherError>
+        + From<EngineStateBuilderError>
+        + From<jsonrpsee::server::RegisterMethodError>
+        + std::fmt::Debug;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;
@@ -181,10 +184,10 @@ pub trait ValidatorNodeService {
         // The RPC Server should go last to let other actors register their rpc modules.
         let rpc = if let Some(mut rpc) = self.rpc() {
             if let Some(p2p_module) = p2p_module {
-                rpc = rpc.merge(p2p_module.into_rpc()).expect("failed to merge p2p rpc module");
+                rpc = rpc.merge(p2p_module.into_rpc()).map_err(Self::Error::from)?;
             }
 
-            rpc = rpc.merge(rollup_rpc.into_rpc()).expect("failed to merge engine rpc module");
+            rpc = rpc.merge(rollup_rpc.into_rpc()).map_err(Self::Error::from)?;
             let handle = rpc.start().await?;
             Some(RpcActor::new(handle, cancellation.clone()))
         } else {
