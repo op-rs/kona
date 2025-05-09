@@ -7,8 +7,8 @@ use kona_interop::{DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootRes
 
 /// Optimism specified rpc interface.
 ///
-/// TODO:: add all the methods
-/// TODO:: add doc and interface reference
+/// https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#methods
+// TODO:: add all the methods
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
 pub trait SupervisorApi {
