@@ -5047,6 +5047,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-supervisor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-supervisor-service",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+]
+
+[[package]]
 name = "kona-supervisor-core"
 version = "0.1.0"
 dependencies = [
@@ -8342,19 +8355,6 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
-
-[[package]]
-name = "supervisor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "kona-cli",
- "kona-supervisor-service",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.19",
-]
 
 [[package]]
 name = "symbolic-common"
