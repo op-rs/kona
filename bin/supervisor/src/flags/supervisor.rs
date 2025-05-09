@@ -80,8 +80,8 @@ mod tests {
         assert_eq!(cli.supervisor.datadir, "/tmp/supervisor_data");
         assert_eq!(cli.supervisor.datadir_sync_endpoint, None);
         assert_eq!(cli.supervisor.dependency_set, None);
-        assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
-        assert_eq!(cli.supervisor.rpc_port, 9000);
+        assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
+        assert_eq!(cli.supervisor.rpc_port, 8545);
     }
 
     #[test]
