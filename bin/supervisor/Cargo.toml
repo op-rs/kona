@@ -1,0 +1,26 @@
+[package]
+name = "supervisor"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude.workspace = true
+
+[dependencies]
+# Workspace
+kona-supervisor-service.workspace = true
+kona-cli.workspace = true
+
+clap = { workspace = true, features = ["derive", "env"] }
+tokio = { workspace = true, features = [ "full", "macros"] }
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

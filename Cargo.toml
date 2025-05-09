@@ -15,6 +15,7 @@ members = [
   "bin/*",
   "crates/proof/*",
   "crates/node/*",
+  "crates/supervisor/*",
   "crates/protocol/*",
   "crates/providers/*",
   "crates/utilities/*",
@@ -24,6 +25,7 @@ default-members = [
   "bin/host",
   "bin/client",
   "bin/node",
+  "bin/supervisor",
 ]
 
 [workspace.metadata.cargo-udeps.ignore]
@@ -86,6 +88,11 @@ kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features
 kona-macros = { path = "crates/node/macros", version = "0.1.0", default-features = false }
 kona-sources = { path = "crates/node/sources", version = "0.1.0", default-features = false }
 kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
+
+# Supervisor
+kona-supervisor-core = { path = "crates/supervisor/core", version = "0.1.0", default-features = false }
+kona-supervisor-rpc = { path = "crates/supervisor/rpc", version = "0.1.0", default-features = false }
+kona-supervisor-service = { path = "crates/supervisor/service", version = "0.1.0", default-features = false }
 
 # Providers
 kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.2.0", default-features = false }

@@ -1,0 +1,33 @@
+[package]
+name = "kona-supervisor-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude.workspace = true
+
+[dependencies]
+# Workspace
+kona-interop.workspace = true
+kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
+
+# Alloy
+alloy-eips.workspace = true
+alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+
+# Misc
+jsonrpsee = { workspace = true, features = [ "server" ] }
+async-trait.workspace = true
+tracing = { workspace = true }
+thiserror.workspace = true
+
+# `metrics` feature
+metrics = { workspace = true }
+
+[lints]
+workspace = true

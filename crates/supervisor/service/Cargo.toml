@@ -1,0 +1,14 @@
+[package]
+name = "kona-supervisor-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+kona-supervisor-core = { workspace = true }
+kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
+
+# External dependencies
+jsonrpsee = { workspace = true, features = ["macros", "server"] }
+anyhow = { workspace = true }
+tracing = { workspace = true}
