@@ -1,14 +1,14 @@
 //! Server-side implementation of the Supervisor RPC API.
 
+use crate::supervisor::SupervisorService;
 use alloy_eips::eip1898::BlockNumHash;
+use alloy_primitives::{B256, ChainId};
 use async_trait::async_trait;
 use jsonrpsee::{
     core::RpcResult,
-    types::{error::ErrorCode, ErrorObject},
+    types::{ErrorObject, error::ErrorCode},
 };
-use alloy_primitives::{ChainId, B256};
-use kona_interop::{ExecutingDescriptor, SafetyLevel, DerivedIdPair, SuperRootResponse};
-use crate::supervisor::SupervisorService;
+use kona_interop::{DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse};
 use kona_supervisor_rpc::SupervisorApiServer;
 use std::sync::Arc;
 use tracing::{trace, warn};
@@ -33,10 +33,7 @@ impl SupervisorRpc {
 
 #[async_trait]
 impl SupervisorApiServer for SupervisorRpc {
-    async fn local_unsafe(
-        &self, 
-        _chain_id: ChainId,
-      ) -> RpcResult<BlockNumHash> {
+    async fn local_unsafe(&self, _chain_id: ChainId) -> RpcResult<BlockNumHash> {
         trace!("Received local_unsafe request");
         // self.supervisor.local_unsafe()
         // .await
@@ -45,10 +42,7 @@ impl SupervisorApiServer for SupervisorRpc {
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn cross_safe(
-        &self,
-        _chain_id: ChainId,
-    ) -> RpcResult<DerivedIdPair> {
+    async fn cross_safe(&self, _chain_id: ChainId) -> RpcResult<DerivedIdPair> {
         trace!("Received cross_safe request");
         // self.supervisor.cross_safe()
         // .await
@@ -57,10 +51,7 @@ impl SupervisorApiServer for SupervisorRpc {
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn finalized(
-        &self,
-        _chain_id: ChainId,
-    ) -> RpcResult<BlockNumHash> {
+    async fn finalized(&self, _chain_id: ChainId) -> RpcResult<BlockNumHash> {
         trace!("Received finalized request");
         // self.supervisor.finalized()
         // .await
@@ -69,10 +60,7 @@ impl SupervisorApiServer for SupervisorRpc {
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn super_root_at_timestamp(
-        &self,
-        _timestamp: u64,
-    ) -> RpcResult<SuperRootResponse> {
+    async fn super_root_at_timestamp(&self, _timestamp: u64) -> RpcResult<SuperRootResponse> {
         trace!("Received super_root_at_timestamp request");
         // self.supervisor.super_root_at_timestamp()
         // .await
@@ -80,7 +68,7 @@ impl SupervisorApiServer for SupervisorRpc {
         warn!("super_root_at_timestamp method not yet implemented");
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
- 
+
     async fn check_access_list(
         &self,
         inbox_entries: Vec<B256>,

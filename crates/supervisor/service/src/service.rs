@@ -2,10 +2,7 @@
 
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use kona_supervisor_core::{
-  Supervisor,
-  SupervisorRpc,
-};
+use kona_supervisor_core::{Supervisor, SupervisorRpc};
 use kona_supervisor_rpc::SupervisorApiServer;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{info, warn};
@@ -24,7 +21,7 @@ pub struct Config {
 #[derive(Debug)]
 pub struct Service {
     config: Config,
-    supervisor: Arc<dyn kona_supervisor_core::SupervisorService + Send + Sync>,
+    _supervisor: Arc<dyn kona_supervisor_core::SupervisorService + Send + Sync>,
     rpc_impl: SupervisorRpc,
     rpc_server_handle: Option<ServerHandle>,
     // TODO:: add other actors
@@ -40,28 +37,17 @@ impl Service {
 
         // Create the RPC implementation, sharing the core logic
         // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>
-        // The Arc<Supervisor> will be coerced.
         let rpc_impl = SupervisorRpc::new(supervisor.clone());
 
-        Ok(Self {
-            config,
-            supervisor, // Arc<Supervisor> coerces to the trait object type
-            rpc_impl,
-            rpc_server_handle: None,
-        })
+        Ok(Self { config, _supervisor: supervisor, rpc_impl, rpc_server_handle: None })
     }
 
     /// Runs the Supervisor service.
     /// This function will typically run indefinitely until interrupted.
     pub async fn run(&mut self) -> Result<()> {
-        info!(
-            "Attempting to start Supervisor RPC server on {}",
-            self.config.rpc_addr
-        );
+        info!("Attempting to start Supervisor RPC server on {}", self.config.rpc_addr);
 
-        let server = ServerBuilder::default()
-            .build(self.config.rpc_addr)
-            .await?;
+        let server = ServerBuilder::default().build(self.config.rpc_addr).await?;
 
         self.rpc_server_handle = Some(server.start(self.rpc_impl.clone().into_rpc()));
 
@@ -69,7 +55,7 @@ impl Service {
             "Supervisor RPC server started successfully and listening on {}",
             self.config.rpc_addr
         );
-        
+
         Ok(())
     }
 

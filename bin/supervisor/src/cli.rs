@@ -5,7 +5,7 @@ use clap::Parser;
 
 use anyhow::Result;
 use kona_cli::cli_styles;
-use kona_supervisor_service::{Service, Config};
+use kona_supervisor_service::{Config, Service};
 use std::net::SocketAddr;
 use tracing::info;
 
@@ -40,9 +40,9 @@ impl Cli {
 
             tokio::signal::ctrl_c().await?;
             info!("Shutdown signal received. Initiating service shutdown...");
-    
+
             service.shutdown().await?; // Call shutdown on the service instance itself
-    
+
             info!("Supervisor service shut down gracefully.");
             Ok(())
         })

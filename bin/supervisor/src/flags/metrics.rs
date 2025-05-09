@@ -1,6 +1,6 @@
-use std::net::IpAddr;
-use clap::{ Args};
+use clap::Args;
 use kona_cli::init_prometheus_server;
+use std::net::IpAddr;
 
 /// Configuration for Prometheus metrics.
 #[derive(Args, Debug)]
@@ -15,20 +15,10 @@ pub struct MetricsArgs {
     )]
     pub enabled: bool,
     /// The port to serve prometheus metrics on
-    #[arg(
-        long = "metrics.port",
-        global = true,
-        default_value = "9090",
-        env = "METRICS_PORT"
-    )]
+    #[arg(long = "metrics.port", global = true, default_value = "9090", env = "METRICS_PORT")]
     pub port: u16,
     /// The ip address to use to emit prometheus metrics.
-    #[arg(
-        long = "metrics.addr",
-        global = true,
-        default_value = "0.0.0.0",
-        env = "METRICS_ADDR"
-    )]
+    #[arg(long = "metrics.addr", global = true, default_value = "0.0.0.0", env = "METRICS_ADDR")]
     pub addr: IpAddr,
 }
 
@@ -61,9 +51,13 @@ mod tests {
     #[test]
     fn test_default_metrics_args() {
         let cli = TestCli::parse_from(["test_app"]);
-        assert_eq!(cli.metrics.enabled, false, "Default for metrics.enabled should be false.");
+        assert!(!cli.metrics.enabled, "Default for metrics.enabled should be false.");
         assert_eq!(cli.metrics.port, 9090, "Default for metrics.port should be 9090.");
-        assert_eq!(cli.metrics.addr, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), "Default for metrics.addr should be 0.0.0.0.");
+        assert_eq!(
+            cli.metrics.addr,
+            IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            "Default for metrics.addr should be 0.0.0.0."
+        );
     }
 
     #[test]
@@ -71,12 +65,21 @@ mod tests {
         let cli = TestCli::parse_from([
             "test_app",
             "--metrics.enabled", // Presence of the flag sets it to true
-            "--metrics.port", "9999",
-            "--metrics.addr", "127.0.0.1",
+            "--metrics.port",
+            "9999",
+            "--metrics.addr",
+            "127.0.0.1",
         ]);
-        assert_eq!(cli.metrics.enabled, true, "metrics.enabled should be true when --metrics.enabled flag is passed.");
+        assert!(
+            cli.metrics.enabled,
+            "metrics.enabled should be true when --metrics.enabled flag is passed."
+        );
         assert_eq!(cli.metrics.port, 9999, "metrics.port should be parsed from CLI.");
-        assert_eq!(cli.metrics.addr, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), "metrics.addr should be parsed from CLI.");
+        assert_eq!(
+            cli.metrics.addr,
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            "metrics.addr should be parsed from CLI."
+        );
     }
 
     #[test]
@@ -88,10 +91,17 @@ mod tests {
         }
 
         let cli = TestCli::parse_from(["test_app"]);
-        assert_eq!(cli.metrics.enabled, true, "metrics.enabled should be true when --metrics.enabled flag is passed.");
+        assert!(
+            cli.metrics.enabled,
+            "metrics.enabled should be true when --metrics.enabled flag is passed."
+        );
         assert_eq!(cli.metrics.port, 9999, "metrics.port should be parsed from CLI.");
-        assert_eq!(cli.metrics.addr, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), "metrics.addr should be parsed from CLI.");
-   
+        assert_eq!(
+            cli.metrics.addr,
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            "metrics.addr should be parsed from CLI."
+        );
+
         // cleanup the environment variables
         unsafe {
             std::env::remove_var("METRICS_ENABLED");
@@ -102,13 +112,14 @@ mod tests {
 
     #[test]
     fn test_init_metrics_when_disabled() {
-        let args = MetricsArgs {
-            enabled: false,
-            port: 1234,
-            addr: IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)),
-        };
+        let args =
+            MetricsArgs { enabled: false, port: 1234, addr: IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)) };
         let result = args.init_metrics();
-        assert!(result.is_ok(), "init_metrics should return Ok when metrics are disabled. Error: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "init_metrics should return Ok when metrics are disabled. Error: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -119,6 +130,10 @@ mod tests {
             addr: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
         };
         let result = args.init_metrics();
-        assert!(result.is_ok(), "init_metrics should return Ok when metrics are enabled. Error: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "init_metrics should return Ok when metrics are enabled. Error: {:?}",
+            result.err()
+        );
     }
 }

@@ -1,4 +1,4 @@
-use clap::{ ArgAction, Args};
+use clap::{ArgAction, Args};
 use kona_cli::init_tracing_subscriber;
 use tracing_subscriber::EnvFilter;
 
@@ -9,10 +9,10 @@ pub struct GlobalArgs {
     /// If set to 0, no logs are printed.
     /// By default, the verbosity level is set to 3 (info level).
     #[arg(
-        long, 
-        short, 
-        global = true, 
-        default_value = "3", 
+        long,
+        short,
+        global = true,
+        default_value = "3",
         action = ArgAction::Count,
     )]
     pub v: u8,
@@ -54,5 +54,4 @@ mod tests {
         let cli_v5 = TestCli::parse_from(["test_app", "-vvvvv"]);
         assert_eq!(cli_v5.global.v, 5, "Verbosity with -vvvvv should be 5.");
     }
-
 }
