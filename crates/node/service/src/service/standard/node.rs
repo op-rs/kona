@@ -22,7 +22,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
     OnlinePipeline,
 };
-use kona_rpc::{NetworkRpc, RpcLauncher};
+use kona_rpc::{L1WatcherQueries, NetworkRpc, RpcLauncher};
 
 /// The size of the cache used in the derivation pipeline's providers.
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
@@ -89,6 +89,7 @@ impl ValidatorNodeService for RollupNode {
         new_da_tx: UnboundedSender<BlockInfo>,
         block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
+        l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self::DataAvailabilityWatcher {
         L1WatcherRpc::new(
             self.config.clone(),
@@ -96,6 +97,7 @@ impl ValidatorNodeService for RollupNode {
             new_da_tx,
             block_signer_tx,
             cancellation,
+            l1_watcher_inbound_queries,
         )
     }
 

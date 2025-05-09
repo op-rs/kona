@@ -12,7 +12,8 @@ use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::BlockInfo;
 use kona_rpc::{
-    NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher, RpcLauncherError,
+    L1WatcherQueries, NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher,
+    RpcLauncherError,
 };
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
@@ -73,6 +74,7 @@ pub trait ValidatorNodeService {
         new_data_tx: UnboundedSender<BlockInfo>,
         block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
+        l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self::DataAvailabilityWatcher;
 
     /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
@@ -107,8 +109,13 @@ pub trait ValidatorNodeService {
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
-        let da_watcher =
-            Some(self.new_da_watcher(new_head_tx, block_signer_tx, cancellation.clone()));
+        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
+        let da_watcher = Some(self.new_da_watcher(
+            new_head_tx,
+            block_signer_tx,
+            cancellation.clone(),
+            Some(l1_watcher_queries_recv),
+        ));
 
         let (l2_forkchoice_state, derivation_pipeline) = self.init_derivation().await?;
         let (engine_l2_safe_tx, engine_l2_safe_rx) =
@@ -169,7 +176,7 @@ pub trait ValidatorNodeService {
             },
         );
 
-        let rollup_rpc = RollupRpc::new(engine_query_sender);
+        let rollup_rpc = RollupRpc::new(engine_query_sender, l1_watcher_queries_sender);
 
         // The RPC Server should go last to let other actors register their rpc modules.
         let rpc = if let Some(mut rpc) = self.rpc() {

@@ -12,7 +12,9 @@ use kona_engine::EngineQuerySender;
 use kona_genesis::RollupConfig;
 use kona_protocol::SyncStatus;
 
-use crate::{OutputResponse, RollupNodeApiServer, SafeHeadResponse};
+use crate::{
+    OutputResponse, RollupNodeApiServer, SafeHeadResponse, l1_watcher::L1WatcherQuerySender,
+};
 
 /// RollupRpc
 ///
@@ -21,14 +23,16 @@ use crate::{OutputResponse, RollupNodeApiServer, SafeHeadResponse};
 pub struct RollupRpc {
     /// The channel to send [`kona_engine::EngineStateQuery`]s.
     pub engine_sender: EngineQuerySender,
+    /// The channel to send [`crate::L1WatcherQueries`]s.
+    pub l1_watcher_sender: L1WatcherQuerySender,
     // TODO(@theochap): Add channels to send requests to the derivation actor and the
     // l1 watcher.
 }
 
 impl RollupRpc {
     /// Constructs a new [`RollupRpc`] given a sender channel.
-    pub const fn new(sender: EngineQuerySender) -> Self {
-        Self { engine_sender: sender }
+    pub const fn new(sender: EngineQuerySender, l1_watcher_sender: L1WatcherQuerySender) -> Self {
+        Self { engine_sender: sender, l1_watcher_sender }
     }
 }
 
