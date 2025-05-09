@@ -12,9 +12,12 @@ use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::{
-    mpsc::{Receiver, UnboundedReceiver, UnboundedSender},
-    watch::Sender as WatchSender,
+use tokio::{
+    sync::{
+        mpsc::{Receiver, UnboundedReceiver, UnboundedSender},
+        watch::Sender as WatchSender,
+    },
+    task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
 use url::Url;
@@ -106,6 +109,26 @@ impl EngineActor {
             }
         });
     }
+
+    /// Starts a task to handle engine queries.
+    fn start_query_task(
+        &self,
+        mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineStateQuery>,
+    ) -> JoinHandle<()> {
+        let state_recv = self.engine.subscribe();
+
+        tokio::spawn(async move {
+            while let Some(req) = inbound_query_channel.recv().await {
+                {
+                    trace!(target: "engine", ?req, "Received engine query request.");
+
+                    if req.handle(&state_recv).is_none() {
+                        warn!(target: "engine", "Failed to handle engine query request.");
+                    }
+                }
+            }
+        })
+    }
 }
 
 /// Configuration for the Engine Actor.
@@ -154,39 +177,19 @@ impl NodeActor for EngineActor {
 
     async fn start(mut self) -> Result<(), Self::Error> {
         // Start the engine query server in a separate task to avoid blocking the main task.
-        if let Some(mut inbound_query_channel) = std::mem::take(&mut self.inbound_queries) {
-            let cancellation_token = self.cancellation.clone();
-            let state_recv = self.engine.subscribe();
-
-            tokio::spawn(async move {
-                loop {
-                    tokio::select! {
-                            _ = cancellation_token.cancelled() => {
-                                warn!(target: "engine", "EngineActor received shutdown signal.");
-                                return;
-                            },
-                            req = inbound_query_channel.recv() => {
-                                if let Some(req) = req {
-                                    trace!(target: "engine", ?req, "Received engine query request.");
-
-                                    if req.handle(&state_recv).is_none() {
-                                        warn!(target: "engine", "Failed to handle engine query request.");
-                                    }
-                                } else {
-                                    warn!(target: "engine", "Engine query channel closed unexpectedly, shutting down query receiver task.");
-                                    return;
-                                }
-                            }
-
-                    }
-                }
-            });
-        }
+        let handle = std::mem::take(&mut self.inbound_queries)
+            .map(|inbound_query_channel| self.start_query_task(inbound_query_channel));
 
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
                     warn!(target: "engine", "EngineActor received shutdown signal.");
+
+                    if let Some(handle) = handle {
+                        warn!(target: "engine", "Shutting down engine query task.");
+                        handle.abort();
+                    }
+
                     return Ok(());
                 }
                 res = self.engine.drain() => {
