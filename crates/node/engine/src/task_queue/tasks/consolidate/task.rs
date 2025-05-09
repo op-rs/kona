@@ -6,7 +6,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
-use kona_protocol::OpAttributesWithParent;
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use std::sync::Arc;
 
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
@@ -76,6 +76,7 @@ impl ConsolidateTask {
         // Attempt to consolidate the unsafe head.
         // If this is successful, the forkchoice change synchronizes.
         // Otherwise, the attributes need to be processed.
+        let block_hash = block.header.hash;
         if crate::AttributesMatch::check(&self.cfg, &self.attributes, &block).is_match() {
             debug!(
                 target: "engine",
@@ -83,14 +84,33 @@ impl ConsolidateTask {
                 block_hash = %block.header.hash,
                 "Consolidating engine state",
             );
-            return self.execute_forkchoice_task(state).await;
+            match L2BlockInfo::from_rpc_block_and_genesis(block, &self.cfg.genesis) {
+                Ok(block_info) => {
+                    debug!(target: "engine", ?block_info, "Promoted safe head");
+                    state.set_safe_head(block_info);
+                    match self.execute_forkchoice_task(state).await {
+                        Ok(()) => {
+                            debug!(target: "engine", "Consolidation successful");
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            warn!(target: "engine", ?e, "Consolidation failed");
+                            return Err(e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    // Continue on to build the block since we failed to construct the block info.
+                    warn!(target: "engine", ?e, "Failed to construct L2BlockInfo, proceeding to build task");
+                }
+            }
         }
 
         // Otherwise, the attributes need to be processed.
         debug!(
             target: "engine",
             attributes = ?self.attributes,
-            block_hash = %block.header.hash,
+            block_hash = %block_hash,
             "No consolidation needed executing build task",
         );
         self.execute_build_task(state).await

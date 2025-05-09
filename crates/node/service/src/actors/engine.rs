@@ -2,16 +2,20 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
+use kona_derive::types::Signal;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineStateBuilder, EngineStateBuilderError, EngineTask,
-    InsertUnsafeTask, SyncConfig,
+    EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::OpAttributesWithParent;
+use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    watch::Sender as WatchSender,
+};
 use tokio_util::sync::CancellationToken;
 use url::Url;
 
@@ -26,17 +30,18 @@ use crate::NodeActor;
 pub struct EngineActor {
     /// The [`RollupConfig`] used to build tasks.
     pub config: Arc<RollupConfig>,
-    /// The [`SyncConfig`] for engine api tasks.
-    pub sync: Arc<SyncConfig>,
     /// An [`EngineClient`] used for creating engine tasks.
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
     pub engine: Engine,
+    /// The channel to send the l2 safe head to the derivation actor.
+    engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
-    /// A flag to indicate whether to broadcast if syncing is complete.
-    sync_complete_sent: bool,
+    /// A way for the engine actor to signal back to the derivation actor
+    /// if a block building task produced an `INVALID` response.
+    derivation_signal_tx: UnboundedSender<Signal>,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
@@ -52,10 +57,11 @@ impl EngineActor {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Arc<RollupConfig>,
-        sync: SyncConfig,
         client: EngineClient,
         engine: Engine,
+        engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
         sync_complete_tx: UnboundedSender<()>,
+        derivation_signal_tx: UnboundedSender<Signal>,
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
@@ -63,11 +69,11 @@ impl EngineActor {
     ) -> Self {
         Self {
             config,
-            sync: Arc::new(sync),
             client: Arc::new(client),
             sync_complete_tx,
-            sync_complete_sent: false,
+            derivation_signal_tx,
             engine,
+            engine_l2_safe_head_tx,
             runtime_config_rx,
             attributes_rx,
             unsafe_block_rx,
@@ -77,8 +83,8 @@ impl EngineActor {
 
     /// Checks if the engine is syncing, notifying the derivation actor if necessary.
     pub fn check_sync(&self) {
-        if self.sync_complete_sent {
-            // If the sync status is already complete, do nothing.
+        // If the channel is closed, the receiver already marked engine ready.
+        if self.sync_complete_tx.is_closed() {
             return;
         }
         let client = Arc::clone(&self.client);
@@ -103,8 +109,6 @@ impl EngineActor {
 pub struct EngineLauncher {
     /// The [`RollupConfig`].
     pub config: Arc<RollupConfig>,
-    /// The [`SyncConfig`] for engine tasks.
-    pub sync: SyncConfig,
     /// The engine rpc url.
     pub engine_url: Url,
     /// The l2 rpc url.
@@ -152,8 +156,37 @@ impl NodeActor for EngineActor {
                     return Ok(());
                 }
                 res = self.engine.drain() => {
-                    if let Err(e) = res {
-                        warn!(target: "engine", "Encountered error draining engine api tasks: {:?}", e);
+                    match res {
+                        Ok(_) => {
+                          trace!(target: "engine", "[ENGINE] tasks drained");
+                          // Update the l2 safe head if needed.
+                          let state_safe_head = self.engine.safe_head();
+                           let update = |head: &mut L2BlockInfo| {
+                              if head != &state_safe_head {
+                                  *head = state_safe_head;
+                                  return true;
+                              }
+                              false
+                          };
+                          let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
+                          trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
+                        }
+                        Err(EngineTaskError::Flush(e)) => {
+                            // This error is encountered when the payload is marked INVALID
+                            // by the engine api. Post-holocene, the payload is replaced by
+                            // a "deposits-only" block and re-executed. At the same time,
+                            // the channel and any remaining buffered batches are flushed.
+                            warn!(target: "engine", ?e, "[HOLOCENE] Invalid payload, Flushing derivation pipeline.");
+                            match self.derivation_signal_tx.send(Signal::FlushChannel) {
+                                Ok(_) => debug!(target: "engine", "[SENT] flush signal to derivation actor"),
+                                Err(e) => {
+                                    error!(target: "engine", ?e, "[ENGINE] Failed to send flush signal to the derivation actor.");
+                                    self.cancellation.cancel();
+                                    return Err(EngineError::ChannelClosed);
+                                }
+                            }
+                        }
+                        Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
                     }
                 }
                 attributes = self.attributes_rx.recv() => {
@@ -181,7 +214,6 @@ impl NodeActor for EngineActor {
                     let hash = envelope.payload_hash;
                     let task = InsertUnsafeTask::new(
                         Arc::clone(&self.client),
-                        Arc::clone(&self.sync),
                         Arc::clone(&self.config),
                         envelope,
                     );

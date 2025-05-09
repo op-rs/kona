@@ -38,6 +38,13 @@ pub enum BuildTaskError {
     /// A deposit-only payload failed to import.
     #[error("Deposit-only payload failed to import")]
     DepositOnlyPayloadFailed,
+    /// Failed to re-atttempt payload import with deposit-only payload.
+    #[error("Failed to re-attempt payload import with deposit-only payload")]
+    DepositOnlyPayloadReattemptFailed,
+    /// The payload is invalid, and the derivation pipeline must
+    /// be flushed post-holocene.
+    #[error("Invalid payload, must flush post-holocene")]
+    HoloceneInvalidFlush,
 }
 
 impl From<BuildTaskError> for EngineTaskError {
@@ -51,6 +58,8 @@ impl From<BuildTaskError> for EngineTaskError {
             BuildTaskError::GetPayloadFailed(_) => Self::Temporary(Box::new(value)),
             BuildTaskError::NewPayloadFailed(_) => Self::Temporary(Box::new(value)),
             BuildTaskError::InvalidForkchoiceState => Self::Reset(Box::new(value)),
+            BuildTaskError::HoloceneInvalidFlush => Self::Flush(Box::new(value)),
+            BuildTaskError::DepositOnlyPayloadReattemptFailed => Self::Critical(Box::new(value)),
             BuildTaskError::FinalizedAheadOfUnsafe(_, _) => Self::Critical(Box::new(value)),
             BuildTaskError::DepositOnlyPayloadFailed => Self::Critical(Box::new(value)),
         }

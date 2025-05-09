@@ -92,6 +92,10 @@ impl EngineTaskExt for EngineTask {
                     warn!(target: "engine", "Engine requested derivation reset");
                     return Err(EngineTaskError::Reset(e));
                 }
+                EngineTaskError::Flush(e) => {
+                    warn!(target: "engine", "Engine requested derivation flush");
+                    return Err(EngineTaskError::Flush(e));
+                }
             }
         }
 
@@ -118,4 +122,7 @@ pub enum EngineTaskError {
     /// An error that requires a derivation pipeline reset.
     #[error("Derivation pipeline reset required: {0}")]
     Reset(Box<dyn std::error::Error>),
+    /// An error that requires the derivation pipeline to be flushed.
+    #[error("Derivation pipeline flush required: {0}")]
+    Flush(Box<dyn std::error::Error>),
 }

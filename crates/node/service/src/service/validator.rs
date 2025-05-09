@@ -102,16 +102,21 @@ pub trait ValidatorNodeService {
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
         let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
         let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
+        let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let da_watcher =
             Some(self.new_da_watcher(new_head_tx, block_signer_tx, cancellation.clone()));
 
         let (l2_forkchoice_state, derivation_pipeline) = self.init_derivation().await?;
+        let (engine_l2_safe_tx, engine_l2_safe_rx) =
+            tokio::sync::watch::channel(l2_forkchoice_state.safe);
         let derivation = DerivationActor::new(
             derivation_pipeline,
             l2_forkchoice_state.safe,
+            engine_l2_safe_rx,
             sync_complete_rx,
+            derivation_signal_rx,
             derived_payload_tx,
             new_head_rx,
             cancellation.clone(),
@@ -126,14 +131,14 @@ pub trait ValidatorNodeService {
 
         let launcher = self.engine();
         let client = launcher.client();
-        let sync = launcher.sync.clone();
         let engine = launcher.launch().await?;
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
-            sync,
             client,
             engine,
+            engine_l2_safe_tx,
             sync_complete_tx,
+            derivation_signal_tx,
             runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,
