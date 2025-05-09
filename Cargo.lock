@@ -5050,7 +5050,7 @@ dependencies = [
 name = "kona-supervisor-core"
 version = "0.1.0"
 dependencies = [
- "alloy-eips 0.15.9",
+ "alloy-eips 0.15.10",
  "alloy-primitives",
  "async-trait",
  "jsonrpsee 0.25.1",
@@ -5065,7 +5065,7 @@ dependencies = [
 name = "kona-supervisor-rpc"
 version = "0.1.0"
 dependencies = [
- "alloy-eips 0.15.9",
+ "alloy-eips 0.15.10",
  "alloy-primitives",
  "jsonrpsee 0.25.1",
  "kona-interop",
