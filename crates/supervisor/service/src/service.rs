@@ -60,8 +60,8 @@ where
         self.rpc_server_handle = Some(server.start(self.rpc_impl.clone().into_rpc()));
 
         info!(target: "supervisor_service",
-            "Supervisor RPC server started successfully and listening on {}",
-            self.config.rpc_addr
+            addr=%self.config.rpc_addr,
+            "Supervisor RPC server started successfully and listening on address",
         );
 
         Ok(())
