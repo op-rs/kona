@@ -148,6 +148,7 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
+        debug!(target: "engine:forkchoice", "Send FCU to engine");
         <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
@@ -159,6 +160,7 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
+        debug!(target: "engine:forkchoice", "Send FCU to engine");
         <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,

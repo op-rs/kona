@@ -6,10 +6,11 @@ optimism_package:
     - participants:
       - el_type: op-reth
         cl_type: op-node
+        count: 4
       - el_type: op-reth
         cl_type: kona-node
-        cl_log_level: "info"
-        count: 1
+        cl_log_level: "debug"
+        count: 4
       network_params:
         network: "kurtosis"
         network_id: "2151908"
