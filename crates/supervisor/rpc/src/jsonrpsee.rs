@@ -3,8 +3,7 @@
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
-use kona_interop::{DerivedIdPair, SuperRootResponse};
-use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use kona_interop::{DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse};
 
 /// Optimism specified rpc interface.
 ///
@@ -25,7 +24,8 @@ pub trait SupervisorApi {
     #[method(name = "finalized")]
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
-    /// Gets the super root state at a specified timestamp, which represents the global state across all monitored chains.
+    /// Gets the super root state at a specified timestamp, which represents the global state across
+    /// all monitored chains.
     #[method(name = "superRootAtTimestamp")]
     async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse>;
 
