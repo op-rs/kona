@@ -87,7 +87,7 @@ impl Metrics {
 /// ```ignore
 /// async fn my_rpc_method(&self, arg: u32) -> RpcResult<String> {
 ///     observe_rpc_call!("my_rpc_method_name", {
-///         // ... actual RPC logic ...
+///         // todo: add actual RPC logic
 ///         if arg == 0 { Ok("success".to_string()) } else { Err(ErrorObject::owned(1, "failure", None::<()>)) }
 ///     })
 /// }
