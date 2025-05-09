@@ -1,13 +1,13 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    EngineLauncher, L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
-    RollupNodeService, RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
-    find_starting_forkchoice,
+    EngineLauncher, L1WatcherRpc, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
+    RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use kona_sources::{L2ForkchoiceState, find_starting_forkchoice};
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;

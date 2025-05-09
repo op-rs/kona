@@ -1,8 +1,8 @@
 //! [ValidatorNodeService] trait.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, L2ForkchoiceState, NetworkActor, NodeActor,
-    RpcActor, RuntimeLauncher, service::spawn_and_wait,
+    DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
+    RuntimeLauncher, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -12,6 +12,7 @@ use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::BlockInfo;
 use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcLauncher, RpcLauncherError};
+use kona_sources::L2ForkchoiceState;
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;

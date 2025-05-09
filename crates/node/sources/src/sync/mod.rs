@@ -24,7 +24,7 @@ const RECOVER_MIN_SEQ_WINDOWS: u64 = 14;
 /// occur before we consider the node to be in a corrupted state.
 const MAX_REORG_SEQ_WINDOWS: u64 = 5;
 
-/// Searches for the latest [L2ForkchoiceState] that we can use to start the sync process with.
+/// Searches for the latest [`L2ForkchoiceState`] that we can use to start the sync process with.
 ///
 ///   - The *unsafe L2 block*: This is the highest L2 block whose L1 origin is a *plausible*
 ///     extension of the canonical L1 chain (as known to the op-node).
@@ -126,8 +126,8 @@ fn should_recover_from_finality_less_sync(
         current_fc.un_safe.l1_origin.number > min_l1_block_threshold
 }
 
-/// Traverses the L2 chain, starting from the `current_fc` [L2ForkchoiceState], to find the
-/// starting forkchoice
+/// Traverses the L2 chain, starting from the `current_fc` [`L2ForkchoiceState`],
+/// to find the starting forkchoice.
 async fn traverse_l2(
     cfg: &RollupConfig,
     l1_provider: &mut AlloyChainProvider,

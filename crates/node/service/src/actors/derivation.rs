@@ -265,12 +265,23 @@ where
             return Ok(());
         }
 
-        // The L2 Safe Head must be advanced before producing new payload attributes.
-        if self.engine_l2_safe_head.borrow().block_info.number <=
-            self.l2_safe_head.block_info.number
-        {
-            debug!(target: "derivation", engine_safe_head = ?self.engine_l2_safe_head.borrow().block_info.number, l2_safe_head = ?self.l2_safe_head.block_info.number, "L2 safe head unchanged");
+        // Wait for the engine to initialize unknowns prior to kicking off derivation.
+        let engine_safe_head = *self.engine_l2_safe_head.borrow();
+        if engine_safe_head.block_info.hash.is_zero() {
+            warn!(target: "derivation", engine_safe_head = ?engine_safe_head.block_info.number, "Waiting for engine to initialize state prior to derivation.");
             return Ok(());
+        }
+
+        // If the Engine safe head is initialized but behind the derivation actor,
+        // reset the derivation actor to the engine safe head.
+        if engine_safe_head.block_info.number < self.l2_safe_head.block_info.number {
+            info!(
+                target: "derivation",
+                engine_safe_head = ?engine_safe_head.block_info.number,
+                l2_safe_head = ?self.l2_safe_head.block_info.number,
+                "Derivation safe head beyond engine, rewinding",
+            );
+            self.l2_safe_head = engine_safe_head;
         }
 
         // Advance the pipeline as much as possible, new data may be available or there still may be
