@@ -26,7 +26,7 @@ impl<T> SupervisorRpc<T> {
     /// Creates a new [`SupervisorRpc`] instance.
     pub fn new(supervisor: Arc<T>) -> Self {
         super::Metrics::init();
-        trace!("Creating new SupervisorRpc handler");
+        trace!(target: "supervisor_rpc", "Creating new SupervisorRpc handler");
         Self { supervisor }
     }
 }
@@ -36,39 +36,51 @@ impl<T> SupervisorApiServer for SupervisorRpc<T>
 where
     T: SupervisorService + 'static,
 {
-    async fn local_unsafe(&self, _chain_id: ChainId) -> RpcResult<BlockNumHash> {
-        trace!("Received local_unsafe request");
+    async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
+        trace!(target: "supervisor_rpc",
+            %chain_id,
+            "Received local_unsafe request"
+        );
         // self.supervisor.local_unsafe()
         // .await
         // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!("local_unsafe method not yet implemented");
+        warn!(target: "supervisor_rpc", "local_unsafe method not yet implemented");
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn cross_safe(&self, _chain_id: ChainId) -> RpcResult<DerivedIdPair> {
-        trace!("Received cross_safe request");
+    async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair> {
+        trace!(target: "supervisor_rpc",
+            %chain_id,
+            "Received cross_safe request"
+        );
         // self.supervisor.cross_safe()
         // .await
         // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!("cross_safe method not yet implemented");
+        warn!(target: "supervisor_rpc", "cross_safe method not yet implemented");
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn finalized(&self, _chain_id: ChainId) -> RpcResult<BlockNumHash> {
-        trace!("Received finalized request");
+    async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
+        trace!(target: "supervisor_rpc",
+            %chain_id,
+            "Received finalized request"
+        );
         // self.supervisor.finalized()
         // .await
         // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!("finalized method not yet implemented");
+        warn!(target: "supervisor_rpc", "finalized method not yet implemented");
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn super_root_at_timestamp(&self, _timestamp: u64) -> RpcResult<SuperRootResponse> {
-        trace!("Received super_root_at_timestamp request");
+    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse> {
+        trace!(target: "supervisor_rpc",
+            %timestamp,
+            "Received super_root_at_timestamp request"
+        );
         // self.supervisor.super_root_at_timestamp()
         // .await
         // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!("super_root_at_timestamp method not yet implemented");
+        warn!(target: "supervisor_rpc", "super_root_at_timestamp method not yet implemented");
         Err(ErrorObject::from(ErrorCode::InternalError))
     }
 
@@ -80,7 +92,7 @@ where
     ) -> RpcResult<()> {
         // TODO:: refcator, maybe build proc macro to record metrics
         crate::observe_rpc_call!("check_access_list", async {
-            trace!(
+            trace!(target: "supervisor_rpc", 
                 num_inbox_entries = inbox_entries.len(),
                 ?min_safety,
                 ?executing_descriptor,
