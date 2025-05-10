@@ -1,6 +1,6 @@
 [package]
 name = "kona-client"
-version = "1.0.0"
+version = "1.0.1"
 publish = false
 edition.workspace = true
 authors.workspace = true
