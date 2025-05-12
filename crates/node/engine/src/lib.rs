@@ -37,7 +37,5 @@ pub use kinds::EngineKind;
 mod query;
 pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
 
-#[cfg(feature = "metrics")]
 mod metrics;
-#[cfg(feature = "metrics")]
 pub use metrics::Metrics;

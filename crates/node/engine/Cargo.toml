@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 # workspace
 kona-genesis.workspace = true
+kona-macros.workspace = true
 kona-protocol = {workspace = true, features = ["serde", "std"]}
 
 # alloy
@@ -50,7 +51,6 @@ derive_more = { workspace = true, features = ["display", "deref", "from_str"] }
 serde_json.workspace = true
 
 # metrics
-kona-macros = { workspace = true, optional = true }
 metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -62,4 +62,4 @@ metrics-exporter-prometheus.workspace = true
 rstest.workspace = true
 
 [features]
-metrics = ["dep:kona-macros", "dep:metrics"]
+metrics = ["dep:metrics"]

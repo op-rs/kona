@@ -1,6 +1,6 @@
 //! The internal state of the engine controller.
 
-use crate::SyncStatus;
+use crate::{Metrics, SyncStatus};
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 
@@ -108,13 +108,16 @@ impl EngineState {
     pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
         self.unsafe_head = unsafe_head;
         self.forkchoice_update_needed = true;
-        Self::update_block_label_metric("unsafe", unsafe_head.block_info.number);
+        Self::update_block_label_metric(Metrics::UNSAFE_BLOCK_LABEL, unsafe_head.block_info.number);
     }
 
     /// Set the cross-verified unsafe head.
     pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
         self.cross_unsafe_head = cross_unsafe_head;
-        Self::update_block_label_metric("cross-unsafe", cross_unsafe_head.block_info.number);
+        Self::update_block_label_metric(
+            Metrics::CROSS_UNSAFE_BLOCK_LABEL,
+            cross_unsafe_head.block_info.number,
+        );
     }
 
     /// Set the pending safe head.
@@ -125,21 +128,27 @@ impl EngineState {
     /// Set the local safe head.
     pub fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
         self.local_safe_head = local_safe_head;
-        Self::update_block_label_metric("local-safe", local_safe_head.block_info.number);
+        Self::update_block_label_metric(
+            Metrics::LOCAL_SAFE_BLOCK_LABEL,
+            local_safe_head.block_info.number,
+        );
     }
 
     /// Set the safe head.
     pub fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
         self.safe_head = safe_head;
         self.forkchoice_update_needed = true;
-        Self::update_block_label_metric("safe", safe_head.block_info.number);
+        Self::update_block_label_metric(Metrics::SAFE_BLOCK_LABEL, safe_head.block_info.number);
     }
 
     /// Set the finalized head.
     pub fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
         self.finalized_head = finalized_head;
         self.forkchoice_update_needed = true;
-        Self::update_block_label_metric("finalized", finalized_head.block_info.number);
+        Self::update_block_label_metric(
+            Metrics::FINALIZED_BLOCK_LABEL,
+            finalized_head.block_info.number,
+        );
     }
 
     /// Set the backup unsafe head.
@@ -150,8 +159,7 @@ impl EngineState {
 
     /// Updates a block label metric, keyed by the label.
     fn update_block_label_metric(label: &'static str, number: u64) {
-        #[cfg(feature = "metrics")]
-        kona_macros::set!(gauge, crate::Metrics::BLOCK_LABELS, "label", label, number as f64);
+        kona_macros::set!(gauge, Metrics::BLOCK_LABELS, "label", label, number as f64);
     }
 }
 
@@ -163,11 +171,15 @@ mod test {
     use rstest::rstest;
 
     #[rstest]
-    #[case::set_unsafe(EngineState::set_unsafe_head, "unsafe", 1)]
-    #[case::set_cross_unsafe(EngineState::set_cross_unsafe_head, "cross-unsafe", 2)]
-    #[case::set_local_safe(EngineState::set_local_safe_head, "local-safe", 3)]
-    #[case::set_safe_head(EngineState::set_safe_head, "safe", 4)]
-    #[case::set_finalized_head(EngineState::set_finalized_head, "finalized", 5)]
+    #[case::set_unsafe(EngineState::set_unsafe_head, Metrics::UNSAFE_BLOCK_LABEL, 1)]
+    #[case::set_cross_unsafe(
+        EngineState::set_cross_unsafe_head,
+        Metrics::CROSS_UNSAFE_BLOCK_LABEL,
+        2
+    )]
+    #[case::set_local_safe(EngineState::set_local_safe_head, Metrics::LOCAL_SAFE_BLOCK_LABEL, 3)]
+    #[case::set_safe_head(EngineState::set_safe_head, Metrics::SAFE_BLOCK_LABEL, 4)]
+    #[case::set_finalized_head(EngineState::set_finalized_head, Metrics::FINALIZED_BLOCK_LABEL, 5)]
     #[cfg(feature = "metrics")]
     fn test_chain_label_metrics(
         #[case] set_fn: impl Fn(&mut EngineState, L2BlockInfo),
