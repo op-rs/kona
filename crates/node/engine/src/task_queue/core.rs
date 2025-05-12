@@ -75,11 +75,12 @@ impl Engine {
         self.state_sender.subscribe()
     }
 
-    /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns an
-    /// error along the way, it is not popped from the queue (in case it must be retried) and
+    /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
+    /// an error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
     ///
-    /// If an [`EngineTaskError::Reset`] is encountered, the remaining tasks in the queue are cleared.
+    /// If an [`EngineTaskError::Reset`] is encountered, the remaining tasks in the queue are
+    /// cleared.
     pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
         loop {
             let ty = self.next();
