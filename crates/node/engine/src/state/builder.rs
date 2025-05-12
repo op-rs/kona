@@ -26,10 +26,6 @@ pub struct EngineStateBuilder {
     unsafe_head: Option<L2BlockInfo>,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
     cross_unsafe_head: Option<L2BlockInfo>,
-    /// Pending local safe head
-    /// L2 block processed from the middle of a span batch,
-    /// but not marked as the safe block yet.
-    pending_safe_head: Option<L2BlockInfo>,
     /// Derived from L1, and known to be a completed span-batch,
     /// but not cross-verified yet.
     local_safe_head: Option<L2BlockInfo>,
@@ -48,7 +44,6 @@ impl EngineStateBuilder {
             sync_status: None,
             unsafe_head: None,
             cross_unsafe_head: None,
-            pending_safe_head: None,
             local_safe_head: None,
             safe_head: None,
             finalized_head: None,
@@ -104,17 +99,14 @@ impl EngineStateBuilder {
 
         let local_safe_head = builder.local_safe_head.unwrap_or(safe_head);
         let cross_unsafe_head = builder.cross_unsafe_head.unwrap_or(safe_head);
-        let pending_safe_head = builder.pending_safe_head.unwrap_or(safe_head);
 
         Ok(EngineState {
             sync_status: builder.sync_status.unwrap_or_default(),
             unsafe_head,
             cross_unsafe_head,
-            pending_safe_head,
             local_safe_head,
             safe_head,
             finalized_head,
-            backup_unsafe_head: None,
             forkchoice_update_needed: false,
             need_fcu_call_backup_unsafe_reorg: false,
         })
