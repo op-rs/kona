@@ -256,10 +256,28 @@ where
         }
     }
 
+    /// Attempts to process the next payload attributes.
+    ///
+    /// There are a few constraints around stepping on the derivation pipeline.
+    /// - The l2 safe head ([`L2BlockInfo`]) must not be the zero hash.
+    /// - The pipeline must not be stepped on with the same L2 safe head twice.
+    /// - Errors must be bubbled up to the caller.
+    ///
+    /// In order to achieve this, the channel to receive the L2 safe head
+    /// [`L2BlockInfo`] from the engine is *only* marked as _seen_ after payload
+    /// attributes are successfully produced. If the pipeline step errors,
+    /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
+    /// zero hash, the pipeline is not stepped on.
     async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
         // Only attempt derivation once the engine finishes syncing.
         if !self.engine_ready {
             trace!(target: "derivation", "Engine not ready, skipping derivation.");
+            return Ok(());
+        }
+
+        // If the safe head hasn't changed, don't step on the pipeline.
+        if self.engine_l2_safe_head.has_changed().map_or(false, |v| !v) {
+            trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
             return Ok(());
         }
 
@@ -282,6 +300,9 @@ where
                 return Err(e);
             }
         };
+
+        // Mark the L2 safe head as seen.
+        self.engine_l2_safe_head.borrow_and_update();
 
         self.attributes_out.send(payload_attrs).map_err(Box::new)?;
         Ok(())
