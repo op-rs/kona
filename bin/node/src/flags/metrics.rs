@@ -45,6 +45,7 @@ impl MetricsArgs {
         if self.enabled {
             init_prometheus_server(self.addr, self.port)?;
             kona_p2p::Metrics::init();
+            kona_engine::Metrics::init();
         }
 
         Ok(())
