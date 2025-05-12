@@ -161,11 +161,11 @@ impl EngineLauncher {
         let mut engine = Engine::new(state, engine_state_send);
         // Adds the initial tasks to the engine.
 
-        engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
-        engine.enqueue(EngineTask::Restart(RestartTask {
-            client: self.client().into(),
-            cfg: self.config.clone(),
-        }));
+        // engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
+        // engine.enqueue(EngineTask::Restart(RestartTask {
+        //     client: self.client().into(),
+        //     cfg: self.config.clone(),
+        // }));
 
         Ok(engine)
     }
