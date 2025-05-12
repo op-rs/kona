@@ -10,6 +10,7 @@ use kona_engine::{
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
+use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
@@ -265,11 +266,9 @@ impl NodeActor for EngineActor {
                     let client = Arc::clone(&self.client);
                     tokio::task::spawn(async move {
                         debug!(target: "engine", config = ?config, "Received runtime config");
-                        let signal = op_alloy_rpc_types_engine::SuperchainSignal {
-                            recommended: config.recommended_protocol_version.into(),
-                            required: config.required_protocol_version.into(),
-                        };
-                        match client.signal(signal).await {
+                        let recommended: op_alloy_rpc_types_engine::ProtocolVersion = config.recommended_protocol_version.into();
+                        let required: op_alloy_rpc_types_engine::ProtocolVersion = config.required_protocol_version.into();
+                        match client.signal_superchain_v1(recommended, required).await {
                             Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
                             Err(e) => {
                                 // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
