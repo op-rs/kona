@@ -74,12 +74,6 @@ impl InsertUnsafeTask {
 #[async_trait]
 impl EngineTaskExt for InsertUnsafeTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // Always transition to EL sync on startup.
-        if state.sync_status == SyncStatus::ExecutionLayerWillStart {
-            info!(target: "engine", "Starting execution layer sync");
-            state.sync_status = SyncStatus::ExecutionLayerStarted;
-        }
-
         let time_start = Instant::now();
 
         // Insert the new payload.

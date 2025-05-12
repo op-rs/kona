@@ -1,6 +1,8 @@
 //! A task for the `engine_forkchoiceUpdated` method, with no attributes.
 
-use crate::{EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError};
+use crate::{
+    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, SyncStatus,
+};
 use alloy_rpc_types_engine::INVALID_FORK_CHOICE_STATE_ERROR;
 use async_trait::async_trait;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -24,6 +26,12 @@ impl ForkchoiceTask {
 #[async_trait]
 impl EngineTaskExt for ForkchoiceTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+        // Always transition to EL sync on startup.
+        if state.sync_status == SyncStatus::ExecutionLayerWillStart {
+            info!(target: "engine", "Starting execution layer sync");
+            state.sync_status = SyncStatus::ExecutionLayerStarted;
+        }
+
         // Check if a forkchoice update is not needed, return early.
         if !state.forkchoice_update_needed {
             return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
@@ -33,6 +41,7 @@ impl EngineTaskExt for ForkchoiceTask {
         // update.
         if state.sync_status.is_syncing() {
             warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
+            return Err(ForkchoiceTaskError::EngineSyncing.into());
         }
 
         // Check if the head is behind the finalized head.
