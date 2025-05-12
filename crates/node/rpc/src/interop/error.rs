@@ -38,7 +38,8 @@ impl InteropTxValidatorError {
 impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
-            jsonrpsee::core::ClientError::Call(err) => err.into(),
+            jsonrpsee::core::ClientError::Call(err) => parse_err_msg(err), /* todo: match on */
+            // supervisor code
             _ => Self::client(err),
         }
     }
