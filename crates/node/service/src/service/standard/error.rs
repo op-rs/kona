@@ -1,6 +1,5 @@
 //! Contains the error type for the [`crate::RollupNode`].
 
-use crate::SyncStartError;
 use jsonrpsee::server::RegisterMethodError;
 use kona_derive::errors::PipelineErrorKind;
 use kona_engine::EngineStateBuilderError;
