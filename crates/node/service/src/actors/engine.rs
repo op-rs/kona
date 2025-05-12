@@ -161,11 +161,11 @@ impl EngineLauncher {
         let mut engine = Engine::new(state, engine_state_send);
         // Adds the initial tasks to the engine.
 
-        // engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
-        // engine.enqueue(EngineTask::Restart(RestartTask {
-        //     client: self.client().into(),
-        //     cfg: self.config.clone(),
-        // }));
+        engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
+        engine.enqueue(EngineTask::Restart(RestartTask {
+            client: self.client().into(),
+            cfg: self.config.clone(),
+        }));
 
         Ok(engine)
     }
@@ -212,7 +212,6 @@ impl NodeActor for EngineActor {
                 res = self.engine.drain() => {
                     match res {
                         Ok(_) => {
-                          trace!(target: "engine", "[ENGINE] tasks drained");
                           // Update the l2 safe head if needed.
                           let state_safe_head = self.engine.safe_head();
                            let update = |head: &mut L2BlockInfo| {
@@ -223,7 +222,6 @@ impl NodeActor for EngineActor {
                               false
                           };
                           let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
-                          trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
                         }
                         Err(EngineTaskError::Flush(e)) => {
                             // This error is encountered when the payload is marked INVALID
