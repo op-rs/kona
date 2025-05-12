@@ -1,7 +1,7 @@
 //! An Engine API Client.
 
 use alloy_eips::eip1898::BlockNumberOrTag;
-use alloy_network::{AnyNetwork, Network};
+use alloy_network::{AnyNetwork, Ethereum, Network};
 use alloy_primitives::{B256, BlockHash, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_client::RpcClient;
@@ -20,6 +20,7 @@ use alloy_transport_http::{
 };
 use derive_more::Deref;
 use http_body_util::Full;
+use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types::Transaction;
@@ -57,11 +58,28 @@ pub struct EngineClient {
     engine: RootProvider<AnyNetwork>,
     /// The L2 chain provider.
     rpc: RootProvider<Optimism>,
+    /// The L1 provider.
+    l1: RootProvider<Ethereum>,
     /// The [RollupConfig] for the chain used to timestamp which version of the engine api to use.
     cfg: Arc<RollupConfig>,
 }
 
 impl EngineClient {
+    const DEFAULT_ALLOY_CACHE_SIZE: usize = 1024;
+
+    /// Returns the [AlloyChainProvider] and [AlloyL2ChainProvider] for the engine client.
+    pub fn as_alloy_chain_providers(&self) -> (AlloyChainProvider, AlloyL2ChainProvider) {
+        let chain_provider =
+            AlloyChainProvider::new(self.l1.clone(), Self::DEFAULT_ALLOY_CACHE_SIZE);
+        let l2_chain_provider = AlloyL2ChainProvider::new(
+            self.rpc.clone(),
+            self.cfg.clone(),
+            Self::DEFAULT_ALLOY_CACHE_SIZE,
+        );
+
+        (chain_provider, l2_chain_provider)
+    }
+
     /// Creates a new RPC client for the given address and JWT secret.
     fn rpc_client<T: Network>(addr: Url, jwt: JwtSecret) -> RootProvider<T> {
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
@@ -75,11 +93,17 @@ impl EngineClient {
     }
 
     /// Creates a new [`EngineClient`] from the provided [Url] and [JwtSecret].
-    pub fn new_http(engine: Url, rpc: Url, cfg: Arc<RollupConfig>, jwt: JwtSecret) -> Self {
+    pub fn new_http(
+        engine: Url,
+        rpc: Url,
+        cfg: Arc<RollupConfig>,
+        jwt: JwtSecret,
+        l1_provider: RootProvider<Ethereum>,
+    ) -> Self {
         let engine = Self::rpc_client::<AnyNetwork>(engine, jwt);
         let rpc = Self::rpc_client::<Optimism>(rpc, jwt);
 
-        Self { engine, rpc, cfg }
+        Self { engine, rpc, cfg, l1: l1_provider }
     }
 
     /// Returns the [`SyncStatus`] of the engine.

@@ -1,13 +1,13 @@
 //! [ValidatorNodeService] trait.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, L2ForkchoiceState, NetworkActor, NodeActor,
-    RpcActor, RuntimeLauncher, service::spawn_and_wait,
+    DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
+    RuntimeLauncher, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
-use kona_engine::EngineStateBuilderError;
+use kona_engine::{EngineStateBuilderError, L2ForkchoiceState};
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::BlockInfo;

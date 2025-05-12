@@ -13,7 +13,7 @@ mod task_queue;
 pub use task_queue::{
     BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineTask,
     EngineTaskError, EngineTaskExt, EngineTaskType, ForkchoiceTask, ForkchoiceTaskError,
-    InsertUnsafeTask, InsertUnsafeTaskError,
+    InsertUnsafeTask, InsertUnsafeTaskError, RestartTask, RestartTaskError,
 };
 
 mod attributes;
@@ -36,3 +36,6 @@ pub use kinds::EngineKind;
 
 mod query;
 pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
+
+mod sync_start;
+pub use sync_start::{L2ForkchoiceState, SyncStartError, find_starting_forkchoice};

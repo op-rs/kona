@@ -15,6 +15,8 @@ workspace = true
 # workspace
 kona-genesis.workspace = true
 kona-protocol = {workspace = true, features = ["serde", "std"]}
+kona-derive.workspace = true
+kona-providers-alloy.workspace = true
 
 # alloy
 alloy-eips.workspace = true

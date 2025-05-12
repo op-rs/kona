@@ -115,7 +115,8 @@ impl EngineStateBuilder {
             safe_head,
             finalized_head,
             backup_unsafe_head: None,
-            forkchoice_update_needed: false,
+            // We always need to update the forkchoice to kick off the sync process.
+            forkchoice_update_needed: true,
             need_fcu_call_backup_unsafe_reorg: false,
         })
     }
