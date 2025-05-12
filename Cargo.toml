@@ -142,10 +142,10 @@ op-alloy-rpc-types-engine = { version = "0.15.6", default-features = false }
 alloy-op-hardforks = { version = "0.2.0", default-features = false }
 
 # Execution
-revm = { version = "22.0.1", default-features = false }
-op-revm = { version = "3.0.1", default-features = false }
-alloy-evm = { version = "0.6.0", default-features = false, features = ["op"] }
-alloy-op-evm = { version = "0.6.0", default-features = false }
+revm = { version = "23.1.0", default-features = false }
+op-revm = { version = "4.0.2", default-features = false }
+alloy-evm = { version = "0.7.2", default-features = false, features = ["op"] }
+alloy-op-evm = { version = "0.7.2", default-features = false }
 
 # General
 url = "2.5.4"
