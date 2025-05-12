@@ -267,6 +267,8 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     };
                     let hash = envelope.payload_hash;
+                    let payload_v1 = envelope.payload.as_v1();
+                    debug!(target: "engine", ?hash, number = ?payload_v1.block_number, parent_hash = ?payload_v1.parent_hash, "Enqueued unsafe block task.");
                     let task = InsertUnsafeTask::new(
                         Arc::clone(&self.client),
                         Arc::clone(&self.config),
@@ -274,7 +276,6 @@ impl NodeActor for EngineActor {
                     );
                     let task = EngineTask::InsertUnsafe(task);
                     self.engine.enqueue(task);
-                    debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
                     self.check_sync();
                 }
                 Some(config) = self.runtime_config_rx.recv() => {
