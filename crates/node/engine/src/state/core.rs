@@ -28,7 +28,7 @@ pub struct EngineState {
     /// This is changing in the Holocene fork.
     pub(crate) backup_unsafe_head: Option<L2BlockInfo>,
 
-    /// The [SyncStatus] of the engine.
+    /// The [`SyncStatus`] of the engine.
     pub sync_status: SyncStatus,
 
     /// If a forkchoice update call is needed.
