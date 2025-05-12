@@ -50,6 +50,13 @@ pub async fn find_starting_forkchoice(
         finalized = %current_fc.finalized.block_info.number,
         "Loaded current L2 EL forkchoice state"
     );
+    debug!(
+        target: "sync_start",
+        unsafe = %current_fc.un_safe.block_info.hash,
+        safe = %current_fc.safe.block_info.hash,
+        finalized = %current_fc.finalized.block_info.hash,
+        "Loaded current L2 EL forkchoice state. Hashes"
+    );
 
     // Check if we can recover from a finality-less sync state
     if should_recover_from_finality_less_sync(&current_fc, cfg) {
