@@ -1,4 +1,4 @@
-//! The [Engine] is a task queue that receives and executes [EngineTask]s.
+//! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
 use super::{EngineTaskError, EngineTaskExt};
 use crate::{EngineState, EngineTask, EngineTaskType};
@@ -6,15 +6,15 @@ use kona_protocol::L2BlockInfo;
 use std::collections::{HashMap, VecDeque};
 use tokio::sync::watch::Sender;
 
-/// The [Engine] task queue.
+/// The [`Engine`] task queue.
 ///
 /// Tasks are processed in FIFO order, providing synchronization and ordering guarantees
 /// for the L2 execution layer and other actors. Because tasks are executed one at a time,
-/// they are considered to be atomic operations over the [EngineState], and are given
+/// they are considered to be atomic operations over the [`EngineState`], and are given
 /// exclusive access to the engine state during execution.
 ///
 /// Tasks within the queue are also considered fallible. If they fail with a temporary error,
-/// they are not popped from the queue and are retried on the next call to [Engine::drain].
+/// they are not popped from the queue and are retried on the next call to [`Engine::drain`].
 #[derive(Debug)]
 pub struct Engine {
     /// The state of the engine.
