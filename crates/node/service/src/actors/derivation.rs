@@ -276,9 +276,16 @@ where
         }
 
         // If the safe head hasn't changed, don't step on the pipeline.
-        if self.engine_l2_safe_head.has_changed().map_or(false, |v| !v) {
-            trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
-            return Ok(());
+        match self.engine_l2_safe_head.has_changed() {
+            Ok(true) => { /* Proceed to produce next payload attributes. */ }
+            Ok(false) => {
+                trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
+                return Ok(());
+            }
+            Err(e) => {
+                error!(target: "derivation", ?e, "Failed to check if safe head has changed");
+                return Err(DerivationError::L2SafeHeadReceiveFailed);
+            }
         }
 
         // Wait for the engine to initialize unknowns prior to kicking off derivation.
@@ -331,4 +338,7 @@ pub enum DerivationError {
     /// An error from the signal receiver.
     #[error("Failed to receive signal")]
     SignalReceiveFailed,
+    /// Unable to receive the L2 safe head to step on the pipeline.
+    #[error("Failed to receive L2 safe head")]
+    L2SafeHeadReceiveFailed,
 }
