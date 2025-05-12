@@ -1,22 +1,15 @@
-//! This crate contains the core logic for the Optimism Supervisor component.
-
-/// Contains the main Supervisor struct and its implementation.
-mod supervisor;
-pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
-
-mod rpc;
-pub use rpc::SupervisorRpc;
+//! [SupervisorActor] trait.
 
 use async_trait::async_trait;
 
-/// The [NodeActor] is an actor-like service for the supervisor.
+/// The [SupervisorActor] is an actor-like service for the supervisor.
 ///
 /// Actors may:
 /// - Handle incoming messages.
 ///     - Perform background tasks.
 /// - Emit new events for other actors to process.
 #[async_trait]
-pub trait NodeActor {
+pub trait SupervisorActor {
     /// The event type received by the actor.
     type InboundEvent;
     /// The error type for the actor.

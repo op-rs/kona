@@ -5090,10 +5090,21 @@ dependencies = [
 name = "kona-supervisor-service"
 version = "0.1.0"
 dependencies = [
+ "alloy-eips 0.15.10",
+ "alloy-primitives",
+ "alloy-provider",
  "anyhow",
+ "async-trait",
+ "futures",
  "jsonrpsee 0.25.1",
+ "kona-genesis",
+ "kona-protocol",
+ "kona-rpc",
  "kona-supervisor-core",
  "kona-supervisor-rpc",
+ "thiserror 2.0.12",
+ "tokio",
+ "tokio-util",
  "tracing",
 ]
 
