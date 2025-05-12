@@ -35,7 +35,7 @@ use url::Url;
 use kona_genesis::RollupConfig;
 use kona_protocol::{FromBlockError, L2BlockInfo};
 
-/// An error that occured in the [EngineClient].
+/// An error that occured in the [`EngineClient`].
 #[derive(Error, Debug)]
 pub enum EngineClientError {
     /// An RPC error occurred

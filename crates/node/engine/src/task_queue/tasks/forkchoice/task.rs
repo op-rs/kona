@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
 
-/// The [ForkchoiceTask] executes an `engine_forkchoiceUpdated` call with the current
-/// [EngineState]'s forkchoice, and no payload attributes.
+/// The [`ForkchoiceTask`] executes an `engine_forkchoiceUpdated` call with the current
+/// [`EngineState`]'s forkchoice, and no payload attributes.
 #[derive(Debug, Clone)]
 pub struct ForkchoiceTask {
     /// The engine client.
@@ -15,7 +15,7 @@ pub struct ForkchoiceTask {
 }
 
 impl ForkchoiceTask {
-    /// Creates a new [ForkchoiceTask].
+    /// Creates a new [`ForkchoiceTask`].
     pub const fn new(client: Arc<EngineClient>) -> Self {
         Self { client }
     }

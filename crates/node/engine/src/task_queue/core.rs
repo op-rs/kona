@@ -28,10 +28,10 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Creates a new [Engine] with an empty task queue and the passed initial [EngineState].
+    /// Creates a new [`Engine`] with an empty task queue and the passed initial [`EngineState`].
     ///
-    /// An initial [EngineTask::ForkchoiceUpdate] is added to the task queue to synchronize the
-    /// engine with the forkchoice state of the [EngineState].
+    /// An initial [`EngineTask::ForkchoiceUpdate`] is added to the task queue to synchronize the
+    /// engine with the forkchoice state of the [`EngineState`].
     pub fn new(initial_state: EngineState, state_sender: Sender<EngineState>) -> Self {
         Self {
             state: initial_state,
@@ -41,7 +41,7 @@ impl Engine {
         }
     }
 
-    /// Enqueues a new [EngineTask] for execution.
+    /// Enqueues a new [`EngineTask`] for execution.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.entry(task.ty()).or_default().push_back(task);
     }
@@ -75,11 +75,11 @@ impl Engine {
         self.state_sender.subscribe()
     }
 
-    /// Attempts to drain the queue by executing all [EngineTask]s in-order. If any task returns an
+    /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns an
     /// error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
     ///
-    /// If an [EngineTaskError::Reset] is encountered, the remaining tasks in the queue are cleared.
+    /// If an [`EngineTaskError::Reset`] is encountered, the remaining tasks in the queue are cleared.
     pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
         loop {
             let ty = self.next();
