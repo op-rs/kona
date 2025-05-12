@@ -4982,6 +4982,7 @@ dependencies = [
  "kona-macros",
  "kona-p2p",
  "kona-protocol",
+ "kona-supervisor-rpc",
  "metrics",
  "op-alloy-consensus",
  "op-alloy-rpc-jsonrpsee",

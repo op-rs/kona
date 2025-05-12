@@ -35,21 +35,12 @@ impl InteropTxValidatorError {
     }
 }
 
-#[cfg(feature = "client")]
 impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
             jsonrpsee::core::ClientError::Call(err) => err.into(),
             _ => Self::client(err),
         }
-    }
-}
-
-impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
-    fn from(err: jsonrpsee::types::ErrorObjectOwned) -> Self {
-        InvalidInboxEntry::parse_err_msg(err.message())
-            .map(Self::InvalidInboxEntry)
-            .unwrap_or(Self::server_unexpected(err))
     }
 }
 

@@ -2,7 +2,9 @@ use core::fmt::Debug;
 
 use alloy_primitives::B256;
 use async_trait::async_trait;
+use jsonrpsee::types::ErrorObjectOwned;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use kona_supervisor_rpc::SupervisorApiServer;
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
@@ -11,6 +13,12 @@ pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
     Unimplemented,
+}
+
+impl From<ErrorObjectOwned> for SupervisorError {
+    fn from(_error: ErrorObjectOwned) -> Self {
+        Self::Unimplemented
+    }
 }
 
 /// Defines the service for the Supervisor core logic.
@@ -48,5 +56,20 @@ impl SupervisorService for Supervisor {
         _executing_descriptor: ExecutingDescriptor,
     ) -> Result<(), SupervisorError> {
         Err(SupervisorError::Unimplemented)
+    }
+}
+
+#[async_trait]
+impl<T> SupervisorService for T
+where
+    T: SupervisorApiServer + Debug,
+{
+    async fn check_access_list(
+        &self,
+        inbox_entries: Vec<B256>,
+        min_safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
+    ) -> Result<(), SupervisorError> {
+        Ok(T::check_access_list(self, inbox_entries, min_safety, executing_descriptor).await?)
     }
 }
