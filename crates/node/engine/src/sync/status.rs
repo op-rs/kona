@@ -42,12 +42,7 @@ impl SyncStatus {
 
     /// Returns if syncing is in progress.
     pub const fn is_syncing(&self) -> bool {
-        matches!(
-            self,
-            Self::ExecutionLayerWillStart |
-                Self::ExecutionLayerStarted |
-                Self::ExecutionLayerNotFinalized
-        )
+        matches!(self, Self::ExecutionLayerNotFinalized)
     }
 }
 
