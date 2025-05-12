@@ -2,9 +2,9 @@
 
 use alloy_primitives::B256;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
-use kona_supervisor_rpc::{SupervisorApiClient, jsonrpsee::ErrorObjectOwned};
+use kona_supervisor_rpc::SupervisorApiClient;
 
-use crate::{InteropTxValidator, InteropTxValidatorError};
+use crate::InteropTxValidatorError;
 
 /// Subset of `op-supervisor` API, used for validating interop events.
 // TODO: add link once https://github.com/ethereum-optimism/optimism/pull/14784 merged
