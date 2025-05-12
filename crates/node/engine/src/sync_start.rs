@@ -102,7 +102,6 @@ async fn current_forkchoice(
     cfg: &RollupConfig,
     l2_provider: &mut AlloyL2ChainProvider,
 ) -> Result<L2ForkchoiceState, SyncStartError> {
-    info!(target: "sync_start", genesis_finalized = ?cfg.genesis.l2.hash, "Genesis hash");
     let finalized = match l2_provider.block_info_by_id(BlockNumberOrTag::Finalized.into()).await {
         Ok(Some(block)) => block,
         Ok(None) => l2_provider.block_info_by_id(cfg.genesis.l2.number.into()).await?.unwrap(),
