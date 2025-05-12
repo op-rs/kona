@@ -13,7 +13,7 @@ mod task_queue;
 pub use task_queue::{
     BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineTask,
     EngineTaskError, EngineTaskExt, EngineTaskType, ForkchoiceTask, ForkchoiceTaskError,
-    InsertUnsafeTask, InsertUnsafeTaskError, init_unknowns,
+    InsertUnsafeTask, InsertUnsafeTaskError, RestartTask, RestartTaskError,
 };
 
 mod attributes;

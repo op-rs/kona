@@ -1,15 +1,18 @@
 //! The Engine Actor
 
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_derive::types::Signal;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineQueries, EngineStateBuilder,
-    EngineStateBuilderError, EngineTask, EngineTaskError, InsertUnsafeTask,
+    EngineStateBuilderError, EngineTask, EngineTaskError, ForkchoiceTask, InsertUnsafeTask,
+    RestartTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
+use op_alloy_network::Ethereum;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
@@ -143,6 +146,8 @@ pub struct EngineLauncher {
     pub engine_url: Url,
     /// The l2 rpc url.
     pub l2_rpc_url: Url,
+    /// The L1 provider.
+    pub l1_client: RootProvider<Ethereum>,
     /// The engine jwt secret.
     pub jwt_secret: JwtSecret,
 }
@@ -154,7 +159,16 @@ impl EngineLauncher {
         let state = self.state_builder().build().await?;
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
 
-        Ok(Engine::new(state, engine_state_send))
+        let mut engine = Engine::new(state, engine_state_send);
+        // Adds the initial tasks to the engine.
+
+        engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
+        engine.enqueue(EngineTask::Restart(RestartTask {
+            client: self.client().into(),
+            cfg: self.config.clone(),
+        }));
+
+        Ok(engine)
     }
 
     /// Returns the [`EngineClient`].
@@ -164,6 +178,7 @@ impl EngineLauncher {
             self.l2_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,
+            self.l1_client.clone(),
         )
     }
 

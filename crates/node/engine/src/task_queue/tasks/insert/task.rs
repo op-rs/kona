@@ -1,8 +1,7 @@
 //! A task to insert an unsafe payload into the execution engine.
-
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
-    InsertUnsafeTaskError, SyncStatus,
+    InsertUnsafeTaskError, SyncStatus, task_queue::init_unknowns,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
@@ -124,6 +123,9 @@ impl EngineTaskExt for InsertUnsafeTask {
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
                 .map_err(InsertUnsafeTaskError::L2BlockInfoConstruction)?;
 
+        // Initialize unknowns if needed.
+        crate::task_queue::init_unknowns(state, self.client.clone()).await;
+
         let mut fcu = ForkchoiceState {
             head_block_hash: self.envelope.payload.block_hash(),
             safe_block_hash: state.safe_head().block_info.hash,
@@ -190,9 +192,6 @@ impl EngineTaskExt for InsertUnsafeTask {
             );
             state.sync_status = SyncStatus::ExecutionLayerFinished;
         }
-
-        // Initialize unknowns if needed.
-        crate::init_unknowns(state, self.client.clone()).await;
 
         info!(
             target: "engine",

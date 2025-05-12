@@ -2,7 +2,7 @@
 //!
 //! [`Engine`]: crate::Engine
 
-use super::{BuildTask, ConsolidateTask, ForkchoiceTask, InsertUnsafeTask};
+use super::{BuildTask, ConsolidateTask, ForkchoiceTask, InsertUnsafeTask, RestartTask};
 use crate::EngineState;
 use async_trait::async_trait;
 use thiserror::Error;
@@ -21,6 +21,8 @@ pub enum EngineTaskType {
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
     Consolidate,
+    /// Restarts the engine.
+    Restart,
 }
 
 impl EngineTaskType {
@@ -30,7 +32,8 @@ impl EngineTaskType {
             Self::ForkchoiceUpdate => Self::InsertUnsafe,
             Self::InsertUnsafe => Self::BuildBlock,
             Self::BuildBlock => Self::Consolidate,
-            Self::Consolidate => Self::ForkchoiceUpdate,
+            Self::Consolidate => Self::Restart,
+            Self::Restart => Self::ForkchoiceUpdate,
         }
     }
 }
@@ -50,6 +53,8 @@ pub enum EngineTask {
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
     Consolidate(ConsolidateTask),
+    /// Restarts the engine.
+    Restart(RestartTask),
 }
 
 impl EngineTask {
@@ -60,6 +65,7 @@ impl EngineTask {
             Self::InsertUnsafe(task) => task.execute(state).await,
             Self::BuildBlock(task) => task.execute(state).await,
             Self::Consolidate(task) => task.execute(state).await,
+            Self::Restart(task) => task.execute(state).await,
         }
     }
 
@@ -70,6 +76,7 @@ impl EngineTask {
             Self::InsertUnsafe(_) => EngineTaskType::InsertUnsafe,
             Self::BuildBlock(_) => EngineTaskType::BuildBlock,
             Self::Consolidate(_) => EngineTaskType::Consolidate,
+            Self::Restart(_) => EngineTaskType::Restart,
         }
     }
 }

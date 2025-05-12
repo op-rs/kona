@@ -141,6 +141,7 @@ impl RollupNodeBuilder {
             l2_rpc_url,
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,
+            l1_client: l1_provider.clone(),
         };
 
         let runtime_launcher = RuntimeLauncher::new(
