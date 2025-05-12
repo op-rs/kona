@@ -1,13 +1,13 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    EngineLauncher, L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
-    RollupNodeService, RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
-    find_starting_forkchoice,
+    EngineLauncher, L1WatcherRpc, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
+    RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use kona_sources::L2ForkchoiceState;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -145,12 +145,8 @@ impl ValidatorNodeService for RollupNode {
         );
 
         // Find the starting forkchoice state.
-        let starting_forkchoice = find_starting_forkchoice(
-            self.config.as_ref(),
-            &mut l1_derivation_provider,
-            &mut l2_derivation_provider,
-        )
-        .await?;
+        let starting_forkchoice =
+            L2ForkchoiceState::current(self.config.as_ref(), &mut l2_derivation_provider).await?;
 
         info!(
             target: "rollup_node",
