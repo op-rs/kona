@@ -4,15 +4,15 @@
 optimism_package:
   chains:
     - participants:
-      - el_type: op-geth
+      - el_type: op-reth
         cl_type: op-node
         cl_log_level: "trace"
         el_log_level: "trace"
         count: 4
-      - el_type: op-geth
+      - el_type: op-reth
         cl_type: kona-node
         cl_log_level: "debug"
-        el_log_level: "trace"
+        el_log_level: "debug"
         count: 4
       network_params:
         network: "kurtosis"
