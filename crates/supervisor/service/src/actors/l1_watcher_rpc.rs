@@ -1,4 +1,5 @@
-//! [SupervisorActor] implementation for an L1 chain watcher that checks for L1 head updates over RPC.
+//! [SupervisorActor] implementation for an L1 chain watcher that checks for L1 head updates over
+//! RPC.
 
 use crate::actors::traits::SupervisorActor;
 use alloy_eips::BlockId;
@@ -218,4 +219,4 @@ pub enum L1WatcherRpcError<T> {
     /// Nothing to update.
     #[error("Nothing to update; L1 head is the same as the last observed head")]
     NothingToUpdate,
-} 
+}
