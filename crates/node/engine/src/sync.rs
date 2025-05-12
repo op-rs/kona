@@ -8,7 +8,7 @@
 ///    api. (UNSUPPORTED).
 /// 2. Execution Layer Sync: Syncing through the execution engine.
 ///
-/// Kona only support execution layer sync.
+/// Kona only supports execution layer sync.
 ///
 /// Syncing through the execution layer is linearly broken down into 4 states:
 ///
