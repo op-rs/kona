@@ -1,9 +1,7 @@
 //! Contains the node CLI.
 
 use crate::{
-    commands::{
-        BootstoreCommand, DiscoverCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand,
-    },
+    commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
     flags::{GlobalArgs, MetricsArgs},
 };
 use anyhow::Result;
@@ -28,9 +26,6 @@ pub enum Commands {
     Bootstore(BootstoreCommand),
     /// Get info about op chain.
     Info(InfoCommand),
-    /// Discover runs only discovery to bootstrap the list of peers.
-    #[command(alias = "d", alias = "disc", alias = "discovery")]
-    Discover(DiscoverCommand),
 }
 
 /// The node CLI.
@@ -62,9 +57,6 @@ impl Cli {
                 bootstore.init_telemetry(&self.global, &self.metrics)?
             }
             Commands::Info(ref info) => info.init_telemetry(&self.global, &self.metrics)?,
-            Commands::Discover(ref discover) => {
-                discover.init_telemetry(&self.global, &self.metrics)?
-            }
         }
 
         // Run the subcommand.
@@ -74,7 +66,6 @@ impl Cli {
             Commands::Registry(registry) => registry.run(&self.global),
             Commands::Bootstore(bootstore) => bootstore.run(&self.global),
             Commands::Info(info) => info.run(&self.global),
-            Commands::Discover(discover) => Self::run_until_ctrl_c(discover.run(&self.global)),
         }
     }
 
