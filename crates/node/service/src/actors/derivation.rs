@@ -252,6 +252,9 @@ where
 
                     self.signal(signal).await;
                 }
+                _ = self.engine_l2_safe_head.changed() => {
+                    self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
+                }
             }
         }
     }
@@ -268,7 +271,7 @@ where
     /// attributes are successfully produced. If the pipeline step errors,
     /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
     /// zero hash, the pipeline is not stepped on.
-    async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
+    async fn process(&mut self, msg: Self::InboundEvent) -> Result<(), Self::Error> {
         // Only attempt derivation once the engine finishes syncing.
         if !self.engine_ready {
             trace!(target: "derivation", "Engine not ready, skipping derivation.");
@@ -276,15 +279,17 @@ where
         }
 
         // If the safe head hasn't changed, don't step on the pipeline.
-        match self.engine_l2_safe_head.has_changed() {
-            Ok(true) => { /* Proceed to produce next payload attributes. */ }
-            Ok(false) => {
-                trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
-                return Ok(());
-            }
-            Err(e) => {
-                error!(target: "derivation", ?e, "Failed to check if safe head has changed");
-                return Err(DerivationError::L2SafeHeadReceiveFailed);
+        if matches!(msg, InboundDerivationMessage::NewDataAvailable) {
+            match self.engine_l2_safe_head.has_changed() {
+                Ok(true) => { /* Proceed to produce next payload attributes. */ }
+                Ok(false) => {
+                    trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
+                    return Ok(());
+                }
+                Err(e) => {
+                    error!(target: "derivation", ?e, "Failed to check if safe head has changed");
+                    return Err(DerivationError::L2SafeHeadReceiveFailed);
+                }
             }
         }
 
@@ -311,6 +316,7 @@ where
         // Mark the L2 safe head as seen.
         self.engine_l2_safe_head.borrow_and_update();
 
+        // Send payload attributes out for processing.
         self.attributes_out.send(payload_attrs).map_err(Box::new)?;
         Ok(())
     }
@@ -321,6 +327,9 @@ where
 pub enum InboundDerivationMessage {
     /// New data is potentially available for processing on the data availability layer.
     NewDataAvailable,
+    /// The engine has updated its safe head. An attempt to process the next payload attributes can
+    /// be made.
+    SafeHeadUpdated,
 }
 
 /// An error from the [DerivationActor].
