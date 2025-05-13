@@ -45,6 +45,7 @@ crossterm = { workspace = true, features = ["event-stream"] }
 # general
 dirs.workspace = true
 url.workspace = true
+backon.workspace = true
 tokio-stream.workspace = true
 tracing-appender.workspace = true
 discv5.workspace = true

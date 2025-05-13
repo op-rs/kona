@@ -2,6 +2,7 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
+use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
@@ -95,23 +96,34 @@ impl NodeCommand {
             Arc::new(config.clone()),
             jwt_secret,
         );
-        match engine_client.exchange_capabilities(vec![]).await {
-            Ok(_) => {
-                debug!("Successfully exchanged capabilities with engine");
-                Ok(jwt_secret)
-            }
-            Err(e) => {
-                if e.to_string().contains("signature invalid") {
-                    error!(
-                        "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
-                    );
-                    error!(
-                        "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
-                    );
+
+        let exchange = || async {
+            match engine_client.exchange_capabilities(vec![]).await {
+                Ok(_) => {
+                    debug!("Successfully exchanged capabilities with engine");
+                    Ok(jwt_secret)
                 }
-                bail!("Failed to exchange capabilities with engine: {}", e);
+                Err(e) => {
+                    if e.to_string().contains("signature invalid") {
+                        error!(
+                            "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
+                        );
+                        error!(
+                            "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
+                        );
+                    }
+                    bail!("Failed to exchange capabilities with engine: {}", e);
+                }
             }
-        }
+        };
+
+        exchange
+            .retry(ExponentialBuilder::default())
+            .when(|e| !e.to_string().contains("signature invalid"))
+            .notify(|_, duration| {
+                debug!("Retrying engine capability handshake after {duration:?}");
+            })
+            .await
     }
 
     /// Run the Node subcommand.

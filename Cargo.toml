@@ -179,6 +179,7 @@ buddy_system_allocator = "0.11.0"
 
 rand = { version = "0.9.1", default-features = false }
 tabled = { version = "0.19", default-features = false }
+backon = { version = "1.5.0", default-features = false, features = ["std", "tokio", "tokio-sleep"] }
 anyhow = { version = "1.0.98", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 derive_more = { version = "2.0.1", default-features = false }
