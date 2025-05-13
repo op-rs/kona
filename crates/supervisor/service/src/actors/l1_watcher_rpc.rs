@@ -14,7 +14,10 @@ use std::sync::Arc;
 use thiserror::Error;
 use tokio::{
     select,
-    sync::mpsc::{UnboundedSender, error::SendError},
+    sync::{
+        mpsc::{UnboundedSender, error::SendError},
+        watch,
+    },
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
@@ -31,7 +34,7 @@ pub struct L1WatcherRpc {
     l1_provider: RootProvider,
     /// The latest L1 head sent to the derivation pipeline and watcher. Can be subscribed to, in
     /// order to get the state from the external watcher.
-    latest_head: tokio::sync::watch::Sender<Option<BlockInfo>>,
+    latest_head: watch::Sender<Option<BlockInfo>>,
     /// The outbound event sender.
     head_sender: UnboundedSender<BlockInfo>,
     /// The cancellation token, shared between all tasks.

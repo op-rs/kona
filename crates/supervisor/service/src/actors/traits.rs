@@ -2,12 +2,7 @@
 
 use async_trait::async_trait;
 
-/// The [SupervisorActor] is an actor-like service for the supervisor.
-///
-/// Actors may:
-/// - Handle incoming messages.
-///     - Perform background tasks.
-/// - Emit new events for other actors to process.
+/// The [`SupervisorActor`] trait is an actor-like service for the supervisor.
 #[async_trait]
 pub trait SupervisorActor {
     /// The event type received by the actor.
