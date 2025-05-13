@@ -38,6 +38,8 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 op-alloy-provider.workspace = true
 
 # general
+futures.workspace = true
+rstest.workspace = true
 url.workspace = true
 dirs.workspace = true
 backon.workspace = true

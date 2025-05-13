@@ -20,7 +20,7 @@ use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;
 
-/// The [ValidatorNodeService] trait defines the common interface for running a validator node
+/// The [`ValidatorNodeService`] trait defines the common interface for running a validator node
 /// service in the rollup node. The validator node listens to two sources of information to sync the
 /// L2 chain:
 ///
@@ -36,6 +36,7 @@ use tokio_util::sync::CancellationToken;
 /// accordingly, sending notifications to the other actors for synchronization.
 ///
 /// ## Actor Communication
+///
 /// ```not_rust
 /// ┌────────────┐
 /// │L2 Sequencer│
@@ -51,7 +52,8 @@ use tokio_util::sync::CancellationToken;
 /// ```
 ///
 /// ## Types
-/// - `DataAvailabilityWatcher`: The type of [NodeActor] to use for the DA watcher service.
+///
+/// - `DataAvailabilityWatcher`: The type of [`NodeActor`] to use for the DA watcher service.
 /// - `DerivationPipeline`: The type of [Pipeline] to use for the service. Can be swapped out from
 ///   the default implementation for the sake of plugins like Alt DA.
 /// - `Error`: The type of error for the service's entrypoint.
@@ -97,7 +99,7 @@ pub trait ValidatorNodeService {
     fn engine(&self) -> EngineLauncher;
 
     /// Returns the [`RpcLauncher`] for the node.
-    fn rpc(&self) -> Option<RpcLauncher>;
+    fn rpc(&self) -> RpcLauncher;
 
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), Self::Error> {
@@ -179,20 +181,13 @@ pub trait ValidatorNodeService {
             },
         );
 
-        let rollup_rpc = RollupRpc::new(engine_query_sender, l1_watcher_queries_sender);
-
         // The RPC Server should go last to let other actors register their rpc modules.
-        let rpc = if let Some(mut rpc) = self.rpc() {
-            if let Some(p2p_module) = p2p_module {
-                rpc = rpc.merge(p2p_module.into_rpc()).map_err(Self::Error::from)?;
-            }
-
-            rpc = rpc.merge(rollup_rpc.into_rpc()).map_err(Self::Error::from)?;
-            let handle = rpc.start().await?;
-            Some(RpcActor::new(handle, cancellation.clone()))
-        } else {
-            None
-        };
+        let mut launcher = self.rpc();
+        launcher = launcher.merge(p2p_module.map(|r| r.into_rpc())).map_err(Self::Error::from)?;
+        let rollup_rpc = RollupRpc::new(engine_query_sender, l1_watcher_queries_sender);
+        launcher = launcher.merge(Some(rollup_rpc.into_rpc())).map_err(Self::Error::from)?;
+        let handle = launcher.launch().await?;
+        let rpc = handle.map(|h| RpcActor::new(h, cancellation.clone()));
 
         spawn_and_wait!(
             cancellation,

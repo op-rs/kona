@@ -2,6 +2,7 @@
 
 use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs};
 use clap::Parser;
+use futures::future::OptionFuture;
 use kona_p2p::{NetworkBuilder, P2pRpcRequest};
 use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};
@@ -54,8 +55,8 @@ impl NetCommand {
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
         let p2p_module = NetworkRpc::new(tx.clone()).into_rpc();
         let rpc_config = RpcConfig::from(&self.rpc);
-        let mut launcher = rpc_config.as_launcher().merge(p2p_module)?;
-        let handle = launcher.start().await?;
+        let mut launcher = rpc_config.as_launcher().merge(Some(p2p_module))?;
+        let handle = launcher.launch().await?;
         info!(target: "net", "Started RPC server on {:?}:{}", rpc_config.listen_addr, rpc_config.listen_port);
 
         // Get the rollup config from the args
@@ -109,7 +110,7 @@ impl NetCommand {
                         }
                     }).await.unwrap();
                 }
-                _ = handle.clone().stopped() => {
+                _ = OptionFuture::from(handle.clone().map(|h| h.stopped())) => {
                     warn!(target: "net", "RPC server stopped");
                     return Ok(());
                 }

@@ -4526,6 +4526,7 @@ dependencies = [
  "clap",
  "dirs",
  "discv5",
+ "futures",
  "jsonrpsee 0.25.1",
  "kona-cli",
  "kona-derive",
