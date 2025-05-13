@@ -1,7 +1,7 @@
 //! Contains the runtime configuration for the node.
 
 use alloy_primitives::Address;
-use kona_rpc::ProtocolVersion;
+use op_alloy_rpc_types_engine::ProtocolVersion;
 
 /// The runtime config.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

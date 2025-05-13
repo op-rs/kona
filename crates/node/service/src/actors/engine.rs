@@ -266,8 +266,8 @@ impl NodeActor for EngineActor {
                     let client = Arc::clone(&self.client);
                     tokio::task::spawn(async move {
                         debug!(target: "engine", config = ?config, "Received runtime config");
-                        let recommended: op_alloy_rpc_types_engine::ProtocolVersion = config.recommended_protocol_version.into();
-                        let required: op_alloy_rpc_types_engine::ProtocolVersion = config.required_protocol_version.into();
+                        let recommended = config.recommended_protocol_version;
+                        let required = config.required_protocol_version;
                         match client.signal_superchain_v1(recommended, required).await {
                             Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
                             Err(e) => {

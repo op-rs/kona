@@ -66,6 +66,14 @@ panic = "abort"
 codegen-units = 1
 lto = "fat"
 
+[patch.crates-io]
+op-alloy-network = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/impl-error" }
+op-alloy-provider = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/impl-error" }
+op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/impl-error" }
+op-alloy-rpc-types = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/impl-error" }
+op-alloy-rpc-jsonrpsee = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/impl-error" }
+op-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/impl-error" }
+
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "1.0.1", default-features = false }
