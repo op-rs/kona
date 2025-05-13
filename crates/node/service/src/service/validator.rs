@@ -131,8 +131,8 @@ pub trait ValidatorNodeService {
             engine_l2_safe_rx,
             sync_complete_rx,
             derivation_signal_rx,
-            derived_payload_tx,
             new_head_rx,
+            derived_payload_tx,
             cancellation.clone(),
         );
         let derivation = Some(derivation);

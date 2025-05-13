@@ -39,7 +39,7 @@ where
     /// The derivation actor steps over the derivation pipeline to generate
     /// [`OpAttributesWithParent`]. These attributes then need to be executed
     /// via the engine api, which is done by sending them through the
-    /// [`Self::attributes_out`] channel.
+    /// `attributes_out` channel.
     ///
     /// When the engine api receives an `INVALID` response for a new block (
     /// the new [`OpAttributesWithParent`]) during block building, the payload
@@ -53,12 +53,16 @@ where
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: UnboundedReceiver<Signal>,
-    /// A flag indicating whether the derivation pipeline is ready to start.
-    engine_ready: bool,
-    /// The sender for derived [OpAttributesWithParent]s produced by the actor.
-    pub attributes_out: UnboundedSender<OpAttributesWithParent>,
     /// The receiver for L1 head update notifications.
     l1_head_updates: UnboundedReceiver<BlockInfo>,
+    /// The sender for derived [OpAttributesWithParent]s produced by the actor.
+    attributes_out: UnboundedSender<OpAttributesWithParent>,
+
+    /// A flag indicating whether the derivation pipeline is ready to start.
+    engine_ready: bool,
+    /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
+    /// has yielded to wait for more data on the DAL.
+    derivation_idle: bool,
 
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
@@ -75,8 +79,8 @@ where
         engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
         sync_complete_rx: UnboundedReceiver<()>,
         derivation_signal_rx: UnboundedReceiver<Signal>,
-        attributes_out: UnboundedSender<OpAttributesWithParent>,
         l1_head_updates: UnboundedReceiver<BlockInfo>,
+        attributes_out: UnboundedSender<OpAttributesWithParent>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
@@ -84,9 +88,10 @@ where
             engine_l2_safe_head,
             sync_complete_rx,
             derivation_signal_rx,
-            engine_ready: false,
-            attributes_out,
             l1_head_updates,
+            attributes_out,
+            engine_ready: false,
+            derivation_idle: true,
             cancellation,
         }
     }
@@ -103,9 +108,7 @@ where
 
     /// Attempts to step the derivation pipeline forward as much as possible in order to produce the
     /// next safe payload.
-    async fn produce_next_safe_payload(
-        &mut self,
-    ) -> Result<OpAttributesWithParent, DerivationError> {
+    async fn produce_next_attributes(&mut self) -> Result<OpAttributesWithParent, DerivationError> {
         // As we start the safe head at the disputed block's parent, we step the pipeline until the
         // first attributes are produced. All batches at and before the safe head will be
         // dropped, so the first payload will always be the disputed one.
@@ -114,7 +117,7 @@ where
             match self.pipeline.step(l2_safe_head).await {
                 StepResult::PreparedAttributes => { /* continue; attributes will be sent off. */ }
                 StepResult::AdvancedOrigin => {
-                    info!(
+                    debug!(
                         target: "derivation",
                         "Advanced L1 origin to block #{}",
                         self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?.number,
@@ -278,8 +281,10 @@ where
             return Ok(());
         }
 
-        // If the safe head hasn't changed, don't step on the pipeline.
-        if matches!(msg, InboundDerivationMessage::NewDataAvailable) {
+        // If derivation isn't idle and the message hasn't observed a safe head update already,
+        // check if the safe head has changed before continuing. This is to prevent attempts to
+        // progress the pipeline while it is in the middle of processing a channel.
+        if !(self.derivation_idle || msg == InboundDerivationMessage::SafeHeadUpdated) {
             match self.engine_l2_safe_head.has_changed() {
                 Ok(true) => { /* Proceed to produce next payload attributes. */ }
                 Ok(false) => {
@@ -302,10 +307,11 @@ where
 
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
-        let payload_attrs = match self.produce_next_safe_payload().await {
+        let payload_attrs = match self.produce_next_attributes().await {
             Ok(attrs) => attrs,
             Err(DerivationError::Yield) => {
                 // Yield until more data is available.
+                self.derivation_idle = true;
                 return Ok(());
             }
             Err(e) => {
@@ -313,11 +319,15 @@ where
             }
         };
 
+        // Mark derivation as busy.
+        self.derivation_idle = false;
+
         // Mark the L2 safe head as seen.
         self.engine_l2_safe_head.borrow_and_update();
 
         // Send payload attributes out for processing.
         self.attributes_out.send(payload_attrs).map_err(Box::new)?;
+
         Ok(())
     }
 }
