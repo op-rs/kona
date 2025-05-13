@@ -11,6 +11,10 @@ pub struct EngineState {
     pub(crate) unsafe_head: L2BlockInfo,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
     pub(crate) cross_unsafe_head: L2BlockInfo,
+    /// Pending localSafeHead
+    /// L2 block processed from the middle of a span batch,
+    /// but not marked as the safe block yet.
+    pub(crate) pending_safe_head: L2BlockInfo,
     /// Derived from L1, and known to be a completed span-batch,
     /// but not cross-verified yet.
     pub(crate) local_safe_head: L2BlockInfo,
@@ -19,6 +23,10 @@ pub struct EngineState {
     /// Derived from finalized L1 data,
     /// and cross-verified to only have finalized dependencies.
     pub(crate) finalized_head: L2BlockInfo,
+    /// The unsafe head to roll back to,
+    /// after the pending safe head fails to become safe.
+    /// This is changing in the Holocene fork.
+    pub(crate) backup_unsafe_head: Option<L2BlockInfo>,
 
     /// The [`SyncStatus`] of the engine.
     pub sync_status: SyncStatus,
@@ -76,6 +84,11 @@ impl EngineState {
         self.local_safe_head
     }
 
+    /// Returns the current pending safe head.
+    pub const fn pending_safe_head(&self) -> L2BlockInfo {
+        self.pending_safe_head
+    }
+
     /// Returns the current safe head.
     pub const fn safe_head(&self) -> L2BlockInfo {
         self.safe_head
@@ -84,6 +97,11 @@ impl EngineState {
     /// Returns the current finalized head.
     pub const fn finalized_head(&self) -> L2BlockInfo {
         self.finalized_head
+    }
+
+    /// Returns the current backup unsafe head.
+    pub const fn backup_unsafe_head(&self) -> Option<L2BlockInfo> {
+        self.backup_unsafe_head
     }
 
     /// Set the unsafe head.
@@ -97,6 +115,11 @@ impl EngineState {
     pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
         self.cross_unsafe_head = cross_unsafe_head;
         Self::update_block_label_metric("cross-unsafe", cross_unsafe_head.block_info.number);
+    }
+
+    /// Set the pending safe head.
+    pub fn set_pending_safe_head(&mut self, pending_safe_head: L2BlockInfo) {
+        self.pending_safe_head = pending_safe_head;
     }
 
     /// Set the local safe head.
@@ -117,6 +140,12 @@ impl EngineState {
         self.finalized_head = finalized_head;
         self.forkchoice_update_needed = true;
         Self::update_block_label_metric("finalized", finalized_head.block_info.number);
+    }
+
+    /// Set the backup unsafe head.
+    pub fn set_backup_unsafe_head(&mut self, backup_unsafe_head: L2BlockInfo, reorg: bool) {
+        self.backup_unsafe_head = Some(backup_unsafe_head);
+        self.need_fcu_call_backup_unsafe_reorg = reorg;
     }
 
     /// Updates a block label metric, keyed by the label.
