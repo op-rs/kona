@@ -55,6 +55,9 @@ where
     derivation_signal_rx: UnboundedReceiver<Signal>,
     /// A flag indicating whether the derivation pipeline is ready to start.
     engine_ready: bool,
+    /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it has yielded
+    /// to wait for more data on the DAL.
+    derivation_idle: bool,
     /// The sender for derived [OpAttributesWithParent]s produced by the actor.
     pub attributes_out: UnboundedSender<OpAttributesWithParent>,
     /// The receiver for L1 head update notifications.
@@ -85,6 +88,7 @@ where
             sync_complete_rx,
             derivation_signal_rx,
             engine_ready: false,
+            derivation_idle: true,
             attributes_out,
             l1_head_updates,
             cancellation,
@@ -114,7 +118,7 @@ where
             match self.pipeline.step(l2_safe_head).await {
                 StepResult::PreparedAttributes => { /* continue; attributes will be sent off. */ }
                 StepResult::AdvancedOrigin => {
-                    info!(
+                    debug!(
                         target: "derivation",
                         "Advanced L1 origin to block #{}",
                         self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?.number,
@@ -279,7 +283,7 @@ where
         }
 
         // If the safe head hasn't changed, don't step on the pipeline.
-        if matches!(msg, InboundDerivationMessage::NewDataAvailable) {
+        if !self.derivation_idle && !matches!(msg, InboundDerivationMessage::SafeHeadUpdated) {
             match self.engine_l2_safe_head.has_changed() {
                 Ok(true) => { /* Proceed to produce next payload attributes. */ }
                 Ok(false) => {
@@ -306,6 +310,7 @@ where
             Ok(attrs) => attrs,
             Err(DerivationError::Yield) => {
                 // Yield until more data is available.
+                self.derivation_idle = true;
                 return Ok(());
             }
             Err(e) => {
@@ -313,11 +318,15 @@ where
             }
         };
 
+        // Mark derivation as busy.
+        self.derivation_idle = false;
+
         // Mark the L2 safe head as seen.
         self.engine_l2_safe_head.borrow_and_update();
 
         // Send payload attributes out for processing.
         self.attributes_out.send(payload_attrs).map_err(Box::new)?;
+
         Ok(())
     }
 }
@@ -327,8 +336,7 @@ where
 pub enum InboundDerivationMessage {
     /// New data is potentially available for processing on the data availability layer.
     NewDataAvailable,
-    /// The engine has updated its safe head. An attempt to process the next payload attributes can
-    /// be made.
+    /// The engine has updated its safe head. An attempt to process the next payload attributes can be made.
     SafeHeadUpdated,
 }
 
