@@ -16,6 +16,7 @@ exclude.workspace = true
 # Workspace
 kona-interop.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
+kona-protocol.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
