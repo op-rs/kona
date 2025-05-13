@@ -1,16 +1,17 @@
 //! Sync start algorithm for the OP Stack rollup node.
 
-use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::B256;
-use alloy_transport::{RpcError, TransportErrorKind};
 use kona_derive::traits::ChainProvider;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyChainProviderError, AlloyL2ChainProvider, AlloyL2ChainProviderError,
 };
-use std::fmt::Display;
-use thiserror::Error;
+
+mod forkchoice;
+pub use forkchoice::L2ForkchoiceState;
+
+mod error;
+pub use error::SyncStartError;
 
 /// [RECOVER_MIN_SEQ_WINDOWS] is the number of sequence windows between the unsafe head L1 origin,
 /// and the finalized block, while finality is still at genesis, that need to elapse to
@@ -24,7 +25,7 @@ const RECOVER_MIN_SEQ_WINDOWS: u64 = 14;
 /// occur before we consider the node to be in a corrupted state.
 const MAX_REORG_SEQ_WINDOWS: u64 = 5;
 
-/// Searches for the latest [L2ForkchoiceState] that we can use to start the sync process with.
+/// Searches for the latest [`L2ForkchoiceState`] that we can use to start the sync process with.
 ///
 ///   - The *unsafe L2 block*: This is the highest L2 block whose L1 origin is a *plausible*
 ///     extension of the canonical L1 chain (as known to the op-node).
@@ -41,7 +42,7 @@ pub async fn find_starting_forkchoice(
     l1_provider: &mut AlloyChainProvider,
     l2_provider: &mut AlloyL2ChainProvider,
 ) -> Result<L2ForkchoiceState, SyncStartError> {
-    let mut current_fc = current_forkchoice(cfg, l2_provider).await?;
+    let mut current_fc = L2ForkchoiceState::current(cfg, l2_provider).await?;
     info!(
         target: "sync_start",
         unsafe = %current_fc.un_safe.block_info.number,
@@ -86,31 +87,6 @@ pub async fn find_starting_forkchoice(
     Ok(current_fc)
 }
 
-/// Fetches the current forkchoice state of the L2 execution layer.
-///
-/// - The finalized block may not always be available. If it is not, we fall back to genesis.
-/// - The safe block may not always be available. If it is not, we fall back to the finalized block.
-/// - The unsafe block is always assumed to be available.
-async fn current_forkchoice(
-    cfg: &RollupConfig,
-    l2_provider: &mut AlloyL2ChainProvider,
-) -> Result<L2ForkchoiceState, SyncStartError> {
-    let finalized = match l2_provider.block_info_by_id(BlockNumberOrTag::Finalized.into()).await {
-        Ok(Some(block)) => block,
-        Ok(None) => l2_provider.block_info_by_id(cfg.genesis.l2.number.into()).await?.unwrap(),
-        Err(e) => return Err(SyncStartError::RpcError(e)),
-    };
-    let safe = match l2_provider.block_info_by_id(BlockNumberOrTag::Safe.into()).await {
-        Ok(Some(block)) => block,
-        Ok(None) => finalized,
-        Err(e) => return Err(SyncStartError::RpcError(e)),
-    };
-    let un_safe =
-        l2_provider.block_info_by_id(BlockNumberOrTag::Latest.into()).await.unwrap().unwrap();
-
-    Ok(L2ForkchoiceState { un_safe, safe, finalized })
-}
-
 /// Checks if we need to recover from a state where finality is still at genesis.
 fn should_recover_from_finality_less_sync(
     current_fc: &L2ForkchoiceState,
@@ -126,8 +102,8 @@ fn should_recover_from_finality_less_sync(
         current_fc.un_safe.l1_origin.number > min_l1_block_threshold
 }
 
-/// Traverses the L2 chain, starting from the `current_fc` [L2ForkchoiceState], to find the
-/// starting forkchoice
+/// Traverses the L2 chain, starting from the `current_fc` [`L2ForkchoiceState`],
+/// to find the starting forkchoice.
 async fn traverse_l2(
     cfg: &RollupConfig,
     l1_provider: &mut AlloyChainProvider,
@@ -357,63 +333,4 @@ fn validate_l1_origin_relationship(
     }
 
     Ok(())
-}
-
-/// An unsafe, safe, and finalized [L2BlockInfo] returned by the [find_starting_forkchoice]
-/// function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct L2ForkchoiceState {
-    /// The unsafe L2 block.
-    pub un_safe: L2BlockInfo,
-    /// The safe L2 block.
-    pub safe: L2BlockInfo,
-    /// The finalized L2 block.
-    pub finalized: L2BlockInfo,
-}
-
-impl Display for L2ForkchoiceState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "FINALIZED: {} (#{}) | SAFE: {} (#{}) | UNSAFE: {} (#{})",
-            self.finalized.block_info.hash,
-            self.finalized.block_info.number,
-            self.safe.block_info.hash,
-            self.safe.block_info.number,
-            self.un_safe.block_info.hash,
-            self.un_safe.block_info.number,
-        )
-    }
-}
-
-/// An error that can occur during the sync start process.
-#[derive(Error, Debug)]
-pub enum SyncStartError {
-    /// An error occurred in the L1 chain provider.
-    #[error(transparent)]
-    L1ChainProvider(#[from] AlloyChainProviderError),
-    /// An error occurred in the L2 chain provider.
-    #[error(transparent)]
-    L2ChainProvider(#[from] AlloyL2ChainProviderError),
-    /// An rpc error occurred
-    #[error("An RPC error occurred: {0}")]
-    RpcError(#[from] RpcError<TransportErrorKind>),
-    /// Invalid L1 genesis hash.
-    #[error("Invalid L1 genesis hash. Expected {0}, Got {1}")]
-    InvalidL1GenesisHash(B256, B256),
-    /// Invalid L2 genesis hash.
-    #[error("Invalid L2 genesis hash. Expected {0}, Got {1}")]
-    InvalidL2GenesisHash(B256, B256),
-    /// Finalized block mismatch
-    #[error("Finalized block mismatch. Expected {0}, Got {1}")]
-    MismatchedFinalizedBlock(B256, B256),
-    /// L1 origin mismatch.
-    #[error("L1 origin mismatch")]
-    L1OriginMismatch,
-    /// Non-zero sequence number.
-    #[error("Non-zero sequence number for block with different L1 origin")]
-    NonZeroSequenceNumber,
-    /// Inconsistent sequence number.
-    #[error("Inconsistent sequence number; Must monotonically increase.")]
-    InconsistentSequenceNumber,
 }

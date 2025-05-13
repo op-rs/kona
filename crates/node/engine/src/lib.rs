@@ -13,7 +13,7 @@ mod task_queue;
 pub use task_queue::{
     BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineTask,
     EngineTaskError, EngineTaskExt, EngineTaskType, ForkchoiceTask, ForkchoiceTaskError,
-    InsertUnsafeTask, InsertUnsafeTaskError,
+    InsertUnsafeTask, InsertUnsafeTaskError, init_unknowns,
 };
 
 mod attributes;
@@ -26,7 +26,7 @@ mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
 mod sync;
-pub use sync::{SyncConfig, SyncMode, SyncStatus};
+pub use sync::SyncStatus;
 
 mod state;
 pub use state::{EngineState, EngineStateBuilder, EngineStateBuilderError};

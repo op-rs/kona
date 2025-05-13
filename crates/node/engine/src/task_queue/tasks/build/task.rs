@@ -17,14 +17,14 @@ use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use std::{sync::Arc, time::Instant};
 
-/// The [BuildTask] is responsible for building new blocks and importing them via the engine API.
+/// The [`BuildTask`] is responsible for building new blocks and importing them via the engine API.
 #[derive(Debug, Clone)]
 pub struct BuildTask {
     /// The engine API client.
     pub engine: Arc<EngineClient>,
-    /// The [RollupConfig].
+    /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
-    /// The [OpAttributesWithParent] to instruct the execution layer to build.
+    /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
     pub attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,

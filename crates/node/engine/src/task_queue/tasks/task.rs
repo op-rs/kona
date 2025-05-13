@@ -1,6 +1,6 @@
-//! Tasks sent to the [Engine] for execution.
+//! Tasks sent to the [`Engine`] for execution.
 //!
-//! [Engine]: crate::Engine
+//! [`Engine`]: crate::Engine
 
 use super::{BuildTask, ConsolidateTask, ForkchoiceTask, InsertUnsafeTask};
 use crate::EngineState;
@@ -11,7 +11,7 @@ use thiserror::Error;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum EngineTaskType {
-    /// Perform a `engine_forkchoiceUpdated` call with the current [EngineState]'s forkchoice,
+    /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
     /// and no payload attributes.
     ForkchoiceUpdate,
     /// Inserts an unsafe payload into the execution engine.
@@ -35,12 +35,12 @@ impl EngineTaskType {
     }
 }
 
-/// Tasks that may be inserted into and executed by the [Engine].
+/// Tasks that may be inserted into and executed by the [`Engine`].
 ///
-/// [Engine]: crate::Engine
+/// [`Engine`]: crate::Engine
 #[derive(Debug, Clone)]
 pub enum EngineTask {
-    /// Perform a `engine_forkchoiceUpdated` call with the current [EngineState]'s forkchoice,
+    /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
     /// and no payload attributes.
     ForkchoiceUpdate(ForkchoiceTask),
     /// Inserts an unsafe payload into the execution engine.
@@ -110,7 +110,7 @@ pub trait EngineTaskExt {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError>;
 }
 
-/// An error that may occur during an [EngineTask]'s execution.
+/// An error that may occur during an [`EngineTask`]'s execution.
 #[derive(Error, Debug)]
 pub enum EngineTaskError {
     /// A temporary error within the engine.

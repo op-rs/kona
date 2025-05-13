@@ -35,6 +35,7 @@ alloy-transport-http = { workspace = true, features = ["reqwest", "hyper", "jwt-
 # op-alloy
 op-alloy-network.workspace = true
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
+op-alloy-provider.workspace = true
 
 # general
 url.workspace = true
