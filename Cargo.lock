@@ -4598,6 +4598,7 @@ dependencies = [
  "alloy-rpc-types-engine",
  "arbitrary",
  "arbtest",
+ "backon",
  "derive_more",
  "dirs",
  "discv5",
