@@ -10,7 +10,7 @@ use futures::StreamExt;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 use kona_rpc::{L1State, L1WatcherQueries};
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 use thiserror::Error;
 use tokio::{
     select,
@@ -104,8 +104,8 @@ impl L1WatcherRpc {
             while let Some(query) = inbound_queries.recv().await {
                 match query {
                     L1WatcherQueries::Config(sender) => {
-                        if let Err(e) = sender.send((*rollup_config).clone()) {
-                            warn!(target: "l1_watcher", error = ?e, "Failed to send L1 config to the query sender");
+                        if let Err(error) = sender.send((*rollup_config).clone()) {
+                            warn!(target: "l1_watcher", ?error, "Failed to send L1 config to the query sender");
                         }
                     }
                     L1WatcherQueries::L1State(sender) => {
@@ -164,7 +164,7 @@ impl SupervisorActor for L1WatcherRpc {
             .into_stream()
             .flat_map(futures::stream::iter);
 
-        let inbound_queries = std::mem::take(&mut self.inbound_queries);
+        let inbound_queries = mem::take(&mut self.inbound_queries);
         let inbound_query_processor =
             inbound_queries.map(|queries| self.start_query_processor(queries));
 
@@ -183,27 +183,21 @@ impl SupervisorActor for L1WatcherRpc {
 
                     return Ok(());
                 }
-                new_head = unsafe_head_stream.next() => match new_head {
-                    None => {
+                new_head = unsafe_head_stream.next() => {
+                    if let Some(new_head) = new_head {
+                        // Send the head update event to all consumers.
+                        let head_block_info = self.block_info_by_hash(new_head).await?;
+                        self.head_sender.send(head_block_info)?;
+                        self.latest_head.send_replace(Some(head_block_info));
+                    } else {
                         // The stream ended, which should never happen.
                         return Err(L1WatcherRpcError::Transport(
                             "L1 block stream ended unexpectedly".to_string(),
                         ));
                     }
-                    Some(new_head) => {
-                        // Send the head update event to all consumers.
-                        let head_block_info = self.block_info_by_hash(new_head).await?;
-                        self.head_sender.send(head_block_info)?;
-                        self.latest_head.send_replace(Some(head_block_info));
-                    },
                 }
             }
         }
-    }
-
-    async fn process(&mut self, _msg: Self::InboundEvent) -> Result<(), Self::Error> {
-        // The L1 watcher does not process any incoming messages.
-        Ok(())
     }
 }
 
@@ -211,15 +205,15 @@ impl SupervisorActor for L1WatcherRpc {
 #[derive(Error, Debug)]
 pub enum L1WatcherRpcError<T> {
     /// Error sending the head update event.
-    #[error("Error sending the head update event: {0}")]
+    #[error("error sending the head update event: {0}")]
     SendError(#[from] SendError<T>),
     /// Error in the transport layer.
-    #[error("Transport error: {0}")]
+    #[error("transport error: {0}")]
     Transport(String),
     /// The L1 block was not found.
-    #[error("L1 block not found: {0}")]
+    #[error("l1 block not found: {0}")]
     L1BlockNotFound(B256),
     /// Nothing to update.
-    #[error("Nothing to update; L1 head is the same as the last observed head")]
+    #[error("nothing to update; l1 head is the same as the last observed head")]
     NothingToUpdate,
 }
