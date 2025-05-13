@@ -4539,6 +4539,7 @@ dependencies = [
  "kona-sources",
  "libp2p",
  "op-alloy-provider",
+ "rstest",
  "serde_json",
  "tabled",
  "tokio",

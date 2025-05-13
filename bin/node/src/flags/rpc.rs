@@ -24,6 +24,17 @@ pub struct RpcArgs {
     pub admin_persistence: Option<PathBuf>,
 }
 
+impl Default for RpcArgs {
+    fn default() -> Self {
+        Self {
+            listen_addr: IpAddr::from([0, 0, 0, 0]),
+            listen_port: 9545,
+            enable_admin: false,
+            admin_persistence: None,
+        }
+    }
+}
+
 impl From<&RpcArgs> for RpcConfig {
     fn from(args: &RpcArgs) -> Self {
         Self {

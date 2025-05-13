@@ -21,7 +21,7 @@ use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs, SequencerArgs};
 /// of the [op-node] CLI.
 ///
 /// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
@@ -72,6 +72,24 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
+}
+
+impl Default for NodeCommand {
+    fn default() -> Self {
+        Self {
+            l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l1_beacon: Url::parse("http://localhost:5052").unwrap(),
+            l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
+            l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l2_engine_jwt_secret: None,
+            l2_config_file: None,
+            l1_runtime_config_reload_interval: 600,
+            p2p_flags: P2PArgs::default(),
+            rpc_flags: RpcArgs::default(),
+            sequencer_flags: SequencerArgs::default(),
+            l2_engine_kind: EngineKind::Geth,
+        }
+    }
 }
 
 impl NodeCommand {

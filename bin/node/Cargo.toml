@@ -38,8 +38,8 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 op-alloy-provider.workspace = true
 
 # general
-dirs.workspace = true
 url.workspace = true
+dirs.workspace = true
 backon.workspace = true
 tokio-stream.workspace = true
 discv5.workspace = true
@@ -52,3 +52,6 @@ jsonrpsee = { workspace = true, features = ["server"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
+
+[dev-dependencies]
+rstest.workspace = true

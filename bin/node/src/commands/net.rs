@@ -16,7 +16,7 @@ use url::Url;
 /// ```sh
 /// kona-node net [FLAGS] [OPTIONS]
 /// ```
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Default, PartialEq, Debug, Clone)]
 #[command(about = "Runs the networking stack for the kona-node.")]
 pub struct NetCommand {
     /// URL of the L1 execution client RPC API.
