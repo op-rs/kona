@@ -5052,6 +5052,7 @@ dependencies = [
  "alloy-eips 0.15.11",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-rpc-client",
  "anyhow",
  "async-trait",
  "futures",

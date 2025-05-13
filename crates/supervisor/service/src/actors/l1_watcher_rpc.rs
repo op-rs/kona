@@ -184,17 +184,16 @@ impl SupervisorActor for L1WatcherRpc {
                     return Ok(());
                 }
                 new_head = unsafe_head_stream.next() => {
-                    if let Some(new_head) = new_head {
-                        // Send the head update event to all consumers.
-                        let head_block_info = self.block_info_by_hash(new_head).await?;
-                        self.head_sender.send(head_block_info)?;
-                        self.latest_head.send_replace(Some(head_block_info));
-                    } else {
+                    let Some(new_head) = new_head else {
                         // The stream ended, which should never happen.
                         return Err(L1WatcherRpcError::Transport(
                             "L1 block stream ended unexpectedly".to_string(),
                         ));
-                    }
+                    };
+                    // Send the head update event to all consumers.
+                    let head_block_info = self.block_info_by_hash(new_head).await?;
+                    self.head_sender.send(head_block_info)?;
+                    self.latest_head.send_replace(Some(head_block_info));
                 }
             }
         }
@@ -216,4 +215,74 @@ pub enum L1WatcherRpcError<T> {
     /// Nothing to update.
     #[error("nothing to update; l1 head is the same as the last observed head")]
     NothingToUpdate,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_provider::{RootProvider, mock::Asserter};
+    use alloy_rpc_client::RpcClient;
+    use std::sync::Arc;
+    use tokio::sync::{mpsc, oneshot};
+
+    #[tokio::test]
+    async fn test_l1_watcher_creation() {
+        let config = Arc::new(RollupConfig::default());
+        let provider = RootProvider::new(RpcClient::mocked(Asserter::new()));
+        let (head_sender, _) = mpsc::unbounded_channel();
+        let cancellation = CancellationToken::new();
+        let (_query_sender, query_receiver) = mpsc::channel(1);
+
+        let watcher =
+            L1WatcherRpc::new(config, provider, head_sender, cancellation, Some(query_receiver));
+
+        assert!(watcher.inbound_queries.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_query_processor_config() {
+        let config = Arc::new(RollupConfig::default());
+        let provider = RootProvider::new(RpcClient::mocked(Asserter::new()));
+        let (head_sender, _) = mpsc::unbounded_channel();
+        let cancellation = CancellationToken::new();
+        let (query_sender, query_receiver) = mpsc::channel(1);
+
+        let watcher = L1WatcherRpc::new(config.clone(), provider, head_sender, cancellation, None);
+
+        let (response_sender, response_receiver) = oneshot::channel();
+        query_sender.send(L1WatcherQueries::Config(response_sender)).await.unwrap();
+
+        // Start the query processor
+        let processor = watcher.start_query_processor(query_receiver);
+        // Wait for the response
+        let received_config = response_receiver.await.unwrap();
+        assert_eq!(received_config, *config);
+
+        processor.abort();
+    }
+
+    #[tokio::test]
+    async fn test_l1_state_query() {
+        let config = Arc::new(RollupConfig::default());
+        let provider = RootProvider::new(RpcClient::mocked(Asserter::new()));
+        let (head_sender, _) = mpsc::unbounded_channel();
+        let cancellation = CancellationToken::new();
+        let (query_sender, query_receiver) = mpsc::channel(1);
+
+        let watcher = L1WatcherRpc::new(config.clone(), provider, head_sender, cancellation, None);
+
+        let (response_sender, response_receiver) = oneshot::channel();
+        query_sender.send(L1WatcherQueries::L1State(response_sender)).await.unwrap();
+
+        // Start the query processor
+        let processor = watcher.start_query_processor(query_receiver);
+        // Wait for the response
+        let state = response_receiver.await.unwrap();
+        assert!(state.current_l1.is_none()); // Initially should be None
+        assert!(state.head_l1.is_none());
+        assert!(state.safe_l1.is_none());
+        assert!(state.finalized_l1.is_none());
+
+        processor.abort();
+    }
 }

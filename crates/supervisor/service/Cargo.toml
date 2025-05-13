@@ -32,3 +32,6 @@ kona-rpc = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tokio-util = { workspace = true }
+
+# Dev dependencies
+alloy-rpc-client = { workspace = true }
