@@ -170,7 +170,7 @@ impl Discv5Driver {
             })
             .collect();
 
-        boot_enrs.append(self.bootnodes.as_mut());
+        boot_enrs.append(&mut self.bootnodes);
 
         // First attempt to add the bootnodes to the discovery table.
         let mut count = 0;
