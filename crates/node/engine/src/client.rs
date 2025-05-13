@@ -25,7 +25,7 @@ use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types::Transaction;
 use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
-    OpPayloadAttributes, ProtocolVersion, SuperchainSignal,
+    OpPayloadAttributes, ProtocolVersion,
 };
 use std::sync::Arc;
 use thiserror::Error;
@@ -86,26 +86,6 @@ impl EngineClient {
     pub async fn syncing(&self) -> Result<SyncStatus, EngineClientError> {
         let status = <RootProvider<AnyNetwork>>::syncing(&self.engine).await?;
         Ok(status)
-    }
-
-    /// Signals the engine with the given [`SuperchainSignal`].
-    ///
-    /// This is an optional extension to the Engine API.
-    ///
-    /// Signals superchain information to the Engine: V1 signals which protocol version is
-    /// recommended and required.
-    ///
-    /// # Returns
-    ///
-    /// - *ProtocolVersion*: The latest supported OP-Stack protocol version of the execution engine.
-    ///
-    /// See: <https://specs.optimism.io/protocol/exec-engine.html#engine_signalsuperchainv1>
-    pub async fn signal(
-        &self,
-        signal: SuperchainSignal,
-    ) -> Result<ProtocolVersion, EngineClientError> {
-        let version = self.engine.client().request("engine_signalSuperchainV1", (signal,)).await?;
-        Ok(version)
     }
 
     /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].
@@ -244,6 +224,17 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
             AnyNetwork,
             Http<HyperAuthClient>,
         >>::get_client_version_v1(&self.engine, client_version).await
+    }
+
+    async fn signal_superchain_v1(
+        &self,
+        recommended: ProtocolVersion,
+        required: ProtocolVersion,
+    ) -> TransportResult<ProtocolVersion> {
+        <RootProvider<AnyNetwork> as OpEngineApi<
+            AnyNetwork,
+            Http<HyperAuthClient>,
+        >>::signal_superchain_v1(&self.engine, recommended, required).await
     }
 
     async fn exchange_capabilities(

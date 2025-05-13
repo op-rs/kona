@@ -10,7 +10,7 @@ use op_revm::{
 };
 use revm::{
     Context, Inspector,
-    context::{Evm as RevmEvm, EvmData, TxEnv, result::EVMError},
+    context::{Evm as RevmEvm, TxEnv, result::EVMError},
     handler::instructions::EthInstructions,
     inspector::NoOpInspector,
 };
@@ -57,6 +57,7 @@ where
         EVMError<DBError, OpTransactionError>;
     type HaltReason = OpHaltReason;
     type Spec = OpSpecId;
+    type Precompiles = OpFpvmPrecompiles<H, O>;
 
     fn create_evm<DB: Database>(
         &self,
@@ -66,7 +67,8 @@ where
         let spec_id = *input.spec_id();
         let ctx = Context::op().with_db(db).with_block(input.block_env).with_cfg(input.cfg_env);
         let revm_evm = RevmOpEvm(RevmEvm {
-            data: EvmData { ctx, inspector: NoOpInspector {} },
+            ctx,
+            inspector: NoOpInspector {},
             instruction: EthInstructions::new_mainnet(),
             precompiles: OpFpvmPrecompiles::new_with_spec(
                 spec_id,
@@ -87,7 +89,8 @@ where
         let spec_id = *input.spec_id();
         let ctx = Context::op().with_db(db).with_block(input.block_env).with_cfg(input.cfg_env);
         let revm_evm = RevmOpEvm(RevmEvm {
-            data: EvmData { ctx, inspector },
+            ctx,
+            inspector,
             instruction: EthInstructions::new_mainnet(),
             precompiles: OpFpvmPrecompiles::new_with_spec(
                 spec_id,

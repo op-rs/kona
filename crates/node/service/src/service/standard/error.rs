@@ -1,11 +1,12 @@
 //! Contains the error type for the [`crate::RollupNode`].
 
-use crate::SyncStartError;
+use jsonrpsee::server::RegisterMethodError;
 use kona_derive::errors::PipelineErrorKind;
 use kona_engine::EngineStateBuilderError;
 use kona_p2p::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
 use kona_rpc::RpcLauncherError;
+use kona_sources::SyncStartError;
 
 /// Errors that can occur during the operation of the [`crate::RollupNode`].
 #[derive(thiserror::Error, Debug)]
@@ -28,4 +29,7 @@ pub enum RollupNodeError {
     /// An error occured while launching the engine api.
     #[error(transparent)]
     EngineLauncher(#[from] EngineStateBuilderError),
+    /// An error occurred while registering RPC methods.
+    #[error(transparent)]
+    RegisterMethod(#[from] RegisterMethodError),
 }
