@@ -1,10 +1,11 @@
 //! The [Engine] is a task queue that receives and executes [EngineTask]s.
 
 use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineState, EngineTask, EngineTaskType};
+use crate::{EngineState, EngineTask};
+use kona_derive::types::Signal;
 use kona_protocol::L2BlockInfo;
-use std::collections::{HashMap, VecDeque};
-use tokio::sync::watch::Sender;
+use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
+use tokio_util::sync::CancellationToken;
 
 /// The [Engine] task queue.
 ///
@@ -20,11 +21,16 @@ pub struct Engine {
     /// The state of the engine.
     state: EngineState,
     /// A sender that can be used to notify the engine actor of state changes.
-    state_sender: Sender<EngineState>,
+    state_sender: tokio::sync::watch::Sender<EngineState>,
     /// The task queue.
-    tasks: HashMap<EngineTaskType, VecDeque<EngineTask>>,
-    /// The current task being executed.
-    cursor: EngineTaskType,
+    tasks: tokio::sync::mpsc::Receiver<EngineTask>,
+    /// A way for the engine actor to signal back to the derivation actor
+    /// if a block building task produced an `INVALID` response.
+    derivation_signal_tx: UnboundedSender<Signal>,
+    /// The channel to send the l2 safe head to the derivation actor.
+    engine_l2_safe_head_tx: tokio::sync::watch::Sender<L2BlockInfo>,
+    /// The cancellation token, shared between all tasks.
+    cancellation: CancellationToken,
 }
 
 impl Engine {
@@ -32,18 +38,22 @@ impl Engine {
     ///
     /// An initial [EngineTask::ForkchoiceUpdate] is added to the task queue to synchronize the
     /// engine with the forkchoice state of the [EngineState].
-    pub fn new(initial_state: EngineState, state_sender: Sender<EngineState>) -> Self {
+    pub const fn new(
+        initial_state: EngineState,
+        state_sender: tokio::sync::watch::Sender<EngineState>,
+        task_receiver: tokio::sync::mpsc::Receiver<EngineTask>,
+        derivation_signal_tx: UnboundedSender<Signal>,
+        engine_l2_safe_head_tx: tokio::sync::watch::Sender<L2BlockInfo>,
+        cancellation: CancellationToken,
+    ) -> Self {
         Self {
             state: initial_state,
-            tasks: HashMap::new(),
-            cursor: EngineTaskType::ForkchoiceUpdate,
+            tasks: task_receiver,
             state_sender,
+            derivation_signal_tx,
+            engine_l2_safe_head_tx,
+            cancellation,
         }
-    }
-
-    /// Enqueues a new [EngineTask] for execution.
-    pub fn enqueue(&mut self, task: EngineTask) {
-        self.tasks.entry(task.ty()).or_default().push_back(task);
     }
 
     /// Returns the L2 Safe Head [`L2BlockInfo`] from the state.
@@ -51,61 +61,78 @@ impl Engine {
         self.state.safe_head()
     }
 
-    /// Clears the task queue.
-    pub fn clear(&mut self) {
-        self.tasks.clear();
-    }
-
-    /// Returns the next task type to be executed.
-    pub fn next(&self) -> EngineTaskType {
-        let mut ty = self.cursor;
-        let task_len = self.tasks.len();
-        for _ in 0..task_len {
-            if !self.tasks.contains_key(&ty) {
-                ty = ty.next();
-            } else {
-                break;
-            }
-        }
-        ty
-    }
-
     /// Returns a receiver that can be used to listen to engine state updates.
     pub fn subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
         self.state_sender.subscribe()
     }
 
-    /// Attempts to drain the queue by executing all [EngineTask]s in-order. If any task returns an
-    /// error along the way, it is not popped from the queue (in case it must be retried) and
-    /// the error is returned.
-    ///
-    /// If an [EngineTaskError::Reset] is encountered, the remaining tasks in the queue are cleared.
-    pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
-        loop {
-            let ty = self.next();
-            self.cursor = self.cursor.next();
-            let Some(task) = self.tasks.get(&ty) else {
-                return Ok(());
-            };
-            let Some(task) = task.front() else {
-                return Ok(());
-            };
-            match task.execute(&mut self.state).await {
-                Ok(_) => {}
-                Err(EngineTaskError::Reset(e)) => {
-                    self.clear();
-                    return Err(EngineTaskError::Reset(e));
+    /// Starts the engine task queue.
+    pub fn start(mut self) -> JoinHandle<Result<(), EngineError>> {
+        let mut task_buf = Vec::with_capacity(self.tasks.capacity());
+
+        tokio::spawn(async move {
+            while self.tasks.recv_many(&mut task_buf, self.tasks.capacity()).await > 0 {
+                let mut res = Ok(());
+
+                for task in task_buf.drain(..) {
+                    match task.execute(&mut self.state).await {
+                        Ok(_) => {}
+                        Err(EngineTaskError::Reset(e)) => {
+                            res = Err(EngineTaskError::Reset(e));
+                            break;
+                        }
+                        e => {
+                            res = e;
+                            break
+                        }
+                    }
                 }
-                e => return e,
+
+                match res {
+                    Ok(_) => {
+                        // Update the l2 safe head if needed.
+                        let state_safe_head = self.safe_head();
+                        let update = |head: &mut L2BlockInfo| {
+                            if head != &state_safe_head {
+                                *head = state_safe_head;
+                                return true;
+                            }
+                            false
+                        };
+                        self.engine_l2_safe_head_tx.send_if_modified(update);
+                        trace!(target: "engine", "Engine task queue drained.");
+                    }
+                    Err(EngineTaskError::Flush(e)) => {
+                        // This error is encountered when the payload is marked INVALID
+                        // by the engine api. Post-holocene, the payload is replaced by
+                        // a "deposits-only" block and re-executed. At the same time,
+                        // the channel and any remaining buffered batches are flushed.
+                        warn!(target: "engine", ?e, "[HOLOCENE] Invalid payload, Flushing derivation pipeline.");
+                        match self.derivation_signal_tx.send(Signal::FlushChannel) {
+                            Ok(_) => {
+                                debug!(target: "engine", "[SENT] flush signal to derivation actor")
+                            }
+                            Err(e) => {
+                                error!(target: "engine", ?e, "[ENGINE] Failed to send flush signal to the derivation actor.");
+                                self.cancellation.cancel();
+                                return Err(EngineError::ChannelClosed);
+                            }
+                        }
+                    }
+                    Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
+                }
             }
 
-            // Update the state and notify the engine actor.
-            self.state_sender.send_replace(self.state);
-
-            let ty = task.ty();
-            if let Some(queue) = self.tasks.get_mut(&ty) {
-                queue.pop_front();
-            };
-        }
+            info!(target: "engine", "Engine task receiver closed. Exiting engine task queue.");
+            Ok(())
+        })
     }
+}
+
+/// An error from the [`EngineActor`].
+#[derive(thiserror::Error, Debug)]
+pub enum EngineError {
+    /// Closed channel error.
+    #[error("closed channel error")]
+    ChannelClosed,
 }

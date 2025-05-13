@@ -146,14 +146,14 @@ pub trait ValidatorNodeService {
 
         let launcher = self.engine();
         let client = launcher.client();
-        let engine = launcher.launch().await?;
+        let (engine, sender) =
+            launcher.launch(derivation_signal_tx, engine_l2_safe_tx, cancellation.clone()).await?;
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
             client,
             engine,
-            engine_l2_safe_tx,
+            sender,
             sync_complete_tx,
-            derivation_signal_tx,
             runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,

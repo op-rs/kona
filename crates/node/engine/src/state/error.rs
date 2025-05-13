@@ -1,7 +1,8 @@
 //! Error type for the [`crate::EngineStateBuilder`].
 
-use crate::client::EngineClientError;
+use crate::{EngineTask, client::EngineClientError};
 use thiserror::Error;
+use tokio::sync::mpsc::error::SendError;
 
 /// An error that occurs in the [`crate::EngineStateBuilder`].
 #[derive(Error, Debug)]
@@ -18,4 +19,7 @@ pub enum EngineStateBuilderError {
     /// Missing the safe head when building the [`crate::EngineState`].
     #[error("The safe head is required to build the EngineState")]
     MissingSafeHead,
+    /// Failed to send initial engine tasks.
+    #[error("Failed to send initial engine tasks: {0}")]
+    InitialTasksError(#[from] SendError<EngineTask>),
 }

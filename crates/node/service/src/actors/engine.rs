@@ -6,8 +6,7 @@ use async_trait::async_trait;
 use kona_derive::types::Signal;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineQueries, EngineStateBuilder,
-    EngineStateBuilderError, EngineTask, EngineTaskError, ForkchoiceTask, InsertUnsafeTask,
-    RestartTask,
+    EngineStateBuilderError, EngineTask, ForkchoiceTask, InsertUnsafeTask, RestartTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
@@ -16,10 +15,7 @@ use op_alloy_network::Ethereum;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
-    sync::{
-        mpsc::{Receiver, UnboundedReceiver, UnboundedSender},
-        watch::Sender as WatchSender,
-    },
+    sync::mpsc::{Receiver, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
@@ -39,17 +35,14 @@ pub struct EngineActor {
     /// An [`EngineClient`] used for creating engine tasks.
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
-    pub engine: Engine,
-    /// The channel to send the l2 safe head to the derivation actor.
-    engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
+    pub engine: Option<Engine>,
+    /// The channel to send engine tasks to the engine task queue.
+    engine_task_sender: tokio::sync::mpsc::Sender<EngineTask>,
     /// Handler for inbound queries to the engine.
     inbound_queries: Option<tokio::sync::mpsc::Receiver<EngineQueries>>,
     /// A channel to send a signal that syncing is complete.
     /// Informs the derivation actor to start.
     sync_complete_tx: UnboundedSender<()>,
-    /// A way for the engine actor to signal back to the derivation actor
-    /// if a block building task produced an `INVALID` response.
-    derivation_signal_tx: UnboundedSender<Signal>,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
@@ -67,9 +60,8 @@ impl EngineActor {
         config: Arc<RollupConfig>,
         client: EngineClient,
         engine: Engine,
-        engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
+        engine_task_sender: tokio::sync::mpsc::Sender<EngineTask>,
         sync_complete_tx: UnboundedSender<()>,
-        derivation_signal_tx: UnboundedSender<Signal>,
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
@@ -80,9 +72,8 @@ impl EngineActor {
             config,
             client: Arc::new(client),
             sync_complete_tx,
-            derivation_signal_tx,
-            engine,
-            engine_l2_safe_head_tx,
+            engine: Some(engine),
+            engine_task_sender,
             runtime_config_rx,
             inbound_queries,
             attributes_rx,
@@ -118,7 +109,7 @@ impl EngineActor {
         &self,
         mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
     ) -> JoinHandle<()> {
-        let state_recv = self.engine.subscribe();
+        let state_recv = self.engine.as_ref().unwrap().subscribe();
         let engine_client = self.client.clone();
         let rollup_config = self.config.clone();
 
@@ -152,22 +143,41 @@ pub struct EngineLauncher {
 }
 
 impl EngineLauncher {
+    const TASK_QUEUE_SIZE: usize = 2048;
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
-    pub async fn launch(self) -> Result<Engine, EngineStateBuilderError> {
+    pub async fn launch(
+        self,
+        derivation_signal_tx: UnboundedSender<Signal>,
+        engine_l2_safe_head_tx: tokio::sync::watch::Sender<L2BlockInfo>,
+        cancellation: CancellationToken,
+    ) -> Result<(Engine, tokio::sync::mpsc::Sender<EngineTask>), EngineStateBuilderError> {
         let state = self.state_builder().build().await?;
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
+        let (engine_task_sender, engine_task_receiver) =
+            tokio::sync::mpsc::channel(Self::TASK_QUEUE_SIZE);
 
-        let mut engine = Engine::new(state, engine_state_send);
+        let engine = Engine::new(
+            state,
+            engine_state_send,
+            engine_task_receiver,
+            derivation_signal_tx,
+            engine_l2_safe_head_tx,
+            cancellation,
+        );
         // Adds the initial tasks to the engine.
 
-        engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
-        engine.enqueue(EngineTask::Restart(RestartTask {
-            client: self.client().into(),
-            cfg: self.config.clone(),
-        }));
+        engine_task_sender
+            .send(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())))
+            .await?;
+        engine_task_sender
+            .send(EngineTask::Restart(RestartTask {
+                client: self.client().into(),
+                cfg: self.config.clone(),
+            }))
+            .await?;
 
-        Ok(engine)
+        Ok((engine, engine_task_sender))
     }
 
     /// Returns the [`EngineClient`].
@@ -194,52 +204,24 @@ impl NodeActor for EngineActor {
 
     async fn start(mut self) -> Result<(), Self::Error> {
         // Start the engine query server in a separate task to avoid blocking the main task.
-        let handle = std::mem::take(&mut self.inbound_queries)
+        let query_handle = std::mem::take(&mut self.inbound_queries)
             .map(|inbound_query_channel| self.start_query_task(inbound_query_channel));
+        let engine = std::mem::take(&mut self.engine).unwrap();
+        let engine_handle = engine.start();
 
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
                     warn!(target: "engine", "EngineActor received shutdown signal.");
 
-                    if let Some(handle) = handle {
+                    if let Some(handle) = query_handle {
                         warn!(target: "engine", "Shutting down engine query task.");
                         handle.abort();
                     }
 
+                    engine_handle.abort();
+
                     return Ok(());
-                }
-                res = self.engine.drain() => {
-                    match res {
-                        Ok(_) => {
-                          // Update the l2 safe head if needed.
-                          let state_safe_head = self.engine.safe_head();
-                           let update = |head: &mut L2BlockInfo| {
-                              if head != &state_safe_head {
-                                  *head = state_safe_head;
-                                  return true;
-                              }
-                              false
-                          };
-                          let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
-                        }
-                        Err(EngineTaskError::Flush(e)) => {
-                            // This error is encountered when the payload is marked INVALID
-                            // by the engine api. Post-holocene, the payload is replaced by
-                            // a "deposits-only" block and re-executed. At the same time,
-                            // the channel and any remaining buffered batches are flushed.
-                            warn!(target: "engine", ?e, "[HOLOCENE] Invalid payload, Flushing derivation pipeline.");
-                            match self.derivation_signal_tx.send(Signal::FlushChannel) {
-                                Ok(_) => debug!(target: "engine", "[SENT] flush signal to derivation actor"),
-                                Err(e) => {
-                                    error!(target: "engine", ?e, "[ENGINE] Failed to send flush signal to the derivation actor.");
-                                    self.cancellation.cancel();
-                                    return Err(EngineError::ChannelClosed);
-                                }
-                            }
-                        }
-                        Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
-                    }
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
@@ -254,7 +236,7 @@ impl NodeActor for EngineActor {
                         true,
                     );
                     let task = EngineTask::Consolidate(task);
-                    self.engine.enqueue(task);
+                    self.engine_task_sender.send(task).await?;
                     debug!(target: "engine", "Enqueued attributes consolidation task.");
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
@@ -272,7 +254,7 @@ impl NodeActor for EngineActor {
                         envelope,
                     );
                     let task = EngineTask::InsertUnsafe(task);
-                    self.engine.enqueue(task);
+                    self.engine_task_sender.send(task).await?;
                     self.check_sync();
                 }
                 Some(config) = self.runtime_config_rx.recv() => {
@@ -308,4 +290,7 @@ pub enum EngineError {
     /// Closed channel error.
     #[error("closed channel error")]
     ChannelClosed,
+    /// Failed to send engine task.
+    #[error("failed to send engine task: {0}")]
+    SenderError(#[from] tokio::sync::mpsc::error::SendError<EngineTask>),
 }

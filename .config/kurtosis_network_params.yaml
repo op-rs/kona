@@ -11,7 +11,7 @@ optimism_package:
         count: 4
       - el_type: op-reth
         cl_type: kona-node
-        cl_log_level: "debug"
+        cl_log_level: "trace"
         el_log_level: "debug"
         count: 4
       network_params:
