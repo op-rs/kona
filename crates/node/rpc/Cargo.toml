@@ -64,7 +64,7 @@ serde_json.workspace = true
 
 [features]
 default = []
-reqwest = ["dep:alloy-rpc-client"]
+reqwest = ["client", "dep:alloy-rpc-client"]
 client = [
     "jsonrpsee/client",
     "jsonrpsee/async-client",

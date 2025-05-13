@@ -39,7 +39,7 @@ pub use jsonrpsee::{
 
 #[cfg(feature = "reqwest")]
 pub mod reqwest;
-#[cfg(all(feature = "reqwest", feature = "client"))]
+#[cfg(feature = "reqwest")]
 pub use reqwest::SupervisorClient;
 
 #[cfg(feature = "client")]
