@@ -73,7 +73,6 @@ impl Network {
         // Spawn the network handler
         tokio::spawn(async move {
             loop {
-                broadcast.broadcast();
                 select! {
                     block = publish.recv() => {
                         let Some(block) = block else {
@@ -92,6 +91,7 @@ impl Network {
                         kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
+                            broadcast.broadcast();
                         }
                     },
                     enr = enr_receiver.recv() => {
