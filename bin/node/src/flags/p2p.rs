@@ -166,6 +166,23 @@ pub struct P2PArgs {
     #[arg(long = "p2p.bootnodes", value_delimiter = ',', env = "KONA_NODE_P2P_BOOTNODES")]
     pub bootnodes: Vec<Enr>,
 
+    /// Optionally enable topic scoring.
+    ///
+    /// Topic scoring is a mechanism to score peers based on their behavior in the gossip network.
+    /// Historically, topic scoring was only enabled for the v1 topic on the OP Stack p2p network
+    /// in the `op-node`. This was a silent bug, and topic scoring is actively being
+    /// [phased out of the `op-node`][out].
+    ///
+    /// This flag is only presented for backwards compatibility and debugging purposes.
+    ///
+    /// [out]: https://github.com/ethereum-optimism/optimism/pull/15719
+    #[arg(
+        long = "p2p.topic-scoring",
+        default_value = "false",
+        env = "KONA_NODE_P2P_TOPIC_SCORING"
+    )]
+    pub topic_scoring: bool,
+
     /// An optional unsafe block signer address.
     ///
     /// By default, this is fetched from the chain config in the superchain-registry using the
@@ -214,6 +231,7 @@ impl Default for P2PArgs {
             peer_redial: None,
             unsafe_block_signer: None,
             discovery_randomize: None,
+            topic_scoring: false,
         }
     }
 }
@@ -391,6 +409,7 @@ impl P2PArgs {
             scoring: self.scoring,
             block_time,
             monitor_peers,
+            topic_scoring: self.topic_scoring,
             bootstore: self.bootstore.clone(),
             redial: self.peer_redial,
             // It is ok to clone here since the config only happens at startup
