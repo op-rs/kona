@@ -21,3 +21,17 @@ kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 anyhow = { workspace = true }
 tracing = { workspace = true}
+alloy-eips = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-provider = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+kona-genesis = { workspace = true }
+kona-protocol = { workspace = true }
+kona-rpc = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "macros"] }
+tokio-util = { workspace = true }
+
+# Dev dependencies
+alloy-rpc-client = { workspace = true }

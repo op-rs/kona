@@ -17,9 +17,9 @@ use std::sync::Arc;
 pub struct ConsolidateTask {
     /// The engine client.
     pub client: Arc<EngineClient>,
-    /// The [RollupConfig].
+    /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
-    /// The [OpAttributesWithParent] to instruct the execution layer to build.
+    /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
     pub attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,

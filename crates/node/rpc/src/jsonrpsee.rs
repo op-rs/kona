@@ -1,6 +1,6 @@
 //! The Optimism RPC API using `jsonrpsee`
 
-use crate::{OutputResponse, ProtocolVersion, SafeHeadResponse, SuperchainSignal};
+use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
 use core::net::IpAddr;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
@@ -125,20 +125,32 @@ pub trait OpP2PApi {
     async fn opp2p_disconnect_peer(&self, peer: String) -> RpcResult<()>;
 }
 
-/// Engine API extension for Optimism superchain signaling
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "engine"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "engine"))]
-pub trait EngineApiExt {
-    /// Signal superchain v1 message
-    ///
-    /// The execution engine SHOULD warn when the recommended version is newer than the current
-    /// version. The execution engine SHOULD take safety precautions if it does not meet
-    /// the required version.
-    ///
-    /// # Returns
-    /// The latest supported OP-Stack protocol version of the execution engine.
-    ///
-    /// See: <https://specs.optimism.io/protocol/exec-engine.html#engine_signalsuperchainv1>
-    #[method(name = "signalSuperchainV1")]
-    async fn signal_superchain_v1(&self, signal: SuperchainSignal) -> RpcResult<ProtocolVersion>;
+/// Supervisor API for interop.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
+pub trait SupervisorApi {
+    /// Checks if the given inbox entries meet the given minimum safety level.
+    #[method(name = "checkAccessList")]
+    async fn check_access_list(
+        &self,
+        inbox_entries: Vec<B256>,
+        min_safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
+    ) -> RpcResult<()>;
+}
+
+#[cfg(feature = "client")]
+impl<T> crate::CheckAccessList for T
+where
+    T: SupervisorApiClient + Send + Sync,
+{
+    async fn check_access_list(
+        &self,
+        inbox_entries: &[B256],
+        min_safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
+    ) -> Result<(), crate::InteropTxValidatorError> {
+        Ok(T::check_access_list(self, inbox_entries.to_vec(), min_safety, executing_descriptor)
+            .await?)
+    }
 }

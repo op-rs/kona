@@ -25,7 +25,7 @@ use ratatui::{
 /// ```sh
 /// kona-node discover [FLAGS] [OPTIONS]
 /// ```
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Default, PartialEq, Debug, Clone)]
 #[command(about = "Lists the OP Stack chains available in the superchain-registry")]
 pub struct DiscoverCommand {
     /// Discovery port to listen on.

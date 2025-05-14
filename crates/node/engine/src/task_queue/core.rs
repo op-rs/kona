@@ -1,4 +1,4 @@
-//! The [Engine] is a task queue that receives and executes [EngineTask]s.
+//! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
 use super::{EngineTaskError, EngineTaskExt};
 use crate::{EngineState, EngineTask, EngineTaskType};
@@ -6,15 +6,15 @@ use kona_protocol::L2BlockInfo;
 use std::collections::{HashMap, VecDeque};
 use tokio::sync::watch::Sender;
 
-/// The [Engine] task queue.
+/// The [`Engine`] task queue.
 ///
 /// Tasks are processed in FIFO order, providing synchronization and ordering guarantees
 /// for the L2 execution layer and other actors. Because tasks are executed one at a time,
-/// they are considered to be atomic operations over the [EngineState], and are given
+/// they are considered to be atomic operations over the [`EngineState`], and are given
 /// exclusive access to the engine state during execution.
 ///
 /// Tasks within the queue are also considered fallible. If they fail with a temporary error,
-/// they are not popped from the queue and are retried on the next call to [Engine::drain].
+/// they are not popped from the queue and are retried on the next call to [`Engine::drain`].
 #[derive(Debug)]
 pub struct Engine {
     /// The state of the engine.
@@ -28,10 +28,10 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Creates a new [Engine] with an empty task queue and the passed initial [EngineState].
+    /// Creates a new [`Engine`] with an empty task queue and the passed initial [`EngineState`].
     ///
-    /// An initial [EngineTask::ForkchoiceUpdate] is added to the task queue to synchronize the
-    /// engine with the forkchoice state of the [EngineState].
+    /// An initial [`EngineTask::ForkchoiceUpdate`] is added to the task queue to synchronize the
+    /// engine with the forkchoice state of the [`EngineState`].
     pub fn new(initial_state: EngineState, state_sender: Sender<EngineState>) -> Self {
         Self {
             state: initial_state,
@@ -41,7 +41,7 @@ impl Engine {
         }
     }
 
-    /// Enqueues a new [EngineTask] for execution.
+    /// Enqueues a new [`EngineTask`] for execution.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.entry(task.ty()).or_default().push_back(task);
     }
@@ -75,11 +75,12 @@ impl Engine {
         self.state_sender.subscribe()
     }
 
-    /// Attempts to drain the queue by executing all [EngineTask]s in-order. If any task returns an
-    /// error along the way, it is not popped from the queue (in case it must be retried) and
+    /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
+    /// an error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
     ///
-    /// If an [EngineTaskError::Reset] is encountered, the remaining tasks in the queue are cleared.
+    /// If an [`EngineTaskError::Reset`] is encountered, the remaining tasks in the queue are
+    /// cleared.
     pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
         loop {
             let ty = self.next();

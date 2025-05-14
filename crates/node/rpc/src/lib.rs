@@ -20,22 +20,13 @@ mod p2p;
 mod response;
 pub use response::SafeHeadResponse;
 
-mod superchain;
-pub use superchain::{
-    ProtocolVersion, ProtocolVersionError, ProtocolVersionFormatV0, SuperchainSignal,
-};
-
 mod output;
 pub use output::OutputResponse;
 
 mod jsonrpsee;
 #[cfg(feature = "client")]
-pub use jsonrpsee::{
-    EngineApiExtClient, MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient,
-};
-pub use jsonrpsee::{
-    EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
-};
+pub use jsonrpsee::{MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient};
+pub use jsonrpsee::{MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer};
 
 #[cfg(feature = "reqwest")]
 pub mod reqwest;

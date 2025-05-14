@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 # workspace
 kona-genesis.workspace = true
+kona-macros.workspace = true
 kona-protocol = {workspace = true, features = ["serde", "std"]}
 
 # alloy
@@ -49,8 +50,16 @@ http-body-util.workspace = true
 derive_more = { workspace = true, features = ["display", "deref", "from_str"] }
 serde_json.workspace = true
 
+# metrics
+metrics = { workspace = true, optional = true }
+
 [dev-dependencies]
 kona-registry.workspace = true
 rand = {workspace = true, features = ["thread_rng"]}
 arbitrary.workspace = true
 op-alloy-rpc-types = {workspace = true, features = ["arbitrary", "k256"]}
+metrics-exporter-prometheus.workspace = true
+rstest.workspace = true
+
+[features]
+metrics = ["dep:metrics"]

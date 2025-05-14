@@ -26,7 +26,7 @@ mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
 mod sync;
-pub use sync::{SyncConfig, SyncMode, SyncStatus};
+pub use sync::SyncStatus;
 
 mod state;
 pub use state::{EngineState, EngineStateBuilder, EngineStateBuilderError};
@@ -36,3 +36,6 @@ pub use kinds::EngineKind;
 
 mod query;
 pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
+
+mod metrics;
+pub use metrics::Metrics;
