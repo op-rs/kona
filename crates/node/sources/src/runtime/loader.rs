@@ -7,8 +7,8 @@ use kona_derive::traits::ChainProvider;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::AlloyChainProvider;
-use kona_rpc::ProtocolVersion;
 use lru::LruCache;
+use op_alloy_rpc_types_engine::ProtocolVersion;
 use std::{num::NonZeroUsize, sync::Arc};
 use url::Url;
 
@@ -37,6 +37,8 @@ pub struct RuntimeLoader {
     pub provider: AlloyChainProvider,
     /// The rollup config.
     pub config: Arc<RollupConfig>,
+    /// Caches the previously loaded runtime config.
+    runtime: RuntimeConfig,
     /// Cache mapping [`BlockInfo`] to the [`RuntimeConfig`].
     ///
     /// If the block hash for the given block info is a mismatch, the runtime config
@@ -52,6 +54,11 @@ impl RuntimeLoader {
             provider,
             config,
             cache: LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap()),
+            runtime: RuntimeConfig {
+                unsafe_block_signer_address: Address::ZERO,
+                required_protocol_version: ProtocolVersion::V0(Default::default()),
+                recommended_protocol_version: ProtocolVersion::V0(Default::default()),
+            },
         }
     }
 
@@ -95,8 +102,8 @@ impl RuntimeLoader {
         debug!(target: "runtime_loader", "Unsafe block signer address: {:#x}", unsafe_block_signer_address);
 
         // If the protocol versions address is not set, return the default config.
-        let mut required_protocol_version = ProtocolVersion::V0(Default::default());
-        let mut recommended_protocol_version = ProtocolVersion::V0(Default::default());
+        let mut required_protocol_version = self.runtime.required_protocol_version;
+        let mut recommended_protocol_version = self.runtime.recommended_protocol_version;
 
         // Fetch the required protocol version from the system config.
         if self.config.protocol_versions_address != Address::ZERO {
@@ -158,6 +165,7 @@ impl RuntimeLoader {
             recommended_protocol_version,
         };
         debug!(target: "runtime_loader", "{}", runtime_config);
+        self.runtime = runtime_config;
 
         // Cache the runtime config.
         self.cache.put(block_info, runtime_config);
@@ -170,7 +178,7 @@ impl RuntimeLoader {
 mod tests {
     use super::*;
     use alloy_primitives::address;
-    use kona_rpc::ProtocolVersionFormatV0;
+    use op_alloy_rpc_types_engine::ProtocolVersionFormatV0;
 
     const RPC_URL: &str = "https://docs-demo.quiknode.pro/";
 

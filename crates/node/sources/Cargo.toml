@@ -16,7 +16,6 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-rpc.workspace = true
 kona-macros.workspace = true
 kona-derive.workspace = true
 kona-genesis.workspace = true
@@ -28,6 +27,9 @@ alloy-eips.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
+
+# OP Alloy
+op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 
 # Misc
 lru.workspace = true

@@ -36,3 +36,6 @@ pub use kinds::EngineKind;
 
 mod query;
 pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
+
+mod metrics;
+pub use metrics::Metrics;

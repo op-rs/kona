@@ -109,8 +109,8 @@ impl ValidatorNodeService for RollupNode {
         self.engine_launcher.clone()
     }
 
-    fn rpc(&self) -> Option<RpcLauncher> {
-        Some(self.rpc_launcher.clone())
+    fn rpc(&self) -> RpcLauncher {
+        self.rpc_launcher.clone()
     }
 
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error> {

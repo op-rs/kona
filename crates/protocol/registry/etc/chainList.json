@@ -1075,27 +1075,6 @@
     }
   },
   {
-    "name": "arena-z-testnet",
-    "identifier": "sepolia/arena-z-testnet",
-    "chainId": 9897,
-    "rpc": [
-      "https://rpc.arena-z.t.raas.gelato.cloud"
-    ],
-    "explorers": [
-      "https://arena-z.blockscout.com"
-    ],
-    "superchainLevel": 1,
-    "governedByOptimism": false,
-    "dataAvailabilityType": "eth-da",
-    "parent": {
-      "type": "L2",
-      "chain": "sepolia"
-    },
-    "faultProofs": {
-      "status": "none"
-    }
-  },
-  {
     "name": "Base devnet 0",
     "identifier": "sepolia-dev-0/base-devnet-0",
     "chainId": 11763072,

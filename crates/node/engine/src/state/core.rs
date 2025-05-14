@@ -1,20 +1,16 @@
 //! The internal state of the engine controller.
 
-use crate::SyncStatus;
+use crate::{Metrics, SyncStatus};
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 
 /// The chain state viewed by the engine controller.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EngineState {
     /// Most recent block found on the p2p network
     pub(crate) unsafe_head: L2BlockInfo,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
     pub(crate) cross_unsafe_head: L2BlockInfo,
-    /// Pending localSafeHead
-    /// L2 block processed from the middle of a span batch,
-    /// but not marked as the safe block yet.
-    pub(crate) pending_safe_head: L2BlockInfo,
     /// Derived from L1, and known to be a completed span-batch,
     /// but not cross-verified yet.
     pub(crate) local_safe_head: L2BlockInfo,
@@ -23,10 +19,6 @@ pub struct EngineState {
     /// Derived from finalized L1 data,
     /// and cross-verified to only have finalized dependencies.
     pub(crate) finalized_head: L2BlockInfo,
-    /// The unsafe head to roll back to,
-    /// after the pending safe head fails to become safe.
-    /// This is changing in the Holocene fork.
-    pub(crate) backup_unsafe_head: Option<L2BlockInfo>,
 
     /// The [`SyncStatus`] of the engine.
     pub sync_status: SyncStatus,
@@ -79,11 +71,6 @@ impl EngineState {
         self.cross_unsafe_head
     }
 
-    /// Returns the current pending safe head.
-    pub const fn pending_safe_head(&self) -> L2BlockInfo {
-        self.pending_safe_head
-    }
-
     /// Returns the current local safe head.
     pub const fn local_safe_head(&self) -> L2BlockInfo {
         self.local_safe_head
@@ -99,47 +86,91 @@ impl EngineState {
         self.finalized_head
     }
 
-    /// Returns the current backup unsafe head.
-    pub const fn backup_unsafe_head(&self) -> Option<L2BlockInfo> {
-        self.backup_unsafe_head
-    }
-
     /// Set the unsafe head.
     pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
         self.unsafe_head = unsafe_head;
         self.forkchoice_update_needed = true;
+        Self::update_block_label_metric(Metrics::UNSAFE_BLOCK_LABEL, unsafe_head.block_info.number);
     }
 
     /// Set the cross-verified unsafe head.
     pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
         self.cross_unsafe_head = cross_unsafe_head;
-    }
-
-    /// Set the pending safe head.
-    pub fn set_pending_safe_head(&mut self, pending_safe_head: L2BlockInfo) {
-        self.pending_safe_head = pending_safe_head;
+        Self::update_block_label_metric(
+            Metrics::CROSS_UNSAFE_BLOCK_LABEL,
+            cross_unsafe_head.block_info.number,
+        );
     }
 
     /// Set the local safe head.
     pub fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
         self.local_safe_head = local_safe_head;
+        Self::update_block_label_metric(
+            Metrics::LOCAL_SAFE_BLOCK_LABEL,
+            local_safe_head.block_info.number,
+        );
     }
 
     /// Set the safe head.
     pub fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
         self.safe_head = safe_head;
         self.forkchoice_update_needed = true;
+        Self::update_block_label_metric(Metrics::SAFE_BLOCK_LABEL, safe_head.block_info.number);
     }
 
     /// Set the finalized head.
     pub fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
         self.finalized_head = finalized_head;
         self.forkchoice_update_needed = true;
+        Self::update_block_label_metric(
+            Metrics::FINALIZED_BLOCK_LABEL,
+            finalized_head.block_info.number,
+        );
     }
 
-    /// Set the backup unsafe head.
-    pub fn set_backup_unsafe_head(&mut self, backup_unsafe_head: L2BlockInfo, reorg: bool) {
-        self.backup_unsafe_head = Some(backup_unsafe_head);
-        self.need_fcu_call_backup_unsafe_reorg = reorg;
+    /// Updates a block label metric, keyed by the label.
+    fn update_block_label_metric(label: &'static str, number: u64) {
+        kona_macros::set!(gauge, Metrics::BLOCK_LABELS, "label", label, number as f64);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use kona_protocol::BlockInfo;
+    use metrics_exporter_prometheus::PrometheusBuilder;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::set_unsafe(EngineState::set_unsafe_head, Metrics::UNSAFE_BLOCK_LABEL, 1)]
+    #[case::set_cross_unsafe(
+        EngineState::set_cross_unsafe_head,
+        Metrics::CROSS_UNSAFE_BLOCK_LABEL,
+        2
+    )]
+    #[case::set_local_safe(EngineState::set_local_safe_head, Metrics::LOCAL_SAFE_BLOCK_LABEL, 3)]
+    #[case::set_safe_head(EngineState::set_safe_head, Metrics::SAFE_BLOCK_LABEL, 4)]
+    #[case::set_finalized_head(EngineState::set_finalized_head, Metrics::FINALIZED_BLOCK_LABEL, 5)]
+    #[cfg(feature = "metrics")]
+    fn test_chain_label_metrics(
+        #[case] set_fn: impl Fn(&mut EngineState, L2BlockInfo),
+        #[case] label_name: &str,
+        #[case] number: u64,
+    ) {
+        let handle = PrometheusBuilder::new().install_recorder().unwrap();
+        crate::Metrics::init();
+
+        let mut state = EngineState::default();
+        set_fn(
+            &mut state,
+            L2BlockInfo {
+                block_info: BlockInfo { number, ..Default::default() },
+                ..Default::default()
+            },
+        );
+
+        assert!(handle.render().contains(
+            format!("kona_node_block_labels{{label=\"{label_name}\"}} {number}").as_str()
+        ));
     }
 }

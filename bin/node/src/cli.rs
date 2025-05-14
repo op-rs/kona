@@ -1,17 +1,16 @@
 //! Contains the node CLI.
 
 use crate::{
-    commands::{
-        BootstoreCommand, DiscoverCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand,
-    },
+    commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
     flags::{GlobalArgs, MetricsArgs},
+    version,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use kona_cli::cli_styles;
 
 /// Subcommands for the CLI.
-#[derive(Debug, Clone, Subcommand)]
+#[derive(Debug, PartialEq, Clone, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Runs the consensus node.
@@ -28,14 +27,18 @@ pub enum Commands {
     Bootstore(BootstoreCommand),
     /// Get info about op chain.
     Info(InfoCommand),
-    /// Discover runs only discovery to bootstrap the list of peers.
-    #[command(alias = "d", alias = "disc", alias = "discovery")]
-    Discover(DiscoverCommand),
 }
 
 /// The node CLI.
 #[derive(Parser, Clone, Debug)]
-#[command(author, version, about, styles = cli_styles(), long_about = None)]
+#[command(
+    author,
+    version = version::SHORT_VERSION,
+    long_version = version::LONG_VERSION,
+    about,
+    styles = cli_styles(),
+    long_about = None
+)]
 pub struct Cli {
     /// The subcommand to run.
     #[command(subcommand)]
@@ -62,9 +65,6 @@ impl Cli {
                 bootstore.init_telemetry(&self.global, &self.metrics)?
             }
             Commands::Info(ref info) => info.init_telemetry(&self.global, &self.metrics)?,
-            Commands::Discover(ref discover) => {
-                discover.init_telemetry(&self.global, &self.metrics)?
-            }
         }
 
         // Run the subcommand.
@@ -74,7 +74,6 @@ impl Cli {
             Commands::Registry(registry) => registry.run(&self.global),
             Commands::Bootstore(bootstore) => bootstore.run(&self.global),
             Commands::Info(info) => info.run(&self.global),
-            Commands::Discover(discover) => Self::run_until_ctrl_c(discover.run(&self.global)),
         }
     }
 
@@ -91,5 +90,29 @@ impl Cli {
     /// features enabled
     pub fn tokio_runtime() -> Result<tokio::runtime::Runtime, std::io::Error> {
         tokio::runtime::Builder::new_multi_thread().enable_all().build()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::node_subcommand_long(Commands::Node(Default::default()), "node")]
+    #[case::node_subcommand_short(Commands::Node(Default::default()), "n")]
+    #[case::net_subcommand_extra_long(Commands::Net(Default::default()), "network")]
+    #[case::net_subcommand_long(Commands::Net(Default::default()), "net")]
+    #[case::net_subcommand_short(Commands::Net(Default::default()), "p2p")]
+    #[case::registry_subcommand_short(Commands::Registry(Default::default()), "r")]
+    #[case::registry_subcommand_long(Commands::Registry(Default::default()), "scr")]
+    #[case::bootstore_subcommand_short(Commands::Bootstore(Default::default()), "b")]
+    #[case::bootstore_subcommand_long(Commands::Bootstore(Default::default()), "boot")]
+    #[case::bootstore_subcommand_long2(Commands::Bootstore(Default::default()), "store")]
+    #[case::info_subcommand(Commands::Info(Default::default()), "info")]
+    fn test_parse_cli(#[case] subcommand: Commands, #[case] subcommand_alias: &str) {
+        let args = vec!["kona-node", subcommand_alias, "--help"];
+        let cli = Cli::parse_from(args);
+        assert_eq!(cli.subcommand, subcommand);
     }
 }

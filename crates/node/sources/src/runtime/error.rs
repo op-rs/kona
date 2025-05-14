@@ -1,7 +1,7 @@
 //! Runtime loader error type.
 
 use alloy_transport::{RpcError, TransportErrorKind};
-use kona_rpc::ProtocolVersionError;
+use op_alloy_rpc_types_engine::ProtocolVersionError;
 
 /// Error type for the runtime loader.
 #[derive(thiserror::Error, Debug)]

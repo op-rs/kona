@@ -1,6 +1,6 @@
 //! The Optimism RPC API using `jsonrpsee`
 
-use crate::{OutputResponse, ProtocolVersion, SafeHeadResponse, SuperchainSignal};
+use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
@@ -125,24 +125,6 @@ pub trait OpP2PApi {
     /// Disconnects from the given peer
     #[method(name = "disconnectPeer")]
     async fn opp2p_disconnect_peer(&self, peer: String) -> RpcResult<()>;
-}
-
-/// Engine API extension for Optimism superchain signaling
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "engine"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "engine"))]
-pub trait EngineApiExt {
-    /// Signal superchain v1 message
-    ///
-    /// The execution engine SHOULD warn when the recommended version is newer than the current
-    /// version. The execution engine SHOULD take safety precautions if it does not meet
-    /// the required version.
-    ///
-    /// # Returns
-    /// The latest supported OP-Stack protocol version of the execution engine.
-    ///
-    /// See: <https://specs.optimism.io/protocol/exec-engine.html#engine_signalsuperchainv1>
-    #[method(name = "signalSuperchainV1")]
-    async fn signal_superchain_v1(&self, signal: SuperchainSignal) -> RpcResult<ProtocolVersion>;
 }
 
 /// Supervisor API for interop.
