@@ -189,7 +189,7 @@ impl EngineTaskExt for InsertUnsafeTask {
         }
 
         // Initialize unknowns if needed.
-        crate::init_unknowns(state, self.client.clone()).await;
+        crate::init_unknowns(state, self.client.clone(), self.rollup_config.clone()).await;
 
         info!(
             target: "engine",
