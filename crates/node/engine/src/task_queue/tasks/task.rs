@@ -21,8 +21,6 @@ pub enum EngineTaskType {
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
     Consolidate,
-    /// Resets the engine state.
-    Reset,
 }
 
 impl EngineTaskType {
@@ -32,8 +30,7 @@ impl EngineTaskType {
             Self::ForkchoiceUpdate => Self::InsertUnsafe,
             Self::InsertUnsafe => Self::BuildBlock,
             Self::BuildBlock => Self::Consolidate,
-            Self::Consolidate => Self::Reset,
-            Self::Reset => Self::ForkchoiceUpdate,
+            Self::Consolidate => Self::ForkchoiceUpdate,
         }
     }
 }

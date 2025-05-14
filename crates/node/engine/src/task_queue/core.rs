@@ -130,8 +130,6 @@ impl Engine {
             match task.execute(&mut self.state).await {
                 Ok(_) => {}
                 Err(EngineTaskError::Reset(e)) => {
-                    warn!(target: "engine", err = ?e, "Engine task requested reset");
-
                     // The engine actor should trigger a reset by calling [`Engine::reset`].
                     return Err(EngineTaskError::Reset(e));
                 }
