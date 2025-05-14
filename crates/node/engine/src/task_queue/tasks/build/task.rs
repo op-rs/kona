@@ -3,7 +3,7 @@
 use super::BuildTaskError;
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineGetPayloadVersion, EngineState, EngineTaskError,
-    EngineTaskExt,
+    EngineTaskExt, Metrics,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
@@ -324,6 +324,9 @@ impl EngineTaskExt for BuildTask {
             "Built and imported new {} block",
             if self.is_attributes_derived { "safe" } else { "unsafe" },
         );
+
+        // Update metrics.
+        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::BUILD_TASK_LABEL);
 
         Ok(())
     }

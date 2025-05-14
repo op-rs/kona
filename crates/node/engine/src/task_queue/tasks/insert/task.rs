@@ -2,7 +2,7 @@
 
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
-    InsertUnsafeTaskError, SyncStatus,
+    InsertUnsafeTaskError, Metrics, SyncStatus,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
@@ -200,6 +200,10 @@ impl EngineTaskExt for InsertUnsafeTask {
             fcu_duration = ?fcu_duration,
             "Inserted new unsafe block"
         );
+
+        // Update metrics.
+        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::INSERT_TASK_LABEL);
+
         Ok(())
     }
 }

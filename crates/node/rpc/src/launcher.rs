@@ -109,7 +109,7 @@ mod tests {
     #[tokio::test]
     async fn test_launch_with_modules() {
         let mut launcher = RpcLauncher::new();
-        launcher = launcher.set_addr(SocketAddr::from(([127, 0, 0, 1], 8080)));
+        launcher = launcher.set_addr(SocketAddr::from(([127, 0, 0, 1], 8081)));
         launcher = launcher.merge(Some(RpcModule::new(()))).expect("module merge");
         launcher = launcher.merge::<()>(None).expect("module merge");
         launcher = launcher.merge(Some(RpcModule::new(()))).expect("module merge");

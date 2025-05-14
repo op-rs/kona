@@ -2,7 +2,7 @@
 
 use crate::{
     BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskError, EngineTaskExt,
-    ForkchoiceTask,
+    ForkchoiceTask, Metrics,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -91,6 +91,14 @@ impl ConsolidateTask {
                     match self.execute_forkchoice_task(state).await {
                         Ok(()) => {
                             debug!(target: "engine", "Consolidation successful");
+
+                            // Update metrics.
+                            kona_macros::inc!(
+                                counter,
+                                Metrics::ENGINE_TASK_COUNT,
+                                Metrics::CONSOLIDATE_TASK_LABEL
+                            );
+
                             return Ok(());
                         }
                         Err(e) => {

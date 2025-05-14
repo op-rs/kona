@@ -47,6 +47,7 @@ impl From<Config> for NetworkBuilder {
             .with_peer_scoring(config.scoring)
             .with_block_time(config.block_time)
             .with_keypair(config.keypair)
+            .with_topic_scoring(config.topic_scoring)
             .with_peer_redial(config.redial)
     }
 }
@@ -96,6 +97,11 @@ impl NetworkBuilder {
     /// Sets the peer scoring based on the given [`PeerScoreLevel`].
     pub fn with_peer_scoring(self, level: PeerScoreLevel) -> Self {
         Self { gossip: self.gossip.with_peer_scoring(level), ..self }
+    }
+
+    /// Sets topic scoring for the [`crate::GossipDriver`].
+    pub fn with_topic_scoring(self, topic_scoring: bool) -> Self {
+        Self { gossip: self.gossip.with_topic_scoring(topic_scoring), ..self }
     }
 
     /// Sets the peer monitoring for the [`crate::GossipDriver`].
