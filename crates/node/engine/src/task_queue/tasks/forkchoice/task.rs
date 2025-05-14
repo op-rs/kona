@@ -1,7 +1,8 @@
 //! A task for the `engine_forkchoiceUpdated` method, with no attributes.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, SyncStatus,
+    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, Metrics,
+    SyncStatus,
 };
 use alloy_rpc_types_engine::{ForkchoiceState, INVALID_FORK_CHOICE_STATE_ERROR};
 use async_trait::async_trait;
