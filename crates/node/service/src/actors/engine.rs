@@ -1,15 +1,17 @@
 //! The Engine Actor
 
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_derive::types::Signal;
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineQueries, EngineStateBuilder,
-    EngineStateBuilderError, EngineTask, EngineTaskError, InsertUnsafeTask,
+    EngineStateBuilderError, EngineTask, EngineTaskError, ForkchoiceTask, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
+use op_alloy_network::Ethereum;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
@@ -137,6 +139,8 @@ impl EngineActor {
 /// Configuration for the Engine Actor.
 #[derive(Debug, Clone)]
 pub struct EngineLauncher {
+    /// A provider for the L1 chain.
+    pub l1_provider: RootProvider<Ethereum>,
     /// The [`RollupConfig`].
     pub config: Arc<RollupConfig>,
     /// The engine rpc url.
@@ -154,12 +158,18 @@ impl EngineLauncher {
         let state = self.state_builder().build().await?;
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
 
-        Ok(Engine::new(state, engine_state_send))
+        let mut engine = Engine::new(state, engine_state_send);
+
+        // Start with a forkchoice update.
+        engine.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(self.client().into())));
+
+        Ok(engine)
     }
 
     /// Returns the [`EngineClient`].
     pub fn client(&self) -> EngineClient {
         EngineClient::new_http(
+            self.l1_provider.clone(),
             self.engine_url.clone(),
             self.l2_rpc_url.clone(),
             self.config.clone(),
@@ -197,19 +207,13 @@ impl NodeActor for EngineActor {
                 }
                 res = self.engine.drain() => {
                     match res {
-                        Ok(_) => {
-                          trace!(target: "engine", "[ENGINE] tasks drained");
-                          // Update the l2 safe head if needed.
-                          let state_safe_head = self.engine.safe_head();
-                          let update = |head: &mut L2BlockInfo| {
-                              if head != &state_safe_head {
-                                  *head = state_safe_head;
-                                  return true;
-                              }
-                              false
-                          };
-                          let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
-                          trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
+                        Ok(_) => {}
+                        Err(EngineTaskError::Reset(error)) => {
+                            warn!(target: "engine", err = ?error, "Resetting engine state");
+
+                            if let Err(e) = self.engine.reset(self.client.clone(), self.config.clone()).await {
+                                error!(target: "engine", ?e, "Failed to reset engine state");
+                            }
                         }
                         Err(EngineTaskError::Flush(e)) => {
                             // This error is encountered when the payload is marked INVALID
@@ -228,6 +232,17 @@ impl NodeActor for EngineActor {
                         }
                         Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
                     }
+
+                    // Update the l2 safe head if needed.
+                    let state_safe_head = self.engine.safe_head();
+                    let update = |head: &mut L2BlockInfo| {
+                        if head != &state_safe_head {
+                            *head = state_safe_head;
+                            return true;
+                        }
+                        false
+                    };
+                    self.engine_l2_safe_head_tx.send_if_modified(update);
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {

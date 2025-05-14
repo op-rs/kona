@@ -1,9 +1,9 @@
 //! A task for the `engine_forkchoiceUpdated` method, with no attributes.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, Metrics,
+    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, SyncStatus,
 };
-use alloy_rpc_types_engine::INVALID_FORK_CHOICE_STATE_ERROR;
+use alloy_rpc_types_engine::{ForkchoiceState, INVALID_FORK_CHOICE_STATE_ERROR};
 use async_trait::async_trait;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
@@ -21,11 +21,47 @@ impl ForkchoiceTask {
     pub const fn new(client: Arc<EngineClient>) -> Self {
         Self { client }
     }
+
+    async fn send_fcu(&self, forkchoice: ForkchoiceState) -> Result<(), EngineTaskError> {
+        // Handle the forkchoice update result.
+        if let Err(e) = self.client.fork_choice_updated_v3(forkchoice, None).await {
+            let e = e
+                .as_error_resp()
+                .and_then(|e| {
+                    (e.code == INVALID_FORK_CHOICE_STATE_ERROR as i64)
+                        .then_some(ForkchoiceTaskError::InvalidForkchoiceState)
+                })
+                .unwrap_or_else(|| ForkchoiceTaskError::ForkchoiceUpdateFailed(e));
+
+            return Err(e.into());
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl EngineTaskExt for ForkchoiceTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+        // The very first FCU. We should:
+        // - Send a FCU with empty hashes for the safe and finalized blocks, this kickstarts the EL.
+        // - Reset the engine state.
+        if state.sync_status == SyncStatus::ExecutionLayerWillStart {
+            let mut forkchoice = state.create_forkchoice_state();
+            forkchoice.safe_block_hash = Default::default();
+            forkchoice.finalized_block_hash = Default::default();
+
+            info!(target: "engine", "Starting execution layer sync");
+            state.sync_status = SyncStatus::ExecutionLayerStarted;
+
+            self.send_fcu(forkchoice).await?;
+
+            // Reset the engine state.
+            return Err(EngineTaskError::Reset(Box::new(
+                ForkchoiceTaskError::InvalidForkchoiceState,
+            )));
+        }
+
         // Check if a forkchoice update is not needed, return early.
         if !state.forkchoice_update_needed {
             return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
@@ -49,18 +85,7 @@ impl EngineTaskExt for ForkchoiceTask {
         // Send the forkchoice update through the input.
         let forkchoice = state.create_forkchoice_state();
 
-        // Handle the forkchoice update result.
-        if let Err(e) = self.client.fork_choice_updated_v3(forkchoice, None).await {
-            let e = e
-                .as_error_resp()
-                .and_then(|e| {
-                    (e.code == INVALID_FORK_CHOICE_STATE_ERROR as i64)
-                        .then_some(ForkchoiceTaskError::InvalidForkchoiceState)
-                })
-                .unwrap_or_else(|| ForkchoiceTaskError::ForkchoiceUpdateFailed(e));
-
-            return Err(e.into());
-        }
+        self.send_fcu(forkchoice).await?;
 
         state.forkchoice_update_needed = false;
 

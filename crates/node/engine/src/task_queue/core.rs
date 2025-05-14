@@ -1,9 +1,14 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
-use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineState, EngineTask, EngineTaskType};
+use super::{EngineTaskError, EngineTaskExt, ForkchoiceTask};
+use crate::{EngineClient, EngineState, EngineTask, EngineTaskType};
+use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use std::collections::{HashMap, VecDeque};
+use kona_sources::find_starting_forkchoice;
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+};
 use tokio::sync::watch::Sender;
 
 /// The [`Engine`] task queue.
@@ -44,6 +49,35 @@ impl Engine {
     /// Enqueues a new [`EngineTask`] for execution.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.entry(task.ty()).or_default().push_back(task);
+    }
+
+    /// Resets the engine state.
+    pub async fn reset(
+        &mut self,
+        client: Arc<EngineClient>,
+        config: Arc<RollupConfig>,
+    ) -> Result<(), EngineTaskError> {
+        let (mut l1_provider, mut l2_provider) = client.alloy_providers();
+        let forkchoice = find_starting_forkchoice(&config, &mut l1_provider, &mut l2_provider)
+            .await
+            .map_err(|e| EngineTaskError::Critical(Box::new(e)))?;
+
+        self.state.set_finalized_head(forkchoice.finalized);
+        self.state.set_safe_head(forkchoice.safe);
+        self.state.set_unsafe_head(forkchoice.un_safe);
+        // If the cross unsafe head is not set, set it to the safe head.
+        self.state.set_cross_unsafe_head(self.state.safe_head);
+        // If the local safe head is not set, set it to the safe head.
+        self.state.set_local_safe_head(self.state.safe_head);
+
+        self.state.forkchoice_update_needed = true;
+
+        debug!(target: "engine", unsafe = ?self.state.unsafe_head(), safe = ?self.state.safe_head(), finalized = ?self.state.finalized_head(),
+         "Resetted engine state. Sending FCU");
+
+        self.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(client)));
+
+        Ok(())
     }
 
     /// Returns the L2 Safe Head [`L2BlockInfo`] from the state.
@@ -91,10 +125,14 @@ impl Engine {
             let Some(task) = task.front() else {
                 return Ok(());
             };
+            let ty = task.ty();
+
             match task.execute(&mut self.state).await {
                 Ok(_) => {}
                 Err(EngineTaskError::Reset(e)) => {
-                    self.clear();
+                    warn!(target: "engine", err = ?e, "Engine task requested reset");
+
+                    // The engine actor should trigger a reset by calling [`Engine::reset`].
                     return Err(EngineTaskError::Reset(e));
                 }
                 e => return e,
@@ -103,7 +141,6 @@ impl Engine {
             // Update the state and notify the engine actor.
             self.state_sender.send_replace(self.state);
 
-            let ty = task.ty();
             if let Some(queue) = self.tasks.get_mut(&ty) {
                 queue.pop_front();
             };

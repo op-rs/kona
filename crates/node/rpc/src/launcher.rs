@@ -103,6 +103,7 @@ mod tests {
         let mut launcher = RpcLauncher::new();
         launcher = launcher.set_addr(SocketAddr::from(([127, 0, 0, 1], 8080)));
         let result = launcher.launch().await;
+        println!("{result:?}");
         assert!(result.is_ok());
     }
 

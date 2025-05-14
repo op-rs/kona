@@ -1,5 +1,6 @@
 //! Node Subcommand.
 
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
@@ -107,8 +108,12 @@ impl NodeCommand {
     /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
     /// that the jwt token passed as a cli arg is correct.
     pub async fn validate_jwt(&self, config: &RollupConfig) -> anyhow::Result<JwtSecret> {
+        let l1_rpc_url = self.l1_eth_rpc.clone();
+        let l1_provider = RootProvider::new_http(l1_rpc_url.clone());
+
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let engine_client = kona_engine::EngineClient::new_http(
+            l1_provider,
             self.l2_engine_rpc.clone(),
             self.l2_provider_rpc.clone(),
             Arc::new(config.clone()),
