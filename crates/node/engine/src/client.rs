@@ -1,5 +1,6 @@
 //! An Engine API Client.
 
+use crate::Metrics;
 use alloy_eips::eip1898::BlockNumberOrTag;
 use alloy_network::{AnyNetwork, Network};
 use alloy_primitives::{B256, BlockHash, Bytes};
@@ -20,6 +21,8 @@ use alloy_transport_http::{
 };
 use derive_more::Deref;
 use http_body_util::Full;
+use kona_genesis::RollupConfig;
+use kona_protocol::{FromBlockError, L2BlockInfo};
 use op_alloy_network::Optimism;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types::Transaction;
@@ -27,13 +30,10 @@ use op_alloy_rpc_types_engine::{
     OpExecutionPayloadEnvelopeV3, OpExecutionPayloadEnvelopeV4, OpExecutionPayloadV4,
     OpPayloadAttributes, ProtocolVersion,
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 use thiserror::Error;
 use tower::ServiceBuilder;
 use url::Url;
-
-use kona_genesis::RollupConfig;
-use kona_protocol::{FromBlockError, L2BlockInfo};
 
 /// An error that occured in the [`EngineClient`].
 #[derive(Error, Debug)]
@@ -115,10 +115,12 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         &self,
         payload: ExecutionPayloadInputV2,
     ) -> TransportResult<PayloadStatus> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::new_payload_v2(&self.engine, payload).await
+        >>::new_payload_v2(&self.engine, payload);
+
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
 
     async fn new_payload_v3(
@@ -126,10 +128,12 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         payload: ExecutionPayloadV3,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::new_payload_v3(&self.engine, payload, parent_beacon_block_root).await
+        >>::new_payload_v3(&self.engine, payload, parent_beacon_block_root);
+
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
 
     async fn new_payload_v4(
@@ -137,10 +141,12 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         payload: OpExecutionPayloadV4,
         parent_beacon_block_root: B256,
     ) -> TransportResult<PayloadStatus> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::new_payload_v4(&self.engine, payload, parent_beacon_block_root).await
+        >>::new_payload_v4(&self.engine, payload, parent_beacon_block_root);
+
+        record_call_time(call, Metrics::NEW_PAYLOAD_METHOD).await
     }
 
     async fn fork_choice_updated_v2(
@@ -148,10 +154,12 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::fork_choice_updated_v2(&self.engine, fork_choice_state, payload_attributes).await
+        >>::fork_choice_updated_v2(&self.engine, fork_choice_state, payload_attributes);
+
+        record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await
     }
 
     async fn fork_choice_updated_v3(
@@ -159,40 +167,48 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
         fork_choice_state: ForkchoiceState,
         payload_attributes: Option<OpPayloadAttributes>,
     ) -> TransportResult<ForkchoiceUpdated> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::fork_choice_updated_v3(&self.engine, fork_choice_state, payload_attributes).await
+        >>::fork_choice_updated_v3(&self.engine, fork_choice_state, payload_attributes);
+
+        record_call_time(call, Metrics::FORKCHOICE_UPDATE_METHOD).await
     }
 
     async fn get_payload_v2(
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<ExecutionPayloadEnvelopeV2> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::get_payload_v2(&self.engine, payload_id).await
+        >>::get_payload_v2(&self.engine, payload_id);
+
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }
 
     async fn get_payload_v3(
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<OpExecutionPayloadEnvelopeV3> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::get_payload_v3(&self.engine, payload_id).await
+        >>::get_payload_v3(&self.engine, payload_id);
+
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }
 
     async fn get_payload_v4(
         &self,
         payload_id: PayloadId,
     ) -> TransportResult<OpExecutionPayloadEnvelopeV4> {
-        <RootProvider<AnyNetwork> as OpEngineApi<
+        let call = <RootProvider<AnyNetwork> as OpEngineApi<
             AnyNetwork,
             Http<HyperAuthClient>,
-        >>::get_payload_v4(&self.engine, payload_id).await
+        >>::get_payload_v4(&self.engine, payload_id);
+
+        record_call_time(call, Metrics::GET_PAYLOAD_METHOD).await
     }
 
     async fn get_payload_bodies_by_hash_v1(
@@ -246,4 +262,25 @@ impl OpEngineApi<AnyNetwork, Http<HyperAuthClient>> for EngineClient {
             Http<HyperAuthClient>,
         >>::exchange_capabilities(&self.engine, capabilities).await
     }
+}
+
+/// Wrapper to record the time taken for a call to the engine API and log the result as a metric.
+async fn record_call_time<T>(
+    f: impl Future<Output = TransportResult<T>>,
+    metric_label: &'static str,
+) -> TransportResult<T> {
+    // Await on the future and track its duration.
+    let start = Instant::now();
+    let result = f.await?;
+    let duration = start.elapsed();
+
+    // Record the call duration.
+    kona_macros::record!(
+        histogram,
+        Metrics::ENGINE_METHOD_REQUEST_DURATION,
+        "method",
+        metric_label,
+        duration.as_secs_f64()
+    );
+    Ok(result)
 }

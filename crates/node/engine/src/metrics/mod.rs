@@ -29,6 +29,15 @@ impl Metrics {
     /// Build task label.
     pub const BUILD_TASK_LABEL: &str = "build";
 
+    /// Identifier for the histogram that tracks engine method call time.
+    pub const ENGINE_METHOD_REQUEST_DURATION: &str = "kona_node_engine_method_request_duration";
+    /// `engine_forkchoiceUpdatedV<N>` label
+    pub const FORKCHOICE_UPDATE_METHOD: &str = "engine_forkchoiceUpdated";
+    /// `engine_newPayloadV<N>` label.
+    pub const NEW_PAYLOAD_METHOD: &str = "engine_newPayload";
+    /// `engine_getPayloadV<N>` label.
+    pub const GET_PAYLOAD_METHOD: &str = "engine_getPayload";
+
     /// Initializes metrics for the engine.
     ///
     /// This does two things:
@@ -48,6 +57,13 @@ impl Metrics {
 
         // Engine task counts
         metrics::describe_counter!(Self::ENGINE_TASK_COUNT, "Engine task counts");
+
+        // FCU time histogram
+        metrics::describe_histogram!(
+            Self::ENGINE_METHOD_REQUEST_DURATION,
+            metrics::Unit::Seconds,
+            "Engine method request duration"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
