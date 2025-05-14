@@ -48,6 +48,7 @@ discv5.workspace = true
 tabled.workspace = true
 libp2p.workspace = true
 anyhow.workspace = true
+metrics.workspace = true
 tracing.workspace = true
 serde_json = { workspace = true, features = ["std"] }
 jsonrpsee = { workspace = true, features = ["server"] }
@@ -57,3 +58,7 @@ tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 
 [dev-dependencies]
 rstest.workspace = true
+
+[build-dependencies]
+vergen.workspace = true
+vergen-git2.workspace = true

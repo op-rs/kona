@@ -2,10 +2,11 @@
 //!
 //! Specifies the available flags for prometheus metric configuration inside CLI
 
-use std::net::IpAddr;
+use crate::metrics::VersionInfo;
 
 use clap::{Args, arg};
 use kona_cli::init_prometheus_server;
+use std::net::IpAddr;
 
 /// The metric configuration available in CLI
 #[derive(Debug, Clone, Args)]
@@ -46,6 +47,7 @@ impl MetricsArgs {
             init_prometheus_server(self.addr, self.port)?;
             kona_p2p::Metrics::init();
             kona_engine::Metrics::init();
+            VersionInfo::from_build().register_version_metrics();
         }
 
         Ok(())

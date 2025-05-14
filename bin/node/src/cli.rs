@@ -3,6 +3,7 @@
 use crate::{
     commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
     flags::{GlobalArgs, MetricsArgs},
+    version,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -30,7 +31,14 @@ pub enum Commands {
 
 /// The node CLI.
 #[derive(Parser, Clone, Debug)]
-#[command(author, version, about, styles = cli_styles(), long_about = None)]
+#[command(
+    author,
+    version = version::SHORT_VERSION,
+    long_version = version::LONG_VERSION,
+    about,
+    styles = cli_styles(),
+    long_about = None
+)]
 pub struct Cli {
     /// The subcommand to run.
     #[command(subcommand)]
