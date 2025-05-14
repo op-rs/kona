@@ -66,7 +66,7 @@ impl L1WatcherRpc {
 
     /// Fetches the block info for the current L1 head.
     async fn block_info_by_hash(
-        &mut self,
+        &self,
         block_hash: B256,
     ) -> Result<BlockInfo, L1WatcherRpcError<BlockInfo>> {
         // Fetch the block of the current unsafe L1 head.
@@ -200,7 +200,7 @@ impl SupervisorActor for L1WatcherRpc {
     }
 }
 
-/// The error type for the [L1WatcherRpc].
+/// The error type for the [`L1WatcherRpc`].
 #[derive(Error, Debug)]
 pub enum L1WatcherRpcError<T> {
     /// Error sending the head update event.
