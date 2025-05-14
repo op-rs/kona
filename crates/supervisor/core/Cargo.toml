@@ -20,15 +20,21 @@ kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-rlp = { workspace = true, features = ["arrayvec"] }
 
 # Misc
 jsonrpsee = { workspace = true, features = [ "server" ] }
 async-trait.workspace = true
 tracing = { workspace = true }
 thiserror.workspace = true
+reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
+
+
+
 
 # `metrics` feature
 metrics = { workspace = true }
+serde = { version = "1.0.219", features = ["derive"] }
 
 [lints]
 workspace = true
