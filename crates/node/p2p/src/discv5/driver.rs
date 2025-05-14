@@ -119,7 +119,6 @@ impl Discv5Driver {
         }
             .retry(ExponentialBuilder::default())
             .context(self)
-            .sleep(sleep)
             .notify(|err: &discv5::Error, dur: Duration| {
                 warn!(target: "discovery", ?err, "Failed to start discovery service [Duration: {:?}]", dur);
             })
