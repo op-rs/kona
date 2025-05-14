@@ -38,9 +38,9 @@ pub enum ExecutorError {
     /// Execution error.
     #[error("Execution error: {0}")]
     ExecutionError(#[from] BlockExecutionError),
-    /// Signature error.
-    #[error("Signature error: {0}")]
-    SignatureError(alloy_primitives::SignatureError),
+    /// Opaque error type for sender recovery from signature and sender pub key.
+    #[error("sender recovery error: {0}")]
+    Recovery(#[from] alloy_consensus::crypto::RecoveryError),
     /// RLP error.
     #[error("RLP error: {0}")]
     RLPError(alloy_eips::eip2718::Eip2718Error),
