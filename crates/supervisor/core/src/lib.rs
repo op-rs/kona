@@ -5,6 +5,4 @@ mod supervisor;
 pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
 mod rpc;
-mod state;
-
 pub use rpc::SupervisorRpc;
