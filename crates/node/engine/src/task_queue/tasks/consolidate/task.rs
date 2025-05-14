@@ -37,7 +37,7 @@ impl ConsolidateTask {
     }
 
     /// Executes the [`ForkchoiceTask`] if the attributes match the block.
-    pub async fn execute_forkchoice_task(
+    async fn execute_forkchoice_task(
         &self,
         state: &mut EngineState,
     ) -> Result<(), EngineTaskError> {
@@ -47,7 +47,7 @@ impl ConsolidateTask {
 
     /// Executes a new [`BuildTask`].
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
-    pub async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         let build_task = BuildTask::new(
             self.client.clone(),
             self.cfg.clone(),
