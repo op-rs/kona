@@ -150,6 +150,7 @@ impl NodeCommand {
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
         self.p2p_flags.check_ports()?;
+        let disabled = self.p2p_flags.disabled;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
 
@@ -164,7 +165,7 @@ impl NodeCommand {
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
-            .with_network_disabled(self.p2p_flags.disabled)
+            .with_network_disabled(disabled)
             .with_rpc_config(rpc_config)
             .build()
             .start()

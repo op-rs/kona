@@ -14,7 +14,7 @@ use kona_p2p::{Config, LocalNode, PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
     sync::Arc,
@@ -185,36 +185,9 @@ pub struct P2PArgs {
 
 impl Default for P2PArgs {
     fn default() -> Self {
-        Self {
-            disabled: false,
-            no_discovery: false,
-            priv_path: None,
-            private_key: None,
-            advertise_ip: None,
-            advertise_tcp_port: 0,
-            advertise_udp_port: 0,
-            listen_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            listen_tcp_port: 9222,
-            listen_udp_port: 9223,
-            peers_lo: 20,
-            peers_hi: 30,
-            peers_grace: Duration::from_secs(30),
-            gossip_mesh_d: kona_p2p::DEFAULT_MESH_D,
-            gossip_mesh_dlo: kona_p2p::DEFAULT_MESH_DLO,
-            gossip_mesh_dhi: kona_p2p::DEFAULT_MESH_DHI,
-            gossip_mesh_dlazy: kona_p2p::DEFAULT_MESH_DLAZY,
-            gossip_flood_publish: false,
-            scoring: PeerScoreLevel::Light,
-            ban_enabled: false,
-            ban_threshold: 0,
-            ban_duration: 30,
-            discovery_interval: 5,
-            bootnodes: Vec::new(),
-            bootstore: None,
-            peer_redial: None,
-            unsafe_block_signer: None,
-            discovery_randomize: None,
-        }
+        // Construct default values using the clap parser.
+        // This works since none of the cli flags are required.
+        Self::parse_from::<[_; 0], &str>([])
     }
 }
 
@@ -319,7 +292,7 @@ impl P2PArgs {
     ///
     /// Errors if the genesis unsafe block signer isn't available for the specified L2 Chain ID.
     pub async fn config(
-        &self,
+        self,
         config: &RollupConfig,
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
@@ -391,12 +364,9 @@ impl P2PArgs {
             scoring: self.scoring,
             block_time,
             monitor_peers,
-            bootstore: self.bootstore.clone(),
+            bootstore: self.bootstore,
             redial: self.peer_redial,
-            // It is ok to clone here since the config only happens at startup
-            // and that we assume the number of bootnodes explicitly specified
-            // through the CLI is small.
-            bootnodes: self.bootnodes.clone(),
+            bootnodes: self.bootnodes,
             rollup_config: config.clone(),
         })
     }
