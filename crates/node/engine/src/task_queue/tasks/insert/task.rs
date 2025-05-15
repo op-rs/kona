@@ -193,7 +193,7 @@ impl EngineTaskExt for InsertUnsafeTask {
 
         info!(
             target: "engine",
-            hash = new_unsafe_ref.block_info.hash.to_string(),
+            hash = %new_unsafe_ref.block_info.hash,
             number = new_unsafe_ref.block_info.number,
             total_duration = ?total_duration,
             insert_duration = ?insert_duration,
