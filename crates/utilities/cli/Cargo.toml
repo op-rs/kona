@@ -12,8 +12,12 @@ publish = false
 workspace = true
 
 [dependencies]
-clap = { workspace = true, features = ["derive", "env"] }
+libp2p.workspace = true
 tracing.workspace = true
+thiserror.workspace = true
+alloy-primitives.workspace = true
+
+clap = { workspace = true, features = ["derive", "env"] }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
 

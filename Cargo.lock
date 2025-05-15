@@ -4112,9 +4112,12 @@ dependencies = [
 name = "kona-cli"
 version = "0.2.0"
 dependencies = [
+ "alloy-primitives",
  "clap",
  "libc",
+ "libp2p",
  "metrics-exporter-prometheus",
+ "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber 0.3.19",
 ]

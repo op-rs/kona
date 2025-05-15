@@ -8,6 +8,9 @@
 mod clap;
 pub use clap::cli_styles;
 
+mod secrets;
+pub use secrets::{KeypairError, ParseKeyError, SecretKeyLoader};
+
 pub mod backtrace;
 
 mod tracing;
