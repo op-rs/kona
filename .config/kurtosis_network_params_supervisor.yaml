@@ -19,7 +19,7 @@ optimism_package:
     supervisor-b:
       enabled: true
       superchain: superchain-a
-      image: "" # kona-supervisor image
+      image: "us-docker.pkg.dev/oplabs-tools-artifacts/images/kona-supervisor:latest"
       extra_params: []
 ethereum_package:
   participants:
