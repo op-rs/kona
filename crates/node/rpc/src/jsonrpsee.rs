@@ -141,19 +141,3 @@ pub trait SupervisorApi {
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
 }
-
-#[cfg(feature = "client")]
-impl<T> crate::CheckAccessList for T
-where
-    T: SupervisorApiClient + Send + Sync,
-{
-    async fn check_access_list(
-        &self,
-        inbox_entries: &[B256],
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> Result<(), crate::InteropTxValidatorError> {
-        Ok(T::check_access_list(self, inbox_entries.to_vec(), min_safety, executing_descriptor)
-            .await?)
-    }
-}
