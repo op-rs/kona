@@ -32,6 +32,9 @@ pub use message::{
     parse_logs_to_executing_msgs,
 };
 
+mod depset;
+pub use depset::{ChainDependency, DependencySet};
+
 mod access_list;
 pub use access_list::{
     parse_access_list_item_to_inbox_entries, parse_access_list_items_to_inbox_entries,
