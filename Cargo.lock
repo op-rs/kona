@@ -675,7 +675,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde 0.14.0",
  "alloy-sol-types",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "serde",
  "serde_json",
  "thiserror 2.0.12",
@@ -1567,6 +1567,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
+dependencies = [
+ "bincode_derive",
+ "serde",
+ "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
+dependencies = [
+ "virtue",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1595,7 +1615,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -1827,6 +1847,38 @@ dependencies = [
  "libc",
  "once_cell",
  "serde",
+]
+
+[[package]]
+name = "camino"
+version = "1.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b96ec4966b5813e2c0507c1f86115c8c5abaadc3980879c3424042a02fd1ad3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo-platform"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e35af189006b9c0f00a064685c727031e3ed2d8020f7ba284d78cc2671bd36ea"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver 1.0.26",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -5218,14 +5270,17 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
- "bincode",
+ "bincode 1.3.3",
+ "bytes",
  "eyre",
+ "modular-bitfield",
  "rand 0.9.1",
  "reth-codecs",
  "reth-db",
  "reth-db-api",
  "serde",
  "tempfile",
+ "test-fuzz",
 ]
 
 [[package]]
@@ -6906,6 +6961,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prettyplease"
+version = "0.2.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "664ec5419c51e34154eec046ebcba56312d5a2fc3b09a06da188e1ad21afadf6"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7621,7 +7686,7 @@ version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 1.3.3",
  "derive_more",
  "lz4_flex",
  "memmap2",
@@ -8666,6 +8731,9 @@ name = "semver"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "semver-parser"
@@ -8695,6 +8763,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde_combinators"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0de5fb30ae2918667d3cee99ef4b112f1f7ca0a6c58fa349d7d9e76035c72f8b"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -9261,6 +9338,58 @@ dependencies = [
  "once_cell",
  "rustix 1.0.7",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "test-fuzz"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae2f06b1ae65cbf4dc1f4975279cee7dbf70fcca269bdbdd8aabd20a79e6785c"
+dependencies = [
+ "serde",
+ "serde_combinators",
+ "test-fuzz-internal",
+ "test-fuzz-macro",
+ "test-fuzz-runtime",
+]
+
+[[package]]
+name = "test-fuzz-internal"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac6a1dc2074c20c6410ac75687be17808a22abfd449e28301a95d72974b91768"
+dependencies = [
+ "bincode 2.0.1",
+ "cargo_metadata",
+ "serde",
+]
+
+[[package]]
+name = "test-fuzz-macro"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "190423aabaca6cec8392cf45e471777e036d424a14d979db8033f25cc417f1ad"
+dependencies = [
+ "darling",
+ "heck",
+ "itertools 0.14.0",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "test-fuzz-runtime"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05723662ca81651b49dd87b50cae65a0a38523aa1c0cb6b049a8c4f5c2c7836"
+dependencies = [
+ "hex",
+ "num-traits",
+ "serde",
+ "sha1",
+ "test-fuzz-internal",
 ]
 
 [[package]]
@@ -9852,6 +9981,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
+
+[[package]]
 name = "url"
 version = "2.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9906,6 +10041,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "wait-timeout"
