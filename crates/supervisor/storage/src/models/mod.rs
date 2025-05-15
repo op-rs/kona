@@ -3,24 +3,16 @@
 //! This module defines the value types, keys, and table layouts for all data
 //! persisted by the `supervisor` component of the node.
 //!
-//! The tables are registered using [`TableInfo`] and grouped into a [`TableSet`]
-//! for database initialization via Reth's storage-api.
-//!
-//! ## Macros Provided
-//! - [`impl_compression_for_compact!`] — Enables compression support for types that derive [`Compact`]
-//! - [`impl_table_info!`] — Implements `TableInfo` for one or more tables.
-//! - [`impl_table_set!`] — Defines a set of tables that can be initialized together.
+//! The tables are registered using [`reth_db_api::table::TableInfo`] and grouped into a
+//! [`reth_db_api::TableSet`] for database initialization via Reth's storage-api.
 
 mod log;
-pub use log::{LogEntry, LogEntries};
+pub use log::{LogEntries, LogEntry};
 mod block;
 pub use block::{BlockHeader, BlockHeaders};
 
-use reth_db::table::Table;
-use reth_codecs::Compact;
-use reth_db_api::table::{Compress, Decompress};
-
-/// Implements [`Compress`] and [`Decompress`] traits for types that implement [`Compact`].
+/// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
+/// types that implement [`reth_codecs::Compact`].
 ///
 /// This macro defines how to serialize and deserialize a type into a compressed
 /// byte format using Reth's compact codec system.
@@ -32,17 +24,17 @@ use reth_db_api::table::{Compress, Decompress};
 macro_rules! impl_compression_for_compact {
     ($($name:ident$(<$($generic:ident),*>)?),+) => {
         $(
-            impl$(<$($generic: core::fmt::Debug + Send + Sync + Compact),*>)? Compress for $name$(<$($generic),*>)? {
+            impl$(<$($generic: core::fmt::Debug + Send + Sync + Compact),*>)? reth_db_api::table::Compress for $name$(<$($generic),*>)? {
                 type Compressed = Vec<u8>;
 
                 fn compress_to_buf<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) {
-                    let _ = Compact::to_compact(self, buf);
+                    let _ = reth_codecs::Compact::to_compact(self, buf);
                 }
             }
 
-            impl$(<$($generic: core::fmt::Debug + Send + Sync + Compact),*>)? Decompress for $name$(<$($generic),*>)? {
+            impl$(<$($generic: core::fmt::Debug + Send + Sync + Compact),*>)? reth_db_api::table::Decompress for $name$(<$($generic),*>)? {
                 fn decompress(value: &[u8]) -> Result<$name$(<$($generic),*>)?, reth_db_api::DatabaseError> {
-                    let (obj, _) = Compact::from_compact(value, value.len());
+                    let (obj, _) = reth_codecs::Compact::from_compact(value, value.len());
                     Ok(obj)
                 }
             }
@@ -50,7 +42,8 @@ macro_rules! impl_compression_for_compact {
     };
 }
 
-/// Implements [`TableInfo`] for one or more table types that implement [`Table`] or [`DupSort`].
+/// Implements [`reth_db_api::table::TableInfo`] for one or more table types that implement
+/// [`reth_db_api::table::Table`] or [`reth_db_api::table::DupSort`].
 ///
 /// This allows the table to be registered and introspected by the Reth database schema system.
 ///
@@ -61,20 +54,24 @@ macro_rules! impl_compression_for_compact {
 macro_rules! impl_table_info {
     ($($table:ty),+ $(,)?) => {
         $(
-            impl reth_db_api::table::TableInfo for $table {
+            impl reth_db_api::table::TableInfo for $table
+            where
+                $table: reth_db_api::table::Table,
+            {
                 fn name(&self) -> &'static str {
-                    <$table>::NAME
+                    <$table as reth_db_api::table::Table>::NAME
                 }
 
                 fn is_dupsort(&self) -> bool {
-                    <$table>::DUPSORT
+                    <$table as reth_db_api::table::Table>::DUPSORT
                 }
             }
         )+
     };
 }
 
-/// Declares a struct representing a collection of tables and implements [`TableSet`] for it.
+/// Declares a struct representing a collection of tables and implements [`reth_db_api::TableSet`]
+/// for it.
 ///
 /// The resulting struct can be passed to Reth's `init_db_for::<_, YourTableSet>()`
 /// to initialize only the specified tables.

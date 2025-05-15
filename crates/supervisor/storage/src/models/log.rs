@@ -8,17 +8,17 @@
 //! It supports fast appends, retrieval, and range queries ordered by log index.
 
 use alloy_primitives::B256;
-use serde::{Deserialize, Serialize};
 use reth_codecs::Compact;
-use reth_db_api::table::DupSort;
 use reth_db::table::Table;
+use reth_db_api::table::DupSort;
+use serde::{Deserialize, Serialize};
 
 /// Metadata associated with a single emitted log.
 ///
 /// This is the value stored in the `LogEntries` dup-sorted table. Each entry includes:
 /// - `hash`: The keccak256 hash of the log event.
-/// - `executing_message_hash`: Optional hash representing a message that executes this log
-///   (used in cross-chain execution contexts).
+/// - `executing_message_hash`: Optional hash representing a message that executes this log (used in
+///   cross-chain execution contexts).
 /// - `timestamp`: Optional timestamp at when the executing message was created.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 pub struct LogEntry {

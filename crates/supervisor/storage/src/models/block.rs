@@ -8,9 +8,9 @@
 //! require dup-sorting.
 
 use alloy_primitives::B256;
-use serde::{Deserialize, Serialize};
 use reth_codecs::Compact;
 use reth_db::table::Table;
+use serde::{Deserialize, Serialize};
 
 /// Metadata reference for a single block.
 ///
