@@ -18,7 +18,7 @@ tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
 
 # `secrets` feature
-libp2p = { workspace = true, optional = true }
+libp2p = { workspace = true, features = ["secp256k1"], optional = true }
 thiserror = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
 
