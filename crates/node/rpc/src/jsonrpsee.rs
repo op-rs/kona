@@ -2,11 +2,14 @@
 
 use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
+use alloy_primitives::B256;
 use core::net::IpAddr;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use kona_genesis::RollupConfig;
+use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
+use op_alloy_consensus::interop::SafetyLevel;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
