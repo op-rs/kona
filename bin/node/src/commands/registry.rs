@@ -12,9 +12,9 @@ use clap::Parser;
 /// ```sh
 /// kona-node registry [FLAGS] [OPTIONS]
 /// ```
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Default, PartialEq, Debug, Clone)]
 #[command(about = "Lists the OP Stack chains available in the superchain-registry")]
-pub struct RegistryCommand {}
+pub struct RegistryCommand;
 
 impl RegistryCommand {
     /// Initializes the telemetry stack and Prometheus metrics recorder.

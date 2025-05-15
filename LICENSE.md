@@ -1,7 +1,8 @@
 # The MIT License (MIT)
 
-Copyright © `2023` `kona contributors`
-Copyright © `2024` `Optimism`
+Copyright © `2023` `kona contributors`  
+Copyright © `2024` `Optimism`  
+Copyright © `2025` `kona contributors`
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation

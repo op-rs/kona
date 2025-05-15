@@ -141,27 +141,6 @@ impl L2BlockInfo {
         Self { block_info, l1_origin, seq_num }
     }
 
-    /// Constructs an [`L2BlockInfo`] from a given [`alloy_rpc_types_eth::Block`] and
-    /// [`ChainGenesis`].
-    pub fn from_rpc_block_and_genesis(
-        block: alloy_rpc_types_eth::Block<op_alloy_rpc_types::Transaction>,
-        genesis: &ChainGenesis,
-    ) -> Result<Self, FromBlockError> {
-        let block_info = BlockInfo::new(
-            block.header.hash,
-            block.header.inner.number,
-            block.header.inner.parent_hash,
-            block.header.inner.timestamp,
-        );
-        if block_info.number == genesis.l2.number {
-            if block_info.hash != genesis.l2.hash {
-                return Err(FromBlockError::InvalidGenesisHash);
-            }
-            return Ok(Self { block_info, l1_origin: genesis.l1, seq_num: 0 })
-        }
-        Self::from_block_and_genesis(&block.into_consensus(), genesis)
-    }
-
     /// Constructs an [L2BlockInfo] from a given OP [Block] and [ChainGenesis].
     pub fn from_block_and_genesis<T: Typed2718 + AsRef<OpTxEnvelope>>(
         block: &Block<T>,

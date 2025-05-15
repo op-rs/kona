@@ -1,5 +1,6 @@
 //! Discovery Module.
 
+use backon::{ExponentialBuilder, RetryableWithContext};
 use derive_more::Debug;
 use discv5::{Discv5, Enr, enr::NodeId};
 use libp2p::Multiaddr;
@@ -65,6 +66,8 @@ pub struct Discv5Driver {
     pub disc: Discv5,
     /// The [`BootStore`].
     pub store: BootStore,
+    /// Bootnodes used to bootstrap the discovery service.
+    pub bootnodes: Vec<Enr>,
     /// The chain ID of the network.
     pub chain_id: u64,
     /// The interval to discovery random nodes.
@@ -93,10 +96,11 @@ impl Discv5Driver {
         bootstore: Option<PathBuf>,
         bootnodes: Vec<Enr>,
     ) -> Self {
-        let store = BootStore::from_chain_id(chain_id, bootstore, bootnodes);
+        let store = BootStore::from_chain_id(chain_id, bootstore, bootnodes.clone());
         Self {
             disc,
             chain_id,
+            bootnodes,
             store,
             interval,
             forward: true,
@@ -106,17 +110,20 @@ impl Discv5Driver {
     }
 
     /// Starts the inner [`Discv5`] service.
-    async fn init(&mut self) {
-        loop {
-            if let Err(e) = self.disc.start().await {
-                warn!(target: "discovery", "Failed to start discovery service: {:?}", e);
-                sleep(Duration::from_secs(2)).await;
-                info!(target: "discovery", "Retrying discovery startup...");
-                continue;
+    async fn init(self) -> Result<Self, discv5::Error> {
+        let (s, res) = {
+            |mut v: Self| async {
+                let res = v.disc.start().await;
+                (v, res)
             }
-            debug!(target: "discovery", "Discovery service enr: {:?}", self.disc.local_enr());
-            break;
         }
+            .retry(ExponentialBuilder::default())
+            .context(self)
+            .notify(|err: &discv5::Error, dur: Duration| {
+                warn!(target: "discovery", ?err, "Failed to start discovery service [Duration: {:?}]", dur);
+            })
+            .await;
+        res.map(|_| s)
     }
 
     /// Adds a bootnode to the discv5 service given an enode address.
@@ -153,7 +160,7 @@ impl Discv5Driver {
     fn bootnode_bootstrap(&mut self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
-        let boot_enrs: Vec<Enr> = nodes
+        let mut boot_enrs: Vec<Enr> = nodes
             .0
             .iter()
             .filter_map(|bn| match bn {
@@ -161,6 +168,8 @@ impl Discv5Driver {
                 _ => None,
             })
             .collect();
+
+        boot_enrs.append(&mut self.bootnodes);
 
         // First attempt to add the bootnodes to the discovery table.
         let mut count = 0;
@@ -269,7 +278,11 @@ impl Discv5Driver {
             let mut store_interval = tokio::time::interval(self.store_interval);
 
             // Step 1: Start the discovery service.
-            self.init().await;
+            let Ok(s) = self.init().await else {
+                error!(target: "discovery", "Failed to start discovery service");
+                return;
+            };
+            self = s;
             trace!(target: "discovery", "Discv5 Initialized");
 
             // Step 2: Bootstrap discovery service bootnodes.
@@ -505,7 +518,7 @@ mod tests {
             .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
 
-        discovery.init().await;
+        discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
         // There are no ENRs for `OP_SEPOLIA_CHAIN_ID` in the bootstore.
         // If an ENR is added, this check will fail.
@@ -593,7 +606,7 @@ mod tests {
             .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
 
-        discovery.init().await;
+        discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
         // There are no ENRs for op mainnet in the bootstore.
         // If an ENR is added, this check will fail.

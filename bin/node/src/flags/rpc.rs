@@ -9,6 +9,9 @@ use std::{net::IpAddr, path::PathBuf};
 /// RPC CLI Arguments
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
 pub struct RpcArgs {
+    /// Whether to enable the rpc server.
+    #[arg(long = "rpc.disabled", default_value = "false", env = "KONA_NODE_RPC_ENABLED")]
+    pub rpc_disabled: bool,
     /// RPC listening address.
     #[arg(long = "rpc.addr", default_value = "0.0.0.0", env = "KONA_NODE_RPC_ADDR")]
     pub listen_addr: IpAddr,
@@ -24,9 +27,18 @@ pub struct RpcArgs {
     pub admin_persistence: Option<PathBuf>,
 }
 
+impl Default for RpcArgs {
+    fn default() -> Self {
+        // Construct default values using the clap parser.
+        // This works since none of the cli flags are required.
+        Self::parse_from::<[_; 0], &str>([])
+    }
+}
+
 impl From<&RpcArgs> for RpcConfig {
     fn from(args: &RpcArgs) -> Self {
         Self {
+            enabled: !args.rpc_disabled,
             listen_addr: args.listen_addr,
             listen_port: args.listen_port,
             enable_admin: args.enable_admin,
@@ -38,5 +50,26 @@ impl From<&RpcArgs> for RpcConfig {
 impl From<RpcArgs> for RpcConfig {
     fn from(args: RpcArgs) -> Self {
         Self::from(&args)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+    use std::net::Ipv4Addr;
+
+    #[rstest]
+    #[case::disable_rpc(&["--rpc.disabled"], |args: &mut RpcArgs| { args.rpc_disabled = true; })]
+    #[case::disable_rpc(&["--rpc.addr", "1.1.1.1"], |args: &mut RpcArgs| { args.listen_addr = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)); })]
+    #[case::disable_rpc(&["--rpc.port", "8743"], |args: &mut RpcArgs| { args.listen_port = 8743; })]
+    #[case::disable_rpc(&["--rpc.enable-admin"], |args: &mut RpcArgs| { args.enable_admin = true; })]
+    #[case::disable_rpc(&["--rpc.admin-state", "/"], |args: &mut RpcArgs| { args.admin_persistence = Some(PathBuf::from("/")); })]
+    fn test_parse_rpc_args(#[case] args: &[&str], #[case] mutate: impl Fn(&mut RpcArgs)) {
+        let args = [&["kona-node"], args].concat();
+        let cli = RpcArgs::parse_from(args);
+        let mut expected = RpcArgs::default();
+        mutate(&mut expected);
+        assert_eq!(cli, expected);
     }
 }

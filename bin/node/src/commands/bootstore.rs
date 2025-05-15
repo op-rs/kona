@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// ```sh
 /// kona-node bootstore [FLAGS] [OPTIONS]
 /// ```
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Default, PartialEq, Debug, Clone)]
 #[command(about = "Utility tool to interact with local bootstores")]
 pub struct BootstoreCommand {
     /// Optionally prints all bootstores.

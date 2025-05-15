@@ -55,11 +55,6 @@ pub struct SyncStatus {
     /// This points to the L2 block that was derived fully from finalized L1 information, thus
     /// irreversible.
     pub finalized_l2: L2BlockInfo,
-    /// The pending safe L2 block ref.
-    ///
-    /// This points to the L2 block processed from the batch, but not consolidated to the safe
-    /// block yet.
-    pub pending_safe_l2: L2BlockInfo,
     /// Cross unsafe L2 block ref.
     ///
     /// This is an unsafe L2 block, that has been verified to match cross-L2 dependencies.

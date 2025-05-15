@@ -51,7 +51,6 @@ impl RollupRpc {
             local_safe_l2: l2_sync_status.local_safe_head(),
             safe_l2: l2_sync_status.safe_head(),
             finalized_l2: l2_sync_status.finalized_head(),
-            pending_safe_l2: l2_sync_status.pending_safe_head(),
         }
     }
 }

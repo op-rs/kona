@@ -9,6 +9,9 @@
 pub mod cli;
 pub mod commands;
 pub mod flags;
+pub mod metrics;
+
+pub(crate) mod version;
 
 fn main() {
     use clap::Parser;

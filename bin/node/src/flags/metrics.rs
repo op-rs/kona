@@ -2,13 +2,14 @@
 //!
 //! Specifies the available flags for prometheus metric configuration inside CLI
 
+use crate::metrics::VersionInfo;
+
+use clap::{Parser, arg};
+use kona_cli::init_prometheus_server;
 use std::net::IpAddr;
 
-use clap::{Args, arg};
-use kona_cli::init_prometheus_server;
-
 /// The metric configuration available in CLI
-#[derive(Debug, Clone, Args)]
+#[derive(Debug, Clone, Parser)]
 pub struct MetricsArgs {
     /// Controls whether prometheus metrics are enabled.
     /// Disabled by default.
@@ -37,6 +38,14 @@ pub struct MetricsArgs {
     pub addr: IpAddr,
 }
 
+impl Default for MetricsArgs {
+    fn default() -> Self {
+        // Construct default values using the clap parser.
+        // This works since none of the cli flags are required.
+        Self::parse_from::<[_; 0], &str>([])
+    }
+}
+
 impl MetricsArgs {
     /// Initialize the tracing stack and Prometheus metrics recorder.
     ///
@@ -46,6 +55,7 @@ impl MetricsArgs {
             init_prometheus_server(self.addr, self.port)?;
             kona_p2p::Metrics::init();
             kona_engine::Metrics::init();
+            VersionInfo::from_build().register_version_metrics();
         }
 
         Ok(())

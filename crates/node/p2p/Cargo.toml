@@ -42,6 +42,7 @@ openssl = { workspace = true, features = ["vendored"] }
 secp256k1.workspace = true
 
 # Misc
+backon.workspace = true
 url.workspace = true
 dirs.workspace = true
 serde.workspace = true

@@ -201,7 +201,7 @@ impl NodeActor for EngineActor {
                           trace!(target: "engine", "[ENGINE] tasks drained");
                           // Update the l2 safe head if needed.
                           let state_safe_head = self.engine.safe_head();
-                           let update = |head: &mut L2BlockInfo| {
+                          let update = |head: &mut L2BlockInfo| {
                               if head != &state_safe_head {
                                   *head = state_safe_head;
                                   return true;

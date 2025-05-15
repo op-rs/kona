@@ -14,7 +14,7 @@ use kona_p2p::{Config, LocalNode, PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
     sync::Arc,
@@ -166,6 +166,23 @@ pub struct P2PArgs {
     #[arg(long = "p2p.bootnodes", value_delimiter = ',', env = "KONA_NODE_P2P_BOOTNODES")]
     pub bootnodes: Vec<Enr>,
 
+    /// Optionally enable topic scoring.
+    ///
+    /// Topic scoring is a mechanism to score peers based on their behavior in the gossip network.
+    /// Historically, topic scoring was only enabled for the v1 topic on the OP Stack p2p network
+    /// in the `op-node`. This was a silent bug, and topic scoring is actively being
+    /// [phased out of the `op-node`][out].
+    ///
+    /// This flag is only presented for backwards compatibility and debugging purposes.
+    ///
+    /// [out]: https://github.com/ethereum-optimism/optimism/pull/15719
+    #[arg(
+        long = "p2p.topic-scoring",
+        default_value = "false",
+        env = "KONA_NODE_P2P_TOPIC_SCORING"
+    )]
+    pub topic_scoring: bool,
+
     /// An optional unsafe block signer address.
     ///
     /// By default, this is fetched from the chain config in the superchain-registry using the
@@ -185,36 +202,9 @@ pub struct P2PArgs {
 
 impl Default for P2PArgs {
     fn default() -> Self {
-        Self {
-            disabled: false,
-            no_discovery: false,
-            priv_path: None,
-            private_key: None,
-            advertise_ip: None,
-            advertise_tcp_port: 0,
-            advertise_udp_port: 0,
-            listen_ip: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            listen_tcp_port: 9222,
-            listen_udp_port: 9223,
-            peers_lo: 20,
-            peers_hi: 30,
-            peers_grace: Duration::from_secs(30),
-            gossip_mesh_d: kona_p2p::DEFAULT_MESH_D,
-            gossip_mesh_dlo: kona_p2p::DEFAULT_MESH_DLO,
-            gossip_mesh_dhi: kona_p2p::DEFAULT_MESH_DHI,
-            gossip_mesh_dlazy: kona_p2p::DEFAULT_MESH_DLAZY,
-            gossip_flood_publish: false,
-            scoring: PeerScoreLevel::Light,
-            ban_enabled: false,
-            ban_threshold: 0,
-            ban_duration: 30,
-            discovery_interval: 5,
-            bootnodes: Vec::new(),
-            bootstore: None,
-            peer_redial: None,
-            unsafe_block_signer: None,
-            discovery_randomize: None,
-        }
+        // Construct default values using the clap parser.
+        // This works since none of the cli flags are required.
+        Self::parse_from::<[_; 0], &str>([])
     }
 }
 
@@ -319,7 +309,7 @@ impl P2PArgs {
     ///
     /// Errors if the genesis unsafe block signer isn't available for the specified L2 Chain ID.
     pub async fn config(
-        &self,
+        self,
         config: &RollupConfig,
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
@@ -391,12 +381,10 @@ impl P2PArgs {
             scoring: self.scoring,
             block_time,
             monitor_peers,
-            bootstore: self.bootstore.clone(),
+            bootstore: self.bootstore,
+            topic_scoring: self.topic_scoring,
             redial: self.peer_redial,
-            // It is ok to clone here since the config only happens at startup
-            // and that we assume the number of bootnodes explicitly specified
-            // through the CLI is small.
-            bootnodes: self.bootnodes.clone(),
+            bootnodes: self.bootnodes,
             rollup_config: config.clone(),
         })
     }
