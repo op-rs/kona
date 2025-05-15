@@ -16,13 +16,13 @@ workspace = true
 
 [dependencies]
 # workspace
+kona-rpc.workspace = true
 kona-derive.workspace = true
 kona-sources.workspace = true
-kona-cli.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 
-kona-rpc.workspace = true
+kona-cli = { workspace = true, features = ["secrets"] }
 kona-engine = { workspace = true, features = ["metrics"] }
 kona-p2p = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }

@@ -8,7 +8,9 @@
 mod clap;
 pub use clap::cli_styles;
 
+#[cfg(feature = "secrets")]
 mod secrets;
+#[cfg(feature = "secrets")]
 pub use secrets::{KeypairError, ParseKeyError, SecretKeyLoader};
 
 pub mod backtrace;
