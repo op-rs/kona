@@ -6,3 +6,5 @@ pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
 mod rpc;
 pub use rpc::SupervisorRpc;
+
+mod syncnode;

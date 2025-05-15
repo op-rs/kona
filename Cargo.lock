@@ -4980,6 +4980,8 @@ dependencies = [
  "kona-interop",
  "kona-supervisor-rpc",
  "metrics",
+ "op-alloy-consensus",
+ "serde",
  "thiserror 2.0.12",
  "tracing",
 ]

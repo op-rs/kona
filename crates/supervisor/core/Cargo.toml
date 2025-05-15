@@ -20,6 +20,10 @@ kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+op-alloy-consensus.workspace = true
+
+# Serde
+serde = { workspace = true, optional = true }
 
 # Misc
 jsonrpsee = { workspace = true, features = [ "server" ] }
@@ -32,3 +36,12 @@ metrics = { workspace = true }
 
 [lints]
 workspace = true
+
+[features]
+default = []
+serde = [
+  "dep:serde",
+  "alloy-eips/serde",
+  "alloy-primitives/serde",
+]
+
