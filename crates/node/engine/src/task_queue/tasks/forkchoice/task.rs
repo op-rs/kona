@@ -1,6 +1,8 @@
 //! A task for the `engine_forkchoiceUpdated` method, with no attributes.
 
-use crate::{EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError};
+use crate::{
+    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, Metrics,
+};
 use alloy_rpc_types_engine::INVALID_FORK_CHOICE_STATE_ERROR;
 use async_trait::async_trait;
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -61,6 +63,10 @@ impl EngineTaskExt for ForkchoiceTask {
         }
 
         state.forkchoice_update_needed = false;
+
+        // Update metrics.
+        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FORKCHOICE_TASK_LABEL);
+
         Ok(())
     }
 }

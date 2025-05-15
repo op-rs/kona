@@ -2,6 +2,7 @@
 
 use derive_more::{Display, FromStr};
 use libp2p::gossipsub::{PeerScoreParams, PeerScoreThresholds, TopicHash, TopicScoreParams};
+use std::collections::HashMap;
 
 /// The peer scoring level is used to determine
 /// how peers are scored based on their behavior.
@@ -83,26 +84,41 @@ impl PeerScoreLevel {
         }
     }
 
+    /// Constructs topic scores for the given topics.
+    pub fn topic_scores(
+        topics: Vec<TopicHash>,
+        block_time: u64,
+    ) -> HashMap<TopicHash, TopicScoreParams> {
+        let mut topic_scores = HashMap::with_capacity(topics.len());
+        for topic in topics {
+            debug!(target: "scoring", "Topic scoring enabled on topic: {}", topic);
+            topic_scores.insert(topic, Self::topic_score_params(block_time));
+        }
+        topic_scores
+    }
+
     /// Returns the [`PeerScoreParams`] for the given peer scoring level.
     ///
     /// # Arguments
     /// * `block_time` - The block time in seconds.
-    pub fn to_params(&self, topics: Vec<TopicHash>, block_time: u64) -> Option<PeerScoreParams> {
+    pub fn to_params(
+        &self,
+        topics: Vec<TopicHash>,
+        topic_scoring: bool,
+        block_time: u64,
+    ) -> Option<PeerScoreParams> {
         let slot = std::time::Duration::from_secs(block_time);
         debug!(target: "scoring", "Slot duration: {:?}", slot);
         let epoch = slot * 6;
         let ten_epochs = epoch * 10;
         let one_hundred_epochs = epoch * 100;
         let penalty_decay = Self::score_decay(ten_epochs, slot);
-        let mut topic_scores = std::collections::HashMap::with_capacity(topics.len());
-        for topic in topics {
-            debug!(target: "scoring", "Topic scoring enabled on topic: {}", topic);
-            topic_scores.insert(topic, Self::topic_score_params(block_time));
-        }
+        let topics =
+            topic_scoring.then(|| Self::topic_scores(topics, block_time)).unwrap_or_default();
         match self {
             Self::Off => None,
             Self::Light => Some(PeerScoreParams {
-                topics: topic_scores,
+                topics,
                 topic_score_cap: 34.0,
                 app_specific_weight: 1.0,
                 ip_colocation_factor_weight: -35.0,

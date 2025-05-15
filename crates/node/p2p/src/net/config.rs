@@ -30,6 +30,8 @@ pub struct Config {
     pub gossip_config: libp2p::gossipsub::Config,
     /// The peer score level.
     pub scoring: PeerScoreLevel,
+    /// Whether to enable topic scoring.
+    pub topic_scoring: bool,
     /// Peer score monitoring config.
     pub monitor_peers: Option<PeerMonitoring>,
     /// The L2 Block Time.

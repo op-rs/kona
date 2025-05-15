@@ -2,7 +2,7 @@
 
 use crate::{
     BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskError, EngineTaskExt,
-    ForkchoiceTask,
+    ForkchoiceTask, Metrics,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -37,7 +37,7 @@ impl ConsolidateTask {
     }
 
     /// Executes the [`ForkchoiceTask`] if the attributes match the block.
-    pub async fn execute_forkchoice_task(
+    async fn execute_forkchoice_task(
         &self,
         state: &mut EngineState,
     ) -> Result<(), EngineTaskError> {
@@ -47,7 +47,7 @@ impl ConsolidateTask {
 
     /// Executes a new [`BuildTask`].
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
-    pub async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         let build_task = BuildTask::new(
             self.client.clone(),
             self.cfg.clone(),
@@ -91,6 +91,14 @@ impl ConsolidateTask {
                     match self.execute_forkchoice_task(state).await {
                         Ok(()) => {
                             debug!(target: "engine", "Consolidation successful");
+
+                            // Update metrics.
+                            kona_macros::inc!(
+                                counter,
+                                Metrics::ENGINE_TASK_COUNT,
+                                Metrics::CONSOLIDATE_TASK_LABEL
+                            );
+
                             return Ok(());
                         }
                         Err(e) => {
