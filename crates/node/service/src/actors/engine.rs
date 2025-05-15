@@ -2,9 +2,9 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
-use kona_derive::types::Signal;
+use kona_derive::types::{ResetSignal, Signal};
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineStateBuilder,
+    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineResetError, EngineStateBuilder,
     EngineStateBuilderError, EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
@@ -133,8 +133,10 @@ pub struct EngineLauncher {
     pub config: Arc<RollupConfig>,
     /// The engine rpc url.
     pub engine_url: Url,
-    /// The l2 rpc url.
+    /// The L2 rpc url.
     pub l2_rpc_url: Url,
+    /// The L1 rpc url.
+    pub l1_rpc_url: Url,
     /// The engine jwt secret.
     pub jwt_secret: JwtSecret,
 }
@@ -146,7 +148,14 @@ impl EngineLauncher {
         let state = self.state_builder().build().await?;
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
 
-        Ok(Engine::new(state, engine_state_send))
+        let mut engine = Engine::new(state, engine_state_send);
+
+        engine
+            .reset(Arc::new(self.client()), &self.config)
+            .await
+            .expect("TODO: Handled in follow-up PR");
+
+        Ok(engine)
     }
 
     /// Returns the [`EngineClient`].
@@ -154,6 +163,7 @@ impl EngineLauncher {
         EngineClient::new_http(
             self.engine_url.clone(),
             self.l2_rpc_url.clone(),
+            self.l1_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,
         )
@@ -203,12 +213,27 @@ impl NodeActor for EngineActor {
                           let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
                           trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
                         }
+                        Err(EngineTaskError::Reset(e)) => {
+                            warn!(target: "engine", err = ?e, "Received reset request");
+                            let (l2_safe_head, l1_origin, system_config) =
+                                self.engine.reset(self.client.clone(), &self.config).await?;
+
+                            let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
+                            match self.derivation_signal_tx.send(signal.signal()) {
+                                Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
+                                Err(e) => {
+                                    error!(target: "engine", ?e, "Failed to send reset signal to the derivation actor");
+                                    self.cancellation.cancel();
+                                    return Err(EngineError::ChannelClosed);
+                                }
+                            }
+                        }
                         Err(EngineTaskError::Flush(e)) => {
                             // This error is encountered when the payload is marked INVALID
                             // by the engine api. Post-holocene, the payload is replaced by
                             // a "deposits-only" block and re-executed. At the same time,
                             // the channel and any remaining buffered batches are flushed.
-                            warn!(target: "engine", ?e, "[HOLOCENE] Invalid payload, Flushing derivation pipeline.");
+                            warn!(target: "engine", err = ?e, "[HOLOCENE] Invalid payload, Flushing derivation pipeline.");
                             match self.derivation_signal_tx.send(Signal::FlushChannel) {
                                 Ok(_) => debug!(target: "engine", "[SENT] flush signal to derivation actor"),
                                 Err(e) => {
@@ -285,4 +310,7 @@ pub enum EngineError {
     /// Closed channel error.
     #[error("closed channel error")]
     ChannelClosed,
+    /// Engine reset error.
+    #[error(transparent)]
+    EngineReset(#[from] EngineResetError),
 }

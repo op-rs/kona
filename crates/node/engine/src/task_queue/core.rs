@@ -1,8 +1,18 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
 use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineState, EngineTask, EngineTaskType};
-use std::collections::{HashMap, VecDeque};
+use crate::{EngineClient, EngineState, EngineTask, EngineTaskType, ForkchoiceTask};
+use alloy_provider::Provider;
+use alloy_rpc_types_eth::Transaction;
+use kona_genesis::{RollupConfig, SystemConfig};
+use kona_protocol::{BlockInfo, L2BlockInfo, OpBlockConversionError, to_system_config};
+use kona_sources::{SyncStartError, find_starting_forkchoice};
+use op_alloy_consensus::OpTxEnvelope;
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+};
+use thiserror::Error;
 use tokio::sync::watch::Sender;
 
 /// The [`Engine`] task queue.
@@ -40,14 +50,63 @@ impl Engine {
         }
     }
 
+    /// Returns a reference to the inner [`EngineState`].
+    pub const fn state(&self) -> &EngineState {
+        &self.state
+    }
+
+    /// Returns a receiver that can be used to listen to engine state updates.
+    pub fn subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
+        self.state_sender.subscribe()
+    }
+
     /// Enqueues a new [`EngineTask`] for execution.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.entry(task.ty()).or_default().push_back(task);
     }
 
-    /// Returns a reference to the inner [`EngineState`].
-    pub const fn state(&self) -> &EngineState {
-        &self.state
+    /// Resets the engine by finding a plausible sync starting point via
+    /// [`find_starting_forkchoice`]. The state will be updated to the starting point, and a
+    /// forkchoice update will be enqueued in order to reorg the execution layer.
+    pub async fn reset(
+        &mut self,
+        client: Arc<EngineClient>,
+        config: &RollupConfig,
+    ) -> Result<(L2BlockInfo, BlockInfo, SystemConfig), EngineResetError> {
+        let start =
+            find_starting_forkchoice(config, client.l1_provider(), client.l2_provider()).await?;
+
+        self.state.set_unsafe_head(start.un_safe);
+        self.state.set_cross_unsafe_head(start.un_safe);
+        self.state.set_local_safe_head(start.safe);
+        self.state.set_safe_head(start.safe);
+        self.state.set_finalized_head(start.finalized);
+
+        self.enqueue(EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(client.clone())));
+
+        let origin_block =
+            start.safe.l1_origin.number - config.channel_timeout(start.safe.block_info.timestamp);
+        let l1_origin_info: BlockInfo = client
+            .l1_provider()
+            .get_block(origin_block.into())
+            .await
+            .map_err(SyncStartError::RpcError)?
+            .ok_or(SyncStartError::BlockNotFound(origin_block.into()))?
+            .into_consensus()
+            .into();
+
+        let l2_safe_block = client
+            .l2_provider()
+            .get_block(start.safe.block_info.hash.into())
+            .full()
+            .await
+            .map_err(SyncStartError::RpcError)?
+            .ok_or(SyncStartError::BlockNotFound(origin_block.into()))?
+            .into_consensus()
+            .map_transactions(|t| <Transaction<OpTxEnvelope> as Clone>::clone(&t).into_inner());
+        let system_config = to_system_config(&l2_safe_block, config)?;
+
+        Ok((start.safe, l1_origin_info, system_config))
     }
 
     /// Clears the task queue.
@@ -67,11 +126,6 @@ impl Engine {
             }
         }
         ty
-    }
-
-    /// Returns a receiver that can be used to listen to engine state updates.
-    pub fn subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
-        self.state_sender.subscribe()
     }
 
     /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
@@ -108,4 +162,18 @@ impl Engine {
             };
         }
     }
+}
+
+/// An error occurred while attempting to reset the [`Engine`].
+#[derive(Debug, Error)]
+pub enum EngineResetError {
+    /// An error that originated from within the engine task.
+    #[error(transparent)]
+    Task(#[from] EngineTaskError),
+    /// An error occurred while traversing the L1 for the sync starting point.
+    #[error(transparent)]
+    SyncStart(#[from] SyncStartError),
+    /// An error occurred while constructing the SystemConfig for the new safe head.
+    #[error(transparent)]
+    SystemConfigConversion(#[from] OpBlockConversionError),
 }

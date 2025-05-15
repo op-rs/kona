@@ -188,9 +188,6 @@ impl EngineTaskExt for InsertUnsafeTask {
             state.sync_status = SyncStatus::ExecutionLayerFinished;
         }
 
-        // Initialize unknowns if needed.
-        crate::init_unknowns(state, self.client.clone()).await;
-
         info!(
             target: "engine",
             hash = new_unsafe_ref.block_info.hash.to_string(),
