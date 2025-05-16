@@ -14,7 +14,8 @@ use serde::{Deserialize, Serialize};
 /// Metadata reference for a single block.
 ///
 /// This struct captures minimal but essential block header information required
-/// to track canonical block lineage and verify ancestry.
+/// to track canonical block lineage and verify ancestry. It is stored as the value
+/// in the [`crate::models::BlockHeaders`] table.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 pub struct BlockHeader {
     /// The hash of the block itself.

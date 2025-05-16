@@ -13,9 +13,10 @@ use serde::{Deserialize, Serialize};
 
 /// Metadata associated with a single emitted log.
 ///
-/// This is the value stored in the `LogEntries` dup-sorted table. Each entry includes:
+/// This is the value stored in the [`crate::models::LogEntries`] dup-sorted table. Each entry
+/// includes:
 /// - `hash`: The keccak256 hash of the log event.
-/// - `executing_message` - An optional field that may contain a cross-domain execution message,
+/// - `executing_message` - An optional field that may contain a cross-domain execution message.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 pub struct LogEntry {
     /// The keccak256 hash of the emitted log event.
