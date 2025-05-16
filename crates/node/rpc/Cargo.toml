@@ -28,6 +28,7 @@ kona-interop = { workspace = true, features = ["serde"] }
 # OP Alloy
 op-alloy-consensus.workspace = true
 op-alloy-rpc-types-engine = {workspace = true, features = ["serde", "std"]}
+op-alloy-rpc-types.workspace = true
 
 # Alloy
 alloy-eips = { workspace = true, features = ["serde", "std"] }
