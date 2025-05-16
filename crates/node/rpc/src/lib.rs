@@ -25,20 +25,21 @@ pub use output::OutputResponse;
 
 mod jsonrpsee;
 #[cfg(feature = "client")]
-pub use jsonrpsee::SupervisorApiClient;
-#[cfg(feature = "client")]
 pub use jsonrpsee::{MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient};
-pub use jsonrpsee::{
-    MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer, SupervisorApiServer,
-};
+pub use jsonrpsee::{MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer};
 
 #[cfg(feature = "reqwest")]
 pub mod reqwest;
-#[cfg(all(feature = "reqwest", feature = "client"))]
+#[cfg(feature = "reqwest")]
 pub use reqwest::SupervisorClient;
 
+#[cfg(feature = "client")]
 mod interop;
-pub use interop::{CheckAccessList, InteropTxValidator, InteropTxValidatorError};
+#[cfg(feature = "client")]
+pub use interop::{CheckAccessListClient, InteropTxValidator, InteropTxValidatorError};
+
+#[cfg(feature = "client")]
+pub use kona_supervisor_rpc::SupervisorApiClient;
 
 mod rollup;
 pub use rollup::RollupRpc;

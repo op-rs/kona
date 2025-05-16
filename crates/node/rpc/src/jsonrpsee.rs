@@ -6,9 +6,10 @@ use alloy_primitives::B256;
 use core::net::IpAddr;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use kona_genesis::RollupConfig;
-use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
+use op_alloy_consensus::interop::SafetyLevel;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
@@ -139,20 +140,4 @@ pub trait SupervisorApi {
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
-}
-
-#[cfg(feature = "client")]
-impl<T> crate::CheckAccessList for T
-where
-    T: SupervisorApiClient + Send + Sync,
-{
-    async fn check_access_list(
-        &self,
-        inbox_entries: &[B256],
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> Result<(), crate::InteropTxValidatorError> {
-        Ok(T::check_access_list(self, inbox_entries.to_vec(), min_safety, executing_descriptor)
-            .await?)
-    }
 }

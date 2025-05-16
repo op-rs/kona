@@ -2,6 +2,7 @@
 
 use core::error;
 use kona_interop::InvalidInboxEntry;
+use kona_supervisor_rpc::jsonrpsee::ErrorObjectOwned;
 
 /// Failures occurring during validation of inbox entries.
 #[derive(thiserror::Error, Debug)]
@@ -35,21 +36,26 @@ impl InteropTxValidatorError {
     }
 }
 
-#[cfg(feature = "client")]
 impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
-            jsonrpsee::core::ClientError::Call(err) => err.into(),
+            jsonrpsee::core::ClientError::Call(err) => {
+                InvalidInboxEntry::parse_err_msg(err.message())
+                    .map(Into::into)
+                    .unwrap_or(Self::client(err))
+            } /* todo: match on */
+            // supervisor code
             _ => Self::client(err),
         }
     }
 }
 
-impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
-    fn from(err: jsonrpsee::types::ErrorObjectOwned) -> Self {
-        InvalidInboxEntry::parse_err_msg(err.message())
-            .map(Self::InvalidInboxEntry)
-            .unwrap_or(Self::server_unexpected(err))
+impl From<ErrorObjectOwned> for InteropTxValidatorError {
+    fn from(err: ErrorObjectOwned) -> Self {
+        InvalidInboxEntry::parse_err_msg(err.message()).map_or_else(
+            || Self::server_unexpected(err),
+            |invalid_inbox_entry| invalid_inbox_entry.into(),
+        )
     }
 }
 
