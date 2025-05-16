@@ -1,0 +1,34 @@
+CURRENT := invocation_directory()
+
+setup:
+    mise trust && mise install
+
+clone-kurtosis-devnet:
+    -(git clone https://github.com/ethereum-optimism/optimism.git)
+    (cd optimism && mise trust && mise install)
+
+[working-directory: "./optimism/kurtosis-devnet"]
+deploy DEVNET_FILE_PATH NAME="": setup clone-kurtosis-devnet
+    #!/usr/bin/env bash
+    cp -f {{CURRENT}}/{{DEVNET_FILE_PATH}} . 
+
+    export DEVNET_FILE_PATH="{{DEVNET_FILE_PATH}}"
+    export TARGET_NAME=`basename $DEVNET_FILE_PATH`
+    export DEVNET_NAME={{NAME}}
+
+    if [ -z "{{NAME}}" ]; then
+        export DEVNET_NAME=`basename $TARGET_NAME .yaml`
+    fi
+
+    export ENCL_NAME="$DEVNET_NAME"-devnet
+    
+    NAME=$DEVNET_NAME just devnet "$TARGET_NAME"
+
+    cp tests/$ENCL_NAME.json {{CURRENT}}/devnets/
+
+isolate_test DEVNET_ENV_URL:
+    DEVNET_ENV_URL='{{CURRENT}}/{{DEVNET_ENV_URL}}' go test -v ./...
+
+test DEVNET: 
+    just deploy "./devnets/{{DEVNET}}.yaml"
+    just isolate_test "./devnets/{{DEVNET}}-devnet.json"

@@ -1,0 +1,874 @@
+{
+  "name": "simple-kona-devnet",
+  "reverse_proxy_url": "http://127.0.0.1:9730",
+  "l1": {
+    "name": "Ethereum",
+    "id": "3151908",
+    "nodes": [
+      {
+        "name": "",
+        "services": {
+          "cl": {
+            "name": "cl-1-nimbus-geth",
+            "endpoints": {
+              "http": {
+                "host": "127.0.0.1",
+                "port": 32887,
+                "private_port": 4000,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "4000-305975b3bdf5-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "metrics": {
+                "host": "127.0.0.1",
+                "port": 32888,
+                "private_port": 8008,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8008-305975b3bdf5-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "tcp-discovery": {
+                "host": "127.0.0.1",
+                "port": 32889,
+                "private_port": 9000,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "9000-305975b3bdf5-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "udp-discovery": {
+                "host": "127.0.0.1",
+                "port": 32783,
+                "private_port": 9000,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "9000-305975b3bdf5-aa90adbc8d5b"
+                  ]
+                }
+              }
+            }
+          },
+          "el": {
+            "name": "el-1-geth-nimbus",
+            "endpoints": {
+              "engine-rpc": {
+                "host": "127.0.0.1",
+                "port": 32884,
+                "private_port": 8551,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8551-4c8f31793fa7-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "metrics": {
+                "host": "127.0.0.1",
+                "port": 32885,
+                "private_port": 9001,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "9001-4c8f31793fa7-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "rpc": {
+                "host": "127.0.0.1",
+                "port": 32882,
+                "private_port": 8545,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8545-4c8f31793fa7-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "tcp-discovery": {
+                "host": "127.0.0.1",
+                "port": 32886,
+                "private_port": 30303,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "30303-4c8f31793fa7-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "udp-discovery": {
+                "host": "127.0.0.1",
+                "port": 32782,
+                "private_port": 30303,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "30303-4c8f31793fa7-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "ws": {
+                "host": "127.0.0.1",
+                "port": 32883,
+                "private_port": 8546,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8546-4c8f31793fa7-aa90adbc8d5b"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "wallets": {
+      "user-key-0": {
+        "address": "0x8943545177806ed17b9f23f0a21ee5948ecaa776",
+        "private_key": "0xbcdf20249abf0ed6d944c0288fad489e33f66b3960d9e6229c1cd214ed3bbe31"
+      },
+      "user-key-1": {
+        "address": "0xe25583099ba105d9ec0a67f5ae86d90e50036425",
+        "private_key": "0x39725efee3fb28614de3bacaffe4cc4bd8c436257e2c8bb887c4b5c4be45e76d"
+      },
+      "user-key-10": {
+        "address": "0x3e95dfbbaf6b348396e6674c7871546dcc568e56",
+        "private_key": "0x94eb3102993b41ec55c241060f47daa0f6372e2e3ad7e91612ae36c364042e44"
+      },
+      "user-key-11": {
+        "address": "0x5918b2e647464d4743601a865753e64c8059dc4f",
+        "private_key": "0xdaf15504c22a352648a71ef2926334fe040ac1d5005019e09f6c979808024dc7"
+      },
+      "user-key-12": {
+        "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+        "private_key": "0xeaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+      },
+      "user-key-13": {
+        "address": "0x4d1cb4eb7969f8806e2caac0cbbb71f88c8ec413",
+        "private_key": "0x3fd98b5187bf6526734efaa644ffbb4e3670d66f5d0268ce0323ec09124bff61"
+      },
+      "user-key-14": {
+        "address": "0xf5504ce2bcc52614f121aff9b93b2001d92715ca",
+        "private_key": "0x5288e2f440c7f0cb61a9be8afdeb4295f786383f96f5e35eb0c94ef103996b64"
+      },
+      "user-key-15": {
+        "address": "0xf61e98e7d47ab884c244e39e031978e33162ff4b",
+        "private_key": "0xf296c7802555da2a5a662be70e078cbd38b44f96f8615ae529da41122ce8db05"
+      },
+      "user-key-16": {
+        "address": "0xf1424826861ffbbd25405f5145b5e50d0f1bfc90",
+        "private_key": "0xbf3beef3bd999ba9f2451e06936f0423cd62b815c9233dd3bc90f7e02a1e8673"
+      },
+      "user-key-17": {
+        "address": "0xfdce42116f541fc8f7b0776e2b30832bd5621c85",
+        "private_key": "0x6ecadc396415970e91293726c3f5775225440ea0844ae5616135fd10d66b5954"
+      },
+      "user-key-18": {
+        "address": "0xd9211042f35968820a3407ac3d80c725f8f75c14",
+        "private_key": "0xa492823c3e193d6c595f37a18e3c06650cf4c74558cc818b16130b293716106f"
+      },
+      "user-key-19": {
+        "address": "0xd8f3183def51a987222d845be228e0bbb932c222",
+        "private_key": "0xc5114526e042343c6d1899cad05e1c00ba588314de9b96929914ee0df18d46b2"
+      },
+      "user-key-2": {
+        "address": "0x614561d2d143621e126e87831aef287678b442b8",
+        "private_key": "0x53321db7c1e331d93a11a41d16f004d7ff63972ec8ec7c25db329728ceeb1710"
+      },
+      "user-key-20": {
+        "address": "0xaff0ca253b97e54440965855cec0a8a2e2399896",
+        "private_key": "0x04b9f63ecf84210c5366c66d68fa1f5da1fa4f634fad6dfc86178e4d79ff9e59"
+      },
+      "user-key-3": {
+        "address": "0xf93ee4cf8c6c40b329b0c0626f28333c132cf241",
+        "private_key": "0xab63b23eb7941c1251757e24b3d2350d2bc05c3c388d06f8fe6feafefb1e8c70"
+      },
+      "user-key-4": {
+        "address": "0x802dcbe1b1a97554b4f50db5119e37e8e7336417",
+        "private_key": "0x5d2344259f42259f82d2c140aa66102ba89b57b4883ee441a8b312622bd42491"
+      },
+      "user-key-5": {
+        "address": "0xae95d8da9244c37cac0a3e16ba966a8e852bb6d6",
+        "private_key": "0x27515f805127bebad2fb9b183508bdacb8c763da16f54e0678b16e8f28ef3fff"
+      },
+      "user-key-6": {
+        "address": "0x2c57d1cfc6d5f8e4182a56b4cf75421472ebaea4",
+        "private_key": "0x7ff1a4c1d57e5e784d327c4c7651e952350bc271f156afb3d00d20f5ef924856"
+      },
+      "user-key-7": {
+        "address": "0x741bfe4802ce1c4b5b00f9df2f5f179a1c89171a",
+        "private_key": "0x3a91003acaf4c21b3953d94fa4a6db694fa69e5242b2e37be05dd82761058899"
+      },
+      "user-key-8": {
+        "address": "0xc3913d4d8bab4914328651c2eae817c8b78e1f4c",
+        "private_key": "0xbb1d0f125b4fb2bb173c318cdead45468474ca71474e2247776b2b4c0fa2d3f5"
+      },
+      "user-key-9": {
+        "address": "0x65d08a056c17ae13370565b04cf77d2afa1cb9fa",
+        "private_key": "0x850643a0224065ecce3882673c21f56bcf6eef86274cc21cadff15930b59fc8c"
+      }
+    },
+    "jwt": "0xdc49981516e8e72b401a63e6405495a32dafc3939b5d6d83cc319ac0388bca1b",
+    "config": {
+      "chainId": 3151908,
+      "homesteadBlock": 0,
+      "eip150Block": 0,
+      "eip155Block": 0,
+      "eip158Block": 0,
+      "byzantiumBlock": 0,
+      "constantinopleBlock": 0,
+      "petersburgBlock": 0,
+      "istanbulBlock": 0,
+      "berlinBlock": 0,
+      "londonBlock": 0,
+      "mergeNetsplitBlock": 0,
+      "shanghaiTime": 0,
+      "cancunTime": 0,
+      "terminalTotalDifficulty": 0,
+      "depositContractAddress": "0x0000000000000000000000000000000000000000",
+      "blobSchedule": {
+        "cancun": {
+          "target": 3,
+          "max": 6,
+          "baseFeeUpdateFraction": 3338477
+        }
+      }
+    },
+    "addresses": {
+      "AnchorStateRegistryImpl": "0xeb69cc681e8d4a557b30dffbad85affd47a2cf2e",
+      "DelayedWethImpl": "0x33dadc2d1aa9bb613a7ae6b28425ea00d44c6998",
+      "DisputeGameFactoryImpl": "0x33d1e8571a85a538ed3d5a4d88f46c112383439d",
+      "EthLockboxImpl": "0x784d2f03593a42a6e4676a012762f18775ecbbe6",
+      "L1CrossDomainMessengerImpl": "0xd26bb3aaaa4cb5638a8581a4c4b1d937d8e05c54",
+      "L1Erc721BridgeImpl": "0x25d6cedeb277ad7ebee71226ed7877768e0b7a2f",
+      "L1StandardBridgeImpl": "0x44afb7722af276a601d524f429016a18b6923df0",
+      "MipsImpl": "0x8a4e5594662775f71b05977a6c90590dd14e3c8f",
+      "OpcmContractsContainerImpl": "0x0000000000000000000000000000000000000000",
+      "OpcmDeployerImpl": "0x05990006a706e13bf3c9a88da44883fb5bfb3d8e",
+      "OpcmGameTypeAdderImpl": "0xd007fce99fd68bdd9cad1a30f265226e474f228e",
+      "OpcmImpl": "0x7b0087db97a6ea09f236d5bc444c8f7c6610c510",
+      "OpcmInteropMigratorImpl": "0x3bfbce4a41c67afb81d1160b211118011a4fec2c",
+      "OpcmUpgraderImpl": "0x3f9ecd0f778c2a6af727b6ebd735d412affdfe2c",
+      "OptimismMintableErc20FactoryImpl": "0x5493f4677a186f64805fe7317d6993ba4863988f",
+      "OptimismPortalImpl": "0xefed7f38bb9be74bba583a1a5b7d0fe7c9d5787a",
+      "PreimageOracleImpl": "0x1fb8cdfc6831fc866ed9c51af8817da5c287add3",
+      "ProtocolVersionsImpl": "0x37e15e4d6dffa9e5e320ee1ec036922e563cb76c",
+      "ProtocolVersionsProxy": "0xb74bb6ae1a1804d283d17e95620da9b9b0e6e0da",
+      "SuperchainConfigImpl": "0xce28685eb204186b557133766eca00334eb441e4",
+      "SuperchainConfigProxy": "0x91bf7398afc3d2691aa23799fdb9175ee2eb6105",
+      "SuperchainProxyAdminImpl": "0x4bf8d2e79e33cfd5a8348737ca91be5f65ea7dd9",
+      "SystemConfigImpl": "0x2e29b0a54f707f0304a716796ec452fc8df72109"
+    }
+  },
+  "l2": [
+    {
+      "name": "op-kurtosis",
+      "id": "2151908",
+      "services": {
+        "batcher": [
+          {
+            "name": "op-batcher-op-kurtosis",
+            "endpoints": {
+              "http": {
+                "host": "127.0.0.1",
+                "port": 32908,
+                "private_port": 8548,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8548-60fa950b61f9-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "metrics": {
+                "host": "127.0.0.1",
+                "port": 32909,
+                "private_port": 9001,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "9001-60fa950b61f9-aa90adbc8d5b"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "challenger": [
+          {
+            "name": "op-challenger-challenger-2151908",
+            "endpoints": {
+              "metrics": {
+                "host": "127.0.0.1",
+                "port": 32912,
+                "private_port": 9001,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "9001-0062028d08ff-aa90adbc8d5b"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "proposer": [
+          {
+            "name": "op-proposer-op-kurtosis",
+            "endpoints": {
+              "http": {
+                "host": "127.0.0.1",
+                "port": 32910,
+                "private_port": 8560,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8560-8c334663b2e5-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "metrics": {
+                "host": "127.0.0.1",
+                "port": 32911,
+                "private_port": 9001,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "9001-8c334663b2e5-aa90adbc8d5b"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "proxyd": [
+          {
+            "name": "proxyd-2151908",
+            "endpoints": {
+              "http": {
+                "host": "127.0.0.1",
+                "port": 32907,
+                "private_port": 8080,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "8080-06c8b8931a3f-aa90adbc8d5b"
+                  ]
+                }
+              },
+              "metrics": {
+                "host": "127.0.0.1",
+                "port": 32906,
+                "private_port": 7300,
+                "reverse_proxy_header": {
+                  "Host": [
+                    "7300-06c8b8931a3f-aa90adbc8d5b"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "nodes": [
+        {
+          "name": "",
+          "services": {
+            "cl": {
+              "name": "op-cl-2151908-1-op-node-op-geth-op-kurtosis",
+              "endpoints": {
+                "http": {
+                  "host": "127.0.0.1",
+                  "port": 32895,
+                  "private_port": 8547,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8547-6da2218155c1-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "metrics": {
+                  "host": "127.0.0.1",
+                  "port": 32896,
+                  "private_port": 9001,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9001-6da2218155c1-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "tcp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32897,
+                  "private_port": 9003,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9003-6da2218155c1-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "udp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32785,
+                  "private_port": 9003,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9003-6da2218155c1-aa90adbc8d5b"
+                    ]
+                  }
+                }
+              }
+            },
+            "el": {
+              "name": "op-el-2151908-1-op-geth-op-node-op-kurtosis",
+              "endpoints": {
+                "engine-rpc": {
+                  "host": "127.0.0.1",
+                  "port": 32892,
+                  "private_port": 8551,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8551-4f6634e74da4-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "metrics": {
+                  "host": "127.0.0.1",
+                  "port": 32893,
+                  "private_port": 9001,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9001-4f6634e74da4-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "rpc": {
+                  "host": "127.0.0.1",
+                  "port": 32890,
+                  "private_port": 8545,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8545-4f6634e74da4-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "tcp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32894,
+                  "private_port": 30303,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "30303-4f6634e74da4-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "udp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32784,
+                  "private_port": 30303,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "30303-4f6634e74da4-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "ws": {
+                  "host": "127.0.0.1",
+                  "port": 32891,
+                  "private_port": 8546,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8546-4f6634e74da4-aa90adbc8d5b"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "",
+          "services": {
+            "cl": {
+              "name": "op-cl-2151908-2-kona-node-op-reth-op-kurtosis",
+              "endpoints": {
+                "http": {
+                  "host": "127.0.0.1",
+                  "port": 32903,
+                  "private_port": 8547,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8547-134f87184c8e-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "metrics": {
+                  "host": "127.0.0.1",
+                  "port": 32904,
+                  "private_port": 9001,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9001-134f87184c8e-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "tcp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32905,
+                  "private_port": 9003,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9003-134f87184c8e-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "udp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32787,
+                  "private_port": 9003,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9003-134f87184c8e-aa90adbc8d5b"
+                    ]
+                  }
+                }
+              }
+            },
+            "el": {
+              "name": "op-el-2151908-2-op-reth-kona-node-op-kurtosis",
+              "endpoints": {
+                "engine-rpc": {
+                  "host": "127.0.0.1",
+                  "port": 32901,
+                  "private_port": 9551,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9551-cf9c6ee7a9a5-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "metrics": {
+                  "host": "127.0.0.1",
+                  "port": 32900,
+                  "private_port": 9001,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "9001-cf9c6ee7a9a5-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "rpc": {
+                  "host": "127.0.0.1",
+                  "port": 32898,
+                  "private_port": 8545,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8545-cf9c6ee7a9a5-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "tcp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32902,
+                  "private_port": 30303,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "30303-cf9c6ee7a9a5-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "udp-discovery": {
+                  "host": "127.0.0.1",
+                  "port": 32786,
+                  "private_port": 30303,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "30303-cf9c6ee7a9a5-aa90adbc8d5b"
+                    ]
+                  }
+                },
+                "ws": {
+                  "host": "127.0.0.1",
+                  "port": 32899,
+                  "private_port": 8546,
+                  "reverse_proxy_header": {
+                    "Host": [
+                      "8546-cf9c6ee7a9a5-aa90adbc8d5b"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "wallets": {
+        "dev-account-0": {
+          "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          "private_key": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        },
+        "dev-account-1": {
+          "address": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
+          "private_key": "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+        },
+        "dev-account-10": {
+          "address": "0xbcd4042de499d14e55001ccbb24a551f3b954096",
+          "private_key": "0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897"
+        },
+        "dev-account-11": {
+          "address": "0x71be63f3384f5fb98995898a86b02fb2426c5788",
+          "private_key": "0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82"
+        },
+        "dev-account-12": {
+          "address": "0xfabb0ac9d68b0b445fb7357272ff202c5651694a",
+          "private_key": "0xa267530f49f8280200edf313ee7af6b827f2a8bce2897751d06a843f644967b1"
+        },
+        "dev-account-13": {
+          "address": "0x1cbd3b2770909d4e10f157cabc84c7264073c9ec",
+          "private_key": "0x47c99abed3324a2707c28affff1267e45918ec8c3f20b8aa892e8b065d2942dd"
+        },
+        "dev-account-14": {
+          "address": "0xdf3e18d64bc6a983f673ab319ccae4f1a57c7097",
+          "private_key": "0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa"
+        },
+        "dev-account-15": {
+          "address": "0xcd3b766ccdd6ae721141f452c550ca635964ce71",
+          "private_key": "0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61"
+        },
+        "dev-account-16": {
+          "address": "0x2546bcd3c84621e976d8185a91a922ae77ecec30",
+          "private_key": "0xea6c44ac03bff858b476bba40716402b03e41b8e97e276d1baec7c37d42484a0"
+        },
+        "dev-account-17": {
+          "address": "0xbda5747bfd65f08deb54cb465eb87d40e51b197e",
+          "private_key": "0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd"
+        },
+        "dev-account-18": {
+          "address": "0xdd2fd4581271e230360230f9337d5c0430bf44c0",
+          "private_key": "0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0"
+        },
+        "dev-account-19": {
+          "address": "0x8626f6940e2eb28930efb4cef49b2d1f2c9c1199",
+          "private_key": "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e"
+        },
+        "dev-account-2": {
+          "address": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
+          "private_key": "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+        },
+        "dev-account-20": {
+          "address": "0x09db0a93b389bef724429898f539aeb7ac2dd55f",
+          "private_key": "0xeaa861a9a01391ed3d587d8a5a84ca56ee277629a8b02c22093a419bf240e65d"
+        },
+        "dev-account-21": {
+          "address": "0x02484cb50aac86eae85610d6f4bf026f30f6627d",
+          "private_key": "0xc511b2aa70776d4ff1d376e8537903dae36896132c90b91d52c1dfbae267cd8b"
+        },
+        "dev-account-22": {
+          "address": "0x08135da0a343e492fa2d4282f2ae34c6c5cc1bbe",
+          "private_key": "0x224b7eb7449992aac96d631d9677f7bf5888245eef6d6eeda31e62d2f29a83e4"
+        },
+        "dev-account-23": {
+          "address": "0x5e661b79fe2d3f6ce70f5aac07d8cd9abb2743f1",
+          "private_key": "0x4624e0802698b9769f5bdb260a3777fbd4941ad2901f5966b854f953497eec1b"
+        },
+        "dev-account-24": {
+          "address": "0x61097ba76cd906d2ba4fd106e757f7eb455fc295",
+          "private_key": "0x375ad145df13ed97f8ca8e27bb21ebf2a3819e9e0a06509a812db377e533def7"
+        },
+        "dev-account-25": {
+          "address": "0xdf37f81daad2b0327a0a50003740e1c935c70913",
+          "private_key": "0x18743e59419b01d1d846d97ea070b5a3368a3e7f6f0242cf497e1baac6972427"
+        },
+        "dev-account-26": {
+          "address": "0x553bc17a05702530097c3677091c5bb47a3a7931",
+          "private_key": "0xe383b226df7c8282489889170b0f68f66af6459261f4833a781acd0804fafe7a"
+        },
+        "dev-account-27": {
+          "address": "0x87bdce72c06c21cd96219bd8521bdf1f42c78b5e",
+          "private_key": "0xf3a6b71b94f5cd909fb2dbb287da47badaa6d8bcdc45d595e2884835d8749001"
+        },
+        "dev-account-28": {
+          "address": "0x40fc963a729c542424cd800349a7e4ecc4896624",
+          "private_key": "0x4e249d317253b9641e477aba8dd5d8f1f7cf5250a5acadd1229693e262720a19"
+        },
+        "dev-account-29": {
+          "address": "0x9dcce783b6464611f38631e6c851bf441907c710",
+          "private_key": "0x233c86e887ac435d7f7dc64979d7758d69320906a0d340d2b6518b0fd20aa998"
+        },
+        "dev-account-3": {
+          "address": "0x90f79bf6eb2c4f870365e785982e1f101e93b906",
+          "private_key": "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
+        },
+        "dev-account-4": {
+          "address": "0x15d34aaf54267db7d7c367839aaf71a00a2c6a65",
+          "private_key": "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a"
+        },
+        "dev-account-5": {
+          "address": "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc",
+          "private_key": "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba"
+        },
+        "dev-account-6": {
+          "address": "0x976ea74026e726554db657fa54763abd0c3a0aa9",
+          "private_key": "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e"
+        },
+        "dev-account-7": {
+          "address": "0x14dc79964da2c08b23698b3d3cc7ca32193d9955",
+          "private_key": "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356"
+        },
+        "dev-account-8": {
+          "address": "0x23618e81e3f5cdf7f54c3d65f7fbc0abf5b21e8f",
+          "private_key": "0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97"
+        },
+        "dev-account-9": {
+          "address": "0xa0ee7a142d267c1f36714e4a8f75612f20a79720",
+          "private_key": "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
+        }
+      },
+      "jwt": "0xdc49981516e8e72b401a63e6405495a32dafc3939b5d6d83cc319ac0388bca1b",
+      "config": {
+        "chainId": 2151908,
+        "homesteadBlock": 0,
+        "eip150Block": 0,
+        "eip155Block": 0,
+        "eip158Block": 0,
+        "byzantiumBlock": 0,
+        "constantinopleBlock": 0,
+        "petersburgBlock": 0,
+        "istanbulBlock": 0,
+        "muirGlacierBlock": 0,
+        "berlinBlock": 0,
+        "londonBlock": 0,
+        "arrowGlacierBlock": 0,
+        "grayGlacierBlock": 0,
+        "mergeNetsplitBlock": 0,
+        "shanghaiTime": 0,
+        "cancunTime": 0,
+        "pragueTime": 0,
+        "bedrockBlock": 0,
+        "regolithTime": 0,
+        "canyonTime": 0,
+        "ecotoneTime": 0,
+        "fjordTime": 0,
+        "graniteTime": 0,
+        "holoceneTime": 0,
+        "isthmusTime": 0,
+        "terminalTotalDifficulty": 0,
+        "depositContractAddress": "0x0000000000000000000000000000000000000000",
+        "optimism": {
+          "eip1559Elasticity": 6,
+          "eip1559Denominator": 50,
+          "eip1559DenominatorCanyon": 250
+        }
+      },
+      "addresses": {
+        "OptimismMintableErc20FactoryProxy": "0x264f503c924c195a90d28e8f5cca1499af038f89"
+      },
+      "l1_addresses": {
+        "AddressManagerImpl": "0xb88515870e370e7891fa0f9fd2368190a9111595",
+        "AltDAChallengeImpl": "0x0000000000000000000000000000000000000000",
+        "AltDAChallengeProxy": "0x0000000000000000000000000000000000000000",
+        "AnchorStateRegistryProxy": "0xcfae9ad534da23037e0533db62222192c7120c83",
+        "DelayedWethPermissionedGameProxy": "0xd5b3547e2f6543703977704e3687290c811d2f70",
+        "DelayedWethPermissionlessGameProxy": "0x0000000000000000000000000000000000000000",
+        "DisputeGameFactoryProxy": "0xcf5376b60110642105c2d8dc1df72ed8744432b7",
+        "EthLockboxProxy": "0x44bd06667fb70df57f8dc7abfb799a358646811e",
+        "FaultDisputeGameImpl": "0x0000000000000000000000000000000000000000",
+        "L1CrossDomainMessengerProxy": "0x16fb74054dc2ee36d3acd107972af12abaf7e9ed",
+        "L1Erc721BridgeProxy": "0xfb7a73b76bed32857aa618463cddb641ce0317ce",
+        "L1StandardBridgeProxy": "0x8ce0145406d4e9c01899aecf479f2179d274ec7c",
+        "L2OutputOracleProxy": "0x0000000000000000000000000000000000000000",
+        "OpChainProxyAdminImpl": "0x9c7845cf9f3edde0bdfa1b8110948ad17408a025",
+        "OptimismPortalProxy": "0x9dc6f227a57d7018f90fa26c1f4b39daae40bf68",
+        "PermissionedDisputeGameImpl": "0xcfe4cc755aa7882dadde1a92aca39d659a35ac32",
+        "SystemConfigProxy": "0x2265e4f2fe9b2a9bdbb1a447fe61895433364533"
+      },
+      "l1_wallets": {
+        "baseFeeVaultRecipient": {
+          "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+          "private_key": "eaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+        },
+        "batcher": {
+          "address": "0xd3f2c5afb2d76f5579f326b0cd7da5f5a4126c35",
+          "private_key": "0xb3d2d558e3491a3709b7c451100a0366b5872520c7aa020c17a0e7fa35b6a8df"
+        },
+        "challenger": {
+          "address": "0xf08f610d1956caaab34f18e9e0a122e389496529",
+          "private_key": "0x717c53f6d6c266889465d78a885cd0a2e22d41f73e21fa1f07ba5849c82d79c3"
+        },
+        "l1Faucet": {
+          "address": "0xaff0ca253b97e54440965855cec0a8a2e2399896",
+          "private_key": "0x04b9f63ecf84210c5366c66d68fa1f5da1fa4f634fad6dfc86178e4d79ff9e59"
+        },
+        "l1FeeVaultRecipient": {
+          "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+          "private_key": "eaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+        },
+        "l1ProxyAdmin": {
+          "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+          "private_key": "eaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+        },
+        "l2Faucet": {
+          "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          "private_key": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        },
+        "l2ProxyAdmin": {
+          "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+          "private_key": "eaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+        },
+        "proposer": {
+          "address": "0xb0994e702b603df7191cd68e6544f99126135e34",
+          "private_key": "0x9d77c0558ed6f31e7be16c2f45fd1f3ec3f66d20526b7fe3961872d38ac98fe7"
+        },
+        "sequencer": {
+          "address": "0xbb900cf56918a2639daa90c3f7dc5dcd2f5b9935",
+          "private_key": "0x459f58fd8ef3d9123333514d0f2445153fc29ddc43be239356dad70f506475d9"
+        },
+        "sequencerFeeVaultRecipient": {
+          "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+          "private_key": "eaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+        },
+        "systemConfigOwner": {
+          "address": "0x589a698b7b7da0bec545177d3963a2741105c7c9",
+          "private_key": "eaba42282ad33c8ef2524f07277c03a776d98ae19f581990ce75becb7cfa1c23"
+        }
+      },
+      "rollup_config": {
+        "genesis": {
+          "l1": {
+            "hash": "0x1a6fb49f467ecd9b5a1b5857ef3f78ce6cba877e42b98fbb04acb0d9aee44dae",
+            "number": 13
+          },
+          "l2": {
+            "hash": "0xf343d2ec78b343f936804a17cfd9b958c46a899df8599401514da0165c03db44",
+            "number": 0
+          },
+          "l2_time": 1747358782,
+          "system_config": {
+            "batcherAddr": "0xd3f2c5afb2d76f5579f326b0cd7da5f5a4126c35",
+            "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "scalar": "0x010000000000000000000000000000000000000000000000000c5fc500000558",
+            "gasLimit": 60000000,
+            "eip1559Params": "0x0000000000000000",
+            "operatorFeeParams": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "block_time": 2,
+        "max_sequencer_drift": 600,
+        "seq_window_size": 3600,
+        "channel_timeout": 300,
+        "l1_chain_id": 3151908,
+        "l2_chain_id": 2151908,
+        "regolith_time": 0,
+        "canyon_time": 0,
+        "delta_time": 0,
+        "ecotone_time": 0,
+        "fjord_time": 0,
+        "granite_time": 0,
+        "holocene_time": 0,
+        "isthmus_time": 0,
+        "batch_inbox_address": "0x00a4fe4c6aaa0729d7699c387e7f281dd64afa2a",
+        "deposit_contract_address": "0x9dc6f227a57d7018f90fa26c1f4b39daae40bf68",
+        "l1_system_config_address": "0x2265e4f2fe9b2a9bdbb1a447fe61895433364533",
+        "protocol_versions_address": "0xb74bb6ae1a1804d283d17e95620da9b9b0e6e0da",
+        "chain_op_config": {
+          "eip1559Elasticity": 6,
+          "eip1559Denominator": 50,
+          "eip1559DenominatorCanyon": 250
+        }
+      }
+    }
+  ]
+}
