@@ -30,6 +30,7 @@ alloy-primitives.workspace = true
 
 # OP Alloy
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
+op-alloy-network.workspace = true
 
 # Misc
 lru.workspace = true
@@ -48,3 +49,5 @@ metrics = ["dep:metrics"]
 tokio.workspace = true
 kona-cli.workspace = true
 kona-registry.workspace = true
+serde_json.workspace = true
+alloy-rpc-types = { workspace = true, features = ["eth"] }

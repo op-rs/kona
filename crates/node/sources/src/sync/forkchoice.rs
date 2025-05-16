@@ -2,9 +2,10 @@
 
 use crate::SyncStartError;
 use alloy_eips::BlockNumberOrTag;
+use alloy_provider::{Provider, RootProvider};
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
-use kona_providers_alloy::AlloyL2ChainProvider;
+use op_alloy_network::Optimism;
 use std::fmt::Display;
 
 /// An unsafe, safe, and finalized [L2BlockInfo] returned by the [crate::find_starting_forkchoice]
@@ -43,21 +44,39 @@ impl L2ForkchoiceState {
     /// - The unsafe block is always assumed to be available.
     pub async fn current(
         cfg: &RollupConfig,
-        l2_provider: &mut AlloyL2ChainProvider,
+        l2_provider: &RootProvider<Optimism>,
     ) -> Result<Self, SyncStartError> {
-        let finalized = match l2_provider.block_info_by_id(BlockNumberOrTag::Finalized.into()).await
-        {
-            Ok(Some(block)) => block,
-            Ok(None) => l2_provider.block_info_by_id(cfg.genesis.l2.number.into()).await?.unwrap(),
-            Err(e) => return Err(SyncStartError::RpcError(e)),
-        };
-        let safe = match l2_provider.block_info_by_id(BlockNumberOrTag::Safe.into()).await {
-            Ok(Some(block)) => block,
+        let finalized =
+            {
+                let rpc_block =
+                    match l2_provider.get_block(BlockNumberOrTag::Finalized.into()).full().await {
+                        Ok(Some(block)) => block,
+                        Ok(None) => l2_provider
+                            .get_block(cfg.genesis.l2.number.into())
+                            .full()
+                            .await?
+                            .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Finalized))?,
+                        Err(e) => return Err(e.into()),
+                    }
+                    .into_consensus();
+
+                L2BlockInfo::from_block_and_genesis(&rpc_block, &cfg.genesis)?
+            };
+        let safe = match l2_provider.get_block(BlockNumberOrTag::Safe.into()).full().await {
+            Ok(Some(block)) => {
+                L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &cfg.genesis)?
+            }
             Ok(None) => finalized,
-            Err(e) => return Err(SyncStartError::RpcError(e)),
+            Err(e) => return Err(e.into()),
         };
-        let un_safe =
-            l2_provider.block_info_by_id(BlockNumberOrTag::Latest.into()).await.unwrap().unwrap();
+        let un_safe = {
+            let rpc_block = l2_provider
+                .get_block(BlockNumberOrTag::Latest.into())
+                .full()
+                .await?
+                .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Latest))?;
+            L2BlockInfo::from_block_and_genesis(&rpc_block.into_consensus(), &cfg.genesis)?
+        };
 
         Ok(Self { un_safe, safe, finalized })
     }

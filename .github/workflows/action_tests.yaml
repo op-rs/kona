@@ -56,7 +56,17 @@ jobs:
       - name: Extract monorepo forge version
         id: collect-versions
         run: |
-          echo "forge-version=$(yq '.tools.forge' monorepo/mise.toml | tr -d '\n')" >> $GITHUB_OUTPUT
+          append_v() {
+            local input="$1"
+
+            if [[ "$input" == v* ]] || [[ "$input" == nightly* ]]; then
+              echo "$input"
+            else
+              echo "v$input"
+            fi
+          }
+          forge_version=$(append_v "$(yq '.tools.forge' monorepo/mise.toml | tr -d '\n')")
+          echo "forge-version=$forge_version" >> $GITHUB_OUTPUT
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
