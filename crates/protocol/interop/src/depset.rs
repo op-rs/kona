@@ -70,7 +70,7 @@ mod tests {
     use alloy_primitives::ChainId;
     use kona_registry::HashMap;
 
-    fn create_dependency_set(
+    const fn create_dependency_set(
         dependencies: HashMap<ChainId, ChainDependency>,
         override_expiry: u64,
     ) -> DependencySet {
@@ -80,7 +80,10 @@ mod tests {
     #[test]
     fn test_can_execute_at_chain_exists_and_active() {
         let mut deps = HashMap::default();
-        deps.insert(1, ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 });
+        deps.insert(
+            1,
+            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
+        );
         let ds = create_dependency_set(deps, 0);
 
         assert!(ds.can_execute_at(1, 100), "Should be able to execute at activation time");
@@ -90,11 +93,17 @@ mod tests {
     #[test]
     fn test_can_execute_at_chain_exists_but_not_active() {
         let mut deps = HashMap::default();
-        deps.insert(1, ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 });
+        deps.insert(
+            1,
+            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
+        );
         let ds = create_dependency_set(deps, 0);
 
         assert!(!ds.can_execute_at(1, 99), "Should not be able to execute before activation time");
-        assert!(!ds.can_execute_at(1, 0), "Should not be able to execute much before activation time");
+        assert!(
+            !ds.can_execute_at(1, 0),
+            "Should not be able to execute much before activation time"
+        );
     }
 
     #[test]
@@ -102,18 +111,115 @@ mod tests {
         let deps = HashMap::default(); // Empty dependencies
         let ds = create_dependency_set(deps, 0);
 
-        assert!(!ds.can_execute_at(1, 100), "Should not be able to execute if chain does not exist");
+        assert!(
+            !ds.can_execute_at(1, 100),
+            "Should not be able to execute if chain does not exist"
+        );
     }
 
     #[test]
     fn test_can_execute_at_multiple_chains() {
         let mut deps = HashMap::default();
-        deps.insert(1, ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 });
-        deps.insert(2, ChainDependency { chain_index: 2, activation_time: 200, history_min_time: 150 });
+        deps.insert(
+            1,
+            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
+        );
+        deps.insert(
+            2,
+            ChainDependency { chain_index: 2, activation_time: 200, history_min_time: 150 },
+        );
         let ds = create_dependency_set(deps, 0);
 
         assert!(ds.can_execute_at(1, 100));
         assert!(!ds.can_execute_at(2, 100)); // Chain 2 not active yet
         assert!(ds.can_execute_at(2, 200));
+    }
+
+    #[test]
+    fn test_can_initiate_at_chain_exists_and_after_history_min_time() {
+        let mut deps = HashMap::default();
+        deps.insert(
+            1,
+            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
+        );
+        let ds = create_dependency_set(deps, 0);
+
+        assert!(ds.can_initiate_at(1, 50), "Should be able to initiate at history_min_time");
+        assert!(ds.can_initiate_at(1, 75), "Should be able to initiate after history_min_time");
+    }
+
+    #[test]
+    fn test_can_initiate_at_chain_exists_but_before_history_min_time() {
+        let mut deps = HashMap::default();
+        deps.insert(
+            1,
+            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
+        );
+        let ds = create_dependency_set(deps, 0);
+
+        assert!(
+            !ds.can_initiate_at(1, 49),
+            "Should not be able to initiate before history_min_time"
+        );
+        assert!(
+            !ds.can_initiate_at(1, 0),
+            "Should not be able to initiate much before history_min_time"
+        );
+    }
+
+    #[test]
+    fn test_can_initiate_at_chain_does_not_exist() {
+        let deps = HashMap::default(); // Empty dependencies
+        let ds = create_dependency_set(deps, 0);
+
+        assert!(
+            !ds.can_initiate_at(1, 50),
+            "Should not be able to initiate if chain does not exist"
+        );
+    }
+
+    #[test]
+    fn test_can_initiate_at_multiple_chains() {
+        let mut deps = HashMap::default();
+        deps.insert(
+            1,
+            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
+        );
+        deps.insert(
+            2,
+            ChainDependency { chain_index: 2, activation_time: 200, history_min_time: 150 },
+        );
+        let ds = create_dependency_set(deps, 0);
+
+        assert!(ds.can_initiate_at(1, 50));
+        assert!(ds.can_initiate_at(1, 100));
+        assert!(!ds.can_initiate_at(2, 50)); // Chain 2 history not available yet
+        assert!(!ds.can_initiate_at(2, 149)); // Chain 2 history not available yet
+        assert!(ds.can_initiate_at(2, 150));
+        assert!(ds.can_initiate_at(2, 200));
+    }
+
+    #[test]
+    fn test_get_message_expiry_window_default() {
+        let deps = HashMap::default();
+        // override_message_expiry_window is 0, so default should be used
+        let ds = create_dependency_set(deps, 0);
+        assert_eq!(
+            ds.get_message_expiry_window(),
+            MESSAGE_EXPIRY_WINDOW,
+            "Should return default expiry window when override is 0"
+        );
+    }
+
+    #[test]
+    fn test_get_message_expiry_window_override() {
+        let deps = HashMap::default();
+        let override_value = 12345;
+        let ds = create_dependency_set(deps, override_value);
+        assert_eq!(
+            ds.get_message_expiry_window(),
+            override_value,
+            "Should return override expiry window when it's non-zero"
+        );
     }
 }
