@@ -17,16 +17,15 @@ exclude.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 
 # Misc
-serde = { version = "1.0.219", features = ["derive"] }
-bytes = "1.10.1"
-modular-bitfield = "0.11.2" # lastest is not compatible with reth
-test-fuzz = "7.2.0"
+serde = { workspace = true, features = ["derive"] }
+bytes = { workspace = true }
+modular-bitfield = { workspace = true }
+test-fuzz = { workspace = true }
 
 #reth
-reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
+reth-db-api = { workspace = true }
+reth-db = { workspace = true }
+reth-codecs = { workspace = true }
 
 [lints]
 workspace = true
-

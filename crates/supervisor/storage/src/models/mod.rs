@@ -6,10 +6,17 @@
 //! The tables are registered using [`reth_db_api::table::TableInfo`] and grouped into a
 //! [`reth_db_api::TableSet`] for database initialization via Reth's storage-api.
 
+use reth_db_api::{
+    TableSet, TableType, TableViewer,
+    table::{DupSort, TableInfo},
+    tables,
+};
+use std::fmt;
+
 mod log;
-pub use log::{LogEntries, LogEntry};
+pub use log::LogEntry;
 mod block;
-pub use block::{BlockHeader, BlockHeaders};
+pub use block::BlockHeader;
 
 /// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
 /// types that implement [`reth_codecs::Compact`].
@@ -42,71 +49,30 @@ macro_rules! impl_compression_for_compact {
     };
 }
 
-/// Implements [`reth_db_api::table::TableInfo`] for one or more table types that implement
-/// [`reth_db_api::table::Table`] or [`reth_db_api::table::DupSort`].
-///
-/// This allows the table to be registered and introspected by the Reth database schema system.
-///
-/// # Example
-/// ```ignore
-/// impl_table_info!(BlockHeaders, LogEntries);
-/// ```
-macro_rules! impl_table_info {
-    ($($table:ty),+ $(,)?) => {
-        $(
-            impl reth_db_api::table::TableInfo for $table
-            where
-                $table: reth_db_api::table::Table,
-            {
-                fn name(&self) -> &'static str {
-                    <$table as reth_db_api::table::Table>::NAME
-                }
-
-                fn is_dupsort(&self) -> bool {
-                    <$table as reth_db_api::table::Table>::DUPSORT
-                }
-            }
-        )+
-    };
-}
-
-/// Declares a struct representing a collection of tables and implements [`reth_db_api::TableSet`]
-/// for it.
-///
-/// The resulting struct can be passed to Reth's `init_db_for::<_, YourTableSet>()`
-/// to initialize only the specified tables.
-///
-/// # Example
-/// ```ignore
-/// impl_table_set!(LogStorageTables, BlockHeaders, LogEntries);
-/// ```
-#[macro_export]
-macro_rules! impl_table_set {
-    (
-        $(#[$outer:meta])*
-        $set_name:ident, $($table:ty),+ $(,)?
-    ) => {
-        #[allow(dead_code)]
-        $(#[$outer])*
-        pub(crate) struct $set_name;
-
-        impl reth_db_api::TableSet for $set_name {
-            fn tables() -> Box<dyn Iterator<Item = Box<dyn reth_db_api::table::TableInfo>>> {
-                Box::new(vec![
-                    $(
-                        Box::new(<$table>::default()) as Box<dyn reth_db_api::table::TableInfo>
-                    ),*
-                ].into_iter())
-            }
-        }
-    };
-}
-
 // Implement compression logic for all value types stored in tables
 impl_compression_for_compact!(BlockHeader, LogEntry);
 
 // Enable reflection for each table (name + dupsort metadata)
-impl_table_info!(BlockHeaders, LogEntries);
+// impl_table_info!(BlockHeaders, LogEntries);
 
 // Define and register the full table set used by log storage
-impl_table_set!(LogStorageTables, BlockHeaders, LogEntries);
+// impl_table_set!(LogStorageTables, BlockHeaders, LogEntries);
+
+tables! {
+    /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
+    /// Keyed by block number, with log index as the subkey for DupSort.
+    table LogEntries {
+        type Key = u64;       // Primary key: u64 (block_number)
+        type Value = LogEntry; // Value: The log metadata
+        type SubKey = u32;    // SubKey for DupSort: u32 (log_index)
+    }
+
+    /// A table for storing block metadata by block number.
+    /// This is a standard table (not dup-sorted) where:
+    /// - Key: `u64` — block number
+    /// - Value: [`BlockHeader`] — block metadata
+    table BlockHeaders {
+        type Key = u64;
+        type Value = BlockHeader;
+    }
+}

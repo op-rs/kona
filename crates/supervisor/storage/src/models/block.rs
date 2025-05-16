@@ -9,7 +9,6 @@
 
 use alloy_primitives::B256;
 use reth_codecs::Compact;
-use reth_db::table::Table;
 use serde::{Deserialize, Serialize};
 
 /// Metadata reference for a single block.
@@ -27,29 +26,4 @@ pub struct BlockHeader {
 
     /// The timestamp of the block (seconds since Unix epoch).
     pub time: u64,
-}
-
-/// A table for storing block metadata by block number.
-///
-/// This is a standard table (not dup-sorted) where:
-/// - **Key**: `u64` — block number
-/// - **Value**: [`BlockHeader`] — block metadata
-///
-/// This layout allows efficient retrieval of block header info
-/// for ancestry checks and parent lookups.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub struct BlockHeaders;
-
-impl Table for BlockHeaders {
-    /// Table name used internally by the backend database.
-    const NAME: &'static str = "block_headers";
-
-    /// Indicates that this is a single-entry table (not dup-sorted).
-    const DUPSORT: bool = false;
-
-    /// Primary key: block number.
-    type Key = u64;
-
-    /// Stored value: block metadata.
-    type Value = BlockHeader;
 }
