@@ -18,9 +18,7 @@ mod safety;
 pub use safety::SafetyLevelParseError;
 
 mod errors;
-pub use errors::{
-    InvalidInboxEntry, MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult,
-};
+pub use errors::{MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult};
 
 mod root;
 pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootResponse};

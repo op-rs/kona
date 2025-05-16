@@ -4939,6 +4939,7 @@ dependencies = [
  "metrics",
  "op-alloy-consensus 0.16.0",
  "op-alloy-rpc-jsonrpsee",
+ "op-alloy-rpc-types",
  "op-alloy-rpc-types-engine",
  "serde",
  "serde_json",
