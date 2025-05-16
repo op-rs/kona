@@ -4255,9 +4255,12 @@ dependencies = [
 name = "kona-cli"
 version = "0.2.0"
 dependencies = [
+ "alloy-primitives",
  "clap",
  "libc",
+ "libp2p",
  "metrics-exporter-prometheus",
+ "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber 0.3.19",
 ]
@@ -4970,7 +4973,11 @@ dependencies = [
  "anyhow",
  "clap",
  "kona-cli",
+ "kona-interop",
+ "kona-registry",
  "kona-supervisor-service",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
@@ -5014,6 +5021,7 @@ dependencies = [
  "futures",
  "jsonrpsee",
  "kona-genesis",
+ "kona-interop",
  "kona-protocol",
  "kona-rpc",
  "kona-supervisor-core",

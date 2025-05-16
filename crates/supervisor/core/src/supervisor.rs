@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use alloy_primitives::B256;
 use async_trait::async_trait;
-use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use kona_interop::{DependencySet, ExecutingDescriptor, SafetyLevel};
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
@@ -29,13 +29,15 @@ pub trait SupervisorService: Debug + Send + Sync {
 
 /// The core Supervisor component responsible for monitoring and coordinating chain states.
 #[derive(Debug)]
-pub struct Supervisor {}
+pub struct Supervisor {
+    _dependency_set: DependencySet,
+}
 
 impl Supervisor {
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(dependency_set: DependencySet) -> Self {
+        Self { _dependency_set: dependency_set }
     }
 }
 

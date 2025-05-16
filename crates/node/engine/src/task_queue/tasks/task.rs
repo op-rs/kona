@@ -5,35 +5,8 @@
 use super::{BuildTask, ConsolidateTask, ForkchoiceTask, InsertUnsafeTask};
 use crate::EngineState;
 use async_trait::async_trait;
+use std::cmp::Ordering;
 use thiserror::Error;
-
-/// The type of engine task.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(u8)]
-pub enum EngineTaskType {
-    /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
-    /// and no payload attributes.
-    ForkchoiceUpdate,
-    /// Inserts an unsafe payload into the execution engine.
-    InsertUnsafe,
-    /// Builds a new block with the given attributes, and inserts it into the execution engine.
-    BuildBlock,
-    /// Performs consolidation on the engine state, reverting to payload attribute processing
-    /// via the [`BuildTask`] if consolidation fails.
-    Consolidate,
-}
-
-impl EngineTaskType {
-    /// Returns the next task type in a round-robin fashion.
-    pub const fn next(&self) -> Self {
-        match self {
-            Self::ForkchoiceUpdate => Self::InsertUnsafe,
-            Self::InsertUnsafe => Self::BuildBlock,
-            Self::BuildBlock => Self::Consolidate,
-            Self::Consolidate => Self::ForkchoiceUpdate,
-        }
-    }
-}
 
 /// Tasks that may be inserted into and executed by the [`Engine`].
 ///
@@ -62,14 +35,59 @@ impl EngineTask {
             Self::Consolidate(task) => task.execute(state).await,
         }
     }
+}
 
-    /// Returns the [`EngineTaskType`] for the [`EngineTask`].
-    pub const fn ty(&self) -> EngineTaskType {
-        match &self {
-            Self::ForkchoiceUpdate(_) => EngineTaskType::ForkchoiceUpdate,
-            Self::InsertUnsafe(_) => EngineTaskType::InsertUnsafe,
-            Self::BuildBlock(_) => EngineTaskType::BuildBlock,
-            Self::Consolidate(_) => EngineTaskType::Consolidate,
+impl PartialEq for EngineTask {
+    fn eq(&self, other: &Self) -> bool {
+        matches!(
+            (self, other),
+            (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) |
+                (Self::InsertUnsafe(_), Self::InsertUnsafe(_)) |
+                (Self::BuildBlock(_), Self::BuildBlock(_)) |
+                (Self::Consolidate(_), Self::Consolidate(_))
+        )
+    }
+}
+
+impl Eq for EngineTask {}
+
+impl PartialOrd for EngineTask {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for EngineTask {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Order (descending): ForkchoiceUpdate -> BuildBlock -> InsertUnsafe -> Consolidate
+        //
+        // https://specs.optimism.io/protocol/derivation.html#forkchoice-synchronization
+        //
+        // - Outstanding FCUs are processed before anything else.
+        // - Block building jobs are prioritized above InsertUnsafe and Consolidate tasks, to give
+        //   priority to the sequencer.
+        // - InsertUnsafe tasks are prioritized over Consolidate tasks, to ensure that unsafe block
+        //   gossip is imported promptly.
+        // - Consolidate tasks are the lowest priority, as they are only used for advancing the safe
+        //   chain via derivation.
+        match (self, other) {
+            // Same variant cases
+            (Self::InsertUnsafe(_), Self::InsertUnsafe(_)) => Ordering::Equal,
+            (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
+            (Self::BuildBlock(_), Self::BuildBlock(_)) => Ordering::Equal,
+            (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) => Ordering::Equal,
+
+            // Individual ForkchoiceUpdate tasks are the highest priority
+            (Self::ForkchoiceUpdate(_), _) => Ordering::Greater,
+            (_, Self::ForkchoiceUpdate(_)) => Ordering::Less,
+
+            // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
+            (Self::BuildBlock(_), _) => Ordering::Greater,
+            (_, Self::BuildBlock(_)) => Ordering::Less,
+
+            // InsertUnsafe tasks are prioritized over Consolidate tasks
+            (Self::InsertUnsafe(_), _) => Ordering::Greater,
+            (_, Self::InsertUnsafe(_)) => Ordering::Less,
         }
     }
 }

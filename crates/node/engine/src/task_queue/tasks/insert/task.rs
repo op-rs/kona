@@ -75,12 +75,6 @@ impl InsertUnsafeTask {
 #[async_trait]
 impl EngineTaskExt for InsertUnsafeTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // Always transition to EL sync on startup.
-        if state.sync_status == SyncStatus::ExecutionLayerWillStart {
-            info!(target: "engine", "Starting execution layer sync");
-            state.sync_status = SyncStatus::ExecutionLayerStarted;
-        }
-
         let time_start = Instant::now();
 
         // Insert the new payload.
@@ -139,6 +133,13 @@ impl EngineTaskExt for InsertUnsafeTask {
             state.set_safe_head(new_unsafe_ref);
             state.set_local_safe_head(new_unsafe_ref);
             state.set_finalized_head(new_unsafe_ref);
+        } else if state.sync_status == SyncStatus::ExecutionLayerWillStart {
+            // For the first FCU sent to the EL, set the `safe` and `finalized` hashes to 0. This is
+            // a special case to trigger optimistic head sync on `op-reth`.
+            state.sync_status = SyncStatus::ExecutionLayerStarted;
+
+            fcu.safe_block_hash = Default::default();
+            fcu.finalized_block_hash = Default::default();
         }
 
         // Send the forkchoice update to finalize the payload insertion.
