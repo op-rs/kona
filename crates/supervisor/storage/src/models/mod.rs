@@ -87,11 +87,8 @@ mod tests {
 
     #[test]
     fn test_block_header_compression_decompression() {
-        let original = BlockHeader {
-            hash: test_b256(1),
-            parent_hash: test_b256(2),
-            time: 1234567890,
-        };
+        let original =
+            BlockHeader { hash: test_b256(1), parent_hash: test_b256(2), time: 1234567890 };
 
         let mut compressed_buf = Vec::new();
         original.compress_to_buf(&mut compressed_buf);
