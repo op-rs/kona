@@ -23,3 +23,6 @@ data/
 
 # Prestate artifacts
 prestate-artifacts-*
+
+# IDE specific
+.idea

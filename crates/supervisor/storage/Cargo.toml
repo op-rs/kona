@@ -1,0 +1,32 @@
+[package]
+name = "kona-supervisor-storage"
+version = "0.1.0"
+
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+exclude.workspace = true
+
+[dependencies]
+# Alloy
+alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "rand"] }
+
+# Misc
+serde = { workspace = true, features = ["derive"] }
+bytes = { workspace = true }
+modular-bitfield = { workspace = true }
+
+#reth
+reth-db-api = { workspace = true }
+reth-codecs = { workspace = true }
+
+[dev-dependencies]
+test-fuzz = { workspace = true }
+
+[lints]
+workspace = true
