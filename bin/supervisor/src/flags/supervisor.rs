@@ -1,7 +1,7 @@
 use anyhow::{Context as _, Result};
 use clap::Args;
 use kona_interop::DependencySet;
-use std::net::IpAddr;
+use std::{net::IpAddr, path::PathBuf};
 use tokio::{fs::File, io::AsyncReadExt};
 
 /// Supervisor configuration arguments.
@@ -33,7 +33,7 @@ pub struct SupervisorArgs {
 
     /// Path to the dependency-set JSON config file.
     #[arg(long = "dependency-set", env = "DEPENDENCY_SET")]
-    pub dependency_set: String,
+    pub dependency_set: PathBuf,
 
     /// IP address for the Supervisor RPC server to listen on.
     #[arg(long = "rpc.addr", env = "RPC_ADDR", default_value = "0.0.0.0")]
@@ -47,18 +47,23 @@ pub struct SupervisorArgs {
 impl SupervisorArgs {
     /// initialise and return the [`DependencySet`].
     pub async fn init_dependency_set(&self) -> Result<DependencySet> {
-        let file_path = std::path::PathBuf::from(self.dependency_set.as_str());
-        let mut file = File::open(&file_path).await.with_context(|| {
-            format!("Failed to open dependency set file '{}'", file_path.display())
+        let mut file = File::open(&self.dependency_set).await.with_context(|| {
+            format!("Failed to open dependency set file '{}'", self.dependency_set.display())
         })?;
 
         let mut contents = String::new();
         file.read_to_string(&mut contents).await.with_context(|| {
-            format!("Failed to read content from dependency set file '{}'", file_path.display())
+            format!(
+                "Failed to read content from dependency set file '{}'",
+                self.dependency_set.display()
+            )
         })?;
 
         let dependency_set: DependencySet = serde_json::from_str(&contents).with_context(|| {
-            format!("Failed to parse JSON from dependency set file '{}'", file_path.display())
+            format!(
+                "Failed to parse JSON from dependency set file '{}'",
+                self.dependency_set.display()
+            )
         })?;
         Ok(dependency_set)
     }
@@ -107,7 +112,7 @@ mod tests {
         );
         assert_eq!(cli.supervisor.datadir, "/tmp/supervisor_data");
         assert_eq!(cli.supervisor.datadir_sync_endpoint, None);
-        assert_eq!(cli.supervisor.dependency_set, "/path/to/deps.json");
+        assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
         assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
         assert_eq!(cli.supervisor.rpc_port, 8545);
     }
@@ -142,7 +147,7 @@ mod tests {
             cli.supervisor.datadir_sync_endpoint,
             Some("http://sync.example.com".to_string())
         );
-        assert_eq!(cli.supervisor.dependency_set, "/path/to/deps.json");
+        assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
         assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)));
         assert_eq!(cli.supervisor.rpc_port, 9001);
     }
@@ -175,7 +180,7 @@ mod tests {
             l2_consensus_jwt_secret: vec![],
             datadir: "dummy".to_string(),
             datadir_sync_endpoint: None,
-            dependency_set: temp_file.path().to_str().unwrap().to_string(),
+            dependency_set: temp_file.path().to_path_buf(),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
         };
@@ -219,7 +224,7 @@ mod tests {
             l2_consensus_jwt_secret: vec![],
             datadir: "dummy".to_string(),
             datadir_sync_endpoint: None,
-            dependency_set: "/path/to/non_existent_file.json".to_string(),
+            dependency_set: PathBuf::from("/path/to/non_existent_file.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
         };
@@ -243,7 +248,7 @@ mod tests {
             l2_consensus_jwt_secret: vec![],
             datadir: "dummy".to_string(),
             datadir_sync_endpoint: None,
-            dependency_set: temp_file.path().to_str().unwrap().to_string(),
+            dependency_set: temp_file.path().to_path_buf(),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
         };
