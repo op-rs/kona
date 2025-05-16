@@ -214,12 +214,26 @@ where
     async fn start(mut self) -> Result<(), Self::Error> {
         loop {
             select! {
+                biased;
+
                 _ = self.cancellation.cancelled() => {
                     info!(
                         target: "derivation",
                         "Received shutdown signal. Exiting derivation task."
                     );
                     return Ok(());
+                }
+                signal = self.derivation_signal_rx.recv() => {
+                    let Some(signal) = signal else {
+                        error!(
+                            target: "derivation",
+                            ?signal,
+                            "DerivationActor failed to receive signal"
+                        );
+                        return Err(DerivationError::SignalReceiveFailed);
+                    };
+
+                    self.signal(signal).await;
                 }
                 _ = self.sync_complete_rx.recv() => {
                     if self.engine_ready {
@@ -242,18 +256,6 @@ where
                     }
 
                     self.process(InboundDerivationMessage::NewDataAvailable).await?;
-                }
-                signal = self.derivation_signal_rx.recv() => {
-                    let Some(signal) = signal else {
-                        error!(
-                            target: "derivation",
-                            ?signal,
-                            "DerivationActor failed to receive signal"
-                        );
-                        return Err(DerivationError::SignalReceiveFailed);
-                    };
-
-                    self.signal(signal).await;
                 }
                 _ = self.engine_l2_safe_head.changed() => {
                     self.process(InboundDerivationMessage::SafeHeadUpdated).await?;

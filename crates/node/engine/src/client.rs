@@ -10,7 +10,7 @@ use alloy_rpc_types_engine::{
     ClientVersionV1, ExecutionPayloadBodiesV1, ExecutionPayloadEnvelopeV2, ExecutionPayloadInputV2,
     ExecutionPayloadV3, ForkchoiceState, ForkchoiceUpdated, JwtSecret, PayloadId, PayloadStatus,
 };
-use alloy_rpc_types_eth::{Block, SyncStatus};
+use alloy_rpc_types_eth::Block;
 use alloy_transport::{RpcError, TransportErrorKind, TransportResult};
 use alloy_transport_http::{
     AuthLayer, AuthService, Http, HyperClient,
@@ -56,7 +56,9 @@ pub struct EngineClient {
     #[deref]
     engine: RootProvider<AnyNetwork>,
     /// The L2 chain provider.
-    rpc: RootProvider<Optimism>,
+    l2_provider: RootProvider<Optimism>,
+    /// The L1 chain provider.
+    l1_provider: RootProvider,
     /// The [RollupConfig] for the chain used to timestamp which version of the engine api to use.
     cfg: Arc<RollupConfig>,
 }
@@ -75,17 +77,28 @@ impl EngineClient {
     }
 
     /// Creates a new [`EngineClient`] from the provided [Url] and [JwtSecret].
-    pub fn new_http(engine: Url, rpc: Url, cfg: Arc<RollupConfig>, jwt: JwtSecret) -> Self {
+    pub fn new_http(
+        engine: Url,
+        l2_rpc: Url,
+        l1_rpc: Url,
+        cfg: Arc<RollupConfig>,
+        jwt: JwtSecret,
+    ) -> Self {
         let engine = Self::rpc_client::<AnyNetwork>(engine, jwt);
-        let rpc = Self::rpc_client::<Optimism>(rpc, jwt);
+        let l2_provider = RootProvider::<Optimism>::new_http(l2_rpc);
+        let l1_provider = RootProvider::new_http(l1_rpc);
 
-        Self { engine, rpc, cfg }
+        Self { engine, l2_provider, l1_provider, cfg }
     }
 
-    /// Returns the [`SyncStatus`] of the engine.
-    pub async fn syncing(&self) -> Result<SyncStatus, EngineClientError> {
-        let status = <RootProvider<AnyNetwork>>::syncing(&self.engine).await?;
-        Ok(status)
+    /// Returns a reference to the inner L2 [`RootProvider`].
+    pub const fn l2_provider(&self) -> &RootProvider<Optimism> {
+        &self.l2_provider
+    }
+
+    /// Returns a reference to the inner L1 [`RootProvider`].
+    pub const fn l1_provider(&self) -> &RootProvider {
+        &self.l1_provider
     }
 
     /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].
@@ -93,7 +106,7 @@ impl EngineClient {
         &self,
         numtag: BlockNumberOrTag,
     ) -> Result<Option<Block<Transaction>>, EngineClientError> {
-        Ok(<RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag).full().await?)
+        Ok(<RootProvider<Optimism>>::get_block_by_number(&self.l2_provider, numtag).full().await?)
     }
 
     /// Fetches the [L2BlockInfo] by [BlockNumberOrTag].
@@ -101,7 +114,8 @@ impl EngineClient {
         &self,
         numtag: BlockNumberOrTag,
     ) -> Result<Option<L2BlockInfo>, EngineClientError> {
-        let block = <RootProvider<Optimism>>::get_block_by_number(&self.rpc, numtag).full().await?;
+        let block =
+            <RootProvider<Optimism>>::get_block_by_number(&self.l2_provider, numtag).full().await?;
         let Some(block) = block else {
             return Ok(None);
         };

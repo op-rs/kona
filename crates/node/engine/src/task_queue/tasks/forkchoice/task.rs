@@ -2,6 +2,7 @@
 
 use crate::{
     EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, Metrics,
+    SyncStatus,
 };
 use alloy_rpc_types_engine::INVALID_FORK_CHOICE_STATE_ERROR;
 use async_trait::async_trait;
@@ -31,8 +32,8 @@ impl EngineTaskExt for ForkchoiceTask {
             return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
         }
 
-        // If the engine is syncing, log a warning. We can still attempt to apply the forkchoice
-        // update.
+        // If the engine is syncing, log a warning. We can still attempt to apply the
+        // forkchoice update.
         if state.sync_status.is_syncing() {
             warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
         }
@@ -47,7 +48,17 @@ impl EngineTaskExt for ForkchoiceTask {
         }
 
         // Send the forkchoice update through the input.
-        let forkchoice = state.create_forkchoice_state();
+        let mut forkchoice = state.create_forkchoice_state();
+
+        // For the first FCU triggered by the initial engine reset, zero out the `safe` and
+        // `finalized` hashes to trigger optimistic pipeline sync on `op-reth`.
+        if matches!(state.sync_status, SyncStatus::ExecutionLayerWillStart) {
+            // Progress the engine sync state machine.
+            state.sync_status = SyncStatus::ExecutionLayerStarted;
+
+            forkchoice.safe_block_hash = Default::default();
+            forkchoice.finalized_block_hash = Default::default();
+        }
 
         // Handle the forkchoice update result.
         if let Err(e) = self.client.fork_choice_updated_v3(forkchoice, None).await {
