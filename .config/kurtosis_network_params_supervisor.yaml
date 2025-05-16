@@ -20,6 +20,7 @@ optimism_package:
     supervisor-b:
       superchain: superchain-a
       image: "ghcr.io/op-rs/kona/kona-supervisor:latest"
+      extra_params: ["-vvvv"]
 ethereum_package:
   participants:
     - el_type: reth
