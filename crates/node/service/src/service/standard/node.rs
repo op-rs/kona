@@ -138,7 +138,7 @@ impl ValidatorNodeService for RollupNode {
         // Create the caching L1/L2 EL providers for derivation.
         let mut l1_derivation_provider =
             AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
-        let mut l2_derivation_provider = AlloyL2ChainProvider::new(
+        let l2_derivation_provider = AlloyL2ChainProvider::new(
             self.l2_provider.clone(),
             self.config.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
@@ -146,7 +146,7 @@ impl ValidatorNodeService for RollupNode {
 
         // Find the starting forkchoice state.
         let starting_forkchoice =
-            L2ForkchoiceState::current(self.config.as_ref(), &mut l2_derivation_provider).await?;
+            L2ForkchoiceState::current(self.config.as_ref(), &self.l2_provider).await?;
 
         info!(
             target: "rollup_node",

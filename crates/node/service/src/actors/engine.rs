@@ -95,20 +95,12 @@ impl EngineActor {
         if self.sync_complete_tx.is_closed() {
             return;
         }
-        let client = Arc::clone(&self.client);
-        let channel = self.sync_complete_tx.clone();
-        tokio::task::spawn(async move {
-            if let Ok(sync_status) = client.syncing().await {
-                // If the sync status is not `None`, continue syncing.
-                if !matches!(sync_status, alloy_rpc_types_eth::SyncStatus::None) {
-                    trace!(target: "engine", ?sync_status, "SYNCING");
-                    return;
-                }
-                // If the sync status is `None`, begin derivation.
-                trace!(target: "engine", "Sending signal to start derivation");
-                channel.send(()).ok();
-            }
-        });
+
+        if self.engine.state().sync_status.is_finished() {
+            // If the sync status is finished, we can start derivation.
+            trace!(target: "engine", "Sending signal to start derivation");
+            self.sync_complete_tx.send(()).ok();
+        }
     }
 
     /// Starts a task to handle engine queries.
@@ -200,7 +192,7 @@ impl NodeActor for EngineActor {
                         Ok(_) => {
                           trace!(target: "engine", "[ENGINE] tasks drained");
                           // Update the l2 safe head if needed.
-                          let state_safe_head = self.engine.safe_head();
+                          let state_safe_head = self.engine.state().safe_head();
                           let update = |head: &mut L2BlockInfo| {
                               if head != &state_safe_head {
                                   *head = state_safe_head;

@@ -4,6 +4,7 @@ use crate::InteropProvider;
 use alloy_primitives::{Address, B256};
 use core::fmt::Debug;
 use kona_registry::HashMap;
+use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
 
 /// An error type for the [MessageGraph] struct.

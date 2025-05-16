@@ -37,12 +37,12 @@ pub enum SyncStatus {
 }
 
 impl SyncStatus {
-    /// Returns if the execution layer sync has started.
+    /// Returns true if the execution layer sync has started.
     pub const fn has_started(&self) -> bool {
         matches!(self, Self::ExecutionLayerStarted)
     }
 
-    /// Returns if syncing is in progress.
+    /// Returns true if syncing is in progress.
     pub const fn is_syncing(&self) -> bool {
         matches!(
             self,
@@ -50,5 +50,10 @@ impl SyncStatus {
                 Self::ExecutionLayerStarted |
                 Self::ExecutionLayerNotFinalized
         )
+    }
+
+    /// Returns true if syncing is finished
+    pub const fn is_finished(&self) -> bool {
+        matches!(self, Self::ExecutionLayerFinished)
     }
 }
