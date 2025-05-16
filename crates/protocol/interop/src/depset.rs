@@ -10,13 +10,13 @@ pub struct ChainDependency {
     /// The unique short identifier for this chain.
     pub chain_index: u32,
 
-    /// Timestamp (in seconds) when the chain becomes part of the dependency set. 
+    /// Timestamp (in seconds) when the chain becomes part of the dependency set.
     /// This is the minimum timestamp of the inclusion of an executing message that can be
     /// considered valid.
     pub activation_time: u64,
 
-    /// Lower bound timestamp (in seconds) for data storage and accessibility. 
-    /// This is the minimum timestamp of an initiating message that is required to be 
+    /// Lower bound timestamp (in seconds) for data storage and accessibility.
+    /// This is the minimum timestamp of an initiating message that is required to be
     /// accessible to other chains. This is set to 0 when all data since genesis is executable.
     pub history_min_time: u64,
 }
@@ -34,7 +34,7 @@ pub struct DependencySet {
 }
 
 impl DependencySet {
-    /// Determines whether an message is eligible for execution at the given timestamp.
+    /// Determines whether a message is eligible for execution at the given timestamp.
     ///
     /// Returns an error if the system cannot currently determine eligibility,
     /// for example, while the `DependencySet` is still syncing.
