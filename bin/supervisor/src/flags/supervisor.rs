@@ -1,3 +1,4 @@
+use anyhow::{Context as _, Result};
 use clap::Args;
 use kona_interop::DependencySet;
 use std::net::IpAddr;
@@ -45,13 +46,20 @@ pub struct SupervisorArgs {
 
 impl SupervisorArgs {
     /// initialise and return the [`DependencySet`].
-    pub async fn init_dependency_set(&self) -> anyhow::Result<DependencySet> {
+    pub async fn init_dependency_set(&self) -> Result<DependencySet> {
         let file_path = std::path::PathBuf::from(self.dependency_set.as_str());
-        let mut file = File::open(file_path).await?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).await?;
+        let mut file = File::open(&file_path).await.with_context(|| {
+            format!("Failed to open dependency set file '{}'", file_path.display())
+        })?;
 
-        let dependency_set: DependencySet = serde_json::from_str(&contents)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).await.with_context(|| {
+            format!("Failed to read content from dependency set file '{}'", file_path.display())
+        })?;
+
+        let dependency_set: DependencySet = serde_json::from_str(&contents).with_context(|| {
+            format!("Failed to parse JSON from dependency set file '{}'", file_path.display())
+        })?;
         Ok(dependency_set)
     }
 }
