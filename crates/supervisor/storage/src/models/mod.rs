@@ -14,7 +14,7 @@ use reth_db_api::{
 use std::fmt;
 
 mod log;
-pub use log::LogEntry;
+pub use log::{ExecutingMessageEntry, LogEntry};
 mod block;
 pub use block::BlockHeader;
 

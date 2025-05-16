@@ -15,15 +15,32 @@ use serde::{Deserialize, Serialize};
 ///
 /// This is the value stored in the `LogEntries` dup-sorted table. Each entry includes:
 /// - `hash`: The keccak256 hash of the log event.
-/// - `executing_message_hash`: Optional hash representing a message that executes this log (used in
-///   cross-chain execution contexts).
-/// - `timestamp`: Optional timestamp at when the executing message was created.
+/// - `executing_message` - An optional field that may contain a cross-domain execution message,
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 pub struct LogEntry {
     /// The keccak256 hash of the emitted log event.
     pub hash: B256,
-    /// Optional cross-domain execution message hash.
-    pub executing_message_hash: Option<B256>,
-    /// Optional timestamp of the log (usually block timestamp).
-    pub timestamp: Option<u64>,
+    /// Optional cross-domain execution message.
+    executing_message: Option<ExecutingMessageEntry>,
+}
+
+/// Represents an entry of an executing message, containing metadata
+/// about the message's origin and context within the blockchain.
+/// - `chain_id` (`u64`): The unique identifier of the blockchain where the message originated.
+/// - `block_number` (`u64`): The block number in the blockchain where the message originated.
+/// - `log_index` (`u64`): The index of the log entry within the block where the message was logged.
+/// - `timestamp` (`u64`): The timestamp associated with the block where the message was recorded.
+/// - `hash` (`B256`): The unique hash identifier of the message.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
+pub struct ExecutingMessageEntry {
+    /// ID of the chain where the message was emitted.
+    chain_id: u64,
+    /// Block number in the source chain.
+    block_number: u64,
+    /// Log index within the block.
+    log_index: u64,
+    /// Timestamp of the block.
+    timestamp: u64,
+    /// Hash of the message.
+    hash: B256,
 }
