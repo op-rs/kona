@@ -24,7 +24,6 @@ test-fuzz = { workspace = true }
 
 #reth
 reth-db-api = { workspace = true }
-reth-db = { workspace = true }
 reth-codecs = { workspace = true }
 
 [lints]

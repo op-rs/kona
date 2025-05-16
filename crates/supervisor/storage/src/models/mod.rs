@@ -52,12 +52,6 @@ macro_rules! impl_compression_for_compact {
 // Implement compression logic for all value types stored in tables
 impl_compression_for_compact!(BlockHeader, LogEntry);
 
-// Enable reflection for each table (name + dupsort metadata)
-// impl_table_info!(BlockHeaders, LogEntries);
-
-// Define and register the full table set used by log storage
-// impl_table_set!(LogStorageTables, BlockHeaders, LogEntries);
-
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
     /// Keyed by block number, with log index as the subkey for DupSort.
