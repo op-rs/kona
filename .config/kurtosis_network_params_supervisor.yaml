@@ -11,16 +11,11 @@ optimism_package:
   superchains: 
     superchain-a: # empty config creates default including all L2 networks
   supervisors:
-    supervisor-a:
-      enabled: true
+    supervisor-a: # default op-supervisor
       superchain: superchain-a
-      image: "us-docker.pkg.dev/oplabs-tools-artifacts/images/op-supervisor:develop"
-      extra_params: []
     supervisor-b:
-      enabled: true
       superchain: superchain-a
-      image: "us-docker.pkg.dev/oplabs-tools-artifacts/images/kona-supervisor:latest"
-      extra_params: []
+      image: "ghcr.io/op-rs/kona/kona-supervisor:latest"
 ethereum_package:
   participants:
     - el_type: reth
