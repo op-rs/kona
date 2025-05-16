@@ -42,7 +42,6 @@ openssl = { workspace = true, features = ["vendored"] }
 secp256k1.workspace = true
 
 # Misc
-backon.workspace = true
 url.workspace = true
 dirs.workspace = true
 serde.workspace = true
@@ -53,6 +52,7 @@ lazy_static.workspace = true
 unsigned-varint.workspace = true
 rand = { workspace = true, features = ["thread_rng"] }
 serde_json = { workspace = true, features = ["alloc"] }
+backon = { workspace = true, features = ["std", "tokio", "tokio-sleep"] }
 derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 
 # `arbitrary` feature dependencies
