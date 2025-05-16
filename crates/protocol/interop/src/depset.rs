@@ -34,7 +34,7 @@ pub struct DependencySet {
 }
 
 impl DependencySet {
-    /// Checks if a message is eligible for execution at the given timestamp.
+    /// Determines whether an message is eligible for execution at the given timestamp.
     ///
     /// Returns an error if the system cannot currently determine eligibility,
     /// for example, while the `DependencySet` is still syncing.
