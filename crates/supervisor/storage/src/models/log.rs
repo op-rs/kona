@@ -22,7 +22,7 @@ pub struct LogEntry {
     /// The keccak256 hash of the emitted log event.
     pub hash: B256,
     /// Optional cross-domain execution message.
-    executing_message: Option<ExecutingMessageEntry>,
+    pub executing_message: Option<ExecutingMessageEntry>,
 }
 
 /// Represents an entry of an executing message, containing metadata
@@ -35,13 +35,13 @@ pub struct LogEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 pub struct ExecutingMessageEntry {
     /// ID of the chain where the message was emitted.
-    chain_id: u64,
+    pub chain_id: u64,
     /// Block number in the source chain.
-    block_number: u64,
+    pub block_number: u64,
     /// Log index within the block.
-    log_index: u64,
+    pub log_index: u64,
     /// Timestamp of the block.
-    timestamp: u64,
+    pub timestamp: u64,
     /// Hash of the message.
-    hash: B256,
+    pub hash: B256,
 }
