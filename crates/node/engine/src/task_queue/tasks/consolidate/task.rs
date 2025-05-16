@@ -84,7 +84,7 @@ impl ConsolidateTask {
                 block_hash = %block.header.hash,
                 "Consolidating engine state",
             );
-            match L2BlockInfo::from_rpc_block_and_genesis(block, &self.cfg.genesis) {
+            match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
                 Ok(block_info) => {
                     debug!(target: "engine", ?block_info, "Promoted safe head");
                     state.set_safe_head(block_info);

@@ -59,8 +59,8 @@ impl Network {
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
-        let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
-        let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1).1);
+        let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
+        let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
         let (handler, mut enr_receiver) = self.discovery.start();
         let mut broadcast = self.broadcast;
 
@@ -73,7 +73,6 @@ impl Network {
         // Spawn the network handler
         tokio::spawn(async move {
             loop {
-                broadcast.broadcast();
                 select! {
                     block = publish.recv() => {
                         let Some(block) = block else {
@@ -92,6 +91,7 @@ impl Network {
                         kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
+                            broadcast.broadcast();
                         }
                     },
                     enr = enr_receiver.recv() => {

@@ -1,22 +1,25 @@
 //! Contains the error types used for finding the starting forkchoice state.
 
+use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use alloy_transport::{RpcError, TransportErrorKind};
-use kona_providers_alloy::{AlloyChainProviderError, AlloyL2ChainProviderError};
+use kona_protocol::FromBlockError;
 use thiserror::Error;
 
 /// An error that can occur during the sync start process.
 #[derive(Error, Debug)]
 pub enum SyncStartError {
-    /// An error occurred in the L1 chain provider.
-    #[error(transparent)]
-    L1ChainProvider(#[from] AlloyChainProviderError),
-    /// An error occurred in the L2 chain provider.
-    #[error(transparent)]
-    L2ChainProvider(#[from] AlloyL2ChainProviderError),
     /// An rpc error occurred
     #[error("An RPC error occurred: {0}")]
     RpcError(#[from] RpcError<TransportErrorKind>),
+    /// An error occurred while converting a block to [`L2BlockInfo`].
+    ///
+    /// [`L2BlockInfo`]: kona_protocol::L2BlockInfo
+    #[error(transparent)]
+    FromBlock(#[from] FromBlockError),
+    /// A block could not be found.
+    #[error("Block not found: {0}")]
+    BlockNotFound(BlockNumberOrTag),
     /// Invalid L1 genesis hash.
     #[error("Invalid L1 genesis hash. Expected {0}, Got {1}")]
     InvalidL1GenesisHash(B256, B256),
