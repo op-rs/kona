@@ -3,12 +3,10 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
-        el_log_level: debug
         cl_log_level: debug
       - el_type: op-reth
         cl_type: op-node
         el_image: "ghcr.io/paradigmxyz/op-reth:kurtosis-ci"
-        el_log_level: debug
         cl_log_level: debug
       network_params:
         interop_time_offset: 0
