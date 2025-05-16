@@ -90,8 +90,8 @@ kona-sources = { path = "crates/node/sources", version = "0.1.0", default-featur
 kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
 
 # Supervisor
-kona-supervisor-core = { path = "crates/supervisor/core", version = "0.1.0", default-features = false }
 kona-supervisor-rpc = { path = "crates/supervisor/rpc", version = "0.1.0", default-features = false }
+kona-supervisor-core = { path = "crates/supervisor/core", version = "0.1.0", default-features = false }
 kona-supervisor-service = { path = "crates/supervisor/service", version = "0.1.0", default-features = false }
 
 # Providers
@@ -118,6 +118,7 @@ alloy-eips = { version = "1.0.0", default-features = false }
 alloy-serde = { version = "1.0.0", default-features = false }
 alloy-network = { version = "1.0.0", default-features = false }
 alloy-provider = { version = "1.0.0", default-features = false }
+alloy-hardforks = { version = "0.2.0", default-features = false }
 alloy-sol-types = { version = "1.1.0", default-features = false }
 alloy-consensus = { version = "1.0.0", default-features = false }
 alloy-transport = { version = "1.0.0", default-features = false }
@@ -130,21 +131,20 @@ alloy-transport-http = { version = "1.0.0", default-features = false }
 alloy-rpc-types-engine = { version = "1.0.0", default-features = false }
 alloy-rpc-types-beacon = { version = "1.0.0", default-features = false }
 alloy-network-primitives = { version = "1.0.0", default-features = false }
-alloy-hardforks = { version = "0.2.0", default-features = false }
 
 # OP Alloy
 op-alloy-network = { version = "0.16.0", default-features = false }
+alloy-op-hardforks = { version = "0.2.0", default-features = false }
 op-alloy-provider = { version = "0.16.0", default-features = false }
 op-alloy-consensus = { version = "0.16.0", default-features = false }
 op-alloy-rpc-types = { version = "0.16.0", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.16.0", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.16.0", default-features = false }
-alloy-op-hardforks = { version = "0.2.0", default-features = false }
 
 # Execution
 revm = { version = "23.1.0", default-features = false }
 op-revm = { version = "4.0.2", default-features = false }
-alloy-evm = { version = "0.8.0", default-features = false, features = ["op"] }
+alloy-evm = { version = "0.8.0", default-features = false }
 alloy-op-evm = { version = "0.8.0", default-features = false }
 
 # General
@@ -154,6 +154,7 @@ dirs = "6.0.0"
 spin = "0.10.0"
 clap = "4.5.38"
 tower = "0.5.2"
+vergen = "9.0.0"
 tokio = "1.44.2"
 rayon = "1.10.0"
 cfg-if = "1.0.0"
@@ -180,9 +181,8 @@ buddy_system_allocator = "0.11.0"
 
 rand = { version = "0.9.1", default-features = false }
 tabled = { version = "0.19", default-features = false }
-backon = { version = "1.5.0", default-features = false, features = ["std", "tokio", "tokio-sleep"] }
+backon = { version = "1.5.0", default-features = false }
 anyhow = { version = "1.0.98", default-features = false }
-vergen = { version = "9.0.0", features = ["build", "cargo", "emit_and_set"] }
 thiserror = { version = "2.0.12", default-features = false }
 derive_more = { version = "2.0.1", default-features = false }
 lazy_static = { version = "1.5.0", default-features = false }
