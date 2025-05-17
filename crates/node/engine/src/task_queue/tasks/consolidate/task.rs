@@ -129,10 +129,11 @@ impl ConsolidateTask {
 #[async_trait]
 impl EngineTaskExt for ConsolidateTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // Skip to processing the payload attributes if consolidation is not needed.
-        match state.needs_consolidation() {
-            true => self.consolidate(state).await,
-            false => self.execute_build_task(state).await,
+        // Skip to building the payload attributes if consolidation is not needed.
+        if state.safe_head().block_info.number < state.unsafe_head().block_info.number {
+            self.consolidate(state).await
+        } else {
+            self.execute_build_task(state).await
         }
     }
 }
