@@ -9,12 +9,17 @@ clone-optimism:
 install-optimism:
     cd {{SOURCE}}/../optimism && mise trust && mise install
 
-_build-node:
-    # Build the node image
-    cd {{SOURCE}}/.. && just build-node
+_build-node COMMIT_TAG="":
+    #!/usr/bin/env bash
+    export COMMIT_TAG={{COMMIT_TAG}}
+    if [ -z "{{COMMIT_TAG}}" ]; then
+        export COMMIT_TAG=$(git rev-parse HEAD)
+    fi
+
+    cd {{SOURCE}}/.. && just build-node-with-tag $COMMIT_TAG
 
 
-deploy DEVNET_FILE_PATH NAME="": _build-node setup clone-optimism install-optimism
+deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
     #!/usr/bin/env bash
     cd {{SOURCE}}/../optimism/kurtosis-devnet
 
@@ -29,6 +34,7 @@ deploy DEVNET_FILE_PATH NAME="": _build-node setup clone-optimism install-optimi
         export DEVNET_NAME=`basename $TARGET_NAME .yaml`
     fi
 
+
     export ENCL_NAME="$DEVNET_NAME"-devnet
     
     NAME=$DEVNET_NAME just devnet "$TARGET_NAME"
@@ -40,6 +46,6 @@ deploy DEVNET_FILE_PATH NAME="": _build-node setup clone-optimism install-optimi
 isolate_test DEVNET_ENV_URL:
     DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./...
 
-test-e2e DEVNET: 
-    just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-    just isolate_test "{{SOURCE}}/devnets/specs/{{DEVNET}}-devnet.json"
+test-e2e DEVNET COMMIT_TAG="": 
+    just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
+    just isolate_test "kt://{{DEVNET}}-devnet"

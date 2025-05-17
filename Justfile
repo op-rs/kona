@@ -80,15 +80,19 @@ test-docs:
 build-native *args='':
   cargo build --workspace $@
 
-# Build target for the `kona-node` docker image.
-build-node:
+# Build target for the `kona-node` docker image specify a custom tag.
+build-node-with-tag TAG:
   docker build \
     --progress plain \
     -f docker/apps/kona_app_generic.dockerfile \
     --build-arg "BIN_TARGET=kona-node" \
-    --build-arg "TAG=$(git rev-parse HEAD)" \
+    --build-arg "TAG={{TAG}}" \
     -t kona-node:local \
     .
+
+# Build target for the `kona-node` docker image. Uses the current remote commit tag.
+build-node:
+  just build-node-with-tag $(git rev-parse HEAD)
 
 # Build `kona-client` for the `cannon` target.
 build-cannon-client:
