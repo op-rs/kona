@@ -36,10 +36,14 @@ jobs:
           submodules: true
       - uses: ./.github/actions/setup
         with:
-          channel: nightly
-          components: rustfmt,clippy
+          channel: stable
+          components: clippy
           prefix-key: ${{ matrix.target }}
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
       - name: Log into ghcr
+        if: ${{ matrix.target != 'native' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -84,6 +88,7 @@ jobs:
           channel: nightly
           prefix-key: ${{ matrix.target }}
       - name: Log into ghcr
+        if: ${{ matrix.target != 'native' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io

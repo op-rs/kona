@@ -4,6 +4,9 @@
 # Rust target
 target/
 
+# Ignore VSCode Configuration
+.vscode/
+
 # Monorepo workspace
 monorepo/
 

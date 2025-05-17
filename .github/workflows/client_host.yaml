@@ -30,6 +30,7 @@ jobs:
           cache-on-failure: true
           prefix-key: ${{ matrix.target }}-${{ matrix.name }}
       - name: Log into ghcr
+        if: "!contains(matrix.target, 'native')"
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
