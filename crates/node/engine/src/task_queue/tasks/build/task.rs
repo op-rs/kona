@@ -3,18 +3,18 @@
 use super::BuildTaskError;
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineGetPayloadVersion, EngineState, EngineTaskError,
-    EngineTaskExt, Metrics,
+    EngineTaskExt, ForkchoiceTask, Metrics,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
-    ExecutionPayload, ExecutionPayloadFieldV2, ExecutionPayloadInputV2, ForkchoiceState, PayloadId,
-    PayloadStatusEnum,
+    ExecutionPayloadFieldV2, ExecutionPayloadInputV2, ForkchoiceState, PayloadId, PayloadStatusEnum,
 };
 use alloy_transport::RpcError;
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use op_alloy_provider::ext::engine::OpEngineApi;
+use op_alloy_rpc_types_engine::OpExecutionPayload;
 use std::{sync::Arc, time::Instant};
 
 /// The [`BuildTask`] is responsible for building new blocks and importing them via the engine API.
@@ -176,7 +176,7 @@ impl BuildTask {
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
-                (ExecutionPayload::V3(payload.execution_payload.payload_inner), response)
+                (OpExecutionPayload::V4(payload.execution_payload), response)
             }
             EngineGetPayloadVersion::V3 => {
                 let payload = engine.get_payload_v3(payload_id).await.map_err(|e| {
@@ -194,33 +194,36 @@ impl BuildTask {
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
-                (ExecutionPayload::V3(payload.execution_payload), response)
+                (OpExecutionPayload::V3(payload.execution_payload), response)
             }
             EngineGetPayloadVersion::V2 => {
                 let payload = engine.get_payload_v2(payload_id).await.map_err(|e| {
                     error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
-                let response = match payload.execution_payload {
-                    ExecutionPayloadFieldV2::V2(ref payload) => {
+                match payload.execution_payload {
+                    ExecutionPayloadFieldV2::V2(payload) => {
                         let payload_input = ExecutionPayloadInputV2 {
                             execution_payload: payload.payload_inner.clone(),
                             withdrawals: Some(payload.withdrawals.clone()),
                         };
-                        engine.new_payload_v2(payload_input).await.map_err(|e| {
+                        let response = engine.new_payload_v2(payload_input).await.map_err(|e| {
                             error!(target: "engine_builder", "Payload import failed: {e}");
                             BuildTaskError::NewPayloadFailed(e)
-                        })?
-                    }
-                    ExecutionPayloadFieldV2::V1(ref payload) => {
-                        engine.new_payload_v1(payload.clone()).await.map_err(|e| {
-                            error!(target: "engine_builder", "Payload import failed: {e}");
-                            BuildTaskError::NewPayloadFailed(e)
-                        })?
-                    }
-                };
+                        })?;
 
-                (payload.execution_payload.into_payload(), response)
+                        (OpExecutionPayload::V2(payload), response)
+                    }
+                    ExecutionPayloadFieldV2::V1(payload) => {
+                        let response =
+                            engine.new_payload_v1(payload.clone()).await.map_err(|e| {
+                                error!(target: "engine_builder", "Payload import failed: {e}");
+                                BuildTaskError::NewPayloadFailed(e)
+                            })?;
+
+                        (OpExecutionPayload::V1(payload), response)
+                    }
+                }
             }
         };
 
@@ -228,17 +231,7 @@ impl BuildTask {
             PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing => {
                 debug!(target: "engine_builder", "Payload import successful");
 
-                let imported_info =
-                    L2BlockInfo::from_payload_and_genesis(&payload, &cfg.genesis).unwrap();
-
-                state.set_unsafe_head(imported_info);
-                state.set_cross_unsafe_head(imported_info);
-                if self.is_attributes_derived {
-                    state.set_local_safe_head(imported_info);
-                    state.set_safe_head(imported_info);
-                }
-
-                Ok(imported_info)
+                Ok(L2BlockInfo::from_payload_and_genesis(payload, &cfg.genesis)?)
             }
             PayloadStatusEnum::Invalid { validation_error } => {
                 if payload_attrs.is_deposits_only() {
@@ -295,7 +288,8 @@ impl EngineTaskExt for BuildTask {
 
         // Send the forkchoice update through the input, with the current engine state and the
         // payload attributes for the block building job.
-        let forkchoice = state.create_forkchoice_state();
+        let mut forkchoice = state.create_forkchoice_state();
+        forkchoice.head_block_hash = self.attributes.parent.block_info.hash;
 
         // Start the build by sending an FCU call with the current forkchoice and the input
         // payload attributes.
@@ -316,6 +310,17 @@ impl EngineTaskExt for BuildTask {
             )
             .await?;
         let block_import_duration = block_import_start_time.elapsed();
+
+        // Update the engine state.
+        state.set_unsafe_head(new_block_ref);
+        state.set_cross_unsafe_head(new_block_ref);
+        if self.is_attributes_derived {
+            state.set_local_safe_head(new_block_ref);
+            state.set_safe_head(new_block_ref);
+        }
+
+        // Send a FCU to canonicalize the imported block.
+        ForkchoiceTask::new(Arc::clone(&self.engine)).execute(state).await?;
 
         info!(
             target: "engine_builder",
