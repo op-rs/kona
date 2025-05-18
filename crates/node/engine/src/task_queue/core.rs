@@ -1,7 +1,7 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
 use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineClient, EngineState, EngineTask};
+use crate::{EngineClient, EngineState, EngineTask, Metrics};
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
@@ -108,6 +108,8 @@ impl Engine {
             .into_consensus()
             .map_transactions(|t| <Transaction<OpTxEnvelope> as Clone>::clone(&t).into_inner());
         let system_config = to_system_config(&l2_safe_block, config)?;
+
+        kona_macros::inc!(counter, Metrics::ENGINE_RESET_COUNT);
 
         Ok((start.safe, l1_origin_info, system_config))
     }
