@@ -2,12 +2,12 @@
 
 use super::StatelessL2Builder;
 use crate::{
-    ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider, constants::SHA256_EMPTY,
+    ExecutorError, ExecutorResult, TrieDBError, TrieDBProvider,
     util::encode_holocene_eip_1559_params,
 };
 use alloc::vec::Vec;
 use alloy_consensus::{EMPTY_OMMER_ROOT_HASH, Header, Sealed};
-use alloy_eips::Encodable2718;
+use alloy_eips::{Encodable2718, eip7685::EMPTY_REQUESTS_HASH};
 use alloy_evm::{EvmFactory, block::BlockExecutionResult};
 use alloy_primitives::{B256, Sealable, U256, logs_bloom};
 use alloy_trie::EMPTY_ROOT_HASH;
@@ -78,7 +78,7 @@ where
             .unwrap_or_default();
 
         // The requests hash on the OP Stack, if Isthmus is active, is always the empty SHA256 hash.
-        let requests_hash = self.config.is_isthmus_active(timestamp).then_some(SHA256_EMPTY);
+        let requests_hash = self.config.is_isthmus_active(timestamp).then_some(EMPTY_REQUESTS_HASH);
 
         // Construct the new header.
         let header = Header {

@@ -25,6 +25,7 @@ alloy-rlp.workspace = true
 alloy-primitives = { workspace = true, features = ["k256", "getrandom"] }
 alloy-rpc-types-engine.workspace = true
 alloy-consensus.workspace = true
+alloy-eips.workspace = true
 
 # Op Alloy
 op-alloy-consensus = { workspace = true, features = ["k256"] }
