@@ -6,31 +6,58 @@ import (
 	"github.com/ethereum-optimism/optimism/devnet-sdk/system"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/testlib/validators"
+	"github.com/stretchr/testify/require"
 )
 
-func nodeUpScenario() systest.SystemTestFunc {
+// Verify that all the EL nodes are able to find peers.
+func peerCount() systest.SystemTestFunc {
 	return func(t systest.T, sys system.System) {
 		l2s := sys.L2s()
 
 		for _, l2 := range l2s {
-			config, err := l2.Config()
-			if err != nil {
-				t.Log(err)
-			}
 
-			t.Log(l2.ID(), l2.Nodes(), config)
+			nodes := l2.Nodes()
+
+			for _, node := range nodes {
+				client, err := node.GethClient()
+
+				require.NoError(t, err, "Failed to get geth client for node %s", node.Name())
+
+				pc, err := client.PeerCount(t.Context())
+
+				require.NoError(t, err, "Failed to get peer count for node %s", node.Name())
+
+				require.Greater(t, pc, uint64(0), "Peer count for node %s is 0", node.Name())
+
+				clRPC := node.CLRPC()
+
+				t.Log("CL RPC:", clRPC)
+
+			}
 		}
 	}
 }
 
-func TestSystemKonaTest(t *testing.T) {
+func TestPeerCount(t *testing.T) {
 	// Get the L2 chain we want to test with
 	chainIdx := uint64(0) // First L2 chain
 
 	nodeValidator := validators.HasSufficientL2Nodes(chainIdx, 1)
 
 	systest.SystemTest(t,
-		nodeUpScenario(),
+		peerCount(),
+		nodeValidator,
+	)
+}
+
+func TestSyncStart(t *testing.T) {
+	// Get the L2 chain we want to test with
+	chainIdx := uint64(0) // First L2 chain
+
+	nodeValidator := validators.HasSufficientL2Nodes(chainIdx, 1)
+
+	systest.SystemTest(t,
+		peerCount(),
 		nodeValidator,
 	)
 }

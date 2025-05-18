@@ -2,7 +2,10 @@ module github.com/op-rs/kona
 
 go 1.24.3
 
-require github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a
+require (
+	github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a
+	github.com/stretchr/testify v1.10.0
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
@@ -128,7 +131,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
@@ -163,6 +165,8 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.2
+replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a
+
+replace github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a => github.com/theochap/optimism v0.0.0-20250517222559-b1d510cf60e4
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.4-rc.1
