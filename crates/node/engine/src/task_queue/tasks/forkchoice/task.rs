@@ -33,7 +33,7 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // If the engine is syncing, log a warning. We can still attempt to apply the
         // forkchoice update.
-        if state.sync_status.is_syncing() {
+        if !state.el_sync_finished {
             warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
         }
 

@@ -114,7 +114,7 @@ impl EngineActor {
             return Ok(());
         }
 
-        if self.engine.state().sync_status.is_finished() {
+        if self.engine.state().el_sync_finished {
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
             self.reset().await?;

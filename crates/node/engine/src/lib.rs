@@ -25,9 +25,6 @@ pub use client::{EngineClient, EngineClientError};
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
-mod sync;
-pub use sync::SyncStatus;
-
 mod state;
 pub use state::EngineState;
 

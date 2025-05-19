@@ -2,7 +2,7 @@
 
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
-    InsertUnsafeTaskError, Metrics, SyncStatus,
+    InsertUnsafeTaskError, Metrics,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
@@ -53,14 +53,12 @@ impl InsertUnsafeTask {
         state: &mut EngineState,
         status: &PayloadStatusEnum,
     ) -> bool {
-        if matches!(status, PayloadStatusEnum::Valid) &&
-            state.sync_status == SyncStatus::ExecutionLayerStarted
-        {
+        if matches!(status, PayloadStatusEnum::Valid) && !state.el_sync_finished {
             info!(
                 target: "engine",
                 "Finished execution layer sync."
             );
-            state.sync_status = SyncStatus::ExecutionLayerFinished;
+            state.el_sync_finished = true;
         }
         matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
@@ -117,10 +115,6 @@ impl EngineTaskExt for InsertUnsafeTask {
             safe_block_hash: state.safe_head().block_info.hash,
             finalized_block_hash: state.finalized_head().block_info.hash,
         };
-
-        if !state.sync_status.has_started() {
-            state.sync_status = SyncStatus::ExecutionLayerStarted;
-        }
 
         // Send the forkchoice update to finalize the payload insertion.
         let fcu_time_start = Instant::now();
