@@ -15,11 +15,15 @@ use std::fmt;
 
 mod log;
 pub use log::{ExecutingMessageEntry, LogEntry};
+
 mod block;
 pub use block::BlockHeader;
 
 mod derivation;
 pub use derivation::DerivedBlockPair;
+
+mod common;
+pub use common::U64List;
 
 /// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
 /// types that implement [`reth_codecs::Compact`].
@@ -53,7 +57,7 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockHeader, LogEntry, DerivedBlockPair);
+impl_compression_for_compact!(BlockHeader, LogEntry, DerivedBlockPair, U64List);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -73,9 +77,20 @@ tables! {
         type Value = BlockHeader;
     }
 
+    /// A table mapping a derived block number to its corresponding source and derived block headers.
+    /// - Key: `u64` — derived block number
+    /// - Value: [`DerivedBlockPair`] — pair of source and derived block headers
     table DerivedBlocks {
         type Key = u64;
         type Value = DerivedBlockPair;
+    }
+
+    /// A table mapping a source block number to a list of its derived block numbers.
+    /// - Key: `u64` — source block number
+    /// - Value: [`U64List`] — list of derived block numbers
+     table SourceToDerivedBlockNumbers {
+        type Key = u64;
+        type Value = U64List;
     }
 }
 
@@ -140,5 +155,65 @@ mod tests {
         assert!(!compressed_buf.is_empty());
         let decompressed = LogEntry::decompress(&compressed_buf).unwrap();
         assert_eq!(original, decompressed);
+    }
+
+    #[test]
+    fn test_derived_block_pair_compression_decompression() {
+        let source_header =
+            BlockHeader { number: 100, hash: test_b256(6), parent_hash: test_b256(7), time: 1000 };
+        let derived_header = BlockHeader {
+            number: 200,
+            hash: test_b256(8),
+            parent_hash: test_b256(8), // Link to source
+            time: 1010,
+        };
+
+        let original_pair = DerivedBlockPair { source: source_header, derived: derived_header };
+
+        let mut compressed_buf = Vec::new();
+        original_pair.compress_to_buf(&mut compressed_buf);
+
+        assert!(!compressed_buf.is_empty(), "Buffer should not be empty after compression");
+
+        let decompressed_pair = DerivedBlockPair::decompress(&compressed_buf).unwrap();
+        assert_eq!(
+            original_pair, decompressed_pair,
+            "Original and deserialized pairs should be equal"
+        );
+    }
+
+    #[test]
+    fn test_u64list_compression_decompression_empty() {
+        let original_list = U64List(Vec::new());
+
+        let mut compressed_buf = Vec::new();
+        original_list.compress_to_buf(&mut compressed_buf);
+
+        // For an empty list, the compact representation might also be empty or very small.
+        // The primary check is that deserialization works and results in an empty list.
+        let decompressed_list = U64List::decompress(&compressed_buf).unwrap();
+        assert_eq!(
+            original_list, decompressed_list,
+            "Original and deserialized empty U64List should be equal"
+        );
+    }
+
+    #[test]
+    fn test_u64list_compression_decompression_with_data() {
+        let original_list = U64List(vec![10, 20, 30, 40, 50]);
+
+        let mut compressed_buf = Vec::new();
+        original_list.compress_to_buf(&mut compressed_buf);
+
+        assert!(
+            !compressed_buf.is_empty(),
+            "Buffer should not be empty after compression of U64List with data"
+        );
+
+        let decompressed_list = U64List::decompress(&compressed_buf).unwrap();
+        assert_eq!(
+            original_list, decompressed_list,
+            "Original and deserialized U64List with data should be equal"
+        );
     }
 }
