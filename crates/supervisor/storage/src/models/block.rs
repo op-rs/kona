@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// Metadata reference for a single block.
 ///
-/// This struct captures essential block information required to track canonical 
+/// This struct captures essential block information required to track canonical
 /// block lineage and verify ancestry. It is stored as the value
 /// in the [`crate::models::BlockRefs`] table.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
@@ -53,12 +53,8 @@ mod tests {
         let bytes_written = original_ref.to_compact(&mut buffer);
         assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
 
-        let (deserialized_ref, remaining_buf) =
-            BlockRef::from_compact(&buffer, bytes_written);
-        assert_eq!(
-            original_ref, deserialized_ref,
-            "Original and deserialized ref should be equal"
-        );
+        let (deserialized_ref, remaining_buf) = BlockRef::from_compact(&buffer, bytes_written);
+        assert_eq!(original_ref, deserialized_ref, "Original and deserialized ref should be equal");
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 }

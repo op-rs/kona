@@ -87,12 +87,8 @@ mod tests {
 
     #[test]
     fn test_block_ref_compression_decompression() {
-        let original = BlockRef {
-            number: 1,
-            hash: test_b256(1),
-            parent_hash: test_b256(2),
-            time: 1234567890,
-        };
+        let original =
+            BlockRef { number: 1, hash: test_b256(1), parent_hash: test_b256(2), time: 1234567890 };
 
         let mut compressed_buf = Vec::new();
         original.compress_to_buf(&mut compressed_buf);
