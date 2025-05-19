@@ -80,18 +80,19 @@ mod tests {
         assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
         assert!(!buffer.is_empty(), "Buffer should not be empty after compression");
 
-        let (deserialized_log_entry, remaining_buf) = LogEntry::from_compact(&buffer, bytes_written);
+        let (deserialized_log_entry, remaining_buf) =
+            LogEntry::from_compact(&buffer, bytes_written);
 
-        assert_eq!(original_log_entry, deserialized_log_entry, "Original and deserialized log entries should be equal");
+        assert_eq!(
+            original_log_entry, deserialized_log_entry,
+            "Original and deserialized log entries should be equal"
+        );
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 
     #[test]
     fn test_log_entry_compact_roundtrip_without_message() {
-        let original_log_entry = LogEntry {
-            hash: test_b256(3),
-            executing_message: None,
-        };
+        let original_log_entry = LogEntry { hash: test_b256(3), executing_message: None };
 
         let mut buffer = Vec::new();
         let bytes_written = original_log_entry.to_compact(&mut buffer);
@@ -99,9 +100,13 @@ mod tests {
         assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
         assert!(!buffer.is_empty(), "Buffer should not be empty after compression");
 
-        let (deserialized_log_entry, remaining_buf) = LogEntry::from_compact(&buffer, bytes_written);
+        let (deserialized_log_entry, remaining_buf) =
+            LogEntry::from_compact(&buffer, bytes_written);
 
-        assert_eq!(original_log_entry, deserialized_log_entry, "Original and deserialized log entries should be equal");
+        assert_eq!(
+            original_log_entry, deserialized_log_entry,
+            "Original and deserialized log entries should be equal"
+        );
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 }

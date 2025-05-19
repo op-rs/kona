@@ -53,8 +53,12 @@ mod tests {
         let bytes_written = original_header.to_compact(&mut buffer);
         assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
 
-        let (deserialized_header, remaining_buf) = BlockHeader::from_compact(&buffer, bytes_written);
-        assert_eq!(original_header, deserialized_header, "Original and deserialized header should be equal");
+        let (deserialized_header, remaining_buf) =
+            BlockHeader::from_compact(&buffer, bytes_written);
+        assert_eq!(
+            original_header, deserialized_header,
+            "Original and deserialized header should be equal"
+        );
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 }
