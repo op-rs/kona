@@ -16,7 +16,7 @@ use std::fmt;
 mod log;
 pub use log::{ExecutingMessageEntry, LogEntry};
 mod block;
-pub use block::BlockHeader;
+pub use block::BlockRef;
 
 /// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
 /// types that implement [`reth_codecs::Compact`].
@@ -26,7 +26,7 @@ pub use block::BlockHeader;
 ///
 /// # Example
 /// ```ignore
-/// impl_compression_for_compact!(BlockHeader, LogEntry);
+/// impl_compression_for_compact!(BlockRef, LogEntry);
 /// ```
 macro_rules! impl_compression_for_compact {
     ($($name:ident$(<$($generic:ident),*>)?),+) => {
@@ -50,7 +50,7 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockHeader, LogEntry);
+impl_compression_for_compact!(BlockRef, LogEntry);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -64,16 +64,16 @@ tables! {
     /// A table for storing block metadata by block number.
     /// This is a standard table (not dup-sorted) where:
     /// - Key: `u64` — block number
-    /// - Value: [`BlockHeader`] — block metadata
-    table BlockHeaders {
+    /// - Value: [`BlockRef`] — block metadata
+    table BlockRefs {
         type Key = u64;
-        type Value = BlockHeader;
+        type Value = BlockRef;
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*; // Imports BlockHeader, LogEntry, ExecutingMessageEntry, etc.
+    use super::*;
     use alloy_primitives::B256;
     use reth_db_api::table::{Compress, Decompress};
 
@@ -86,8 +86,8 @@ mod tests {
     }
 
     #[test]
-    fn test_block_header_compression_decompression() {
-        let original = BlockHeader {
+    fn test_block_ref_compression_decompression() {
+        let original = BlockRef {
             number: 1,
             hash: test_b256(1),
             parent_hash: test_b256(2),
@@ -100,7 +100,7 @@ mod tests {
         // Ensure some data was written
         assert!(!compressed_buf.is_empty());
 
-        let decompressed = BlockHeader::decompress(&compressed_buf).unwrap();
+        let decompressed = BlockRef::decompress(&compressed_buf).unwrap();
         assert_eq!(original, decompressed);
     }
 
