@@ -5,11 +5,10 @@ use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
-/// A newtype wrapper for `Vec<u64>` to represent a list of numbers.
+/// Wrapper for `Vec<u64>` to represent a list of numbers.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct U64List(pub Vec<u64>);
 
-// Implement Compact for the newtype by delegating to the inner Vec<u64>.
 impl Compact for U64List {
     fn to_compact<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) -> usize {
         self.0.to_compact(buf)
