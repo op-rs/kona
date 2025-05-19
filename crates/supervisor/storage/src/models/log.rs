@@ -45,3 +45,63 @@ pub struct ExecutingMessageEntry {
     /// Hash of the message.
     pub hash: B256,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*; // Imports LogEntry, ExecutingMessageEntry
+    use alloy_primitives::B256;
+    use reth_codecs::Compact; // For the Compact trait methods
+
+    // Helper to create somewhat unique B256 values for testing.
+    // Assumes the "rand" feature for alloy-primitives is enabled for tests.
+    fn test_b256(val: u8) -> B256 {
+        let mut val_bytes = [0u8; 32];
+        val_bytes[0] = val;
+        let b256_from_val = B256::from(val_bytes);
+        B256::random() ^ b256_from_val
+    }
+
+    #[test]
+    fn test_log_entry_compact_roundtrip_with_message() {
+        let original_log_entry = LogEntry {
+            hash: test_b256(1),
+            executing_message: Some(ExecutingMessageEntry {
+                chain_id: 10,
+                block_number: 1001,
+                log_index: 5,
+                timestamp: 1234567890,
+                hash: test_b256(2),
+            }),
+        };
+
+        let mut buffer = Vec::new();
+        let bytes_written = original_log_entry.to_compact(&mut buffer);
+
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+        assert!(!buffer.is_empty(), "Buffer should not be empty after compression");
+
+        let (deserialized_log_entry, remaining_buf) = LogEntry::from_compact(&buffer, bytes_written);
+
+        assert_eq!(original_log_entry, deserialized_log_entry, "Original and deserialized log entries should be equal");
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
+    }
+
+    #[test]
+    fn test_log_entry_compact_roundtrip_without_message() {
+        let original_log_entry = LogEntry {
+            hash: test_b256(3),
+            executing_message: None,
+        };
+
+        let mut buffer = Vec::new();
+        let bytes_written = original_log_entry.to_compact(&mut buffer);
+
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+        assert!(!buffer.is_empty(), "Buffer should not be empty after compression");
+
+        let (deserialized_log_entry, remaining_buf) = LogEntry::from_compact(&buffer, bytes_written);
+
+        assert_eq!(original_log_entry, deserialized_log_entry, "Original and deserialized log entries should be equal");
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
+    }
+}

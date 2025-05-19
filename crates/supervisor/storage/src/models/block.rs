@@ -18,10 +18,43 @@ use serde::{Deserialize, Serialize};
 /// in the [`crate::models::BlockHeaders`] table.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 pub struct BlockHeader {
+    /// The height of the block.
+    pub number: u64,
     /// The hash of the block itself.
     pub hash: B256,
     /// The hash of the parent block (previous block in the chain).
     pub parent_hash: B256,
     /// The timestamp of the block (seconds since Unix epoch).
     pub time: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+
+    fn test_b256(val: u8) -> B256 {
+        let mut val_bytes = [0u8; 32];
+        val_bytes[0] = val;
+        let b256_from_val = B256::from(val_bytes);
+        B256::random() ^ b256_from_val
+    }
+
+    #[test]
+    fn test_block_header_compact_roundtrip() {
+        let original_header = BlockHeader {
+            number: 42,
+            hash: test_b256(10),
+            parent_hash: test_b256(11),
+            time: 1678886400,
+        };
+
+        let mut buffer = Vec::new();
+        let bytes_written = original_header.to_compact(&mut buffer);
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+
+        let (deserialized_header, remaining_buf) = BlockHeader::from_compact(&buffer, bytes_written);
+        assert_eq!(original_header, deserialized_header, "Original and deserialized header should be equal");
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
+    }
 }
