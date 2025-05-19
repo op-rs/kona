@@ -41,18 +41,8 @@ impl InsertUnsafeTask {
         Self { client, rollup_config, version, envelope }
     }
 
-    /// Checks the response of the `engine_newPayload` call, and updates the sync status if
-    /// necessary.
-    fn check_new_payload_status(
-        &self,
-        state: &mut EngineState,
-        status: &PayloadStatusEnum,
-    ) -> bool {
-        debug!(target: "engine", ?status, "Checking payload status");
-        if matches!(status, PayloadStatusEnum::Valid) {
-            debug!(target: "engine", "Valid new payload status. Finished execution layer sync");
-            state.sync_status = SyncStatus::ExecutionLayerFinished;
-        }
+    /// Checks the response of the `engine_newPayload` call.
+    const fn check_new_payload_status(&self, status: &PayloadStatusEnum) -> bool {
         matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
 
@@ -66,7 +56,11 @@ impl InsertUnsafeTask {
         if matches!(status, PayloadStatusEnum::Valid) &&
             state.sync_status == SyncStatus::ExecutionLayerStarted
         {
-            state.sync_status = SyncStatus::ExecutionLayerNotFinalized;
+            info!(
+                target: "engine",
+                "Finished execution layer sync."
+            );
+            state.sync_status = SyncStatus::ExecutionLayerFinished;
         }
         matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
@@ -102,7 +96,7 @@ impl EngineTaskExt for InsertUnsafeTask {
             Ok(resp) => resp,
             Err(e) => return Err(InsertUnsafeTaskError::InsertFailed(e).into()),
         };
-        if !self.check_new_payload_status(state, &response.status) {
+        if !self.check_new_payload_status(&response.status) {
             return Err(InsertUnsafeTaskError::UnexpectedPayloadStatus(response.status).into());
         }
         let insert_duration = insert_time_start.elapsed();
@@ -118,43 +112,14 @@ impl EngineTaskExt for InsertUnsafeTask {
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
                 .map_err(InsertUnsafeTaskError::L2BlockInfoConstruction)?;
 
-        let mut fcu = ForkchoiceState {
+        let fcu = ForkchoiceState {
             head_block_hash: self.envelope.payload.block_hash(),
             safe_block_hash: state.safe_head().block_info.hash,
             finalized_block_hash: state.finalized_head().block_info.hash,
         };
 
-        match state.sync_status {
-            SyncStatus::ExecutionLayerFinished => { /* Nothing to do; Continue */ }
-            SyncStatus::ExecutionLayerNotFinalized => {
-                // Use the new payload as the safe and finalized block for the FCU.
-                fcu.safe_block_hash = self.envelope.payload.block_hash();
-                fcu.finalized_block_hash = self.envelope.payload.block_hash();
-
-                // Update the local engine state to match.
-                state.set_unsafe_head(new_unsafe_ref);
-
-                // If the state's finalized and safe head are the genesis hash, this is the
-                // initial sync of the node. Update the safe and finalized heads to the
-                // new unsafe ref.
-                let genesis_hash = self.rollup_config.genesis.l2.hash;
-                if state.finalized_head().block_info.hash == genesis_hash &&
-                    state.safe_head().block_info.hash == genesis_hash
-                {
-                    state.set_safe_head(new_unsafe_ref);
-                    state.set_local_safe_head(new_unsafe_ref);
-                    state.set_finalized_head(new_unsafe_ref);
-                }
-            }
-            _ => {
-                // For the FCUs sent to the EL during EL sync, set the `safe` and `finalized` hashes
-                // to
-                // 0. This is a special case to trigger optimistic head sync on `op-reth`.
-                state.sync_status = SyncStatus::ExecutionLayerStarted;
-
-                fcu.safe_block_hash = Default::default();
-                fcu.finalized_block_hash = Default::default();
-            }
+        if !state.sync_status.has_started() {
+            state.sync_status = SyncStatus::ExecutionLayerStarted;
         }
 
         // Send the forkchoice update to finalize the payload insertion.
@@ -193,17 +158,6 @@ impl EngineTaskExt for InsertUnsafeTask {
         state.set_cross_unsafe_head(new_unsafe_ref);
         state.set_unsafe_head(new_unsafe_ref);
         state.forkchoice_update_needed = false;
-
-        // Finish EL sync if the EL sync state was finished, but not finalized before this
-        // operation.
-        if state.sync_status == SyncStatus::ExecutionLayerNotFinalized {
-            info!(
-                target: "engine",
-                finalized_block = new_unsafe_ref.block_info.number,
-                "Finished execution layer sync."
-            );
-            state.sync_status = SyncStatus::ExecutionLayerFinished;
-        }
 
         info!(
             target: "engine",

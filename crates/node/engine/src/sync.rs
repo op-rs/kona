@@ -14,9 +14,7 @@
 ///
 /// 1. Sync hasn't started yet. [`SyncStatus::ExecutionLayerWillStart`]
 /// 2. The sync has started. [`SyncStatus::ExecutionLayerStarted`]
-/// 3. The sync has finished but the last block is not finalized.
-///    [`SyncStatus::ExecutionLayerNotFinalized`]
-/// 4. The sync has finished. [`SyncStatus::ExecutionLayerFinished`]
+/// 3. The sync has finished. [`SyncStatus::ExecutionLayerFinished`]
 ///
 /// Once the execution layer sync has finished, the last block is marked
 /// as finalized and consolidation is performed.
@@ -29,27 +27,20 @@ pub enum SyncStatus {
     ExecutionLayerWillStart = 1,
     /// Execution sync has started.
     ExecutionLayerStarted = 2,
-    /// Execution sync has finished but the last block is not finalized.
-    ExecutionLayerNotFinalized = 3,
     /// Execution sync has finished.
     /// At this point, consolidation is being performed.
-    ExecutionLayerFinished = 4,
+    ExecutionLayerFinished = 3,
 }
 
 impl SyncStatus {
     /// Returns true if the execution layer sync has started.
     pub const fn has_started(&self) -> bool {
-        matches!(self, Self::ExecutionLayerStarted)
+        matches!(self, Self::ExecutionLayerStarted | Self::ExecutionLayerFinished)
     }
 
     /// Returns true if syncing is in progress.
     pub const fn is_syncing(&self) -> bool {
-        matches!(
-            self,
-            Self::ExecutionLayerWillStart |
-                Self::ExecutionLayerStarted |
-                Self::ExecutionLayerNotFinalized
-        )
+        matches!(self, Self::ExecutionLayerWillStart | Self::ExecutionLayerStarted)
     }
 
     /// Returns true if syncing is finished

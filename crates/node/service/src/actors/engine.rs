@@ -108,17 +108,35 @@ impl EngineActor {
     }
 
     /// Checks if the engine is syncing, notifying the derivation actor if necessary.
-    pub fn check_sync(&self) {
+    async fn check_sync(&mut self) -> Result<(), EngineError> {
         // If the channel is closed, the receiver already marked engine ready.
         if self.sync_complete_tx.is_closed() {
-            return;
+            return Ok(());
         }
 
         if self.engine.state().sync_status.is_finished() {
-            // If the sync status is finished, we can start derivation.
-            trace!(target: "engine", "Sending signal to start derivation");
+            // If the sync status is finished, we can reset the engine and start derivation.
+            info!(target: "engine", "Performing initial engine reset");
+            self.reset().await?;
+            self.maybe_update_safe_head();
             self.sync_complete_tx.send(()).ok();
         }
+
+        Ok(())
+    }
+
+    /// Attempts to update the safe head via the watch channel.
+    fn maybe_update_safe_head(&self) {
+        let state_safe_head = self.engine.state().safe_head();
+        let update = |head: &mut L2BlockInfo| {
+            if head != &state_safe_head {
+                *head = state_safe_head;
+                return true;
+            }
+            false
+        };
+        let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
+        trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
     }
 
     /// Starts a task to handle engine queries.
@@ -154,11 +172,6 @@ impl NodeActor for EngineActor {
         let handle = std::mem::take(&mut self.inbound_queries)
             .map(|inbound_query_channel| self.start_query_task(inbound_query_channel));
 
-        // Check if the engine state is uninitialized. If so, trigger the initial reset.
-        if !self.engine.is_state_initialized() {
-            self.reset().await?;
-        }
-
         loop {
             tokio::select! {
                 biased;
@@ -188,7 +201,7 @@ impl NodeActor for EngineActor {
                     let task = EngineTask::InsertUnsafe(task);
                     self.engine.enqueue(task);
                     debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
-                    self.check_sync();
+                    self.check_sync().await?;
                 }
                 attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
@@ -225,18 +238,7 @@ impl NodeActor for EngineActor {
                 res = self.engine.drain() => {
                     match res {
                         Ok(_) => {
-                          trace!(target: "engine", "[ENGINE] tasks drained");
-                          // Update the l2 safe head if needed.
-                          let state_safe_head = self.engine.state().safe_head();
-                          let update = |head: &mut L2BlockInfo| {
-                              if head != &state_safe_head {
-                                  *head = state_safe_head;
-                                  return true;
-                              }
-                              false
-                          };
-                          let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
-                          trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
+                            trace!(target: "engine", "[ENGINE] tasks drained");
                         }
                         Err(EngineTaskError::Reset(e)) => {
                             warn!(target: "engine", err = ?e, "Received reset request");
@@ -259,6 +261,8 @@ impl NodeActor for EngineActor {
                         }
                         Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
                     }
+
+                    self.maybe_update_safe_head();
                 }
             }
         }
