@@ -409,8 +409,8 @@ github.com/supranational/blst v0.3.14/go.mod h1:jZJtfjgudtNl4en1tzwPIV3KjUnQUvG3
 github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7/go.mod h1:q4W45IWZaF22tdD+VEXcAWRA037jwmWEB5VWYORlTpc=
 github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a h1:1ur3QoCqvE5fl+nylMaIr9PVV1w343YRDtsy+Rwu7XI=
 github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a/go.mod h1:RRCYJbIwD5jmqPI9XoAFR0OcDxqUctll6zUj/+B4S48=
-github.com/theochap/optimism v0.0.0-20250517222559-b1d510cf60e4 h1:feTjbRorJLeVfh42r76o7MdV+4NTdeol57wSPh0IETg=
-github.com/theochap/optimism v0.0.0-20250517222559-b1d510cf60e4/go.mod h1:WrVFtk3cP45tvHs7MARn9KGQu35XIoXo/IOWU6K/rzk=
+github.com/theochap/optimism v0.0.0-20250518172227-265a69ea8fb6 h1:vt191My76V2TmWf+YefhYYDAIn2HAWUpYlH7vojFguI=
+github.com/theochap/optimism v0.0.0-20250518172227-265a69ea8fb6/go.mod h1:WrVFtk3cP45tvHs7MARn9KGQu35XIoXo/IOWU6K/rzk=
 github.com/tklauser/go-sysconf v0.3.14 h1:g5vzr9iPFFz24v2KZXs/pvpvh8/V9Fw6vQK5ZZb78yU=
 github.com/tklauser/go-sysconf v0.3.14/go.mod h1:1ym4lWMLUOhuBOPGtRcJm7tEGX4SCYNEEEtghGG/8uY=
 github.com/tklauser/numcpus v0.8.0 h1:Mx4Wwe/FjZLeQsK/6kt2EOepwwSl7SmJrK5bV/dXYgY=

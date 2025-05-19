@@ -1,13 +1,39 @@
 package node
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/system"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/testlib/validators"
 	"github.com/stretchr/testify/require"
 )
+
+type rpcRequest struct {
+	JSONRPC string      `json:"jsonrpc"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params"`
+	ID      uint64      `json:"id"`
+}
+
+type rpcResponse struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      uint64          `json:"id"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *rpcError       `json:"error,omitempty"`
+}
+
+type rpcError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
 
 // Verify that all the EL nodes are able to find peers.
 func peerCount() systest.SystemTestFunc {
@@ -29,9 +55,66 @@ func peerCount() systest.SystemTestFunc {
 
 				require.Greater(t, pc, uint64(0), "Peer count for node %s is 0", node.Name())
 
+				clName := node.CLName()
 				clRPC := node.CLRPC()
 
-				t.Log("CL RPC:", clRPC)
+				// Curl the CL RPC endpoint `opp2p_self` using RPC
+				// 1. Build the payload.
+				reqBody := rpcRequest{
+					JSONRPC: "2.0",
+					Method:  "eth_blockNumber", // example: Ethereum JSON‑RPC
+					Params:  []interface{}{},
+					ID:      1,
+				}
+				payload, err := json.Marshal(reqBody)
+				if err != nil {
+					panic(err)
+				}
+
+				// 2. Configure an HTTP client with sensible timeouts.
+				httpClient := &http.Client{
+					Timeout: 10 * time.Second,
+				}
+
+				// 3. Create a context (optional, lets you cancel).
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				// 4. Build the HTTP request.
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+					"http://localhost:8545", bytes.NewReader(payload))
+				if err != nil {
+					panic(err)
+				}
+				req.Header.Set("Content-Type", "application/json")
+
+				// 5. Send the request.
+				resp, err := httpClient.Do(req)
+				if err != nil {
+					panic(err)
+				}
+				defer resp.Body.Close()
+
+				// 6. Read and decode the response.
+				respBytes, err := io.ReadAll(resp.Body)
+				if err != nil {
+					panic(err)
+				}
+
+				var rpcResp rpcResponse
+				if err := json.Unmarshal(respBytes, &rpcResp); err != nil {
+					panic(err)
+				}
+
+				// 7. Check for RPC‑level errors.
+				if rpcResp.Error != nil {
+					panic(fmt.Errorf("rpc error %d: %s", rpcResp.Error.Code, rpcResp.Error.Message))
+				}
+
+				// 8. Use the result (here we just print it).
+				t.Log("Raw result: %s\n", rpcResp.Result)
+
+				t.Log("CL Name:", clName, "CL RPC:", clRPC)
 
 			}
 		}

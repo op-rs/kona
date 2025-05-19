@@ -167,6 +167,6 @@ require (
 
 replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a
 
-replace github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a => github.com/theochap/optimism v0.0.0-20250517222559-b1d510cf60e4
+replace github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a => github.com/theochap/optimism v0.0.0-20250518172227-265a69ea8fb6
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.4-rc.1
