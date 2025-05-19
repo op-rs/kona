@@ -123,23 +123,38 @@ impl EngineTaskExt for InsertUnsafeTask {
             safe_block_hash: state.safe_head().block_info.hash,
             finalized_block_hash: state.finalized_head().block_info.hash,
         };
-        if state.sync_status == SyncStatus::ExecutionLayerNotFinalized {
-            // Use the new payload as the safe and finalized block for the FCU.
-            fcu.safe_block_hash = self.envelope.payload.block_hash();
-            fcu.finalized_block_hash = self.envelope.payload.block_hash();
 
-            // Update the local engine state to match.
-            state.set_unsafe_head(new_unsafe_ref);
-            state.set_safe_head(new_unsafe_ref);
-            state.set_local_safe_head(new_unsafe_ref);
-            state.set_finalized_head(new_unsafe_ref);
-        } else if state.sync_status == SyncStatus::ExecutionLayerWillStart {
-            // For the first FCU sent to the EL, set the `safe` and `finalized` hashes to 0. This is
-            // a special case to trigger optimistic head sync on `op-reth`.
-            state.sync_status = SyncStatus::ExecutionLayerStarted;
+        match state.sync_status {
+            SyncStatus::ExecutionLayerFinished => { /* Nothing to do; Continue */ }
+            SyncStatus::ExecutionLayerNotFinalized => {
+                // Use the new payload as the safe and finalized block for the FCU.
+                fcu.safe_block_hash = self.envelope.payload.block_hash();
+                fcu.finalized_block_hash = self.envelope.payload.block_hash();
 
-            fcu.safe_block_hash = Default::default();
-            fcu.finalized_block_hash = Default::default();
+                // Update the local engine state to match.
+                state.set_unsafe_head(new_unsafe_ref);
+
+                // If the state's finalized and safe head are the genesis hash, this is the
+                // initial sync of the node. Update the safe and finalized heads to the
+                // new unsafe ref.
+                let genesis_hash = self.rollup_config.genesis.l2.hash;
+                if state.finalized_head().block_info.hash == genesis_hash &&
+                    state.safe_head().block_info.hash == genesis_hash
+                {
+                    state.set_safe_head(new_unsafe_ref);
+                    state.set_local_safe_head(new_unsafe_ref);
+                    state.set_finalized_head(new_unsafe_ref);
+                }
+            }
+            _ => {
+                // For the FCUs sent to the EL during EL sync, set the `safe` and `finalized` hashes
+                // to
+                // 0. This is a special case to trigger optimistic head sync on `op-reth`.
+                state.sync_status = SyncStatus::ExecutionLayerStarted;
+
+                fcu.safe_block_hash = Default::default();
+                fcu.finalized_block_hash = Default::default();
+            }
         }
 
         // Send the forkchoice update to finalize the payload insertion.
@@ -175,6 +190,7 @@ impl EngineTaskExt for InsertUnsafeTask {
         }
 
         // Update the local engine state.
+        state.set_cross_unsafe_head(new_unsafe_ref);
         state.set_unsafe_head(new_unsafe_ref);
         state.forkchoice_update_needed = false;
 

@@ -87,7 +87,7 @@ build-node:
     -f docker/apps/kona_app_generic.dockerfile \
     --build-arg "BIN_TARGET=kona-node" \
     --build-arg "TAG=$(git rev-parse HEAD)" \
-    -t ghcr.io/op-rs/kona/kona-node:latest \
+    -t kona-node:local \
     .
 
 # Build `kona-client` for the `cannon` target.

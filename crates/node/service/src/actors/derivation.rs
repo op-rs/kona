@@ -235,17 +235,6 @@ where
 
                     self.signal(signal).await;
                 }
-                _ = self.sync_complete_rx.recv() => {
-                    if self.engine_ready {
-                        // Already received the signal, ignore.
-                        continue;
-                    }
-                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
-                    self.engine_ready = true;
-                    self.sync_complete_rx.close();
-                    // Optimistically process the first message.
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
-                }
                 msg = self.l1_head_updates.recv() => {
                     if msg.is_none() {
                         error!(
@@ -259,6 +248,17 @@ where
                 }
                 _ = self.engine_l2_safe_head.changed() => {
                     self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
+                }
+                _ = self.sync_complete_rx.recv() => {
+                    if self.engine_ready {
+                        // Already received the signal, ignore.
+                        continue;
+                    }
+                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
+                    self.engine_ready = true;
+                    self.sync_complete_rx.close();
+                    // Optimistically process the first message.
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }
             }
         }
