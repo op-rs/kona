@@ -18,6 +18,9 @@ pub use log::{ExecutingMessageEntry, LogEntry};
 mod block;
 pub use block::BlockHeader;
 
+mod derivation;
+pub use derivation::DerivedBlockPair;
+
 /// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
 /// types that implement [`reth_codecs::Compact`].
 ///
@@ -50,7 +53,7 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockHeader, LogEntry);
+impl_compression_for_compact!(BlockHeader, LogEntry, DerivedBlockPair);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -68,6 +71,11 @@ tables! {
     table BlockHeaders {
         type Key = u64;
         type Value = BlockHeader;
+    }
+
+    table DerivedBlocks {
+        type Key = u64;
+        type Value = DerivedBlockPair;
     }
 }
 
