@@ -13,11 +13,11 @@ use serde::{Deserialize, Serialize};
 
 /// Metadata reference for a single block.
 ///
-/// This struct captures minimal but essential block header information required
-/// to track canonical block lineage and verify ancestry. It is stored as the value
-/// in the [`crate::models::BlockHeaders`] table.
+/// This struct captures essential block information required to track canonical
+/// block lineage and verify ancestry. It is stored as the value
+/// in the [`crate::models::BlockRefs`] table.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
-pub struct BlockHeader {
+pub struct BlockRef {
     /// The height of the block.
     pub number: u64,
     /// The hash of the block itself.
@@ -41,8 +41,8 @@ mod tests {
     }
 
     #[test]
-    fn test_block_header_compact_roundtrip() {
-        let original_header = BlockHeader {
+    fn test_block_ref_compact_roundtrip() {
+        let original_ref = BlockRef {
             number: 42,
             hash: test_b256(10),
             parent_hash: test_b256(11),
@@ -50,15 +50,11 @@ mod tests {
         };
 
         let mut buffer = Vec::new();
-        let bytes_written = original_header.to_compact(&mut buffer);
+        let bytes_written = original_ref.to_compact(&mut buffer);
         assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
 
-        let (deserialized_header, remaining_buf) =
-            BlockHeader::from_compact(&buffer, bytes_written);
-        assert_eq!(
-            original_header, deserialized_header,
-            "Original and deserialized header should be equal"
-        );
+        let (deserialized_ref, remaining_buf) = BlockRef::from_compact(&buffer, bytes_written);
+        assert_eq!(original_ref, deserialized_ref, "Original and deserialized ref should be equal");
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 }

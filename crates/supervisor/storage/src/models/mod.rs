@@ -17,7 +17,7 @@ mod log;
 pub use log::{ExecutingMessageEntry, LogEntry};
 
 mod block;
-pub use block::BlockHeader;
+pub use block::BlockRef;
 
 mod derivation;
 pub use derivation::DerivedBlockPair;
@@ -33,7 +33,7 @@ pub use common::U64List;
 ///
 /// # Example
 /// ```ignore
-/// impl_compression_for_compact!(BlockHeader, LogEntry);
+/// impl_compression_for_compact!(BlockRef, LogEntry);
 /// ```
 macro_rules! impl_compression_for_compact {
     ($($name:ident$(<$($generic:ident),*>)?),+) => {
@@ -57,7 +57,7 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockHeader, LogEntry, DerivedBlockPair, U64List);
+impl_compression_for_compact!(BlockRef, LogEntry, DerivedBlockPair, U64List);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -71,15 +71,15 @@ tables! {
     /// A table for storing block metadata by block number.
     /// This is a standard table (not dup-sorted) where:
     /// - Key: `u64` — block number
-    /// - Value: [`BlockHeader`] — block metadata
-    table BlockHeaders {
+    /// - Value: [`BlockRef`] — block metadata
+    table BlockRefs {
         type Key = u64;
-        type Value = BlockHeader;
+        type Value = BlockRef;
     }
 
-    /// A table mapping a derived block number to its corresponding source and derived block headers.
+    /// A table mapping a derived block number to its corresponding source and derived block reference.
     /// - Key: `u64` — derived block number
-    /// - Value: [`DerivedBlockPair`] — pair of source and derived block headers
+    /// - Value: [`DerivedBlockPair`] — pair of source and derived block reference
     table DerivedBlocks {
         type Key = u64;
         type Value = DerivedBlockPair;
@@ -96,7 +96,7 @@ tables! {
 
 #[cfg(test)]
 mod tests {
-    use super::*; // Imports BlockHeader, LogEntry, ExecutingMessageEntry, etc.
+    use super::*;
     use alloy_primitives::B256;
     use reth_db_api::table::{Compress, Decompress};
 
@@ -109,13 +109,9 @@ mod tests {
     }
 
     #[test]
-    fn test_block_header_compression_decompression() {
-        let original = BlockHeader {
-            number: 1,
-            hash: test_b256(1),
-            parent_hash: test_b256(2),
-            time: 1234567890,
-        };
+    fn test_block_ref_compression_decompression() {
+        let original =
+            BlockRef { number: 1, hash: test_b256(1), parent_hash: test_b256(2), time: 1234567890 };
 
         let mut compressed_buf = Vec::new();
         original.compress_to_buf(&mut compressed_buf);
@@ -123,7 +119,7 @@ mod tests {
         // Ensure some data was written
         assert!(!compressed_buf.is_empty());
 
-        let decompressed = BlockHeader::decompress(&compressed_buf).unwrap();
+        let decompressed = BlockRef::decompress(&compressed_buf).unwrap();
         assert_eq!(original, decompressed);
     }
 
@@ -159,16 +155,16 @@ mod tests {
 
     #[test]
     fn test_derived_block_pair_compression_decompression() {
-        let source_header =
-            BlockHeader { number: 100, hash: test_b256(6), parent_hash: test_b256(7), time: 1000 };
-        let derived_header = BlockHeader {
+        let source_ref =
+            BlockRef { number: 100, hash: test_b256(6), parent_hash: test_b256(7), time: 1000 };
+        let derived_ref = BlockRef {
             number: 200,
             hash: test_b256(8),
             parent_hash: test_b256(8), // Link to source
             time: 1010,
         };
 
-        let original_pair = DerivedBlockPair { source: source_header, derived: derived_header };
+        let original_pair = DerivedBlockPair { source: source_ref, derived: derived_ref };
 
         let mut compressed_buf = Vec::new();
         original_pair.compress_to_buf(&mut compressed_buf);
