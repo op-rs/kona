@@ -62,7 +62,7 @@ func peerCount() systest.SystemTestFunc {
 				// 1. Build the payload.
 				reqBody := rpcRequest{
 					JSONRPC: "2.0",
-					Method:  "eth_blockNumber", // example: Ethereum JSON‑RPC
+					Method:  "opp2p_self",
 					Params:  []interface{}{},
 					ID:      1,
 				}
@@ -82,7 +82,7 @@ func peerCount() systest.SystemTestFunc {
 
 				// 4. Build the HTTP request.
 				req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-					"http://localhost:8545", bytes.NewReader(payload))
+					clRPC, bytes.NewReader(payload))
 				if err != nil {
 					panic(err)
 				}
@@ -112,7 +112,7 @@ func peerCount() systest.SystemTestFunc {
 				}
 
 				// 8. Use the result (here we just print it).
-				t.Log("Raw result: %s\n", rpcResp.Result)
+				t.Log("Raw result: %s\n", string(rpcResp.Result))
 
 				t.Log("CL Name:", clName, "CL RPC:", clRPC)
 
