@@ -36,7 +36,15 @@ const (
 	DEFAULT_TIMEOUT = 10 * time.Second
 )
 
-func (s *rpcRequest) SendRPCRequest(addr string) (rpcResponse, error) {
+func SendRPCRequest(addr string, method string, params []any) (rpcResponse, error) {
+	// 1. Build the payload.
+	s := rpcRequest{
+		JSONRPC: "2.0",
+		Method:  method,
+		Params:  params,
+		ID:      1,
+	}
+
 	// 1. Marshal the request.
 	payload, err := json.Marshal(s)
 	if err != nil {
