@@ -18,7 +18,6 @@ _build-node COMMIT_TAG="":
 
     cd {{SOURCE}}/.. && just build-node-with-tag $COMMIT_TAG
 
-
 deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
     #!/usr/bin/env bash
     cd {{SOURCE}}/../optimism/kurtosis-devnet
@@ -33,7 +32,6 @@ deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup cl
     if [ -z "{{NAME}}" ]; then
         export DEVNET_NAME=`basename $TARGET_NAME .yaml`
     fi
-
 
     export ENCL_NAME="$DEVNET_NAME"-devnet
     
