@@ -312,13 +312,22 @@ impl Discv5Driver {
                                 HandlerRequest::AddEnr(enr) => {
                                     let _ = self.disc.add_enr(enr);
                                 }
-                                HandlerRequest::RequestEnr(enode) => {
-                                    let _ = self.disc.request_enr(enode).await;
+                                HandlerRequest::RequestEnr{out, addr} => {
+                                    let enr = self.disc.request_enr(addr).await;
+                                    if let Err(e) = out.send(enr) {
+                                        warn!(target: "discovery", "Failed to send request enr: {:?}", e);
+                                    }
                                 }
                                 HandlerRequest::TableEnrs(tx) => {
                                     let enrs = self.disc.table_entries_enr();
                                     if let Err(e) = tx.send(enrs) {
                                         warn!(target: "discovery", "Failed to send table enrs: {:?}", e);
+                                    }
+                                },
+                                HandlerRequest::TableInfos(tx) => {
+                                    let infos = self.disc.table_entries();
+                                    if let Err(e) = tx.send(infos) {
+                                        warn!(target: "discovery", "Failed to send table infos: {:?}", e);
                                     }
                                 },
                                 HandlerRequest::BanAddrs{addrs_to_ban, ban_duration} => {
