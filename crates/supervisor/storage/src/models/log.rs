@@ -198,64 +198,6 @@ impl From<ExecutingMessageEntry> for ExecutingMessage {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use alloy_primitives::B256;
-//     use bytes::BytesMut;
-//     use reth_codecs::Compact;
-//
-//     fn dummy_hash(val: u8) -> B256 {
-//         let mut bytes = [0u8; 32];
-//         bytes.fill(val);
-//         B256::from(bytes)
-//     }
-//
-//     #[test]
-//     fn log_entry_compact_with_msg() {
-//         let original = LogEntry {
-//             index: 42,
-//             hash: dummy_hash(0xaa),
-//             executing_message: Some(ExecutingMessageEntry {
-//                 log_index: 42,
-//                 chain_id: 10,
-//                 block_number: 123,
-//                 timestamp: 456789,
-//                 hash: dummy_hash(0xbb),
-//             }),
-//         };
-//
-//         let mut buf = BytesMut::with_capacity(128);
-//         let encoded_len = original.to_compact(&mut buf);
-//         let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
-//         assert_eq!(decoded, original);
-//     }
-//
-//     #[test]
-//     fn log_entry_compact_without_msg() {
-//         let original = LogEntry { index: 1, hash: dummy_hash(0xcc), executing_message: None };
-//
-//         let mut buf = BytesMut::with_capacity(64);
-//         let encoded_len = original.to_compact(&mut buf);
-//         let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
-//         assert_eq!(decoded, original);
-//     }
-//
-//     #[test]
-//     fn executing_message_entry_compact() {
-//         let original = ExecutingMessageEntry {
-//             log_index: 99,
-//             chain_id: 1,
-//             block_number: 12345,
-//             timestamp: 999999,
-//             hash: dummy_hash(0xdd),
-//         };
-//
-//         let mut buf = BytesMut::with_capacity(64);
-//         let encoded_len = original.to_compact(&mut buf);
-//         let (decoded, _) = ExecutingMessageEntry::from_compact(&buf[..], encoded_len);
-//         assert_eq!(decoded, original);
-
 #[cfg(test)]
 mod tests {
     use super::*; // Imports LogEntry, ExecutingMessageEntry
