@@ -1,26 +1,15 @@
 //! Common model types used across various storage tables.
 
+use derive_more::{Deref, DerefMut};
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
 
 /// Wrapper for `Vec<u64>` to represent a list of numbers.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
+// todo: add support for Vec<64> in table
+#[derive(
+    Deref, DerefMut, Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact,
+)]
 pub struct U64List(pub Vec<u64>);
-
-impl Deref for U64List {
-    type Target = Vec<u64>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for U64List {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
 
 #[cfg(test)]
 mod tests {

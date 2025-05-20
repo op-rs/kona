@@ -5038,6 +5038,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "bytes",
+ "derive_more",
  "modular-bitfield",
  "reth-codecs",
  "reth-db-api",

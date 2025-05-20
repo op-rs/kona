@@ -8,33 +8,28 @@ use super::BlockRef;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 
-/// Represents a pair of block where one block (derived) is derived from another (source).
+/// Represents a pair of blocks where one block [`derived`](`Self::derived`) is derived
+/// from another [`source`](`Self::source`).
 ///
 /// This structure is used to track the lineage of blocks where L2 blocks are derived from L1
-/// blocks. It stores the block reference information for both the source and the derived.
-/// It is stored as value in the [`crate::models::DerivedBlocks`] table.
+/// blocks. It stores the [`BlockRef`] information for both the source and the derived blocks.
+/// It is stored as value in the [`DerivedBlocks`](`crate::models::DerivedBlocks`) table.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct DerivedBlockPair {
-    /// The block that was derived from the `source` block.
+    /// The block that was derived from the [`source`](`Self::source`) block.
     pub derived: BlockRef,
-    /// The source block from which the `derived` block was created.
+    /// The source block from which the [`derived`](`Self::derived`) block was created.
     pub source: BlockRef,
 }
 
-// Manually implement Compact for DerivedBlockPair
 impl Compact for DerivedBlockPair {
     fn to_compact<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) -> usize {
         let mut bytes_written = 0;
-        // Encode the 'derived' BlockRef first
         bytes_written += self.derived.to_compact(buf);
-        // Then encode the 'source' BlockRef
         bytes_written += self.source.to_compact(buf);
         bytes_written
     }
 
-    // The `len` parameter here is the length of the buffer `buf` that pertains to this specific
-    // DerivedBlockPair. Since BlockRef::from_compact returns the remaining buffer, we don't
-    // strictly need `len` if BlockRef consumes exactly what it needs and returns the rest.
     fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
         let (derived, remaining_buf) = BlockRef::from_compact(buf, buf.len());
         let (source, final_remaining_buf) =
