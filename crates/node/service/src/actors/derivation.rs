@@ -1,6 +1,6 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
-use crate::NodeActor;
+use crate::{Metrics, NodeActor};
 use async_trait::async_trait;
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
@@ -178,6 +178,8 @@ where
                                         target: "derivation",
                                         "L1 reorg detected! Expected: {expected} | New: {new}"
                                     );
+
+                                    kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
 
                                 self.reset_request_tx.send(()).map_err(|e| {

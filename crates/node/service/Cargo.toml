@@ -21,6 +21,7 @@ kona-derive.workspace = true
 kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
 kona-rpc.workspace = true
+kona-macros.workspace = true
 
 # alloy
 alloy-primitives.workspace = true
@@ -51,6 +52,9 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tower.workspace = true
 http-body-util.workspace = true
 
+# metrics
+metrics = { workspace = true, optional = true }
+
 [features]
 default = []
-metrics = ["kona-p2p/metrics"]
+metrics = ["kona-p2p/metrics", "kona-engine/metrics", "dep:metrics"]
