@@ -16,7 +16,7 @@ use std::fmt;
 mod log;
 pub use log::{ExecutingMessageEntry, LogEntry};
 mod block;
-pub use block::BlockHeader;
+pub use block::BlockRef;
 
 /// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
 /// types that implement [`reth_codecs::Compact`].
@@ -26,7 +26,7 @@ pub use block::BlockHeader;
 ///
 /// # Example
 /// ```ignore
-/// impl_compression_for_compact!(BlockHeader, LogEntry);
+/// impl_compression_for_compact!(BlockRef, LogEntry);
 /// ```
 macro_rules! impl_compression_for_compact {
     ($($name:ident$(<$($generic:ident),*>)?),+) => {
@@ -50,7 +50,7 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockHeader, LogEntry);
+impl_compression_for_compact!(BlockRef, LogEntry);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -64,9 +64,70 @@ tables! {
     /// A table for storing block metadata by block number.
     /// This is a standard table (not dup-sorted) where:
     /// - Key: `u64` — block number
-    /// - Value: [`BlockHeader`] — block metadata
-    table BlockHeaders {
+    /// - Value: [`BlockRef`] — block metadata
+    table BlockRefs {
         type Key = u64;
-        type Value = BlockHeader;
+        type Value = BlockRef;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+    use reth_db_api::table::{Compress, Decompress};
+
+    // Helper to create somewhat unique B256 values for testing.
+    fn test_b256(val: u8) -> B256 {
+        let mut val_bytes = [0u8; 32];
+        val_bytes[0] = val; // Place the u8 into the first byte of the array
+        let b256_from_val = B256::from(val_bytes);
+        B256::random() ^ b256_from_val
+    }
+
+    #[test]
+    fn test_block_ref_compression_decompression() {
+        let original =
+            BlockRef { number: 1, hash: test_b256(1), parent_hash: test_b256(2), time: 1234567890 };
+
+        let mut compressed_buf = Vec::new();
+        original.compress_to_buf(&mut compressed_buf);
+
+        // Ensure some data was written
+        assert!(!compressed_buf.is_empty());
+
+        let decompressed = BlockRef::decompress(&compressed_buf).unwrap();
+        assert_eq!(original, decompressed);
+    }
+
+    #[test]
+    fn test_log_entry_compression_decompression_with_message() {
+        let original = LogEntry {
+            index: 1,
+            hash: test_b256(3),
+            executing_message: Some(ExecutingMessageEntry {
+                chain_id: 1,
+                block_number: 100,
+                log_index: 2,
+                timestamp: 12345,
+                hash: test_b256(4),
+            }),
+        };
+
+        let mut compressed_buf = Vec::new();
+        original.compress_to_buf(&mut compressed_buf);
+        assert!(!compressed_buf.is_empty());
+        let decompressed = LogEntry::decompress(&compressed_buf).unwrap();
+        assert_eq!(original, decompressed);
+    }
+
+    #[test]
+    fn test_log_entry_compression_decompression_without_message() {
+        let original = LogEntry {   index: 1, hash: test_b256(5), executing_message: None };
+        let mut compressed_buf = Vec::new();
+        original.compress_to_buf(&mut compressed_buf);
+        assert!(!compressed_buf.is_empty());
+        let decompressed = LogEntry::decompress(&compressed_buf).unwrap();
+        assert_eq!(original, decompressed);
     }
 }

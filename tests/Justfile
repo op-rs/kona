@@ -1,0 +1,51 @@
+SOURCE := source_directory()
+
+setup:
+    mise trust && mise install
+
+clone-optimism:
+    -(git clone https://github.com/ethereum-optimism/optimism.git {{SOURCE}}/../optimism)
+    
+install-optimism:
+    cd {{SOURCE}}/../optimism && mise trust && mise install
+
+_build-node COMMIT_TAG="":
+    #!/usr/bin/env bash
+    export COMMIT_TAG={{COMMIT_TAG}}
+    if [ -z "{{COMMIT_TAG}}" ]; then
+        export COMMIT_TAG=$(git rev-parse HEAD)
+    fi
+
+    cd {{SOURCE}}/.. && just build-node-with-tag $COMMIT_TAG
+
+
+deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
+    #!/usr/bin/env bash
+    cd {{SOURCE}}/../optimism/kurtosis-devnet
+
+    # Copy the devnet file to the SOURCE directory
+    cp -f {{DEVNET_FILE_PATH}} . 
+
+    # Parse the input args.
+    export TARGET_NAME=`basename {{DEVNET_FILE_PATH}}`
+    export DEVNET_NAME={{NAME}}
+
+    if [ -z "{{NAME}}" ]; then
+        export DEVNET_NAME=`basename $TARGET_NAME .yaml`
+    fi
+
+
+    export ENCL_NAME="$DEVNET_NAME"-devnet
+    
+    NAME=$DEVNET_NAME just devnet "$TARGET_NAME"
+
+    # Copy the generated devnet spec to the SOURCE directory
+    mkdir -p {{SOURCE}}/devnets/specs
+    cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
+
+isolate_test DEVNET_ENV_URL:
+    DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./...
+
+test-e2e DEVNET COMMIT_TAG="": 
+    just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
+    just isolate_test "kt://{{DEVNET}}-devnet"

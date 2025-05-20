@@ -399,14 +399,15 @@ impl P2PArgs {
     pub fn keypair(&self) -> Result<Keypair> {
         // Attempt the parse the private key if specified.
         if let Some(mut private_key) = self.private_key {
-            return kona_p2p::parse_key(&mut private_key.0).map_err(|e| anyhow::anyhow!(e));
+            return kona_cli::SecretKeyLoader::parse(&mut private_key.0)
+                .map_err(|e| anyhow::anyhow!(e));
         }
 
         let Some(ref key_path) = self.priv_path else {
             anyhow::bail!("Neither a raw private key nor a private key file path was provided.");
         };
 
-        kona_p2p::get_keypair(key_path).map_err(|e| anyhow::anyhow!(e))
+        kona_cli::SecretKeyLoader::load(key_path).map_err(|e| anyhow::anyhow!(e))
     }
 }
 

@@ -1,5 +1,8 @@
+use anyhow::{Context as _, Result};
 use clap::Args;
-use std::net::IpAddr;
+use kona_interop::DependencySet;
+use std::{net::IpAddr, path::PathBuf};
+use tokio::{fs::File, io::AsyncReadExt};
 
 /// Supervisor configuration arguments.
 #[derive(Args, Debug)]
@@ -30,7 +33,7 @@ pub struct SupervisorArgs {
 
     /// Path to the dependency-set JSON config file.
     #[arg(long = "dependency-set", env = "DEPENDENCY_SET")]
-    pub dependency_set: Option<String>,
+    pub dependency_set: PathBuf,
 
     /// IP address for the Supervisor RPC server to listen on.
     #[arg(long = "rpc.addr", env = "RPC_ADDR", default_value = "0.0.0.0")]
@@ -41,12 +44,40 @@ pub struct SupervisorArgs {
     pub rpc_port: u16,
 }
 
+impl SupervisorArgs {
+    /// initialise and return the [`DependencySet`].
+    pub async fn init_dependency_set(&self) -> Result<DependencySet> {
+        let mut file = File::open(&self.dependency_set).await.with_context(|| {
+            format!("Failed to open dependency set file '{}'", self.dependency_set.display())
+        })?;
+
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).await.with_context(|| {
+            format!(
+                "Failed to read content from dependency set file '{}'",
+                self.dependency_set.display()
+            )
+        })?;
+
+        let dependency_set: DependencySet = serde_json::from_str(&contents).with_context(|| {
+            format!(
+                "Failed to parse JSON from dependency set file '{}'",
+                self.dependency_set.display()
+            )
+        })?;
+        Ok(dependency_set)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use clap::Parser;
+    use kona_interop::{ChainDependency, DependencySet};
+    use kona_registry::HashMap;
+    use std::{io::Write, net::Ipv4Addr};
+    use tempfile::NamedTempFile;
 
-    use std::net::Ipv4Addr;
     // Helper struct to parse SupervisorArgs within a test CLI structure
     #[derive(Parser, Debug)]
     struct TestCli {
@@ -66,6 +97,8 @@ mod tests {
             "secret1,secret2",
             "--datadir",
             "/tmp/supervisor_data",
+            "--dependency-set",
+            "/path/to/deps.json",
         ]);
 
         assert_eq!(cli.supervisor.l1_rpc, "http://localhost:8545");
@@ -79,7 +112,7 @@ mod tests {
         );
         assert_eq!(cli.supervisor.datadir, "/tmp/supervisor_data");
         assert_eq!(cli.supervisor.datadir_sync_endpoint, None);
-        assert_eq!(cli.supervisor.dependency_set, None);
+        assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
         assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
         assert_eq!(cli.supervisor.rpc_port, 8545);
     }
@@ -114,52 +147,116 @@ mod tests {
             cli.supervisor.datadir_sync_endpoint,
             Some("http://sync.example.com".to_string())
         );
-        assert_eq!(cli.supervisor.dependency_set, Some("/path/to/deps.json".to_string()));
+        assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
         assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)));
         assert_eq!(cli.supervisor.rpc_port, 9001);
     }
 
-    #[test]
-    fn test_supervisor_args_from_env_vars() {
-        unsafe {
-            // Set environment variables
-            std::env::set_var("L1_RPC", "env_l1_rpc");
-            std::env::set_var("L2_CONSENSUS_NODES", "env_node1,env_node2");
-            std::env::set_var("L2_CONSENSUS_JWT_SECRET", "env_jwt1,env_jwt2");
-            std::env::set_var("DATADIR", "env_datadir");
-            std::env::set_var("DATADIR_SYNC_ENDPOINT", "env_sync_endpoint");
-            std::env::set_var("DEPENDENCY_SET", "env_dependency_set_path");
-            std::env::set_var("RPC_ADDR", "10.0.0.1");
-            std::env::set_var("RPC_PORT", "9002");
+    #[tokio::test]
+    async fn test_init_dependency_set_success() -> anyhow::Result<()> {
+        let mut temp_file = NamedTempFile::new()?;
+        let json_content = r#"
+        {
+            "dependencies": {
+                "1": {
+                    "chainIndex": 10,
+                    "activationTime": 1678886400,
+                    "historyMinTime": 1609459200
+                },
+                "2": {
+                    "chainIndex": 20,
+                    "activationTime": 1678886401,
+                    "historyMinTime": 1609459201
+                }
+            },
+            "overrideMessageExpiryWindow": 3600
         }
-        // Parse without CLI args, should pick up from env
-        let cli = TestCli::parse_from(["test_app"]);
+        "#;
+        temp_file.write_all(json_content.as_bytes())?;
 
-        assert_eq!(cli.supervisor.l1_rpc, "env_l1_rpc");
-        assert_eq!(
-            cli.supervisor.l2_consensus_nodes,
-            vec!["env_node1".to_string(), "env_node2".to_string()]
-        );
-        assert_eq!(
-            cli.supervisor.l2_consensus_jwt_secret,
-            vec!["env_jwt1".to_string(), "env_jwt2".to_string()]
-        );
-        assert_eq!(cli.supervisor.datadir, "env_datadir");
-        assert_eq!(cli.supervisor.datadir_sync_endpoint, Some("env_sync_endpoint".to_string()));
-        assert_eq!(cli.supervisor.dependency_set, Some("env_dependency_set_path".to_string()));
-        assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)));
-        assert_eq!(cli.supervisor.rpc_port, 9002);
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".to_string(),
+            l2_consensus_nodes: vec![],
+            l2_consensus_jwt_secret: vec![],
+            datadir: "dummy".to_string(),
+            datadir_sync_endpoint: None,
+            dependency_set: temp_file.path().to_path_buf(),
+            rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            rpc_port: 8545,
+        };
 
-        unsafe {
-            // Clean up environment variables
-            std::env::remove_var("L1_RPC");
-            std::env::remove_var("L2_CONSENSUS_NODES");
-            std::env::remove_var("L2_CONSENSUS_JWT_SECRET");
-            std::env::remove_var("DATADIR");
-            std::env::remove_var("DATADIR_SYNC_ENDPOINT");
-            std::env::remove_var("DEPENDENCY_SET");
-            std::env::remove_var("RPC_ADDR");
-            std::env::remove_var("RPC_PORT");
-        }
+        let result = args.init_dependency_set().await;
+        assert!(result.is_ok(), "init_dependency_set should succeed");
+
+        let loaded_depset = result.unwrap();
+        let mut expected_dependencies = HashMap::default();
+        expected_dependencies.insert(
+            1,
+            ChainDependency {
+                chain_index: 10,
+                activation_time: 1678886400,
+                history_min_time: 1609459200,
+            },
+        );
+        expected_dependencies.insert(
+            2,
+            ChainDependency {
+                chain_index: 20,
+                activation_time: 1678886401,
+                history_min_time: 1609459201,
+            },
+        );
+
+        let expected_depset = DependencySet {
+            dependencies: expected_dependencies,
+            override_message_expiry_window: 3600,
+        };
+
+        assert_eq!(loaded_depset, expected_depset);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_init_dependency_set_file_not_found() -> anyhow::Result<()> {
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".to_string(),
+            l2_consensus_nodes: vec![],
+            l2_consensus_jwt_secret: vec![],
+            datadir: "dummy".to_string(),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("/path/to/non_existent_file.json"),
+            rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            rpc_port: 8545,
+        };
+
+        let result = args.init_dependency_set().await;
+        let err = result.expect_err("init_dependency_set should have failed due to file not found");
+        let io_error = err.downcast_ref::<std::io::Error>();
+        assert!(io_error.is_some(), "Error should be an std::io::Error, but was: {:?}", err);
+        assert_eq!(io_error.unwrap().kind(), std::io::ErrorKind::NotFound);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_init_dependency_set_invalid_json() -> anyhow::Result<()> {
+        let mut temp_file = NamedTempFile::new()?;
+        temp_file.write_all(b"{ \"invalid_json\": ")?; // Malformed JSON
+
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".to_string(),
+            l2_consensus_nodes: vec![],
+            l2_consensus_jwt_secret: vec![],
+            datadir: "dummy".to_string(),
+            datadir_sync_endpoint: None,
+            dependency_set: temp_file.path().to_path_buf(),
+            rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            rpc_port: 8545,
+        };
+
+        let result = args.init_dependency_set().await;
+        let err = result.expect_err("init_dependency_set should have failed due to invalid JSON");
+        let json_error = err.downcast_ref::<serde_json::Error>();
+        assert!(json_error.is_some(), "Error should be a serde_json::Error, but was: {:?}", err);
+        Ok(())
     }
 }

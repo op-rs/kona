@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// This is the value stored in the [`crate::models::LogEntries`] dup-sorted table. Each entry
 /// includes:
-/// /// - `index` - Index of the log in a block.
+/// - `index` - Index of the log in a block.
 /// - `hash`: The keccak256 hash of the log event.
 /// - `executing_message` - An optional field that may contain a cross-domain execution message.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -47,7 +47,7 @@ impl Compact for LogEntry {
     {
         let start_len = buf.remaining_mut();
 
-        buf.put_u32(self.index); // Subkey must be first
+        buf.put_u32(self.index); // Subkey must be at first
         buf.put_u8(self.executing_message.is_some() as u8);
         buf.put_slice(self.hash.as_slice());
 
@@ -198,62 +198,126 @@ impl From<ExecutingMessageEntry> for ExecutingMessage {
     }
 }
 
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use alloy_primitives::B256;
+//     use bytes::BytesMut;
+//     use reth_codecs::Compact;
+// 
+//     fn dummy_hash(val: u8) -> B256 {
+//         let mut bytes = [0u8; 32];
+//         bytes.fill(val);
+//         B256::from(bytes)
+//     }
+// 
+//     #[test]
+//     fn log_entry_compact_with_msg() {
+//         let original = LogEntry {
+//             index: 42,
+//             hash: dummy_hash(0xaa),
+//             executing_message: Some(ExecutingMessageEntry {
+//                 log_index: 42,
+//                 chain_id: 10,
+//                 block_number: 123,
+//                 timestamp: 456789,
+//                 hash: dummy_hash(0xbb),
+//             }),
+//         };
+// 
+//         let mut buf = BytesMut::with_capacity(128);
+//         let encoded_len = original.to_compact(&mut buf);
+//         let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
+//         assert_eq!(decoded, original);
+//     }
+// 
+//     #[test]
+//     fn log_entry_compact_without_msg() {
+//         let original = LogEntry { index: 1, hash: dummy_hash(0xcc), executing_message: None };
+// 
+//         let mut buf = BytesMut::with_capacity(64);
+//         let encoded_len = original.to_compact(&mut buf);
+//         let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
+//         assert_eq!(decoded, original);
+//     }
+// 
+//     #[test]
+//     fn executing_message_entry_compact() {
+//         let original = ExecutingMessageEntry {
+//             log_index: 99,
+//             chain_id: 1,
+//             block_number: 12345,
+//             timestamp: 999999,
+//             hash: dummy_hash(0xdd),
+//         };
+// 
+//         let mut buf = BytesMut::with_capacity(64);
+//         let encoded_len = original.to_compact(&mut buf);
+//         let (decoded, _) = ExecutingMessageEntry::from_compact(&buf[..], encoded_len);
+//         assert_eq!(decoded, original);
+
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::*; // Imports LogEntry, ExecutingMessageEntry
     use alloy_primitives::B256;
-    use bytes::BytesMut;
-    use reth_codecs::Compact;
+    use reth_codecs::Compact; // For the Compact trait methods
 
-    fn dummy_hash(val: u8) -> B256 {
-        let mut bytes = [0u8; 32];
-        bytes.fill(val);
-        B256::from(bytes)
+    // Helper to create somewhat unique B256 values for testing.
+    // Assumes the "rand" feature for alloy-primitives is enabled for tests.
+    fn test_b256(val: u8) -> B256 {
+        let mut val_bytes = [0u8; 32];
+        val_bytes[0] = val;
+        let b256_from_val = B256::from(val_bytes);
+        B256::random() ^ b256_from_val
     }
 
     #[test]
-    fn log_entry_compact_with_msg() {
-        let original = LogEntry {
-            index: 42,
-            hash: dummy_hash(0xaa),
+    fn test_log_entry_compact_roundtrip_with_message() {
+        let original_log_entry = LogEntry {
+            index: 100,
+            hash: test_b256(1),
             executing_message: Some(ExecutingMessageEntry {
-                log_index: 42,
                 chain_id: 10,
-                block_number: 123,
-                timestamp: 456789,
-                hash: dummy_hash(0xbb),
+                block_number: 1001,
+                log_index: 5,
+                timestamp: 1234567890,
+                hash: test_b256(2),
             }),
         };
 
-        let mut buf = BytesMut::with_capacity(128);
-        let encoded_len = original.to_compact(&mut buf);
-        let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
-        assert_eq!(decoded, original);
+        let mut buffer = Vec::new();
+        let bytes_written = original_log_entry.to_compact(&mut buffer);
+
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+        assert!(!buffer.is_empty(), "Buffer should not be empty after compression");
+
+        let (deserialized_log_entry, remaining_buf) =
+            LogEntry::from_compact(&buffer, bytes_written);
+
+        assert_eq!(
+            original_log_entry, deserialized_log_entry,
+            "Original and deserialized log entries should be equal"
+        );
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 
     #[test]
-    fn log_entry_compact_without_msg() {
-        let original = LogEntry { index: 1, hash: dummy_hash(0xcc), executing_message: None };
+    fn test_log_entry_compact_roundtrip_without_message() {
+        let original_log_entry = LogEntry { index:100, hash: test_b256(3), executing_message: None };
 
-        let mut buf = BytesMut::with_capacity(64);
-        let encoded_len = original.to_compact(&mut buf);
-        let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
-        assert_eq!(decoded, original);
-    }
+        let mut buffer = Vec::new();
+        let bytes_written = original_log_entry.to_compact(&mut buffer);
 
-    #[test]
-    fn executing_message_entry_compact() {
-        let original = ExecutingMessageEntry {
-            log_index: 99,
-            chain_id: 1,
-            block_number: 12345,
-            timestamp: 999999,
-            hash: dummy_hash(0xdd),
-        };
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+        assert!(!buffer.is_empty(), "Buffer should not be empty after compression");
 
-        let mut buf = BytesMut::with_capacity(64);
-        let encoded_len = original.to_compact(&mut buf);
-        let (decoded, _) = ExecutingMessageEntry::from_compact(&buf[..], encoded_len);
-        assert_eq!(decoded, original);
+        let (deserialized_log_entry, remaining_buf) =
+            LogEntry::from_compact(&buffer, bytes_written);
+
+        assert_eq!(
+            original_log_entry, deserialized_log_entry,
+            "Original and deserialized log entries should be equal"
+        );
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
 }

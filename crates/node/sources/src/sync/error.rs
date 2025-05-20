@@ -1,6 +1,6 @@
 //! Contains the error types used for finding the starting forkchoice state.
 
-use alloy_eips::BlockNumberOrTag;
+use alloy_eips::BlockId;
 use alloy_primitives::B256;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
@@ -19,7 +19,7 @@ pub enum SyncStartError {
     FromBlock(#[from] FromBlockError),
     /// A block could not be found.
     #[error("Block not found: {0}")]
-    BlockNotFound(BlockNumberOrTag),
+    BlockNotFound(BlockId),
     /// Invalid L1 genesis hash.
     #[error("Invalid L1 genesis hash. Expected {0}, Got {1}")]
     InvalidL1GenesisHash(B256, B256),

@@ -282,6 +282,7 @@ dependencies = [
 [[package]]
 name = "alloy-evm"
 version = "0.5.0"
+<<<<<<< HEAD
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caabd28657614cecc14d77fde0a630c5c177bfe432ce4ad99db0ad41d9219856"
 dependencies = [
@@ -301,9 +302,33 @@ dependencies = [
 [[package]]
 name = "alloy-evm"
 version = "0.8.0"
+=======
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "398be19900ac9fe2ad7214ac7bd6462fd9ae2e0366a3b5d532213e8353713b7d"
+checksum = "caabd28657614cecc14d77fde0a630c5c177bfe432ce4ad99db0ad41d9219856"
 dependencies = [
+<<<<<<< HEAD
+=======
+ "alloy-consensus 0.14.0",
+ "alloy-eips 0.14.0",
+ "alloy-hardforks",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "auto_impl",
+ "derive_more",
+ "op-alloy-consensus 0.14.1",
+ "op-revm 3.0.2",
+ "revm 22.0.1",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "alloy-evm"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de0210f2d5854895b376f7fbbf78f3e33eb4f0e59abc503502cc0ed8d295a837"
+dependencies = [
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-consensus 1.0.1",
  "alloy-eips 1.0.1",
  "alloy-hardforks",
@@ -429,7 +454,11 @@ checksum = "e7a290b11f3a3e0a34d09c5ef55afe7ec91890824b8daf73b1a99c152f6ad94c"
 dependencies = [
  "alloy-consensus 1.0.1",
  "alloy-eips 1.0.1",
+<<<<<<< HEAD
  "alloy-evm 0.8.0",
+=======
+ "alloy-evm 0.8.1",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-op-hardforks",
  "alloy-primitives",
  "auto_impl",
@@ -1569,6 +1598,7 @@ checksum = "230c5f1ca6a325a32553f8640d31ac9b49f2411e901e427570154868b46da4f7"
 
 [[package]]
 name = "bincode"
+<<<<<<< HEAD
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
@@ -1578,6 +1608,8 @@ dependencies = [
 
 [[package]]
 name = "bincode"
+=======
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
@@ -3222,16 +3254,15 @@ checksum = "42012b0f064e01aa58b545fe3727f90f7dd4020f4a3ea735b50344965f5a57e9"
 
 [[package]]
 name = "generator"
-version = "0.8.5"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d18470a76cb7f8ff746cf1f7470914f900252ec36bbc40b569d74b1258446827"
+checksum = "cc6bd114ceda131d3b1d665eba35788690ad37f5916457286b32ab6fd3c438dd"
 dependencies = [
- "cc",
  "cfg-if",
  "libc",
  "log",
  "rustversion",
- "windows 0.61.1",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -4300,9 +4331,12 @@ dependencies = [
 name = "kona-cli"
 version = "0.2.0"
 dependencies = [
+ "alloy-primitives",
  "clap",
  "libc",
+ "libp2p",
  "metrics-exporter-prometheus",
+ "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber 0.3.19",
 ]
@@ -4313,7 +4347,11 @@ version = "1.0.1"
 dependencies = [
  "alloy-consensus 1.0.1",
  "alloy-eips 1.0.1",
+<<<<<<< HEAD
  "alloy-evm 0.8.0",
+=======
+ "alloy-evm 0.8.1",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-op-evm",
  "alloy-primitives",
  "alloy-rlp",
@@ -4410,7 +4448,11 @@ name = "kona-driver"
 version = "0.3.0"
 dependencies = [
  "alloy-consensus 1.0.1",
+<<<<<<< HEAD
  "alloy-evm 0.8.0",
+=======
+ "alloy-evm 0.8.1",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-primitives",
  "alloy-rlp",
  "async-trait",
@@ -4474,7 +4516,11 @@ version = "0.3.0"
 dependencies = [
  "alloy-consensus 1.0.1",
  "alloy-eips 1.0.1",
+<<<<<<< HEAD
  "alloy-evm 0.8.0",
+=======
+ "alloy-evm 0.8.1",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-op-evm",
  "alloy-op-hardforks",
  "alloy-primitives",
@@ -4774,7 +4820,11 @@ version = "0.3.0"
 dependencies = [
  "alloy-consensus 1.0.1",
  "alloy-eips 1.0.1",
+<<<<<<< HEAD
  "alloy-evm 0.8.0",
+=======
+ "alloy-evm 0.8.1",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-op-evm",
  "alloy-primitives",
  "alloy-rlp",
@@ -4813,7 +4863,11 @@ version = "0.2.0"
 dependencies = [
  "alloy-consensus 1.0.1",
  "alloy-eips 1.0.1",
+<<<<<<< HEAD
  "alloy-evm 0.8.0",
+=======
+ "alloy-evm 0.8.1",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "alloy-op-evm",
  "alloy-primitives",
  "alloy-rlp",
@@ -5015,7 +5069,11 @@ dependencies = [
  "anyhow",
  "clap",
  "kona-cli",
+ "kona-interop",
+ "kona-registry",
  "kona-supervisor-service",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
@@ -5059,6 +5117,7 @@ dependencies = [
  "futures",
  "jsonrpsee",
  "kona-genesis",
+ "kona-interop",
  "kona-protocol",
  "kona-rpc",
  "kona-supervisor-core",
@@ -5075,6 +5134,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "bytes",
+<<<<<<< HEAD
  "kona-protocol",
  "kona-supervisor-types",
  "modular-bitfield",
@@ -5093,6 +5153,13 @@ name = "kona-supervisor-types"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+=======
+ "modular-bitfield",
+ "reth-codecs",
+ "reth-db-api",
+ "serde",
+ "test-fuzz",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 ]
 
 [[package]]
@@ -5509,7 +5576,7 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "yamux 0.12.1",
- "yamux 0.13.5",
+ "yamux 0.13.4",
 ]
 
 [[package]]
@@ -7351,6 +7418,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "reth-db"
 version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
@@ -7375,6 +7443,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 name = "reth-db-api"
 version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
@@ -7437,6 +7507,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "reth-fs-util"
 version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
@@ -7499,6 +7570,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 name = "reth-primitives-traits"
 version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
@@ -7581,6 +7654,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "reth-tracing"
 version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
@@ -7596,6 +7670,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 name = "reth-trie-common"
 version = "1.3.12"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.3.12#6f8e7258f4733279080e4bd8345ce50538a40d6e"
@@ -9151,6 +9227,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-fuzz"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae2f06b1ae65cbf4dc1f4975279cee7dbf70fcca269bdbdd8aabd20a79e6785c"
+dependencies = [
+ "serde",
+ "serde_combinators",
+ "test-fuzz-internal",
+ "test-fuzz-macro",
+ "test-fuzz-runtime",
+]
+
+[[package]]
+name = "test-fuzz-internal"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac6a1dc2074c20c6410ac75687be17808a22abfd449e28301a95d72974b91768"
+dependencies = [
+ "bincode",
+ "cargo_metadata",
+ "serde",
+]
+
+[[package]]
+name = "test-fuzz-macro"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "190423aabaca6cec8392cf45e471777e036d424a14d979db8033f25cc417f1ad"
+dependencies = [
+ "darling",
+ "heck",
+ "itertools 0.14.0",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "test-fuzz-runtime"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05723662ca81651b49dd87b50cae65a0a38523aa1c0cb6b049a8c4f5c2c7836"
+dependencies = [
+ "hex",
+ "num-traits",
+ "serde",
+ "sha1",
+ "test-fuzz-internal",
+]
+
+[[package]]
 name = "testing_table"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10040,6 +10168,7 @@ dependencies = [
 
 [[package]]
 name = "windows"
+<<<<<<< HEAD
 version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12342cb4d8e3b046f3d80effd474a7a02447231330ef77d71daa6fbc40681143"
@@ -10051,23 +10180,14 @@ dependencies = [
 [[package]]
 name = "windows"
 version = "0.61.1"
+=======
+version = "0.58.0"
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5ee8f3d025738cb02bad7868bbb5f8a6327501e870bf51f1b455b0a2454a419"
+checksum = "dd04d41d93c4992d421894c18c8b43496aa748dd4c081bac0dc93eb0489272b6"
 dependencies = [
- "windows-collections",
- "windows-core 0.61.0",
- "windows-future",
- "windows-link",
- "windows-numerics",
-]
-
-[[package]]
-name = "windows-collections"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3beeceb5e5cfd9eb1d76b381630e82c4241ccd0d27f1a39ed41b2760b255c5e8"
-dependencies = [
- "windows-core 0.61.0",
+ "windows-core 0.58.0",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -10082,6 +10202,7 @@ dependencies = [
 
 [[package]]
 name = "windows-core"
+<<<<<<< HEAD
 version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2ed2439a290666cd67ecce2b0ffaad89c2a56b976b736e6ece670297897832d"
@@ -10089,6 +10210,16 @@ dependencies = [
  "windows-implement 0.57.0",
  "windows-interface 0.57.0",
  "windows-result 0.1.2",
+=======
+version = "0.58.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba6d44ec8c2591c134257ce647b7ea6b20335bf6379a27dac5f1641fcf59f99"
+dependencies = [
+ "windows-implement 0.58.0",
+ "windows-interface 0.58.0",
+ "windows-result 0.2.0",
+ "windows-strings 0.1.0",
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
  "windows-targets 0.52.6",
 ]
 
@@ -10106,13 +10237,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "windows-future"
-version = "0.2.0"
+name = "windows-implement"
+version = "0.58.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a1d6bbefcb7b60acd19828e1bc965da6fcf18a7e39490c5f8be71e54a19ba32"
+checksum = "2bbd5b46c938e506ecbce286b6628a02171d56153ba733b6c741fc627ec9579b"
 dependencies = [
- "windows-core 0.61.0",
- "windows-link",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]
@@ -10139,9 +10271,15 @@ dependencies = [
 
 [[package]]
 name = "windows-interface"
+<<<<<<< HEAD
 version = "0.57.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29bee4b38ea3cde66011baa44dba677c432a78593e202392d1e9070cf2a7fca7"
+=======
+version = "0.58.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "053c4c462dc91d3b1504c6fe5a726dd15e216ba718e84a0e46a88fbe5ded3515"
+>>>>>>> 33e47bf3249a55a1c241278612d312fa2b9e07cb
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10166,16 +10304,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76840935b766e1b0a05c0066835fb9ec80071d4c09a16f6bd5f7e655e3c14c38"
 
 [[package]]
-name = "windows-numerics"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
-dependencies = [
- "windows-core 0.61.0",
- "windows-link",
-]
-
-[[package]]
 name = "windows-registry"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10197,11 +10325,30 @@ dependencies = [
 
 [[package]]
 name = "windows-result"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d1043d8214f791817bab27572aaa8af63732e11bf84aa21a45a78d6c317ae0e"
+dependencies = [
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-result"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c64fd11a4fd95df68efcfee5f44a294fe71b8bc6a91993e2791938abcc712252"
 dependencies = [
  "windows-link",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cd9b125c486025df0eabcb585e62173c6c9eddcec5d117d3b6e8c30e2ee4d10"
+dependencies = [
+ "windows-result 0.2.0",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -10623,16 +10770,16 @@ dependencies = [
 
 [[package]]
 name = "yamux"
-version = "0.13.5"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3da1acad1c2dc53f0dde419115a38bd8221d8c3e47ae9aeceaf453266d29307e"
+checksum = "17610762a1207ee816c6fadc29220904753648aba0a9ed61c7b8336e80a559c4"
 dependencies = [
  "futures",
  "log",
  "nohash-hasher",
  "parking_lot",
  "pin-project",
- "rand 0.9.1",
+ "rand 0.8.5",
  "static_assertions",
  "web-time",
 ]

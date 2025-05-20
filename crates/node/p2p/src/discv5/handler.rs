@@ -1,6 +1,6 @@
 //! Handler to the [`discv5::Discv5`] service spawned in a thread.
 
-use discv5::{Enr, metrics::Metrics};
+use discv5::{Enr, RequestError, enr::NodeId, kbucket::NodeStatus, metrics::Metrics};
 use libp2p::Multiaddr;
 use std::{collections::HashSet, string::String, sync::Arc, time::Duration};
 use tokio::sync::mpsc::Sender;
@@ -17,11 +17,18 @@ pub enum HandlerRequest {
     AddEnr(Enr),
     /// Requests for the [`discv5::Discv5`] service to call [`discv5::Discv5::request_enr`] with the
     /// specified string.
-    RequestEnr(String),
+    RequestEnr {
+        /// The output channel to send the [`Enr`] to.
+        out: tokio::sync::oneshot::Sender<Result<Enr, RequestError>>,
+        /// The [`Multiaddr`] to request the [`Enr`] from.
+        addr: String,
+    },
     /// Requests the local [`Enr`].
     LocalEnr(tokio::sync::oneshot::Sender<Enr>),
     /// Requests the table ENRs.
     TableEnrs(tokio::sync::oneshot::Sender<Vec<Enr>>),
+    /// Request the node infos currently in the routing table.
+    TableInfos(tokio::sync::oneshot::Sender<Vec<(NodeId, Enr, NodeStatus)>>),
     /// Bans the nodes matching the given set of [`Multiaddr`] for the given duration.
     BanAddrs {
         /// The set of [`Multiaddr`] to ban.
@@ -64,6 +71,19 @@ impl Discv5Handler {
         rx
     }
 
+    /// Returns a [`tokio::sync::oneshot::Receiver`] that contains a vector of information about
+    /// the nodes in the discv5 table.
+    pub fn table_infos(&self) -> tokio::sync::oneshot::Receiver<Vec<(NodeId, Enr, NodeStatus)>> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let sender = self.sender.clone();
+        tokio::spawn(async move {
+            if let Err(e) = sender.send(HandlerRequest::TableInfos(tx)).await {
+                warn!("Failed to send table infos request: {:?}", e);
+            }
+        });
+        rx
+    }
+
     /// Blocking request for the local ENR of the node.
     ///
     /// Returns `None` if the request could not be sent or received.
@@ -73,6 +93,23 @@ impl Discv5Handler {
         tokio::spawn(async move {
             if let Err(e) = sender.send(HandlerRequest::LocalEnr(tx)).await {
                 warn!("Failed to send local ENR request: {:?}", e);
+            }
+        });
+        rx
+    }
+
+    /// Requests an [`Enr`] from the discv5 service given a [`Multiaddr`].
+    pub fn request_enr(
+        &self,
+        addr: Multiaddr,
+    ) -> tokio::sync::oneshot::Receiver<Result<Enr, RequestError>> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let sender = self.sender.clone();
+        tokio::spawn(async move {
+            if let Err(e) =
+                sender.send(HandlerRequest::RequestEnr { out: tx, addr: addr.to_string() }).await
+            {
+                warn!("Failed to send request ENR request: {:?}", e);
             }
         });
         rx

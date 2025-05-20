@@ -19,6 +19,10 @@ macro_rules! set {
         #[cfg(feature = "metrics")]
         metrics::$instrument!($metric, "type" => $value).set($amount);
     };
+    (counter, $metric:path, $value:expr) => {
+        #[cfg(feature = "metrics")]
+        metrics::counter!($metric).absolute($value);
+    };
     ($instrument:ident, $metric:path, $value:expr) => {
         #[cfg(feature = "metrics")]
         metrics::$instrument!($metric).set($value);

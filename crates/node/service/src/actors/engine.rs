@@ -4,8 +4,8 @@ use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_derive::types::{ResetSignal, Signal};
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineResetError, EngineStateBuilder,
-    EngineStateBuilderError, EngineTask, EngineTaskError, InsertUnsafeTask,
+    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineResetError, EngineState,
+    EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
@@ -89,18 +89,54 @@ impl EngineActor {
         }
     }
 
-    /// Checks if the engine is syncing, notifying the derivation actor if necessary.
-    pub fn check_sync(&self) {
-        // If the channel is closed, the receiver already marked engine ready.
-        if self.sync_complete_tx.is_closed() {
-            return;
+    /// Resets the inner [`Engine`] and propagates the reset to the derivation actor.
+    pub async fn reset(&mut self) -> Result<(), EngineError> {
+        let (l2_safe_head, l1_origin, system_config) =
+            self.engine.reset(self.client.clone(), &self.config).await?;
+
+        let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
+        match self.derivation_signal_tx.send(signal.signal()) {
+            Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
+            Err(e) => {
+                error!(target: "engine", ?e, "Failed to send reset signal to the derivation actor");
+                self.cancellation.cancel();
+                return Err(EngineError::ChannelClosed);
+            }
         }
 
-        if self.engine.state().sync_status.is_finished() {
-            // If the sync status is finished, we can start derivation.
-            trace!(target: "engine", "Sending signal to start derivation");
+        Ok(())
+    }
+
+    /// Checks if the engine is syncing, notifying the derivation actor if necessary.
+    async fn check_sync(&mut self) -> Result<(), EngineError> {
+        // If the channel is closed, the receiver already marked engine ready.
+        if self.sync_complete_tx.is_closed() {
+            return Ok(());
+        }
+
+        if self.engine.state().el_sync_finished {
+            // If the sync status is finished, we can reset the engine and start derivation.
+            info!(target: "engine", "Performing initial engine reset");
+            self.reset().await?;
+            self.maybe_update_safe_head();
             self.sync_complete_tx.send(()).ok();
         }
+
+        Ok(())
+    }
+
+    /// Attempts to update the safe head via the watch channel.
+    fn maybe_update_safe_head(&self) {
+        let state_safe_head = self.engine.state().safe_head();
+        let update = |head: &mut L2BlockInfo| {
+            if head != &state_safe_head {
+                *head = state_safe_head;
+                return true;
+            }
+            false
+        };
+        let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
+        trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
     }
 
     /// Starts a task to handle engine queries.
@@ -126,55 +162,6 @@ impl EngineActor {
     }
 }
 
-/// Configuration for the Engine Actor.
-#[derive(Debug, Clone)]
-pub struct EngineLauncher {
-    /// The [`RollupConfig`].
-    pub config: Arc<RollupConfig>,
-    /// The engine rpc url.
-    pub engine_url: Url,
-    /// The L2 rpc url.
-    pub l2_rpc_url: Url,
-    /// The L1 rpc url.
-    pub l1_rpc_url: Url,
-    /// The engine jwt secret.
-    pub jwt_secret: JwtSecret,
-}
-
-impl EngineLauncher {
-    /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
-    /// updates.
-    pub async fn launch(self) -> Result<Engine, EngineStateBuilderError> {
-        let state = self.state_builder().build().await?;
-        let (engine_state_send, _) = tokio::sync::watch::channel(state);
-
-        let mut engine = Engine::new(state, engine_state_send);
-
-        engine
-            .reset(Arc::new(self.client()), &self.config)
-            .await
-            .expect("TODO: Handled in follow-up PR");
-
-        Ok(engine)
-    }
-
-    /// Returns the [`EngineClient`].
-    pub fn client(&self) -> EngineClient {
-        EngineClient::new_http(
-            self.engine_url.clone(),
-            self.l2_rpc_url.clone(),
-            self.l1_rpc_url.clone(),
-            self.config.clone(),
-            self.jwt_secret,
-        )
-    }
-
-    /// Returns an [`EngineStateBuilder`].
-    pub fn state_builder(&self) -> EngineStateBuilder {
-        EngineStateBuilder::new(self.client())
-    }
-}
-
 #[async_trait]
 impl NodeActor for EngineActor {
     type InboundEvent = ();
@@ -187,6 +174,8 @@ impl NodeActor for EngineActor {
 
         loop {
             tokio::select! {
+                biased;
+
                 _ = self.cancellation.cancelled() => {
                     warn!(target: "engine", "EngineActor received shutdown signal.");
 
@@ -197,36 +186,63 @@ impl NodeActor for EngineActor {
 
                     return Ok(());
                 }
+                unsafe_block = self.unsafe_block_rx.recv() => {
+                    let Some(envelope) = unsafe_block else {
+                        error!(target: "engine", "Unsafe block receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+                    let hash = envelope.payload_hash;
+                    let task = InsertUnsafeTask::new(
+                        Arc::clone(&self.client),
+                        Arc::clone(&self.config),
+                        envelope,
+                    );
+                    let task = EngineTask::InsertUnsafe(task);
+                    self.engine.enqueue(task);
+                    debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
+                    self.check_sync().await?;
+                }
+                attributes = self.attributes_rx.recv() => {
+                    let Some(attributes) = attributes else {
+                        error!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+                    let task = ConsolidateTask::new(
+                        Arc::clone(&self.client),
+                        Arc::clone(&self.config),
+                        attributes,
+                        true,
+                    );
+                    let task = EngineTask::Consolidate(task);
+                    self.engine.enqueue(task);
+                    debug!(target: "engine", "Enqueued attributes consolidation task.");
+                }
+                Some(config) = self.runtime_config_rx.recv() => {
+                    let client = Arc::clone(&self.client);
+                    tokio::task::spawn(async move {
+                        debug!(target: "engine", config = ?config, "Received runtime config");
+                        let recommended = config.recommended_protocol_version;
+                        let required = config.required_protocol_version;
+                        match client.signal_superchain_v1(recommended, required).await {
+                            Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
+                            Err(e) => {
+                                // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                                // a warning is logged instead of an error.
+                                warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                            }
+                        }
+                    });
+                }
                 res = self.engine.drain() => {
                     match res {
                         Ok(_) => {
-                          trace!(target: "engine", "[ENGINE] tasks drained");
-                          // Update the l2 safe head if needed.
-                          let state_safe_head = self.engine.state().safe_head();
-                          let update = |head: &mut L2BlockInfo| {
-                              if head != &state_safe_head {
-                                  *head = state_safe_head;
-                                  return true;
-                              }
-                              false
-                          };
-                          let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
-                          trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
+                            trace!(target: "engine", "[ENGINE] tasks drained");
                         }
                         Err(EngineTaskError::Reset(e)) => {
                             warn!(target: "engine", err = ?e, "Received reset request");
-                            let (l2_safe_head, l1_origin, system_config) =
-                                self.engine.reset(self.client.clone(), &self.config).await?;
-
-                            let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
-                            match self.derivation_signal_tx.send(signal.signal()) {
-                                Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
-                                Err(e) => {
-                                    error!(target: "engine", ?e, "Failed to send reset signal to the derivation actor");
-                                    self.cancellation.cancel();
-                                    return Err(EngineError::ChannelClosed);
-                                }
-                            }
+                            self.reset().await?;
                         }
                         Err(EngineTaskError::Flush(e)) => {
                             // This error is encountered when the payload is marked INVALID
@@ -245,55 +261,8 @@ impl NodeActor for EngineActor {
                         }
                         Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
                     }
-                }
-                attributes = self.attributes_rx.recv() => {
-                    let Some(attributes) = attributes else {
-                        error!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
-                        self.cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-                    let task = ConsolidateTask::new(
-                        Arc::clone(&self.client),
-                        Arc::clone(&self.config),
-                        attributes,
-                        true,
-                    );
-                    let task = EngineTask::Consolidate(task);
-                    self.engine.enqueue(task);
-                    debug!(target: "engine", "Enqueued attributes consolidation task.");
-                }
-                unsafe_block = self.unsafe_block_rx.recv() => {
-                    let Some(envelope) = unsafe_block else {
-                        error!(target: "engine", "Unsafe block receiver closed unexpectedly, exiting node");
-                        self.cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-                    let hash = envelope.payload_hash;
-                    let task = InsertUnsafeTask::new(
-                        Arc::clone(&self.client),
-                        Arc::clone(&self.config),
-                        envelope,
-                    );
-                    let task = EngineTask::InsertUnsafe(task);
-                    self.engine.enqueue(task);
-                    debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
-                    self.check_sync();
-                }
-                Some(config) = self.runtime_config_rx.recv() => {
-                    let client = Arc::clone(&self.client);
-                    tokio::task::spawn(async move {
-                        debug!(target: "engine", config = ?config, "Received runtime config");
-                        let recommended = config.recommended_protocol_version;
-                        let required = config.required_protocol_version;
-                        match client.signal_superchain_v1(recommended, required).await {
-                            Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
-                            Err(e) => {
-                                // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
-                                // a warning is logged instead of an error.
-                                warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
-                            }
-                        }
-                    });
+
+                    self.maybe_update_safe_head();
                 }
             }
         }
@@ -313,4 +282,40 @@ pub enum EngineError {
     /// Engine reset error.
     #[error(transparent)]
     EngineReset(#[from] EngineResetError),
+}
+
+/// Configuration for the Engine Actor.
+#[derive(Debug, Clone)]
+pub struct EngineLauncher {
+    /// The [`RollupConfig`].
+    pub config: Arc<RollupConfig>,
+    /// The engine rpc url.
+    pub engine_url: Url,
+    /// The L2 rpc url.
+    pub l2_rpc_url: Url,
+    /// The L1 rpc url.
+    pub l1_rpc_url: Url,
+    /// The engine jwt secret.
+    pub jwt_secret: JwtSecret,
+}
+
+impl EngineLauncher {
+    /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
+    /// updates.
+    pub fn launch(self) -> Engine {
+        let state = EngineState::default();
+        let (engine_state_send, _) = tokio::sync::watch::channel(state);
+        Engine::new(state, engine_state_send)
+    }
+
+    /// Returns the [`EngineClient`].
+    pub fn client(&self) -> EngineClient {
+        EngineClient::new_http(
+            self.engine_url.clone(),
+            self.l2_rpc_url.clone(),
+            self.l1_rpc_url.clone(),
+            self.config.clone(),
+            self.jwt_secret,
+        )
+    }
 }

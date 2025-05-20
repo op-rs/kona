@@ -15,7 +15,7 @@
 use crate::{
     error::{SourceError, StorageError},
     log::LogStorage,
-    models::{BlockHeader, BlockHeaders, LogEntries},
+    models::{BlockRef, BlockRefs, LogEntries},
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
@@ -63,10 +63,7 @@ impl LogStorage for MdbxLogStorage {
             StorageError::TransactionInit(e.into())
         })?;
 
-        if let Err(e) = tx.put::<BlockHeaders>(
-            block.number,
-            BlockHeader { hash: block.hash, parent_hash: block.parent_hash, time: block.timestamp },
-        ) {
+        if let Err(e) = tx.put::<BlockRefs>(block.number, block.into()) {
             error!(target: "supervisor_storage", "Failed to write block header for {}: {e}", block.number);
             return Err(StorageError::DatabaseWrite(e.into()));
         }
@@ -87,8 +84,6 @@ impl LogStorage for MdbxLogStorage {
             error!(target: "supervisor_storage", "Failed to commit transaction for block {}: {e}", block.number);
             StorageError::TransactionCommit(e.into())
         })?;
-
-        info!(target: "supervisor_storage", "Stored logs for block {}", block.number);
         Ok(())
     }
 
@@ -100,24 +95,17 @@ impl LogStorage for MdbxLogStorage {
             StorageError::TransactionInit(e.into())
         })?;
 
-        let header = tx.get::<BlockHeaders>(block_number).map_err(|e| {
+        let block_option = tx.get::<BlockRefs>(block_number).map_err(|e| {
             error!(target: "supervisor_storage", "Failed to read block header {}: {e}", block_number);
             StorageError::DatabaseRead(e.into())
         })?;
 
-        let h = header.ok_or_else(|| {
+        let block = block_option.ok_or_else(|| {
             error!(target: "supervisor_storage", "Block {} not found", block_number);
             StorageError::EntryNotFound(format!("Block {} not found", block_number))
         })?;
-
-        info!(target: "supervisor_storage", "Fetched block {}", block_number);
-
-        Ok(BlockInfo {
-            number: block_number,
-            hash: h.hash,
-            parent_hash: h.parent_hash,
-            timestamp: h.time,
-        })
+        
+        Ok(block.into())
     }
 
     fn get_latest_block(&self) -> Result<BlockInfo, Self::Error> {
@@ -128,7 +116,7 @@ impl LogStorage for MdbxLogStorage {
             StorageError::TransactionInit(e.into())
         })?;
 
-        let mut cursor = tx.cursor_read::<BlockHeaders>().map_err(|e| {
+        let mut cursor = tx.cursor_read::<BlockRefs>().map_err(|e| {
             error!(target: "supervisor_storage", "Failed to get cursor for BlockHeaders: {e}");
             StorageError::CursorInit(e.into())
         })?;
@@ -138,19 +126,14 @@ impl LogStorage for MdbxLogStorage {
             StorageError::DatabaseRead(e.into())
         })?;
 
-        let (block_number, header) = result.ok_or_else(|| {
+        let (block_number, block) = result.ok_or_else(|| {
             error!(target: "supervisor_storage", "No blocks found in storage");
             StorageError::EntryNotFound("No blocks found".to_string())
         })?;
 
         info!(target: "supervisor_storage", "Latest block is {}", block_number);
 
-        Ok(BlockInfo {
-            number: block_number,
-            hash: header.hash,
-            parent_hash: header.parent_hash,
-            timestamp: header.time,
-        })
+        Ok(block.into())
     }
 
     fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, Self::Error> {
@@ -183,7 +166,7 @@ impl LogStorage for MdbxLogStorage {
             return Err(StorageError::EntryNotFound("Log hash mismatch".to_string()));
         }
 
-        let header = tx.get::<BlockHeaders>(block_number).map_err(|e| {
+        let header = tx.get::<BlockRefs>(block_number).map_err(|e| {
             error!(target: "supervisor_storage", "Failed to read block header {}: {e}", block_number);
             StorageError::DatabaseRead(e.into())
         })?;
@@ -195,12 +178,7 @@ impl LogStorage for MdbxLogStorage {
 
         info!(target: "supervisor_storage", "Fetched block {} by log index {}", block_number, log.index);
 
-        Ok(BlockInfo {
-            number: block_number,
-            hash: block.hash,
-            parent_hash: block.parent_hash,
-            timestamp: block.time,
-        })
+        Ok(block.into())
     }
 
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, Self::Error> {

@@ -55,7 +55,7 @@ impl L2ForkchoiceState {
                             .get_block(cfg.genesis.l2.number.into())
                             .full()
                             .await?
-                            .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Finalized))?,
+                            .ok_or(SyncStartError::BlockNotFound(cfg.genesis.l2.number.into()))?,
                         Err(e) => return Err(e.into()),
                     }
                     .into_consensus();
@@ -74,7 +74,7 @@ impl L2ForkchoiceState {
                 .get_block(BlockNumberOrTag::Latest.into())
                 .full()
                 .await?
-                .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Latest))?;
+                .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Latest.into()))?;
             L2BlockInfo::from_block_and_genesis(&rpc_block.into_consensus(), &cfg.genesis)?
         };
 

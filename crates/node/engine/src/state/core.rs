@@ -1,6 +1,6 @@
 //! The internal state of the engine controller.
 
-use crate::{Metrics, SyncStatus};
+use crate::Metrics;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 
@@ -20,8 +20,8 @@ pub struct EngineState {
     /// and cross-verified to only have finalized dependencies.
     pub(crate) finalized_head: L2BlockInfo,
 
-    /// The [`SyncStatus`] of the engine.
-    pub sync_status: SyncStatus,
+    /// Whether or not the EL has finished syncing.
+    pub el_sync_finished: bool,
 
     /// If a forkchoice update call is needed.
     pub forkchoice_update_needed: bool,

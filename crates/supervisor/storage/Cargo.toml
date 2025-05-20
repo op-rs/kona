@@ -18,7 +18,7 @@ kona-protocol = {workspace = true}
 kona-supervisor-types = {workspace = true}
 
 # Alloy
-alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "rand"] }
 
 # Misc
 serde = { workspace = true, features = ["derive"] }
@@ -33,6 +33,9 @@ tracing = {workspace = true}
 reth-db-api = { workspace = true }
 reth-db = {workspace = true}
 reth-codecs = { workspace = true }
+
+[dev-dependencies]
+test-fuzz = { workspace = true }
 
 [lints]
 workspace = true

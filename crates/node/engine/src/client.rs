@@ -85,7 +85,7 @@ impl EngineClient {
         jwt: JwtSecret,
     ) -> Self {
         let engine = Self::rpc_client::<AnyNetwork>(engine, jwt);
-        let l2_provider = RootProvider::<Optimism>::new_http(l2_rpc);
+        let l2_provider = Self::rpc_client::<Optimism>(l2_rpc, jwt);
         let l1_provider = RootProvider::new_http(l1_rpc);
 
         Self { engine, l2_provider, l1_provider, cfg }
