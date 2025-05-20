@@ -74,7 +74,7 @@ impl Compact for LogEntry {
             None
         };
 
-        (LogEntry { index, hash, executing_message }, buf)
+        (Self { index, hash, executing_message }, buf)
     }
 }
 
@@ -162,7 +162,7 @@ impl Compact for ExecutingMessageEntry {
         let hash = B256::from_slice(&buf[..32]);
         buf.advance(32);
 
-        (ExecutingMessageEntry { chain_id, block_number, timestamp, hash, log_index }, buf)
+        (Self { chain_id, block_number, timestamp, hash, log_index }, buf)
     }
 }
 
@@ -204,13 +204,13 @@ impl From<ExecutingMessageEntry> for ExecutingMessage {
 //     use alloy_primitives::B256;
 //     use bytes::BytesMut;
 //     use reth_codecs::Compact;
-// 
+//
 //     fn dummy_hash(val: u8) -> B256 {
 //         let mut bytes = [0u8; 32];
 //         bytes.fill(val);
 //         B256::from(bytes)
 //     }
-// 
+//
 //     #[test]
 //     fn log_entry_compact_with_msg() {
 //         let original = LogEntry {
@@ -224,23 +224,23 @@ impl From<ExecutingMessageEntry> for ExecutingMessage {
 //                 hash: dummy_hash(0xbb),
 //             }),
 //         };
-// 
+//
 //         let mut buf = BytesMut::with_capacity(128);
 //         let encoded_len = original.to_compact(&mut buf);
 //         let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
 //         assert_eq!(decoded, original);
 //     }
-// 
+//
 //     #[test]
 //     fn log_entry_compact_without_msg() {
 //         let original = LogEntry { index: 1, hash: dummy_hash(0xcc), executing_message: None };
-// 
+//
 //         let mut buf = BytesMut::with_capacity(64);
 //         let encoded_len = original.to_compact(&mut buf);
 //         let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
 //         assert_eq!(decoded, original);
 //     }
-// 
+//
 //     #[test]
 //     fn executing_message_entry_compact() {
 //         let original = ExecutingMessageEntry {
@@ -250,7 +250,7 @@ impl From<ExecutingMessageEntry> for ExecutingMessage {
 //             timestamp: 999999,
 //             hash: dummy_hash(0xdd),
 //         };
-// 
+//
 //         let mut buf = BytesMut::with_capacity(64);
 //         let encoded_len = original.to_compact(&mut buf);
 //         let (decoded, _) = ExecutingMessageEntry::from_compact(&buf[..], encoded_len);
@@ -303,7 +303,8 @@ mod tests {
 
     #[test]
     fn test_log_entry_compact_roundtrip_without_message() {
-        let original_log_entry = LogEntry { index:100, hash: test_b256(3), executing_message: None };
+        let original_log_entry =
+            LogEntry { index: 100, hash: test_b256(3), executing_message: None };
 
         let mut buffer = Vec::new();
         let bytes_written = original_log_entry.to_compact(&mut buffer);

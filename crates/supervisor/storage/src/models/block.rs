@@ -8,11 +8,9 @@
 //! require dup-sorting.
 
 use alloy_primitives::B256;
+use kona_protocol::BlockInfo;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
-use kona_protocol::BlockInfo;
-use kona_supervisor_types::ExecutingMessage;
-use crate::models::ExecutingMessageEntry;
 
 /// Metadata reference for a single block.
 ///
@@ -37,11 +35,11 @@ pub struct BlockRef {
 /// Performs a direct field mapping.
 impl From<BlockInfo> for BlockRef {
     fn from(block: BlockInfo) -> Self {
-        Self{
-            number:block.number,
+        Self {
+            number: block.number,
             hash: block.hash,
             parent_hash: block.parent_hash,
-            time: block.timestamp
+            time: block.timestamp,
         }
     }
 }
@@ -52,11 +50,11 @@ impl From<BlockInfo> for BlockRef {
 /// This enables decoding values stored in a compact format for use in application logic.
 impl From<BlockRef> for BlockInfo {
     fn from(block: BlockRef) -> Self {
-        Self{
-            number:block.number,
+        Self {
+            number: block.number,
             hash: block.hash,
             parent_hash: block.parent_hash,
-            timestamp: block.time
+            timestamp: block.time,
         }
     }
 }

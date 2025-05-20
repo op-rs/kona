@@ -11,11 +11,12 @@
 //! - Fetching logs per block using dup-sorted key layout
 //!
 //! Logs are stored in [`LogEntries`] under dup-sorted tables, with log index
-//! used as the subkey. Block headers are stored in [`BlockHeaders`].
+//! used as the subkey. Block metadata is stored in [`BlockRefs`].
+
 use crate::{
     error::{SourceError, StorageError},
     log::LogStorage,
-    models::{BlockRef, BlockRefs, LogEntries},
+    models::{BlockRefs, LogEntries},
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
@@ -28,7 +29,7 @@ use reth_db_api::{
     cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
     transaction::{DbTx, DbTxMut},
 };
-use std::path::Path;
+use std::{fmt::Debug, path::Path};
 use tracing::{debug, error, info};
 
 /// Reth's MDBX-backed log storage implementation for the supervisor.
@@ -38,15 +39,18 @@ use tracing::{debug, error, info};
 ///
 /// Used by the [`LogStorage`] trait to implement log ingestion, lookup,
 /// and block metadata resolution in the context of Optimism state tracking.
-pub struct MdbxLogStorage {
+#[derive(Debug)]
+#[allow(dead_code)]
+pub(crate) struct MdbxLogStorage {
     db: DatabaseEnv,
 }
 
 /// Internal constructor and setup methods for [`MdbxLogStorage`].
 impl MdbxLogStorage {
-    pub fn init<P: AsRef<Path>>(path: P, args: DatabaseArguments) -> Result<Self, StorageError> {
-        let db = init_db_for::<_, crate::models::Tables>(path, args)
-            .map_err(|err| StorageError::DatabaseInit(SourceError::from(err)))?;
+    #[allow(dead_code)]
+    pub(crate) fn init<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
+        let db = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())
+            .map_err(|e| StorageError::DatabaseInit(SourceError::from(e)))?;
         Ok(Self { db })
     }
 }
@@ -63,8 +67,8 @@ impl LogStorage for MdbxLogStorage {
             StorageError::TransactionInit(e.into())
         })?;
 
-        if let Err(e) = tx.put::<BlockRefs>(block.number, block.into()) {
-            error!(target: "supervisor_storage", "Failed to write block header for {}: {e}", block.number);
+        if let Err(e) = tx.put::<BlockRefs>(block.number, (*block).into()) {
+            error!(target: "supervisor_storage", "Failed to write block for {}: {e}", block.number);
             return Err(StorageError::DatabaseWrite(e.into()));
         }
 
@@ -96,7 +100,7 @@ impl LogStorage for MdbxLogStorage {
         })?;
 
         let block_option = tx.get::<BlockRefs>(block_number).map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to read block header {}: {e}", block_number);
+            error!(target: "supervisor_storage", "Failed to read block {}: {e}", block_number);
             StorageError::DatabaseRead(e.into())
         })?;
 
@@ -104,7 +108,7 @@ impl LogStorage for MdbxLogStorage {
             error!(target: "supervisor_storage", "Block {} not found", block_number);
             StorageError::EntryNotFound(format!("Block {} not found", block_number))
         })?;
-        
+
         Ok(block.into())
     }
 
@@ -117,7 +121,7 @@ impl LogStorage for MdbxLogStorage {
         })?;
 
         let mut cursor = tx.cursor_read::<BlockRefs>().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to get cursor for BlockHeaders: {e}");
+            error!(target: "supervisor_storage", "Failed to get cursor for Block: {e}");
             StorageError::CursorInit(e.into())
         })?;
 
@@ -166,14 +170,14 @@ impl LogStorage for MdbxLogStorage {
             return Err(StorageError::EntryNotFound("Log hash mismatch".to_string()));
         }
 
-        let header = tx.get::<BlockRefs>(block_number).map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to read block header {}: {e}", block_number);
+        let block_option = tx.get::<BlockRefs>(block_number).map_err(|e| {
+            error!(target: "supervisor_storage", "Failed to read block {}: {e}", block_number);
             StorageError::DatabaseRead(e.into())
         })?;
 
-        let block = header.ok_or_else(|| {
-            error!(target: "supervisor_storage", "Block header {} not found", block_number);
-            StorageError::EntryNotFound(format!("Block header {} not found", block_number))
+        let block = block_option.ok_or_else(|| {
+            error!(target: "supervisor_storage", "Block {} not found", block_number);
+            StorageError::EntryNotFound(format!("Block {} not found", block_number))
         })?;
 
         info!(target: "supervisor_storage", "Fetched block {} by log index {}", block_number, log.index);
@@ -221,7 +225,6 @@ mod tests {
     use alloy_primitives::B256;
     use kona_protocol::BlockInfo;
     use kona_supervisor_types::{ExecutingMessage, Log};
-    use reth_db::mdbx::DatabaseArguments;
     use tempfile::TempDir;
 
     fn sample_block_info(block_number: u64) -> BlockInfo {
@@ -254,9 +257,7 @@ mod tests {
     #[test]
     fn test_storage_read_write_success() {
         let temp_dir = TempDir::new().expect("Could not create temp dir");
-        let args = DatabaseArguments::default();
-        let storage =
-            MdbxLogStorage::init(temp_dir.path(), args).expect("Failed to init MdbxLogStorage");
+        let storage = MdbxLogStorage::init(temp_dir.path()).expect("Failed to init MdbxLogStorage");
 
         let block1 = sample_block_info(1);
         let logs1 = vec![
@@ -295,5 +296,47 @@ mod tests {
         assert_eq!(logs.len(), 2);
         assert_eq!(logs[0], logs2[0]);
         assert_eq!(logs[1], logs2[1]);
+    }
+
+    #[test]
+    fn test_init_error_path_exercises_database_init() {
+        let invalid_path = Path::new("/this/should/not/exist");
+        let err = MdbxLogStorage::init(invalid_path).unwrap_err();
+        match err {
+            StorageError::DatabaseInit(_) => { /* ok */ }
+            _ => panic!("Expected DatabaseInit error"),
+        }
+    }
+
+    #[test]
+    fn test_not_found_error_and_empty_results() {
+        let temp_dir = TempDir::new().expect("Could not create temp dir");
+        let storage = MdbxLogStorage::init(temp_dir.path()).expect("Failed to init MdbxLogStorage");
+
+        let err = storage.get_latest_block().unwrap_err();
+        match err {
+            StorageError::EntryNotFound(_) => { /* ok */ }
+            _ => panic!("Expected EntryNotFound error"),
+        }
+
+        storage
+            .store_block_logs(&sample_block_info(1), vec![sample_log(0, true)])
+            .expect("Failed to store logs1");
+
+        let err = storage.get_block(0).unwrap_err();
+        match err {
+            StorageError::EntryNotFound(_) => { /* ok */ }
+            _ => panic!("Expected EntryNotFound error"),
+        }
+
+        // should return empty logs but not an error
+        let logs = storage.get_logs(2).expect("Should not return error");
+        assert_eq!(logs.len(), 0);
+
+        let err = storage.get_block_by_log(1, &sample_log(1, false)).unwrap_err();
+        match err {
+            StorageError::EntryNotFound(_) => { /* ok */ }
+            _ => panic!("Expected EntryNotFound error"),
+        }
     }
 }

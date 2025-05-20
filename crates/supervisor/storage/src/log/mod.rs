@@ -4,7 +4,6 @@
 //! storing and retrieving log-related data from execution blocks. It supports both
 //! block-level and log-level queries and is implemented in the [`mdbx`] backend.
 mod mdbx;
-pub use mdbx::MdbxLogStorage;
 
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
@@ -13,7 +12,8 @@ use kona_supervisor_types::Log;
 ///
 /// This is the core abstraction for the supervisor's log storage backend.
 /// It allows writing logs for each block and querying by block number and logs
-pub trait LogStorage {
+#[allow(dead_code)]
+trait LogStorage {
     /// The associated error type returned by this storage backend.
     type Error;
 
