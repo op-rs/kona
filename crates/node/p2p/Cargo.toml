@@ -45,6 +45,7 @@ secp256k1.workspace = true
 # Misc
 url.workspace = true
 dirs.workspace = true
+serde_repr.workspace = true
 serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true

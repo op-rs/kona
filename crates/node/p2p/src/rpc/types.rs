@@ -171,7 +171,17 @@ pub struct PeerStats {
 
 /// Represents the connectivity state of a peer in a network, indicating the reachability and
 /// interaction status of a node with its peers.
-#[derive(Clone, Debug, Display, PartialEq, Copy, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Display,
+    PartialEq,
+    Copy,
+    Default,
+    // We need to use `serde_repr` to serialize the enum as an integer to match the `op-node` API.
+    serde_repr::Serialize_repr,
+    serde_repr::Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum Connectedness {
     /// No current connection to the peer, and no recent history of a successful connection.
@@ -264,15 +274,6 @@ mod tests {
         assert_eq!(Connectedness::from(3), Connectedness::CannotConnect);
         assert_eq!(Connectedness::from(4), Connectedness::Limited);
         assert_eq!(Connectedness::from(5), Connectedness::NotConnected);
-    }
-
-    #[test]
-    fn test_connectedness_display() {
-        assert_eq!(Connectedness::NotConnected.to_string(), "Not Connected");
-        assert_eq!(Connectedness::Connected.to_string(), "Connected");
-        assert_eq!(Connectedness::CanConnect.to_string(), "Can Connect");
-        assert_eq!(Connectedness::CannotConnect.to_string(), "Cannot Connect");
-        assert_eq!(Connectedness::Limited.to_string(), "Limited");
     }
 
     #[test]

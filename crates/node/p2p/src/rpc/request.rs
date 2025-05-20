@@ -219,11 +219,14 @@ impl P2pRpcRequest {
             let enr = match local_enr.await {
                 Ok(enr) => enr,
                 Err(e) => {
-                    warn!("Failed to receive local ENR: {:?}", e);
+                    warn!(target: "p2p::rpc", "Failed to receive local ENR: {:?}", e);
                     return;
                 }
             };
-            let node_id = enr.node_id().to_string();
+
+            // Note: we need to use `Debug` impl here because the `Display` impl of
+            // `NodeId` strips some part of the hex string and replaces it with "...".
+            let node_id = format!("{:?}", &enr.node_id());
 
             // We need to add the local multiaddr to the list of known addresses.
             let peer_info = PeerInfo {
