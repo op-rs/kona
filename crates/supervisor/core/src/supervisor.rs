@@ -3,8 +3,8 @@ use core::fmt::Debug;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use jsonrpsee::types::ErrorObjectOwned;
-use kona_supervisor_rpc::SupervisorApiServer;
 use kona_interop::{DependencySet, ExecutingDescriptor, SafetyLevel};
+use kona_supervisor_rpc::SupervisorApiServer;
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
