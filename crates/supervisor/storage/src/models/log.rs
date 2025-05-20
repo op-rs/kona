@@ -8,6 +8,8 @@
 //! It supports fast appends, retrieval, and range queries ordered by log index.
 
 use alloy_primitives::B256;
+use bytes::{Buf, BufMut};
+use kona_supervisor_types::{ExecutingMessage, Log};
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 
@@ -15,14 +17,91 @@ use serde::{Deserialize, Serialize};
 ///
 /// This is the value stored in the [`crate::models::LogEntries`] dup-sorted table. Each entry
 /// includes:
+/// /// - `index` - Index of the log in a block.
 /// - `hash`: The keccak256 hash of the log event.
 /// - `executing_message` - An optional field that may contain a cross-domain execution message.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct LogEntry {
+    /// Index of the log.
+    pub index: u32,
     /// The keccak256 hash of the emitted log event.
     pub hash: B256,
     /// Optional cross-domain execution message.
-    executing_message: Option<ExecutingMessageEntry>,
+    pub executing_message: Option<ExecutingMessageEntry>,
+}
+/// Compact encoding and decoding implementation for [`LogEntry`].
+///
+/// This encoding is used for storing log entries in dup-sorted tables,
+/// where the `index` field is treated as the subkey. The layout is optimized
+/// for lexicographic ordering by `index`.
+///
+/// ## Encoding Layout (ordered):
+/// - `index: u32` – Log index (subkey), used for ordering within dup table.
+/// - `has_msg: u8` – 1 if `executing_message` is present, 0 otherwise.
+/// - `hash: B256` – 32-byte Keccak256 hash of the log.
+/// - `executing_message: Option<ExecutingMessageEntry>` – Compact-encoded if present.
+impl Compact for LogEntry {
+    fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: BufMut + AsMut<[u8]>,
+    {
+        let start_len = buf.remaining_mut();
+
+        buf.put_u32(self.index); // Subkey must be first
+        buf.put_u8(self.executing_message.is_some() as u8);
+        buf.put_slice(self.hash.as_slice());
+
+        if let Some(msg) = &self.executing_message {
+            msg.to_compact(buf);
+        }
+
+        start_len - buf.remaining_mut()
+    }
+
+    fn from_compact(mut buf: &[u8], _len: usize) -> (Self, &[u8]) {
+        let index = buf.get_u32();
+        let has_msg = buf.get_u8() != 0;
+
+        assert!(buf.len() >= 32, "LogEntry::from_compact: buffer too small for hash");
+        let hash = B256::from_slice(&buf[..32]);
+        buf.advance(32);
+
+        let executing_message = if has_msg {
+            let (msg, rest) = ExecutingMessageEntry::from_compact(buf, buf.len());
+            buf = rest;
+            Some(msg)
+        } else {
+            None
+        };
+
+        (LogEntry { index, hash, executing_message }, buf)
+    }
+}
+
+/// Conversion from [`Log`] to [`LogEntry`] used for internal storage.
+///
+/// Maps fields 1:1, converting `executing_message` using `Into`.
+impl From<Log> for LogEntry {
+    fn from(log: Log) -> Self {
+        Self {
+            index: log.index,
+            hash: log.hash,
+            executing_message: log.executing_message.map(Into::into),
+        }
+    }
+}
+
+/// Conversion from [`LogEntry`] to [`Log`] for external API use.
+///
+/// Mirrors the conversion from `Log`, enabling easy retrieval.
+impl From<LogEntry> for Log {
+    fn from(log: LogEntry) -> Self {
+        Self {
+            index: log.index,
+            hash: log.hash,
+            executing_message: log.executing_message.map(Into::into),
+        }
+    }
 }
 
 /// Represents an entry of an executing message, containing metadata
@@ -32,16 +111,149 @@ pub struct LogEntry {
 /// - `log_index` (`u64`): The index of the log entry within the block where the message was logged.
 /// - `timestamp` (`u64`): The timestamp associated with the block where the message was recorded.
 /// - `hash` (`B256`): The unique hash identifier of the message.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ExecutingMessageEntry {
-    /// ID of the chain where the message was emitted.
-    chain_id: u64,
-    /// Block number in the source chain.
-    block_number: u64,
     /// Log index within the block.
-    log_index: u64,
+    pub log_index: u32,
+    /// ID of the chain where the message was emitted.
+    pub chain_id: u64,
+    /// Block number in the source chain.
+    pub block_number: u64,
     /// Timestamp of the block.
-    timestamp: u64,
+    pub timestamp: u64,
     /// Hash of the message.
-    hash: B256,
+    pub hash: B256,
+}
+
+/// Compact encoding for [`ExecutingMessageEntry`] used in log storage.
+///
+/// This format ensures deterministic encoding and lexicographic ordering by
+/// placing `log_index` first, which is used as the subkey in dup-sorted tables.
+///
+/// ## Encoding Layout (ordered):
+/// - `log_index: u32` – Subkey for dup sort ordering.
+/// - `chain_id: u64`
+/// - `block_number: u64`
+/// - `timestamp: u64`
+/// - `hash: B256` – 32-byte message hash.
+impl Compact for ExecutingMessageEntry {
+    fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: BufMut + AsMut<[u8]>,
+    {
+        let start_len = buf.remaining_mut();
+
+        buf.put_u32(self.log_index);
+        buf.put_u64(self.chain_id);
+        buf.put_u64(self.block_number);
+        buf.put_u64(self.timestamp);
+        buf.put_slice(self.hash.as_slice());
+
+        start_len - buf.remaining_mut()
+    }
+
+    fn from_compact(mut buf: &[u8], _len: usize) -> (Self, &[u8]) {
+        let log_index = buf.get_u32();
+        let chain_id = buf.get_u64();
+        let block_number = buf.get_u64();
+        let timestamp = buf.get_u64();
+
+        assert!(buf.len() >= 32, "ExecutingMessageEntry::from_compact: buffer too small for hash");
+        let hash = B256::from_slice(&buf[..32]);
+        buf.advance(32);
+
+        (ExecutingMessageEntry { chain_id, block_number, timestamp, hash, log_index }, buf)
+    }
+}
+
+/// Converts from [`ExecutingMessage`] (external API format) to [`ExecutingMessageEntry`] (storage
+/// format).
+///
+/// Performs a direct field mapping.
+impl From<ExecutingMessage> for ExecutingMessageEntry {
+    fn from(msg: ExecutingMessage) -> Self {
+        Self {
+            chain_id: msg.chain_id,
+            block_number: msg.block_number,
+            log_index: msg.log_index,
+            timestamp: msg.timestamp,
+            hash: msg.hash,
+        }
+    }
+}
+
+/// Converts from [`ExecutingMessageEntry`] (storage format) to [`ExecutingMessage`] (external API
+/// format).
+///
+/// This enables decoding values stored in a compact format for use in application logic.
+impl From<ExecutingMessageEntry> for ExecutingMessage {
+    fn from(msg: ExecutingMessageEntry) -> Self {
+        Self {
+            chain_id: msg.chain_id,
+            block_number: msg.block_number,
+            log_index: msg.log_index,
+            timestamp: msg.timestamp,
+            hash: msg.hash,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+    use bytes::BytesMut;
+    use reth_codecs::Compact;
+
+    fn dummy_hash(val: u8) -> B256 {
+        let mut bytes = [0u8; 32];
+        bytes.fill(val);
+        B256::from(bytes)
+    }
+
+    #[test]
+    fn log_entry_compact_with_msg() {
+        let original = LogEntry {
+            index: 42,
+            hash: dummy_hash(0xaa),
+            executing_message: Some(ExecutingMessageEntry {
+                log_index: 42,
+                chain_id: 10,
+                block_number: 123,
+                timestamp: 456789,
+                hash: dummy_hash(0xbb),
+            }),
+        };
+
+        let mut buf = BytesMut::with_capacity(128);
+        let encoded_len = original.to_compact(&mut buf);
+        let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn log_entry_compact_without_msg() {
+        let original = LogEntry { index: 1, hash: dummy_hash(0xcc), executing_message: None };
+
+        let mut buf = BytesMut::with_capacity(64);
+        let encoded_len = original.to_compact(&mut buf);
+        let (decoded, _) = LogEntry::from_compact(&buf[..], encoded_len);
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn executing_message_entry_compact() {
+        let original = ExecutingMessageEntry {
+            log_index: 99,
+            chain_id: 1,
+            block_number: 12345,
+            timestamp: 999999,
+            hash: dummy_hash(0xdd),
+        };
+
+        let mut buf = BytesMut::with_capacity(64);
+        let encoded_len = original.to_compact(&mut buf);
+        let (decoded, _) = ExecutingMessageEntry::from_compact(&buf[..], encoded_len);
+        assert_eq!(decoded, original);
+    }
 }
