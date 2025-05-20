@@ -1,7 +1,6 @@
 //! Interop supervisor RPC client errors.
 
 use core::error;
-use kona_supervisor_rpc::jsonrpsee::ErrorObjectOwned;
 use op_alloy_rpc_types::InvalidInboxEntry;
 
 /// Failures occurring during validation of inbox entries.
@@ -39,12 +38,7 @@ impl InteropTxValidatorError {
 impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
-            jsonrpsee::core::ClientError::Call(err) => {
-                InvalidInboxEntry::parse_err_msg(err.message())
-                    .map(Into::into)
-                    .unwrap_or(Self::client(err))
-            } /* todo: match on */
-            // supervisor code
+            jsonrpsee::core::ClientError::Call(err) => err.into(),
             _ => Self::client(err),
         }
     }
