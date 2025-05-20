@@ -30,7 +30,7 @@ use reth_db_api::{
     transaction::{DbTx, DbTxMut},
 };
 use std::{fmt::Debug, path::Path};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 /// Reth's MDBX-backed log storage implementation for the supervisor.
 ///
@@ -108,7 +108,6 @@ impl LogStorage for MdbxLogStorage {
             error!(target: "supervisor_storage", "Block {} not found", block_number);
             StorageError::EntryNotFound(format!("Block {} not found", block_number))
         })?;
-
         Ok(block.into())
     }
 
@@ -130,13 +129,10 @@ impl LogStorage for MdbxLogStorage {
             StorageError::DatabaseRead(e.into())
         })?;
 
-        let (block_number, block) = result.ok_or_else(|| {
+        let (_, block) = result.ok_or_else(|| {
             error!(target: "supervisor_storage", "No blocks found in storage");
             StorageError::EntryNotFound("No blocks found".to_string())
         })?;
-
-        info!(target: "supervisor_storage", "Latest block is {}", block_number);
-
         Ok(block.into())
     }
 
@@ -179,9 +175,6 @@ impl LogStorage for MdbxLogStorage {
             error!(target: "supervisor_storage", "Block {} not found", block_number);
             StorageError::EntryNotFound(format!("Block {} not found", block_number))
         })?;
-
-        info!(target: "supervisor_storage", "Fetched block {} by log index {}", block_number, log.index);
-
         Ok(block.into())
     }
 
@@ -213,8 +206,6 @@ impl LogStorage for MdbxLogStorage {
                 }
             }
         }
-
-        info!(target: "supervisor_storage", "Fetched {} logs for block {}", logs.len(), block_number);
         Ok(logs)
     }
 }
