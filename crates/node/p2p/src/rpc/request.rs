@@ -11,8 +11,12 @@ use discv5::{
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
+use std::{collections::HashSet, num::TryFromIntError};
+
+use libp2p::gossipsub::TopicHash;
+
 use super::{
-    PeerDump,
+    PeerDump, PeerStats,
     types::{Connectedness, Direction, PeerInfo, PeerScores},
 };
 
@@ -35,6 +39,13 @@ pub enum P2pRpcRequest {
         /// Whether to only return connected peers.
         connected: bool,
     },
+    /// Returns the current peer stats for both the
+    /// - Discovery Service ([`crate::Discv5Driver`])
+    /// - Gossip Service ([`crate::GossipDriver`])
+    ///
+    /// This information can be used to briefly monitor the current state of the p2p network for a
+    /// given peer.
+    PeerStats(Sender<PeerStats>),
 }
 
 impl P2pRpcRequest {
@@ -45,6 +56,7 @@ impl P2pRpcRequest {
             Self::DiscoveryTable(s) => Self::handle_discovery_table(s, disc),
             Self::PeerInfo(s) => Self::handle_peer_info(s, gossip, disc),
             Self::Peers { out, connected } => Self::handle_peers(out, connected, gossip, disc),
+            Self::PeerStats(s) => Self::handle_peer_stats(s, gossip, disc),
         }
     }
 
@@ -233,6 +245,89 @@ impl P2pRpcRequest {
             if let Err(e) = sender.send(peer_info) {
                 warn!("Failed to send peer info through response channel: {:?}", e);
             }
+        });
+    }
+
+    fn handle_peer_stats(sender: Sender<PeerStats>, gossip: &GossipDriver, disc: &Discv5Handler) {
+        let peers_known = gossip.peerstore.len();
+        let gossip_network_info = gossip.swarm.network_info();
+        let table_info = disc.peer_count();
+
+        let topics = gossip.swarm.behaviour().gossipsub.topics().collect::<HashSet<_>>();
+
+        let topics = topics
+            .into_iter()
+            .map(|hash| (hash.clone(), gossip.swarm.behaviour().gossipsub.mesh_peers(hash).count()))
+            .collect::<HashMap<_, _>>();
+
+        let v1_topic_hash = gossip.handler.blocks_v1_topic.hash();
+        let v2_topic_hash = gossip.handler.blocks_v2_topic.hash();
+        let v3_topic_hash = gossip.handler.blocks_v3_topic.hash();
+        let v4_topic_hash = gossip.handler.blocks_v4_topic.hash();
+
+        tokio::spawn(async move {
+            let Ok(table) = table_info.await else {
+                error!(target: "p2p::rpc", "failed to get discovery table size. The sender has been dropped. The discv5 service may not be running anymore.");
+                return;
+            };
+
+            let Ok(table) = table.try_into() else {
+                error!(target: "p2p::rpc", "failed to get discovery table size. Integer overflow. Please ensure that the number of peers in the discovery table fits in a u32.");
+                return;
+            };
+
+            let Ok(connected) = gossip_network_info.num_peers().try_into() else {
+                error!(target: "p2p::rpc", "failed to get number of connected peers. Integer overflow. Please ensure that the number of connected peers fits in a u32.");
+                return;
+            };
+
+            let Ok(known) = peers_known.try_into() else {
+                error!(target: "p2p::rpc", "failed to get number of known peers. Integer overflow. Please ensure that the number of known peers fits in a u32.");
+                return;
+            };
+
+            // Given a topic hash, this method:
+            // - gets the number of peers in the mesh for that topic
+            // - returns an error if the number of peers in the mesh overflows a u32
+            // - returns 0 if there are no peers in the mesh for that topic
+            let get_topic = |topic: &TopicHash| {
+                Ok::<u32, TryFromIntError>(
+                    topics
+                        .get(topic)
+                        .cloned()
+                        .map(|v| v.try_into())
+                        .transpose()?
+                        .unwrap_or_default(),
+                )
+            };
+
+            let Ok(block_topics) = vec![
+                get_topic(&v1_topic_hash),
+                get_topic(&v2_topic_hash),
+                get_topic(&v3_topic_hash),
+                get_topic(&v4_topic_hash),
+            ]
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>() else {
+                error!(target: "p2p::rpc", "failed to get blocks topic. Some topic count overflowed. Make sure that the number of peers for a given topic fits in a u32.");
+                return;
+            };
+
+            let stats = PeerStats {
+                connected,
+                table,
+                blocks_topic: block_topics[0],
+                blocks_topic_v2: block_topics[1],
+                blocks_topic_v3: block_topics[2],
+                blocks_topic_v4: block_topics[3],
+                // TODO(@theochap): track the number of banned peers
+                banned: 0,
+                known,
+            };
+
+            if let Err(e) = sender.send(stats) {
+                warn!("Failed to send peer stats through response channel: {:?}", e);
+            };
         });
     }
 

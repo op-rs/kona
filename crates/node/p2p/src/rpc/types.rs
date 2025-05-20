@@ -160,6 +160,9 @@ pub struct PeerStats {
     /// The blocks v3 topic.
     #[serde(rename = "blocksTopicV3")]
     pub blocks_topic_v3: u32,
+    /// The blocks v4 topic.
+    #[serde(rename = "blocksTopicV4")]
+    pub blocks_topic_v4: u32,
     /// The banned count.
     pub banned: u32,
     /// The known count.

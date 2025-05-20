@@ -342,7 +342,7 @@ impl Discv5Driver {
                                             self.disc.ban_node(&enr.node_id(), Some(ban_duration));
                                         }
                                     }
-                                }
+                                },
                             }
                             None => {
                                 trace!(target: "discovery", "Receiver `None` peer enr");
