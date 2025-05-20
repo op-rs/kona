@@ -111,6 +111,7 @@ impl NodeCommand {
         let engine_client = kona_engine::EngineClient::new_http(
             self.l2_engine_rpc.clone(),
             self.l2_provider_rpc.clone(),
+            self.l1_eth_rpc.clone(),
             Arc::new(config.clone()),
             jwt_secret,
         );

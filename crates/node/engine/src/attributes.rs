@@ -120,7 +120,7 @@ impl AttributesMatch {
         // Note that it is safe to zip both iterators because we checked their length
         // beforehand.
         for (attr_tx_bytes, block_tx) in attributes_txs.iter().zip(block_txs) {
-            debug!(
+            trace!(
                 target: "engine",
                 ?attr_tx_bytes,
                 block_tx_hash = %block_tx.tx_hash(),
@@ -157,7 +157,7 @@ impl AttributesMatch {
             }
 
             if &attr_tx != block_tx {
-                debug!(target: "engine", ?attr_tx, ?block_tx, "Transaction mismatch");
+                warn!(target: "engine", ?attr_tx, ?block_tx, "Transaction mismatch in derived attributes");
                 return AttributesMismatch::TransactionContent(attr_tx.tx_hash(), block_tx.tx_hash())
                     .into()
             }

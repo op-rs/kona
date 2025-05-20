@@ -1,0 +1,38 @@
+optimism_package:
+  chains:
+    - participants:
+      - el_type: op-geth
+        cl_type: op-node
+        cl_log_level: debug
+      - el_type: op-reth
+        cl_type: op-node
+        el_image: "ghcr.io/paradigmxyz/op-reth:kurtosis-ci"
+        cl_log_level: debug
+      network_params:
+        interop_time_offset: 0
+  superchains: 
+    superchain-a: # empty config creates default including all L2 networks
+  supervisors:
+    supervisor-a: # default op-supervisor
+      superchain: superchain-a
+    supervisor-b:
+      superchain: superchain-a
+      image: "ghcr.io/op-rs/kona/kona-supervisor:latest"
+      extra_params: ["-vvvv"]
+ethereum_package:
+  participants:
+    - el_type: reth
+      cl_type: nimbus
+  network_params:
+    preset: minimal
+    genesis_delay: 5
+    additional_preloaded_contracts: '
+      {
+        "0x4e59b44847b379578588920cA78FbF26c0B4956C": {
+          "balance": "0ETH",
+          "code": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3",
+          "storage": {},
+          "nonce": "1"
+        }
+      }'
+

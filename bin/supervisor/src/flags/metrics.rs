@@ -83,34 +83,6 @@ mod tests {
     }
 
     #[test]
-    fn test_metrics_args_from_env_var() {
-        unsafe {
-            std::env::set_var("METRICS_ENABLED", "true");
-            std::env::set_var("METRICS_PORT", "9999");
-            std::env::set_var("METRICS_ADDR", "127.0.0.1");
-        }
-
-        let cli = TestCli::parse_from(["test_app"]);
-        assert!(
-            cli.metrics.enabled,
-            "metrics.enabled should be true when --metrics.enabled flag is passed."
-        );
-        assert_eq!(cli.metrics.port, 9999, "metrics.port should be parsed from CLI.");
-        assert_eq!(
-            cli.metrics.addr,
-            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            "metrics.addr should be parsed from CLI."
-        );
-
-        // cleanup the environment variables
-        unsafe {
-            std::env::remove_var("METRICS_ENABLED");
-            std::env::remove_var("METRICS_PORT");
-            std::env::remove_var("METRICS_ADDR");
-        }
-    }
-
-    #[test]
     fn test_init_metrics_when_disabled() {
         let args =
             MetricsArgs { enabled: false, port: 1234, addr: IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)) };

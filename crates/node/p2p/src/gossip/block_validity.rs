@@ -1,6 +1,7 @@
 use std::{collections::HashSet, time::SystemTime};
 
 use alloy_consensus::Block;
+use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
 use alloy_primitives::{Address, B256};
 use alloy_rpc_types_engine::{ExecutionPayloadV3, PayloadError};
 use libp2p::gossipsub::MessageAcceptance;
@@ -132,9 +133,7 @@ impl BlockHandler {
         block.header.parent_beacon_block_root = envelope.parent_beacon_block_root;
         // If isthmus is active, set the requests hash to the empty hash.
         if self.rollup_config.is_isthmus_active(envelope.payload.timestamp()) {
-            block.header.requests_hash = Some(alloy_primitives::b256!(
-                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-            ));
+            block.header.requests_hash = Some(EMPTY_REQUESTS_HASH);
         }
         let received = block.header.hash_slow();
         if received != expected {

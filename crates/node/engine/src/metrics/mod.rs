@@ -38,6 +38,9 @@ impl Metrics {
     /// `engine_getPayloadV<N>` label.
     pub const GET_PAYLOAD_METHOD: &str = "engine_getPayload";
 
+    /// Identifier for the counter that tracks the number of times the engine has been reset.
+    pub const ENGINE_RESET_COUNT: &str = "kona_node_engine_reset_count";
+
     /// Initializes metrics for the engine.
     ///
     /// This does two things:
@@ -58,11 +61,18 @@ impl Metrics {
         // Engine task counts
         metrics::describe_counter!(Self::ENGINE_TASK_COUNT, "Engine task counts");
 
-        // FCU time histogram
+        // Engine method request duration histogram
         metrics::describe_histogram!(
             Self::ENGINE_METHOD_REQUEST_DURATION,
             metrics::Unit::Seconds,
             "Engine method request duration"
+        );
+
+        // Engine reset counter
+        metrics::describe_counter!(
+            Self::ENGINE_RESET_COUNT,
+            metrics::Unit::Count,
+            "Engine reset count"
         );
     }
 
@@ -82,5 +92,8 @@ impl Metrics {
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::FORKCHOICE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::BUILD_TASK_LABEL, 0);
+
+        // Engine reset count
+        kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);
     }
 }

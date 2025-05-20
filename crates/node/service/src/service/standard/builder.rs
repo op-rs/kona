@@ -139,6 +139,7 @@ impl RollupNodeBuilder {
         let engine_launcher = EngineLauncher {
             config: Arc::clone(&config),
             l2_rpc_url,
+            l1_rpc_url: l1_rpc_url.clone(),
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,
         };

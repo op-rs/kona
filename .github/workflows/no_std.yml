@@ -25,4 +25,4 @@ jobs:
         with:
           cache-on-failure: true
       - name: check
-        run: ./scripts/check_no_std.sh
+        run: ./.github/scripts/check_no_std.sh

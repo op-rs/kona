@@ -3,6 +3,7 @@
 use crate::EngineTaskError;
 use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
+use kona_protocol::FromBlockError;
 use thiserror::Error;
 
 /// An error that occurs when running the [crate::ForkchoiceTask].
@@ -45,6 +46,12 @@ pub enum BuildTaskError {
     /// be flushed post-holocene.
     #[error("Invalid payload, must flush post-holocene")]
     HoloceneInvalidFlush,
+    /// Failed to convert a [`OpExecutionPayload`] to a [`L2BlockInfo`].
+    ///
+    /// [`OpExecutionPayload`]: op_alloy_rpc_types_engine::OpExecutionPayload
+    /// [`L2BlockInfo`]: kona_protocol::L2BlockInfo
+    #[error(transparent)]
+    FromBlock(#[from] FromBlockError),
 }
 
 impl From<BuildTaskError> for EngineTaskError {
@@ -62,6 +69,7 @@ impl From<BuildTaskError> for EngineTaskError {
             BuildTaskError::DepositOnlyPayloadReattemptFailed => Self::Critical(Box::new(value)),
             BuildTaskError::FinalizedAheadOfUnsafe(_, _) => Self::Critical(Box::new(value)),
             BuildTaskError::DepositOnlyPayloadFailed => Self::Critical(Box::new(value)),
+            BuildTaskError::FromBlock(_) => Self::Critical(Box::new(value)),
         }
     }
 }

@@ -84,9 +84,10 @@ impl ConsolidateTask {
                 block_hash = %block.header.hash,
                 "Consolidating engine state",
             );
-            match L2BlockInfo::from_rpc_block_and_genesis(block, &self.cfg.genesis) {
+            match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
                 Ok(block_info) => {
                     debug!(target: "engine", ?block_info, "Promoted safe head");
+                    state.set_local_safe_head(block_info);
                     state.set_safe_head(block_info);
                     match self.execute_forkchoice_task(state).await {
                         Ok(()) => {
@@ -128,10 +129,11 @@ impl ConsolidateTask {
 #[async_trait]
 impl EngineTaskExt for ConsolidateTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // Skip to processing the payload attributes if consolidation is not needed.
-        match state.needs_consolidation() {
-            true => self.consolidate(state).await,
-            false => self.execute_build_task(state).await,
+        // Skip to building the payload attributes if consolidation is not needed.
+        if state.safe_head().block_info.number < state.unsafe_head().block_info.number {
+            self.consolidate(state).await
+        } else {
+            self.execute_build_task(state).await
         }
     }
 }

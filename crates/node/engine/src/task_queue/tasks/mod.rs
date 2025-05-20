@@ -1,10 +1,7 @@
 //! Tasks to update the engine state.
 
-mod unknowns;
-pub use unknowns::init_unknowns;
-
 mod task;
-pub use task::{EngineTask, EngineTaskError, EngineTaskExt, EngineTaskType};
+pub use task::{EngineTask, EngineTaskError, EngineTaskExt};
 
 mod forkchoice;
 pub use forkchoice::{ForkchoiceTask, ForkchoiceTaskError};
