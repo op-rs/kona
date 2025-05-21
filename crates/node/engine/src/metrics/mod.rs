@@ -29,6 +29,18 @@ impl Metrics {
     /// Build task label.
     pub const BUILD_TASK_LABEL: &str = "build";
 
+    /// Identifier for the histogram that tracks engine method call time.
+    pub const ENGINE_METHOD_REQUEST_DURATION: &str = "kona_node_engine_method_request_duration";
+    /// `engine_forkchoiceUpdatedV<N>` label
+    pub const FORKCHOICE_UPDATE_METHOD: &str = "engine_forkchoiceUpdated";
+    /// `engine_newPayloadV<N>` label.
+    pub const NEW_PAYLOAD_METHOD: &str = "engine_newPayload";
+    /// `engine_getPayloadV<N>` label.
+    pub const GET_PAYLOAD_METHOD: &str = "engine_getPayload";
+
+    /// Identifier for the counter that tracks the number of times the engine has been reset.
+    pub const ENGINE_RESET_COUNT: &str = "kona_node_engine_reset_count";
+
     /// Initializes metrics for the engine.
     ///
     /// This does two things:
@@ -48,23 +60,33 @@ impl Metrics {
 
         // Engine task counts
         metrics::describe_counter!(Self::ENGINE_TASK_COUNT, "Engine task counts");
+
+        // Engine method request duration histogram
+        metrics::describe_histogram!(
+            Self::ENGINE_METHOD_REQUEST_DURATION,
+            metrics::Unit::Seconds,
+            "Engine method request duration"
+        );
+
+        // Engine reset counter
+        metrics::describe_counter!(
+            Self::ENGINE_RESET_COUNT,
+            metrics::Unit::Count,
+            "Engine reset count"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
     /// metrics.
     #[cfg(feature = "metrics")]
     pub fn zero() {
-        // Blockchain head labels
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::UNSAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::CROSS_UNSAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::LOCAL_SAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::SAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::FINALIZED_BLOCK_LABEL, 0);
-
         // Engine task counts
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::INSERT_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::FORKCHOICE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::BUILD_TASK_LABEL, 0);
+
+        // Engine reset count
+        kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);
     }
 }

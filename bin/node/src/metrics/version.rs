@@ -40,10 +40,14 @@ impl VersionInfo {
 
     /// Exposes kona-node's version information over prometheus.
     pub fn register_version_metrics(&self) {
+        // If no features are enabled, the string will be empty, and the metric will not be
+        // reported. Report "none" if the string is empty.
+        let features = if self.cargo_features.is_empty() { "none" } else { self.cargo_features };
+
         let labels: [(&str, &str); 6] = [
             ("version", self.version),
             ("build_timestamp", self.build_timestamp),
-            ("cargo_features", self.cargo_features),
+            ("cargo_features", features),
             ("git_sha", self.git_sha),
             ("target_triple", self.target_triple),
             ("build_profile", self.build_profile),

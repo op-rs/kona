@@ -52,23 +52,15 @@ impl OnlinePipeline {
         chain_provider: AlloyChainProvider,
         mut l2_chain_provider: AlloyL2ChainProvider,
     ) -> PipelineResult<Self> {
-        let attributes = StatefulAttributesBuilder::new(
+        let Self { mut pipeline } = Self::new_uninitialized(
             cfg.clone(),
+            blob_provider,
+            chain_provider,
             l2_chain_provider.clone(),
-            chain_provider.clone(),
         );
-        let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
 
-        let mut pipeline = PipelineBuilder::new()
-            .rollup_config(cfg.clone())
-            .dap_source(dap)
-            .l2_chain_provider(l2_chain_provider.clone())
-            .chain_provider(chain_provider)
-            .builder(attributes)
-            .origin(l1_origin)
-            .build();
-
-        // Reset the pipeline to populate the initial system configuration in L1 Traversal.
+        // Reset the pipeline to populate the initial L1/L2 cursor and system configuration in L1
+        // Traversal.
         pipeline
             .signal(
                 ResetSignal {
@@ -84,6 +76,34 @@ impl OnlinePipeline {
             .await?;
 
         Ok(Self { pipeline })
+    }
+
+    /// Constructs a new oracle-backed derivation pipeline that has not been populated with an L2
+    /// safe head, L1 origin, or System Config. Before using, a [`ResetSignal`] must be sent to
+    /// instantiate the pipeline state.
+    pub fn new_uninitialized(
+        cfg: Arc<RollupConfig>,
+        blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
+        chain_provider: AlloyChainProvider,
+        l2_chain_provider: AlloyL2ChainProvider,
+    ) -> Self {
+        let attributes = StatefulAttributesBuilder::new(
+            cfg.clone(),
+            l2_chain_provider.clone(),
+            chain_provider.clone(),
+        );
+        let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
+
+        let pipeline = PipelineBuilder::new()
+            .rollup_config(cfg.clone())
+            .dap_source(dap)
+            .l2_chain_provider(l2_chain_provider.clone())
+            .chain_provider(chain_provider)
+            .builder(attributes)
+            .origin(BlockInfo::default())
+            .build();
+
+        Self { pipeline }
     }
 }
 

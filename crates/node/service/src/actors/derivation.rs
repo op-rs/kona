@@ -1,18 +1,18 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
-use crate::NodeActor;
+use crate::{Metrics, NodeActor};
 use async_trait::async_trait;
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
     traits::{Pipeline, SignalReceiver},
-    types::{ActivationSignal, ResetSignal, Signal, StepResult},
+    types::{ActivationSignal, Signal, StepResult},
 };
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
 use tokio::{
     select,
     sync::{
-        mpsc::{UnboundedReceiver, UnboundedSender, error::SendError},
+        mpsc::{UnboundedReceiver, UnboundedSender},
         watch::Receiver as WatchReceiver,
     },
 };
@@ -30,6 +30,7 @@ where
 {
     /// The derivation pipeline.
     pipeline: P,
+
     /// The l2 safe head from the engine.
     engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
     /// A receiver that tells derivation to begin.
@@ -53,16 +54,23 @@ where
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: UnboundedReceiver<Signal>,
+
     /// The receiver for L1 head update notifications.
     l1_head_updates: UnboundedReceiver<BlockInfo>,
-    /// The sender for derived [OpAttributesWithParent]s produced by the actor.
+    /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
     attributes_out: UnboundedSender<OpAttributesWithParent>,
+    /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
+    /// them to the engine.
+    reset_request_tx: UnboundedSender<()>,
 
     /// A flag indicating whether the derivation pipeline is ready to start.
     engine_ready: bool,
     /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
     /// has yielded to wait for more data on the DAL.
     derivation_idle: bool,
+    /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
+    /// signal, derivation cannot process any incoming events.
+    waiting_for_signal: bool,
 
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
@@ -81,6 +89,7 @@ where
         derivation_signal_rx: UnboundedReceiver<Signal>,
         l1_head_updates: UnboundedReceiver<BlockInfo>,
         attributes_out: UnboundedSender<OpAttributesWithParent>,
+        reset_request_tx: UnboundedSender<()>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
@@ -90,8 +99,10 @@ where
             derivation_signal_rx,
             l1_head_updates,
             attributes_out,
+            reset_request_tx,
             engine_ready: false,
             derivation_idle: true,
+            waiting_for_signal: false,
             cancellation,
         }
     }
@@ -167,24 +178,16 @@ where
                                         target: "derivation",
                                         "L1 reorg detected! Expected: {expected} | New: {new}"
                                     );
+
+                                    kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
 
-                                // Reset the pipeline to the initial L2 safe head and L1 origin,
-                                // and try again.
-                                let l1_origin = self
-                                    .pipeline
-                                    .origin()
-                                    .ok_or(PipelineError::MissingOrigin.crit())?;
-                                self.pipeline
-                                    .signal(
-                                        ResetSignal {
-                                            l2_safe_head,
-                                            l1_origin,
-                                            system_config: Some(system_config),
-                                        }
-                                        .signal(),
-                                    )
-                                    .await?;
+                                self.reset_request_tx.send(()).map_err(|e| {
+                                    error!(target: "derivation", ?e, "Failed to send reset request");
+                                    DerivationError::Sender(Box::new(e))
+                                })?;
+                                self.waiting_for_signal = true;
+                                return Err(DerivationError::Yield);
                             }
                         }
                         PipelineErrorKind::Critical(_) => {
@@ -214,34 +217,14 @@ where
     async fn start(mut self) -> Result<(), Self::Error> {
         loop {
             select! {
+                biased;
+
                 _ = self.cancellation.cancelled() => {
                     info!(
                         target: "derivation",
                         "Received shutdown signal. Exiting derivation task."
                     );
                     return Ok(());
-                }
-                _ = self.sync_complete_rx.recv() => {
-                    if self.engine_ready {
-                        // Already received the signal, ignore.
-                        continue;
-                    }
-                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
-                    self.engine_ready = true;
-                    self.sync_complete_rx.close();
-                    // Optimistically process the first message.
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
-                }
-                msg = self.l1_head_updates.recv() => {
-                    if msg.is_none() {
-                        error!(
-                            target: "derivation",
-                            "L1 head update stream closed without cancellation. Exiting derivation task."
-                        );
-                        return Ok(());
-                    }
-
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }
                 signal = self.derivation_signal_rx.recv() => {
                     let Some(signal) = signal else {
@@ -254,9 +237,32 @@ where
                     };
 
                     self.signal(signal).await;
+                    self.waiting_for_signal = false;
+                }
+                msg = self.l1_head_updates.recv() => {
+                    if msg.is_none() {
+                        error!(
+                            target: "derivation",
+                            "L1 head update stream closed without cancellation. Exiting derivation task."
+                        );
+                        return Ok(());
+                    }
+
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }
                 _ = self.engine_l2_safe_head.changed() => {
                     self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
+                }
+                _ = self.sync_complete_rx.recv() => {
+                    if self.engine_ready {
+                        // Already received the signal, ignore.
+                        continue;
+                    }
+                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
+                    self.engine_ready = true;
+                    self.sync_complete_rx.close();
+                    // Optimistically process the first message.
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }
             }
         }
@@ -277,7 +283,10 @@ where
     async fn process(&mut self, msg: Self::InboundEvent) -> Result<(), Self::Error> {
         // Only attempt derivation once the engine finishes syncing.
         if !self.engine_ready {
-            trace!(target: "derivation", "Engine not ready, skipping derivation.");
+            trace!(target: "derivation", "Engine not ready, skipping derivation");
+            return Ok(());
+        } else if self.waiting_for_signal {
+            trace!(target: "derivation", "Waiting to receive a signal, skipping derivation");
             return Ok(());
         }
 
@@ -326,7 +335,9 @@ where
         self.engine_l2_safe_head.borrow_and_update();
 
         // Send payload attributes out for processing.
-        self.attributes_out.send(payload_attrs).map_err(Box::new)?;
+        self.attributes_out
+            .send(payload_attrs)
+            .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
         Ok(())
     }
@@ -352,8 +363,8 @@ pub enum DerivationError {
     #[error("Waiting for more data to be available")]
     Yield,
     /// An error originating from the broadcast sender.
-    #[error("Failed to send event to broadcast sender")]
-    Sender(#[from] Box<SendError<OpAttributesWithParent>>),
+    #[error("Failed to send event to broadcast sender: {0}")]
+    Sender(Box<dyn std::error::Error>),
     /// An error from the signal receiver.
     #[error("Failed to receive signal")]
     SignalReceiveFailed,

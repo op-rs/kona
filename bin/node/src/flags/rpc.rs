@@ -4,10 +4,7 @@
 
 use clap::Parser;
 use kona_rpc::RpcConfig;
-use std::{
-    net::{IpAddr, Ipv4Addr},
-    path::PathBuf,
-};
+use std::{net::IpAddr, path::PathBuf};
 
 /// RPC CLI Arguments
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
@@ -32,13 +29,9 @@ pub struct RpcArgs {
 
 impl Default for RpcArgs {
     fn default() -> Self {
-        Self {
-            rpc_disabled: false,
-            listen_addr: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            listen_port: 9545,
-            enable_admin: false,
-            admin_persistence: None,
-        }
+        // Construct default values using the clap parser.
+        // This works since none of the cli flags are required.
+        Self::parse_from::<[_; 0], &str>([])
     }
 }
 
@@ -64,6 +57,7 @@ impl From<RpcArgs> for RpcConfig {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use std::net::Ipv4Addr;
 
     #[rstest]
     #[case::disable_rpc(&["--rpc.disabled"], |args: &mut RpcArgs| { args.rpc_disabled = true; })]

@@ -7,7 +7,6 @@ use crate::{
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
-use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::{BlockInfo, L2BlockInfo};
@@ -15,7 +14,6 @@ use kona_rpc::{
     L1WatcherQueries, NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher,
     RpcLauncherError,
 };
-use kona_sources::L2ForkchoiceState;
 use std::fmt::Display;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio_util::sync::CancellationToken;
@@ -65,7 +63,6 @@ pub trait ValidatorNodeService {
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
     type Error: From<RpcLauncherError>
-        + From<EngineStateBuilderError>
         + From<jsonrpsee::server::RegisterMethodError>
         + std::fmt::Debug;
 
@@ -85,9 +82,7 @@ pub trait ValidatorNodeService {
 
     /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
     /// forkchoice state and the initialized derivation pipeline.
-    async fn init_derivation(
-        &self,
-    ) -> Result<(L2ForkchoiceState, Self::DerivationPipeline), Self::Error>;
+    async fn init_derivation(&self) -> Result<Self::DerivationPipeline, Self::Error>;
 
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
@@ -113,6 +108,7 @@ pub trait ValidatorNodeService {
         let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
         let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
+        let (reset_request_tx, reset_request_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
@@ -123,7 +119,7 @@ pub trait ValidatorNodeService {
             Some(l1_watcher_queries_recv),
         ));
 
-        let (_, derivation_pipeline) = self.init_derivation().await?;
+        let derivation_pipeline = self.init_derivation().await?;
         let (engine_l2_safe_tx, engine_l2_safe_rx) =
             tokio::sync::watch::channel(L2BlockInfo::default());
         let derivation = DerivationActor::new(
@@ -133,6 +129,7 @@ pub trait ValidatorNodeService {
             derivation_signal_rx,
             new_head_rx,
             derived_payload_tx,
+            reset_request_tx,
             cancellation.clone(),
         );
         let derivation = Some(derivation);
@@ -151,7 +148,8 @@ pub trait ValidatorNodeService {
 
         let launcher = self.engine();
         let client = launcher.client();
-        let engine = launcher.launch().await?;
+        let engine = launcher.launch();
+
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
             client,
@@ -162,6 +160,7 @@ pub trait ValidatorNodeService {
             runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,
+            reset_request_rx,
             Some(engine_query_recv),
             cancellation.clone(),
         );

@@ -2,7 +2,6 @@
 
 use jsonrpsee::server::RegisterMethodError;
 use kona_derive::errors::PipelineErrorKind;
-use kona_engine::EngineStateBuilderError;
 use kona_p2p::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
 use kona_rpc::RpcLauncherError;
@@ -26,9 +25,6 @@ pub enum RollupNodeError {
     /// An error occured while launching the RPC server.
     #[error(transparent)]
     RpcLauncher(#[from] RpcLauncherError),
-    /// An error occured while launching the engine api.
-    #[error(transparent)]
-    EngineLauncher(#[from] EngineStateBuilderError),
     /// An error occurred while registering RPC methods.
     #[error(transparent)]
     RegisterMethod(#[from] RegisterMethodError),

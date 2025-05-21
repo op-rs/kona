@@ -29,36 +29,6 @@ use crate::{
 /// If an `Arc<Mutex<>>` were used, a lock held across the operation's future
 /// would be needed since some asynchronous operations require a mutable
 /// reference to the [`Discv5`] service.
-///
-/// ## Example
-///
-/// ```no_run
-/// use discv5::enr::CombinedKey;
-/// use kona_p2p::{Discv5Driver, LocalNode};
-/// use std::net::{IpAddr, Ipv4Addr};
-///
-/// #[tokio::main]
-/// async fn main() {
-///     let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
-///         unreachable!()
-///     };
-///
-///     let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-///     let addr = LocalNode::new(k256_key, advertise_ip, 9099, 9098);
-///     let mut disc = Discv5Driver::builder()
-///         .with_local_node(addr)
-///         .with_chain_id(10) // OP Mainnet chain id
-///         .build()
-///         .expect("Failed to build discovery service");
-///     let (_, mut enr_receiver) = disc.start();
-///
-///     loop {
-///         if let Some(enr) = enr_receiver.recv().await {
-///             println!("Received peer enr: {:?}", enr);
-///         }
-///     }
-/// }
-/// ```
 #[derive(Debug)]
 pub struct Discv5Driver {
     /// The [`Discv5`] discovery service.
@@ -342,13 +312,22 @@ impl Discv5Driver {
                                 HandlerRequest::AddEnr(enr) => {
                                     let _ = self.disc.add_enr(enr);
                                 }
-                                HandlerRequest::RequestEnr(enode) => {
-                                    let _ = self.disc.request_enr(enode).await;
+                                HandlerRequest::RequestEnr{out, addr} => {
+                                    let enr = self.disc.request_enr(addr).await;
+                                    if let Err(e) = out.send(enr) {
+                                        warn!(target: "discovery", "Failed to send request enr: {:?}", e);
+                                    }
                                 }
                                 HandlerRequest::TableEnrs(tx) => {
                                     let enrs = self.disc.table_entries_enr();
                                     if let Err(e) = tx.send(enrs) {
                                         warn!(target: "discovery", "Failed to send table enrs: {:?}", e);
+                                    }
+                                },
+                                HandlerRequest::TableInfos(tx) => {
+                                    let infos = self.disc.table_entries();
+                                    if let Err(e) = tx.send(infos) {
+                                        warn!(target: "discovery", "Failed to send table infos: {:?}", e);
                                     }
                                 },
                                 HandlerRequest::BanAddrs{addrs_to_ban, ban_duration} => {
@@ -363,7 +342,7 @@ impl Discv5Driver {
                                             self.disc.ban_node(&enr.node_id(), Some(ban_duration));
                                         }
                                     }
-                                }
+                                },
                             }
                             None => {
                                 trace!(target: "discovery", "Receiver `None` peer enr");

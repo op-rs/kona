@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
+use kona_interop::DependencySet;
 use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService};
 use kona_supervisor_rpc::SupervisorApiServer;
 use std::{net::SocketAddr, sync::Arc};
@@ -13,6 +14,9 @@ pub struct Config {
     /// The socket address for the RPC server to listen on.
     // TODO:: refactoring required. RPC config should be managed in it's domain
     pub rpc_addr: SocketAddr,
+
+    /// The loaded dependency set configuration.
+    pub dependency_set: DependencySet,
     // Add other configuration fields as needed (e.g., connection details for L1/L2 nodes)
 }
 
@@ -33,7 +37,7 @@ impl Service {
         // Initialize the core Supervisor logic
         // In the future, this might take configuration or client connections
         // This creates an Arc<Supervisor>
-        let supervisor = Arc::new(Supervisor::new());
+        let supervisor = Arc::new(Supervisor::new(config.dependency_set.clone()));
 
         // Create the RPC implementation, sharing the core logic
         // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>

@@ -15,12 +15,10 @@ mod traits;
 pub use traits::InteropProvider;
 
 mod safety;
-pub use safety::{SafetyLevel, SafetyLevelParseError};
+pub use safety::SafetyLevelParseError;
 
 mod errors;
-pub use errors::{
-    InvalidInboxEntry, MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult,
-};
+pub use errors::{MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult};
 
 mod root;
 pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootResponse};
@@ -31,6 +29,11 @@ pub use message::{
     RawMessagePayload, extract_executing_messages, parse_log_to_executing_message,
     parse_logs_to_executing_msgs,
 };
+
+mod depset;
+pub use depset::{ChainDependency, DependencySet};
+
+pub use op_alloy_consensus::interop::SafetyLevel;
 
 mod access_list;
 pub use access_list::{
