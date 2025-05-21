@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use jsonrpsee::types::ErrorObjectOwned;
 use kona_interop::{DependencySet, ExecutingDescriptor, SafetyLevel};
 use kona_supervisor_rpc::SupervisorApiServer;
+use op_alloy_rpc_types::InvalidInboxEntry;
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
@@ -13,11 +14,19 @@ pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
     Unimplemented,
+    /// Data availability errors.
+    ///
+    /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
+    #[error(transparent)]
+    InvalidInboxEntry(#[from] InvalidInboxEntry),
 }
 
 impl From<ErrorObjectOwned> for SupervisorError {
-    fn from(_error: ErrorObjectOwned) -> Self {
-        Self::Unimplemented
+    fn from(err: ErrorObjectOwned) -> Self {
+        let Ok(err) = (err.code() as i64).try_into() else {
+            return Self::Unimplemented;
+        };
+        Self::InvalidInboxEntry(err)
     }
 }
 
