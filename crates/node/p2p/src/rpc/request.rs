@@ -158,11 +158,12 @@ impl P2pRpcRequest {
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
+                        let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
                             PeerInfo {
                                 peer_id: peer_id.to_string(),
-                                node_id: enr.node_id().to_string(),
+                                node_id,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 user_agent: String::new(),
                                 // TODO(@theochap): support these fields
