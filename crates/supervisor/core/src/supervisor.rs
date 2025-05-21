@@ -9,7 +9,7 @@ use op_alloy_rpc_types::InvalidInboxEntry;
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
@@ -82,5 +82,18 @@ where
         executing_descriptor: ExecutingDescriptor,
     ) -> Result<(), SupervisorError> {
         Ok(T::check_access_list(self, inbox_entries, min_safety, executing_descriptor).await?)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_rpc_error_conversion() {
+        let err_code = InvalidInboxEntry::UnknownChain;
+        let err = ErrorObjectOwned::owned(err_code as i32, "", None::<()>);
+
+        assert_eq!(SupervisorError::InvalidInboxEntry(err_code), err.into())
     }
 }
