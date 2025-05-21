@@ -122,3 +122,33 @@ impl OutputV0 {
 
 #[allow(dead_code)]
 type Receipts = Vec<OpReceiptEnvelope>;
+
+/// Sent by the node to the supervisor to share updates. 
+/// Atleast one of the fields will be Some, and the rest will be None.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[allow(dead_code)]
+#[allow(unreachable_pub)]
+pub struct ManagedEvent {
+    /// The reset was successful
+    pub reset: String,
+    /// There was a new unsafe block
+    pub unsafe_block: Option<BlockRef>,
+    /// The node derived new L2 block from L1
+    pub derivation_update: Option<DerivedBlockRefPair>,
+    /// There are no more L1 blocks to process with the node
+    pub exhaust_l1: Option<DerivedBlockRefPair>,
+    /// The node has successfully replaced the block
+    pub replace_block: Option<BlockReplacement>,
+    /// The node has successfully updated the derivation origin
+    pub derivation_origin_update: Option<BlockRef>,
+}
+
+impl ManagedEvent {
+    #[allow(dead_code)]
+    #[allow(unreachable_pub)]   
+    pub fn new(reset: String, unsafe_block: Option<BlockRef>, derivation_update: Option<DerivedBlockRefPair>, exhaust_l1: Option<DerivedBlockRefPair>, replace_block: Option<BlockReplacement>, derivation_origin_update: Option<BlockRef>) -> Self {
+        Self { reset, unsafe_block, derivation_update, exhaust_l1, replace_block, derivation_origin_update }
+    }
+}

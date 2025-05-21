@@ -4977,13 +4977,17 @@ dependencies = [
  "alloy-primitives",
  "async-trait",
  "jsonrpsee 0.25.1",
+ "jsonwebtoken",
  "kona-interop",
  "kona-supervisor-rpc",
  "metrics",
  "op-alloy-consensus",
  "serde",
  "thiserror 2.0.12",
+ "tokio",
  "tracing",
+ "tracing-subscriber 0.3.19",
+ "uuid",
 ]
 
 [[package]]

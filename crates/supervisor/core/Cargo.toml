@@ -26,13 +26,19 @@ op-alloy-consensus.workspace = true
 serde = { workspace = true, optional = true }
 
 # Misc
-jsonrpsee = { workspace = true, features = [ "server" ] }
 async-trait.workspace = true
-tracing = { workspace = true }
+tracing.workspace = true
 thiserror.workspace = true
 
+# Bi-directional RPC
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+jsonrpsee = { workspace = true, features = ["macros", "client", "client-core"] }
+tokio.workspace = true
+uuid = { version = "1.16.0", features = ["v4"] }
+jsonwebtoken = "9"
+
 # `metrics` feature
-metrics = { workspace = true }
+metrics.workspace = true
 
 [lints]
 workspace = true
