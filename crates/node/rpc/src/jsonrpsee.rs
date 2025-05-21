@@ -63,9 +63,9 @@ pub trait OpP2PApi {
     #[method(name = "peerCount")]
     async fn opp2p_peer_count(&self) -> RpcResult<PeerCount>;
 
-    /// Returns information of peers
+    /// Returns information of peers. If `connected` is true, only returns connected peers.
     #[method(name = "peers")]
-    async fn opp2p_peers(&self) -> RpcResult<PeerDump>;
+    async fn opp2p_peers(&self, connected: bool) -> RpcResult<PeerDump>;
 
     /// Returns statistics of peers
     #[method(name = "peerStats")]

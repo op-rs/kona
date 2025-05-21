@@ -55,6 +55,7 @@ impl MetricsArgs {
             init_prometheus_server(self.addr, self.port)?;
             kona_p2p::Metrics::init();
             kona_engine::Metrics::init();
+            kona_node_service::Metrics::init();
             VersionInfo::from_build().register_version_metrics();
         }
 

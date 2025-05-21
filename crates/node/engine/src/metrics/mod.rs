@@ -80,13 +80,6 @@ impl Metrics {
     /// metrics.
     #[cfg(feature = "metrics")]
     pub fn zero() {
-        // Blockchain head labels
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::UNSAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::CROSS_UNSAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::LOCAL_SAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::SAFE_BLOCK_LABEL, 0);
-        kona_macros::set!(gauge, Self::BLOCK_LABELS, "label", Self::FINALIZED_BLOCK_LABEL, 0);
-
         // Engine task counts
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::INSERT_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::CONSOLIDATE_TASK_LABEL, 0);
