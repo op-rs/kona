@@ -1,4 +1,4 @@
-//! Reth's MDBX-backed implementation of [`LogStorage`] for supervisor state.
+//! Reth's MDBX-backed implementation of [`crate::log::LogStorage`] for supervisor state.
 //!
 //! This module provides the [`MdbxLogStorage`] struct, which uses the
 //! [`reth-db`] abstraction of reth to store execution logs
@@ -14,59 +14,44 @@
 //! used as the subkey. Block metadata is stored in [`BlockRefs`].
 
 use crate::{
-    error::{SourceError, StorageError},
-    log::LogStorage,
+    error::StorageError,
+    log::{LogStorageReader, LogStorageWriter},
     models::{BlockRefs, LogEntries},
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
-use reth_db::{
-    DatabaseEnv,
-    mdbx::{DatabaseArguments, init_db_for},
-};
 use reth_db_api::{
-    Database,
     cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
     transaction::{DbTx, DbTxMut},
 };
-use std::{fmt::Debug, path::Path};
+use std::fmt::Debug;
 use tracing::{debug, error};
 
-/// Reth's MDBX-backed log storage implementation for the supervisor.
-///
-/// This wraps a [`DatabaseEnv`] from `reth-db` and provides durable storage
-/// for L2 execution logs and block metadata using dup-sorted tables.
-///
-/// Used by the [`LogStorage`] trait to implement log ingestion, lookup,
-/// and block metadata resolution in the context of Optimism state tracking.
+/// A log storage that wraps a transactional reference to the MDBX backend.
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) struct MdbxLogStorage {
-    db: DatabaseEnv,
+pub(crate) struct MdbxLogStorage<'tx, TX> {
+    tx: &'tx TX,
 }
 
 /// Internal constructor and setup methods for [`MdbxLogStorage`].
-impl MdbxLogStorage {
+impl<'tx, TX> MdbxLogStorage<'tx, TX> {
     #[allow(dead_code)]
-    pub(crate) fn init<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
-        let db = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())
-            .map_err(|e| StorageError::DatabaseInit(SourceError::from(e)))?;
-        Ok(Self { db })
+    pub(crate) const fn new(tx: &'tx TX) -> Self {
+        Self { tx }
     }
 }
 
-/// Implements the [`LogStorage`] trait
-impl LogStorage for MdbxLogStorage {
+/// Implements the [`LogStorageWriter`] trait
+impl<TX> LogStorageWriter for MdbxLogStorage<'_, TX>
+where
+    TX: DbTxMut,
+{
     type Error = StorageError;
 
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), Self::Error> {
         debug!(target: "supervisor_storage", "Storing {} logs for block {}", logs.len(), block.number);
-
-        let tx = self.db.tx_mut().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to start transaction: {e}");
-            StorageError::TransactionInit(e.into())
-        })?;
-
+        let tx = self.tx;
         if let Err(e) = tx.put::<BlockRefs>(block.number, (*block).into()) {
             error!(target: "supervisor_storage", "Failed to write block for {}: {e}", block.number);
             return Err(StorageError::DatabaseWrite(e.into()));
@@ -83,23 +68,19 @@ impl LogStorage for MdbxLogStorage {
                 return Err(StorageError::DatabaseWrite(e.into()));
             }
         }
-
-        tx.commit().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to commit transaction for block {}: {e}", block.number);
-            StorageError::TransactionCommit(e.into())
-        })?;
         Ok(())
     }
-
+}
+/// Implements the [`LogStorageReader`] trait
+impl<TX> LogStorageReader for MdbxLogStorage<'_, TX>
+where
+    TX: DbTx,
+{
+    type Error = StorageError;
     fn get_block(&self, block_number: u64) -> Result<BlockInfo, Self::Error> {
         debug!(target: "supervisor_storage", "Fetching block {}", block_number);
 
-        let tx = self.db.tx().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to start read transaction: {e}");
-            StorageError::TransactionInit(e.into())
-        })?;
-
-        let block_option = tx.get::<BlockRefs>(block_number).map_err(|e| {
+        let block_option = self.tx.get::<BlockRefs>(block_number).map_err(|e| {
             error!(target: "supervisor_storage", "Failed to read block {}: {e}", block_number);
             StorageError::DatabaseRead(e.into())
         })?;
@@ -114,12 +95,7 @@ impl LogStorage for MdbxLogStorage {
     fn get_latest_block(&self) -> Result<BlockInfo, Self::Error> {
         debug!(target: "supervisor_storage", "Fetching latest block");
 
-        let tx = self.db.tx().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to start read transaction: {e}");
-            StorageError::TransactionInit(e.into())
-        })?;
-
-        let mut cursor = tx.cursor_read::<BlockRefs>().map_err(|e| {
+        let mut cursor = self.tx.cursor_read::<BlockRefs>().map_err(|e| {
             error!(target: "supervisor_storage", "Failed to get cursor for Block: {e}");
             StorageError::CursorInit(e.into())
         })?;
@@ -139,12 +115,7 @@ impl LogStorage for MdbxLogStorage {
     fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, Self::Error> {
         debug!(target: "supervisor_storage", "Fetching block {} by log index {}", block_number, log.index);
 
-        let tx = self.db.tx().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to start read transaction: {e}");
-            StorageError::TransactionInit(e.into())
-        })?;
-
-        let mut cursor = tx.cursor_dup_read::<LogEntries>().map_err(|e| {
+        let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
             error!(target: "supervisor_storage", "Failed to get cursor for LogEntries: {e}");
             StorageError::CursorInit(e.into())
         })?;
@@ -166,7 +137,7 @@ impl LogStorage for MdbxLogStorage {
             return Err(StorageError::EntryNotFound("Log hash mismatch".to_string()));
         }
 
-        let block_option = tx.get::<BlockRefs>(block_number).map_err(|e| {
+        let block_option = self.tx.get::<BlockRefs>(block_number).map_err(|e| {
             error!(target: "supervisor_storage", "Failed to read block {}: {e}", block_number);
             StorageError::DatabaseRead(e.into())
         })?;
@@ -181,12 +152,7 @@ impl LogStorage for MdbxLogStorage {
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, Self::Error> {
         debug!(target: "supervisor_storage", "Fetching logs for block {}", block_number);
 
-        let tx = self.db.tx().map_err(|e| {
-            error!(target: "supervisor_storage", "Failed to start read transaction: {e}");
-            StorageError::TransactionInit(e.into())
-        })?;
-
-        let mut cursor = tx.cursor_dup_read::<LogEntries>().map_err(|e| {
+        let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
             error!(target: "supervisor_storage", "Failed to get dup cursor for block {}: {e}", block_number);
             StorageError::CursorInit(e.into())
         })?;
@@ -216,6 +182,8 @@ mod tests {
     use alloy_primitives::B256;
     use kona_protocol::BlockInfo;
     use kona_supervisor_types::{ExecutingMessage, Log};
+    use reth_db::mdbx::{DatabaseArguments, init_db_for};
+    use reth_db_api::Database;
     use tempfile::TempDir;
 
     fn sample_block_info(block_number: u64) -> BlockInfo {
@@ -248,7 +216,12 @@ mod tests {
     #[test]
     fn test_storage_read_write_success() {
         let temp_dir = TempDir::new().expect("Could not create temp dir");
-        let storage = MdbxLogStorage::init(temp_dir.path()).expect("Failed to init MdbxLogStorage");
+        let db =
+            init_db_for::<_, crate::models::Tables>(temp_dir.path(), DatabaseArguments::default())
+                .expect("Failed to init database");
+
+        let tx_mut = db.tx_mut().expect("Failed to start RW tx");
+        let log_writer = MdbxLogStorage::new(&tx_mut);
 
         let block1 = sample_block_info(1);
         let logs1 = vec![
@@ -265,66 +238,71 @@ mod tests {
         let logs3 = vec![sample_log(0, false), sample_log(1, true), sample_log(2, true)];
 
         // Store logs
-        storage.store_block_logs(&block1, logs1.clone()).expect("Failed to store logs1");
-        storage.store_block_logs(&block2, logs2.clone()).expect("Failed to store logs2");
-        storage.store_block_logs(&block3, logs3).expect("Failed to store logs3");
+        log_writer.store_block_logs(&block1, logs1.clone()).expect("Failed to store logs1");
+        log_writer.store_block_logs(&block2, logs2.clone()).expect("Failed to store logs2");
+        log_writer.store_block_logs(&block3, logs3).expect("Failed to store logs3");
+
+        tx_mut.commit().expect("Failed to commit tx");
+
+        let tx = db.tx().expect("Failed to start RO tx");
+        let log_reader = MdbxLogStorage::new(&tx);
 
         // get_block
-        let block = storage.get_block(block2.number).expect("Failed to get block");
+        let block = log_reader.get_block(block2.number).expect("Failed to get block");
         assert_eq!(block, block2);
 
         // get_latest_block
-        let block = storage.get_latest_block().expect("Failed to get latest block");
+        let block = log_reader.get_latest_block().expect("Failed to get latest block");
         assert_eq!(block, block3);
 
         // get_block_by_log
         let block =
-            storage.get_block_by_log(1, &logs1[1].clone()).expect("Failed to get block by log");
+            log_reader.get_block_by_log(1, &logs1[1].clone()).expect("Failed to get block by log");
         assert_eq!(block, block1);
 
         // get_logs
-        let logs = storage.get_logs(block2.number).expect("Failed to get logs");
+        let logs = log_reader.get_logs(block2.number).expect("Failed to get logs");
         assert_eq!(logs.len(), 2);
         assert_eq!(logs[0], logs2[0]);
         assert_eq!(logs[1], logs2[1]);
     }
 
     #[test]
-    fn test_init_error_path_exercises_database_init() {
-        let invalid_path = Path::new("/this/should/not/exist");
-        let err = MdbxLogStorage::init(invalid_path).unwrap_err();
-        match err {
-            StorageError::DatabaseInit(_) => { /* ok */ }
-            _ => panic!("Expected DatabaseInit error"),
-        }
-    }
-
-    #[test]
     fn test_not_found_error_and_empty_results() {
         let temp_dir = TempDir::new().expect("Could not create temp dir");
-        let storage = MdbxLogStorage::init(temp_dir.path()).expect("Failed to init MdbxLogStorage");
+        let db =
+            init_db_for::<_, crate::models::Tables>(temp_dir.path(), DatabaseArguments::default())
+                .expect("Failed to init database");
 
-        let err = storage.get_latest_block().unwrap_err();
+        let tx_mut = db.tx_mut().expect("Failed to start RW tx");
+        let log_writer = MdbxLogStorage::new(&tx_mut);
+
+        let tx = db.tx().expect("Failed to start RO tx");
+        let log_reader = MdbxLogStorage::new(&tx);
+
+        let err = log_reader.get_latest_block().unwrap_err();
         match err {
             StorageError::EntryNotFound(_) => { /* ok */ }
             _ => panic!("Expected EntryNotFound error"),
         }
 
-        storage
+        log_writer
             .store_block_logs(&sample_block_info(1), vec![sample_log(0, true)])
             .expect("Failed to store logs1");
 
-        let err = storage.get_block(0).unwrap_err();
+        tx_mut.commit().expect("Failed to commit tx");
+
+        let err = log_reader.get_block(0).unwrap_err();
         match err {
             StorageError::EntryNotFound(_) => { /* ok */ }
             _ => panic!("Expected EntryNotFound error"),
         }
 
         // should return empty logs but not an error
-        let logs = storage.get_logs(2).expect("Should not return error");
+        let logs = log_reader.get_logs(2).expect("Should not return error");
         assert_eq!(logs.len(), 0);
 
-        let err = storage.get_block_by_log(1, &sample_log(1, false)).unwrap_err();
+        let err = log_reader.get_block_by_log(1, &sample_log(1, false)).unwrap_err();
         match err {
             StorageError::EntryNotFound(_) => { /* ok */ }
             _ => panic!("Expected EntryNotFound error"),
