@@ -17,7 +17,7 @@ pub type EngineQuerySender = tokio::sync::mpsc::Sender<EngineQueries>;
 pub enum EngineQueries {
     /// Returns the rollup config.
     Config(Sender<RollupConfig>),
-    /// Returns L2 engine state information.
+    /// Returns current L2 engine state information.
     State(Sender<EngineState>),
     /// Returns the L2 output at the specified block with a tuple of the block info and associated
     /// engine state.
@@ -27,6 +27,8 @@ pub enum EngineQueries {
         /// A channel to send back the output and engine state.
         sender: Sender<(L2BlockInfo, OutputRoot, EngineState)>,
     },
+    /// Returns a subscription to the updates of the engine state.
+    StateReceiver(Sender<tokio::sync::watch::Receiver<EngineState>>),
 }
 
 /// An error that can occur when querying the engine.
@@ -107,6 +109,9 @@ impl EngineQueries {
                     .send((output_block_info, output_response_v0, state))
                     .map_err(|_| EngineQueriesError::OutputChannelClosed)
             }
+            Self::StateReceiver(subscription) => subscription
+                .send(state_recv.clone())
+                .map_err(|_| EngineQueriesError::OutputChannelClosed),
         }
     }
 }
