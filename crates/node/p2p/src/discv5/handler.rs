@@ -65,7 +65,7 @@ impl Discv5Handler {
         let sender = self.sender.clone();
         tokio::spawn(async move {
             if let Err(e) = sender.send(HandlerRequest::TableEnrs(tx)).await {
-                warn!("Failed to send table ENRs request: {:?}", e);
+                warn!(target: "discovery", err = ?e, "Failed to send table ENRs request");
             }
         });
         rx
@@ -92,7 +92,7 @@ impl Discv5Handler {
         let sender = self.sender.clone();
         tokio::spawn(async move {
             if let Err(e) = sender.send(HandlerRequest::LocalEnr(tx)).await {
-                warn!("Failed to send local ENR request: {:?}", e);
+                warn!(target: "discovery", err = ?e, "Failed to send local ENR request");
             }
         });
         rx
@@ -123,7 +123,7 @@ impl Discv5Handler {
         let sender = self.sender.clone();
         tokio::spawn(async move {
             if let Err(e) = sender.send(HandlerRequest::Metrics(tx)).await {
-                warn!("Failed to send metrics request: {:?}", e);
+                warn!(target: "discovery", err = ?e, "Failed to send metrics request");
             }
         });
         rx
@@ -137,7 +137,7 @@ impl Discv5Handler {
         let sender = self.sender.clone();
         tokio::spawn(async move {
             if let Err(e) = sender.send(HandlerRequest::PeerCount(tx)).await {
-                warn!("Failed to send peer count request: {:?}", e);
+                warn!(target: "discovery", err = ?e, "Failed to send peer count request");
             }
         });
         rx

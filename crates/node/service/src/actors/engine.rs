@@ -54,6 +54,8 @@ pub struct EngineActor {
     attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
     /// A channel to receive [`OpNetworkPayloadEnvelope`] from the network actor.
     unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
+    /// A channel to receive reset requests.
+    reset_request_rx: UnboundedReceiver<()>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
@@ -71,20 +73,22 @@ impl EngineActor {
         runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
+        reset_request_rx: UnboundedReceiver<()>,
         inbound_queries: Option<Receiver<EngineQueries>>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
             config,
             client: Arc::new(client),
-            sync_complete_tx,
-            derivation_signal_tx,
             engine,
             engine_l2_safe_head_tx,
+            sync_complete_tx,
+            derivation_signal_tx,
             runtime_config_rx,
-            inbound_queries,
             attributes_rx,
             unsafe_block_rx,
+            reset_request_rx,
+            inbound_queries,
             cancellation,
         }
     }
@@ -104,6 +108,7 @@ impl EngineActor {
             }
         }
 
+        self.maybe_update_safe_head();
         Ok(())
     }
 
@@ -118,7 +123,6 @@ impl EngineActor {
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
             self.reset().await?;
-            self.maybe_update_safe_head();
             self.sync_complete_tx.send(()).ok();
         }
 
@@ -185,6 +189,16 @@ impl NodeActor for EngineActor {
                     }
 
                     return Ok(());
+                }
+                reset = self.reset_request_rx.recv() => {
+                    let Some(_) = reset else {
+                        error!(target: "engine", "Reset request receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+
+                    warn!(target: "engine", "Received reset request");
+                    self.reset().await?;
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {

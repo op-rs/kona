@@ -82,9 +82,11 @@ pub async fn find_starting_forkchoice(
             "Searching for L2 safe block beyond sequencing window"
         );
 
-        if current_fc.un_safe.l1_origin.number.saturating_sub(cfg.seq_window_size) >
-            safe_cursor.l1_origin.number
-        {
+        let is_behind_sequence_window =
+            current_fc.un_safe.l1_origin.number.saturating_sub(cfg.seq_window_size) >
+                safe_cursor.l1_origin.number;
+        let is_genesis = safe_cursor.block_info.hash == cfg.genesis.l2.hash;
+        if is_behind_sequence_window || is_genesis {
             info!(
                 target: "sync_start",
                 l2_safe = %safe_cursor.block_info.number,

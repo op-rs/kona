@@ -21,3 +21,6 @@ pub use actors::{
     InboundDerivationMessage, L1WatcherRpc, L1WatcherRpcError, NetworkActor, NetworkActorError,
     NodeActor, RpcActor, RpcActorError, RuntimeActor, RuntimeLauncher,
 };
+
+mod metrics;
+pub use metrics::Metrics;

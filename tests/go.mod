@@ -2,7 +2,8 @@ module github.com/op-rs/kona
 
 go 1.24.3
 
-require github.com/ethereum-optimism/optimism v1.13.3-0.20250516221950-6fd68b71a61a
+// We're using the "develop" branch of the Optimism repo to include the latest changes to the `devnet-sdk` package.
+require github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
@@ -163,6 +164,9 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.2
+replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
+
+// Patched version of the Optimism repo that includes the latest changes of the `devnet-sdk` package to enable testing for the CL clients.
+replace github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6 => github.com/theochap/optimism v0.0.0-20250520030832-c6ddf76c3505
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.4-rc.1

@@ -108,6 +108,7 @@ pub trait ValidatorNodeService {
         let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
         let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
+        let (reset_request_tx, reset_request_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
@@ -128,6 +129,7 @@ pub trait ValidatorNodeService {
             derivation_signal_rx,
             new_head_rx,
             derived_payload_tx,
+            reset_request_tx,
             cancellation.clone(),
         );
         let derivation = Some(derivation);
@@ -158,6 +160,7 @@ pub trait ValidatorNodeService {
             runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,
+            reset_request_rx,
             Some(engine_query_recv),
             cancellation.clone(),
         );

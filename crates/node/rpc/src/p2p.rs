@@ -42,16 +42,29 @@ impl OpP2PApiServer for NetworkRpc {
         Ok(PeerCount { connected_discovery, connected_gossip })
     }
 
-    async fn opp2p_peers(&self) -> RpcResult<PeerDump> {
+    async fn opp2p_peers(&self, connected: bool) -> RpcResult<PeerDump> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_peers");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(P2pRpcRequest::Peers { out: tx, connected })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        let dump = rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        Ok(dump)
     }
 
     async fn opp2p_peer_stats(&self) -> RpcResult<PeerStats> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_peerStats");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(P2pRpcRequest::PeerStats(tx))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        let stats = rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        Ok(stats)
     }
 
     async fn opp2p_discovery_table(&self) -> RpcResult<Vec<String>> {
