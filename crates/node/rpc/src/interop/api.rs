@@ -18,6 +18,7 @@ pub trait CheckAccessListClient {
     ) -> impl Future<Output = Result<(), InteropTxValidatorError>> + Send;
 }
 
+// codecov:ignore-start
 impl<T> CheckAccessListClient for T
 where
     T: SupervisorApiClient + Send + Sync,
@@ -32,3 +33,4 @@ where
             .await?)
     }
 }
+// codecov:ignore-end
