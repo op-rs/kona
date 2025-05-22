@@ -81,7 +81,9 @@ where
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> Result<(), SupervisorError> {
+        // codecov:ignore-start
         Ok(T::check_access_list(self, inbox_entries, min_safety, executing_descriptor).await?)
+        // codecov:ignore-end
     }
 }
 
@@ -94,6 +96,10 @@ mod test {
         let err_code = InvalidInboxEntry::UnknownChain;
         let err = ErrorObjectOwned::owned(err_code as i32, "", None::<()>);
 
-        assert_eq!(SupervisorError::InvalidInboxEntry(err_code), err.into())
+        assert_eq!(SupervisorError::InvalidInboxEntry(err_code), err.into());
+
+        let err = ErrorObjectOwned::owned(i32::MAX, "", None::<()>);
+
+        assert_eq!(SupervisorError::Unimplemented, err.into())
     }
 }
