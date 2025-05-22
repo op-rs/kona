@@ -24,9 +24,9 @@ mod output;
 pub use output::OutputResponse;
 
 mod jsonrpsee;
-#[cfg(feature = "client")]
-pub use jsonrpsee::{MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient};
-pub use jsonrpsee::{MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer};
+pub use jsonrpsee::{
+    MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer, WsServer,
+};
 
 #[cfg(feature = "reqwest")]
 pub mod reqwest;
@@ -46,3 +46,6 @@ pub use rollup::RollupRpc;
 
 mod l1_watcher;
 pub use l1_watcher::{L1State, L1WatcherQueries, L1WatcherQuerySender};
+
+mod ws;
+pub use ws::WsRPC;
