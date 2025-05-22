@@ -1,4 +1,4 @@
-//! Reth's MDBX-backed implementation of [`crate::log::LogStorage`] for supervisor state.
+//! Reth's MDBX-backed abstraction of [`LogStorage`](crate::log::LogStorage) for superchain state.
 //!
 //! This module provides the [`MdbxLogStorage`] struct, which uses the
 //! [`reth-db`] abstraction of reth to store execution logs
