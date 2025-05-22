@@ -3,10 +3,10 @@
 use alloy_eips::eip1898::BlockNumHash;
 use kona_protocol::BlockInfo;
 
-/// A pair of block IDs representing a derivation relationship between two blocks.
+/// A pair of [`BlockNumHash`]s representing a derivation relationship between two blocks.
 ///
-/// The [`DerivedIdPair`] links a source block (L1) to a derived block (L2)
-/// using their [`BlockNumHash`] identifiers.
+/// The [`DerivedIdPair`] links a source block (L1) to a derived block (L2) where the derived block
+/// is derived from the source block.
 ///
 /// - `source`: The [`BlockNumHash`] of the source (L1) block.
 /// - `derived`: The [`BlockNumHash`] of the derived (L2) block.
