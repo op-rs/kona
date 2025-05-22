@@ -1,6 +1,7 @@
 name: Kurtosis Supervisor
 on:
   workflow_dispatch:
+  pull_request:
 env:
   CARGO_TERM_COLOR: always
 jobs:
