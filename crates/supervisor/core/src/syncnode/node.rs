@@ -1,17 +1,18 @@
 //! [`NodeSubscriber`] implementation for subscribing to the events from managed node.
 
-use crate::types::ManagedEvent;
-use crate::syncnode::SubscriptionError;
-use std::path::PathBuf;
-use std::sync::Arc;
+use crate::{syncnode::SubscriptionError, types::ManagedEvent};
 use alloy_primitives::U256;
-use jsonrpsee::core::client::{Subscription, SubscriptionClientT};
-use jsonrpsee::core::middleware::RpcServiceBuilder;
-use jsonrpsee::ws_client::{WsClientBuilder, HeaderMap, HeaderValue};
-use jsonrpsee::rpc_params;
-use tokio::sync::watch;
-use tokio::task::JoinHandle;
-use tracing::{info, error, debug, warn};
+use jsonrpsee::{
+    core::{
+        client::{Subscription, SubscriptionClientT},
+        middleware::RpcServiceBuilder,
+    },
+    rpc_params,
+    ws_client::{HeaderMap, HeaderValue, WsClientBuilder},
+};
+use std::{path::PathBuf, sync::Arc};
+use tokio::{sync::watch, task::JoinHandle};
+use tracing::{debug, error, info, warn};
 
 /// Configuration for the managed node.
 #[derive(Debug)]
@@ -25,7 +26,7 @@ pub struct ManagedNodeConfig {
     /// The path to the JWT token for the managed node
     pub jwt_path: Option<PathBuf>,
     /// The current subscription to the managed node, if any
-    pub subscription: Option<Subscription<Option<ManagedEvent>>>
+    pub subscription: Option<Subscription<Option<ManagedEvent>>>,
 }
 
 /// NodeSubscriber handles the subscription to managed node events.
@@ -44,11 +45,7 @@ pub struct NodeSubscriber {
 impl NodeSubscriber {
     /// Creates a new NodeSubscriber with the specified configuration.
     pub fn new(config: Arc<ManagedNodeConfig>) -> Self {
-        Self {
-            config,
-            stop_tx: None,
-            task_handle: None,
-        }
+        Self { config, stop_tx: None, task_handle: None }
     }
 
     /// Processes a managed event received from the subscription.
@@ -61,55 +58,68 @@ impl NodeSubscriber {
         match event_result {
             Some(event) => {
                 debug!("Handling ManagedEvent: {:?}", event);
-                
+
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
                     info!("Reset event received with ID: {}", reset_id);
                     // Handle reset action
                 }
-                
+
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!("Unsafe block event received: hash={:?}, number={}", 
-                         unsafe_block.hash, unsafe_block.number);
+                    info!(
+                        "Unsafe block event received: hash={:?}, number={}",
+                        unsafe_block.hash, unsafe_block.number
+                    );
                     // Handle unsafe block
                 }
-                
+
                 if let Some(update) = &event.derivation_update {
-                    info!("Derivation update received: source={:?}, derived={:?}", 
-                         update.source.number, update.derived.number);
+                    info!(
+                        "Derivation update received: source={:?}, derived={:?}",
+                        update.source.number, update.derived.number
+                    );
                     // Handle derivation update
                 }
-                
+
                 if let Some(exhaust) = &event.exhaust_l1 {
-                    info!("L1 exhausted: source={:?}, derived={:?}", 
-                         exhaust.source.number, exhaust.derived.number);
+                    info!(
+                        "L1 exhausted: source={:?}, derived={:?}",
+                        exhaust.source.number, exhaust.derived.number
+                    );
                     // Handle L1 exhaustion
                 }
-                
+
                 if let Some(replacement) = &event.replace_block {
-                    info!("Block replacement: new={:?}, invalidated={:?}", 
-                         replacement.replacement.hash, replacement.invalidated);
+                    info!(
+                        "Block replacement: new={:?}, invalidated={:?}",
+                        replacement.replacement.hash, replacement.invalidated
+                    );
                     // Handle block replacement
                 }
-                
+
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!("Derivation origin updated: hash={:?}, number={}", 
-                         origin.hash, origin.number);
+                    info!(
+                        "Derivation origin updated: hash={:?}, number={}",
+                        origin.hash, origin.number
+                    );
                     // Handle derivation origin update
                 }
-                
+
                 // Check if this was an empty event (all fields None)
-                if event.reset.is_none() && 
-                   event.unsafe_block.is_none() && 
-                   event.derivation_update.is_none() && 
-                   event.exhaust_l1.is_none() && 
-                   event.replace_block.is_none() && 
-                   event.derivation_origin_update.is_none() {
+                if event.reset.is_none() &&
+                    event.unsafe_block.is_none() &&
+                    event.derivation_update.is_none() &&
+                    event.exhaust_l1.is_none() &&
+                    event.replace_block.is_none() &&
+                    event.derivation_origin_update.is_none()
+                {
                     debug!("Received empty event with all fields None");
                 }
             }
             None => {
-                warn!("Received None event, possibly an empty notification or an issue with deserialization.");
+                warn!(
+                    "Received None event, possibly an empty notification or an issue with deserialization."
+                );
             }
         }
     }
@@ -120,14 +130,13 @@ impl NodeSubscriber {
     /// Spawns a background task to process incoming events.
     pub async fn start_subscription(&mut self) -> Result<(), SubscriptionError> {
         if self.task_handle.is_some() {
-            return Err(SubscriptionError::AttachNodeError("Subscription already active".to_string()));
+            return Err(SubscriptionError::AttachNodeError(
+                "Subscription already active".to_string(),
+            ));
         }
 
         // Initialize tracing
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::INFO)
-            .try_init()
-            .ok(); // Allow re-initialization
+        tracing_subscriber::fmt().with_max_level(tracing::Level::INFO).try_init().ok(); // Allow re-initialization
 
         // Get JWT token path
         let path = self.config.jwt_path.as_ref().ok_or_else(|| {
@@ -142,7 +151,7 @@ impl NodeSubscriber {
             error!("{}", err_msg);
             SubscriptionError::JwtError(err_msg)
         })?;
-        
+
         // Prepare headers with authorization
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -157,12 +166,13 @@ impl NodeSubscriber {
         // Connect to WebSocket
         let ws_url = format!("ws://{}:{}", self.config.url, self.config.port);
         info!("Connecting to WebSocket at {}", ws_url);
-        
+
         let client = WsClientBuilder::default()
             .set_rpc_middleware(RpcServiceBuilder::new().rpc_logger(1024))
             .set_headers(headers)
             .build(&ws_url)
-            .await.map_err(|e| {
+            .await
+            .map_err(|e| {
                 let err_msg = format!("Failed to establish WebSocket connection: {}", e);
                 error!("{}", err_msg);
                 SubscriptionError::PubSub(err_msg)
@@ -173,7 +183,8 @@ impl NodeSubscriber {
         info!("Subscribing to interop events");
         let mut subscription: Subscription<Option<ManagedEvent>> = client
             .subscribe("interop", rpc_params!["events"], "Unsubscribe")
-            .await.map_err(|e| {
+            .await
+            .map_err(|e| {
                 let err_msg = format!("Failed to subscribe to events: {}", e);
                 error!("{}", err_msg);
                 SubscriptionError::PubSub(err_msg)
@@ -186,7 +197,7 @@ impl NodeSubscriber {
         // Start background task to handle events
         let handle = tokio::spawn(async move {
             info!("Subscription task started");
-            
+
             loop {
                 tokio::select! {
                     event_option = subscription.next() => {
@@ -218,15 +229,15 @@ impl NodeSubscriber {
                     }
                 }
             }
-            
+
             // Try to unsubscribe gracefully
             if let Err(e) = subscription.unsubscribe().await {
                 warn!("Failed to unsubscribe gracefully: {:?}", e);
             }
-            
+
             info!("Subscription task finished");
         });
-        
+
         self.task_handle = Some(handle);
         info!("Subscription started successfully");
         Ok(())
@@ -258,9 +269,11 @@ impl NodeSubscriber {
             })?;
             info!("Subscription stopped and task joined");
         } else {
-            return Err(SubscriptionError::AttachNodeError("Subscription not active or already stopped".to_string()));
+            return Err(SubscriptionError::AttachNodeError(
+                "Subscription not active or already stopped".to_string(),
+            ));
         }
-        
+
         Ok(())
     }
 }
@@ -268,23 +281,21 @@ impl NodeSubscriber {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::{sleep, Duration};
-    use crate::types::{
-        BlockRef,
-        DerivedBlockRefPair,
-        BlockReplacement
-    };
+    use crate::types::{BlockRef, BlockReplacement, DerivedBlockRefPair};
     use alloy_primitives::{B256, U64};
     use serde_json;
     use std::io::Write;
     use tempfile::NamedTempFile;
+    use tokio::time::{Duration, sleep};
 
     // Test-specific implementation
     impl NodeSubscriber {
         #[cfg(test)]
         async fn start_test_subscription(&mut self) -> Result<(), SubscriptionError> {
             if self.task_handle.is_some() {
-                return Err(SubscriptionError::AttachNodeError("Subscription already active".to_string()));
+                return Err(SubscriptionError::AttachNodeError(
+                    "Subscription already active".to_string(),
+                ));
             }
 
             let (stop_tx, mut stop_rx) = watch::channel(false);
@@ -293,18 +304,16 @@ mod tests {
             // Create a simple task that simulates events and waits for stop signal
             let handle = tokio::spawn(async move {
                 info!("Test subscription task started");
-                
+
                 // Simulate different types of events
                 let events = vec![
                     // Empty event
                     ManagedEvent::default(),
-                    
                     // Reset event
                     ManagedEvent {
                         reset: Some("test_reset_123".to_string()),
                         ..ManagedEvent::default()
                     },
-                    
                     // Unsafe block event
                     ManagedEvent {
                         unsafe_block: Some(BlockRef {
@@ -316,13 +325,13 @@ mod tests {
                         ..ManagedEvent::default()
                     },
                 ];
-                
+
                 let mut index = 0;
                 loop {
                     tokio::select! {
                         _ = tokio::time::sleep(Duration::from_millis(100)) => {
                             info!("Test subscription tick");
-                            
+
                             // Simulate receiving an event, cycling through the test events
                             let event = events[index % events.len()].clone();
                             Self::handle_managed_event(Some(event));
@@ -386,7 +395,7 @@ mod tests {
                     number: U64::from(124),
                     parent_hash: B256::from_slice(&[10; 32]),
                     timestamp: U64::from(1678886400),
-                }
+                },
             }),
             replace_block: Some(BlockReplacement {
                 replacement: BlockRef {
@@ -397,16 +406,17 @@ mod tests {
                 },
                 invalidated: B256::from_slice(&[13; 32]),
             }),
-            derivation_origin_update: Some(BlockRef { 
+            derivation_origin_update: Some(BlockRef {
                 hash: B256::from_slice(&[14; 32]),
                 number: U64::from(50),
                 parent_hash: B256::from_slice(&[15; 32]),
-                timestamp: U64::from(1678886400)
+                timestamp: U64::from(1678886400),
             }),
         };
 
         let serialized = serde_json::to_string(&event).expect("Failed to serialize ManagedEvent");
-        let deserialized: ManagedEvent = serde_json::from_str(&serialized).expect("Failed to deserialize ManagedEvent");
+        let deserialized: ManagedEvent =
+            serde_json::from_str(&serialized).expect("Failed to deserialize ManagedEvent");
 
         assert_eq!(event, deserialized, "Serialized and deserialized events do not match");
 
@@ -420,10 +430,15 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let serialized_nones = serde_json::to_string(&event_with_nones).expect("Failed to serialize ManagedEvent with Nones");
-        let deserialized_nones: ManagedEvent = serde_json::from_str(&serialized_nones).expect("Failed to deserialize ManagedEvent with Nones");
+        let serialized_nones = serde_json::to_string(&event_with_nones)
+            .expect("Failed to serialize ManagedEvent with Nones");
+        let deserialized_nones: ManagedEvent = serde_json::from_str(&serialized_nones)
+            .expect("Failed to deserialize ManagedEvent with Nones");
 
-        assert_eq!(event_with_nones, deserialized_nones, "Serialized and deserialized events with Nones do not match");
+        assert_eq!(
+            event_with_nones, deserialized_nones,
+            "Serialized and deserialized events with Nones do not match"
+        );
     }
 
     #[tokio::test]
@@ -444,7 +459,11 @@ mod tests {
 
         // Use the test subscription instead of the real one
         let start_result = subscriber.start_test_subscription().await;
-        assert!(start_result.is_ok(), "Failed to start test subscription: {:?}", start_result.err());
+        assert!(
+            start_result.is_ok(),
+            "Failed to start test subscription: {:?}",
+            start_result.err()
+        );
         assert!(subscriber.task_handle.is_some(), "Task handle should exist after starting");
 
         // Allow some time for the subscription task to process
@@ -462,20 +481,55 @@ mod tests {
         // Test with all fields Some
         let full_event = ManagedEvent {
             reset: Some("full_reset".to_string()),
-            unsafe_block: Some(BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO }),
+            unsafe_block: Some(BlockRef {
+                hash: B256::ZERO,
+                number: U64::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: U64::ZERO,
+            }),
             derivation_update: Some(DerivedBlockRefPair {
-                source: BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO },
-                derived: BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO },
+                source: BlockRef {
+                    hash: B256::ZERO,
+                    number: U64::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: U64::ZERO,
+                },
+                derived: BlockRef {
+                    hash: B256::ZERO,
+                    number: U64::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: U64::ZERO,
+                },
             }),
             exhaust_l1: Some(DerivedBlockRefPair {
-                source: BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO },
-                derived: BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO },
+                source: BlockRef {
+                    hash: B256::ZERO,
+                    number: U64::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: U64::ZERO,
+                },
+                derived: BlockRef {
+                    hash: B256::ZERO,
+                    number: U64::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: U64::ZERO,
+                },
             }),
             replace_block: Some(BlockReplacement {
-                replacement: BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO },
+                replacement: BlockRef {
+                    hash: B256::ZERO,
+                    number: U64::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: U64::ZERO,
+                },
                 invalidated: B256::ZERO,
             }),
-            derivation_origin_update: Some(BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO }),
+            derivation_origin_update: Some(BlockRef {
+                hash: B256::ZERO,
+                number: U64::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: U64::ZERO,
+            }),
         };
         NodeSubscriber::handle_managed_event(Some(full_event));
 
@@ -492,8 +546,8 @@ mod tests {
 
         // Test with None event
         NodeSubscriber::handle_managed_event(None);
-        // Assertions here would typically involve checking logs, which is hard in automated tests without a more complex setup.
-        // For now, this test ensures the function runs without panicking for different inputs.
+        // Assertions here would typically involve checking logs, which is hard in automated tests
+        // without a more complex setup. For now, this test ensures the function runs
+        // without panicking for different inputs.
     }
 }
-

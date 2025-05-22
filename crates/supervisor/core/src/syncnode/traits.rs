@@ -13,15 +13,15 @@ pub enum SubscriptionError {
     /// Error related to JSON Web Token handling
     #[error("JWT error: {0}")]
     JwtError(String),
-    
+
     /// Authentication failures when connecting to the node
     #[error("Authentication error: {0}")]
     Auth(String),
-    
+
     /// Errors from the publish-subscribe system
     #[error("PubSub error: {0}")]
     PubSub(String),
-    
+
     /// Errors when attempting to attach to a node
     #[error("Attaching Node error: {0}")]
     AttachNodeError(String),
@@ -48,7 +48,7 @@ pub enum SubscriptionError {
 //     /// - `Ok(())` on successful subscription
 //     /// - `Err(SubscriptionError)` if the subscription fails
 //     fn subscribe_events(&self, event: ManagedEvent) -> Result<(), SubscriptionError>;
-    
+
 //     /// Provides a new L1 block to the node for processing.
 //     ///
 //     /// # Arguments
