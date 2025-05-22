@@ -21,7 +21,7 @@ kona-protocol.workspace = true
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
-op-alloy-consensus.workspace = true
+op-alloy-rpc-types.workspace = true
 
 # External Dependencies
 jsonrpsee = { workspace = true, features = [ "ws-client", "macros", "server" ] }

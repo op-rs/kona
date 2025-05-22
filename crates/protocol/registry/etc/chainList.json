@@ -907,6 +907,28 @@
     }
   },
   {
+    "name": "Ozean Poseidon Testnet",
+    "identifier": "sepolia/ozean",
+    "chainId": 7849306,
+    "rpc": [
+      "https://ozean-testnet.rpc.caldera.xyz/http"
+    ],
+    "explorers": [
+      "https://ozean-testnet.explorer.caldera.xyz"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "sepolia"
+    },
+    "gasPayingToken": "0x43bd82D1e29a1bEC03AfD11D5a3252779b8c760c",
+    "faultProofs": {
+      "status": "none"
+    }
+  },
+  {
     "name": "Pivotal Sepolia",
     "identifier": "sepolia/pivotal",
     "chainId": 16481,
@@ -1114,6 +1136,48 @@
     },
     "faultProofs": {
       "status": "permissionless"
+    }
+  },
+  {
+    "name": "Boba Mainnet",
+    "identifier": "mainnet/boba",
+    "chainId": 288,
+    "rpc": [
+      "https://mainnet.boba.network"
+    ],
+    "explorers": [
+      "https://bobascan.com"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "mainnet"
+    },
+    "faultProofs": {
+      "status": "none"
+    }
+  },
+  {
+    "name": "Camp Network Testnet V2",
+    "identifier": "sepolia/camp",
+    "chainId": 325000,
+    "rpc": [
+      "https://rpc.camp-network-testnet.gelato.digital"
+    ],
+    "explorers": [
+      "https://camp-network-testnet.blockscout.com"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "sepolia"
+    },
+    "faultProofs": {
+      "status": "none"
     }
   }
 ]
