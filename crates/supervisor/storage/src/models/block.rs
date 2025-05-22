@@ -8,6 +8,7 @@
 //! require dup-sorting.
 
 use alloy_primitives::B256;
+use kona_protocol::BlockInfo;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +27,36 @@ pub struct BlockRef {
     pub parent_hash: B256,
     /// The timestamp of the block (seconds since Unix epoch).
     pub time: u64,
+}
+
+/// Converts from [`BlockInfo`] (external API format) to [`BlockRef`] (storage
+/// format).
+///
+/// Performs a direct field mapping.
+impl From<BlockInfo> for BlockRef {
+    fn from(block: BlockInfo) -> Self {
+        Self {
+            number: block.number,
+            hash: block.hash,
+            parent_hash: block.parent_hash,
+            time: block.timestamp,
+        }
+    }
+}
+
+/// Converts from [`BlockRef`] (storage format) to [`BlockInfo`] (external API
+/// format).
+///
+/// This enables decoding values stored in a compact format for use in application logic.
+impl From<BlockRef> for BlockInfo {
+    fn from(block: BlockRef) -> Self {
+        Self {
+            number: block.number,
+            hash: block.hash,
+            parent_hash: block.parent_hash,
+            timestamp: block.time,
+        }
+    }
 }
 
 #[cfg(test)]

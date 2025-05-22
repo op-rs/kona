@@ -126,6 +126,7 @@ mod tests {
     #[test]
     fn test_log_entry_compression_decompression_with_message() {
         let original = LogEntry {
+            index: 1,
             hash: test_b256(3),
             executing_message: Some(ExecutingMessageEntry {
                 chain_id: 1,
@@ -145,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_log_entry_compression_decompression_without_message() {
-        let original = LogEntry { hash: test_b256(5), executing_message: None };
+        let original = LogEntry { index: 1, hash: test_b256(5), executing_message: None };
         let mut compressed_buf = Vec::new();
         original.compress_to_buf(&mut compressed_buf);
         assert!(!compressed_buf.is_empty());

@@ -19,4 +19,7 @@
 //! - Rewind logs during reorgs
 //! - Track sealed blocks and ancestry metadata
 
+mod error;
+pub use error::*;
+mod log;
 pub mod models;
