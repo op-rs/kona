@@ -1,5 +1,6 @@
-mod types;
-pub use types::*;
+//! Exporting traits in syncnode module
 
-pub mod traits;
-pub mod node;
+mod traits;
+
+mod node;
+pub use node::{ManagedNodeConfig, NodeSubscriber};

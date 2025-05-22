@@ -4992,18 +4992,19 @@ dependencies = [
  "alloy-eips 1.0.1",
  "alloy-primitives",
  "async-trait",
- "jsonrpsee 0.25.1",
- "jsonwebtoken",
+ "jsonrpsee",
  "kona-interop",
+ "kona-protocol",
  "kona-supervisor-rpc",
  "metrics",
- "op-alloy-consensus",
+ "op-alloy-consensus 0.16.0",
  "serde",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
- "uuid",
 ]
 
 [[package]]

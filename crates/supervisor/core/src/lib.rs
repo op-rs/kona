@@ -8,4 +8,17 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
-pub use syncnode::{ManagedEvent};
+pub use syncnode::{ManagedNodeConfig, NodeSubscriber};
+
+mod types;
+pub use types::{
+    BlockSeal,
+    BlockRef,
+    L1BlockRef,
+    L2BlockRef,
+    BlockReplacement,
+    DerivedBlockRefPair,
+    OutputV0,
+    Receipts,
+    ManagedEvent,
+};

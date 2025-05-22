@@ -16,38 +16,28 @@ exclude.workspace = true
 # Workspace
 kona-interop.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
+kona-protocol.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 op-alloy-consensus.workspace = true
 
-# Serde
-serde = { workspace = true, optional = true }
-
-# Misc
+# External Dependencies
+jsonrpsee = { workspace = true, features = [ "ws-client", "macros", "server" ] }
+serde.workspace = true
 async-trait.workspace = true
-tracing.workspace = true
+tracing = { workspace = true }
+tracing-subscriber.workspace = true
 thiserror.workspace = true
-
-# Bi-directional RPC
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-jsonrpsee = { workspace = true, features = ["macros", "client", "client-core"] }
-tokio.workspace = true
-uuid = { version = "1.16.0", features = ["v4"] }
-jsonwebtoken = "9"
+tokio = { workspace = true, features = ["sync", "macros"] }
 
 # `metrics` feature
-metrics.workspace = true
+metrics = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
-
-[features]
-default = []
-serde = [
-  "dep:serde",
-  "alloy-eips/serde",
-  "alloy-primitives/serde",
-]
-
