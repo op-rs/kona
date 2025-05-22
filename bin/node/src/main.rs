@@ -18,6 +18,7 @@ fn main() {
 
     kona_cli::sigsegv_handler::install();
     kona_cli::backtrace::enable();
+    console_subscriber::init();
 
     if let Err(err) = cli::Cli::parse().run() {
         eprintln!("Error: {err:?}");
