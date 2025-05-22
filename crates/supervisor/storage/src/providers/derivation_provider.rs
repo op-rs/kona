@@ -1,10 +1,13 @@
 //! Provider for derivation-related database operations.
 
-use crate::{error::StorageError, models, models::StoredDerivedBlockPair};
+use crate::{error::StorageError, models::{self, DerivedBlocks, StoredDerivedBlockPair}};
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use reth_db_api::transaction::{DbTx, DbTxMut};
+use reth_db_api::{
+  cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
+  transaction::{DbTx, DbTxMut}
+};
 use tracing::{error, warn};
 
 /// Provides access to derivation storage operations within a transaction.
@@ -56,7 +59,7 @@ where
 
     /// Helper to get [`StoredDerivedBlockPair`] by derived [`BlockNumHash`].
     /// This function checks if the derived block hash matches the expected hash.
-    /// If there is a mismatch, it logs a warning and returns an error.
+    /// If there is a mismatch, it logs a warning and returns [`StorageError::EntryNotFound`] error.
     #[allow(dead_code)]
     fn get_derived_block_pair(
         &self,
@@ -134,6 +137,28 @@ where
         }
 
         Ok(derived_block_pair.derived.into())
+    }
+    
+    /// Gets the latest [`DerivedRefPair`].
+    #[allow(dead_code)]
+    pub(crate) fn latest_derived_block(
+        &self,
+    ) -> Result<DerivedRefPair, StorageError> {
+        let mut cursor = self.tx.cursor_read::<DerivedBlocks>().map_err(|e| {
+            error!(target: "supervisor_storage", "Failed to get cursor for DerivedBlocks: {e}");
+            StorageError::Database(e)
+        })?;
+
+        let result = cursor.last().map_err(|e| {
+            error!(target: "supervisor_storage", "Failed to seek to last block: {e}");
+            StorageError::Database(e)
+        })?;
+
+        let (_, block) = result.ok_or_else(|| {
+            error!(target: "supervisor_storage", "No blocks found in storage");
+            StorageError::EntryNotFound("No blocks found".to_string())
+        })?;
+        Ok(block.into())
     }
 }
 
