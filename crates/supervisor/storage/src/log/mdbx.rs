@@ -16,12 +16,12 @@
 use crate::{
     error::StorageError,
     log::{LogStorageReader, LogStorageWriter},
-    models::{BlockRefs, LogEntries},
+    models::{BlockRef, BlockRefs, LogEntries},
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use reth_db_api::{
-    cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
+    cursor::{DbCursorRO, DbCursorRW, DbDupCursorRO, DbDupCursorRW},
     transaction::{DbTx, DbTxMut},
 };
 use std::fmt::Debug;
@@ -52,7 +52,9 @@ where
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), Self::Error> {
         debug!(target: "supervisor_storage", block_number = block.number, "Storing logs",);
         let tx = self.tx;
-        if let Err(e) = tx.put::<BlockRefs>(block.number, (*block).into()) {
+        let mut block_cursor =
+            tx.cursor_write::<BlockRefs>().map_err(|e| StorageError::Database(e))?;
+        if let Err(e) = block_cursor.append(block.number, &(*block).into()) {
             error!(
                 target: "supervisor_storage",
                 block_number = block.number,
@@ -359,5 +361,32 @@ mod tests {
             StorageError::EntryNotFound(_) => { /* ok */ }
             _ => panic!("Expected EntryNotFound error"),
         }
+    }
+    #[test]
+    fn test_block_append_failed_on_order_mismatch() {
+        let temp_dir = TempDir::new().expect("Could not create temp dir");
+        let db =
+            init_db_for::<_, crate::models::Tables>(temp_dir.path(), DatabaseArguments::default())
+                .expect("Failed to init database");
+
+        let tx_mut = db.tx_mut().expect("Failed to start RW tx");
+        let log_writer = MdbxLogStorage::new(&tx_mut);
+
+        let block1 = sample_block_info(1);
+        let logs1 = vec![sample_log(0, false)];
+
+        let block2 = sample_block_info(2);
+        let logs2 = vec![sample_log(0, false), sample_log(1, true)];
+
+        // Store logs
+        log_writer.store_block_logs(&block2, logs2.clone()).expect("Failed to store logs2");
+        let err = log_writer.store_block_logs(&block1, logs1.clone()).unwrap_err();
+        match err {
+            StorageError::Database(_) => {
+                //OK
+            }
+            _ => panic!("Expected Database error"),
+        }
+        tx_mut.commit().expect("Failed to commit tx");
     }
 }
