@@ -24,5 +24,6 @@ jobs:
       - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
         with:
           cache: true                  # enable built‑in tool cache
-      - name: run kurtosis superchain
-        run: cd tests && just deploy simple-supervisor ${{ github.event.pull_request.head.sha }}
+      - name: run kurtosis superchain with kona-supervisor
+        run: cd tests && just deploy \
+            kurtosis_network_params_supervisor ${{ github.event.pull_request.head.sha }}
