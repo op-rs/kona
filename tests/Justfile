@@ -51,7 +51,7 @@ deploy_full_path DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG
     cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
 
 deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="":
-    just deploy_full_path "{{SOURCE}}/devnets/{{DEVNET_FILE_PATH}}.yaml" {{COMMIT_TAG}} {{NAME}}
+    just deploy_full_path "{{SOURCE}}/{{DEVNET_FILE_PATH}}.yaml" {{COMMIT_TAG}} {{NAME}}
 
 isolate_test DEVNET_ENV_URL:
     DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./...
