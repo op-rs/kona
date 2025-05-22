@@ -21,5 +21,5 @@
 
 mod error;
 pub use error::*;
-mod log;
 pub mod models;
+mod providers;

@@ -1,6 +1,6 @@
-//! Reth's MDBX-backed abstraction of [`LogStorage`](crate::log::LogStorage) for superchain state.
+//! Reth's MDBX-backed abstraction of [`LogProvider`] for superchain state.
 //!
-//! This module provides the [`MdbxLogStorage`] struct, which uses the
+//! This module provides the [`LogProvider`] struct, which uses the
 //! [`reth-db`] abstraction of reth to store execution logs
 //! and block metadata required by the Optimism supervisor.
 //!
@@ -15,13 +15,12 @@
 
 use crate::{
     error::StorageError,
-    log::{LogStorageReader, LogStorageWriter},
-    models::{BlockRef, BlockRefs, LogEntries},
+    models::{BlockRefs, LogEntries},
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use reth_db_api::{
-    cursor::{DbCursorRO, DbCursorRW, DbDupCursorRO, DbDupCursorRW},
+    cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
     transaction::{DbTx, DbTxMut},
 };
 use std::fmt::Debug;
@@ -30,41 +29,45 @@ use tracing::{debug, error, warn};
 /// A log storage that wraps a transactional reference to the MDBX backend.
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) struct MdbxLogStorage<'tx, TX> {
+pub(crate) struct LogProvider<'tx, TX> {
     tx: &'tx TX,
 }
 
-/// Internal constructor and setup methods for [`MdbxLogStorage`].
-impl<'tx, TX> MdbxLogStorage<'tx, TX> {
+/// Internal constructor and setup methods for [`LogProvider`].
+impl<'tx, TX> LogProvider<'tx, TX> {
     #[allow(dead_code)]
     pub(crate) const fn new(tx: &'tx TX) -> Self {
         Self { tx }
     }
 }
 
-/// Implements the [`LogStorageWriter`] trait
-impl<TX> LogStorageWriter for MdbxLogStorage<'_, TX>
+impl<TX> LogProvider<'_, TX>
 where
-    TX: DbTxMut,
+    TX: DbTxMut + DbTx,
 {
-    type Error = StorageError;
+    fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
+        debug!(target: "supervisor_storage", block_number = block.number, "Storing logs");
 
-    fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), Self::Error> {
-        debug!(target: "supervisor_storage", block_number = block.number, "Storing logs",);
-        let tx = self.tx;
-        let mut block_cursor =
-            tx.cursor_write::<BlockRefs>().map_err(|e| StorageError::Database(e))?;
-        if let Err(e) = block_cursor.append(block.number, &(*block).into()) {
-            error!(
-                target: "supervisor_storage",
-                block_number = block.number,
-                error = ?e,
-                "Failed to write block"
-            );
-            return Err(StorageError::Database(e));
+        if let Ok(latest_block) = self.get_latest_block() {
+            if latest_block.number + 1 != block.number || latest_block.hash != block.parent_hash {
+                warn!(
+                    target: "supervisor_storage",
+                    latest_block = ?latest_block,
+                    incoming_block = ?block,
+                    "Incoming block does not follow latest stored block"
+                );
+                return Err(StorageError::ConflictError(
+                    "Incoming block does not follow latest stored block".into(),
+                ));
+            }
         }
 
-        let mut cursor = tx.cursor_dup_write::<LogEntries>().map_err(|e| {
+        self.tx.put::<BlockRefs>(block.number, (*block).into()).map_err(|e| {
+            error!(target: "supervisor_storage", block_number = block.number, error = ?e, "Failed to insert block");
+            StorageError::Database(e)
+        })?;
+
+        let mut cursor = self.tx.cursor_dup_write::<LogEntries>().map_err(|e| {
             error!(target: "supervisor_storage", error = ?e, "Failed to get dup cursor");
             StorageError::Database(e)
         })?;
@@ -83,13 +86,12 @@ where
         Ok(())
     }
 }
-/// Implements the [`LogStorageReader`] trait
-impl<TX> LogStorageReader for MdbxLogStorage<'_, TX>
+
+impl<TX> LogProvider<'_, TX>
 where
     TX: DbTx,
 {
-    type Error = StorageError;
-    fn get_block(&self, block_number: u64) -> Result<BlockInfo, Self::Error> {
+    fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
         debug!(target: "supervisor_storage", block_number = block_number, "Fetching block");
 
         let block_option = self.tx.get::<BlockRefs>(block_number).map_err(|e| {
@@ -109,7 +111,7 @@ where
         Ok(block.into())
     }
 
-    fn get_latest_block(&self) -> Result<BlockInfo, Self::Error> {
+    fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         debug!(target: "supervisor_storage", "Fetching latest block");
 
         let mut cursor = self.tx.cursor_read::<BlockRefs>().map_err(|e| {
@@ -129,7 +131,7 @@ where
         Ok(block.into())
     }
 
-    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, Self::Error> {
+    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError> {
         debug!(
             target: "supervisor_storage",
             block_number =  block_number,
@@ -175,25 +177,10 @@ where
             );
             return Err(StorageError::EntryNotFound("Log hash mismatch".to_string()));
         }
-
-        let block_option = self.tx.get::<BlockRefs>(block_number).map_err(|e| {
-            error!(
-                target: "supervisor_storage",
-                block_number = block_number,
-                error = ?e,
-                "Failed to read block"
-            );
-            StorageError::Database(e)
-        })?;
-
-        let block = block_option.ok_or_else(|| {
-            warn!(target: "supervisor_storage", block_number = block_number, "Block not found");
-            StorageError::EntryNotFound(format!("Block {} not found", block_number))
-        })?;
-        Ok(block.into())
+        self.get_block(block_number)
     }
 
-    fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, Self::Error> {
+    fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
         debug!(target: "supervisor_storage", block_number = block_number, "Fetching logs");
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
@@ -275,7 +262,7 @@ mod tests {
                 .expect("Failed to init database");
 
         let tx_mut = db.tx_mut().expect("Failed to start RW tx");
-        let log_writer = MdbxLogStorage::new(&tx_mut);
+        let log_writer = LogProvider::new(&tx_mut);
 
         let block1 = sample_block_info(1);
         let logs1 = vec![
@@ -285,10 +272,14 @@ mod tests {
             sample_log(4, true),
         ];
 
-        let block2 = sample_block_info(2);
+        let mut block2 = sample_block_info(2);
+        block2.parent_hash = block1.hash;
+
         let logs2 = vec![sample_log(0, false), sample_log(1, true)];
 
-        let block3 = sample_block_info(3);
+        let mut block3 = sample_block_info(3);
+        block3.parent_hash = block2.hash;
+
         let logs3 = vec![sample_log(0, false), sample_log(1, true), sample_log(2, true)];
 
         // Store logs
@@ -299,7 +290,7 @@ mod tests {
         tx_mut.commit().expect("Failed to commit tx");
 
         let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = MdbxLogStorage::new(&tx);
+        let log_reader = LogProvider::new(&tx);
 
         // get_block
         let block = log_reader.get_block(block2.number).expect("Failed to get block");
@@ -329,10 +320,10 @@ mod tests {
                 .expect("Failed to init database");
 
         let tx_mut = db.tx_mut().expect("Failed to start RW tx");
-        let log_writer = MdbxLogStorage::new(&tx_mut);
+        let log_writer = LogProvider::new(&tx_mut);
 
         let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = MdbxLogStorage::new(&tx);
+        let log_reader = LogProvider::new(&tx);
 
         let err = log_reader.get_latest_block().unwrap_err();
         match err {
@@ -370,19 +361,19 @@ mod tests {
                 .expect("Failed to init database");
 
         let tx_mut = db.tx_mut().expect("Failed to start RW tx");
-        let log_writer = MdbxLogStorage::new(&tx_mut);
+        let log_writer = LogProvider::new(&tx_mut);
 
         let block1 = sample_block_info(1);
         let logs1 = vec![sample_log(0, false)];
 
-        let block2 = sample_block_info(2);
+        let block2 = sample_block_info(3);
         let logs2 = vec![sample_log(0, false), sample_log(1, true)];
 
         // Store logs
-        log_writer.store_block_logs(&block2, logs2.clone()).expect("Failed to store logs2");
-        let err = log_writer.store_block_logs(&block1, logs1.clone()).unwrap_err();
+        log_writer.store_block_logs(&block1, logs1.clone()).expect("Failed to store logs2");
+        let err = log_writer.store_block_logs(&block2, logs2.clone()).unwrap_err();
         match err {
-            StorageError::Database(_) => {
+            StorageError::ConflictError(_) => {
                 //OK
             }
             _ => panic!("Expected Database error"),

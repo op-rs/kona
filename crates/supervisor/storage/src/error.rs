@@ -13,4 +13,8 @@ pub enum StorageError {
     /// The expected entry was not found in the database.
     #[error("Entry not found: {0}")]
     EntryNotFound(String),
+
+    /// Represents a conflict occurred while attempting to write to the database.
+    #[error("Conflict error: {0}")]
+    ConflictError(String),
 }
