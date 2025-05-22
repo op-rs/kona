@@ -4999,6 +4999,7 @@ dependencies = [
  "kona-protocol",
  "kona-supervisor-rpc",
  "metrics",
+ "op-alloy-consensus 0.16.0",
  "op-alloy-rpc-types",
  "serde",
  "serde_json",
