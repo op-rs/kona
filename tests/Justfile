@@ -18,7 +18,16 @@ _build-node COMMIT_TAG="":
 
     cd {{SOURCE}}/.. && just build-node-with-tag $COMMIT_TAG
 
-deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
+_build-supervisor COMMIT_TAG="":
+    #!/usr/bin/env bash
+    export COMMIT_TAG={{COMMIT_TAG}}
+    if [ -z "{{COMMIT_TAG}}" ]; then
+        export COMMIT_TAG=$(git rev-parse HEAD)
+    fi
+
+    cd {{SOURCE}}/.. && just build-supervisor-with-tag $COMMIT_TAG
+
+deploy_full_path DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) (_build-supervisor COMMIT_TAG) setup clone-optimism install-optimism
     #!/usr/bin/env bash
     cd {{SOURCE}}/../optimism/kurtosis-devnet
 
@@ -41,9 +50,12 @@ deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup cl
     mkdir -p {{SOURCE}}/devnets/specs
     cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
 
+deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="":
+    just deploy_full_path "{{SOURCE}}/{{DEVNET_FILE_PATH}}.yaml" {{COMMIT_TAG}} {{NAME}}
+
 isolate_test DEVNET_ENV_URL:
     DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./...
 
 test-e2e DEVNET COMMIT_TAG="": 
-    just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
+    just deploy "{{DEVNET}}" {{COMMIT_TAG}}
     just isolate_test "kt://{{DEVNET}}-devnet"
