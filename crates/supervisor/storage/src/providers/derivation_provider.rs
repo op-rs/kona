@@ -1,21 +1,20 @@
 //! Provider for derivation-related database operations.
 
 use crate::{
-  error::StorageError, 
-  models::{DerivedBlocks, StoredDerivedBlockPair, SourceToDerivedBlockNumbers, U64List},
+    error::StorageError,
+    models::{DerivedBlocks, SourceToDerivedBlockNumbers, StoredDerivedBlockPair, U64List},
 };
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use reth_db_api::{
-  cursor::{DbCursorRO, DbDupCursorRO, DbDupCursorRW},
-  transaction::{DbTx, DbTxMut}
+    cursor::DbCursorRO,
+    transaction::{DbTx, DbTxMut},
 };
 use tracing::{error, warn};
 
 /// Provides access to derivation storage operations within a transaction.
 #[derive(Debug)]
-#[expect(dead_code)]
 pub(crate) struct DerivationProvider<'tx, TX> {
     tx: &'tx TX,
 }
@@ -33,7 +32,6 @@ where
     TX: DbTx,
 {
     /// Helper to get [`StoredDerivedBlockPair`] by block number.
-    #[expect(dead_code)]
     fn get_derived_block_pair_by_number(
         &self,
         derived_block_number: u64,
@@ -63,7 +61,6 @@ where
     /// Helper to get [`StoredDerivedBlockPair`] by derived [`BlockNumHash`].
     /// This function checks if the derived block hash matches the expected hash.
     /// If there is a mismatch, it logs a warning and returns [`StorageError::EntryNotFound`] error.
-    #[expect(dead_code)]
     fn get_derived_block_pair(
         &self,
         derived_block_id: BlockNumHash,
@@ -97,15 +94,12 @@ where
         Ok(derived_block_pair.source.into())
     }
 
-    #[expect(dead_code)]
     fn derived_block_numbers_at_source(
         &self,
         source_block_number: u64,
     ) -> Result<U64List, StorageError> {
-        let derived_block_numbers = self
-            .tx
-            .get::<SourceToDerivedBlockNumbers>(source_block_number)
-            .map_err(|e| {
+        let derived_block_numbers =
+            self.tx.get::<SourceToDerivedBlockNumbers>(source_block_number).map_err(|e| {
                 error!(
                     target: "supervisor_storage",
                     source_block_number,
@@ -113,7 +107,7 @@ where
                 );
                 StorageError::Database(e)
             })?;
-        
+
         let derived_block_numbers = derived_block_numbers.ok_or_else(|| {
             warn!(
               target: "supervisor_storage",
@@ -133,18 +127,18 @@ where
     ) -> Result<BlockInfo, StorageError> {
         let derived_block_numbers = self.derived_block_numbers_at_source(source_block_id.number)?;
         let derived_block_number = derived_block_numbers.last().ok_or_else(|| {
-          // note:: this should not happen. the list should always have at least one element
-          // todo: add test cases in insert to make sure this is not possible
-          error!(
-            target: "supervisor_storage",
-            source_block_id = ?source_block_id,
-            "source to derived block numbers list is empty"
-          );
-          StorageError::EntryNotFound("No derived blocks found for source block".to_string())
+            // note:: this should not happen. the list should always have at least one element
+            // todo: add test cases in insert to make sure this is not possible
+            error!(
+              target: "supervisor_storage",
+              source_block_id = ?source_block_id,
+              "source to derived block numbers list is empty"
+            );
+            StorageError::EntryNotFound("No derived blocks found for source block".to_string())
         })?;
 
         let derived_block_pair = self.get_derived_block_pair_by_number(*derived_block_number)?;
-        
+
         // Check if the source block hash matches the expected hash
         // This is necessary to ensure the integrity of the derived block.
         if derived_block_pair.source.hash != source_block_id.hash {
@@ -160,12 +154,9 @@ where
 
         Ok(derived_block_pair.derived.into())
     }
-    
+
     /// Gets the latest [`DerivedRefPair`].
-    #[expect(dead_code)]
-    pub(crate) fn latest_derived_block(
-        &self,
-    ) -> Result<DerivedRefPair, StorageError> {
+    pub(crate) fn latest_derived_block(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().map_err(|e| {
             error!(target: "supervisor_storage", "Failed to get cursor for DerivedBlocks: {e}");
             StorageError::Database(e)
@@ -188,20 +179,21 @@ impl<TX> DerivationProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    /// Saves a [`StoredDerivedBlockPair`] to [`DerivedBlocks`](`crate::models::DerivedBlocks`) table
-    /// and [`U64List`] to [`SourceToDerivedBlockNumbers`](`SourceToDerivedBlockNumbers`) table
-    /// in the database.
+    /// Saves a [`StoredDerivedBlockPair`] to [`DerivedBlocks`](`crate::models::DerivedBlocks`)
+    /// table and [`U64List`] to [`SourceToDerivedBlockNumbers`](`SourceToDerivedBlockNumbers`)
+    /// table in the database.
     #[expect(dead_code)]
     pub(crate) fn save_derived_block_pair(
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
         let latest_block_pair = self.latest_derived_block()?;
-        
+
         // Validate if the latest derived block is parent of the incoming derived block
         // todo: refactor this
-        if latest_block_pair.derived.number + 1 != incoming_pair.derived.number && 
-            latest_block_pair.derived.hash != incoming_pair.derived.parent_hash {
+        if latest_block_pair.derived.number + 1 != incoming_pair.derived.number &&
+            latest_block_pair.derived.hash != incoming_pair.derived.parent_hash
+        {
             warn!(
                 target: "supervisor_storage",
                 latest_derived_block_pair = ?latest_block_pair,
@@ -209,26 +201,28 @@ where
                 "Latest stored derived block is not parent of the incoming derived block"
             );
             return Err(StorageError::ConflictError(
-                "Latest stored derived block is not parent of the incoming derived block".to_string(),
+                "Latest stored derived block is not parent of the incoming derived block"
+                    .to_string(),
             ));
         }
 
-        let mut derived_block_numbers = match self.derived_block_numbers_at_source(incoming_pair.source.number) {
-            Ok(list) => list,
-            Err(StorageError::EntryNotFound(_)) => U64List::default(),
-            Err(e) => {
-              error!(
-                target: "supervisor_storage",
-                 incoming_derived_block_pair = ?incoming_pair,
-                "Failed to get derived block numbers for source block: {e:?}"
-              );
-              return Err(e);
-            }
-        };
+        let mut derived_block_numbers =
+            match self.derived_block_numbers_at_source(incoming_pair.source.number) {
+                Ok(list) => list,
+                Err(StorageError::EntryNotFound(_)) => U64List::default(),
+                Err(e) => {
+                    error!(
+                      target: "supervisor_storage",
+                       incoming_derived_block_pair = ?incoming_pair,
+                      "Failed to get derived block numbers for source block: {e:?}"
+                    );
+                    return Err(e);
+                }
+            };
 
         // Add the derived block number to the list
         derived_block_numbers.push(incoming_pair.derived.number);
-        
+
         // Save the derived block pair to the database
         self.tx
             .put::<DerivedBlocks>(incoming_pair.derived.number, incoming_pair.clone().into())
@@ -240,7 +234,7 @@ where
                 );
                 StorageError::Database(e)
             })?;
-        
+
         // Save the derived block numbers to the database
         self.tx
             .put::<SourceToDerivedBlockNumbers>(incoming_pair.source.number, derived_block_numbers)
