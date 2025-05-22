@@ -1,6 +1,9 @@
 //! Contains the p2p RPC request type.
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    num::TryFromIntError,
+};
 
 use crate::{Discv5Handler, GossipDriver};
 use alloy_primitives::map::foldhash::fast::RandomState;
@@ -10,8 +13,6 @@ use discv5::{
 };
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
-
-use std::{collections::HashSet, num::TryFromIntError};
 
 use libp2p::gossipsub::TopicHash;
 
@@ -157,11 +158,12 @@ impl P2pRpcRequest {
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
+                        let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
                             PeerInfo {
                                 peer_id: peer_id.to_string(),
-                                node_id: enr.node_id().to_string(),
+                                node_id,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 user_agent: String::new(),
                                 // TODO(@theochap): support these fields
