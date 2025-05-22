@@ -10,7 +10,7 @@ jobs:
   kurtosis-e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: test
+    name: kurtosis-e2e-tests
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -29,3 +29,5 @@ jobs:
           cache: true                  # enable built‑in tool cache
       - name: test with simple-kona devnet
         run: cd tests && just test-e2e simple-kona ${{ github.event.pull_request.head.sha }}
+      - name: test with large-kona devnet
+        run: cd tests && just test-e2e large-kona ${{ github.event.pull_request.head.sha }}
