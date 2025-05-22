@@ -1,6 +1,7 @@
 //! [`NodeSubscriber`] implementation for subscribing to the events from managed node.
 
 use crate::types::ManagedEvent;
+use crate::syncnode::SubscriptionError;
 use std::path::PathBuf;
 use std::sync::Arc;
 use alloy_primitives::U256;
@@ -10,7 +11,7 @@ use jsonrpsee::ws_client::{WsClientBuilder, HeaderMap, HeaderValue};
 use jsonrpsee::rpc_params;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
-use tracing::{info, error};
+use tracing::{info, error, debug, warn};
 
 /// Configuration for the managed node.
 #[derive(Debug)]
@@ -27,19 +28,21 @@ pub struct ManagedNodeConfig {
     pub subscription: Option<Subscription<Option<ManagedEvent>>>
 }
 
+/// NodeSubscriber handles the subscription to managed node events.
 ///
+/// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
 pub struct NodeSubscriber {
-    ///
+    /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
+    /// Channel for signaling the subscription task to stop
     stop_tx: Option<watch::Sender<bool>>,
+    /// Handle to the async subscription task
     task_handle: Option<JoinHandle<()>>,
 }
 
-// Implement the trait with matching error bounds
-
 impl NodeSubscriber {
-    ///
+    /// Creates a new NodeSubscriber with the specified configuration.
     pub fn new(config: Arc<ManagedNodeConfig>) -> Self {
         Self {
             config,
@@ -48,138 +51,216 @@ impl NodeSubscriber {
         }
     }
 
+    /// Processes a managed event received from the subscription.
     ///
+    /// Analyzes the event content and takes appropriate actions based on the
+    /// event fields. In the future, this will update the database with the
+    /// event information.
     pub fn handle_managed_event(event_result: Option<ManagedEvent>) {
         // TODO: Call relevant DB functions to update the state
         match event_result {
             Some(event) => {
-                info!("Handling ManagedEvent: {:?}", event);
-                if event.reset.is_empty() {
-                    info!("Reset is empty");
-                } else {
-                    info!("Reset: {}", event.reset);
+                debug!("Handling ManagedEvent: {:?}", event);
+                
+                // Process each field of the event if it's present
+                if let Some(reset_id) = &event.reset {
+                    info!("Reset event received with ID: {}", reset_id);
+                    // Handle reset action
                 }
-                if event.unsafe_block.is_none() {
-                    info!("Unsafe block is None");
-                } else {
-                    info!("Unsafe block: {:?}", event.unsafe_block);
+                
+                if let Some(unsafe_block) = &event.unsafe_block {
+                    info!("Unsafe block event received: hash={:?}, number={}", 
+                         unsafe_block.hash, unsafe_block.number);
+                    // Handle unsafe block
                 }
-                if event.derivation_update.is_none() {
-                    info!("Derivation update is None");
-                } else {
-                    info!("Derivation update: {:?}", event.derivation_update);
+                
+                if let Some(update) = &event.derivation_update {
+                    info!("Derivation update received: source={:?}, derived={:?}", 
+                         update.source.number, update.derived.number);
+                    // Handle derivation update
                 }
-                if event.exhaust_l1.is_none() {
-                    info!("Exhaust L1 is None");
-                } else {
-                    info!("Exhaust L1: {:?}", event.exhaust_l1);
+                
+                if let Some(exhaust) = &event.exhaust_l1 {
+                    info!("L1 exhausted: source={:?}, derived={:?}", 
+                         exhaust.source.number, exhaust.derived.number);
+                    // Handle L1 exhaustion
                 }
-                if event.replace_block.is_none() {
-                    info!("Replace block is None");
-                } else {
-                    info!("Replace block: {:?}", event.replace_block);
+                
+                if let Some(replacement) = &event.replace_block {
+                    info!("Block replacement: new={:?}, invalidated={:?}", 
+                         replacement.replacement.hash, replacement.invalidated);
+                    // Handle block replacement
                 }
-                if event.derivation_origin_update.is_none() {
-                    info!("Derivation origin update is None");
-                } else {
-                    info!("Derivation origin update: {:?}", event.derivation_origin_update);
+                
+                if let Some(origin) = &event.derivation_origin_update {
+                    info!("Derivation origin updated: hash={:?}, number={}", 
+                         origin.hash, origin.number);
+                    // Handle derivation origin update
+                }
+                
+                // Check if this was an empty event (all fields None)
+                if event.reset.is_none() && 
+                   event.unsafe_block.is_none() && 
+                   event.derivation_update.is_none() && 
+                   event.exhaust_l1.is_none() && 
+                   event.replace_block.is_none() && 
+                   event.derivation_origin_update.is_none() {
+                    debug!("Received empty event with all fields None");
                 }
             }
             None => {
-                info!("Received None event, possibly an empty notification or an issue with deserialization.");
+                warn!("Received None event, possibly an empty notification or an issue with deserialization.");
             }
         }
     }
 
+    /// Starts a subscription to the managed node.
     ///
-    pub async fn start_subscription(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    /// Establishes a WebSocket connection and subscribes to node events.
+    /// Spawns a background task to process incoming events.
+    pub async fn start_subscription(&mut self) -> Result<(), SubscriptionError> {
         if self.task_handle.is_some() {
-            return Err("Subscription already active".into());
+            return Err(SubscriptionError::AttachNodeError("Subscription already active".to_string()));
         }
 
-        // Simplify the tracing initialization to avoid feature dependencies
+        // Initialize tracing
         tracing_subscriber::fmt()
             .with_max_level(tracing::Level::INFO)
             .try_init()
-            .ok(); // Allow re-initialization, though it might be better to initialize once globally
+            .ok(); // Allow re-initialization
 
+        // Get JWT token path
         let path = self.config.jwt_path.as_ref().ok_or_else(|| {
-            error!(
-                "No JWT token path provided for managed node. Please provide a path to the JWT token.",
-            )
-        });
+            let err_msg = "No JWT token path provided for managed node";
+            error!("{}", err_msg);
+            SubscriptionError::JwtError(err_msg.to_string())
+        })?;
 
-        let jwt_secret = std::fs::read_to_string(path.unwrap())?;
+        // Read JWT secret
+        let jwt_secret = std::fs::read_to_string(path).map_err(|e| {
+            let err_msg = format!("Failed to read JWT token: {}", e);
+            error!("{}", err_msg);
+            SubscriptionError::JwtError(err_msg)
+        })?;
+        
+        // Prepare headers with authorization
         let mut headers = HeaderMap::new();
         headers.insert(
             "Authorization",
-            HeaderValue::from_str(&format!("Bearer {}", jwt_secret))?,
+            HeaderValue::from_str(&format!("Bearer {}", jwt_secret)).map_err(|e| {
+                let err_msg = format!("Failed to create authorization header: {}", e);
+                error!("{}", err_msg);
+                SubscriptionError::Auth(err_msg)
+            })?,
         );
 
+        // Connect to WebSocket
         let ws_url = format!("ws://{}:{}", self.config.url, self.config.port);
+        info!("Connecting to WebSocket at {}", ws_url);
+        
         let client = WsClientBuilder::default()
             .set_rpc_middleware(RpcServiceBuilder::new().rpc_logger(1024))
             .set_headers(headers)
             .build(&ws_url)
-            .await?;
+            .await.map_err(|e| {
+                let err_msg = format!("Failed to establish WebSocket connection: {}", e);
+                error!("{}", err_msg);
+                SubscriptionError::PubSub(err_msg)
+            })?;
 
+        // Subscribe to events
         // TODO: Cross check the subscription method name and params with Go implementation
+        info!("Subscribing to interop events");
         let mut subscription: Subscription<Option<ManagedEvent>> = client
             .subscribe("interop", rpc_params!["events"], "Unsubscribe")
-            .await?;
+            .await.map_err(|e| {
+                let err_msg = format!("Failed to subscribe to events: {}", e);
+                error!("{}", err_msg);
+                SubscriptionError::PubSub(err_msg)
+            })?;
 
+        // Setup stop channel
         let (stop_tx, mut stop_rx) = watch::channel(false);
         self.stop_tx = Some(stop_tx);
 
+        // Start background task to handle events
         let handle = tokio::spawn(async move {
+            info!("Subscription task started");
+            
             loop {
                 tokio::select! {
                     event_option = subscription.next() => {
                         match event_option {
                             Some(event_result) => {
-                                info!("Received event: {:?}", event_result);
-                                Self::handle_managed_event(event_result.unwrap_or_else(|e| {
-                                    error!("Error in event deserialization: {:?}", e);
-                                    None
-                                }));
+                                debug!("Received event: {:?}", event_result);
+                                match event_result {
+                                    Ok(managed_event) => {
+                                        Self::handle_managed_event(managed_event);
+                                    },
+                                    Err(e) => {
+                                        error!("Error in event deserialization: {:?}", e);
+                                        // Continue processing next events despite this error
+                                    }
+                                }
                             }
                             None => {
                                 // Subscription closed by the server
-                                info!("Subscription closed by server.");
+                                warn!("Subscription closed by server");
                                 break;
                             }
                         }
                     }
                     _ = stop_rx.changed() => {
                         if *stop_rx.borrow() {
-                            info!("Stop signal received, terminating subscription loop.");
+                            info!("Stop signal received, terminating subscription loop");
                             break;
                         }
                     }
                 }
             }
-            // Attempt to gracefully unsubscribe, though the connection might already be closed.
-            // This method might not exist or might have a different name depending on jsonrpsee version
-            // and how subscriptions are managed. For now, we'll assume the loop breaking is enough.
-            let _ = subscription.unsubscribe().await;
-            info!("Subscription task finished.");
+            
+            // Try to unsubscribe gracefully
+            if let Err(e) = subscription.unsubscribe().await {
+                warn!("Failed to unsubscribe gracefully: {:?}", e);
+            }
+            
+            info!("Subscription task finished");
         });
+        
         self.task_handle = Some(handle);
+        info!("Subscription started successfully");
         Ok(())
     }
 
+    /// Stops the subscription to the managed node.
     ///
-    pub async fn stop_subscription(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    /// Sends a stop signal to the background task and waits for it to complete.
+    pub async fn stop_subscription(&mut self) -> Result<(), SubscriptionError> {
+        // Send stop signal
         if let Some(stop_tx) = self.stop_tx.take() {
-            stop_tx.send(true).map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+            debug!("Sending stop signal to subscription task");
+            stop_tx.send(true).map_err(|e| {
+                let err_msg = format!("Failed to send stop signal: {:?}", e);
+                error!("{}", err_msg);
+                SubscriptionError::AttachNodeError(err_msg)
+            })?;
+        } else {
+            return Err(SubscriptionError::AttachNodeError("No active stop channel".to_string()));
         }
 
+        // Wait for task to complete
         if let Some(handle) = self.task_handle.take() {
-            handle.await.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-            info!("Subscription stopped and task joined.");
+            debug!("Waiting for subscription task to complete");
+            handle.await.map_err(|e| {
+                let err_msg = format!("Failed to join task: {:?}", e);
+                error!("{}", err_msg);
+                SubscriptionError::AttachNodeError(err_msg)
+            })?;
+            info!("Subscription stopped and task joined");
         } else {
-            return Err("Subscription not active or already stopped".into());
+            return Err(SubscriptionError::AttachNodeError("Subscription not active or already stopped".to_string()));
         }
+        
         Ok(())
     }
 }
@@ -198,34 +279,54 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    // Move the test-specific implementation outside of the test function
+    // Test-specific implementation
     impl NodeSubscriber {
         #[cfg(test)]
-        async fn start_test_subscription(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        async fn start_test_subscription(&mut self) -> Result<(), SubscriptionError> {
             if self.task_handle.is_some() {
-                return Err("Subscription already active".into());
+                return Err(SubscriptionError::AttachNodeError("Subscription already active".to_string()));
             }
 
             let (stop_tx, mut stop_rx) = watch::channel(false);
             self.stop_tx = Some(stop_tx);
 
-            // Create a simple task that just logs events and waits for stop signal
+            // Create a simple task that simulates events and waits for stop signal
             let handle = tokio::spawn(async move {
+                info!("Test subscription task started");
+                
+                // Simulate different types of events
+                let events = vec![
+                    // Empty event
+                    ManagedEvent::default(),
+                    
+                    // Reset event
+                    ManagedEvent {
+                        reset: Some("test_reset_123".to_string()),
+                        ..ManagedEvent::default()
+                    },
+                    
+                    // Unsafe block event
+                    ManagedEvent {
+                        unsafe_block: Some(BlockRef {
+                            hash: B256::from_slice(&[1; 32]),
+                            number: U64::from(100),
+                            parent_hash: B256::from_slice(&[2; 32]),
+                            timestamp: U64::from(1678886400),
+                        }),
+                        ..ManagedEvent::default()
+                    },
+                ];
+                
+                let mut index = 0;
                 loop {
                     tokio::select! {
                         _ = tokio::time::sleep(Duration::from_millis(100)) => {
                             info!("Test subscription tick");
                             
-                            // Simulate receiving an event
-                            let event = ManagedEvent {
-                                reset: "test_reset".to_string(),
-                                unsafe_block: None,
-                                derivation_update: None,
-                                exhaust_l1: None,
-                                replace_block: None,
-                                derivation_origin_update: None,
-                            };
+                            // Simulate receiving an event, cycling through the test events
+                            let event = events[index % events.len()].clone();
                             Self::handle_managed_event(Some(event));
+                            index += 1;
                         }
                         _ = stop_rx.changed() => {
                             if *stop_rx.borrow() {
@@ -252,7 +353,7 @@ mod tests {
     #[tokio::test]
     async fn test_managed_event_serialization_deserialization() {
         let event = ManagedEvent {
-            reset: "reset_id".to_string(),
+            reset: Some("reset_id".to_string()),
             unsafe_block: Some(BlockRef {
                 hash: B256::from_slice(&[1; 32]),
                 number: U64::from(124),
@@ -311,7 +412,7 @@ mod tests {
 
         // Test with optional fields as None
         let event_with_nones = ManagedEvent {
-            reset: "reset_id_nones".to_string(),
+            reset: None,
             unsafe_block: None,
             derivation_update: None,
             exhaust_l1: None,
@@ -360,7 +461,7 @@ mod tests {
     async fn test_handle_managed_event_logging() {
         // Test with all fields Some
         let full_event = ManagedEvent {
-            reset: "full_reset".to_string(),
+            reset: Some("full_reset".to_string()),
             unsafe_block: Some(BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO }),
             derivation_update: Some(DerivedBlockRefPair {
                 source: BlockRef { hash: B256::ZERO, number: U64::ZERO, parent_hash: B256::ZERO, timestamp: U64::ZERO },
@@ -380,7 +481,7 @@ mod tests {
 
         // Test with reset empty and all other optionals None
         let partial_event = ManagedEvent {
-            reset: "".to_string(),
+            reset: None,
             unsafe_block: None,
             derivation_update: None,
             exhaust_l1: None,

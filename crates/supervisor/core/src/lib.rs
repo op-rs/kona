@@ -8,7 +8,7 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
-pub use syncnode::{ManagedNodeConfig, NodeSubscriber};
+pub use syncnode::{ManagedNodeConfig, NodeSubscriber, SubscriptionError};
 
 mod types;
 pub use types::{
