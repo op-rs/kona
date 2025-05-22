@@ -20,3 +20,8 @@
 //! - Track sealed blocks and ancestry metadata
 
 pub mod models;
+
+mod error;
+pub use error::StorageError;
+
+mod providers;
