@@ -12,29 +12,9 @@ pub(crate) type SourceError = Box<dyn std::error::Error + Send + Sync>;
 #[allow(dead_code)]
 #[derive(Debug, Error)]
 pub(crate) enum StorageError {
-    /// Failed to initialize the underlying database environment or schema.
-    #[error("Database initialization failed")]
-    DatabaseInit(#[source] SourceError),
-
-    /// Failed to read from the database.
-    #[error("Database read failed")]
-    DatabaseRead(#[source] SourceError),
-
-    /// Failed to write to the database.
-    #[error("Database write failed")]
-    DatabaseWrite(#[source] SourceError),
-
-    /// Failed to create or begin a read or write transaction.
-    #[error("Transaction initialization failed")]
-    TransactionInit(#[source] SourceError),
-
-    /// Failed to commit a transaction.
-    #[error("Transaction commit failed")]
-    TransactionCommit(#[source] SourceError),
-
-    /// Failed to initialize a cursor or dup-sorted cursor.
-    #[error("Cursor initialization failed")]
-    CursorInit(#[source] SourceError),
+    /// DatabaseError
+    #[error("Database error")]
+    Database(#[source] DatabaseError),
 
     /// The expected entry was not found in the database.
     #[error("Entry not found: {0}")]
