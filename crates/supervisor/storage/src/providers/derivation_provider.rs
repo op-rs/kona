@@ -192,6 +192,7 @@ where
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
+        // todo: use cursor to get the last block(performance improvement)
         let latest_block_pair = match self.latest_derived_block_pair() {
             Ok(pair) => Some(pair),
             Err(StorageError::EntryNotFound(_)) => None,
@@ -201,10 +202,7 @@ where
         if latest_block_pair.is_some() {
             let latest_block_pair = latest_block_pair.unwrap();
             // Validate if the latest derived block is parent of the incoming derived block
-            // todo: refactor
-            if latest_block_pair.derived.number + 1 != incoming_pair.derived.number ||
-                latest_block_pair.derived.hash != incoming_pair.derived.parent_hash
-            {
+            if !latest_block_pair.derived.is_parent_of(&incoming_pair.derived) {
                 warn!(
                   target: "supervisor_storage",
                   latest_derived_block_pair = ?latest_block_pair,
@@ -216,19 +214,9 @@ where
                         .to_string(),
                 ));
             }
-        } else {
-            // Check if the incoming derived block is the first block
-            if incoming_pair.derived.number != 1 {
-                warn!(
-                    target: "supervisor_storage",
-                    incoming_derived_block_pair = ?incoming_pair,
-                    "Incoming derived block is not the first block"
-                );
-                return Err(StorageError::ConflictError(
-                    "Incoming derived block is not the first block".to_string(),
-                ));
-            }
-        }
+        } 
+        // todo: analyze if we should check if the incoming derived block is the first block
+        // or let service handle it
 
         let mut derived_block_numbers =
             match self.derived_block_numbers_at_source(incoming_pair.source.number) {
@@ -279,7 +267,7 @@ where
 mod tests {
     use super::*;
     use crate::models::Tables;
-    use alloy_primitives::{B256, U256};
+    use alloy_primitives::{B256};
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use reth_db::{
@@ -289,7 +277,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn block_info(number: u64, parent_hash: B256, timestamp: u64) -> BlockInfo {
-        BlockInfo { hash: B256::from(U256::from(number)), number, parent_hash, timestamp }
+        BlockInfo { hash: B256::from([number as u8; 32]), number, parent_hash, timestamp }
     }
 
     const fn derived_pair(source: BlockInfo, derived: BlockInfo) -> DerivedRefPair {
@@ -298,7 +286,7 @@ mod tests {
 
     fn genesis_block() -> BlockInfo {
         BlockInfo {
-            hash: B256::from(U256::from(0)),
+            hash: B256::from([0u8; 32]),
             number: 0,
             parent_hash: B256::ZERO,
             timestamp: 100,
@@ -327,7 +315,7 @@ mod tests {
     fn save_derived_block_pair_positive() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -336,7 +324,7 @@ mod tests {
         let pair2 = derived_pair(source1, derived2);
         assert!(insert_pair(&db, &pair2).is_ok());
 
-        let source3 = block_info(200, B256::from(U256::from(200)), 400);
+        let source3 = block_info(200, B256::from([200u8; 32]), 400);
         let derived3 = block_info(3, derived2.hash, 400);
         let pair3 = derived_pair(source3, derived3);
         assert!(insert_pair(&db, &pair3).is_ok());
@@ -346,12 +334,12 @@ mod tests {
     fn save_derived_block_pair_wrong_parent_should_fail() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
 
-        let wrong_parent_hash = B256::from(U256::from(9995412));
+        let wrong_parent_hash = B256::from([99u8; 32]);
         let derived2 = block_info(2, wrong_parent_hash, 300);
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
@@ -362,7 +350,7 @@ mod tests {
     fn save_derived_block_pair_gap_in_number_should_fail() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -377,7 +365,7 @@ mod tests {
     fn duplicate_derived_block_number_should_fail() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -391,7 +379,7 @@ mod tests {
     fn non_monotonic_l2_number_should_fail() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -411,7 +399,7 @@ mod tests {
     fn test_latest_derived_block_at_source_returns_latest() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -420,7 +408,7 @@ mod tests {
         let pair2 = derived_pair(source1, derived2);
         assert!(insert_pair(&db, &pair2).is_ok());
 
-        let source2 = block_info(105, B256::from(U256::from(100)), 300);
+        let source2 = block_info(105, B256::from([100u8; 32]), 300);
         let derived3 = block_info(3, derived2.hash, 400);
         let pair3 = derived_pair(source2, derived3);
         assert!(insert_pair(&db, &pair3).is_ok());
@@ -446,7 +434,7 @@ mod tests {
         // Use a source block that does not exist
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
-        let source_id = BlockNumHash { number: 9999, hash: B256::from(U256::from(9999)) };
+        let source_id = BlockNumHash { number: 9999, hash: B256::from([99u8; 32]) };
         let result = provider.latest_derived_block_at_source(source_id);
         assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
     }
@@ -455,7 +443,7 @@ mod tests {
     fn test_latest_derived_block_at_source_hash_mismatch_returns_error() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -463,7 +451,7 @@ mod tests {
         // Use correct number but wrong hash
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
-        let wrong_hash = B256::from(U256::from(123456));
+        let wrong_hash = B256::from([123u8; 32]);
         let source_id = BlockNumHash { number: source1.number, hash: wrong_hash };
         let result = provider.latest_derived_block_at_source(source_id);
         assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
@@ -473,7 +461,7 @@ mod tests {
     fn test_latest_derived_block_pair_returns_latest() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -507,7 +495,7 @@ mod tests {
     fn test_derived_to_source_returns_correct_source() {
         let db = setup_db();
 
-        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
         assert!(insert_pair(&db, &pair1).is_ok());
@@ -527,7 +515,7 @@ mod tests {
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
 
-        let derived_block_id = BlockNumHash { number: 9999, hash: B256::from(U256::from(9999)) };
+        let derived_block_id = BlockNumHash { number: 9999, hash: B256::from([9u8; 32]) };
         let result = provider.derived_to_source(derived_block_id);
         assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
     }
