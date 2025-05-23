@@ -58,7 +58,7 @@ optimism_package:
 ethereum_package:
   participants:
   - el_type: geth
-    cl_type: nimbus
+    cl_type: teku
   network_params:
     preset: minimal
     genesis_delay: 5
