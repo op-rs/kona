@@ -1,7 +1,6 @@
 //! [`NodeSubscriber`] implementation for subscribing to the events from managed node.
 
 use crate::{syncnode::SubscriptionError, types::ManagedEvent};
-use alloy_primitives::U256;
 use jsonrpsee::{
     core::{
         client::{Subscription, SubscriptionClientT},
@@ -17,8 +16,6 @@ use tracing::{debug, error, info, warn};
 /// Configuration for the managed node.
 #[derive(Debug)]
 pub struct ManagedNodeConfig {
-    /// The chain ID of the L2
-    pub chain_id: U256,
     /// The URL + port of the managed node
     pub url: String,
     /// The path to the JWT token for the managed node
@@ -447,7 +444,6 @@ mod tests {
 
         // Create a node config without an actual server
         let config = Arc::new(ManagedNodeConfig {
-            chain_id: U256::from(1),
             url: "mock.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
             subscription: None,
