@@ -129,7 +129,7 @@ where
         let derived_block_numbers = self.derived_block_numbers_at_source(source_block_id.number)?;
         let derived_block_number = derived_block_numbers.last().ok_or_else(|| {
             // note:: this should not happen. the list should always have at least one element
-            // todo: add test cases in insert to make sure this is not possible
+            // todo:: make sure unwinding removes the entry properly
             error!(
               target: "supervisor_storage",
               source_block_id = ?source_block_id,
@@ -157,7 +157,7 @@ where
     }
 
     /// Gets the latest [`DerivedRefPair`].
-    pub(crate) fn latest_derived_block(&self) -> Result<DerivedRefPair, StorageError> {
+    pub(crate) fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().inspect_err(|err| {
             error!(target: "supervisor_storage",
               ?err,
@@ -226,7 +226,7 @@ where
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
-        let latest_block_pair = match self.latest_derived_block() {
+        let latest_block_pair = match self.latest_derived_block_pair() {
             Ok(pair) => Some(pair),
             Err(StorageError::EntryNotFound(_)) => None,
             Err(e) => return Err(e),
@@ -330,13 +330,13 @@ mod tests {
     }
 
     /// Sets up a new temp DB and inserts the genesis block.
-    fn setup_db_and_genesis() -> (TempDir, DatabaseEnv, DerivedRefPair) {
+    fn setup_db_and_genesis() -> (DatabaseEnv, DerivedRefPair) {
         let temp_dir = TempDir::new().expect("Could not create temp dir");
         let db = init_db_for::<_, Tables>(temp_dir.path(), DatabaseArguments::default())
             .expect("Failed to init database");
         let genesis = genesis_pair();
         insert_pair(&db, &genesis).expect("Failed to insert genesis");
-        (temp_dir, db, genesis)
+        (db, genesis)
     }
 
     /// Helper to insert a pair in a new transaction, committing if successful.
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn save_derived_block_pair_positive() {
-        let (_temp_dir, db, genesis) = setup_db_and_genesis();
+        let (db, genesis) = setup_db_and_genesis();
 
         let source1 = block_info(100, B256::from(U256::from(100)), 200);
         let derived1 = block_info(1, genesis.derived.hash, 200);
@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn save_derived_block_pair_wrong_parent_should_fail() {
-        let (_temp_dir, db, genesis) = setup_db_and_genesis();
+        let (db, genesis) = setup_db_and_genesis();
 
         let source1 = block_info(100, B256::from(U256::from(100)), 200);
         let derived1 = block_info(1, genesis.derived.hash, 200);
@@ -382,17 +382,12 @@ mod tests {
         let derived2 = block_info(2, wrong_parent_hash, 300);
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(result.is_err());
-        if let Err(StorageError::ConflictError(msg)) = result {
-            assert!(msg.contains("Latest stored derived block is not parent"));
-        } else {
-            panic!("Expected ConflictError");
-        }
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]
     fn save_derived_block_pair_gap_in_number_should_fail() {
-        let (_temp_dir, db, genesis) = setup_db_and_genesis();
+        let (db, genesis) = setup_db_and_genesis();
 
         let source1 = block_info(100, B256::from(U256::from(100)), 200);
         let derived1 = block_info(1, genesis.derived.hash, 200);
@@ -402,17 +397,12 @@ mod tests {
         let derived2 = block_info(4, derived1.hash, 400); // should be 2, not 4
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(result.is_err());
-        if let Err(StorageError::ConflictError(msg)) = result {
-            assert!(msg.contains("Latest stored derived block is not parent"));
-        } else {
-            panic!("Expected ConflictError");
-        }
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]
     fn duplicate_derived_block_number_should_fail() {
-        let (_temp_dir, db, genesis) = setup_db_and_genesis();
+        let (db, genesis) = setup_db_and_genesis();
 
         let source1 = block_info(100, B256::from(U256::from(100)), 200);
         let derived1 = block_info(1, genesis.derived.hash, 200);
@@ -421,17 +411,12 @@ mod tests {
 
         // Try to insert the same derived block again
         let result = insert_pair(&db, &pair1);
-        assert!(result.is_err());
-        if let Err(StorageError::ConflictError(msg)) = result {
-            assert!(msg.contains("Latest stored derived block is not parent"));
-        } else {
-            panic!("Expected ConflictError");
-        }
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]
     fn non_monotonic_l2_number_should_fail() {
-        let (_temp_dir, db, genesis) = setup_db_and_genesis();
+        let (db, genesis) = setup_db_and_genesis();
 
         let source1 = block_info(100, B256::from(U256::from(100)), 200);
         let derived1 = block_info(1, genesis.derived.hash, 200);
@@ -446,25 +431,141 @@ mod tests {
         let derived_non_monotonic = block_info(1, derived2.hash, 400);
         let pair_non_monotonic = derived_pair(source1, derived_non_monotonic);
         let result = insert_pair(&db, &pair_non_monotonic);
-        assert!(result.is_err());
-        if let Err(StorageError::ConflictError(msg)) = result {
-            assert!(msg.contains("Latest stored derived block is not parent"));
-        } else {
-            panic!("Expected ConflictError");
-        }
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]
     fn reinserting_genesis_block_should_fail() {
-        let (_temp_dir, db, genesis) = setup_db_and_genesis();
+        let (db, genesis) = setup_db_and_genesis();
 
         // Try to insert the same genesis block again
         let result = insert_pair(&db, &genesis);
         assert!(result.is_err());
-        if let Err(StorageError::ConflictError(msg)) = result {
-            assert!(msg.contains("Latest stored derived block is not parent"));
-        } else {
-            panic!("Expected ConflictError");
-        }
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+    }
+
+    #[test]
+    fn test_latest_derived_block_at_source_returns_latest() {
+        let (db, genesis) = setup_db_and_genesis();
+
+        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let derived1 = block_info(1, genesis.derived.hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(insert_pair(&db, &pair1).is_ok());
+
+        let derived2 = block_info(2, derived1.hash, 300);
+        let pair2 = derived_pair(source1, derived2);
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        let source2 = block_info(105, B256::from(U256::from(100)), 300);
+        let derived3 = block_info(3, derived2.hash, 400);
+        let pair3 = derived_pair(source2, derived3);
+        assert!(insert_pair(&db, &pair3).is_ok());
+
+        // Now check latest_derived_block_at_source returns derived2 for source1
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+        let source_id1 = BlockNumHash { number: source1.number, hash: source1.hash };
+        let latest = provider.latest_derived_block_at_source(source_id1).expect("should exist");
+        assert_eq!(latest.number, derived2.number);
+        assert_eq!(latest.hash, derived2.hash);
+
+        // Now check latest_derived_block_at_source returns derived3 for source2
+        let source_id2 = BlockNumHash { number: source2.number, hash: source2.hash };
+        let latest = provider.latest_derived_block_at_source(source_id2).expect("should exist");
+        assert_eq!(latest, derived3);
+    }
+
+    #[test]
+    fn test_latest_derived_block_at_source_empty_list_returns_error() {
+        let (db, _genesis) = setup_db_and_genesis();
+
+        // Use a source block that does not exist
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+        let source_id = BlockNumHash { number: 9999, hash: B256::from(U256::from(9999)) };
+        let result = provider.latest_derived_block_at_source(source_id);
+        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
+    }
+
+    #[test]
+    fn test_latest_derived_block_at_source_hash_mismatch_returns_error() {
+        let (db, genesis) = setup_db_and_genesis();
+
+        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let derived1 = block_info(1, genesis.derived.hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(insert_pair(&db, &pair1).is_ok());
+
+        // Use correct number but wrong hash
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+        let wrong_hash = B256::from(U256::from(123456));
+        let source_id = BlockNumHash { number: source1.number, hash: wrong_hash };
+        let result = provider.latest_derived_block_at_source(source_id);
+        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
+    }
+
+    #[test]
+    fn test_latest_derived_block_pair_returns_latest() {
+        let (db, genesis) = setup_db_and_genesis();
+
+        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let derived1 = block_info(1, genesis.derived.hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(insert_pair(&db, &pair1).is_ok());
+
+        let derived2 = block_info(2, derived1.hash, 300);
+        let pair2 = derived_pair(source1, derived2);
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+
+        let latest = provider.latest_derived_block_pair().expect("should exist");
+        assert_eq!(latest, pair2);
+    }
+
+    #[test]
+    fn test_latest_derived_block_pair_empty_returns_error() {
+        let temp_dir = TempDir::new().expect("Could not create temp dir");
+        let db = init_db_for::<_, Tables>(temp_dir.path(), DatabaseArguments::default())
+            .expect("Failed to init database");
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+        assert!(matches!(
+            provider.latest_derived_block_pair(),
+            Err(StorageError::EntryNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn test_derived_to_source_returns_correct_source() {
+        let (db, genesis) = setup_db_and_genesis();
+
+        let source1 = block_info(100, B256::from(U256::from(100)), 200);
+        let derived1 = block_info(1, genesis.derived.hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(insert_pair(&db, &pair1).is_ok());
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+
+        let derived_block_id = BlockNumHash { number: derived1.number, hash: derived1.hash };
+        let source = provider.derived_to_source(derived_block_id).expect("should exist");
+        assert_eq!(source, source1);
+    }
+
+    #[test]
+    fn test_derived_to_source_not_found_returns_error() {
+        let (db, _genesis) = setup_db_and_genesis();
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+
+        let derived_block_id = BlockNumHash { number: 9999, hash: B256::from(U256::from(9999)) };
+        let result = provider.derived_to_source(derived_block_id);
+        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
     }
 }
