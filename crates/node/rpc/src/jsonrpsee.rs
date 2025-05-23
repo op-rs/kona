@@ -4,7 +4,10 @@ use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
-use jsonrpsee::{core::RpcResult, proc_macros::rpc};
+use jsonrpsee::{
+    core::{RpcResult, SubscriptionResult},
+    proc_macros::rpc,
+};
 use kona_genesis::RollupConfig;
 use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
@@ -16,9 +19,6 @@ use getrandom as _; // required for compiling wasm32-unknown-unknown
 
 // Re-export apis defined in upstream `op-alloy-rpc-jsonrpsee`
 pub use op_alloy_rpc_jsonrpsee::traits::{MinerApiExtServer, OpAdminApiServer};
-
-#[cfg(feature = "client")]
-pub use op_alloy_rpc_jsonrpsee::traits::{MinerApiExtClient, OpAdminApiClient};
 
 /// Optimism specified rpc interface.
 ///
@@ -126,6 +126,24 @@ pub trait OpP2PApi {
     /// Disconnects from the given peer
     #[method(name = "disconnectPeer")]
     async fn opp2p_disconnect_peer(&self, peer: String) -> RpcResult<()>;
+}
+
+/// Websockets API for the node.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws"))]
+#[async_trait]
+pub trait Ws {
+    /// Subscribes to the stream of finalized head updates.
+    #[subscription(name = "subscribe_finalized_head", item = kona_protocol::L2BlockInfo)]
+    async fn ws_finalized_head_updates(&self) -> SubscriptionResult;
+
+    /// Subscribes to the stream of safe head updates.
+    #[subscription(name = "subscribe_safe_head", item = kona_protocol::L2BlockInfo)]
+    async fn ws_safe_head_updates(&self) -> SubscriptionResult;
+
+    /// Subscribes to the stream of unsafe head updates.
+    #[subscription(name = "subscribe_unsafe_head", item = kona_protocol::L2BlockInfo)]
+    async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
 }
 
 /// Supervisor API for interop.

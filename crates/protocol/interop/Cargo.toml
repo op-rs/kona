@@ -68,4 +68,5 @@ serde = [
   "dep:serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",
+  "kona-protocol/serde",
 ]

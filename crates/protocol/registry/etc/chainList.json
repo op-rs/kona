@@ -128,6 +128,27 @@
     }
   },
   {
+    "name": "Fraxtal",
+    "identifier": "mainnet/fraxtal",
+    "chainId": 252,
+    "rpc": [
+      "https://rpc.frax.com"
+    ],
+    "explorers": [
+      "https://fraxscan.com"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "alt-da",
+    "parent": {
+      "type": "L2",
+      "chain": "mainnet"
+    },
+    "faultProofs": {
+      "status": "none"
+    }
+  },
+  {
     "name": "Funki",
     "identifier": "mainnet/funki",
     "chainId": 33979,
@@ -1157,6 +1178,27 @@
     },
     "faultProofs": {
       "status": "none"
+    }
+  },
+  {
+    "name": "Radius testnet",
+    "identifier": "sepolia/radius_testnet",
+    "chainId": 863,
+    "rpc": [
+      "testnet-rpc.theradius.xyz"
+    ],
+    "explorers": [
+      "https://testnet-rpc.theradius.xyz/"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "eth-da",
+    "parent": {
+      "type": "L2",
+      "chain": "sepolia"
+    },
+    "faultProofs": {
+      "status": "permissioned"
     }
   },
   {

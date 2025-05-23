@@ -3,18 +3,15 @@
 
 optimism_package:
   chains:
+    # Chain with only two nodes
     - participants:
       # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
       # So we use op-geth for now.
       - el_type: op-geth
         cl_type: op-node
-        el_log_level: "debug"
-        cl_log_level: "debug"
         count: 1
       - el_type: op-reth
         cl_type: kona-node
-        el_log_level: "debug"
-        cl_log_level: "debug"
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
         count: 1
@@ -40,6 +37,7 @@ optimism_package:
         builder_host: ""
         builder_port: ""
       additional_services: []
+    
   challengers:
     challenger:
       enabled: true
