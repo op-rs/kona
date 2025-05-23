@@ -50,7 +50,7 @@ deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup cl
     mkdir -p {{SOURCE}}/devnets/specs
     cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
 
-deploy_supervisor DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-supervisor COMMIT_TAG) setup clone-optimism install-optimism
+deploy-supervisor DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-supervisor COMMIT_TAG) setup clone-optimism install-optimism
     #!/usr/bin/env bash
     cd {{SOURCE}}/../optimism/kurtosis-devnet
 
