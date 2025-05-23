@@ -27,7 +27,7 @@ _build-supervisor COMMIT_TAG="":
 
     cd {{SOURCE}}/.. && just build-supervisor-with-tag $COMMIT_TAG
 
-deploy_full_path DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) (_build-supervisor COMMIT_TAG) setup clone-optimism install-optimism
+deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
     #!/usr/bin/env bash
     cd {{SOURCE}}/../optimism/kurtosis-devnet
 
@@ -50,8 +50,29 @@ deploy_full_path DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG
     mkdir -p {{SOURCE}}/devnets/specs
     cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
 
-deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="":
-    just deploy_full_path "{{SOURCE}}/devnets/{{DEVNET_FILE_PATH}}.yaml" {{COMMIT_TAG}} {{NAME}}
+deploy_supervisor DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-supervisor COMMIT_TAG) setup clone-optimism install-optimism
+    #!/usr/bin/env bash
+    cd {{SOURCE}}/../optimism/kurtosis-devnet
+
+    # Copy the devnet file to the SOURCE directory
+    cp -f {{DEVNET_FILE_PATH}} . 
+
+    # Parse the input args.
+    export TARGET_NAME=`basename {{DEVNET_FILE_PATH}}`
+    export DEVNET_NAME={{NAME}}
+
+    if [ -z "{{NAME}}" ]; then
+        export DEVNET_NAME=`basename $TARGET_NAME .yaml`
+    fi
+
+    export ENCL_NAME="$DEVNET_NAME"-devnet
+    
+    NAME=$DEVNET_NAME just devnet "$TARGET_NAME"
+
+    # Copy the generated devnet spec to the SOURCE directory
+    mkdir -p {{SOURCE}}/devnets/specs
+    cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
+
 
 isolate_test DEVNET_ENV_URL:
     DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./...
