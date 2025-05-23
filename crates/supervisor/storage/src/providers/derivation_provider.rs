@@ -22,7 +22,7 @@ pub(crate) struct DerivationProvider<'tx, TX> {
 
 impl<'tx, TX> DerivationProvider<'tx, TX> {
     /// Creates a new [`DerivationProvider`] instance.
-    #[expect(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) const fn new(tx: &'tx TX) -> Self {
         Self { tx }
     }
@@ -85,7 +85,7 @@ where
     }
 
     /// Gets the source [`BlockInfo`] for the given derived [`BlockNumHash`].
-    #[expect(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn derived_to_source(
         &self,
         derived_block_id: BlockNumHash,
@@ -121,7 +121,7 @@ where
     }
 
     /// Gets the latest derived [`BlockInfo`] from the given source [`BlockNumHash`].
-    #[expect(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn latest_derived_block_at_source(
         &self,
         source_block_id: BlockNumHash,
@@ -221,7 +221,7 @@ where
     /// Saves a [`StoredDerivedBlockPair`] to [`DerivedBlocks`](`crate::models::DerivedBlocks`)
     /// table and [`U64List`] to [`SourceToDerivedBlockNumbers`](`SourceToDerivedBlockNumbers`)
     /// table in the database.
-    #[expect(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn save_derived_block_pair(
         &self,
         incoming_pair: DerivedRefPair,
