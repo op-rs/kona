@@ -9,13 +9,13 @@
 /// [JoinSet]: tokio::task::JoinSet
 /// [NodeActor]: crate::NodeActor
 macro_rules! spawn_and_wait {
-    ($cancellation:expr, actors = [$($actor:expr$(,)?)*]) => {
-        let mut task_handles = tokio::task::JoinSet::new();
-
+    ($($actor:expr$(,)?)*) => {
         // Check if the actor is present, and spawn it if it is.
         $(
             if let Some(actor) = $actor {
-                task_handles.spawn(async move {
+                tokio::spawn
+                (
+                async move {
                     if let Err(e) = actor.start().await {
                         return Err(format!("{e:?}"));
                     }
@@ -23,22 +23,6 @@ macro_rules! spawn_and_wait {
                 });
             }
         )*
-
-        while let Some(result) = task_handles.join_next().await {
-            match result {
-                Ok(Ok(())) => { /* Actor completed successfully */ }
-                Ok(Err(e)) => {
-                    tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
-                    // Cancel all tasks and gracefully shutdown.
-                    $cancellation.cancel();
-                }
-                Err(e) => {
-                    tracing::error!(target: "rollup_node", "Task join error: {e}");
-                    // Cancel all tasks and gracefully shutdown.
-                    $cancellation.cancel();
-                }
-            }
-        }
     };
 }
 

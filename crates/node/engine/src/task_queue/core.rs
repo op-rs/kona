@@ -8,7 +8,7 @@ use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpBlockConversionError, to_system_config};
 use kona_sources::{SyncStartError, find_starting_forkchoice};
 use op_alloy_consensus::OpTxEnvelope;
-use std::{collections::BinaryHeap, sync::Arc};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::watch::Sender;
 
@@ -32,7 +32,7 @@ pub struct Engine {
     /// A sender that can be used to notify the engine actor of state changes.
     state_sender: Sender<EngineState>,
     /// The task queue.
-    tasks: BinaryHeap<EngineTask>,
+    tasks: tokio::sync::mpsc::Receiver<EngineTask>,
 }
 
 impl Engine {
@@ -40,8 +40,12 @@ impl Engine {
     ///
     /// An initial [`EngineTask::ForkchoiceUpdate`] is added to the task queue to synchronize the
     /// engine with the forkchoice state of the [`EngineState`].
-    pub fn new(initial_state: EngineState, state_sender: Sender<EngineState>) -> Self {
-        Self { state: initial_state, state_sender, tasks: BinaryHeap::default() }
+    pub const fn new(
+        initial_state: EngineState,
+        state_sender: Sender<EngineState>,
+        task_receiver: tokio::sync::mpsc::Receiver<EngineTask>,
+    ) -> Self {
+        Self { state: initial_state, state_sender, tasks: task_receiver }
     }
 
     /// Returns true if the inner [`EngineState`] is initialized.
@@ -59,11 +63,6 @@ impl Engine {
         self.state_sender.subscribe()
     }
 
-    /// Enqueues a new [`EngineTask`] for execution.
-    pub fn enqueue(&mut self, task: EngineTask) {
-        self.tasks.push(task);
-    }
-
     /// Resets the engine by finding a plausible sync starting point via
     /// [`find_starting_forkchoice`]. The state will be updated to the starting point, and a
     /// forkchoice update will be enqueued in order to reorg the execution layer.
@@ -73,7 +72,7 @@ impl Engine {
         config: &RollupConfig,
     ) -> Result<(L2BlockInfo, BlockInfo, SystemConfig), EngineResetError> {
         // Clear any outstanding tasks to prepare for the reset.
-        self.clear();
+        self.clear().await;
 
         let start =
             find_starting_forkchoice(config, client.l1_provider(), client.l2_provider()).await?;
@@ -114,31 +113,28 @@ impl Engine {
         Ok((start.safe, l1_origin_info, system_config))
     }
 
-    /// Clears the task queue.
-    pub fn clear(&mut self) {
-        self.tasks.clear();
-    }
-
     /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
-    /// an error along the way, it is not popped from the queue (in case it must be retried) and
-    /// the error is returned.
-    ///
-    /// If an [`EngineTaskError::Reset`] is encountered, the remaining tasks in the queue are
-    /// cleared.
-    pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
-        // Drain tasks in order of priority, halting on errors for a retry to be attempted.
-        while let Some(task) = self.tasks.peek() {
-            // Execute the task
-            task.execute(&mut self.state).await?;
+    pub async fn receive_tasks(&mut self) -> Result<(), EngineTaskError> {
+        let Some(task) = self.tasks.recv().await else {
+            return Err(EngineTaskError::Critical("Task queue closed unexpectedly".into()));
+        };
 
-            // Update the state and notify the engine actor.
-            self.state_sender.send_replace(self.state);
+        task.execute(&mut self.state).await?;
 
-            // Pop the task from the queue now that it's been executed.
-            self.tasks.pop();
-        }
+        self.state_sender.send_replace(self.state);
 
         Ok(())
+    }
+
+    /// Clears the task queue.
+    pub async fn clear(&mut self) {
+        let mut sink = Vec::with_capacity(self.tasks.max_capacity());
+
+        if self.tasks.is_empty() {
+            return;
+        }
+
+        self.tasks.recv_many(&mut sink, self.tasks.max_capacity()).await;
     }
 }
 

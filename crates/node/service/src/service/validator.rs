@@ -148,7 +148,7 @@ pub trait ValidatorNodeService {
 
         let launcher = self.engine();
         let client = launcher.client();
-        let engine = launcher.launch();
+        let (engine, task_sender) = launcher.launch();
 
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
@@ -162,6 +162,7 @@ pub trait ValidatorNodeService {
             unsafe_block_rx,
             reset_request_rx,
             Some(engine_query_recv),
+            task_sender,
             cancellation.clone(),
         );
         let engine = Some(engine);
@@ -191,10 +192,13 @@ pub trait ValidatorNodeService {
         let handle = launcher.launch().await?;
         let rpc = handle.map(|h| RpcActor::new(h, cancellation.clone()));
 
-        spawn_and_wait!(
-            cancellation,
-            actors = [da_watcher, runtime, rpc, derivation, engine, network]
-        );
+        spawn_and_wait!(da_watcher, runtime, rpc, derivation, engine, network);
+
+        // Wait for Ctrl‑C, then wake every task
+        cancellation.run_until_cancelled(tokio::signal::ctrl_c()).await;
+
+        tracing::error!(target: "validator", "Shutting down validator");
+
         Ok(())
     }
 }
