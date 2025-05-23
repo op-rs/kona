@@ -80,3 +80,6 @@ isolate_test DEVNET_ENV_URL:
 test-e2e DEVNET COMMIT_TAG="": 
     just deploy "{{DEVNET}}" {{COMMIT_TAG}}
     just isolate_test "kt://{{DEVNET}}-devnet"
+
+test-e2e-supervisor DEVNET COMMIT_TAG="": 
+    just deploy-supervisor "{{DEVNET}}" {{COMMIT_TAG}}
