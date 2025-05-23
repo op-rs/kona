@@ -130,9 +130,6 @@ impl NodeSubscriber {
             ));
         }
 
-        // Initialize tracing
-        tracing_subscriber::fmt().with_max_level(tracing::Level::INFO).try_init().ok(); // Allow re-initialization
-
         // Get JWT token path
         let path = if self.config.jwt_path.is_empty() {
             return Err(SubscriptionError::JwtError("No JWT token path provided for managed node".to_string()));
