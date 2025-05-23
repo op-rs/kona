@@ -5094,6 +5094,7 @@ dependencies = [
  "reth-db",
  "reth-db-api",
  "serde",
+ "tempfile",
  "test-fuzz",
  "thiserror 2.0.12",
  "tracing",

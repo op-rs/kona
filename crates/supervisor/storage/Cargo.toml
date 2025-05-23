@@ -35,6 +35,7 @@ reth-codecs = { workspace = true }
 
 [dev-dependencies]
 test-fuzz = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

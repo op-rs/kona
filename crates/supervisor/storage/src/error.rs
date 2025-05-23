@@ -7,14 +7,14 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum StorageError {
     /// Represents a database error that occurred while interacting with storage.
-    #[error("Database error")]
-    Database(#[source] DatabaseError),
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
 
     /// The expected entry was not found in the database.
-    #[error("Entry not found: {0}")]
+    #[error("entry not found: {0}")]
     EntryNotFound(String),
 
     /// Represents a conflict occurred while attempting to write to the database.
-    #[error("Conflict error: {0}")]
+    #[error("conflict error: {0}")]
     ConflictError(String),
 }
