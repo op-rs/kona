@@ -30,7 +30,8 @@ pub struct Network {
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
-    pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
+    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
+    // pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
@@ -76,7 +77,7 @@ impl Network {
         tokio::spawn(async move {
             loop {
                 select! {
-                    // TODO(@theochap): we should fix that channel handler.
+                    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
                     // We are currently using a mpsc channel without senders which causes it to drop.
                     // block = publish.recv() => {
                     //     let Some(block) = block else {
