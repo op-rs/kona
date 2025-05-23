@@ -38,6 +38,8 @@ pub struct EngineActor {
     pub client: Arc<EngineClient>,
     /// The [`Engine`].
     pub engine: Engine,
+    /// The channel to send the engine tasks to the engine internal task queue.
+    engine_task_sender: tokio::sync::mpsc::Sender<EngineTask>,
     /// The channel to send the l2 safe head to the derivation actor.
     engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
     /// Handler for inbound queries to the engine.
@@ -75,6 +77,7 @@ impl EngineActor {
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
         reset_request_rx: UnboundedReceiver<()>,
         inbound_queries: Option<Receiver<EngineQueries>>,
+        engine_task_sender: tokio::sync::mpsc::Sender<EngineTask>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
@@ -83,6 +86,7 @@ impl EngineActor {
             engine,
             engine_l2_safe_head_tx,
             sync_complete_tx,
+            engine_task_sender,
             derivation_signal_tx,
             runtime_config_rx,
             attributes_rx,
@@ -190,66 +194,7 @@ impl NodeActor for EngineActor {
 
                     return Ok(());
                 }
-                reset = self.reset_request_rx.recv() => {
-                    let Some(_) = reset else {
-                        error!(target: "engine", "Reset request receiver closed unexpectedly, exiting node");
-                        self.cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-
-                    warn!(target: "engine", "Received reset request");
-                    self.reset().await?;
-                }
-                unsafe_block = self.unsafe_block_rx.recv() => {
-                    let Some(envelope) = unsafe_block else {
-                        error!(target: "engine", "Unsafe block receiver closed unexpectedly, exiting node");
-                        self.cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-                    let hash = envelope.payload_hash;
-                    let task = InsertUnsafeTask::new(
-                        Arc::clone(&self.client),
-                        Arc::clone(&self.config),
-                        envelope,
-                    );
-                    let task = EngineTask::InsertUnsafe(task);
-                    self.engine.enqueue(task);
-                    debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
-                    self.check_sync().await?;
-                }
-                attributes = self.attributes_rx.recv() => {
-                    let Some(attributes) = attributes else {
-                        error!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
-                        self.cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
-                    let task = ConsolidateTask::new(
-                        Arc::clone(&self.client),
-                        Arc::clone(&self.config),
-                        attributes,
-                        true,
-                    );
-                    let task = EngineTask::Consolidate(task);
-                    self.engine.enqueue(task);
-                    debug!(target: "engine", "Enqueued attributes consolidation task.");
-                }
-                Some(config) = self.runtime_config_rx.recv() => {
-                    let client = Arc::clone(&self.client);
-                    tokio::task::spawn(async move {
-                        debug!(target: "engine", config = ?config, "Received runtime config");
-                        let recommended = config.recommended_protocol_version;
-                        let required = config.required_protocol_version;
-                        match client.signal_superchain_v1(recommended, required).await {
-                            Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
-                            Err(e) => {
-                                // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
-                                // a warning is logged instead of an error.
-                                warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
-                            }
-                        }
-                    });
-                }
-                res = self.engine.drain() => {
+                res = self.engine.receive_tasks() => {
                     match res {
                         Ok(_) => {
                             trace!(target: "engine", "[ENGINE] tasks drained");
@@ -273,10 +218,82 @@ impl NodeActor for EngineActor {
                                 }
                             }
                         }
-                        Err(e) => warn!(target: "engine", ?e, "Error draining engine tasks"),
+                        Err(EngineTaskError::Critical(e)) => {
+                            error!(target: "engine", ?e, "Critical engine task error");
+                            self.cancellation.cancel();
+                            return Err(EngineError::ChannelClosed);
+                        }
+                        Err(EngineTaskError::Temporary(e)) => {
+                            warn!(target: "engine", ?e, "Temporary engine task error");
+                        }
                     }
 
                     self.maybe_update_safe_head();
+                }
+                reset = self.reset_request_rx.recv() => {
+                    let Some(_) = reset else {
+                        error!(target: "engine", "Reset request receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+
+                    warn!(target: "engine", "Received reset request");
+                    self.reset().await?;
+                }
+                unsafe_block = self.unsafe_block_rx.recv() => {
+                    let Some(envelope) = unsafe_block else {
+                        error!(target: "engine", "Unsafe block receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+                    let hash = envelope.payload_hash;
+                    let task = InsertUnsafeTask::new(
+                        Arc::clone(&self.client),
+                        Arc::clone(&self.config),
+                        envelope,
+                    );
+                    let task = EngineTask::InsertUnsafe(task);
+                    self.engine_task_sender.send(task).await?;
+                    debug!(target: "engine", ?hash, "Enqueued unsafe block task.");
+                    self.check_sync().await?;
+                }
+                attributes = self.attributes_rx.recv() => {
+                    let Some(attributes) = attributes else {
+                        error!(target: "engine", "Attributes receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+                    let task = ConsolidateTask::new(
+                        Arc::clone(&self.client),
+                        Arc::clone(&self.config),
+                        attributes,
+                        true,
+                    );
+                    let task = EngineTask::Consolidate(task);
+                    self.engine_task_sender.send(task).await?;
+                    debug!(target: "engine", "Enqueued attributes consolidation task.");
+                }
+                config = self.runtime_config_rx.recv() => {
+                    let Some(config) = config else {
+                        error!(target: "engine", "Runtime config receiver closed unexpectedly, exiting node");
+                        self.cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+
+                    let client = Arc::clone(&self.client);
+                    tokio::task::spawn(async move {
+                        debug!(target: "engine", config = ?config, "Received runtime config");
+                        let recommended = config.recommended_protocol_version;
+                        let required = config.required_protocol_version;
+                        match client.signal_superchain_v1(recommended, required).await {
+                            Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
+                            Err(e) => {
+                                // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                                // a warning is logged instead of an error.
+                                warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                            }
+                        }
+                    });
                 }
             }
         }
@@ -296,6 +313,9 @@ pub enum EngineError {
     /// Engine reset error.
     #[error(transparent)]
     EngineReset(#[from] EngineResetError),
+    /// Failed to send engine task.
+    #[error("Failed to send engine task: {0}")]
+    SendError(#[from] tokio::sync::mpsc::error::SendError<EngineTask>),
 }
 
 /// Configuration for the Engine Actor.
@@ -316,10 +336,11 @@ pub struct EngineLauncher {
 impl EngineLauncher {
     /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
     /// updates.
-    pub fn launch(self) -> Engine {
+    pub fn launch(self) -> (Engine, tokio::sync::mpsc::Sender<EngineTask>) {
         let state = EngineState::default();
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
-        Engine::new(state, engine_state_send)
+        let (engine_task_sender, engine_task_receiver) = tokio::sync::mpsc::channel(1024);
+        (Engine::new(state, engine_state_send, engine_task_receiver), engine_task_sender)
     }
 
     /// Returns the [`EngineClient`].
