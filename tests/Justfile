@@ -82,4 +82,4 @@ test-e2e DEVNET COMMIT_TAG="":
     just isolate_test "kt://{{DEVNET}}-devnet"
 
 test-e2e-supervisor DEVNET COMMIT_TAG="": 
-    just deploy-supervisor "{{DEVNET}}" {{COMMIT_TAG}}
+    just deploy-supervisor devnets/"{{DEVNET}}" {{COMMIT_TAG}}
