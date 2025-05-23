@@ -17,7 +17,7 @@ optimism_package:
       superchain: superchain-a
     supervisor-b:
       superchain: superchain-a
-      image: "ghcr.io/op-rs/kona/kona-supervisor:latest"
+      image: "kona-supervisor:local"
       extra_params: ["-vvvv"]
 ethereum_package:
   participants:

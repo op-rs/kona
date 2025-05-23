@@ -90,6 +90,16 @@ build-node-with-tag TAG:
     -t kona-node:local \
     .
 
+# Build target for the `kona-supervisor` docker image specify a custom tag.
+build-supervisor-with-tag TAG:
+  docker build \
+    --progress plain \
+    -f docker/apps/kona_app_generic.dockerfile \
+    --build-arg "BIN_TARGET=kona-supervisor" \
+    --build-arg "TAG={{TAG}}" \
+    -t kona-supervisor:local \
+    .
+
 # Build target for the `kona-node` docker image. Uses the current remote commit tag.
 build-node:
   just build-node-with-tag $(git rev-parse HEAD)
