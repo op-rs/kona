@@ -23,7 +23,7 @@ pub struct BlockSeal {
 
 impl BlockSeal {
     /// Creates a new block seal with the given hash, number, and timestamp.
-    pub fn new(hash: B256, number: U64, timestamp: U64) -> Self {
+    pub const fn new(hash: B256, number: U64, timestamp: U64) -> Self {
         Self { hash, number, timestamp }
     }
 }
@@ -44,7 +44,7 @@ pub struct BlockRef {
 
 impl BlockRef {
     /// Creates a new block reference.
-    pub fn new(hash: B256, number: U64, parent_hash: B256, timestamp: U64) -> Self {
+    pub const fn new(hash: B256, number: U64, parent_hash: B256, timestamp: U64) -> Self {
         Self { hash, number, parent_hash, timestamp }
     }
 }
@@ -72,7 +72,7 @@ pub struct L2BlockRef<T = BlockId> {
 
 impl<T> L2BlockRef<T> {
     /// Creates a new L2 block reference.
-    pub fn new(
+    pub const fn new(
         hash: B256,
         number: U64,
         parent_hash: B256,
@@ -96,7 +96,7 @@ pub struct DerivedBlockRefPair<T = BlockRef> {
 
 impl<T> DerivedBlockRefPair<T> {
     /// Creates a new derived block reference pair.
-    pub fn new(source: T, derived: T) -> Self {
+    pub const fn new(source: T, derived: T) -> Self {
         Self { source, derived }
     }
 }
@@ -113,7 +113,7 @@ pub struct BlockReplacement<T = BlockRef> {
 
 impl<T> BlockReplacement<T> {
     /// Creates a new block replacement.
-    pub fn new(replacement: T, invalidated: B256) -> Self {
+    pub const fn new(replacement: T, invalidated: B256) -> Self {
         Self { replacement, invalidated }
     }
 }
@@ -132,7 +132,11 @@ pub struct OutputV0 {
 
 impl OutputV0 {
     /// Creates a new OutputV0 instance.
-    pub fn new(state_root: B256, message_passer_storage_root: B256, block_hash: B256) -> Self {
+    pub const fn new(
+        state_root: B256,
+        message_passer_storage_root: B256,
+        block_hash: B256,
+    ) -> Self {
         Self { state_root, message_passer_storage_root, block_hash }
     }
 }
@@ -144,7 +148,7 @@ pub type Receipts = Vec<OpReceiptEnvelope>;
 ///
 /// This struct is used to communicate various events that occur within the node.
 /// At least one of the fields will be `Some`, and the rest will be `None`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedEvent {
     /// Indicates a successful reset operation with an optional message
@@ -168,7 +172,7 @@ pub struct ManagedEvent {
 
 impl ManagedEvent {
     /// Creates a new ManagedEvent with the specified fields.
-    pub fn new(
+    pub const fn new(
         reset: Option<String>,
         unsafe_block: Option<BlockRef>,
         derivation_update: Option<DerivedBlockRefPair>,
@@ -183,18 +187,6 @@ impl ManagedEvent {
             exhaust_l1,
             replace_block,
             derivation_origin_update,
-        }
-    }
-
-    /// Creates a default ManagedEvent with all fields set to None.
-    pub fn default() -> Self {
-        Self {
-            reset: None,
-            unsafe_block: None,
-            derivation_update: None,
-            exhaust_l1: None,
-            replace_block: None,
-            derivation_origin_update: None,
         }
     }
 }
