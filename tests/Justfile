@@ -78,8 +78,8 @@ isolate_test DEVNET_ENV_URL:
     DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./...
 
 test-e2e DEVNET COMMIT_TAG="": 
-    just deploy "{{DEVNET}}" {{COMMIT_TAG}}
+    just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
     just isolate_test "kt://{{DEVNET}}-devnet"
 
 test-e2e-supervisor DEVNET COMMIT_TAG="": 
-    just deploy-supervisor devnets/"{{DEVNET}}" {{COMMIT_TAG}}
+    just deploy-supervisor "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
