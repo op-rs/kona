@@ -26,4 +26,4 @@ jobs:
         with:
           cache: true                  # enable built‑in tool cache
       - name: run kurtosis superchain with kona-supervisor
-        run: cd tests && just deploy-supervisor kurtosis_network_params_supervisor ${{ github.event.pull_request.head.sha }}
+        run: cd tests && just deploy-supervisor simple-supervisor ${{ github.event.pull_request.head.sha }}
