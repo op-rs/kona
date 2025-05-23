@@ -11,7 +11,4 @@ mod syncnode;
 pub use syncnode::{ManagedNodeConfig, NodeSubscriber, SubscriptionError};
 
 mod types;
-pub use types::{
-    BlockReplacement, BlockSeal, L2BlockRef,
-    ManagedEvent, OutputV0, Receipts,
-};
+pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};

@@ -6,13 +6,13 @@
 
 use alloy_eips::BlockId;
 use alloy_primitives::{B256, U64};
-use op_alloy_consensus::OpReceiptEnvelope;
-use kona_protocol::BlockInfo;
-use kona_interop::DerivedRefPair;
 use derive_more::Constructor;
+use kona_interop::DerivedRefPair;
+use kona_protocol::BlockInfo;
+use op_alloy_consensus::OpReceiptEnvelope;
 use serde::{Deserialize, Serialize};
 
-// todo:: Determine appropriate locations for these structs and move them accordingly.  
+// todo:: Determine appropriate locations for these structs and move them accordingly.
 // todo:: Link these structs to the spec documentation after the related PR is merged.
 
 /// Represents a sealed block with its hash, number, and timestamp.

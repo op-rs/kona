@@ -132,7 +132,9 @@ impl NodeSubscriber {
 
         // Get JWT token path
         let path = if self.config.jwt_path.is_empty() {
-            return Err(SubscriptionError::JwtError("No JWT token path provided for managed node".to_string()));
+            return Err(SubscriptionError::JwtError(
+                "No JWT token path provided for managed node".to_string(),
+            ));
         } else {
             &self.config.jwt_path
         };
@@ -274,9 +276,9 @@ impl NodeSubscriber {
 mod tests {
     use super::*;
     use crate::types::BlockReplacement;
+    use alloy_primitives::B256;
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
-    use alloy_primitives::B256;
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::time::{Duration, sleep};
