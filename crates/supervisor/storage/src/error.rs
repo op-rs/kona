@@ -7,8 +7,8 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum StorageError {
     /// DatabaseError
-    #[error("Database error")]
-    Database(#[source] DatabaseError),
+   #[error(transparent)]
+   Database(#[from] DatabaseError),
 
     /// The expected entry was not found in the database.
     #[error("Entry not found: {0}")]
