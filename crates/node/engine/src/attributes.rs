@@ -127,7 +127,7 @@ impl AttributesMatch {
                 "Checking attributes transaction against block transaction",
             );
             // Let's try to deserialize the attributes transaction
-            let Ok(mut attr_tx) = OpTxEnvelope::decode_2718(&mut &attr_tx_bytes[..]) else {
+            let Ok(attr_tx) = OpTxEnvelope::decode_2718(&mut &attr_tx_bytes[..]) else {
                 error!(
                     "Impossible to deserialize transaction from attributes. If we have stored these attributes it means the transactions where well formatted. This is a bug"
                 );
@@ -135,28 +135,7 @@ impl AttributesMatch {
                 return AttributesMismatch::MalformedAttributesTransaction.into();
             };
 
-            // Unfortunate case where we need to touch the inside of the deposit transaction.
-            //
-            // Since `None` is functionally equivalent to `Some(0)` in revm, we need to make sure
-            // that the attributes produced by the derivation pipeline are consistent with the block
-            // received over the engine api. All we need to do here is set the mint value to be
-            // `Some(0)` in the case where it is `None` and the block is `Some(0)`.
-            //
-            // Notice, we *cannot* set the attributes `mint` to `Some(0)` if it already is `Some` in
-            // case there is truly a mismatch.
-            let block_tx = block_tx.inner.inner.inner();
-            let block_none =
-                if let OpTxEnvelope::Deposit(inner) = &block_tx { inner.mint } else { None };
-            if let OpTxEnvelope::Deposit(inner) = &attr_tx {
-                if block_none == Some(0) {
-                    trace!(target: "engine", "Found `mint` mismatch. Setting attributes `mint` to `Some(0)`");
-                    let mut inner = inner.clone().into_inner();
-                    inner.mint = Some(0);
-                    attr_tx = OpTxEnvelope::Deposit(alloy_primitives::Sealed::new(inner));
-                }
-            }
-
-            if &attr_tx != block_tx {
+            if &attr_tx != block_tx.inner.inner.inner() {
                 warn!(target: "engine", ?attr_tx, ?block_tx, "Transaction mismatch in derived attributes");
                 return AttributesMismatch::TransactionContent(attr_tx.tx_hash(), block_tx.tx_hash())
                     .into()
