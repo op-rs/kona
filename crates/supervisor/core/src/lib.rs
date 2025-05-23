@@ -8,7 +8,7 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
-pub use syncnode::{ManagedNodeConfig, ManagedNodeSubscriber, SubscriptionError};
+pub use syncnode::{ManagedNodeConfig, ManagedNodeSubscriber};
 
 pub use syncnode::jsonrpsee::{ManagedNodeApiClient, ManagedNodeApiServer};
 
