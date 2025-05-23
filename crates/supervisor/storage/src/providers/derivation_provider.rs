@@ -214,7 +214,7 @@ where
                         .to_string(),
                 ));
             }
-        } 
+        }
         // todo: analyze if we should check if the incoming derived block is the first block
         // or let service handle it
 
@@ -267,7 +267,7 @@ where
 mod tests {
     use super::*;
     use crate::models::Tables;
-    use alloy_primitives::{B256};
+    use alloy_primitives::B256;
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use reth_db::{
