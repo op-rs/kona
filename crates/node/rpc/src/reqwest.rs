@@ -5,7 +5,7 @@ use alloy_rpc_client::ReqwestClient;
 use derive_more::Constructor;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 
-use crate::{CheckAccessList, InteropTxValidatorError};
+use crate::{CheckAccessListClient, InteropTxValidatorError};
 
 /// A supervisor client.
 #[derive(Debug, Clone, Constructor)]
@@ -14,7 +14,7 @@ pub struct SupervisorClient {
     client: ReqwestClient,
 }
 
-impl CheckAccessList for SupervisorClient {
+impl CheckAccessListClient for SupervisorClient {
     async fn check_access_list(
         &self,
         inbox_entries: &[B256],
