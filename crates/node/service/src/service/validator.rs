@@ -148,7 +148,7 @@ pub trait ValidatorNodeService {
 
         let launcher = self.engine();
         let client = launcher.client();
-        let engine = launcher.launch();
+        let (engine, engine_task_sender) = launcher.launch();
 
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
@@ -162,6 +162,7 @@ pub trait ValidatorNodeService {
             unsafe_block_rx,
             reset_request_rx,
             Some(engine_query_recv),
+            engine_task_sender,
             cancellation.clone(),
         );
         let engine = Some(engine);
