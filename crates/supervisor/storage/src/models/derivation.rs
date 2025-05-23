@@ -59,6 +59,18 @@ impl From<DerivedRefPair> for StoredDerivedBlockPair {
     }
 }
 
+impl StoredDerivedBlockPair {
+    /// Creates a new [`StoredDerivedBlockPair`] from the given [`BlockRef`]s.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source block reference.
+    /// * `derived` - The derived block reference.
+    pub const fn new(source: BlockRef, derived: BlockRef) -> Self {
+        Self { source, derived }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
