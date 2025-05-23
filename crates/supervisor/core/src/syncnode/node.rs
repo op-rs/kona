@@ -10,7 +10,7 @@ use jsonrpsee::{
     rpc_params,
     ws_client::{HeaderMap, HeaderValue, WsClientBuilder},
 };
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, warn};
 
@@ -19,17 +19,15 @@ use tracing::{debug, error, info, warn};
 pub struct ManagedNodeConfig {
     /// The chain ID of the L2
     pub chain_id: U256,
-    /// The URL of the managed node
+    /// The URL + port of the managed node
     pub url: String,
-    /// The port of the managed node
-    pub port: u16,
     /// The path to the JWT token for the managed node
-    pub jwt_path: Option<PathBuf>,
+    pub jwt_path: String,
     /// The current subscription to the managed node, if any
     pub subscription: Option<Subscription<Option<ManagedEvent>>>,
 }
 
-/// NodeSubscriber handles the subscription to managed node events.
+/// [`NodeSubscriber`] handles the subscription to managed node events.
 ///
 /// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
@@ -43,7 +41,7 @@ pub struct NodeSubscriber {
 }
 
 impl NodeSubscriber {
-    /// Creates a new NodeSubscriber with the specified configuration.
+    /// Creates a new [`NodeSubscriber`] with the specified configuration.
     pub const fn new(config: Arc<ManagedNodeConfig>) -> Self {
         Self { config, stop_tx: None, task_handle: None }
     }
@@ -139,11 +137,11 @@ impl NodeSubscriber {
         tracing_subscriber::fmt().with_max_level(tracing::Level::INFO).try_init().ok(); // Allow re-initialization
 
         // Get JWT token path
-        let path = self.config.jwt_path.as_ref().ok_or_else(|| {
-            let err_msg = "No JWT token path provided for managed node";
-            error!("{}", err_msg);
-            SubscriptionError::JwtError(err_msg.to_string())
-        })?;
+        let path = if self.config.jwt_path.is_empty() {
+            return Err(SubscriptionError::JwtError("No JWT token path provided for managed node".to_string()));
+        } else {
+            &self.config.jwt_path
+        };
 
         // Read JWT secret
         let jwt_secret = std::fs::read_to_string(path).map_err(|e| {
@@ -164,7 +162,7 @@ impl NodeSubscriber {
         );
 
         // Connect to WebSocket
-        let ws_url = format!("ws://{}:{}", self.config.url, self.config.port);
+        let ws_url = format!("ws://{}", self.config.url);
         info!("Connecting to WebSocket at {}", ws_url);
 
         let client = WsClientBuilder::default()
@@ -281,8 +279,10 @@ impl NodeSubscriber {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{BlockRef, BlockReplacement, DerivedBlockRefPair};
-    use alloy_primitives::{B256, U64};
+    use crate::types::BlockReplacement;
+    use kona_interop::DerivedRefPair;
+    use kona_protocol::BlockInfo;
+    use alloy_primitives::B256;
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::time::{Duration, sleep};
@@ -315,11 +315,11 @@ mod tests {
                     },
                     // Unsafe block event
                     ManagedEvent {
-                        unsafe_block: Some(BlockRef {
+                        unsafe_block: Some(BlockInfo {
                             hash: B256::from_slice(&[1; 32]),
-                            number: U64::from(100),
+                            number: 100,
                             parent_hash: B256::from_slice(&[2; 32]),
-                            timestamp: U64::from(1678886400),
+                            timestamp: 1678886400,
                         }),
                         ..ManagedEvent::default()
                     },
@@ -362,54 +362,54 @@ mod tests {
     async fn test_managed_event_serialization_deserialization() {
         let event = ManagedEvent {
             reset: Some("reset_id".to_string()),
-            unsafe_block: Some(BlockRef {
+            unsafe_block: Some(BlockInfo {
                 hash: B256::from_slice(&[1; 32]),
-                number: U64::from(124),
+                number: 124,
                 parent_hash: B256::from_slice(&[2; 32]),
-                timestamp: U64::from(1678886400),
+                timestamp: 1678886400,
             }),
-            derivation_update: Some(DerivedBlockRefPair {
-                source: BlockRef {
+            derivation_update: Some(DerivedRefPair {
+                source: BlockInfo {
                     hash: B256::from_slice(&[3; 32]),
-                    number: U64::from(124),
+                    number: 124,
                     parent_hash: B256::from_slice(&[4; 32]),
-                    timestamp: U64::from(1678886400),
+                    timestamp: 1678886400,
                 },
-                derived: BlockRef {
+                derived: BlockInfo {
                     hash: B256::from_slice(&[5; 32]),
-                    number: U64::from(124),
+                    number: 124,
                     parent_hash: B256::from_slice(&[6; 32]),
-                    timestamp: U64::from(1678886400),
+                    timestamp: 1678886400,
                 },
             }),
-            exhaust_l1: Some(DerivedBlockRefPair {
-                source: BlockRef {
+            exhaust_l1: Some(DerivedRefPair {
+                source: BlockInfo {
                     hash: B256::from_slice(&[7; 32]),
-                    number: U64::from(124),
+                    number: 124,
                     parent_hash: B256::from_slice(&[8; 32]),
-                    timestamp: U64::from(1678886400),
+                    timestamp: 1678886400,
                 },
-                derived: BlockRef {
+                derived: BlockInfo {
                     hash: B256::from_slice(&[9; 32]),
-                    number: U64::from(124),
+                    number: 124,
                     parent_hash: B256::from_slice(&[10; 32]),
-                    timestamp: U64::from(1678886400),
+                    timestamp: 1678886400,
                 },
             }),
             replace_block: Some(BlockReplacement {
-                replacement: BlockRef {
+                replacement: BlockInfo {
                     hash: B256::from_slice(&[11; 32]),
-                    number: U64::from(124),
+                    number: 124,
                     parent_hash: B256::from_slice(&[12; 32]),
-                    timestamp: U64::from(1678886400),
+                    timestamp: 1678886400,
                 },
                 invalidated: B256::from_slice(&[13; 32]),
             }),
-            derivation_origin_update: Some(BlockRef {
+            derivation_origin_update: Some(BlockInfo {
                 hash: B256::from_slice(&[14; 32]),
-                number: U64::from(50),
+                number: 50,
                 parent_hash: B256::from_slice(&[15; 32]),
-                timestamp: U64::from(1678886400),
+                timestamp: 1678886400,
             }),
         };
 
@@ -443,14 +443,13 @@ mod tests {
     #[tokio::test]
     async fn test_node_subscriber_start_stop() {
         let jwt_file = create_mock_jwt_file();
-        let jwt_path = jwt_file.path().to_path_buf();
+        let jwt_path = jwt_file.path();
 
         // Create a node config without an actual server
         let config = Arc::new(ManagedNodeConfig {
             chain_id: U256::from(1),
             url: "mock.server".to_string(),
-            port: 8545,
-            jwt_path: Some(jwt_path),
+            jwt_path: jwt_path.to_str().unwrap().to_string(),
             subscription: None,
         });
 
@@ -480,54 +479,54 @@ mod tests {
         // Test with all fields Some
         let full_event = ManagedEvent {
             reset: Some("full_reset".to_string()),
-            unsafe_block: Some(BlockRef {
+            unsafe_block: Some(BlockInfo {
                 hash: B256::ZERO,
-                number: U64::ZERO,
+                number: 0,
                 parent_hash: B256::ZERO,
-                timestamp: U64::ZERO,
+                timestamp: 0,
             }),
-            derivation_update: Some(DerivedBlockRefPair {
-                source: BlockRef {
+            derivation_update: Some(DerivedRefPair {
+                source: BlockInfo {
                     hash: B256::ZERO,
-                    number: U64::ZERO,
+                    number: 0,
                     parent_hash: B256::ZERO,
-                    timestamp: U64::ZERO,
+                    timestamp: 0,
                 },
-                derived: BlockRef {
+                derived: BlockInfo {
                     hash: B256::ZERO,
-                    number: U64::ZERO,
+                    number: 0,
                     parent_hash: B256::ZERO,
-                    timestamp: U64::ZERO,
+                    timestamp: 0,
                 },
             }),
-            exhaust_l1: Some(DerivedBlockRefPair {
-                source: BlockRef {
+            exhaust_l1: Some(DerivedRefPair {
+                source: BlockInfo {
                     hash: B256::ZERO,
-                    number: U64::ZERO,
+                    number: 0,
                     parent_hash: B256::ZERO,
-                    timestamp: U64::ZERO,
+                    timestamp: 0,
                 },
-                derived: BlockRef {
+                derived: BlockInfo {
                     hash: B256::ZERO,
-                    number: U64::ZERO,
+                    number: 0,
                     parent_hash: B256::ZERO,
-                    timestamp: U64::ZERO,
+                    timestamp: 0,
                 },
             }),
             replace_block: Some(BlockReplacement {
-                replacement: BlockRef {
+                replacement: BlockInfo {
                     hash: B256::ZERO,
-                    number: U64::ZERO,
+                    number: 0,
                     parent_hash: B256::ZERO,
-                    timestamp: U64::ZERO,
+                    timestamp: 0,
                 },
                 invalidated: B256::ZERO,
             }),
-            derivation_origin_update: Some(BlockRef {
+            derivation_origin_update: Some(BlockInfo {
                 hash: B256::ZERO,
-                number: U64::ZERO,
+                number: 0,
                 parent_hash: B256::ZERO,
-                timestamp: U64::ZERO,
+                timestamp: 0,
             }),
         };
         NodeSubscriber::handle_managed_event(Some(full_event));

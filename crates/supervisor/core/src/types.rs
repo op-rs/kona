@@ -7,7 +7,13 @@
 use alloy_eips::BlockId;
 use alloy_primitives::{B256, U64};
 use op_alloy_consensus::OpReceiptEnvelope;
+use kona_protocol::BlockInfo;
+use kona_interop::DerivedRefPair;
+use derive_more::Constructor;
 use serde::{Deserialize, Serialize};
+
+// todo:: Determine appropriate locations for these structs and move them accordingly.  
+// todo:: Link these structs to the spec documentation after the related PR is merged.
 
 /// Represents a sealed block with its hash, number, and timestamp.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,35 +28,11 @@ pub struct BlockSeal {
 }
 
 impl BlockSeal {
-    /// Creates a new block seal with the given hash, number, and timestamp.
+    /// Creates a new [`BlockSeal`] with the given hash, number, and timestamp.
     pub const fn new(hash: B256, number: U64, timestamp: U64) -> Self {
         Self { hash, number, timestamp }
     }
 }
-
-/// A reference to a block with its essential identifying information.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BlockRef {
-    /// The block's hash
-    pub hash: B256,
-    /// The block number
-    pub number: U64,
-    /// The hash of the parent block
-    pub parent_hash: B256,
-    /// The block's timestamp
-    pub timestamp: U64,
-}
-
-impl BlockRef {
-    /// Creates a new block reference.
-    pub const fn new(hash: B256, number: U64, parent_hash: B256, timestamp: U64) -> Self {
-        Self { hash, number, parent_hash, timestamp }
-    }
-}
-
-/// A reference to an L1 (layer 1) block.
-pub type L1BlockRef = BlockRef;
 
 /// A reference to an L2 (layer 2) block with additional L2-specific information.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,7 +53,7 @@ pub struct L2BlockRef<T = BlockId> {
 }
 
 impl<T> L2BlockRef<T> {
-    /// Creates a new L2 block reference.
+    /// Creates a new [`L2BlockRef`].
     pub const fn new(
         hash: B256,
         number: U64,
@@ -84,27 +66,10 @@ impl<T> L2BlockRef<T> {
     }
 }
 
-/// Represents a pair of block references: a source and its derived block.
+/// Represents a [`BlockReplacement`] event where one block replaces another.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DerivedBlockRefPair<T = BlockRef> {
-    /// The source block (typically from L1)
-    pub source: T,
-    /// The derived block (typically for L2)
-    pub derived: T,
-}
-
-impl<T> DerivedBlockRefPair<T> {
-    /// Creates a new derived block reference pair.
-    pub const fn new(source: T, derived: T) -> Self {
-        Self { source, derived }
-    }
-}
-
-/// Represents a block replacement event where one block replaces another.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BlockReplacement<T = BlockRef> {
+pub struct BlockReplacement<T = BlockInfo> {
     /// The block that replaces the invalidated block
     pub replacement: T,
     /// Hash of the block being invalidated and replaced
@@ -112,7 +77,7 @@ pub struct BlockReplacement<T = BlockRef> {
 }
 
 impl<T> BlockReplacement<T> {
-    /// Creates a new block replacement.
+    /// Creates a new [`BlockReplacement`].
     pub const fn new(replacement: T, invalidated: B256) -> Self {
         Self { replacement, invalidated }
     }
@@ -131,7 +96,7 @@ pub struct OutputV0 {
 }
 
 impl OutputV0 {
-    /// Creates a new OutputV0 instance.
+    /// Creates a new [`OutputV0`] instance.
     pub const fn new(
         state_root: B256,
         message_passer_storage_root: B256,
@@ -148,45 +113,24 @@ pub type Receipts = Vec<OpReceiptEnvelope>;
 ///
 /// This struct is used to communicate various events that occur within the node.
 /// At least one of the fields will be `Some`, and the rest will be `None`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Constructor)]
 #[serde(rename_all = "camelCase")]
 pub struct ManagedEvent {
     /// Indicates a successful reset operation with an optional message
     pub reset: Option<String>,
 
     /// Information about a new unsafe block
-    pub unsafe_block: Option<BlockRef>,
+    pub unsafe_block: Option<BlockInfo>,
 
     /// Update about a newly derived L2 block from L1
-    pub derivation_update: Option<DerivedBlockRefPair>,
+    pub derivation_update: Option<DerivedRefPair>,
 
     /// Signals that there are no more L1 blocks to process
-    pub exhaust_l1: Option<DerivedBlockRefPair>,
+    pub exhaust_l1: Option<DerivedRefPair>,
 
     /// Confirms a successful block replacement operation
     pub replace_block: Option<BlockReplacement>,
 
     /// Indicates an update to the derivation origin
-    pub derivation_origin_update: Option<BlockRef>,
-}
-
-impl ManagedEvent {
-    /// Creates a new ManagedEvent with the specified fields.
-    pub const fn new(
-        reset: Option<String>,
-        unsafe_block: Option<BlockRef>,
-        derivation_update: Option<DerivedBlockRefPair>,
-        exhaust_l1: Option<DerivedBlockRefPair>,
-        replace_block: Option<BlockReplacement>,
-        derivation_origin_update: Option<BlockRef>,
-    ) -> Self {
-        Self {
-            reset,
-            unsafe_block,
-            derivation_update,
-            exhaust_l1,
-            replace_block,
-            derivation_origin_update,
-        }
-    }
+    pub derivation_origin_update: Option<BlockInfo>,
 }
