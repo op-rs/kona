@@ -4993,6 +4993,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips 1.0.1",
  "alloy-primitives",
+ "alloy-rpc-types-engine",
  "async-trait",
  "derive_more",
  "jsonrpsee",

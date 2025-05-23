@@ -13,22 +13,27 @@ categories.workspace = true
 exclude.workspace = true
 
 [dependencies]
-# Workspace
+# workspace
 kona-interop.workspace = true
-kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 kona-protocol.workspace = true
+kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 
-# Alloy
+# alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
+
+# op-alloy
 op-alloy-rpc-types.workspace = true
 op-alloy-consensus.workspace = true
 
-# External Dependencies
-jsonrpsee = { workspace = true, features = [ "ws-client", "macros", "server" ] }
-serde.workspace = true
+# jsonrpsee
+jsonrpsee = { workspace = true, features = [ "macros", "server", "client", "ws-client" ] }
+
+# general
 async-trait.workspace = true
-tracing = { workspace = true }
+serde.workspace = true
+tracing.workspace = true 
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "macros"] }
 derive_more = { workspace = true, default-features = false, features = ["constructor"] }
@@ -37,8 +42,8 @@ derive_more = { workspace = true, default-features = false, features = ["constru
 metrics = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
-tempfile = { workspace = true }
+serde_json.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

@@ -8,7 +8,9 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
-pub use syncnode::{ManagedNodeConfig, NodeSubscriber, SubscriptionError};
+pub use syncnode::{ManagedNodeConfig, ManagedNodeSubscriber, SubscriptionError};
+
+pub use syncnode::jsonrpsee::{ManagedNodeApiClient, ManagedNodeApiServer};
 
 mod types;
 pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
