@@ -283,7 +283,6 @@ mod tests {
     use super::*;
     use crate::types::{BlockRef, BlockReplacement, DerivedBlockRefPair};
     use alloy_primitives::{B256, U64};
-    use serde_json;
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::time::{Duration, sleep};
