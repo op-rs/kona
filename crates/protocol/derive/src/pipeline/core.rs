@@ -200,7 +200,7 @@ mod tests {
 
     fn default_test_payload_attributes() -> OpAttributesWithParent {
         OpAttributesWithParent {
-            attributes: OpPayloadAttributes {
+            inner: OpPayloadAttributes {
                 payload_attributes: PayloadAttributes {
                     timestamp: 0,
                     prev_randao: Default::default(),
@@ -214,6 +214,7 @@ mod tests {
                 eip_1559_params: None,
             },
             parent: Default::default(),
+            l1_origin: Default::default(),
             is_last_in_span: false,
         }
     }

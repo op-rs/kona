@@ -85,8 +85,9 @@ where
                 return Err(e);
             }
         };
+        let origin = self.origin().ok_or(PipelineError::MissingOrigin.crit())?;
         let populated_attributes =
-            OpAttributesWithParent { attributes, parent, is_last_in_span: self.is_last_in_span };
+            OpAttributesWithParent::new(attributes, parent, origin, self.is_last_in_span);
 
         // Clear out the local state once payload attributes are prepared.
         self.batch = None;
@@ -366,7 +367,8 @@ mod tests {
     #[tokio::test]
     async fn test_next_attributes_load_batch_last_in_span() {
         let cfg = RollupConfig::default();
-        let mock = new_test_attributes_provider(None, vec![Ok(Default::default())]);
+        let mock =
+            new_test_attributes_provider(Some(Default::default()), vec![Ok(Default::default())]);
         let mut pa = default_optimism_payload_attributes();
         let mock_builder = TestAttributesBuilder { attributes: vec![Ok(pa.clone())] };
         let mut aq = AttributesQueue::new(Arc::new(cfg), mock, mock_builder);
@@ -380,8 +382,9 @@ mod tests {
         let attributes = aq.next_attributes(L2BlockInfo::default()).await.unwrap();
         pa.no_tx_pool = Some(true);
         let populated_attributes = OpAttributesWithParent {
-            attributes: pa,
+            inner: pa,
             parent: L2BlockInfo::default(),
+            l1_origin: BlockInfo::default(),
             is_last_in_span: true,
         };
         assert_eq!(attributes, populated_attributes);
