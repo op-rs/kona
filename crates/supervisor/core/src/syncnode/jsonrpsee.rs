@@ -1,5 +1,4 @@
-//! [`ManagedNodeApi`] trait contains all endpoints for supervisor <> node
-//! communication in managed node.
+//! API endpoints for supervisor <> node communication in managed node.
 
 use crate::types::ManagedEvent;
 use jsonrpsee::{

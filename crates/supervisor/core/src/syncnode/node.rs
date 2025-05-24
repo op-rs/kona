@@ -67,7 +67,7 @@ pub struct ManagedNodeSubscriber {
 
 impl ManagedNodeSubscriber {
     /// Creates a new [`ManagedNodeSubscriber`] with the specified configuration.
-    pub fn new(config: Arc<ManagedNodeConfig>) -> Self {
+    pub const fn new(config: Arc<ManagedNodeConfig>) -> Self {
         Self { config, stop_tx: None, task_handle: None }
     }
 
