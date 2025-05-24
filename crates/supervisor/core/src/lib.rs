@@ -6,3 +6,11 @@ pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
 mod rpc;
 pub use rpc::SupervisorRpc;
+
+mod syncnode;
+pub use syncnode::{ManagedNodeConfig, ManagedNodeSubscriber};
+
+pub use syncnode::jsonrpsee::{ManagedNodeApiClient, ManagedNodeApiServer};
+
+mod types;
+pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
