@@ -437,15 +437,15 @@ mod tests {
         };
 
         let jwt_secret = config.jwt_secret().expect("Should have JWT secret");
-        
+
         // Test that we can create the authorization header as expected
         let mut headers = HeaderMap::new();
         let auth_header =
             format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
         let header_result = HeaderValue::from_str(&auth_header);
-        
+
         assert!(header_result.is_ok(), "Should be able to create valid authorization header");
-        
+
         headers.insert("Authorization", header_result.unwrap());
         assert!(headers.contains_key("Authorization"), "Headers should contain Authorization");
     }
@@ -462,15 +462,15 @@ mod tests {
         });
 
         let mut subscriber = ManagedNodeSubscriber::new(config);
-        
+
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.is_none());
         assert!(subscriber.stop_tx.is_none());
-        
+
         // Test starting subscription to invalid server (should fail)
         let start_result = subscriber.start_subscription().await;
         assert!(start_result.is_err(), "Subscription to invalid server should fail");
-        
+
         // Verify state remains consistent after failure
         assert!(subscriber.task_handle.is_none());
     }
