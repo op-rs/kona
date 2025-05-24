@@ -14,3 +14,6 @@ pub use build::{BuildTask, BuildTaskError};
 
 mod consolidate;
 pub use consolidate::{ConsolidateTask, ConsolidateTaskError};
+
+mod finalize;
+pub use finalize::{FinalizeTask, FinalizeTaskError};

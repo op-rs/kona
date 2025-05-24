@@ -54,9 +54,9 @@ where
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: UnboundedReceiver<Signal>,
-
     /// The receiver for L1 head update notifications.
     l1_head_updates: UnboundedReceiver<BlockInfo>,
+
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
     attributes_out: UnboundedSender<OpAttributesWithParent>,
     /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward

@@ -35,7 +35,7 @@ impl AttributesMatch {
         attributes: &OpAttributesWithParent,
         block: &Block<Transaction>,
     ) -> Self {
-        let attr_withdrawals = attributes.attributes.payload_attributes.withdrawals.as_ref();
+        let attr_withdrawals = attributes.inner().payload_attributes.withdrawals.as_ref();
         let attr_withdrawals = attr_withdrawals.map(|w| Withdrawals::new(w.to_vec()));
         let block_withdrawals = block.withdrawals.as_ref();
 
@@ -153,7 +153,7 @@ impl AttributesMatch {
     ) -> Self {
         // We can assume that the EIP-1559 params are set iff holocene is active.
         // Note here that we don't need to check for the attributes length because of type-safety.
-        let (ae, ad): (u128, u128) = match attributes.attributes.decode_eip_1559_params() {
+        let (ae, ad): (u128, u128) = match attributes.inner().decode_eip_1559_params() {
             None => {
                 // Holocene is active but the eip1559 are not set. This is a bug!
                 // Note: we checked the timestamp match above, so we can assume that both the
@@ -237,18 +237,18 @@ impl AttributesMatch {
             .into();
         }
 
-        if attributes.attributes.payload_attributes.timestamp != block.header.inner.timestamp {
+        if attributes.inner().payload_attributes.timestamp != block.header.inner.timestamp {
             return AttributesMismatch::Timestamp(
-                attributes.attributes.payload_attributes.timestamp,
+                attributes.inner().payload_attributes.timestamp,
                 block.header.inner.timestamp,
             )
             .into();
         }
 
         let mix_hash = block.header.inner.mix_hash;
-        if attributes.attributes.payload_attributes.prev_randao != mix_hash {
+        if attributes.inner().payload_attributes.prev_randao != mix_hash {
             return AttributesMismatch::PrevRandao(
-                attributes.attributes.payload_attributes.prev_randao,
+                attributes.inner().payload_attributes.prev_randao,
                 mix_hash,
             )
             .into();
@@ -257,14 +257,14 @@ impl AttributesMatch {
         // Let's extract the list of attribute transactions
         let default_vec = vec![];
         let attributes_txs =
-            attributes.attributes.transactions.as_ref().map_or_else(|| &default_vec, |attrs| attrs);
+            attributes.inner().transactions.as_ref().map_or_else(|| &default_vec, |attrs| attrs);
 
         // Check transactions
         if let mismatch @ Self::Mismatch(_) = Self::check_transactions(attributes_txs, block) {
             return mismatch
         }
 
-        let Some(gas_limit) = attributes.attributes.gas_limit else {
+        let Some(gas_limit) = attributes.inner().gas_limit else {
             return AttributesMismatch::MissingAttributesGasLimit.into();
         };
 
@@ -276,21 +276,21 @@ impl AttributesMatch {
             return m.into();
         }
 
-        if attributes.attributes.payload_attributes.parent_beacon_block_root !=
+        if attributes.inner().payload_attributes.parent_beacon_block_root !=
             block.header.inner.parent_beacon_block_root
         {
             return AttributesMismatch::ParentBeaconBlockRoot(
-                attributes.attributes.payload_attributes.parent_beacon_block_root,
+                attributes.inner().payload_attributes.parent_beacon_block_root,
                 block.header.inner.parent_beacon_block_root,
             )
             .into();
         }
 
-        if attributes.attributes.payload_attributes.suggested_fee_recipient !=
+        if attributes.inner().payload_attributes.suggested_fee_recipient !=
             block.header.inner.beneficiary
         {
             return AttributesMismatch::FeeRecipient(
-                attributes.attributes.payload_attributes.suggested_fee_recipient,
+                attributes.inner().payload_attributes.suggested_fee_recipient,
                 block.header.inner.beneficiary,
             )
             .into();
@@ -371,15 +371,16 @@ mod tests {
     use alloy_primitives::{Bytes, FixedBytes, address, b256};
     use alloy_rpc_types_eth::BlockTransactions;
     use arbitrary::{Arbitrary, Unstructured};
-    use kona_protocol::L2BlockInfo;
+    use kona_protocol::{BlockInfo, L2BlockInfo};
     use kona_registry::ROLLUP_CONFIGS;
     use op_alloy_consensus::encode_holocene_extra_data;
     use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
     fn default_attributes() -> OpAttributesWithParent {
         OpAttributesWithParent {
-            attributes: OpPayloadAttributes::default(),
+            inner: OpPayloadAttributes::default(),
             parent: L2BlockInfo::default(),
+            l1_origin: BlockInfo::default(),
             is_last_in_span: true,
         }
     }
@@ -414,7 +415,7 @@ mod tests {
         block.header.inner.timestamp = 1234567890;
         let check = AttributesMatch::check(cfg, &attributes, &block);
         let expected: AttributesMatch = AttributesMismatch::Timestamp(
-            attributes.attributes.payload_attributes.timestamp,
+            attributes.inner().payload_attributes.timestamp,
             block.header.inner.timestamp,
         )
         .into();
@@ -431,7 +432,7 @@ mod tests {
             b256!("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
         let check = AttributesMatch::check(cfg, &attributes, &block);
         let expected: AttributesMatch = AttributesMismatch::PrevRandao(
-            attributes.attributes.payload_attributes.prev_randao,
+            attributes.inner().payload_attributes.prev_randao,
             block.header.inner.mix_hash,
         )
         .into();
@@ -455,12 +456,12 @@ mod tests {
     fn test_attributes_match_check_gas_limit() {
         let cfg = default_rollup_config();
         let mut attributes = default_attributes();
-        attributes.attributes.gas_limit = Some(123457);
+        attributes.inner.gas_limit = Some(123457);
         let mut block = Block::<Transaction>::default();
         block.header.inner.gas_limit = 123456;
         let check = AttributesMatch::check(cfg, &attributes, &block);
         let expected: AttributesMatch = AttributesMismatch::GasLimit(
-            attributes.attributes.gas_limit.unwrap_or_default(),
+            attributes.inner().gas_limit.unwrap_or_default(),
             block.header.inner.gas_limit,
         )
         .into();
@@ -472,13 +473,13 @@ mod tests {
     fn test_attributes_match_check_parent_beacon_block_root() {
         let cfg = default_rollup_config();
         let mut attributes = default_attributes();
-        attributes.attributes.gas_limit = Some(0);
-        attributes.attributes.payload_attributes.parent_beacon_block_root =
+        attributes.inner.gas_limit = Some(0);
+        attributes.inner.payload_attributes.parent_beacon_block_root =
             Some(b256!("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"));
         let block = Block::<Transaction>::default();
         let check = AttributesMatch::check(cfg, &attributes, &block);
         let expected: AttributesMatch = AttributesMismatch::ParentBeaconBlockRoot(
-            attributes.attributes.payload_attributes.parent_beacon_block_root,
+            attributes.inner().payload_attributes.parent_beacon_block_root,
             block.header.inner.parent_beacon_block_root,
         )
         .into();
@@ -490,12 +491,12 @@ mod tests {
     fn test_attributes_match_check_fee_recipient() {
         let cfg = default_rollup_config();
         let mut attributes = default_attributes();
-        attributes.attributes.gas_limit = Some(0);
+        attributes.inner.gas_limit = Some(0);
         let mut block = Block::<Transaction>::default();
         block.header.inner.beneficiary = address!("1234567890abcdef1234567890abcdef12345678");
         let check = AttributesMatch::check(cfg, &attributes, &block);
         let expected: AttributesMatch = AttributesMismatch::FeeRecipient(
-            attributes.attributes.payload_attributes.suggested_fee_recipient,
+            attributes.inner().payload_attributes.suggested_fee_recipient,
             block.header.inner.beneficiary,
         )
         .into();
@@ -526,8 +527,8 @@ mod tests {
 
         let transactions = generate_txs(NUM_TXS);
         let mut attributes = default_attributes();
-        attributes.attributes.gas_limit = Some(0);
-        attributes.attributes.transactions = Some(
+        attributes.inner.gas_limit = Some(0);
+        attributes.inner.transactions = Some(
             transactions
                 .iter()
                 .map(|tx| {
@@ -559,12 +560,12 @@ mod tests {
     fn test_attributes_mismatch_check_transactions_len() {
         let cfg = default_rollup_config();
         let (mut attributes, block) = test_transactions_match_helper();
-        attributes.attributes = OpPayloadAttributes {
-            transactions: attributes.attributes.transactions.map(|mut txs| {
+        attributes.inner = OpPayloadAttributes {
+            transactions: attributes.inner.transactions.map(|mut txs| {
                 txs.pop();
                 txs
             }),
-            ..attributes.attributes
+            ..attributes.inner
         };
 
         let block_txs_len = block.transactions.len();
@@ -608,7 +609,7 @@ mod tests {
     fn test_attributes_mismatch_empty_tx_attributes() {
         let cfg = default_rollup_config();
         let (mut attributes, block) = test_transactions_match_helper();
-        attributes.attributes = OpPayloadAttributes { transactions: None, ..attributes.attributes };
+        attributes.inner = OpPayloadAttributes { transactions: None, ..attributes.inner };
 
         let block_txs_len = block.transactions.len();
 
@@ -640,7 +641,7 @@ mod tests {
     fn test_attributes_transactions_wrong_format() {
         let cfg = default_rollup_config();
         let (mut attributes, block) = test_transactions_match_helper();
-        let txs = attributes.attributes.transactions.as_mut().unwrap();
+        let txs = attributes.inner.transactions.as_mut().unwrap();
         let first_tx_bytes = txs.first_mut().unwrap();
         *first_tx_bytes = Bytes::copy_from_slice(&[0, 1, 2]);
 
@@ -658,8 +659,7 @@ mod tests {
         let cfg = default_rollup_config();
         let (mut attributes, mut block) = test_transactions_match_helper();
 
-        attributes.attributes =
-            OpPayloadAttributes { transactions: Some(vec![]), ..attributes.attributes };
+        attributes.inner = OpPayloadAttributes { transactions: Some(vec![]), ..attributes.inner };
 
         block.transactions = BlockTransactions::Full(vec![]);
 
@@ -668,7 +668,7 @@ mod tests {
 
         // Edge case: if the block transactions and the payload attributes are empty, we can also
         // use the hash format (this is the default value of `BlockTransactions`).
-        attributes.attributes = OpPayloadAttributes { transactions: None, ..attributes.attributes };
+        attributes.inner = OpPayloadAttributes { transactions: None, ..attributes.inner };
         block.transactions = BlockTransactions::Hashes(vec![]);
 
         let check = AttributesMatch::check(cfg, &attributes, &block);
@@ -682,8 +682,7 @@ mod tests {
         let cfg = default_rollup_config();
         let (mut attributes, mut block) = test_transactions_match_helper();
 
-        attributes.attributes =
-            OpPayloadAttributes { transactions: Some(vec![]), ..attributes.attributes };
+        attributes.inner = OpPayloadAttributes { transactions: Some(vec![]), ..attributes.inner };
 
         block.transactions = BlockTransactions::Hashes(vec![]);
 
@@ -697,8 +696,7 @@ mod tests {
         let cfg = default_rollup_config();
         let (mut attributes, mut block) = test_transactions_match_helper();
 
-        attributes.attributes =
-            OpPayloadAttributes { transactions: Some(vec![]), ..attributes.attributes };
+        attributes.inner = OpPayloadAttributes { transactions: Some(vec![]), ..attributes.inner };
 
         block.transactions = BlockTransactions::Uncle;
 
@@ -716,9 +714,9 @@ mod tests {
         cfg.hardforks.holocene_time = Some(0);
 
         let mut attributes = default_attributes();
-        attributes.attributes.gas_limit = Some(0);
+        attributes.inner.gas_limit = Some(0);
         // For canyon and above we need to specify the withdrawals
-        attributes.attributes.payload_attributes.withdrawals = Some(vec![]);
+        attributes.inner.payload_attributes.withdrawals = Some(vec![]);
 
         // For canyon and above we also need to specify the withdrawal headers
         let block = Block {
@@ -751,7 +749,7 @@ mod tests {
     fn test_eip1559_parameters_specified_attributes_but_not_block() {
         let (cfg, mut attributes, block) = eip1559_test_setup();
 
-        attributes.attributes.eip_1559_params = Some(Default::default());
+        attributes.inner.eip_1559_params = Some(Default::default());
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
         assert_eq!(check, AttributesMatch::Mismatch(AttributesMismatch::MissingBlockEIP1559));
@@ -764,7 +762,7 @@ mod tests {
     fn test_eip1559_parameters_specified_both_and_empty() {
         let (cfg, mut attributes, mut block) = eip1559_test_setup();
 
-        attributes.attributes.eip_1559_params = Some(Default::default());
+        attributes.inner.eip_1559_params = Some(Default::default());
         block.header.extra_data = vec![0; 9].into();
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
@@ -782,7 +780,7 @@ mod tests {
     fn test_eip1559_parameters_empty_for_attr_only() {
         let (cfg, mut attributes, mut block) = eip1559_test_setup();
 
-        attributes.attributes.eip_1559_params = Some(Default::default());
+        attributes.inner.eip_1559_params = Some(Default::default());
         block.header.extra_data = encode_holocene_extra_data(
             Default::default(),
             BaseFeeParams { max_change_denominator: 250, elasticity_multiplier: 6 },
@@ -806,7 +804,7 @@ mod tests {
         let eip1559_params: FixedBytes<8> =
             eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
 
-        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        attributes.inner.eip_1559_params = Some(eip1559_params);
         block.header.extra_data = eip1559_extra_params;
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
@@ -834,7 +832,7 @@ mod tests {
         .try_into()
         .unwrap();
 
-        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        attributes.inner.eip_1559_params = Some(eip1559_params);
         block.header.extra_data = eip1559_extra_params;
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
@@ -861,7 +859,7 @@ mod tests {
         let eip1559_params: FixedBytes<8> =
             eip1559_extra_params.clone().split_off(1).as_ref().try_into().unwrap();
 
-        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        attributes.inner.eip_1559_params = Some(eip1559_params);
         block.header.extra_data = eip1559_extra_params;
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
@@ -888,7 +886,7 @@ mod tests {
         let mut raw_extra_params_bytes = eip1559_extra_params.to_vec();
         raw_extra_params_bytes[0] = 10;
 
-        attributes.attributes.eip_1559_params = Some(eip1559_params);
+        attributes.inner.eip_1559_params = Some(eip1559_params);
         block.header.extra_data = raw_extra_params_bytes.into();
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
@@ -903,7 +901,7 @@ mod tests {
         cfg.chain_op_config.eip1559_denominator_canyon = u128::MAX;
         cfg.chain_op_config.eip1559_elasticity = u128::MAX;
 
-        attributes.attributes.eip_1559_params = Some(Default::default());
+        attributes.inner.eip_1559_params = Some(Default::default());
         block.header.extra_data = vec![0; 9].into();
 
         let check = AttributesMatch::check(&cfg, &attributes, &block);
@@ -927,7 +925,7 @@ mod tests {
     fn test_attributes_match() {
         let cfg = default_rollup_config();
         let mut attributes = default_attributes();
-        attributes.attributes.gas_limit = Some(0);
+        attributes.inner.gas_limit = Some(0);
         let block = Block::<Transaction>::default();
         let check = AttributesMatch::check(cfg, &attributes, &block);
         assert_eq!(check, AttributesMatch::Match);
