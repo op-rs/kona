@@ -55,7 +55,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Build the application binary on the selected tag
 RUN cd kona && \
-  cargo build --workspace --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" && \
+  RUSTFLAGS="-C target-cpu=native" cargo build --workspace --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" && \
   mv "./target/${BUILD_PROFILE}/${BIN_TARGET}" "/${BIN_TARGET}"
 
 # Export stage

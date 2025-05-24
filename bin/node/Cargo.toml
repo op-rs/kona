@@ -61,3 +61,9 @@ rstest.workspace = true
 [build-dependencies]
 vergen = { workspace = true, features = ["build", "cargo", "emit_and_set"] }
 vergen-git2.workspace = true
+
+[features]
+default = ["asm-keccak"]
+asm-keccak = [
+  "alloy-primitives/asm-keccak"
+]
