@@ -20,7 +20,7 @@ mod block;
 pub use block::BlockRef;
 
 mod derivation;
-pub use derivation::DerivedBlockPair;
+pub use derivation::StoredDerivedBlockPair;
 
 mod common;
 pub use common::U64List;
@@ -57,7 +57,7 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockRef, LogEntry, DerivedBlockPair, U64List);
+impl_compression_for_compact!(BlockRef, LogEntry, StoredDerivedBlockPair, U64List);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -79,10 +79,10 @@ tables! {
 
     /// A table mapping a derived block number to its corresponding source and derived block reference.
     /// - Key: `u64` — derived block number
-    /// - Value: [`DerivedBlockPair`] — pair of source and derived block reference
+    /// - Value: [`StoredDerivedBlockPair`] — pair of source and derived block reference
     table DerivedBlocks {
         type Key = u64;
-        type Value = DerivedBlockPair;
+        type Value = StoredDerivedBlockPair;
     }
 
     /// A table mapping a source block number to a list of its derived block numbers.
@@ -164,14 +164,14 @@ mod tests {
             time: 1010,
         };
 
-        let original_pair = DerivedBlockPair { source: source_ref, derived: derived_ref };
+        let original_pair = StoredDerivedBlockPair { source: source_ref, derived: derived_ref };
 
         let mut compressed_buf = Vec::new();
         original_pair.compress_to_buf(&mut compressed_buf);
 
         assert!(!compressed_buf.is_empty(), "Buffer should not be empty after compression");
 
-        let decompressed_pair = DerivedBlockPair::decompress(&compressed_buf).unwrap();
+        let decompressed_pair = StoredDerivedBlockPair::decompress(&compressed_buf).unwrap();
         assert_eq!(
             original_pair, decompressed_pair,
             "Original and deserialized pairs should be equal"

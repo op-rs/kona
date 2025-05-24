@@ -153,7 +153,7 @@ impl L1BlockInfoTx {
             source_hash: source.source_hash(),
             from: L1_INFO_DEPOSITOR_ADDRESS,
             to: TxKind::Call(Predeploys::L1_BLOCK_INFO),
-            mint: None,
+            mint: 0,
             value: U256::ZERO,
             gas_limit: 150_000_000,
             is_system_transaction: true,
@@ -999,7 +999,7 @@ mod test {
         assert!(matches!(l1_info, L1BlockInfoTx::Isthmus(_)));
         assert_eq!(deposit_tx.from, L1_INFO_DEPOSITOR_ADDRESS);
         assert_eq!(deposit_tx.to, TxKind::Call(Predeploys::L1_BLOCK_INFO));
-        assert_eq!(deposit_tx.mint, None);
+        assert_eq!(deposit_tx.mint, 0);
         assert_eq!(deposit_tx.value, U256::ZERO);
         assert_eq!(deposit_tx.gas_limit, REGOLITH_SYSTEM_TX_GAS);
         assert!(!deposit_tx.is_system_transaction);

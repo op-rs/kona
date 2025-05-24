@@ -38,8 +38,9 @@ impl NodeActor for RpcActor {
     type Error = RpcActorError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
+        let server = self.server.clone();
         tokio::select! {
-            _ = self.server.clone().stopped() => {
+            _ = server.stopped() => {
                 // The server has stopped, so we should stop as well.
                 self.cancellation.cancel();
                 return Err(RpcActorError::ServerStopped);

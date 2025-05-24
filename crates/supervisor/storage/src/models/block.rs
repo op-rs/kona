@@ -8,6 +8,7 @@
 //! require dup-sorting.
 
 use alloy_primitives::B256;
+use kona_protocol::BlockInfo;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 
@@ -26,6 +27,36 @@ pub struct BlockRef {
     pub parent_hash: B256,
     /// The timestamp of the block (seconds since Unix epoch).
     pub time: u64,
+}
+
+/// Converts from [`BlockInfo`] (external API format) to [`BlockRef`] (storage
+/// format).
+///
+/// Performs a direct field mapping.
+impl From<BlockInfo> for BlockRef {
+    fn from(block: BlockInfo) -> Self {
+        Self {
+            number: block.number,
+            hash: block.hash,
+            parent_hash: block.parent_hash,
+            time: block.timestamp,
+        }
+    }
+}
+
+/// Converts from [`BlockRef`] (storage format) to [`BlockInfo`] (external API
+/// format).
+///
+/// This enables decoding values stored in a compact format for use in application logic.
+impl From<BlockRef> for BlockInfo {
+    fn from(block: BlockRef) -> Self {
+        Self {
+            number: block.number,
+            hash: block.hash,
+            parent_hash: block.parent_hash,
+            timestamp: block.time,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -56,5 +87,39 @@ mod tests {
         let (deserialized_ref, remaining_buf) = BlockRef::from_compact(&buffer, bytes_written);
         assert_eq!(original_ref, deserialized_ref, "Original and deserialized ref should be equal");
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
+    }
+
+    #[test]
+    fn test_from_block_info_to_block_ref() {
+        let block_info = BlockInfo {
+            number: 123,
+            hash: test_b256(1),
+            parent_hash: test_b256(2),
+            timestamp: 1600000000,
+        };
+
+        let block_ref: BlockRef = block_info.into();
+
+        assert_eq!(block_ref.number, block_info.number, "Number should match");
+        assert_eq!(block_ref.hash, block_info.hash, "Hash should match");
+        assert_eq!(block_ref.parent_hash, block_info.parent_hash, "Parent hash should match");
+        assert_eq!(block_ref.time, block_info.timestamp, "Time (timestamp) should match");
+    }
+
+    #[test]
+    fn test_from_block_ref_to_block_info() {
+        let block_ref = BlockRef {
+            number: 456,
+            hash: test_b256(3),
+            parent_hash: test_b256(4),
+            time: 1700000000,
+        };
+
+        let block_info: BlockInfo = block_ref.clone().into();
+
+        assert_eq!(block_info.number, block_ref.number, "Number should match");
+        assert_eq!(block_info.hash, block_ref.hash, "Hash should match");
+        assert_eq!(block_info.parent_hash, block_ref.parent_hash, "Parent hash should match");
+        assert_eq!(block_info.timestamp, block_ref.time, "Timestamp (time) should match");
     }
 }

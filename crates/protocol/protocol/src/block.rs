@@ -42,6 +42,11 @@ impl BlockInfo {
     pub const fn id(&self) -> BlockNumHash {
         BlockNumHash { hash: self.hash, number: self.number }
     }
+
+    /// Returns `true` if this [`BlockInfo`] is the direct parent of the given block.
+    pub fn is_parent_of(&self, block: &Self) -> bool {
+        self.number + 1 == block.number && self.hash == block.parent_hash
+    }
 }
 
 impl<T> From<Block<T>> for BlockInfo {
@@ -525,5 +530,31 @@ mod tests {
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();
         assert_eq!(deserialized, l2_block_info);
+    }
+
+    #[test]
+    fn test_is_parent_of() {
+        let parent = BlockInfo {
+            hash: B256::from([1u8; 32]),
+            number: 10,
+            parent_hash: B256::from([0u8; 32]),
+            timestamp: 1000,
+        };
+        let child = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 11,
+            parent_hash: parent.hash,
+            timestamp: 1010,
+        };
+        let unrelated = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 12,
+            parent_hash: B256::from([9u8; 32]),
+            timestamp: 1020,
+        };
+
+        assert!(parent.is_parent_of(&child));
+        assert!(!child.is_parent_of(&parent));
+        assert!(!parent.is_parent_of(&unrelated));
     }
 }
