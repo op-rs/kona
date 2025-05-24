@@ -25,7 +25,7 @@ RUN git clone https://github.com/op-rs/kona
 # Build the application binary on the selected tag
 RUN cd kona && \
   git checkout "${TAG}" && \
-  cargo build --workspace --bin "${BIN_TARGET}" --release && \
+  RUSTFLAGS="-C target-cpu=native" cargo build --workspace --bin "${BIN_TARGET}" --profile release-perf && \
   mv "./target/release/${BIN_TARGET}" "/${BIN_TARGET}"
 
 FROM ubuntu:22.04 AS export-stage
