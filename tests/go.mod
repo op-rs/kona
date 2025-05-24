@@ -5,6 +5,8 @@ go 1.24.3
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devnet-sdk` package.
 require github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
 
+require github.com/stretchr/testify v1.10.0 
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
@@ -129,7 +131,6 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
