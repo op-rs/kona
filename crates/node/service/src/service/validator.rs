@@ -27,27 +27,9 @@ use tokio_util::sync::CancellationToken;
 /// 2. The L2 sequencer, which produces unsafe L2 blocks and sends them to the network over p2p
 ///    gossip.
 ///
-/// From these two sources, the validator node imports `unsafe` blocks from the L2 sequencer and
-/// `safe` blocks from the L2 derivation pipeline into the L2 execution layer via the Engine API.
-///
-/// Finally, a state actor listens for new L2 block import events and updates the L2 state
-/// accordingly, sending notifications to the other actors for synchronization.
-///
-/// ## Actor Communication
-///
-/// ```not_rust
-/// ┌────────────┐
-/// │L2 Sequencer│
-/// │            ├───┐
-/// │   Gossip   │   │   ┌────────────┐   ┌────────────┐   ┌────────────┐
-/// └────────────┘   │   │            │   │            │   │            │
-///                  ├──►│ Derivation │──►│ Engine API │──►│   State    │
-/// ┌────────────┐   │   │            │   │            │   │            │
-/// │     DA     │   │   └────────────┘   └┬───────────┘   └┬───────────┘
-/// │            ├───┘              ▲      │                │
-/// │   Watcher  │                  └──────┴────────────────┘
-/// └────────────┘
-/// ```
+/// From these two sources, the validator node imports `unsafe` blocks from the L2 sequencer,
+/// `safe` blocks from the L2 derivation pipeline into the L2 execution layer via the Engine API,
+/// and finalizes `safe` blocks that it has derived when L1 finalized block updates are received.
 ///
 /// ## Types
 ///
@@ -71,10 +53,13 @@ pub trait ValidatorNodeService {
 
     /// Creates a new [`NodeActor`] instance that watches the data availability layer. The
     /// `new_data_tx` channel is used to send updates on the data availability layer to the
-    /// derivation pipeline. The `cancellation` token is used to gracefully shut down the actor.
+    /// derivation pipeline. The `new_finalized_tx` is used to send updates on the data
+    /// availability layer to the engine for finalizing derived blocks. The `cancellation`
+    /// token is used to gracefully shut down the actor.
     fn new_da_watcher(
         &self,
         new_data_tx: UnboundedSender<BlockInfo>,
+        new_finalized_tx: UnboundedSender<BlockInfo>,
         block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -103,6 +88,7 @@ pub trait ValidatorNodeService {
 
         // Create channels for communication between actors.
         let (new_head_tx, new_head_rx) = mpsc::unbounded_channel();
+        let (new_finalized_tx, new_finalized_rx) = mpsc::unbounded_channel();
         let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
         let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
@@ -114,6 +100,7 @@ pub trait ValidatorNodeService {
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
         let da_watcher = Some(self.new_da_watcher(
             new_head_tx,
+            new_finalized_tx,
             block_signer_tx,
             cancellation.clone(),
             Some(l1_watcher_queries_recv),
@@ -161,6 +148,7 @@ pub trait ValidatorNodeService {
             derived_payload_rx,
             unsafe_block_rx,
             reset_request_rx,
+            new_finalized_rx,
             Some(engine_query_recv),
             cancellation.clone(),
         );

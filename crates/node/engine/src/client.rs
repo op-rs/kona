@@ -101,6 +101,11 @@ impl EngineClient {
         &self.l1_provider
     }
 
+    /// Returns a reference to the inner [`RollupConfig`].
+    pub fn cfg(&self) -> &RollupConfig {
+        &self.cfg
+    }
+
     /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].
     pub async fn l2_block_by_label(
         &self,

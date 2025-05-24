@@ -2,7 +2,7 @@
 //!
 //! [`Engine`]: crate::Engine
 
-use super::{BuildTask, ConsolidateTask, ForkchoiceTask, InsertUnsafeTask};
+use super::{BuildTask, ConsolidateTask, FinalizeTask, ForkchoiceTask, InsertUnsafeTask};
 use crate::EngineState;
 use async_trait::async_trait;
 use std::cmp::Ordering;
@@ -23,6 +23,8 @@ pub enum EngineTask {
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
     Consolidate(ConsolidateTask),
+    /// Finalizes an L2 block
+    Finalize(FinalizeTask),
 }
 
 impl EngineTask {
@@ -33,6 +35,7 @@ impl EngineTask {
             Self::InsertUnsafe(task) => task.execute(state).await,
             Self::BuildBlock(task) => task.execute(state).await,
             Self::Consolidate(task) => task.execute(state).await,
+            Self::Finalize(task) => task.execute(state).await,
         }
     }
 }
@@ -44,7 +47,8 @@ impl PartialEq for EngineTask {
             (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) |
                 (Self::InsertUnsafe(_), Self::InsertUnsafe(_)) |
                 (Self::BuildBlock(_), Self::BuildBlock(_)) |
-                (Self::Consolidate(_), Self::Consolidate(_))
+                (Self::Consolidate(_), Self::Consolidate(_)) |
+                (Self::Finalize(_), Self::Finalize(_))
         )
     }
 }
@@ -76,6 +80,7 @@ impl Ord for EngineTask {
             (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::BuildBlock(_), Self::BuildBlock(_)) => Ordering::Equal,
             (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) => Ordering::Equal,
+            (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
 
             // Individual ForkchoiceUpdate tasks are the highest priority
             (Self::ForkchoiceUpdate(_), _) => Ordering::Greater,
@@ -85,9 +90,13 @@ impl Ord for EngineTask {
             (Self::BuildBlock(_), _) => Ordering::Greater,
             (_, Self::BuildBlock(_)) => Ordering::Less,
 
-            // InsertUnsafe tasks are prioritized over Consolidate tasks
+            // InsertUnsafe tasks are prioritized over Consolidate and Finalize tasks
             (Self::InsertUnsafe(_), _) => Ordering::Greater,
             (_, Self::InsertUnsafe(_)) => Ordering::Less,
+
+            // Consolidate tasks are prioritized over Finalize tasks
+            (Self::Consolidate(_), _) => Ordering::Greater,
+            (_, Self::Consolidate(_)) => Ordering::Less,
         }
     }
 }

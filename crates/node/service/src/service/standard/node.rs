@@ -83,7 +83,8 @@ impl ValidatorNodeService for RollupNode {
 
     fn new_da_watcher(
         &self,
-        new_da_tx: UnboundedSender<BlockInfo>,
+        new_data_tx: UnboundedSender<BlockInfo>,
+        new_finalized_tx: UnboundedSender<BlockInfo>,
         block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -91,7 +92,8 @@ impl ValidatorNodeService for RollupNode {
         L1WatcherRpc::new(
             self.config.clone(),
             self.l1_provider.clone(),
-            new_da_tx,
+            new_data_tx,
+            new_finalized_tx,
             block_signer_tx,
             cancellation,
             l1_watcher_inbound_queries,

@@ -13,7 +13,7 @@ use kona_derive::{
 };
 use kona_executor::BlockBuildingOutcome;
 use kona_genesis::RollupConfig;
-use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
+use kona_protocol::L2BlockInfo;
 use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType};
 use spin::RwLock;
 
@@ -85,12 +85,9 @@ where
                 }
             }
 
-            let OpAttributesWithParent { mut attributes, .. } = match self
-                .pipeline
-                .produce_payload(tip_cursor.l2_safe_head)
-                .await
+            let mut attributes = match self.pipeline.produce_payload(tip_cursor.l2_safe_head).await
             {
-                Ok(attrs) => attrs,
+                Ok(attrs) => attrs.take_inner(),
                 Err(PipelineErrorKind::Critical(PipelineError::EndOfSource)) => {
                     warn!(target: "client", "Exhausted data source; Halting derivation and using current safe head.");
 
