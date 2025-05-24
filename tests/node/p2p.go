@@ -1,8 +1,6 @@
 package node
 
 import (
-	"encoding/json"
-
 	"github.com/ethereum-optimism/optimism/devnet-sdk/system"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
 	"github.com/ethereum-optimism/optimism/op-service/apis"
@@ -19,20 +17,11 @@ func peerCount(minPeersKnown uint, minPeersConnected uint) systest.SystemTestFun
 				clRPC := node.CLRPC()
 				clName := node.CLName()
 
-				rpcResp, err := SendRPCRequest(clRPC, "opp2p_peerStats")
+				peerStats := apis.PeerStats{}
+				err := SendRPCRequest(clRPC, "opp2p_peerStats", &peerStats)
 
 				if err != nil {
 					t.Errorf("failed to send RPC request to node %s: %s", clName, err)
-				} else if rpcResp.Error != nil {
-					t.Errorf("received RPC error from node %s: %s", clName, rpcResp.Error)
-				}
-
-				peerStats := apis.PeerStats{}
-
-				err = json.Unmarshal(rpcResp.Result, &peerStats)
-
-				if err != nil {
-					t.Errorf("failed to unmarshal result: %s", err)
 				}
 
 				require.GreaterOrEqual(t, peerStats.Known, minPeersKnown, "node %s has not enough known peers", clName)
@@ -62,20 +51,11 @@ func allPeersInNetwork() systest.SystemTestFunc {
 				clRPC := node.CLRPC()
 				clName := node.CLName()
 
-				rpcResp, err := SendRPCRequest(clRPC, "opp2p_self")
+				peerInfo := apis.PeerInfo{}
+				err := SendRPCRequest(clRPC, "opp2p_self", &peerInfo)
 
 				if err != nil {
 					t.Errorf("failed to send RPC request to node %s: %s", clName, err)
-				} else if rpcResp.Error != nil {
-					t.Errorf("received RPC error from node %s: %s", clName, rpcResp.Error)
-				}
-
-				peerInfo := apis.PeerInfo{}
-
-				err = json.Unmarshal(rpcResp.Result, &peerInfo)
-
-				if err != nil {
-					t.Errorf("failed to unmarshal result: %s", err)
 				}
 
 				peerIds[peerInfo.PeerID.String()] = true
@@ -86,20 +66,11 @@ func allPeersInNetwork() systest.SystemTestFunc {
 				clRPC := node.CLRPC()
 				clName := node.CLName()
 
-				rpcResp, err := SendRPCRequest(clRPC, "opp2p_peers", true)
+				peerDump := apis.PeerDump{}
+				err := SendRPCRequest(clRPC, "opp2p_peers", &peerDump, true)
 
 				if err != nil {
 					t.Errorf("failed to send RPC request to node %s: %s", clName, err)
-				} else if rpcResp.Error != nil {
-					t.Errorf("received RPC error from node %s: %s", clName, rpcResp.Error)
-				}
-
-				peerDump := apis.PeerDump{}
-
-				err = json.Unmarshal(rpcResp.Result, &peerDump)
-
-				if err != nil {
-					t.Errorf("failed to unmarshal result: %s", err)
 				}
 
 				for _, peer := range peerDump.Peers {

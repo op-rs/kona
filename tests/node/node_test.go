@@ -18,6 +18,7 @@ func TestSystemNodeP2p(t *testing.T) {
 
 	systest.SystemTest(t,
 		allPeersInNetwork(),
+		validators.HasSufficientL2Nodes(0, 2),
 	)
 
 	// Check that the node has at least 2 peers that are connected to its topics when there is more than 3 peers in the network initially.
@@ -27,4 +28,17 @@ func TestSystemNodeP2p(t *testing.T) {
 		validators.HasSufficientL2Nodes(0, 3),
 	)
 
+	// Check that the node has at least 4 peers that are connected to its topics when there is more than 9 peers in the network initially.
+	// We put a lower bound on the number of connected peers to account for network instability.
+	systest.SystemTest(t,
+		peerCount(8, 4),
+		validators.HasSufficientL2Nodes(0, 10),
+	)
+}
+
+func TestSystemNodeSync(t *testing.T) {
+	systest.SystemTest(t,
+		syncSafe(),
+		// TODO(@theochap): we should add a custom validator that checks that there is at least one peer that supports the `kona` protocol.
+	)
 }

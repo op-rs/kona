@@ -23,12 +23,10 @@ pub struct BlockInfo {
     /// The block hash
     pub hash: B256,
     /// The block number
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
     pub number: u64,
     /// The parent block hash
     pub parent_hash: B256,
     /// The block timestamp
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
     pub timestamp: u64,
 }
 
@@ -81,10 +79,7 @@ pub struct L2BlockInfo {
     #[cfg_attr(feature = "serde", serde(rename = "l1origin", alias = "l1Origin"))]
     pub l1_origin: BlockNumHash,
     /// The sequence number of the L2 block
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "alloy_serde::quantity", rename = "sequenceNumber", alias = "seqNum")
-    )]
+    #[cfg_attr(feature = "serde", serde(rename = "sequenceNumber", alias = "seqNum"))]
     pub seq_num: u64,
 }
 
