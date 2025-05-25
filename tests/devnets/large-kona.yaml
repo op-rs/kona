@@ -1,4 +1,5 @@
-# A larger network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
+# A large network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
+# Spins up a large EL/CL network.
 
 optimism_package:
   chains:
@@ -6,12 +7,12 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
-        count: 1
+        count: 2
       - el_type: op-reth
         cl_type: kona-node
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
-        count: 2
+        count: 4
       network_params:
         network: "kurtosis"
         network_id: "2151908"
@@ -55,7 +56,7 @@ optimism_package:
 ethereum_package:
   participants:
   - el_type: geth
-    cl_type: nimbus
+    cl_type: teku
   network_params:
     preset: minimal
     genesis_delay: 5

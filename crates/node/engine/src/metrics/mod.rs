@@ -28,6 +28,8 @@ impl Metrics {
     pub const FORKCHOICE_TASK_LABEL: &str = "forkchoice-update";
     /// Build task label.
     pub const BUILD_TASK_LABEL: &str = "build";
+    /// Finalize task label.
+    pub const FINALIZE_TASK_LABEL: &str = "finalize";
 
     /// Identifier for the histogram that tracks engine method call time.
     pub const ENGINE_METHOD_REQUEST_DURATION: &str = "kona_node_engine_method_request_duration";
@@ -85,6 +87,7 @@ impl Metrics {
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::FORKCHOICE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::BUILD_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::FINALIZE_TASK_LABEL, 0);
 
         // Engine reset count
         kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);

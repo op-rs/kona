@@ -66,31 +66,31 @@ impl BuildTask {
     ) -> Result<PayloadId, BuildTaskError> {
         debug!(
             target: "engine_builder",
-            txs = attributes_envelope.attributes.transactions.as_ref().map_or(0, |txs| txs.len()),
+            txs = attributes_envelope.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
             "Starting new build job"
         );
 
         let forkchoice_version = EngineForkchoiceVersion::from_cfg(
             &self.cfg,
-            attributes_envelope.attributes.payload_attributes.timestamp,
+            attributes_envelope.inner().payload_attributes.timestamp,
         );
         debug!(target: "engine_builder", ?forkchoice_version, "Forkchoice version");
         let update = match forkchoice_version {
             EngineForkchoiceVersion::V3 => {
                 engine_client
-                    .fork_choice_updated_v3(forkchoice, Some(attributes_envelope.attributes))
+                    .fork_choice_updated_v3(forkchoice, Some(attributes_envelope.inner))
                     .await
             }
             EngineForkchoiceVersion::V2 => {
                 engine_client
-                    .fork_choice_updated_v2(forkchoice, Some(attributes_envelope.attributes))
+                    .fork_choice_updated_v2(forkchoice, Some(attributes_envelope.inner))
                     .await
             }
             EngineForkchoiceVersion::V1 => {
                 engine_client
                     .fork_choice_updated_v1(
                         forkchoice,
-                        Some(attributes_envelope.attributes.payload_attributes),
+                        Some(attributes_envelope.inner.payload_attributes),
                     )
                     .await
             }
@@ -149,7 +149,7 @@ impl BuildTask {
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
     ) -> Result<L2BlockInfo, BuildTaskError> {
-        let payload_timestamp = payload_attrs.attributes.payload_attributes.timestamp;
+        let payload_timestamp = payload_attrs.inner().payload_attributes.timestamp;
 
         debug!(
             target: "engine_builder",
@@ -233,7 +233,7 @@ impl BuildTask {
 
                 Ok(L2BlockInfo::from_payload_and_genesis(
                     payload,
-                    payload_attrs.attributes.payload_attributes.parent_beacon_block_root,
+                    payload_attrs.inner().payload_attributes.parent_beacon_block_root,
                     &cfg.genesis,
                 )?)
             }
@@ -241,8 +241,7 @@ impl BuildTask {
                 if payload_attrs.is_deposits_only() {
                     error!(target: "engine_builder", "Critical: Deposit-only payload import failed: {validation_error}");
                     Err(BuildTaskError::DepositOnlyPayloadFailed)
-                } else if cfg
-                    .is_holocene_active(payload_attrs.attributes.payload_attributes.timestamp)
+                } else if cfg.is_holocene_active(payload_attrs.inner().payload_attributes.timestamp)
                 {
                     warn!(target: "engine_builder", "Payload import failed: {validation_error}");
                     warn!(target: "engine_builder", "Re-attempting payload import with deposits only.");

@@ -4692,6 +4692,7 @@ dependencies = [
  "alloy-rpc-types-eth 1.0.1",
  "alloy-transport",
  "alloy-transport-http",
+ "async-stream",
  "async-trait",
  "derive_more",
  "futures",
