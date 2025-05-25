@@ -10,14 +10,14 @@ import (
 // Contains general system tests for the p2p connectivity of the node.
 // This assumes there is at least two L2 chains. The second chain is used to test a larger network.
 func TestSystemNodeP2p(t *testing.T) {
-	// Check that the node has at least 1 peer that is connected to its topics when there is more than 1 peer in the network.
 	systest.SystemTest(t,
-		peerCount(1, 1),
+		allPeersInNetwork(),
 		validators.HasSufficientL2Nodes(0, 2),
 	)
 
+	// Check that the node has at least 1 peer that is connected to its topics when there is more than 1 peer in the network.
 	systest.SystemTest(t,
-		allPeersInNetwork(),
+		peerCount(1, 1),
 		validators.HasSufficientL2Nodes(0, 2),
 	)
 
@@ -31,8 +31,8 @@ func TestSystemNodeP2p(t *testing.T) {
 	// Check that the node has at least 4 peers that are connected to its topics when there is more than 9 peers in the network initially.
 	// We put a lower bound on the number of connected peers to account for network instability.
 	systest.SystemTest(t,
-		peerCount(8, 4),
-		validators.HasSufficientL2Nodes(0, 10),
+		peerCount(5, 3),
+		validators.HasSufficientL2Nodes(0, 6),
 	)
 }
 

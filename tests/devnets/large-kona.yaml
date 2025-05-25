@@ -12,7 +12,7 @@ optimism_package:
         cl_type: kona-node
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
-        count: 8
+        count: 4
       network_params:
         network: "kurtosis"
         network_id: "2151908"

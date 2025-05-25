@@ -458,9 +458,9 @@ mod tests {
 
         let json = r#"{
             "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-            "number": "0x1",
+            "number": 1,
             "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-            "timestamp": "0x1"
+            "timestamp": 1
         }"#;
 
         let deserialized: BlockInfo = serde_json::from_str(json).unwrap();
@@ -513,14 +513,14 @@ mod tests {
 
         let json = r#"{
             "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-            "number": "0x1",
+            "number": 1,
             "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-            "timestamp": "0x1",
+            "timestamp": 1,
             "l1origin": {
                 "hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
                 "number": 2
             },
-            "sequenceNumber": "0x3"
+            "sequenceNumber": 3
         }"#;
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();
