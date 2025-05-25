@@ -127,7 +127,7 @@ pub struct P2PArgs {
     /// Can be one of: none or light.
     ///
     /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/1855>`): By default, the P2P stack is configured to not score peers.
-    #[arg(long = "p2p.scoring", default_value = "off", env = "KONA_NODE_P2P_SCORING")]
+    #[arg(long = "p2p.scoring", default_value = "light", env = "KONA_NODE_P2P_SCORING")]
     pub scoring: PeerScoreLevel,
 
     /// Allows to ban peers based on their score.
