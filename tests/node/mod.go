@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
@@ -33,6 +34,20 @@ type rpcResponse struct {
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+// push { "jsonrpc":"2.0", "method":"time", "params":{ "subscription":"0x…", "result":"…" } }
+type push struct {
+	Method string `json:"method"`
+	Params struct {
+		SubID  uint64         `json:"subscription"`
+		Result eth.L2BlockRef `json:"result"`
+	} `json:"params"`
+}
+
+func websocketRPC(clRPC string) string {
+	// Remove the leading http and replace it with ws.
+	return strings.Replace(clRPC, "http", "ws", 1)
 }
 
 // ---------------------------------------------------------------------------

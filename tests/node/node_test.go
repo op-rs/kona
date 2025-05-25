@@ -22,14 +22,9 @@ func TestSystemNodeP2p(t *testing.T) {
 		peerCount(1, 1),
 		validators.HasSufficientL2Nodes(0, 2),
 	)
+}
 
-	// Check that the node has at least 2 peers that are connected to its topics when there is more than 3 peers in the network initially.
-	// We put a lower bound on the number of connected peers to account for network instability.
-	systest.SystemTest(t,
-		peerCount(2, 2),
-		validators.HasSufficientL2Nodes(0, 3),
-	)
-
+func TestSystemNodeP2pLargeNetwork(t *testing.T) {
 	// Check that the node has at least 4 peers that are connected to its topics when there is more than 9 peers in the network initially.
 	// We put a lower bound on the number of connected peers to account for network instability.
 	systest.SystemTest(t,
@@ -38,9 +33,34 @@ func TestSystemNodeP2p(t *testing.T) {
 	)
 }
 
+// Ensures that the node synchronizes the chain correctly.
 func TestSystemNodeSync(t *testing.T) {
 	systest.SystemTest(t,
+		syncUnsafe(),
+		atLeastOneNodeSupportsKonaWs,
+	)
+
+	systest.SystemTest(t,
+		syncFinalized(),
+		atLeastOneNodeSupportsKonaWs,
+	)
+}
+
+// Ensures that the node synchronizes the safe chain correctly.
+func TestSystemSyncSafe(t *testing.T) {
+	systest.SystemTest(t,
 		syncSafe(),
-		// TODO(@theochap): we should add a custom validator that checks that there is at least one peer that supports the `kona` protocol.
+		atLeastOneNodeSupportsKonaWs,
+		sysHasAtMostOneL1Node,
+	)
+}
+
+// Ensures that the node synchronizes the unsafe chain correctly.
+func TestSystemSyncUnsafe(t *testing.T) {
+	systest.SystemTest(t,
+		syncUnsafeTwoNodes(),
+		atLeastOneNodeSupportsKonaWs,
+		sysHasAtMostOneL1Node,
+		sysHasAtMostTwoL2Nodes,
 	)
 }
