@@ -15,7 +15,7 @@ exclude.workspace = true
 [dependencies]
 # workspace
 kona-interop.workspace = true
-kona-protocol.workspace = true
+kona-supervisor-types.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 
 # alloy
@@ -25,7 +25,6 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 
 # op-alloy
 op-alloy-rpc-types.workspace = true
-op-alloy-consensus.workspace = true
 
 # jsonrpsee
 jsonrpsee = { workspace = true, features = [ "macros", "server", "client", "ws-client" ] }
@@ -36,7 +35,6 @@ serde.workspace = true
 tracing.workspace = true 
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "macros"] }
-derive_more = { workspace = true, default-features = false, features = ["constructor"] }
 
 # `metrics` feature
 metrics = { workspace = true }

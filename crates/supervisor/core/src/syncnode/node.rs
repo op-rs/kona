@@ -1,11 +1,12 @@
 //! [`ManagedNodeSubscriber`] implementation for subscribing to the events from managed node.
 
-use crate::{syncnode::jsonrpsee::ManagedNodeApiClient, types::ManagedEvent};
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
     core::{SubscriptionError, client::Subscription},
     ws_client::{HeaderMap, HeaderValue, WsClientBuilder},
 };
+use kona_supervisor_rpc::ManagedNodeApiClient;
+use kona_supervisor_types::ManagedEvent;
 use std::{fs::File, sync::Arc};
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, warn};
