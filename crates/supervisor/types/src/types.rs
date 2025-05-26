@@ -45,7 +45,7 @@ pub struct L2BlockRef<T = BlockId> {
     /// The hash of the parent block
     pub parent_hash: B256,
     /// The block's timestamp
-    pub time: U64,
+    pub timestamp: U64,
     /// Reference to the L1 origin block this L2 block is derived from
     pub l1_origin: T,
     /// Distance to the first block of the epoch (sequence position)
@@ -58,11 +58,11 @@ impl<T> L2BlockRef<T> {
         hash: B256,
         number: U64,
         parent_hash: B256,
-        time: U64,
+        timestamp: U64,
         l1_origin: T,
         sequence_number: U64,
     ) -> Self {
-        Self { hash, number, parent_hash, time, l1_origin, sequence_number }
+        Self { hash, number, parent_hash, timestamp, l1_origin, sequence_number }
     }
 }
 
