@@ -12,9 +12,22 @@ keywords.workspace = true
 categories.workspace = true
 exclude.workspace = true
 
-[dependencies]
-# Alloy
-alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
-
 [lints]
 workspace = true
+
+[dependencies]
+
+# workspace
+kona-interop = { workspace = true, features = ["serde"] }
+kona-protocol = { workspace = true, features = ["serde"] }
+
+# alloy
+alloy-eips.workspace = true
+alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+
+# op-alloy
+op-alloy-consensus.workspace = true
+
+# general
+serde.workspace = true
+derive_more = { workspace = true, default-features = false, features = ["constructor"] }
