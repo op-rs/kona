@@ -2,7 +2,9 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
-    core::{SubscriptionError, client::Subscription},
+    core::{RpcResult, SubscriptionError, client::Subscription},
+    http_client::HttpClientBuilder,
+    types::{ErrorCode, ErrorObject},
     ws_client::{HeaderMap, HeaderValue, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedNodeApiClient;
@@ -142,20 +144,7 @@ impl ManagedNode {
             return Err(SubscriptionError::from("Subscription already active".to_string()));
         }
 
-        let jwt_secret = self
-            .config
-            .jwt_secret()
-            .ok_or_else(|| SubscriptionError::from("Incorrect JWT secret".to_string()))?;
-
-        let mut headers = HeaderMap::new();
-        let auth_header =
-            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_str(&auth_header).map_err(|e| {
-                SubscriptionError::from(format!("Invalid authorization header: {}", e))
-            })?,
-        );
+        let headers = self.create_auth_headers()?;
 
         // Connect to WebSocket
         let ws_url = format!("ws://{}", self.config.url);
@@ -284,6 +273,86 @@ impl ManagedNode {
         }
 
         Ok(())
+    }
+
+    /// Calls a ManagedNodeApi method using an HTTP client with JWT authentication.
+    ///
+    /// # Arguments
+    /// * `f` - A closure that takes an HTTP client and returns a future with the RPC call
+    ///
+    /// # Returns
+    /// * `RpcResult<T>` - The result of the RPC call or an appropriate error
+    pub async fn call_rpc<T, F, Fut>(&self, f: F) -> RpcResult<T>
+    where
+        F: FnOnce(jsonrpsee::http_client::HttpClient) -> Fut,
+        Fut: std::future::Future<Output = Result<T, jsonrpsee::core::ClientError>>,
+    {
+        let client = self.create_authenticated_client().await?;
+        self.execute_rpc_call(client, f).await
+    }
+
+    /// Creates an authenticated HTTP client with JWT headers.
+    async fn create_authenticated_client(&self) -> RpcResult<jsonrpsee::http_client::HttpClient> {
+        let http_url = format!("http://{}", self.config.url);
+        debug!(target: "managed_node", url = %http_url, "Creating authenticated HTTP client");
+
+        let headers = self.create_auth_headers()?;
+
+        HttpClientBuilder::default().set_headers(headers).build(&http_url).map_err(|err| {
+            let err_msg = format!("Failed to create HTTP client: {}", err);
+            error!(target: "managed_node", ?err, %err_msg);
+            ErrorObject::from(ErrorCode::InternalError)
+        })
+    }
+
+    /// Creates authentication headers using JWT secret.
+    fn create_auth_headers(&self) -> RpcResult<HeaderMap> {
+        let jwt_secret = self.config.jwt_secret().ok_or_else(|| {
+            error!(target: "managed_node", "JWT secret not found or invalid");
+            ErrorObject::from(ErrorCode::ParseError)
+        })?;
+
+        let mut headers = HeaderMap::new();
+        let auth_header =
+            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
+
+        headers.insert(
+            "Authorization",
+            HeaderValue::from_str(&auth_header).map_err(|err| {
+                let err_msg = format!("Invalid authorization header: {}", err);
+                error!(target: "managed_node", ?err, %err_msg);
+                ErrorObject::from(ErrorCode::ParseError)
+            })?,
+        );
+
+        debug!(target: "managed_node", "Authentication headers created");
+        Ok(headers)
+    }
+
+    /// Executes the RPC call with error handling and logging.
+    ///
+    /// # Arguments
+    /// * `client` - The authenticated HTTP client
+    /// * `f` - The RPC call closure
+    async fn execute_rpc_call<T, F, Fut>(
+        &self,
+        client: jsonrpsee::http_client::HttpClient,
+        f: F,
+    ) -> RpcResult<T>
+    where
+        F: FnOnce(jsonrpsee::http_client::HttpClient) -> Fut,
+        Fut: std::future::Future<Output = Result<T, jsonrpsee::core::ClientError>>,
+    {
+        debug!(target: "managed_node", "Executing RPC call");
+
+        let result = f(client).await.map_err(|err| {
+            let err_msg = format!("RPC call failed: {}", err);
+            error!(target: "managed_node", ?err, %err_msg);
+            ErrorObject::from(ErrorCode::ServerError(0))
+        })?;
+
+        debug!(target: "managed_node", "RPC call completed successfully");
+        Ok(result)
     }
 }
 
@@ -509,5 +578,117 @@ mod tests {
 
         // Verify state remains consistent after failure
         assert!(subscriber.task_handle.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_call_rpc_with_parameters() {
+        // Test RPC method calls with various parameter types
+        let jwt_file = create_mock_jwt_file();
+        let jwt_path = jwt_file.path();
+
+        let config = Arc::new(ManagedNodeConfig {
+            url: "invalid.server:8545".to_string(),
+            jwt_path: jwt_path.to_str().unwrap().to_string(),
+        });
+
+        let managed_node = ManagedNode::new(config);
+
+        // Test simple method call
+        let chain_id_result = managed_node
+            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&client).await })
+            .await;
+        assert!(chain_id_result.is_err(), "Chain ID call should fail with invalid server");
+
+        // Test method with single parameter
+        let block_ref_result = managed_node
+            .call_rpc(|client| async move {
+                ManagedNodeApiClient::block_ref_by_number(&client, 42).await
+            })
+            .await;
+        assert!(block_ref_result.is_err(), "Block ref call should fail with invalid server");
+
+        // Test reset method with multiple BlockId parameters
+        use alloy_eips::BlockId;
+        let block_id = BlockId::Number(alloy_eips::BlockNumberOrTag::Latest);
+
+        let reset_result = managed_node
+            .call_rpc(|client| async move {
+                ManagedNodeApiClient::reset(
+                    &client, block_id, block_id, block_id, block_id, block_id,
+                )
+                .await
+            })
+            .await;
+        assert!(reset_result.is_err(), "Reset call should fail with invalid server");
+
+        // Test update_cross_safe with multiple parameters
+        let derived_id = BlockId::Number(alloy_eips::BlockNumberOrTag::Latest);
+        let source_id = BlockId::Number(alloy_eips::BlockNumberOrTag::Safe);
+
+        let cross_safe_result = managed_node
+            .call_rpc(|client| async move {
+                ManagedNodeApiClient::update_cross_safe(&client, derived_id, source_id).await
+            })
+            .await;
+        assert!(cross_safe_result.is_err(), "Cross safe update should fail with invalid server");
+    }
+
+    #[tokio::test]
+    async fn test_rpc_error_handling() {
+        // Test specific error scenarios and error codes
+
+        // Test JWT error
+        let config_no_jwt = Arc::new(ManagedNodeConfig {
+            url: "localhost:8545".to_string(),
+            jwt_path: "/nonexistent/jwt.hex".to_string(),
+        });
+
+        let managed_node = ManagedNode::new(config_no_jwt);
+        let jwt_error_result = managed_node
+            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&client).await })
+            .await;
+
+        assert!(jwt_error_result.is_err(), "Should fail with JWT error");
+        if let Err(error) = jwt_error_result {
+            assert_eq!(
+                error.code(),
+                ErrorCode::ParseError.code(),
+                "Should be ParseError for JWT secret error"
+            );
+            assert_eq!(
+                error.message(),
+                "Parse error",
+                "Should have standard jsonrpsee ParseError message"
+            );
+        }
+
+        // Test with valid JWT but invalid server (connection error)
+        let jwt_file = create_mock_jwt_file();
+        let jwt_path = jwt_file.path();
+
+        let config_invalid_server = Arc::new(ManagedNodeConfig {
+            url: "nonexistent-host.invalid:8545".to_string(),
+            jwt_path: jwt_path.to_str().unwrap().to_string(),
+        });
+
+        let managed_node_invalid = ManagedNode::new(config_invalid_server);
+        let connection_error_result = managed_node_invalid
+            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&client).await })
+            .await;
+
+        assert!(connection_error_result.is_err(), "Should fail with connection error");
+        if let Err(error) = connection_error_result {
+            // Connection errors during RPC call execution show up as ServerError
+            assert_eq!(
+                error.code(),
+                ErrorCode::ServerError(0).code(),
+                "Should be ServerError for connection failures"
+            );
+            assert_eq!(
+                error.message(),
+                "Server error",
+                "Should have standard jsonrpsee ServerError message"
+            );
+        }
     }
 }

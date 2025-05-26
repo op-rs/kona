@@ -6,13 +6,13 @@ pub use jsonrpsee::{
 };
 
 use alloy_eips::{BlockId, BlockNumHash};
-use alloy_primitives::{BlockHash, ChainId, B256};
+use alloy_primitives::{B256, BlockHash, ChainId};
 use jsonrpsee::proc_macros::rpc;
-use kona_protocol::BlockInfo;
 use kona_interop::{
     DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
 };
-use kona_supervisor_types::{BlockSeal, ManagedEvent, Receipts, OutputV0, L2BlockRef};
+use kona_protocol::BlockInfo;
+use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
 
 /// Supervisor API for interop.
 ///
@@ -52,7 +52,6 @@ pub trait SupervisorApi {
 /// ManagedNodeApi to send control signals to a managed node from supervisor
 /// And get info for syncing the state with the given L2.
 ///
-///
 /// See spec <https://specs.optimism.io/interop/managed-mode.html>
 /// Using the proc_macro to generate the client and server code.
 /// Default namespace separator is `_`.
@@ -68,7 +67,6 @@ pub trait ManagedNodeApi {
     async fn pull_event(&self) -> RpcResult<ManagedEvent>;
 
     /// Control signals sent to the managed node from supervisor
-
     /// Update the cross unsafe block head
     #[method(name = "updateCrossUnsafe")]
     async fn update_cross_unsafe(&self, id: BlockId) -> RpcResult<()>;
@@ -105,7 +103,6 @@ pub trait ManagedNodeApi {
     ) -> RpcResult<()>;
 
     /// Sync methods that supervisor uses to sync with the managed node
-
     /// Fetch all receipts for a give block
     #[method(name = "fetchReceipts")]
     async fn fetch_receipts(&self, block_hash: BlockHash) -> RpcResult<Receipts>;
