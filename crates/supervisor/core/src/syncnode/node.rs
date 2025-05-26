@@ -1,4 +1,4 @@
-//! [`ManagedNodeSubscriber`] implementation for subscribing to the events from managed node.
+//! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
@@ -7,7 +7,7 @@ use jsonrpsee::{
 };
 use kona_supervisor_rpc::ManagedNodeApiClient;
 use kona_supervisor_types::ManagedEvent;
-use std::{fs::File, sync::Arc};
+use std::sync::Arc;
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, warn};
 
@@ -32,32 +32,28 @@ impl ManagedNodeConfig {
 
     /// Uses the current directory to attempt to read
     /// the JWT secret from a file named `jwt.hex`.
-    /// If the file is not found, it will create a random JWT and write it to the file.
     pub fn default_jwt_secret() -> Option<JwtSecret> {
         let cur_dir = std::env::current_dir().ok()?;
-        std::fs::read_to_string(cur_dir.join("jwt.hex")).map_or_else(
-            |_| {
-                use std::io::Write;
-                let secret = JwtSecret::random();
-                if let Ok(mut file) = File::create("jwt.hex") {
-                    if let Err(e) =
-                        file.write_all(alloy_primitives::hex::encode(secret.as_bytes()).as_bytes())
-                    {
-                        tracing::error!("Failed to write JWT secret to file: {:?}", e);
-                    }
-                }
-                Some(secret)
-            },
-            |content| JwtSecret::from_hex(content).ok(),
-        )
+        if let Ok(secret) = std::fs::read_to_string(cur_dir.join("jwt.hex")).map_err(|err| {
+            let err_msg = format!("Failed to read JWT file: {}", err);
+            error!(
+                target: "managed_node",
+                ?err,
+                err_msg
+            );
+            SubscriptionError::from(err_msg)
+        }) {
+            return JwtSecret::from_hex(secret).ok();
+        }
+        None
     }
 }
 
-/// [`ManagedNodeSubscriber`] handles the subscription to managed node events.
+/// [`ManagedNode`] handles the subscription to managed node events.
 ///
 /// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
-pub struct ManagedNodeSubscriber {
+pub struct ManagedNode {
     /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
     /// Channel for signaling the subscription task to stop
@@ -66,8 +62,8 @@ pub struct ManagedNodeSubscriber {
     task_handle: Option<JoinHandle<()>>,
 }
 
-impl ManagedNodeSubscriber {
-    /// Creates a new [`ManagedNodeSubscriber`] with the specified configuration.
+impl ManagedNode {
+    /// Creates a new [`ManagedNode`] with the specified configuration.
     pub const fn new(config: Arc<ManagedNodeConfig>) -> Self {
         Self { config, stop_tx: None, task_handle: None }
     }
@@ -176,24 +172,44 @@ impl ManagedNodeSubscriber {
         info!("Connecting to WebSocket at {}", ws_url);
 
         let client =
-            WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(|e| {
-                let err_msg = format!("Failed to establish WebSocket connection: {}", e);
-                error!("{}", err_msg);
+            WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(|err| {
+                let err_msg = format!("Failed to establish WebSocket connection: {}", err);
+                error!(
+                    target: "managed_node",
+                    ?err,
+                    err_msg
+                );
                 SubscriptionError::from(err_msg)
             })?;
 
         let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedNodeApiClient::subscribe_events(&client).await.map_err(|e| {
-                let err_msg = format!("Failed to subscribe to events: {}", e);
-                error!("{}", err_msg);
+            ManagedNodeApiClient::subscribe_events(&client).await.map_err(|err| {
+                let err_msg = format!("Failed to subscribe to events: {}", err);
+                error!(
+                    target: "managed_node",
+                    ?err,
+                    err_msg
+                );
                 SubscriptionError::from(err_msg)
             })?;
+
+        // Create stop channel for graceful shutdown
+        let (stop_tx, mut stop_rx) = watch::channel(false);
+        self.stop_tx = Some(stop_tx);
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
             info!("Subscription task started");
             loop {
                 tokio::select! {
+                    // Listen for stop signal
+                    _ = stop_rx.changed() => {
+                        if *stop_rx.borrow() {
+                            info!("Stop signal received, shutting down subscription");
+                            break;
+                        }
+                    }
+                    // Listen for events from subscription
                     event = subscription.next() => {
                         match event {
                             Some(event_result) => {
@@ -202,15 +218,18 @@ impl ManagedNodeSubscriber {
                                     Ok(managed_event) => {
                                         Self::handle_managed_event(managed_event);
                                     },
-                                    Err(e) => {
-                                        error!("Error in event deserialization: {:?}", e);
+                                    Err(err) => {
+                                        error!(
+                                            target: "managed_node",
+                                            ?err,
+                                            "Error in event deserialization: {:?}", err);
                                         // Continue processing next events despite this error
                                     }
                                 }
                             }
                             None => {
                                 // Subscription closed by the server
-                                warn!("No event received");
+                                warn!("Subscription closed by server");
                                 break;
                             }
                         }
@@ -219,8 +238,12 @@ impl ManagedNodeSubscriber {
             }
 
             // Try to unsubscribe gracefully
-            if let Err(e) = subscription.unsubscribe().await {
-                warn!("Failed to unsubscribe gracefully: {:?}", e);
+            if let Err(err) = subscription.unsubscribe().await {
+                warn!(
+                    target: "managed_node",
+                    ?err,
+                    "Failed to unsubscribe gracefully"
+                );
             }
 
             info!("Subscription task finished");
@@ -237,9 +260,13 @@ impl ManagedNodeSubscriber {
     pub async fn stop_subscription(&mut self) -> Result<(), SubscriptionError> {
         if let Some(stop_tx) = self.stop_tx.take() {
             debug!("Sending stop signal to subscription task");
-            stop_tx.send(true).map_err(|e| {
-                let err_msg = format!("Failed to send stop signal: {:?}", e);
-                error!("{}", err_msg);
+            stop_tx.send(true).map_err(|err| {
+                let err_msg = format!("Failed to send stop signal: {:?}", err);
+                error!(
+                    target: "managed_node",
+                    ?err,
+                    err_msg
+                );
                 SubscriptionError::from(err_msg)
             })?;
         } else {
@@ -249,9 +276,13 @@ impl ManagedNodeSubscriber {
         // Wait for task to complete
         if let Some(handle) = self.task_handle.take() {
             debug!("Waiting for subscription task to complete");
-            handle.await.map_err(|e| {
-                let err_msg = format!("Failed to join task: {:?}", e);
-                error!("{}", err_msg);
+            handle.await.map_err(|err| {
+                let err_msg = format!("Failed to join task: {:?}", err);
+                error!(
+                    target: "managed_node",
+                    ?err,
+                    err_msg
+                );
                 SubscriptionError::from(err_msg)
             })?;
             info!("Subscription stopped and task joined");
@@ -462,7 +493,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut subscriber = ManagedNodeSubscriber::new(config);
+        let mut subscriber = ManagedNode::new(config);
 
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.is_none());

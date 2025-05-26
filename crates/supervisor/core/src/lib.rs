@@ -8,4 +8,4 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
-pub use syncnode::{ManagedNodeConfig, ManagedNodeSubscriber};
+pub use syncnode::{ManagedNodeConfig, ManagedNode};
