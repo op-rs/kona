@@ -10,7 +10,7 @@ pub enum StorageError {
     #[error(transparent)]
     Database(#[from] DatabaseError),
 
-    /// Represents an error that occured while initializing the database.
+    /// Represents an error that occurred while initializing the database.
     #[error(transparent)]
     DatabaseInit(#[from] eyre::Report),
 
