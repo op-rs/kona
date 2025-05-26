@@ -4,6 +4,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use alloy_primitives::ChainId;
+
 use crate::{chaindb::ChainDb, error::StorageError};
 
 /// Factory for managing multiple chain databases.
@@ -12,7 +14,7 @@ use crate::{chaindb::ChainDb, error::StorageError};
 #[derive(Debug)]
 pub struct ChainDbFactory {
     db_path: PathBuf,
-    dbs: RwLock<HashMap<u64, Arc<ChainDb>>>,
+    dbs: RwLock<HashMap<ChainId, Arc<ChainDb>>>,
 }
 
 impl ChainDbFactory {
@@ -24,7 +26,7 @@ impl ChainDbFactory {
     /// Get or create a [`ChainDb`] for the given chain id.
     ///
     /// If the database does not exist, it will be created at the path `self.db_path/<chain_id>`.
-    pub fn get_or_create_db(&self, chain_id: u64) -> Result<Arc<ChainDb>, StorageError> {
+    pub fn get_or_create_db(&self, chain_id: ChainId) -> Result<Arc<ChainDb>, StorageError> {
         {
             // Try to get it without locking for write
             let dbs = self.dbs.write().unwrap_or_else(|e| e.into_inner());
@@ -51,7 +53,7 @@ impl ChainDbFactory {
     /// # Returns
     /// * `Ok(Arc<ChainDb>)` if the database exists.
     /// * `Err(StorageError)` if the database does not exist.
-    pub fn get_db(&self, chain_id: u64) -> Result<Arc<ChainDb>, StorageError> {
+    pub fn get_db(&self, chain_id: ChainId) -> Result<Arc<ChainDb>, StorageError> {
         let dbs = self.dbs.read().unwrap_or_else(|e| e.into_inner());
         dbs.get(&chain_id)
             .cloned()
