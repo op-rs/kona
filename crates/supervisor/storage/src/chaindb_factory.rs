@@ -9,7 +9,7 @@ use crate::{chaindb::ChainDb, error::StorageError};
 /// Factory for managing multiple chain databases.
 /// This struct allows for the creation and retrieval of `ChainDb` instances
 /// based on chain IDs, ensuring that each chain has its own database instance.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ChainDbFactory {
     db_path: PathBuf,
     dbs: RwLock<HashMap<u64, Arc<ChainDb>>>,
@@ -27,14 +27,14 @@ impl ChainDbFactory {
     pub fn get_or_create_db(&self, chain_id: u64) -> Result<Arc<ChainDb>, StorageError> {
         {
             // Try to get it without locking for write
-            let dbs = self.dbs.read().unwrap();
+            let dbs = self.dbs.write().unwrap_or_else(|e| e.into_inner());
             if let Some(db) = dbs.get(&chain_id) {
                 return Ok(db.clone());
             }
         }
 
         // Not found, create and insert
-        let mut dbs = self.dbs.write().unwrap();
+        let mut dbs = self.dbs.write().unwrap_or_else(|e| e.into_inner());
         // Double-check in case another thread inserted
         if let Some(db) = dbs.get(&chain_id) {
             return Ok(db.clone());
@@ -52,7 +52,7 @@ impl ChainDbFactory {
     /// * `Ok(Arc<ChainDb>)` if the database exists.
     /// * `Err(StorageError)` if the database does not exist.
     pub fn get_db(&self, chain_id: u64) -> Result<Arc<ChainDb>, StorageError> {
-        let dbs = self.dbs.read().unwrap();
+        let dbs = self.dbs.read().unwrap_or_else(|e| e.into_inner());
         dbs.get(&chain_id)
             .cloned()
             .ok_or_else(|| StorageError::EntryNotFound("chain not found".to_string()))
