@@ -1,7 +1,8 @@
 # `docker`
 
 This directory contains all of the repositories' dockerfiles as well as the [bake file](https://docs.docker.com/build/bake/)
-used to define this repository's docker build configuration.
+used to define this repository's docker build configuration. In addition, the [recipes](./recipes) directory contains
+example deployment strategies for applications such as [`kona-node`](../bin/node).
 
 ## Install Dependencies
 

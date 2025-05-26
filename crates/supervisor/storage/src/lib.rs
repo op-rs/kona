@@ -23,3 +23,8 @@ mod error;
 pub use error::*;
 mod log;
 pub mod models;
+
+mod error;
+pub use error::StorageError;
+
+mod providers;

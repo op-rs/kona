@@ -20,6 +20,7 @@ kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+op-alloy-rpc-types.workspace = true
 
 # Misc
 jsonrpsee = { workspace = true, features = [ "server" ] }

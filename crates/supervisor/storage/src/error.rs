@@ -6,11 +6,16 @@ use thiserror::Error;
 /// This enum is used across all implementations of the Storge traits.
 #[derive(Debug, Error)]
 pub enum StorageError {
-    /// DatabaseError
-    #[error("Database error")]
-    Database(#[source] DatabaseError),
+
+    /// Represents a database error that occurred while interacting with storage.
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
 
     /// The expected entry was not found in the database.
-    #[error("Entry not found: {0}")]
+    #[error("entry not found: {0}")]
     EntryNotFound(String),
+
+    /// Represents a conflict occurred while attempting to write to the database.
+    #[error("conflict error: {0}")]
+    ConflictError(String),
 }

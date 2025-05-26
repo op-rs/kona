@@ -13,12 +13,14 @@ categories.workspace = true
 exclude.workspace = true
 
 [dependencies]
-# Kona
-kona-protocol = {workspace = true}
-kona-supervisor-types = {workspace = true}
+# Workspace
+kona-protocol.workspace = true
+kona-interop.workspace = true
+kona-supervisor-types.workspace = true
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "rand"] }
+alloy-eips = { workspace = true }
 
 # Misc
 serde = { workspace = true, features = ["derive"] }
@@ -27,16 +29,16 @@ bytes = { workspace = true }
 modular-bitfield = { workspace = true }
 test-fuzz = { workspace = true }
 thiserror = {workspace = true}
-tempfile = {workspace = true}
 tracing = {workspace = true}
 
 #reth
 reth-db-api = { workspace = true }
-reth-db = {workspace = true}
+reth-db = { workspace = true }
 reth-codecs = { workspace = true }
 
 [dev-dependencies]
 test-fuzz = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

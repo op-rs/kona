@@ -1,23 +1,18 @@
-# A simple network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
-# Spins up a 2 EL/CL networks. One with op-geth/op-node and one with op-reth/kona-node.
+# A large network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
+# Spins up a large EL/CL network.
 
 optimism_package:
   chains:
+    # Chain with more nodes
     - participants:
-      # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
-      # So we use op-geth for now.
       - el_type: op-geth
         cl_type: op-node
-        el_log_level: "debug"
-        cl_log_level: "debug"
-        count: 1
+        count: 2
       - el_type: op-reth
         cl_type: kona-node
-        el_log_level: "debug"
-        cl_log_level: "debug"
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
-        count: 1
+        count: 4
       network_params:
         network: "kurtosis"
         network_id: "2151908"
@@ -40,6 +35,7 @@ optimism_package:
         builder_host: ""
         builder_port: ""
       additional_services: []
+
   challengers:
     challenger:
       enabled: true
@@ -60,7 +56,7 @@ optimism_package:
 ethereum_package:
   participants:
   - el_type: geth
-    cl_type: nimbus
+    cl_type: teku
   network_params:
     preset: minimal
     genesis_delay: 5

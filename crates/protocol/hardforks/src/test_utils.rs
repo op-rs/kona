@@ -27,7 +27,7 @@ pub(crate) fn check_deployment_code(
             // Deposit + OP meta
             tx.deposit = DepositTransactionParts {
                 source_hash: deployment_tx.source_hash,
-                mint: deployment_tx.mint,
+                mint: Some(deployment_tx.mint),
                 is_system_transaction: deployment_tx.is_system_transaction,
             };
             tx.enveloped_tx = Some(deployment_tx.encoded_2718().into());

@@ -35,7 +35,6 @@ impl InteropTxValidatorError {
     }
 }
 
-#[cfg(feature = "client")]
 impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
     fn from(err: jsonrpsee::core::ClientError) -> Self {
         match err {
