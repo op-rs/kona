@@ -3,9 +3,12 @@ use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 
-/// Trait for supervisor storage that manage the relationship between source and derived blocks.
-/// This trait defines methods to retrieve and save derived block information,
-/// allowing the supervisor to track the derivation of blocks in the system.
+/// Provides an interface for supervisor storage to manage source and derived blocks.
+///
+/// Defines methods to retrieve and persist derived block information,
+/// enabling the supervisor to track the derivation progress.
+///
+/// Implementations are expected to provide persistent and thread-safe access to block data.
 pub trait DerivationStorage {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
