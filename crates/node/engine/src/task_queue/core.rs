@@ -44,11 +44,6 @@ impl Engine {
         Self { state: initial_state, state_sender, tasks: BinaryHeap::default() }
     }
 
-    /// Returns true if the inner [`EngineState`] is initialized.
-    pub fn is_state_initialized(&self) -> bool {
-        self.state != EngineState::default()
-    }
-
     /// Returns a reference to the inner [`EngineState`].
     pub const fn state(&self) -> &EngineState {
         &self.state
@@ -122,9 +117,6 @@ impl Engine {
     /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
     /// an error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
-    ///
-    /// If an [`EngineTaskError::Reset`] is encountered, the remaining tasks in the queue are
-    /// cleared.
     pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
         // Drain tasks in order of priority, halting on errors for a retry to be attempted.
         while let Some(task) = self.tasks.peek() {

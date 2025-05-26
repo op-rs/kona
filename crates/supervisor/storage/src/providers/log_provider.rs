@@ -41,6 +41,7 @@ impl<'tx, TX> LogProvider<'tx, TX> {
     }
 }
 
+#[allow(dead_code)]
 impl<TX> LogProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
@@ -49,7 +50,7 @@ where
         debug!(target: "supervisor_storage", block_number = block.number, "Storing logs");
 
         if let Ok(latest_block) = self.get_latest_block() {
-            if latest_block.number + 1 != block.number || latest_block.hash != block.parent_hash {
+            if !latest_block.is_parent_of(block) {
                 warn!(
                     target: "supervisor_storage",
                     latest_block = ?latest_block,
@@ -87,17 +88,18 @@ where
     }
 }
 
+#[allow(dead_code)]
 impl<TX> LogProvider<'_, TX>
 where
     TX: DbTx,
 {
     fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
-        debug!(target: "supervisor_storage", block_number = block_number, "Fetching block");
+        debug!(target: "supervisor_storage", block_number, "Fetching block");
 
         let block_option = self.tx.get::<BlockRefs>(block_number).map_err(|e| {
             error!(
                 target: "supervisor_storage",
-                block_number = block_number,
+                block_number,
                 error = ?e,
                 "Failed to read block",
             );
@@ -105,7 +107,7 @@ where
         })?;
 
         let block = block_option.ok_or_else(|| {
-            warn!(target: "supervisor_storage", block_number = block_number, "Block not found");
+            warn!(target: "supervisor_storage", block_number, "Block not found");
             StorageError::EntryNotFound(format!("Block {} not found", block_number))
         })?;
         Ok(block.into())
@@ -134,7 +136,7 @@ where
     fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError> {
         debug!(
             target: "supervisor_storage",
-            block_number =  block_number,
+            block_number,
             log_index = log.index,
             "Fetching block  by log"
         );
@@ -147,7 +149,7 @@ where
         let result = cursor.seek_by_key_subkey(block_number, log.index).map_err(|e| {
             error!(
                 target: "supervisor_storage",
-                block_number = block_number,
+                block_number,
                 log_index = log.index,
                 error = ?e,
                 "Failed to read log entry"
@@ -158,7 +160,7 @@ where
         let log_entry = result.ok_or_else(|| {
             warn!(
                 target: "supervisor_storage",
-                block_number = block_number,
+                block_number,
                 log_index = log.index,
                 "Log not found"
             );
@@ -171,7 +173,7 @@ where
         if log_entry.hash != log.hash {
             warn!(
                 target: "supervisor_storage",
-                block_number = block_number,
+                block_number,
                 log_index = log.index,
                 "Log hash mismatch"
             );
@@ -181,7 +183,7 @@ where
     }
 
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
-        debug!(target: "supervisor_storage", block_number = block_number, "Fetching logs");
+        debug!(target: "supervisor_storage", block_number, "Fetching logs");
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
             error!(target: "supervisor_storage", error = ?e, "Failed to get dup cursor");
@@ -191,7 +193,7 @@ where
         let walker = cursor.walk_range(block_number..=block_number).map_err(|e| {
             error!(
                 target: "supervisor_storage",
-                block_number = block_number,
+                block_number,
                 error = ?e,
                 "Failed to walk dup range",
             );
@@ -205,7 +207,7 @@ where
                 Err(e) => {
                     error!(
                         target: "supervisor_storage",
-                        block_number = block_number,
+                        block_number,
                         error = ?e,
                         "Failed to read log entry",
                     );
@@ -370,8 +372,8 @@ mod tests {
         let logs2 = vec![sample_log(0, false), sample_log(1, true)];
 
         // Store logs
-        log_writer.store_block_logs(&block1, logs1.clone()).expect("Failed to store logs2");
-        let err = log_writer.store_block_logs(&block2, logs2.clone()).unwrap_err();
+        log_writer.store_block_logs(&block1, logs1).expect("Failed to store logs2");
+        let err = log_writer.store_block_logs(&block2, logs2).unwrap_err();
         match err {
             StorageError::ConflictError(_) => {
                 //OK

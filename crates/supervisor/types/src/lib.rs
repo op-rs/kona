@@ -6,3 +6,5 @@ mod log;
 pub use log::Log;
 mod message;
 pub use message::ExecutingMessage;
+mod types;
+pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
