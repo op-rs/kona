@@ -50,7 +50,7 @@ where
         debug!(target: "supervisor_storage", block_number = block.number, "Storing logs");
 
         if let Ok(latest_block) = self.get_latest_block() {
-            if !latest_block.is_parent_of(&block) {
+            if !latest_block.is_parent_of(block) {
                 warn!(
                     target: "supervisor_storage",
                     latest_block = ?latest_block,
