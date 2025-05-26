@@ -5091,6 +5091,7 @@ dependencies = [
  "alloy-primitives",
  "bytes",
  "derive_more",
+ "eyre",
  "kona-interop",
  "kona-protocol",
  "modular-bitfield",

@@ -28,6 +28,8 @@ bytes.workspace = true
 modular-bitfield.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+eyre.workspace = true
+
 #reth
 reth-db-api = { workspace = true }
 reth-db = { workspace = true }
