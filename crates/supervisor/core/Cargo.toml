@@ -13,23 +13,35 @@ categories.workspace = true
 exclude.workspace = true
 
 [dependencies]
-# Workspace
+# workspace
 kona-interop.workspace = true
-kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
+kona-supervisor-types.workspace = true
+kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee", "client"] }
 
-# Alloy
+# alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
+
+# op-alloy
 op-alloy-rpc-types.workspace = true
 
-# Misc
-jsonrpsee = { workspace = true, features = [ "server" ] }
+# jsonrpsee
+jsonrpsee = { workspace = true, features = [ "macros", "server", "client", "ws-client" ] }
+
+# general
 async-trait.workspace = true
-tracing = { workspace = true }
+serde.workspace = true
+tracing.workspace = true 
 thiserror.workspace = true
+tokio = { workspace = true, features = ["sync", "macros"] }
 
 # `metrics` feature
 metrics = { workspace = true }
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

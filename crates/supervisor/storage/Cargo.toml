@@ -16,6 +16,7 @@ exclude.workspace = true
 # Workspace
 kona-protocol.workspace = true
 kona-interop.workspace = true
+kona-supervisor-types.workspace = true
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "rand"] }
@@ -24,7 +25,7 @@ alloy-eips = { workspace = true }
 # Misc
 serde = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
-bytes.workspace = true 
+bytes.workspace = true
 modular-bitfield.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

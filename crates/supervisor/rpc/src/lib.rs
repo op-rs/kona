@@ -6,3 +6,6 @@ pub mod jsonrpsee;
 pub use jsonrpsee::SupervisorApiClient;
 #[cfg(feature = "jsonrpsee")]
 pub use jsonrpsee::SupervisorApiServer;
+
+#[cfg(all(feature = "jsonrpsee", feature = "client"))]
+pub use jsonrpsee::ManagedNodeApiClient;

@@ -5039,13 +5039,19 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips 1.0.1",
  "alloy-primitives",
+ "alloy-rpc-types-engine",
  "async-trait",
  "jsonrpsee",
  "kona-interop",
  "kona-supervisor-rpc",
+ "kona-supervisor-types",
  "metrics",
  "op-alloy-rpc-types",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.12",
+ "tokio",
  "tracing",
 ]
 
@@ -5057,6 +5063,7 @@ dependencies = [
  "alloy-primitives",
  "jsonrpsee",
  "kona-interop",
+ "kona-supervisor-types",
 ]
 
 [[package]]
@@ -5094,6 +5101,7 @@ dependencies = [
  "eyre",
  "kona-interop",
  "kona-protocol",
+ "kona-supervisor-types",
  "modular-bitfield",
  "reth-codecs",
  "reth-db",
@@ -5103,6 +5111,19 @@ dependencies = [
  "test-fuzz",
  "thiserror 2.0.12",
  "tracing",
+]
+
+[[package]]
+name = "kona-supervisor-types"
+version = "0.1.0"
+dependencies = [
+ "alloy-eips 1.0.1",
+ "alloy-primitives",
+ "derive_more",
+ "kona-interop",
+ "kona-protocol",
+ "op-alloy-consensus 0.17.1",
+ "serde",
 ]
 
 [[package]]
