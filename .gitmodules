@@ -1,3 +1,0 @@
-[submodule "crates/protocol/registry/superchain-registry"]
-	path = crates/protocol/registry/superchain-registry
-	url = https://github.com/ethereum-optimism/superchain-registry.git
