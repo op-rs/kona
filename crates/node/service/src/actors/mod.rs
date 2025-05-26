@@ -9,7 +9,7 @@ mod runtime;
 pub use runtime::{RuntimeActor, RuntimeLauncher};
 
 mod engine;
-pub use engine::{EngineActor, EngineError, EngineLauncher};
+pub use engine::{EngineActor, EngineError, EngineLauncher, InboundEngineMessage, L2Finalizer};
 
 mod rpc;
 pub use rpc::{RpcActor, RpcActorError};

@@ -15,7 +15,10 @@ use kona_rpc::{
     RpcLauncherError, WsRPC, WsServer,
 };
 use std::fmt::Display;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::{
+    mpsc::{self, UnboundedSender},
+    oneshot,
+};
 use tokio_util::sync::CancellationToken;
 
 /// The [`ValidatorNodeService`] trait defines the common interface for running a validator node
@@ -91,7 +94,7 @@ pub trait ValidatorNodeService {
         let (new_finalized_tx, new_finalized_rx) = mpsc::unbounded_channel();
         let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
-        let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
+        let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
         let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
         let (reset_request_tx, reset_request_rx) = mpsc::unbounded_channel();
