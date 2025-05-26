@@ -1,4 +1,4 @@
 //! Exporting items from syncnode
 
 mod node;
-pub use node::{ManagedNodeConfig, ManagedNode};
+pub use node::{ManagedNode, ManagedNodeConfig};

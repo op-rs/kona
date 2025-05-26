@@ -171,8 +171,8 @@ impl ManagedNode {
         let ws_url = format!("ws://{}", self.config.url);
         info!("Connecting to WebSocket at {}", ws_url);
 
-        let client =
-            WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(|err| {
+        let client = WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
+            |err| {
                 let err_msg = format!("Failed to establish WebSocket connection: {}", err);
                 error!(
                     target: "managed_node",
@@ -180,7 +180,8 @@ impl ManagedNode {
                     err_msg
                 );
                 SubscriptionError::from(err_msg)
-            })?;
+            },
+        )?;
 
         let mut subscription: Subscription<Option<ManagedEvent>> =
             ManagedNodeApiClient::subscribe_events(&client).await.map_err(|err| {
@@ -445,17 +446,30 @@ mod tests {
         let jwt_secret = config.jwt_secret();
         assert!(jwt_secret.is_some(), "JWT secret should be loaded from file");
 
-        // Test with invalid path
+        // Test with invalid path - should now return None instead of creating a file
         let config_invalid = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: "/nonexistent/path/jwt.hex".to_string(),
         };
 
         let jwt_secret_fallback = config_invalid.jwt_secret();
-        assert!(jwt_secret_fallback.is_some(), "Should fall back to default JWT secret creation");
+        assert!(jwt_secret_fallback.is_none(), "Should return None when JWT file doesn't exist");
 
-        // Clean up the jwt.hex file created during test
-        let _ = std::fs::remove_file("jwt.hex");
+        // Test default_jwt_secret with nonexistent file
+        let original_dir = std::env::current_dir().expect("Should get current directory");
+
+        // Change to a temporary directory where jwt.hex doesn't exist
+        let temp_dir = tempfile::tempdir().expect("Should create temp directory");
+        std::env::set_current_dir(temp_dir.path()).expect("Should change directory");
+
+        let default_secret = ManagedNodeConfig::default_jwt_secret();
+        assert!(
+            default_secret.is_none(),
+            "default_jwt_secret should return None when jwt.hex doesn't exist"
+        );
+
+        // Restore original directory
+        std::env::set_current_dir(original_dir).expect("Should restore directory");
     }
 
     #[tokio::test]
