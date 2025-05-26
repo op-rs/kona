@@ -18,8 +18,8 @@ workspace = true
 [dependencies]
 
 # workspace
-kona-interop.workspace = true
-kona-protocol.workspace = true
+kona-interop = { workspace = true, features = ["serde"] }
+kona-protocol = { workspace = true, features = ["serde"] }
 
 # alloy
 alloy-eips.workspace = true
