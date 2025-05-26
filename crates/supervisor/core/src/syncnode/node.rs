@@ -76,51 +76,40 @@ impl ManagedNode {
     pub fn handle_managed_event(event_result: Option<ManagedEvent>) {
         match event_result {
             Some(event) => {
-                debug!("Handling ManagedEvent: {:?}", event);
+                debug!(target = "managed_node", event = ?event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!("Reset event received with ID: {}", reset_id);
+                    info!(target = "managed_node", reset_id = %reset_id, "Reset event received");
                     // Handle reset action
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(
-                        "Unsafe block event received: hash={:?}, number={}",
-                        unsafe_block.hash, unsafe_block.number
-                    );
+                    info!(target = "managed_node", ?unsafe_block, "Unsafe block event received");
                     // Handle unsafe block
                 }
 
-                if let Some(update) = &event.derivation_update {
-                    info!(
-                        "Derivation update received: source={:?}, derived={:?}",
-                        update.source.number, update.derived.number
-                    );
+                if let Some(derived_ref_pair) = &event.derivation_update {
+                    info!(target = "managed_node", ?derived_ref_pair, "Derivation update received");
                     // Handle derivation update
                 }
 
-                if let Some(exhaust) = &event.exhaust_l1 {
+                if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(
-                        "L1 exhausted: source={:?}, derived={:?}",
-                        exhaust.source.number, exhaust.derived.number
+                        target = "managed_node",
+                        ?derived_ref_pair,
+                        "L1 exhausted event received"
                     );
                     // Handle L1 exhaustion
                 }
 
                 if let Some(replacement) = &event.replace_block {
-                    info!(
-                        "Block replacement: new={:?}, invalidated={:?}",
-                        replacement.replacement.hash, replacement.invalidated
-                    );
+                    info!(target = "managed_node", ?replacement, "Block replacement received");
                     // Handle block replacement
                 }
 
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!(
-                        "Derivation origin updated: hash={:?}, number={}",
-                        origin.hash, origin.number
-                    );
+                    info!(target = "managed_node", ?origin, "Derivation origin update received");
                     // Handle derivation origin update
                 }
 
@@ -132,11 +121,12 @@ impl ManagedNode {
                     event.replace_block.is_none() &&
                     event.derivation_origin_update.is_none()
                 {
-                    debug!("Received empty event with all fields None");
+                    debug!(target = "managed_node", "Received empty event with all fields None");
                 }
             }
             None => {
                 warn!(
+                    target = "managed_node",
                     "Received None event, possibly an empty notification or an issue with deserialization."
                 );
             }
@@ -169,7 +159,7 @@ impl ManagedNode {
 
         // Connect to WebSocket
         let ws_url = format!("ws://{}", self.config.url);
-        info!("Connecting to WebSocket at {}", ws_url);
+        info!(target: "managed_node", ws_url, "Connecting to WebSocket");
 
         let client = WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
             |err| {
@@ -200,13 +190,13 @@ impl ManagedNode {
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
-            info!("Subscription task started");
+            info!(target = "managed_node", "Subscription task started");
             loop {
                 tokio::select! {
                     // Listen for stop signal
                     _ = stop_rx.changed() => {
                         if *stop_rx.borrow() {
-                            info!("Stop signal received, shutting down subscription");
+                            info!(target = "managed_node", "Stop signal received, shutting down subscription");
                             break;
                         }
                     }
@@ -214,7 +204,7 @@ impl ManagedNode {
                     event = subscription.next() => {
                         match event {
                             Some(event_result) => {
-                                debug!("Received event: {:?}", event_result);
+                                debug!(target: "managed_node", event_result = ?event_result, "Received event");
                                 match event_result {
                                     Ok(managed_event) => {
                                         Self::handle_managed_event(managed_event);
@@ -230,7 +220,7 @@ impl ManagedNode {
                             }
                             None => {
                                 // Subscription closed by the server
-                                warn!("Subscription closed by server");
+                                warn!(target = "managed_node", "Subscription closed by server");
                                 break;
                             }
                         }
@@ -247,11 +237,11 @@ impl ManagedNode {
                 );
             }
 
-            info!("Subscription task finished");
+            info!(target = "managed_node", "Subscription task finished");
         });
 
         self.task_handle = Some(handle);
-        info!("Subscription started successfully");
+        info!(target = "managed_node", "Subscription started successfully");
         Ok(())
     }
 
@@ -260,7 +250,7 @@ impl ManagedNode {
     /// Sends a stop signal to the background task and waits for it to complete.
     pub async fn stop_subscription(&mut self) -> Result<(), SubscriptionError> {
         if let Some(stop_tx) = self.stop_tx.take() {
-            debug!("Sending stop signal to subscription task");
+            debug!(target: "managed_node", action = "send_stop_signal", "Sending stop signal to subscription task");
             stop_tx.send(true).map_err(|err| {
                 let err_msg = format!("Failed to send stop signal: {:?}", err);
                 error!(
@@ -276,7 +266,7 @@ impl ManagedNode {
 
         // Wait for task to complete
         if let Some(handle) = self.task_handle.take() {
-            debug!("Waiting for subscription task to complete");
+            debug!(target: "managed_node", "Waiting for subscription task to complete");
             handle.await.map_err(|err| {
                 let err_msg = format!("Failed to join task: {:?}", err);
                 error!(
@@ -286,7 +276,7 @@ impl ManagedNode {
                 );
                 SubscriptionError::from(err_msg)
             })?;
-            info!("Subscription stopped and task joined");
+            info!(target = "managed_node", "Subscription stopped and task joined");
         } else {
             return Err(SubscriptionError::from(
                 "Subscription not active or already stopped".to_string(),
