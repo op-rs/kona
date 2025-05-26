@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Key representing a particular head reference type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum HeadRefKey {
+pub enum SafetyHeadRefKey {
     /// Latest unverified or unsafe head.
     Unsafe,
 
@@ -25,8 +25,8 @@ pub enum HeadRefKey {
     Invalid,
 }
 
-/// Implementation of [`Encode`] for [`HeadRefKey`].
-impl Encode for HeadRefKey {
+/// Implementation of [`Encode`] for [`SafetyHeadRefKey`].
+impl Encode for SafetyHeadRefKey {
     type Encoded = [u8; 1];
 
     fn encode(self) -> Self::Encoded {
@@ -41,8 +41,8 @@ impl Encode for HeadRefKey {
     }
 }
 
-/// Implementation of [`Decode`] for [`HeadRefKey`].
-impl Decode for HeadRefKey {
+/// Implementation of [`Decode`] for [`SafetyHeadRefKey`].
+impl Decode for SafetyHeadRefKey {
     fn decode(value: &[u8]) -> Result<Self, DatabaseError> {
         match value {
             [0] => Ok(Self::Unsafe),
@@ -56,34 +56,36 @@ impl Decode for HeadRefKey {
     }
 }
 
-/// Converts from [`HeadRefKey`] (internal storage reference) to [`SafetyLevel`] (public API format).
+/// Converts from [`SafetyHeadRefKey`] (internal storage reference) to [`SafetyLevel`] (public API
+/// format).
 ///
 /// Performs a lossless and direct mapping from head reference level to safety level.
-impl From<HeadRefKey> for SafetyLevel {
-    fn from(key: HeadRefKey) -> Self {
+impl From<SafetyHeadRefKey> for SafetyLevel {
+    fn from(key: SafetyHeadRefKey) -> Self {
         match key {
-            HeadRefKey::Unsafe => {SafetyLevel::Unsafe}
-            HeadRefKey::LocalSafe => {SafetyLevel::LocalSafe}
-            HeadRefKey::CrossUnsafe => {SafetyLevel::CrossUnsafe}
-            HeadRefKey::Safe => {SafetyLevel::Safe}
-            HeadRefKey::Finalized => {SafetyLevel::Finalized}
-            HeadRefKey::Invalid => {SafetyLevel::Invalid}
+            SafetyHeadRefKey::Unsafe => Self::Unsafe,
+            SafetyHeadRefKey::LocalSafe => Self::LocalSafe,
+            SafetyHeadRefKey::CrossUnsafe => Self::CrossUnsafe,
+            SafetyHeadRefKey::Safe => Self::Safe,
+            SafetyHeadRefKey::Finalized => Self::Finalized,
+            SafetyHeadRefKey::Invalid => Self::Invalid,
         }
     }
 }
 
-/// Converts from [`SafetyLevel`] (public API format) to [`HeadRefKey`] (internal storage reference).
+/// Converts from [`SafetyLevel`] (public API format) to [`SafetyHeadRefKey`] (internal storage
+/// reference).
 ///
 /// Performs a direct  mapping from safety level to head reference key.
-impl From<SafetyLevel> for HeadRefKey {
+impl From<SafetyLevel> for SafetyHeadRefKey {
     fn from(key: SafetyLevel) -> Self {
         match key {
-            SafetyLevel::Unsafe => {HeadRefKey::Unsafe}
-            SafetyLevel::LocalSafe => {HeadRefKey::LocalSafe}
-            SafetyLevel::CrossUnsafe => {HeadRefKey::CrossUnsafe}
-            SafetyLevel::Safe => {HeadRefKey::Safe}
-            SafetyLevel::Finalized => {HeadRefKey::Finalized}
-            SafetyLevel::Invalid => {HeadRefKey::Invalid}
+            SafetyLevel::Unsafe => Self::Unsafe,
+            SafetyLevel::LocalSafe => Self::LocalSafe,
+            SafetyLevel::CrossUnsafe => Self::CrossUnsafe,
+            SafetyLevel::Safe => Self::Safe,
+            SafetyLevel::Finalized => Self::Finalized,
+            SafetyLevel::Invalid => Self::Invalid,
         }
     }
 }
@@ -94,21 +96,21 @@ mod tests {
     #[test]
     fn test_head_ref_key_encode_decode() {
         let cases = vec![
-            (HeadRefKey::Unsafe, [0]),
-            (HeadRefKey::LocalSafe, [1]),
-            (HeadRefKey::CrossUnsafe, [2]),
-            (HeadRefKey::Safe, [3]),
-            (HeadRefKey::Finalized, [4]),
-            (HeadRefKey::Invalid, [255]),
+            (SafetyHeadRefKey::Unsafe, [0]),
+            (SafetyHeadRefKey::LocalSafe, [1]),
+            (SafetyHeadRefKey::CrossUnsafe, [2]),
+            (SafetyHeadRefKey::Safe, [3]),
+            (SafetyHeadRefKey::Finalized, [4]),
+            (SafetyHeadRefKey::Invalid, [255]),
         ];
 
         for (key, expected_encoding) in &cases {
             // Test encoding
-            let encoded = key.clone().encode();
+            let encoded = key.encode();
             assert_eq!(encoded, *expected_encoding, "Encoding failed for {:?}", key);
 
             // Test decoding
-            let decoded = HeadRefKey::decode(&encoded).expect("Decoding should succeed");
+            let decoded = SafetyHeadRefKey::decode(&encoded).expect("Decoding should succeed");
             assert_eq!(decoded, *key, "Decoding mismatch for {:?}", key);
         }
     }
@@ -122,19 +124,19 @@ mod tests {
             SafetyLevel::Finalized,
             SafetyLevel::Invalid,
         ] {
-            let round_trip = SafetyLevel::from(HeadRefKey::from(level));
+            let round_trip = SafetyLevel::from(SafetyHeadRefKey::from(level));
             assert_eq!(round_trip, level, "Round-trip failed for {:?}", level);
         }
 
         for key in [
-            HeadRefKey::Unsafe,
-            HeadRefKey::LocalSafe,
-            HeadRefKey::CrossUnsafe,
-            HeadRefKey::Safe,
-            HeadRefKey::Finalized,
-            HeadRefKey::Invalid,
+            SafetyHeadRefKey::Unsafe,
+            SafetyHeadRefKey::LocalSafe,
+            SafetyHeadRefKey::CrossUnsafe,
+            SafetyHeadRefKey::Safe,
+            SafetyHeadRefKey::Finalized,
+            SafetyHeadRefKey::Invalid,
         ] {
-            let round_trip = HeadRefKey::from(SafetyLevel::from(key));
+            let round_trip = SafetyHeadRefKey::from(SafetyLevel::from(key));
             assert_eq!(round_trip, key, "Round-trip failed for {:?}", key);
         }
     }

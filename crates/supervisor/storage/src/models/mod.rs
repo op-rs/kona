@@ -24,7 +24,7 @@ pub use derivation::StoredDerivedBlockPair;
 
 mod common;
 mod head_ref;
-pub use head_ref::HeadRefKey;
+pub use head_ref::SafetyHeadRefKey;
 
 pub use common::U64List;
 
@@ -98,13 +98,13 @@ tables! {
 
     /// Stores the latest head block reference for each safety level.
     /// # Key
-    /// - [`HeadRefKey`] — Enum variant indicating the type of head being tracked
+    /// - [`SafetyHeadRefKey`] — Enum variant indicating the type of head being tracked
     ///   (e.g., unsafe, locally safe, cross-chain safe, finalized).
     ///
     /// # Value
     /// - [`BlockRef`] — Reference to a block including block number and hash.
-    table HeadRefs {
-        type Key = HeadRefKey;
+    table SafetyHeadRefs {
+        type Key = SafetyHeadRefKey;
         type Value = BlockRef;
     }
 }

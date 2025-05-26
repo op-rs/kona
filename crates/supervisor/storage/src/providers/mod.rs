@@ -12,8 +12,13 @@ mod derivation_provider;
 pub(crate) use derivation_provider::DerivationProvider;
 
 mod log_provider;
-mod safety_head_ref_provider;
 
 // todo: remove this when the provider is used
 #[expect(unused_imports)]
 pub(crate) use log_provider::LogProvider;
+
+mod head_ref_provider;
+
+// todo: remove this when the provider is used
+#[expect(unused_imports)]
+pub(crate) use head_ref_provider::SafetyHeadRefProvider;
