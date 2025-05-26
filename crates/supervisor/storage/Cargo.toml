@@ -27,7 +27,6 @@ serde = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
 bytes = { workspace = true }
 modular-bitfield = { workspace = true }
-test-fuzz = { workspace = true }
 thiserror = {workspace = true}
 tracing = {workspace = true}
 

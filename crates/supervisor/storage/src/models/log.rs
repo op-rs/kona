@@ -263,4 +263,30 @@ mod tests {
         );
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
     }
+
+    #[test]
+    fn test_executing_message_entry_compact_roundtrip() {
+        let original_entry = ExecutingMessageEntry {
+            log_index: 42,
+            chain_id: 1,
+            block_number: 123456,
+            timestamp: 1_654_321_000,
+            hash: test_b256(77),
+        };
+
+        let mut buffer = Vec::new();
+        let bytes_written = original_entry.to_compact(&mut buffer);
+
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+        assert!(!buffer.is_empty(), "Buffer should not be empty after serialization");
+
+        let (decoded_entry, remaining_buf) =
+            ExecutingMessageEntry::from_compact(&buffer, bytes_written);
+
+        assert_eq!(
+            original_entry, decoded_entry,
+            "Original and decoded ExecutingMessageEntry should be equal"
+        );
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after decoding");
+    }
 }
