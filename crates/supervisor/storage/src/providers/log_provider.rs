@@ -28,7 +28,7 @@ use tracing::{debug, error, warn};
 
 /// A log storage that wraps a transactional reference to the MDBX backend.
 #[derive(Debug)]
-#[expect(dead_code)]
+#[allow(dead_code)]
 pub(crate) struct LogProvider<'tx, TX> {
     tx: &'tx TX,
 }
@@ -41,6 +41,7 @@ impl<'tx, TX> LogProvider<'tx, TX> {
     }
 }
 
+#[allow(dead_code)]
 impl<TX> LogProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
@@ -87,6 +88,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 impl<TX> LogProvider<'_, TX>
 where
     TX: DbTx,
