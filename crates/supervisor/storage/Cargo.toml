@@ -25,10 +25,10 @@ alloy-eips = { workspace = true }
 # Misc
 serde = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
-bytes = { workspace = true }
-modular-bitfield = { workspace = true }
-thiserror = {workspace = true}
-tracing = {workspace = true}
+bytes.workspace = true
+modular-bitfield.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 
 #reth
 reth-db-api = { workspace = true }
