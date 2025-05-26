@@ -2,7 +2,7 @@
 //!
 //! This module defines and implements storage providers used by the supervisor
 //! for managing L2 execution state. It includes support for reading and writing:
-//! - Logs and block metadata (via [LogProvider](log_provider::LogProvider))
+//! - Logs and block metadata (via [LogProvider])
 //! - Derivation pipeline state
 //! - Chain head tracking and progression
 mod derivation_provider;
