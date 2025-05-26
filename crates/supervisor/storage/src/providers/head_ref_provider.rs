@@ -86,7 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn test_safety_head_ref_read_write() {
+    fn test_safety_head_ref_retrieval() {
         let db = setup_db();
 
         // Create write transaction first
@@ -112,5 +112,45 @@ mod tests {
         let result =
             provider.get_safety_head_ref(SafetyLevel::Safe).expect("Failed to get head ref");
         assert_eq!(result, block_info);
+    }
+
+    #[test]
+    fn test_safety_head_ref_update() {
+        let db = setup_db();
+        let write_tx = db.tx_mut().expect("Failed to create write transaction");
+        let write_provider = SafetyHeadRefProvider::new(&write_tx);
+
+        // Create initial block info
+        let initial_block_info = BlockInfo {
+            hash: Default::default(),
+            number: 1,
+            parent_hash: Default::default(),
+            timestamp: 100,
+        };
+        write_provider
+            .update_safety_head_ref(SafetyLevel::Safe, &initial_block_info)
+            .expect("Failed to update head ref");
+
+        // Create updated block info
+        let mut updated_block_info = BlockInfo {
+            hash: Default::default(),
+            number: 1,
+            parent_hash: Default::default(),
+            timestamp: 200,
+        };
+        updated_block_info.number = 100;
+        write_provider
+            .update_safety_head_ref(SafetyLevel::Safe, &updated_block_info)
+            .expect("Failed to update head ref");
+
+        // Commit the write transaction
+        write_tx.commit().expect("Failed to commit the write transaction");
+
+        // Verify the updated value
+        let tx = db.tx().expect("Failed to create transaction");
+        let provider = SafetyHeadRefProvider::new(&tx);
+        let result =
+            provider.get_safety_head_ref(SafetyLevel::Safe).expect("Failed to get head ref");
+        assert_eq!(result, updated_block_info);
     }
 }

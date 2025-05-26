@@ -16,7 +16,7 @@ use tracing::{error, warn};
 /// Provides access to derivation storage operations within a transaction.
 #[derive(Debug)]
 pub(crate) struct DerivationProvider<'tx, TX> {
-    pub(crate) tx: &'tx TX,
+    tx: &'tx TX,
 }
 
 impl<'tx, TX> DerivationProvider<'tx, TX> {
