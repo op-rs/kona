@@ -153,6 +153,12 @@ impl EngineTaskExt for InsertUnsafeTask {
         state.set_unsafe_head(new_unsafe_ref);
         state.forkchoice_update_needed = false;
 
+        assert_eq!(
+            new_unsafe_ref.block_info.hash,
+            self.envelope.payload.block_hash(),
+            "the unsafe head block hash should match the block hash of the payload"
+        );
+
         info!(
             target: "engine",
             hash = %new_unsafe_ref.block_info.hash,
