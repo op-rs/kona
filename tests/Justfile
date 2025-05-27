@@ -16,7 +16,7 @@ _build-node COMMIT_TAG="":
         export COMMIT_TAG=$(git rev-parse HEAD)
     fi
 
-    cd {{SOURCE}}/.. && just build-node-with-tag $COMMIT_TAG
+    cd {{SOURCE}}/../docker/apps && just build-remote kona-node "$COMMIT_TAG" kona-node:local
 
 _build-supervisor COMMIT_TAG="":
     #!/usr/bin/env bash
@@ -25,7 +25,7 @@ _build-supervisor COMMIT_TAG="":
         export COMMIT_TAG=$(git rev-parse HEAD)
     fi
 
-    cd {{SOURCE}}/.. && just build-supervisor-with-tag $COMMIT_TAG
+    cd {{SOURCE}}/../docker/apps && just build-remote kona-supervisor "$COMMIT_TAG" kona-supervisor:local
 
 deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
     #!/usr/bin/env bash
