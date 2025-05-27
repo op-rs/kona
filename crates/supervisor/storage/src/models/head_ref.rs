@@ -4,55 +4,46 @@ use reth_db_api::table::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 /// Key representing a particular head reference type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TryFrom)]
+#[try_from(repr)]
+#[repr(u8)]
 pub enum SafetyHeadRefKey {
     /// Latest unverified or unsafe head.
-    Unsafe,
+    Unsafe = 0,
 
     /// Head block considered safe via local verification.
-    LocalSafe,
+    LocalSafe = 1,
 
     /// Head block considered unsafe via cross-chain sync.
-    CrossUnsafe,
+    CrossUnsafe = 2,
 
     /// Head block considered safe.
-    Safe,
+    Safe = 3,
 
     /// Finalized head block.
-    Finalized,
+    Finalized = 4,
 
     /// Invalid head reference.
-    Invalid,
+    Invalid = u8::MAX,
 }
 
 /// Implementation of [`Encode`] for [`SafetyHeadRefKey`].
-impl Encode for SafetyHeadRefKey {
+impl table::Encode for SafetyHeadRefKey {
     type Encoded = [u8; 1];
 
     fn encode(self) -> Self::Encoded {
-        match self {
-            Self::Unsafe => [0],
-            Self::LocalSafe => [1],
-            Self::CrossUnsafe => [2],
-            Self::Safe => [3],
-            Self::Finalized => [4],
-            Self::Invalid => [255],
-        }
+        self as u8
     }
 }
 
 /// Implementation of [`Decode`] for [`SafetyHeadRefKey`].
-impl Decode for SafetyHeadRefKey {
+impl table::Decode for SafetyHeadRefKey {
     fn decode(value: &[u8]) -> Result<Self, DatabaseError> {
-        match value {
-            [0] => Ok(Self::Unsafe),
-            [1] => Ok(Self::LocalSafe),
-            [2] => Ok(Self::CrossUnsafe),
-            [3] => Ok(Self::Safe),
-            [4] => Ok(Self::Finalized),
-            [255] => Ok(Self::Invalid),
-            _ => Err(DatabaseError::Decode),
+        if value.is_empty() {
+            return Err(DatabaseError::Decode)
         }
+        
+        data[0].try_into().map_err(DatabaseError::Decode)
     }
 }
 
