@@ -2,6 +2,7 @@ use crate::StorageError;
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
+use kona_supervisor_types::Log;
 
 /// Provides an interface for supervisor storage to manage source and derived blocks.
 ///
@@ -51,4 +52,52 @@ pub trait DerivationStorage {
     /// * `Ok(())` if the pair was successfully saved.
     /// * `Err(StorageError)` if there is an issue saving the pair.
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
+}
+
+/// Provides an interface for storing and retrieving logs associated with blocks.
+///
+/// This trait defines methods to store logs for a specific block, retrieve the latest block,
+/// find a block by a specific log, and retrieve logs for a given block number.
+///
+/// Implementations are expected to provide persistent and thread-safe access to block logs.
+pub trait LogStorage {
+    /// Retrieves the latest [`BlockInfo`] from the storage.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the latest block information.
+    /// * `Err(StorageError)` if there is an issue retrieving the latest block.
+    fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
+
+    /// Finds a [`BlockInfo`] by a specific [`Log`].
+    ///
+    /// # Arguments
+    /// * `block_number` - The block number to search for the log.
+    /// * `log` - The [`Log`] to find the associated block.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the block information if the log is found.
+    /// * `Err(StorageError)` if there is an issue retrieving the block or if the log is not found.
+    // todo: refactor the arguments to use a more structured type
+    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+
+    /// Retrieves all [`Log`]s associated with a specific block number.
+    ///
+    /// # Arguments
+    /// * `block_number` - The block number for which to retrieve logs.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Log>)` containing the logs associated with the block number.
+    /// * `Err(StorageError)` if there is an issue retrieving the logs or if no logs are found.
+    fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+
+    /// Stores [`BlockInfo`] and [`Log`]s in the storage.
+    ///
+    /// # Arguments
+    /// * `block` - [`BlockInfo`] to associate with the logs.
+    /// * `logs` - The [`Log`] events associated with the block.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the logs were successfully stored.
+    /// * `Err(StorageError)` if there is an issue storing the logs.
+    fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError>;
 }
