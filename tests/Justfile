@@ -75,7 +75,7 @@ deploy-supervisor DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-supervisor COM
     cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
 
 isolate_test DEVNET_ENV_URL GO_PKG_NAME="..."
-    DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./{{GO_PKG_NAME}}.go
+    DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test ./{{GO_PKG_NAME}}.go -v
 
 test-e2e DEVNET COMMIT_TAG="": 
     just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
