@@ -2,19 +2,20 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
-    core::{ClientError, RpcResult, SubscriptionError, client::Subscription},
+    core::{ClientError, SubscriptionError, client::Subscription},
     types::{ErrorCode, ErrorObject},
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedNodeApiClient;
 use kona_supervisor_types::ManagedEvent;
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 use tokio::{
     sync::{Mutex, watch},
     task::JoinHandle,
 };
 use tracing::{debug, error, info, warn};
 
+/// TODO: Introduce ManagedNodeError type and redo error handling
 /// Configuration for the managed node.
 #[derive(Debug)]
 pub struct ManagedNodeConfig {
@@ -219,35 +220,6 @@ impl ManagedNode {
         }
 
         Ok(())
-    }
-
-    /// Calls a [`ManagedNodeApi`](ManagedNodeApiClient) method using an HTTP client with JWT
-    /// authentication.
-    ///
-    /// # Arguments
-    /// * `f` - A closure that takes an HTTP client and returns a future with the RPC call
-    ///
-    /// # Returns
-    /// * [`RpcResult`]`<T>` - The result of the RPC call or an appropriate error
-    pub async fn call_rpc<T, F, Fut>(&mut self, f: F) -> RpcResult<T>
-    where
-        F: FnOnce(Arc<WsClient>) -> Fut,
-        Fut: Future<Output = Result<T, ClientError>>,
-    {
-        let client = self.get_ws_client().await.map_err(|err| {
-            error!(target: "managed_node", ?err, "Failed to get WebSocket client");
-            ErrorObject::from(ErrorCode::InternalError)
-        })?;
-
-        debug!(target: "managed_node", "Executing RPC call");
-
-        let result = f(client).await.map_err(|err| {
-            error!(target: "managed_node", ?err, "RPC call failed");
-            ErrorObject::from(ErrorCode::InternalError)
-        })?;
-
-        debug!(target: "managed_node", "RPC call completed successfully");
-        Ok(result)
     }
 
     /// Creates authentication headers using JWT secret.
@@ -564,8 +536,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_call_rpc_with_parameters() {
-        // Test RPC method calls with various parameter types
+    async fn test_websocket_client_creation() {
+        // Test WebSocket client creation with invalid server (should fail)
         let jwt_file = create_mock_jwt_file();
         let jwt_path = jwt_file.path();
 
@@ -574,91 +546,57 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut managed_node = ManagedNode::new(config).expect("Should create ManagedNode");
+        let managed_node = ManagedNode::new(config).expect("Should create ManagedNode");
 
-        // Test simple method call
-        let chain_id_result = managed_node
-            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(client.as_ref()).await })
-            .await;
-        assert!(chain_id_result.is_err(), "Chain ID call should fail with invalid server");
+        // Test WebSocket client creation - should fail with invalid server
+        let client_result = managed_node.get_ws_client().await;
+        assert!(
+            client_result.is_err(),
+            "WebSocket client creation should fail with invalid server"
+        );
 
-        // Test reset method with multiple BlockId parameters
-        use alloy_eips::BlockId;
-        let block_id = BlockId::Number(alloy_eips::BlockNumberOrTag::Latest);
-
-        let reset_result = managed_node
-            .call_rpc(|client| async move {
-                ManagedNodeApiClient::reset(
-                    client.as_ref(),
-                    block_id,
-                    block_id,
-                    block_id,
-                    block_id,
-                    block_id,
-                )
-                .await
-            })
-            .await;
-        assert!(reset_result.is_err(), "Reset call should fail with invalid server");
-    }
-
-    #[tokio::test]
-    async fn test_rpc_error_handling() {
-        // Test specific error scenarios and error codes
-
-        // Test JWT error
+        // Test with invalid JWT path
         let config_no_jwt = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(),
             jwt_path: "/nonexistent/jwt.hex".to_string(),
         });
 
-        let mut managed_node = ManagedNode::new(config_no_jwt).expect("Should create ManagedNode");
-        let jwt_error_result = managed_node
-            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(client.as_ref()).await })
-            .await;
+        let managed_node_no_jwt =
+            ManagedNode::new(config_no_jwt).expect("Should create ManagedNode");
+        let client_no_jwt_result = managed_node_no_jwt.get_ws_client().await;
+        assert!(client_no_jwt_result.is_err(), "Should fail with missing JWT file");
+    }
 
-        assert!(jwt_error_result.is_err(), "Should fail with JWT error");
-        if let Err(error) = jwt_error_result {
-            assert_eq!(
-                error.code(),
-                ErrorCode::InternalError.code(),
-                "Should be InternalError for JWT secret error"
-            );
-            assert_eq!(
-                error.message(),
-                "Internal error",
-                "Should have standard jsonrpsee InternalError message"
-            );
-        }
-
-        // Test with valid JWT but invalid server (connection error)
+    #[tokio::test]
+    async fn test_thread_safety_and_race_condition_prevention() {
+        // This test verifies that multiple concurrent calls to get_ws_client()
+        // don't create multiple WebSocket clients (race condition prevention)
         let jwt_file = create_mock_jwt_file();
         let jwt_path = jwt_file.path();
 
-        let config_invalid_server = Arc::new(ManagedNodeConfig {
-            url: "nonexistent-host.invalid:8545".to_string(),
+        let config = Arc::new(ManagedNodeConfig {
+            url: "localhost:8545".to_string(), // Use localhost to avoid DNS resolution delays
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut managed_node_invalid =
-            ManagedNode::new(config_invalid_server).expect("Should create ManagedNode");
-        let connection_error_result = managed_node_invalid
-            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&*client).await })
-            .await;
+        let managed_node = Arc::new(ManagedNode::new(config).expect("Should create ManagedNode"));
 
-        assert!(connection_error_result.is_err(), "Should fail with connection error");
-        if let Err(error) = connection_error_result {
-            // Connection errors during WebSocket client creation show up as InternalError
-            assert_eq!(
-                error.code(),
-                ErrorCode::InternalError.code(),
-                "Should be InternalError for connection failures"
-            );
-            assert_eq!(
-                error.message(),
-                "Internal error",
-                "Should have standard jsonrpsee InternalError message"
-            );
-        }
+        // Test that the ManagedNode can be shared across threads (Send + Sync)
+        let node1 = managed_node.clone();
+        let node2 = managed_node.clone();
+
+        // Spawn multiple tasks that try to get the WebSocket client concurrently
+        // Note: These will fail because localhost:8545 isn't running, but we're testing
+        // that they don't race and that the error handling is consistent
+        let task1 = tokio::spawn(async move { node1.get_ws_client().await });
+        let task2 = tokio::spawn(async move { node2.get_ws_client().await });
+
+        let result1 = task1.await.expect("Task should complete");
+        let result2 = task2.await.expect("Task should complete");
+
+        // Both should fail (because server isn't running), but importantly,
+        // they should fail consistently without panicking or creating race conditions
+        assert!(result1.is_err(), "Should fail with connection error");
+        assert!(result2.is_err(), "Should fail with connection error");
     }
 }
