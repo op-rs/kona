@@ -1,10 +1,13 @@
+use derive_more::TryFrom;
 use op_alloy_consensus::interop::SafetyLevel;
 use reth_db::DatabaseError;
-use reth_db_api::table::{Decode, Encode};
+use reth_db_api::table;
 use serde::{Deserialize, Serialize};
 
 /// Key representing a particular head reference type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TryFrom)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TryFrom,
+)]
 #[try_from(repr)]
 #[repr(u8)]
 pub enum SafetyHeadRefKey {
@@ -27,23 +30,23 @@ pub enum SafetyHeadRefKey {
     Invalid = u8::MAX,
 }
 
-/// Implementation of [`Encode`] for [`SafetyHeadRefKey`].
+/// Implementation of [`table::Encode`] for [`SafetyHeadRefKey`].
 impl table::Encode for SafetyHeadRefKey {
     type Encoded = [u8; 1];
 
     fn encode(self) -> Self::Encoded {
-        self as u8
+        [self as u8]
     }
 }
 
-/// Implementation of [`Decode`] for [`SafetyHeadRefKey`].
+/// Implementation of [`table::Decode`] for [`SafetyHeadRefKey`].
 impl table::Decode for SafetyHeadRefKey {
     fn decode(value: &[u8]) -> Result<Self, DatabaseError> {
         if value.is_empty() {
             return Err(DatabaseError::Decode)
         }
-        
-        data[0].try_into().map_err(DatabaseError::Decode)
+
+        value[0].try_into().map_err(|_| DatabaseError::Decode)
     }
 }
 
@@ -84,6 +87,7 @@ impl From<SafetyLevel> for SafetyHeadRefKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reth_db_api::table::{Decode, Encode};
     #[test]
     fn test_head_ref_key_encode_decode() {
         let cases = vec![
