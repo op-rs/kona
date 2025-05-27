@@ -1,11 +1,11 @@
-name: Kurtosis Supervisor
+name: Kurtosis E2E Tests Supervisor
 on:
   workflow_dispatch:
   pull_request:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  kurtosis-e2e-tests:
+  kurtosis-e2e-tests-supervisor:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     name: test
