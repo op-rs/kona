@@ -1,0 +1,28 @@
+name: Kurtosis E2E Tests Supervisor
+on:
+  workflow_dispatch:
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  kurtosis-e2e-tests-supervisor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    name: test
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85
+      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
+        with:
+          cache: true                  # enable built‑in tool cache
+      - name: test with simple-supervisor devnet
+        run: cd tests && just test-e2e-supervisor simple-supervisor ${{ github.event.pull_request.head.sha }}

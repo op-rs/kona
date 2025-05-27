@@ -26,7 +26,7 @@ pub struct BlockRef {
     /// The hash of the parent block (previous block in the chain).
     pub parent_hash: B256,
     /// The timestamp of the block (seconds since Unix epoch).
-    pub time: u64,
+    pub timestamp: u64,
 }
 
 /// Converts from [`BlockInfo`] (external API format) to [`BlockRef`] (storage
@@ -39,7 +39,7 @@ impl From<BlockInfo> for BlockRef {
             number: block.number,
             hash: block.hash,
             parent_hash: block.parent_hash,
-            time: block.timestamp,
+            timestamp: block.timestamp,
         }
     }
 }
@@ -54,7 +54,7 @@ impl From<BlockRef> for BlockInfo {
             number: block.number,
             hash: block.hash,
             parent_hash: block.parent_hash,
-            timestamp: block.time,
+            timestamp: block.timestamp,
         }
     }
 }
@@ -77,7 +77,7 @@ mod tests {
             number: 42,
             hash: test_b256(10),
             parent_hash: test_b256(11),
-            time: 1678886400,
+            timestamp: 1678886400,
         };
 
         let mut buffer = Vec::new();
@@ -103,7 +103,7 @@ mod tests {
         assert_eq!(block_ref.number, block_info.number, "Number should match");
         assert_eq!(block_ref.hash, block_info.hash, "Hash should match");
         assert_eq!(block_ref.parent_hash, block_info.parent_hash, "Parent hash should match");
-        assert_eq!(block_ref.time, block_info.timestamp, "Time (timestamp) should match");
+        assert_eq!(block_ref.timestamp, block_info.timestamp, "Time (timestamp) should match");
     }
 
     #[test]
@@ -112,7 +112,7 @@ mod tests {
             number: 456,
             hash: test_b256(3),
             parent_hash: test_b256(4),
-            time: 1700000000,
+            timestamp: 1700000000,
         };
 
         let block_info: BlockInfo = block_ref.clone().into();
@@ -120,6 +120,6 @@ mod tests {
         assert_eq!(block_info.number, block_ref.number, "Number should match");
         assert_eq!(block_info.hash, block_ref.hash, "Hash should match");
         assert_eq!(block_info.parent_hash, block_ref.parent_hash, "Parent hash should match");
-        assert_eq!(block_info.timestamp, block_ref.time, "Timestamp (time) should match");
+        assert_eq!(block_info.timestamp, block_ref.timestamp, "Timestamp (time) should match");
     }
 }

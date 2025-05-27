@@ -89,10 +89,18 @@ mod tests {
 
     #[test]
     fn test_derived_block_pair_compact_roundtrip() {
-        let source_ref =
-            BlockRef { number: 100, hash: test_b256(1), parent_hash: test_b256(2), time: 1000 };
-        let derived_ref =
-            BlockRef { number: 200, hash: test_b256(3), parent_hash: test_b256(4), time: 1010 };
+        let source_ref = BlockRef {
+            number: 100,
+            hash: test_b256(1),
+            parent_hash: test_b256(2),
+            timestamp: 1000,
+        };
+        let derived_ref = BlockRef {
+            number: 200,
+            hash: test_b256(3),
+            parent_hash: test_b256(4),
+            timestamp: 1010,
+        };
 
         let original_pair = StoredDerivedBlockPair { source: source_ref, derived: derived_ref };
 
@@ -113,9 +121,9 @@ mod tests {
     #[test]
     fn test_from_stored_to_derived_ref_pair() {
         let source_ref =
-            BlockRef { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, time: 100 };
+            BlockRef { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 100 };
         let derived_ref =
-            BlockRef { number: 2, hash: B256::ZERO, parent_hash: B256::ZERO, time: 200 };
+            BlockRef { number: 2, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 200 };
 
         let stored =
             StoredDerivedBlockPair { source: source_ref.clone(), derived: derived_ref.clone() };
