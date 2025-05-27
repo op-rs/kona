@@ -1,7 +1,6 @@
 name: Kurtosis E2E Tests Supervisor
 on:
   workflow_dispatch:
-  pull_request:
 env:
   CARGO_TERM_COLOR: always
 jobs:
