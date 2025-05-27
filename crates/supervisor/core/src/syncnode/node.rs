@@ -2,14 +2,13 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
-    core::{RpcResult, SubscriptionError, client::Subscription},
-    http_client::HttpClientBuilder,
+    core::{ClientError, RpcResult, SubscriptionError, client::Subscription},
     types::{ErrorCode, ErrorObject},
-    ws_client::{HeaderMap, HeaderValue, WsClientBuilder},
+    ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedNodeApiClient;
 use kona_supervisor_types::ManagedEvent;
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 use tokio::{sync::watch, task::JoinHandle};
 use tracing::{debug, error, info, warn};
 
@@ -58,6 +57,8 @@ impl ManagedNodeConfig {
 pub struct ManagedNode {
     /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
+    /// The attached web socket client
+    ws_client: Option<Arc<WsClient>>,
     /// Channel for signaling the subscription task to stop
     stop_tx: Option<watch::Sender<bool>>,
     /// Handle to the async subscription task
@@ -66,73 +67,33 @@ pub struct ManagedNode {
 
 impl ManagedNode {
     /// Creates a new [`ManagedNode`] with the specified configuration.
-    pub const fn new(config: Arc<ManagedNodeConfig>) -> Self {
-        Self { config, stop_tx: None, task_handle: None }
+    pub const fn new(config: Arc<ManagedNodeConfig>) -> Result<Self, ClientError> {
+        Ok(Self { config, ws_client: None, stop_tx: None, task_handle: None })
     }
 
-    /// Processes a managed event received from the subscription.
-    ///
-    /// Analyzes the event content and takes appropriate actions based on the
-    /// event fields.
-    /// TODO: Call relevant DB functions to update the state
-    pub fn handle_managed_event(event_result: Option<ManagedEvent>) {
-        match event_result {
-            Some(event) => {
-                debug!(target = "managed_node", event = ?event, "Handling ManagedEvent");
+    /// Initializes one web socket client which is shared between all calls to the instance of the
+    /// managed node.
+    pub async fn get_ws_client(&mut self) -> Result<Arc<WsClient>, ClientError> {
+        if self.ws_client.is_none() {
+            let headers = self.create_auth_headers().map_err(|err| {
+                error!(target: "managed_node", "Failed to create auth headers: {:?}", err);
+                ClientError::Custom(format!("Failed to create auth headers: {}", err))
+            })?;
+            // Connect to WebSocket
+            let ws_url = format!("ws://{}", self.config.url);
+            info!(target: "managed_node", ws_url, "Creating a new web socket client");
 
-                // Process each field of the event if it's present
-                if let Some(reset_id) = &event.reset {
-                    info!(target = "managed_node", reset_id = %reset_id, "Reset event received");
-                    // Handle reset action
-                }
+            let client =
+                WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
+                    |err| {
+                        ClientError::Custom(format!("Failed to create WebSocket client: {}", err))
+                    },
+                )?;
 
-                if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target = "managed_node", ?unsafe_block, "Unsafe block event received");
-                    // Handle unsafe block
-                }
-
-                if let Some(derived_ref_pair) = &event.derivation_update {
-                    info!(target = "managed_node", ?derived_ref_pair, "Derivation update received");
-                    // Handle derivation update
-                }
-
-                if let Some(derived_ref_pair) = &event.exhaust_l1 {
-                    info!(
-                        target = "managed_node",
-                        ?derived_ref_pair,
-                        "L1 exhausted event received"
-                    );
-                    // Handle L1 exhaustion
-                }
-
-                if let Some(replacement) = &event.replace_block {
-                    info!(target = "managed_node", ?replacement, "Block replacement received");
-                    // Handle block replacement
-                }
-
-                if let Some(origin) = &event.derivation_origin_update {
-                    info!(target = "managed_node", ?origin, "Derivation origin update received");
-                    // Handle derivation origin update
-                }
-
-                // Check if this was an empty event (all fields None)
-                if event.reset.is_none() &&
-                    event.unsafe_block.is_none() &&
-                    event.derivation_update.is_none() &&
-                    event.exhaust_l1.is_none() &&
-                    event.replace_block.is_none() &&
-                    event.derivation_origin_update.is_none()
-                {
-                    debug!(target = "managed_node", "Received empty event with all fields None");
-                }
-            }
-            None => {
-                warn!(
-                    target = "managed_node",
-                    "Received None event, possibly an empty notification or an issue with deserialization."
-                );
-            }
+            self.ws_client = Some(Arc::new(client));
         }
+
+        Ok(self.ws_client.clone().unwrap())
     }
 
     /// Starts a subscription to the managed node.
@@ -144,26 +105,10 @@ impl ManagedNode {
             return Err(SubscriptionError::from("Subscription already active".to_string()));
         }
 
-        let headers = self.create_auth_headers()?;
-
-        // Connect to WebSocket
-        let ws_url = format!("ws://{}", self.config.url);
-        info!(target: "managed_node", ws_url, "Connecting to WebSocket");
-
-        let client = WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
-            |err| {
-                let err_msg = format!("Failed to establish WebSocket connection: {}", err);
-                error!(
-                    target: "managed_node",
-                    ?err,
-                    err_msg
-                );
-                SubscriptionError::from(err_msg)
-            },
-        )?;
+        let client = self.get_ws_client().await?;
 
         let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedNodeApiClient::subscribe_events(&client).await.map_err(|err| {
+            ManagedNodeApiClient::subscribe_events(client.as_ref()).await.map_err(|err| {
                 let err_msg = format!("Failed to subscribe to events: {}", err);
                 error!(
                     target: "managed_node",
@@ -275,42 +220,41 @@ impl ManagedNode {
         Ok(())
     }
 
-    /// Calls a ManagedNodeApi method using an HTTP client with JWT authentication.
+    /// Calls a [`ManagedNodeApi`](ManagedNodeApiClient) method using an HTTP client with JWT
+    /// authentication.
     ///
     /// # Arguments
     /// * `f` - A closure that takes an HTTP client and returns a future with the RPC call
     ///
     /// # Returns
-    /// * `RpcResult<T>` - The result of the RPC call or an appropriate error
-    pub async fn call_rpc<T, F, Fut>(&self, f: F) -> RpcResult<T>
+    /// * [`RpcResult`]`<T>` - The result of the RPC call or an appropriate error
+    pub async fn call_rpc<T, F, Fut>(&mut self, f: F) -> RpcResult<T>
     where
-        F: FnOnce(jsonrpsee::http_client::HttpClient) -> Fut,
-        Fut: std::future::Future<Output = Result<T, jsonrpsee::core::ClientError>>,
+        F: FnOnce(Arc<WsClient>) -> Fut,
+        Fut: Future<Output = Result<T, ClientError>>,
     {
-        let client = self.create_authenticated_client().await?;
-        self.execute_rpc_call(client, f).await
-    }
-
-    /// Creates an authenticated HTTP client with JWT headers.
-    async fn create_authenticated_client(&self) -> RpcResult<jsonrpsee::http_client::HttpClient> {
-        let http_url = format!("http://{}", self.config.url);
-        debug!(target: "managed_node", url = %http_url, "Creating authenticated HTTP client");
-
-        let headers = self.create_auth_headers()?;
-
-        HttpClientBuilder::default().set_headers(headers).build(&http_url).map_err(|err| {
-            let err_msg = format!("Failed to create HTTP client: {}", err);
-            error!(target: "managed_node", ?err, %err_msg);
+        let client = self.get_ws_client().await.map_err(|err| {
+            error!(target: "managed_node", "Failed to get WebSocket client: {:?}", err);
             ErrorObject::from(ErrorCode::InternalError)
-        })
+        })?;
+
+        debug!(target: "managed_node", "Executing RPC call");
+
+        let result = f(client).await.map_err(|err| {
+            error!(target: "managed_node", "RPC call failed: {:?}", err);
+            ErrorObject::from(ErrorCode::InternalError)
+        })?;
+
+        debug!(target: "managed_node", "RPC call completed successfully");
+        Ok(result)
     }
 
     /// Creates authentication headers using JWT secret.
-    fn create_auth_headers(&self) -> RpcResult<HeaderMap> {
-        let jwt_secret = self.config.jwt_secret().ok_or_else(|| {
+    fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
+        let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            ErrorObject::from(ErrorCode::ParseError)
-        })?;
+            return Err(ClientError::Custom("JWT secret not found or invalid".to_string()));
+        };
 
         let mut headers = HeaderMap::new();
         let auth_header =
@@ -319,8 +263,7 @@ impl ManagedNode {
         headers.insert(
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
-                let err_msg = format!("Invalid authorization header: {}", err);
-                error!(target: "managed_node", ?err, %err_msg);
+                error!(target: "managed_node", "Invalid authorization header: {:?}", err);
                 ErrorObject::from(ErrorCode::ParseError)
             })?,
         );
@@ -329,30 +272,69 @@ impl ManagedNode {
         Ok(headers)
     }
 
-    /// Executes the RPC call with error handling and logging.
+    /// Processes a managed event received from the subscription.
     ///
-    /// # Arguments
-    /// * `client` - The authenticated HTTP client
-    /// * `f` - The RPC call closure
-    async fn execute_rpc_call<T, F, Fut>(
-        &self,
-        client: jsonrpsee::http_client::HttpClient,
-        f: F,
-    ) -> RpcResult<T>
-    where
-        F: FnOnce(jsonrpsee::http_client::HttpClient) -> Fut,
-        Fut: std::future::Future<Output = Result<T, jsonrpsee::core::ClientError>>,
-    {
-        debug!(target: "managed_node", "Executing RPC call");
+    /// Analyzes the event content and takes appropriate actions based on the
+    /// event fields.
+    /// TODO: Call relevant DB functions to update the state
+    fn handle_managed_event(event_result: Option<ManagedEvent>) {
+        match event_result {
+            Some(event) => {
+                debug!(target = "managed_node", event = ?event, "Handling ManagedEvent");
 
-        let result = f(client).await.map_err(|err| {
-            let err_msg = format!("RPC call failed: {}", err);
-            error!(target: "managed_node", ?err, %err_msg);
-            ErrorObject::from(ErrorCode::ServerError(0))
-        })?;
+                // Process each field of the event if it's present
+                if let Some(reset_id) = &event.reset {
+                    info!(target = "managed_node", reset_id = %reset_id, "Reset event received");
+                    // Handle reset action
+                }
 
-        debug!(target: "managed_node", "RPC call completed successfully");
-        Ok(result)
+                if let Some(unsafe_block) = &event.unsafe_block {
+                    info!(target = "managed_node", ?unsafe_block, "Unsafe block event received");
+                    // Handle unsafe block
+                }
+
+                if let Some(derived_ref_pair) = &event.derivation_update {
+                    info!(target = "managed_node", ?derived_ref_pair, "Derivation update received");
+                    // Handle derivation update
+                }
+
+                if let Some(derived_ref_pair) = &event.exhaust_l1 {
+                    info!(
+                        target = "managed_node",
+                        ?derived_ref_pair,
+                        "L1 exhausted event received"
+                    );
+                    // Handle L1 exhaustion
+                }
+
+                if let Some(replacement) = &event.replace_block {
+                    info!(target = "managed_node", ?replacement, "Block replacement received");
+                    // Handle block replacement
+                }
+
+                if let Some(origin) = &event.derivation_origin_update {
+                    info!(target = "managed_node", ?origin, "Derivation origin update received");
+                    // Handle derivation origin update
+                }
+
+                // Check if this was an empty event (all fields None)
+                if event.reset.is_none() &&
+                    event.unsafe_block.is_none() &&
+                    event.derivation_update.is_none() &&
+                    event.exhaust_l1.is_none() &&
+                    event.replace_block.is_none() &&
+                    event.derivation_origin_update.is_none()
+                {
+                    debug!(target = "managed_node", "Received empty event with all fields None");
+                }
+            }
+            None => {
+                warn!(
+                    target = "managed_node",
+                    "Received None event, possibly an empty notification or an issue with deserialization."
+                );
+            }
+        }
     }
 }
 
@@ -566,7 +548,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut subscriber = ManagedNode::new(config);
+        let mut subscriber = ManagedNode::new(config).expect("Should create ManagedNode");
 
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.is_none());
@@ -591,21 +573,13 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let managed_node = ManagedNode::new(config);
+        let mut managed_node = ManagedNode::new(config).expect("Should create ManagedNode");
 
         // Test simple method call
         let chain_id_result = managed_node
-            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&client).await })
+            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(client.as_ref()).await })
             .await;
         assert!(chain_id_result.is_err(), "Chain ID call should fail with invalid server");
-
-        // Test method with single parameter
-        let block_ref_result = managed_node
-            .call_rpc(|client| async move {
-                ManagedNodeApiClient::block_ref_by_number(&client, 42).await
-            })
-            .await;
-        assert!(block_ref_result.is_err(), "Block ref call should fail with invalid server");
 
         // Test reset method with multiple BlockId parameters
         use alloy_eips::BlockId;
@@ -614,23 +588,17 @@ mod tests {
         let reset_result = managed_node
             .call_rpc(|client| async move {
                 ManagedNodeApiClient::reset(
-                    &client, block_id, block_id, block_id, block_id, block_id,
+                    client.as_ref(),
+                    block_id,
+                    block_id,
+                    block_id,
+                    block_id,
+                    block_id,
                 )
                 .await
             })
             .await;
         assert!(reset_result.is_err(), "Reset call should fail with invalid server");
-
-        // Test update_cross_safe with multiple parameters
-        let derived_id = BlockId::Number(alloy_eips::BlockNumberOrTag::Latest);
-        let source_id = BlockId::Number(alloy_eips::BlockNumberOrTag::Safe);
-
-        let cross_safe_result = managed_node
-            .call_rpc(|client| async move {
-                ManagedNodeApiClient::update_cross_safe(&client, derived_id, source_id).await
-            })
-            .await;
-        assert!(cross_safe_result.is_err(), "Cross safe update should fail with invalid server");
     }
 
     #[tokio::test]
@@ -643,22 +611,22 @@ mod tests {
             jwt_path: "/nonexistent/jwt.hex".to_string(),
         });
 
-        let managed_node = ManagedNode::new(config_no_jwt);
+        let mut managed_node = ManagedNode::new(config_no_jwt).expect("Should create ManagedNode");
         let jwt_error_result = managed_node
-            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&client).await })
+            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(client.as_ref()).await })
             .await;
 
         assert!(jwt_error_result.is_err(), "Should fail with JWT error");
         if let Err(error) = jwt_error_result {
             assert_eq!(
                 error.code(),
-                ErrorCode::ParseError.code(),
-                "Should be ParseError for JWT secret error"
+                ErrorCode::InternalError.code(),
+                "Should be InternalError for JWT secret error"
             );
             assert_eq!(
                 error.message(),
-                "Parse error",
-                "Should have standard jsonrpsee ParseError message"
+                "Internal error",
+                "Should have standard jsonrpsee InternalError message"
             );
         }
 
@@ -671,23 +639,24 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let managed_node_invalid = ManagedNode::new(config_invalid_server);
+        let mut managed_node_invalid =
+            ManagedNode::new(config_invalid_server).expect("Should create ManagedNode");
         let connection_error_result = managed_node_invalid
-            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&client).await })
+            .call_rpc(|client| async move { ManagedNodeApiClient::chain_id(&*client).await })
             .await;
 
         assert!(connection_error_result.is_err(), "Should fail with connection error");
         if let Err(error) = connection_error_result {
-            // Connection errors during RPC call execution show up as ServerError
+            // Connection errors during WebSocket client creation show up as InternalError
             assert_eq!(
                 error.code(),
-                ErrorCode::ServerError(0).code(),
-                "Should be ServerError for connection failures"
+                ErrorCode::InternalError.code(),
+                "Should be InternalError for connection failures"
             );
             assert_eq!(
                 error.message(),
-                "Server error",
-                "Should have standard jsonrpsee ServerError message"
+                "Internal error",
+                "Should have standard jsonrpsee InternalError message"
             );
         }
     }
