@@ -101,6 +101,7 @@ impl NodeActor for NetworkActor {
                         }
                         Err(e) => {
                             warn!(target: "network", "Failed to receive unsafe block: {:?}", e);
+                            return Err(NetworkActorError::ChannelClosed);
                         }
                     }
                 }
@@ -110,7 +111,7 @@ impl NodeActor for NetworkActor {
                             target: "network",
                             "Found no unsafe block signer on receive"
                         );
-                        continue;
+                        return Err(NetworkActorError::ChannelClosed);
                     };
                     if unsafe_block_signer.send(signer).is_err() {
                         warn!(
@@ -140,4 +141,7 @@ pub enum NetworkActorError {
     /// The network driver was missing its unsafe block signer sender.
     #[error("Missing unsafe block signer in network driver")]
     MissingUnsafeBlockSigner,
+    /// Channel closed unexpectedly.
+    #[error("Channel closed unexpectedly")]
+    ChannelClosed,
 }

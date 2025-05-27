@@ -13,6 +13,9 @@ optimism_package:
         count: 1
       - el_type: op-reth
         cl_type: kona-node
+        # We are using a local image for the kona-node for now. Once we get more stability we can
+        # switch back to the docker repository's one.
+        cl_image: kona-node:local
         el_log_level: "debug"
         cl_log_level: "debug"
         count: 1
@@ -31,7 +34,7 @@ optimism_package:
 ethereum_package:
   participants:
   - el_type: geth
-    cl_type: nimbus
+    cl_type: teku
   network_params:
     preset: minimal
     genesis_delay: 5

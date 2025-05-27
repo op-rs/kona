@@ -127,8 +127,8 @@ impl GossipDriver {
     }
 
     /// Attempts to select the next event from the Swarm.
-    pub async fn select_next_some(&mut self) -> SwarmEvent<Event> {
-        self.swarm.select_next_some().await
+    pub async fn next(&mut self) -> Option<SwarmEvent<Event>> {
+        self.swarm.next().await
     }
 
     /// Returns if the given [`Multiaddr`] has been dialed the maximum number of times.

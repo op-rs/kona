@@ -30,7 +30,8 @@ pub struct Network {
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
-    pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
+    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
+    // pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
     /// The swarm instance.
     pub gossip: GossipDriver,
     /// The discovery service driver.
@@ -60,7 +61,9 @@ impl Network {
     /// and continually listens for new peers and messages to handle
     pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
-        let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
+        // TODO(@theochap): we should fix that channel handler.
+        // We are currently using a mpsc channel without senders which causes it to drop.
+        // let publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
         let (handler, mut enr_receiver) = self.discovery.start();
         let mut broadcast = self.broadcast;
 
@@ -74,20 +77,27 @@ impl Network {
         tokio::spawn(async move {
             loop {
                 select! {
-                    block = publish.recv() => {
-                        let Some(block) = block else {
-                            continue;
+                    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
+                    // We are currently using a mpsc channel without senders which causes it to drop.
+                    // block = publish.recv() => {
+                    //     let Some(block) = block else {
+                    //         continue;
+                    //     };
+                    //     let timestamp = block.payload.timestamp();
+                    //     let selector = |handler: &crate::BlockHandler| {
+                    //         handler.topic(timestamp)
+                    //     };
+                    //     match self.gossip.publish(selector, Some(block)) {
+                    //         Ok(id) => info!("Published unsafe payload | {:?}", id),
+                    //         Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
+                    //     }
+                    // }
+                    event = self.gossip.next() => {
+                        let Some(event) = event else {
+                            error!(target: "node::p2p", "The gossip swarm stream has ended");
+                            return;
                         };
-                        let timestamp = block.payload.timestamp();
-                        let selector = |handler: &crate::BlockHandler| {
-                            handler.topic(timestamp)
-                        };
-                        match self.gossip.publish(selector, Some(block)) {
-                            Ok(id) => info!("Published unsafe payload | {:?}", id),
-                            Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
-                        }
-                    }
-                    event = self.gossip.select_next_some() => {
+
                         kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
@@ -96,8 +106,8 @@ impl Network {
                     },
                     enr = enr_receiver.recv() => {
                         let Some(enr) = enr else {
-                            trace!("Receiver `None` peer enr");
-                            continue;
+                            error!(target: "node::p2p", "The enr receiver channel has closed");
+                            return;
                         };
                         self.gossip.dial(enr);
                         kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER);
@@ -148,8 +158,8 @@ impl Network {
                     },
                     req = rpc.recv() => {
                         let Some(req) = req else {
-                            trace!("Receiver `None` rpc request");
-                            continue;
+                            error!(target: "node::p2p", "The rpc receiver channel has closed");
+                            return;
                         };
                         req.handle(&self.gossip, &handler);
                     },

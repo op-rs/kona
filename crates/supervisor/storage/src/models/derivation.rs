@@ -5,6 +5,7 @@
 //! in rollup contexts, such as linking an L2 block to its originating L1 block.
 
 use super::BlockRef;
+use kona_interop::DerivedRefPair;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 
@@ -15,14 +16,14 @@ use serde::{Deserialize, Serialize};
 /// blocks. It stores the [`BlockRef`] information for both the source and the derived blocks.
 /// It is stored as value in the [`DerivedBlocks`](`crate::models::DerivedBlocks`) table.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct DerivedBlockPair {
+pub struct StoredDerivedBlockPair {
     /// The block that was derived from the [`source`](`Self::source`) block.
     pub derived: BlockRef,
     /// The source block from which the [`derived`](`Self::derived`) block was created.
     pub source: BlockRef,
 }
 
-impl Compact for DerivedBlockPair {
+impl Compact for StoredDerivedBlockPair {
     fn to_compact<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) -> usize {
         let mut bytes_written = 0;
         bytes_written += self.derived.to_compact(buf);
@@ -38,11 +39,45 @@ impl Compact for DerivedBlockPair {
     }
 }
 
+/// Converts from [`StoredDerivedBlockPair`] (storage format) to [`DerivedRefPair`] (external API
+/// format).
+///
+/// Performs a direct field mapping.
+impl From<StoredDerivedBlockPair> for DerivedRefPair {
+    fn from(pair: StoredDerivedBlockPair) -> Self {
+        Self { derived: pair.derived.into(), source: pair.source.into() }
+    }
+}
+
+/// Converts from [`DerivedRefPair`] (external API format) to [`StoredDerivedBlockPair`] (storage
+/// format).
+///
+/// Performs a direct field mapping.
+impl From<DerivedRefPair> for StoredDerivedBlockPair {
+    fn from(pair: DerivedRefPair) -> Self {
+        Self { derived: pair.derived.into(), source: pair.source.into() }
+    }
+}
+
+impl StoredDerivedBlockPair {
+    /// Creates a new [`StoredDerivedBlockPair`] from the given [`BlockRef`]s.
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source block reference.
+    /// * `derived` - The derived block reference.
+    pub const fn new(source: BlockRef, derived: BlockRef) -> Self {
+        Self { source, derived }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::BlockRef;
     use alloy_primitives::B256;
+    use kona_interop::DerivedRefPair;
+    use kona_protocol::BlockInfo;
     use reth_codecs::Compact;
 
     fn test_b256(val: u8) -> B256 {
@@ -59,19 +94,54 @@ mod tests {
         let derived_ref =
             BlockRef { number: 200, hash: test_b256(3), parent_hash: test_b256(4), time: 1010 };
 
-        let original_pair = DerivedBlockPair { source: source_ref, derived: derived_ref };
+        let original_pair = StoredDerivedBlockPair { source: source_ref, derived: derived_ref };
 
         let mut buffer = Vec::new();
         let bytes_written = original_pair.to_compact(&mut buffer);
 
         assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
         let (deserialized_pair, remaining_buf) =
-            DerivedBlockPair::from_compact(&buffer, bytes_written);
+            StoredDerivedBlockPair::from_compact(&buffer, bytes_written);
 
         assert_eq!(
             original_pair, deserialized_pair,
             "Original and deserialized pairs should be equal"
         );
         assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
+    }
+
+    #[test]
+    fn test_from_stored_to_derived_ref_pair() {
+        let source_ref =
+            BlockRef { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, time: 100 };
+        let derived_ref =
+            BlockRef { number: 2, hash: B256::ZERO, parent_hash: B256::ZERO, time: 200 };
+
+        let stored =
+            StoredDerivedBlockPair { source: source_ref.clone(), derived: derived_ref.clone() };
+
+        // Convert to DerivedRefPair
+        let derived: DerivedRefPair = stored.into();
+
+        // The conversion should map fields directly (BlockRef -> BlockInfo)
+        assert_eq!(BlockInfo::from(source_ref), derived.source);
+        assert_eq!(BlockInfo::from(derived_ref), derived.derived);
+    }
+
+    #[test]
+    fn test_from_derived_ref_pair_to_stored() {
+        let source_info =
+            BlockInfo { number: 10, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 100 };
+        let derived_info =
+            BlockInfo { number: 20, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 200 };
+
+        let pair = DerivedRefPair { source: source_info, derived: derived_info };
+
+        // Convert to StoredDerivedBlockPair
+        let stored: StoredDerivedBlockPair = pair.into();
+
+        // The conversion should map fields directly (BlockInfo -> BlockRef)
+        assert_eq!(BlockRef::from(source_info), stored.source);
+        assert_eq!(BlockRef::from(derived_info), stored.derived);
     }
 }

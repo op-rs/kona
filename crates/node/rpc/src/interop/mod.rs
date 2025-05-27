@@ -4,7 +4,7 @@
 //! superchain supervisor for their validity via RPC using the [`CheckAccessList`] API.
 
 mod api;
-pub use api::CheckAccessList;
+pub use api::CheckAccessListClient;
 
 mod error;
 pub use error::InteropTxValidatorError;
@@ -18,7 +18,7 @@ use kona_interop::{ExecutingDescriptor, SafetyLevel, parse_access_list_items_to_
 #[async_trait::async_trait]
 pub trait InteropTxValidator {
     /// The supervisor client type.
-    type SupervisorClient: CheckAccessList + Send + Sync;
+    type SupervisorClient: CheckAccessListClient + Send + Sync;
 
     /// Default duration that message validation is not allowed to exceed.
     ///

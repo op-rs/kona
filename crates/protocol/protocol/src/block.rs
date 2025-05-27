@@ -23,12 +23,10 @@ pub struct BlockInfo {
     /// The block hash
     pub hash: B256,
     /// The block number
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
     pub number: u64,
     /// The parent block hash
     pub parent_hash: B256,
     /// The block timestamp
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
     pub timestamp: u64,
 }
 
@@ -41,6 +39,11 @@ impl BlockInfo {
     /// Returns the block ID.
     pub const fn id(&self) -> BlockNumHash {
         BlockNumHash { hash: self.hash, number: self.number }
+    }
+
+    /// Returns `true` if this [`BlockInfo`] is the direct parent of the given block.
+    pub fn is_parent_of(&self, block: &Self) -> bool {
+        self.number + 1 == block.number && self.hash == block.parent_hash
     }
 }
 
@@ -76,10 +79,7 @@ pub struct L2BlockInfo {
     #[cfg_attr(feature = "serde", serde(rename = "l1origin", alias = "l1Origin"))]
     pub l1_origin: BlockNumHash,
     /// The sequence number of the L2 block
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "alloy_serde::quantity", rename = "sequenceNumber", alias = "seqNum")
-    )]
+    #[cfg_attr(feature = "serde", serde(rename = "sequenceNumber", alias = "seqNum"))]
     pub seq_num: u64,
 }
 
@@ -458,9 +458,9 @@ mod tests {
 
         let json = r#"{
             "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-            "number": "0x1",
+            "number": 1,
             "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-            "timestamp": "0x1"
+            "timestamp": 1
         }"#;
 
         let deserialized: BlockInfo = serde_json::from_str(json).unwrap();
@@ -513,17 +513,43 @@ mod tests {
 
         let json = r#"{
             "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
-            "number": "0x1",
+            "number": 1,
             "parentHash": "0x0202020202020202020202020202020202020202020202020202020202020202",
-            "timestamp": "0x1",
+            "timestamp": 1,
             "l1origin": {
                 "hash": "0x0303030303030303030303030303030303030303030303030303030303030303",
                 "number": 2
             },
-            "sequenceNumber": "0x3"
+            "sequenceNumber": 3
         }"#;
 
         let deserialized: L2BlockInfo = serde_json::from_str(json).unwrap();
         assert_eq!(deserialized, l2_block_info);
+    }
+
+    #[test]
+    fn test_is_parent_of() {
+        let parent = BlockInfo {
+            hash: B256::from([1u8; 32]),
+            number: 10,
+            parent_hash: B256::from([0u8; 32]),
+            timestamp: 1000,
+        };
+        let child = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 11,
+            parent_hash: parent.hash,
+            timestamp: 1010,
+        };
+        let unrelated = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 12,
+            parent_hash: B256::from([9u8; 32]),
+            timestamp: 1020,
+        };
+
+        assert!(parent.is_parent_of(&child));
+        assert!(!child.is_parent_of(&parent));
+        assert!(!parent.is_parent_of(&unrelated));
     }
 }
