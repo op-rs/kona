@@ -1,11 +1,14 @@
 name: Rust CI
+
 on:
   push:
     branches: [main]
   merge_group:
   pull_request:
+
 env:
   CARGO_TERM_COLOR: always
+
 jobs:
   cargo-tests:
     runs-on: ubuntu-latest
@@ -22,6 +25,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - name: cargo test
         run: just test
+
   cargo-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -54,22 +58,7 @@ jobs:
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
-  cargo-build-benches:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    name: build-benchmarks
-    continue-on-error: true
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/setup
-      - name: build benches
-        run: just benches
-      - name: chown target
-        run: |
-          sudo chown -R $(id -u):$(id -g) ./target
+
   cargo-build:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -99,6 +88,24 @@ jobs:
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
+
+  cargo-build-benches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    name: build-benchmarks
+    continue-on-error: true
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+      - name: build benches
+        run: just benches
+      - name: chown target
+        run: |
+          sudo chown -R $(id -u):$(id -g) ./target
+
   cargo-udeps:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -115,6 +122,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-udeps
       - name: cargo udeps
         run: just check-udeps
+
   cargo-doc-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -126,6 +134,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: doclint
         run: just lint-docs
+
   cargo-doc-test:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -137,6 +146,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: doctest
         run: just test-docs
+
   cargo-hack:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -151,6 +161,24 @@ jobs:
       - uses: taiki-e/install-action@cargo-hack
       - name: cargo hack
         run: just hack
+
+  check-no-std:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: riscv32imac-unknown-none-elf
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: check
+        run: ./.github/scripts/check_no_std.sh
+
   coverage:
     runs-on: ubuntu-latest
     name: coverage
@@ -187,3 +215,13 @@ jobs:
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          rust-version: 1.85

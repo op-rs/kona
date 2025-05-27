@@ -1,15 +1,48 @@
-name: Synchronize Git Submodules
+name: Scheduled Dependency Updates
 
 on:
-  push:
-    branches: [main]
   schedule:
-    - cron:  '30 5 * * *'
+    - cron:  '30 5 */7 * *'
   workflow_dispatch:
 
 jobs:
-  submodule-sync:
-    name: Synchronize the git submodule
+  monorepo-pin:
+    name: Update pinned monorepo revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_TOKEN }}
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85
+      - name: Update Monorepo Revision
+        run: just update-monorepo
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          commit-message: Update Monorepo Revision
+          signoff: false
+          branch: bot/update-monorepo
+          base: main
+          delete-branch: true
+          title: '[BOT] Update Monorepo Revision'
+          body: |
+            ### Description
+
+            Automated PR to update the pinned monorepo revision.
+          labels: |
+            A-ci
+            C-bot
+          assignees: refcell
+          draft: false
+  scr-sync:
+    name: Update superchain-registry
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -26,16 +59,16 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT_TOKEN }}
-          commit-message: Update Submodules
+          commit-message: Update superchain-registry bindings
           signoff: false
-          branch: bot/update-submodules
+          branch: bot/update-scr
           base: main
           delete-branch: true
-          title: '[BOT] Update Submodules'
+          title: '[BOT] Update `superchain-registry` Revision'
           body: |
             ### Description
 
-            Automated PR to update git submodules.
+            Automated PR to update the `superchain-registry` for `kona-registry`.
           labels: |
             A-submodules
             C-bot
