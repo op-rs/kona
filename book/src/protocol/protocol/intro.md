@@ -38,7 +38,7 @@ type.
 
 ## Sections
 
-#### Core Derviation Types (discussed above)
+#### Core Derivation Types (discussed above)
 
 - [Frames](./frames.md)
 - [Channels](./channels.md)
