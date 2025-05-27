@@ -1,0 +1,3 @@
+[tools]
+
+"ubi:kurtosis-tech/kurtosis-cli-release-artifacts[exe=kurtosis]" = "1.6.0"

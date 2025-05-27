@@ -7,10 +7,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  kurtosis-e2e-tests:
+  simple-e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: kurtosis-e2e-tests
+    name: simple-e2e-tests
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -24,10 +24,36 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.85
-      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
+      - name: Setup Go 1.24.3
+        uses: actions/setup-go@v5
         with:
-          cache: true                  # enable built‑in tool cache
+          # Semantic version range syntax or exact version of Go
+          go-version: '1.24.3'
+      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
       - name: test with simple-kona devnet
-        run: cd tests && just test-e2e simple-kona ${{ github.event.pull_request.head.sha }}
+        run: just build-devnet-and-test-e2e simple-kona node ${{ github.event.pull_request.head.sha }}
+  large-e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    name: large-e2e-tests
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
+      - uses: taiki-e/install-action@just
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85
+      - name: Setup Go 1.24.3
+        uses: actions/setup-go@v5
+        with:
+          # Semantic version range syntax or exact version of Go
+          go-version: '1.24.3'
+      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
       - name: test with large-kona devnet
-        run: cd tests && just test-e2e large-kona ${{ github.event.pull_request.head.sha }}
+        run: just build-devnet-and-test-e2e large-kona node ${{ github.event.pull_request.head.sha }}

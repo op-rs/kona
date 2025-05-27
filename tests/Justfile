@@ -1,87 +1,69 @@
 SOURCE := source_directory()
+DEFAULT_DEVNET_PATH := source_directory() + "/devnets/simple-kona.yaml"
+DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package"
 
-setup:
-    mise trust && mise install
-
-clone-optimism:
-    -(git clone https://github.com/ethereum-optimism/optimism.git {{SOURCE}}/../optimism)
-    
-install-optimism:
-    cd {{SOURCE}}/../optimism && mise trust && mise install
-
-_build-node COMMIT_TAG="":
+build-devnet BINARY COMMIT_TAG="" :
     #!/usr/bin/env bash
+    if [ {{BINARY}} != "node" ] && [ {{BINARY}} != "supervisor" ]; then
+        echo "Invalid binary specified. Must be either 'node' or 'supervisor'."
+        exit 1
+    fi
+
     export COMMIT_TAG={{COMMIT_TAG}}
     if [ -z "{{COMMIT_TAG}}" ]; then
         export COMMIT_TAG=$(git rev-parse HEAD)
     fi
 
-    cd {{SOURCE}}/.. && just build-node-with-tag $COMMIT_TAG
+    cd {{SOURCE}}/.. && just build-{{BINARY}}-with-tag $COMMIT_TAG
 
-_build-supervisor COMMIT_TAG="":
-    #!/usr/bin/env bash
-    export COMMIT_TAG={{COMMIT_TAG}}
-    if [ -z "{{COMMIT_TAG}}" ]; then
-        export COMMIT_TAG=$(git rev-parse HEAD)
+# Spins up kurtosis with the `kona-node` docker image
+# The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
+# If not specified, the default devnet path will be used.
+# The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
+devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
+  #!/bin/bash
+
+  export ENCLAVE=""
+  if ! [ -z "{{ENCLAVE}}" ]; then
+    export ENCLAVE="--enclave {{ENCLAVE}}"
+  fi
+
+  export DEVNET_PATH="{{CUSTOM_DEVNET_PATH}}"
+  if [ -z "{{CUSTOM_DEVNET_PATH}}" ]; then
+    export DEVNET_PATH="{{DEFAULT_DEVNET_PATH}}"
+  fi
+
+  export OP_PACKAGE_PATH="{{OP_PACKAGE_PATH}}"
+  if [ -z "{{OP_PACKAGE_PATH}}" ]; then
+    export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
+  # if the OP_PACKAGE_PATH is a local path, use mise to install it
+  elif [ -d "{{OP_PACKAGE_PATH}}" ]; then
+    cd $OP_PACKAGE_PATH && mise install 
+  fi
+
+  # Run the kurtosis test
+  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
+
+# Winds down kurtosis, cleaning up the network
+cleanup-kurtosis:
+  kurtosis clean -a
+
+test-e2e DEVNET GO_PKG_NAME="":
+    #!/bin/bash
+    if [ -z "{{GO_PKG_NAME}}" ]; then
+        export GO_PKG_NAME="..."
+    else
+        export GO_PKG_NAME="{{GO_PKG_NAME}}"
     fi
 
-    cd {{SOURCE}}/.. && just build-supervisor-with-tag $COMMIT_TAG
+    export DEVNET_ENV_URL={{DEVNET}}
 
-deploy DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-node COMMIT_TAG) setup clone-optimism install-optimism
-    #!/usr/bin/env bash
-    cd {{SOURCE}}/../optimism/kurtosis-devnet
+    cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
 
-    # Copy the devnet file to the SOURCE directory
-    cp -f {{DEVNET_FILE_PATH}} . 
-
-    # Parse the input args.
-    export TARGET_NAME=`basename {{DEVNET_FILE_PATH}}`
-    export DEVNET_NAME={{NAME}}
-
-    if [ -z "{{NAME}}" ]; then
-        export DEVNET_NAME=`basename $TARGET_NAME .yaml`
-    fi
-
-    export ENCL_NAME="$DEVNET_NAME"-devnet
+build-devnet-and-test-e2e DEVNET BINARY COMMIT_TAG="" OP_PACKAGE_PATH="": (build-devnet BINARY COMMIT_TAG)
+    #!/bin/bash
+    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
     
-    NAME=$DEVNET_NAME just devnet "$TARGET_NAME"
+    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}} 
+    just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
 
-    # Copy the generated devnet spec to the SOURCE directory
-    mkdir -p {{SOURCE}}/devnets/specs
-    cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
-
-# Deploys superchain devnet as according to given network params file.
-deploy-supervisor DEVNET_FILE_PATH COMMIT_TAG="" NAME="": (_build-supervisor COMMIT_TAG) setup clone-optimism install-optimism
-    #!/usr/bin/env bash
-    cd {{SOURCE}}/../optimism/kurtosis-devnet
-
-    # Copy the devnet file to the SOURCE directory
-    cp -f {{DEVNET_FILE_PATH}} . 
-
-    # Parse the input args.
-    export TARGET_NAME=`basename {{DEVNET_FILE_PATH}}`
-    export DEVNET_NAME={{NAME}}
-
-    if [ -z "{{NAME}}" ]; then
-        export DEVNET_NAME=`basename $TARGET_NAME .yaml`
-    fi
-
-    export ENCL_NAME="$DEVNET_NAME"-devnet
-    
-    NAME=$DEVNET_NAME just devnet "$TARGET_NAME"
-
-    # Copy the generated devnet spec to the SOURCE directory
-    mkdir -p {{SOURCE}}/devnets/specs
-    cp tests/$ENCL_NAME.json {{SOURCE}}/devnets/specs
-
-isolate_test DEVNET_ENV_URL GO_PKG_NAME="...":
-    DEVNET_ENV_URL='{{DEVNET_ENV_URL}}' go test -v ./{{GO_PKG_NAME}}
-
-test-e2e DEVNET COMMIT_TAG="": 
-    just deploy "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
-    just isolate_test "{{SOURCE}}/devnets/specs/{{DEVNET}}-devnet.json" "node/..."
-
-# Deploys superchain devnet. Runs E2E tests in supervisor package against it.
-test-e2e-supervisor DEVNET COMMIT_TAG="": 
-    just deploy-supervisor "{{SOURCE}}/devnets/{{DEVNET}}.yaml" {{COMMIT_TAG}}
-    just isolate_test "{{SOURCE}}/devnets/specs/{{DEVNET}}-devnet.json" "supervisor/..."

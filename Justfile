@@ -1,3 +1,5 @@
+import "./tests/Justfile"
+
 set positional-arguments
 alias t := tests
 alias la := lint-all
