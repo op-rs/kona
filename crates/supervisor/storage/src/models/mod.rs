@@ -23,6 +23,9 @@ mod derivation;
 pub use derivation::StoredDerivedBlockPair;
 
 mod common;
+mod head_ref;
+pub use head_ref::SafetyHeadRefKey;
+
 pub use common::U64List;
 
 /// Implements [`reth_db_api::table::Compress`] and [`reth_db_api::table::Decompress`] traits for
@@ -91,6 +94,18 @@ tables! {
      table SourceToDerivedBlockNumbers {
         type Key = u64;
         type Value = U64List;
+    }
+
+    /// Stores the latest head block reference for each safety level.
+    /// # Key
+    /// - [`SafetyHeadRefKey`] — Enum variant indicating the type of head being tracked
+    ///   (e.g., unsafe, locally safe, cross-chain safe, finalized).
+    ///
+    /// # Value
+    /// - [`BlockRef`] — Reference to a block including block number and hash.
+    table SafetyHeadRefs {
+        type Key = SafetyHeadRefKey;
+        type Value = BlockRef;
     }
 }
 

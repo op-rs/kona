@@ -5104,6 +5104,7 @@ dependencies = [
  "kona-protocol",
  "kona-supervisor-types",
  "modular-bitfield",
+ "op-alloy-consensus 0.17.1",
  "reth-codecs",
  "reth-db",
  "reth-db-api",

@@ -7,7 +7,7 @@ block that this L2 block "originated".
 Similarly to the [`BlockInfo`][bi] type, `L2BlockInfo` is a subset of information
 provided by a block header, used for protocol operations.
 
-[`L2BlockInfo`][lbi] provides a [`from_block_and_gensis`][fbg] method to
+[`L2BlockInfo`][lbi] provides a [`from_block_and_genesis`][fbg] method to
 construct the [`L2BlockInfo`][lbi] from a block and `ChainGenesis`.
 
 

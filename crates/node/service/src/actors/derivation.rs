@@ -13,6 +13,7 @@ use tokio::{
     select,
     sync::{
         mpsc::{UnboundedReceiver, UnboundedSender},
+        oneshot::Receiver as OneshotReceiver,
         watch::Receiver as WatchReceiver,
     },
 };
@@ -33,8 +34,8 @@ where
 
     /// The l2 safe head from the engine.
     engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
-    /// A receiver that tells derivation to begin.
-    sync_complete_rx: UnboundedReceiver<()>,
+    /// A receiver that tells derivation to begin. Completing EL sync consumes the instance.
+    sync_complete_rx: OneshotReceiver<()>,
     /// A receiver that sends a [`Signal`] to the derivation pipeline.
     ///
     /// The derivation actor steps over the derivation pipeline to generate
@@ -85,7 +86,7 @@ where
     pub const fn new(
         pipeline: P,
         engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
-        sync_complete_rx: UnboundedReceiver<()>,
+        sync_complete_rx: OneshotReceiver<()>,
         derivation_signal_rx: UnboundedReceiver<Signal>,
         l1_head_updates: UnboundedReceiver<BlockInfo>,
         attributes_out: UnboundedSender<OpAttributesWithParent>,
@@ -253,10 +254,9 @@ where
                 _ = self.engine_l2_safe_head.changed() => {
                     self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
                 }
-                _ = self.sync_complete_rx.recv(), if !self.engine_ready => {
+                _ = &mut self.sync_complete_rx, if !self.engine_ready => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
                     self.engine_ready = true;
-                    self.sync_complete_rx.close();
                     // Optimistically process the first message.
                     self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }

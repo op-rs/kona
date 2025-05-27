@@ -10,3 +10,6 @@ pub(crate) use derivation_provider::DerivationProvider;
 
 mod log_provider;
 pub(crate) use log_provider::LogProvider;
+
+mod head_ref_provider;
+pub(crate) use head_ref_provider::SafetyHeadRefProvider;

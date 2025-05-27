@@ -3,6 +3,7 @@ use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
+use op_alloy_consensus::interop::SafetyLevel;
 
 /// Provides an interface for supervisor storage to manage source and derived blocks.
 ///
@@ -102,4 +103,38 @@ pub trait LogStorage {
     /// * `Ok(())` if the logs were successfully stored.
     /// * `Err(StorageError)` if there is an issue storing the logs.
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError>;
+}
+
+/// Provides an interface for storing and retrieving safety head references.
+///
+/// This trait defines methods to manage safety head references for different safety levels.
+/// Each safety level maintains a reference to a block.
+///
+/// Implementations are expected to provide persistent and thread-safe access to safety head
+/// references.
+pub trait SafetyHeadRefStorage {
+    /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
+    ///
+    /// # Arguments
+    /// * `safety_level` - The safety level for which to retrieve the head reference.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the current safety head reference.
+    /// * `Err(StorageError)` if there is an issue retrieving the reference.
+    fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+
+    /// Updates the safety head reference for a given [`SafetyLevel`].
+    ///
+    /// # Arguments
+    /// * `safety_level` - The safety level for which to update the head reference.
+    /// * `block` - The new [`BlockInfo`] to set as the safety head reference.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_safety_head_ref(
+        &self,
+        safety_level: SafetyLevel,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError>;
 }
