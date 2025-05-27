@@ -25,3 +25,12 @@ mod error;
 pub use error::StorageError;
 
 mod providers;
+
+mod chaindb;
+pub use chaindb::ChainDb;
+
+mod chaindb_factory;
+pub use chaindb_factory::ChainDbFactory;
+
+mod traits;
+pub use traits::{DerivationStorage, LogStorage};

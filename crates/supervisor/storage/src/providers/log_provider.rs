@@ -28,25 +28,26 @@ use tracing::{debug, error, warn};
 
 /// A log storage that wraps a transactional reference to the MDBX backend.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub(crate) struct LogProvider<'tx, TX> {
     tx: &'tx TX,
 }
 
 /// Internal constructor and setup methods for [`LogProvider`].
 impl<'tx, TX> LogProvider<'tx, TX> {
-    #[allow(dead_code)]
     pub(crate) const fn new(tx: &'tx TX) -> Self {
         Self { tx }
     }
 }
 
-#[allow(dead_code)]
 impl<TX> LogProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
+    pub(crate) fn store_block_logs(
+        &self,
+        block: &BlockInfo,
+        logs: Vec<Log>,
+    ) -> Result<(), StorageError> {
         debug!(target: "supervisor_storage", block_number = block.number, "Storing logs");
 
         if let Ok(latest_block) = self.get_latest_block() {
@@ -88,7 +89,6 @@ where
     }
 }
 
-#[allow(dead_code)]
 impl<TX> LogProvider<'_, TX>
 where
     TX: DbTx,
@@ -113,7 +113,7 @@ where
         Ok(block.into())
     }
 
-    fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
+    pub(crate) fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         debug!(target: "supervisor_storage", "Fetching latest block");
 
         let mut cursor = self.tx.cursor_read::<BlockRefs>().map_err(|e| {
@@ -133,7 +133,11 @@ where
         Ok(block.into())
     }
 
-    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError> {
+    pub(crate) fn get_block_by_log(
+        &self,
+        block_number: u64,
+        log: &Log,
+    ) -> Result<BlockInfo, StorageError> {
         debug!(
             target: "supervisor_storage",
             block_number,
@@ -182,7 +186,7 @@ where
         self.get_block(block_number)
     }
 
-    fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
+    pub(crate) fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
         debug!(target: "supervisor_storage", block_number, "Fetching logs");
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
