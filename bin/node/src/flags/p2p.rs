@@ -90,7 +90,7 @@ pub struct P2PArgs {
         value_parser = |arg: &str| -> Result<Duration, ParseIntError> {Ok(Duration::from_secs(arg.parse()?))}
     )]
     pub peers_grace: Duration,
-    /// Configure GossipSub topic stablel mesh target count.
+    /// Configure GossipSub topic stable mesh target count.
     /// Aka: The desired outbound degree (numbers of peers to gossip to).
     #[arg(long = "p2p.gossip.mesh.d", default_value = "8", env = "KONA_NODE_P2P_GOSSIP_MESH_D")]
     pub gossip_mesh_d: usize,
