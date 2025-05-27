@@ -9,7 +9,10 @@ use jsonrpsee::{
 use kona_supervisor_rpc::ManagedNodeApiClient;
 use kona_supervisor_types::ManagedEvent;
 use std::{future::Future, sync::Arc};
-use tokio::{sync::watch, task::JoinHandle};
+use tokio::{
+    sync::{Mutex, watch},
+    task::JoinHandle,
+};
 use tracing::{debug, error, info, warn};
 
 /// Configuration for the managed node.
@@ -56,7 +59,7 @@ pub struct ManagedNode {
     /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
     /// The attached web socket client
-    ws_client: Option<Arc<WsClient>>,
+    ws_client: Mutex<Option<Arc<WsClient>>>,
     /// Channel for signaling the subscription task to stop
     stop_tx: Option<watch::Sender<bool>>,
     /// Handle to the async subscription task
@@ -65,19 +68,20 @@ pub struct ManagedNode {
 
 impl ManagedNode {
     /// Creates a new [`ManagedNode`] with the specified configuration.
-    pub const fn new(config: Arc<ManagedNodeConfig>) -> Result<Self, ClientError> {
-        Ok(Self { config, ws_client: None, stop_tx: None, task_handle: None })
+    pub fn new(config: Arc<ManagedNodeConfig>) -> Result<Self, ClientError> {
+        Ok(Self { config, ws_client: Mutex::new(None), stop_tx: None, task_handle: None })
     }
 
-    /// Initializes one web socket client which is shared between all calls to the instance of the
-    /// managed node.
-    pub async fn get_ws_client(&mut self) -> Result<Arc<WsClient>, ClientError> {
-        if self.ws_client.is_none() {
+    /// Returns a reference to the WebSocket client, creating it if it doesn't exist.
+    // todo: support http client as well
+    pub async fn get_ws_client(&self) -> Result<Arc<WsClient>, ClientError> {
+        let mut ws_client_guard = self.ws_client.lock().await;
+        if ws_client_guard.is_none() {
             let headers = self.create_auth_headers().map_err(|err| {
-                error!(target: "managed_node",  ?err, "Failed to create auth headers");
+                error!(target: "managed_node", ?err, "Failed to create auth headers");
                 ClientError::Custom(format!("Failed to create auth headers: {}", err))
             })?;
-            // Connect to WebSocket
+
             let ws_url = format!("ws://{}", self.config.url);
             info!(target: "managed_node", ws_url, "Creating a new web socket client");
 
@@ -88,10 +92,9 @@ impl ManagedNode {
                     },
                 )?;
 
-            self.ws_client = Some(Arc::new(client));
+            *ws_client_guard = Some(Arc::new(client));
         }
-
-        Ok(self.ws_client.clone().unwrap())
+        Ok(ws_client_guard.clone().unwrap())
     }
 
     /// Starts a subscription to the managed node.
