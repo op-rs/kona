@@ -62,7 +62,7 @@ impl NetCommand {
         // Get the rollup config from the args
         let rollup_config = args
             .rollup_config()
-            .ok_or(anyhow::anyhow!("Rollug config not found for chain id: {}", args.l2_chain_id))?;
+            .ok_or(anyhow::anyhow!("Rollup config not found for chain id: {}", args.l2_chain_id))?;
 
         // Start the Network Stack
         self.p2p.check_ports()?;
