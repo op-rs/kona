@@ -110,8 +110,12 @@ mod tests {
 
     #[test]
     fn test_block_ref_compression_decompression() {
-        let original =
-            BlockRef { number: 1, hash: test_b256(1), parent_hash: test_b256(2), time: 1234567890 };
+        let original = BlockRef {
+            number: 1,
+            hash: test_b256(1),
+            parent_hash: test_b256(2),
+            timestamp: 1234567890,
+        };
 
         let mut compressed_buf = Vec::new();
         original.compress_to_buf(&mut compressed_buf);
@@ -156,13 +160,17 @@ mod tests {
 
     #[test]
     fn test_derived_block_pair_compression_decompression() {
-        let source_ref =
-            BlockRef { number: 100, hash: test_b256(6), parent_hash: test_b256(7), time: 1000 };
+        let source_ref = BlockRef {
+            number: 100,
+            hash: test_b256(6),
+            parent_hash: test_b256(7),
+            timestamp: 1000,
+        };
         let derived_ref = BlockRef {
             number: 200,
             hash: test_b256(8),
             parent_hash: test_b256(8), // Link to source
-            time: 1010,
+            timestamp: 1010,
         };
 
         let original_pair = StoredDerivedBlockPair { source: source_ref, derived: derived_ref };
