@@ -2,7 +2,7 @@
 
 This directory contains all of the repositories' dockerfiles as well as the [bake file](https://docs.docker.com/build/bake/)
 used to define this repository's docker build configuration. In addition, the [recipes](./recipes) directory contains
-example deployment strategies for applications such as [`kona-node`](../bin/node).
+example deployment strategies + grafana dashboards for applications such as [`kona-node`](../bin/node).
 
 ## Install Dependencies
 
@@ -14,29 +14,20 @@ example deployment strategies for applications such as [`kona-node`](../bin/node
 To build any image in the bake file locally, use `docker buildx bake`:
 
 ```sh
+# The target is one of the available bake targets within the `docker-bake.hcl`.
+# A list can be viewed by running `docker buildx bake --list-targets`
 export TARGET="<target_name>"
 
-# Optional: adjust the tag for the image
-# Defaults to `kona:local`
-export DEFAULT_TAG="my-image:local"
-
-# Optional: Override the platforms to build the image for.
-# Defaults to `linux/amd64,linux/arm64`
-export PLATFORMS="<platforms>"
-
-# Optional: Override the git ref to use for the current repo. Must exist
-# on the `op-rs/kona` remote.
-#
-# Used by:
-# - `kona-host`
-# - `kona-asterisc-prestate`
-export GIT_REF_NAME="my/feature/branch"
-
-docker buildx bake \
+(cd "$(git rev-parse --show-toplevel)" && docker buildx bake \
   --progress plain \
   -f docker/docker-bake.hcl \
-  $TARGET
+  $TARGET)
 ```
+
+### Build Options
+
+Relevant build options (variables) for each target can be viewed by running `docker buildx bake --list-variables` or
+manually inspecting the targets in the `docker-bake.hcl`.
 
 #### Troubleshooting
 

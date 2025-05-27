@@ -9,12 +9,7 @@ build-devnet BINARY COMMIT_TAG="" :
         exit 1
     fi
 
-    export COMMIT_TAG={{COMMIT_TAG}}
-    if [ -z "{{COMMIT_TAG}}" ]; then
-        export COMMIT_TAG=$(git rev-parse HEAD)
-    fi
-
-    cd {{SOURCE}}/.. && just build-{{BINARY}}-with-tag $COMMIT_TAG
+    cd {{SOURCE}}/../docker/apps && just build-local "kona-{{BINARY}}" "{{COMMIT_TAG}}" "kona-{{BINARY}}:local"
 
 # Spins up kurtosis with the `kona-node` docker image
 # The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
@@ -38,7 +33,7 @@ devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
     export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
   # if the OP_PACKAGE_PATH is a local path, use mise to install it
   elif [ -d "{{OP_PACKAGE_PATH}}" ]; then
-    cd $OP_PACKAGE_PATH && mise install 
+    cd $OP_PACKAGE_PATH && mise install
   fi
 
   # Run the kurtosis test
@@ -63,7 +58,6 @@ test-e2e DEVNET GO_PKG_NAME="":
 build-devnet-and-test-e2e DEVNET BINARY COMMIT_TAG="" OP_PACKAGE_PATH="": (build-devnet BINARY COMMIT_TAG)
     #!/bin/bash
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-    
-    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}} 
-    just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
 
+    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
+    just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
