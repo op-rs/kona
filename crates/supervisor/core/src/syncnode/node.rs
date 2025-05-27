@@ -239,7 +239,7 @@ impl ManagedNode {
         debug!(target: "managed_node", "Executing RPC call");
 
         let result = f(client).await.map_err(|err| {
-            error!(target: "managed_node", "RPC call failed: {:?}", err);
+            error!(target: "managed_node", ?err, "RPC call failed");
             ErrorObject::from(ErrorCode::InternalError)
         })?;
 
