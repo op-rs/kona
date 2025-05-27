@@ -33,4 +33,4 @@ mod chaindb_factory;
 pub use chaindb_factory::ChainDbFactory;
 
 mod traits;
-pub use traits::{DerivationStorage, LogStorage};
+pub use traits::{DerivationStorage, LogStorage, SafetyHeadRefStorage};

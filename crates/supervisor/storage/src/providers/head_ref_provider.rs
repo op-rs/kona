@@ -11,7 +11,6 @@ pub(crate) struct SafetyHeadRefProvider<'tx, TX> {
 }
 
 impl<'tx, TX> SafetyHeadRefProvider<'tx, TX> {
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) const fn new(tx: &'tx TX) -> Self {
         Self { tx }
     }
@@ -21,7 +20,6 @@ impl<TX> SafetyHeadRefProvider<'_, TX>
 where
     TX: DbTx,
 {
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn get_safety_head_ref(
         &self,
         safety_level: SafetyLevel,
@@ -43,12 +41,10 @@ where
     }
 }
 
-#[allow(dead_code)]
 impl<Tx> SafetyHeadRefProvider<'_, Tx>
 where
     Tx: DbTxMut,
 {
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,

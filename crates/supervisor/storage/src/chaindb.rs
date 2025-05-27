@@ -2,13 +2,14 @@
 
 use crate::{
     error::StorageError,
-    providers::{DerivationProvider, LogProvider},
-    traits::{DerivationStorage, LogStorage},
+    providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
+    traits::{DerivationStorage, LogStorage, SafetyHeadRefStorage},
 };
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
+use op_alloy_consensus::interop::SafetyLevel;
 use reth_db::{
     DatabaseEnv,
     mdbx::{DatabaseArguments, init_db_for},
@@ -70,6 +71,22 @@ impl LogStorage for ChainDb {
 
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
         self.env.update(|ctx| LogProvider::new(ctx).store_block_logs(block, logs))?
+    }
+}
+
+impl SafetyHeadRefStorage for ChainDb {
+    fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
+        self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
+    }
+
+    fn update_safety_head_ref(
+        &self,
+        safety_level: SafetyLevel,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.env.update(|ctx| {
+            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(safety_level, block)
+        })?
     }
 }
 
@@ -162,6 +179,57 @@ mod tests {
         assert_eq!(
             latest_derived, derived_pair.derived,
             "Latest derived block at source should match derived pair derived"
+        );
+    }
+
+    #[test]
+    fn test_safety_head_ref_storage() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_safety_head");
+        let db = ChainDb::new(&db_path).expect("create db");
+
+        // Create test blocks for different safety levels
+        let unsafe_block = BlockInfo {
+            hash: B256::from([0u8; 32]),
+            number: 100,
+            parent_hash: B256::from([1u8; 32]),
+            timestamp: 0,
+        };
+        let safe_block = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 99,
+            parent_hash: B256::from([3u8; 32]),
+            timestamp: 0,
+        };
+        let finalized_block = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 98,
+            parent_hash: B256::from([5u8; 32]),
+            timestamp: 0,
+        };
+
+        // Test optimistic safety level
+        db.update_safety_head_ref(SafetyLevel::Unsafe, &unsafe_block).expect("update unsafe head");
+        let retrieved_unsafe =
+            db.get_safety_head_ref(SafetyLevel::Unsafe).expect("get unsafe head");
+        assert_eq!(
+            retrieved_unsafe, unsafe_block,
+            "Retrieved unsafe head should match stored block"
+        );
+
+        // Test safe safety level
+        db.update_safety_head_ref(SafetyLevel::Safe, &safe_block).expect("update safe head");
+        let retrieved_safe = db.get_safety_head_ref(SafetyLevel::Safe).expect("get safe head");
+        assert_eq!(retrieved_safe, safe_block, "Retrieved safe head should match stored block");
+
+        // Test finalized safety level
+        db.update_safety_head_ref(SafetyLevel::Finalized, &finalized_block)
+            .expect("update finalized head");
+        let retrieved_finalized =
+            db.get_safety_head_ref(SafetyLevel::Finalized).expect("get finalized head");
+        assert_eq!(
+            retrieved_finalized, finalized_block,
+            "Retrieved finalized head should match stored block"
         );
     }
 }
