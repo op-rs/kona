@@ -8,6 +8,7 @@ use crate::{
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
+use kona_supervisor_types::Log;
 use reth_db::{
     DatabaseEnv,
     mdbx::{DatabaseArguments, init_db_for},
@@ -59,23 +60,15 @@ impl LogStorage for ChainDb {
         self.env.view(|tx| LogProvider::new(tx).get_latest_block())?
     }
 
-    fn get_block_by_log(
-        &self,
-        block_number: u64,
-        log: &kona_supervisor_types::Log,
-    ) -> Result<BlockInfo, StorageError> {
+    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| LogProvider::new(tx).get_block_by_log(block_number, log))?
     }
 
-    fn get_logs(&self, block_number: u64) -> Result<Vec<kona_supervisor_types::Log>, StorageError> {
+    fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
         self.env.view(|tx| LogProvider::new(tx).get_logs(block_number))?
     }
 
-    fn store_block_logs(
-        &self,
-        block: &BlockInfo,
-        logs: Vec<kona_supervisor_types::Log>,
-    ) -> Result<(), StorageError> {
+    fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
         self.env.update(|ctx| LogProvider::new(ctx).store_block_logs(block, logs))?
     }
 }

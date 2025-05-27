@@ -69,6 +69,8 @@ pub trait LogStorage {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
 
     /// Finds a [`BlockInfo`] by a specific [`Log`].
+    /// This method searches for the block that contains the specified log at the given
+    /// block number.
     ///
     /// # Arguments
     /// * `block_number` - The block number to search for the log.
