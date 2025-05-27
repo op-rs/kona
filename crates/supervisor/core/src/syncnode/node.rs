@@ -36,13 +36,11 @@ impl ManagedNodeConfig {
     pub fn default_jwt_secret() -> Option<JwtSecret> {
         let cur_dir = std::env::current_dir().ok()?;
         if let Ok(secret) = std::fs::read_to_string(cur_dir.join("jwt.hex")).map_err(|err| {
-            let err_msg = format!("Failed to read JWT file: {}", err);
             error!(
                 target: "managed_node",
                 ?err,
-                err_msg
+                "Failed to read JWT file"
             );
-            SubscriptionError::from(err_msg)
         }) {
             return JwtSecret::from_hex(secret).ok();
         }
@@ -76,7 +74,7 @@ impl ManagedNode {
     pub async fn get_ws_client(&mut self) -> Result<Arc<WsClient>, ClientError> {
         if self.ws_client.is_none() {
             let headers = self.create_auth_headers().map_err(|err| {
-                error!(target: "managed_node", "Failed to create auth headers: {:?}", err);
+                error!(target: "managed_node",  ?err, "Failed to create auth headers");
                 ClientError::Custom(format!("Failed to create auth headers: {}", err))
             })?;
             // Connect to WebSocket
@@ -124,13 +122,13 @@ impl ManagedNode {
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
-            info!(target = "managed_node", "Subscription task started");
+            info!(target: "managed_node", "Subscription task started");
             loop {
                 tokio::select! {
                     // Listen for stop signal
                     _ = stop_rx.changed() => {
                         if *stop_rx.borrow() {
-                            info!(target = "managed_node", "Stop signal received, shutting down subscription");
+                            info!(target: "managed_node", "Stop signal received, shutting down subscription");
                             break;
                         }
                     }
@@ -138,7 +136,7 @@ impl ManagedNode {
                     event = subscription.next() => {
                         match event {
                             Some(event_result) => {
-                                debug!(target: "managed_node", event_result = ?event_result, "Received event");
+                                debug!(target: "managed_node", ?event_result, "Received event");
                                 match event_result {
                                     Ok(managed_event) => {
                                         Self::handle_managed_event(managed_event);
@@ -147,14 +145,14 @@ impl ManagedNode {
                                         error!(
                                             target: "managed_node",
                                             ?err,
-                                            "Error in event deserialization: {:?}", err);
+                                            "Error in event deserialization");
                                         // Continue processing next events despite this error
                                     }
                                 }
                             }
                             None => {
                                 // Subscription closed by the server
-                                warn!(target = "managed_node", "Subscription closed by server");
+                                warn!(target: "managed_node", "Subscription closed by server");
                                 break;
                             }
                         }
@@ -171,11 +169,11 @@ impl ManagedNode {
                 );
             }
 
-            info!(target = "managed_node", "Subscription task finished");
+            info!(target: "managed_node", "Subscription task finished");
         });
 
         self.task_handle = Some(handle);
-        info!(target = "managed_node", "Subscription started successfully");
+        info!(target: "managed_node", "Subscription started successfully");
         Ok(())
     }
 
@@ -210,7 +208,7 @@ impl ManagedNode {
                 );
                 SubscriptionError::from(err_msg)
             })?;
-            info!(target = "managed_node", "Subscription stopped and task joined");
+            info!(target: "managed_node", "Subscription stopped and task joined");
         } else {
             return Err(SubscriptionError::from(
                 "Subscription not active or already stopped".to_string(),
@@ -234,7 +232,7 @@ impl ManagedNode {
         Fut: Future<Output = Result<T, ClientError>>,
     {
         let client = self.get_ws_client().await.map_err(|err| {
-            error!(target: "managed_node", "Failed to get WebSocket client: {:?}", err);
+            error!(target: "managed_node", ?err, "Failed to get WebSocket client");
             ErrorObject::from(ErrorCode::InternalError)
         })?;
 
@@ -263,7 +261,7 @@ impl ManagedNode {
         headers.insert(
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
-                error!(target: "managed_node", "Invalid authorization header: {:?}", err);
+                error!(target: "managed_node", ?err, "Invalid authorization header");
                 ErrorObject::from(ErrorCode::ParseError)
             })?,
         );
@@ -280,27 +278,27 @@ impl ManagedNode {
     fn handle_managed_event(event_result: Option<ManagedEvent>) {
         match event_result {
             Some(event) => {
-                debug!(target = "managed_node", event = ?event, "Handling ManagedEvent");
+                debug!(target: "managed_node", ?event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target = "managed_node", reset_id = %reset_id, "Reset event received");
+                    info!(target: "managed_node", ?reset_id, "Reset event received");
                     // Handle reset action
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target = "managed_node", ?unsafe_block, "Unsafe block event received");
+                    info!(target: "managed_node", ?unsafe_block, "Unsafe block event received");
                     // Handle unsafe block
                 }
 
                 if let Some(derived_ref_pair) = &event.derivation_update {
-                    info!(target = "managed_node", ?derived_ref_pair, "Derivation update received");
+                    info!(target: "managed_node", ?derived_ref_pair, "Derivation update received");
                     // Handle derivation update
                 }
 
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(
-                        target = "managed_node",
+                        target: "managed_node",
                         ?derived_ref_pair,
                         "L1 exhausted event received"
                     );
@@ -308,12 +306,12 @@ impl ManagedNode {
                 }
 
                 if let Some(replacement) = &event.replace_block {
-                    info!(target = "managed_node", ?replacement, "Block replacement received");
+                    info!(target: "managed_node", ?replacement, "Block replacement received");
                     // Handle block replacement
                 }
 
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!(target = "managed_node", ?origin, "Derivation origin update received");
+                    info!(target: "managed_node", ?origin, "Derivation origin update received");
                     // Handle derivation origin update
                 }
 
@@ -325,12 +323,12 @@ impl ManagedNode {
                     event.replace_block.is_none() &&
                     event.derivation_origin_update.is_none()
                 {
-                    debug!(target = "managed_node", "Received empty event with all fields None");
+                    debug!(target: "managed_node", "Received empty event with all fields None");
                 }
             }
             None => {
                 warn!(
-                    target = "managed_node",
+                    target: "managed_node",
                     "Received None event, possibly an empty notification or an issue with deserialization."
                 );
             }
