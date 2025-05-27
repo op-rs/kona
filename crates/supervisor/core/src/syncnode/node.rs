@@ -8,7 +8,7 @@ use jsonrpsee::{
 use kona_supervisor_rpc::ManagedNodeApiClient;
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
-use tokio::{sync::watch, task::JoinHandle};
+use tokio::{sync::{watch, mpsc}, task::JoinHandle};
 use tracing::{debug, error, info, warn};
 
 /// Configuration for the managed node.
@@ -73,44 +73,64 @@ impl ManagedNode {
     /// Analyzes the event content and takes appropriate actions based on the
     /// event fields.
     /// TODO: Call relevant DB functions to update the state
-    pub fn handle_managed_event(event_result: Option<ManagedEvent>) {
+    fn handle_managed_event(event_tx: &mpsc::Sender<ManagedEvent>, event_result: Option<ManagedEvent>) {
         match event_result {
             Some(event) => {
-                debug!(target = "managed_node", event = ?event, "Handling ManagedEvent");
+                debug!(target: "managed_node", event = ?event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target = "managed_node", reset_id = %reset_id, "Reset event received");
+                    info!(target: "managed_node", reset_id = %reset_id, "Reset event received");
                     // Handle reset action
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target = "managed_node", ?unsafe_block, "Unsafe block event received");
-                    // Handle unsafe block
+                    info!(target: "managed_node", ?unsafe_block, "Unsafe block event received");
+                    
+                    // todo: check any pre processing needed
+                    
+                    if let Err(e) = event_tx.try_send(event.clone()) {
+                        warn!(target: "managed_node", ?e, "Failed to send unsafe block event, channel closed or full");
+                    }
+                    
                 }
 
                 if let Some(derived_ref_pair) = &event.derivation_update {
-                    info!(target = "managed_node", ?derived_ref_pair, "Derivation update received");
-                    // Handle derivation update
+                    info!(target: "managed_node", ?derived_ref_pair, "Derivation update received");
+                    
+                    // todo: check any pre processing needed
+                    if let Err(e) = event_tx.try_send(event.clone()) {
+                        warn!(target: "managed_node", ?e, "Failed to send unsafe block event, channel closed or full");
+                    }
                 }
 
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(
-                        target = "managed_node",
+                        target: "managed_node",
                         ?derived_ref_pair,
                         "L1 exhausted event received"
                     );
+                    
+                    // todo: check if the last derived_ref_pair derived from l1 is sent as part of this event 
+                    // if yes, then we can send it to the event_tx
+                    // otherwise, we can ignore this event
+
                     // Handle L1 exhaustion
                 }
 
                 if let Some(replacement) = &event.replace_block {
-                    info!(target = "managed_node", ?replacement, "Block replacement received");
-                    // Handle block replacement
+                    info!(target: "managed_node", ?replacement, "Block replacement received");
+                    
+                    // todo: check any pre processing needed
+                    if let Err(e) = event_tx.try_send(event.clone()) {
+                        warn!(target: "managed_node", ?e, "Failed to send unsafe block event, channel closed or full");
+                    }
                 }
 
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!(target = "managed_node", ?origin, "Derivation origin update received");
-                    // Handle derivation origin update
+                    info!(target: "managed_node", ?origin, "Derivation origin update received");
+                    
+                    // todo: check if we need to send this to the event_tx
                 }
 
                 // Check if this was an empty event (all fields None)
@@ -121,12 +141,12 @@ impl ManagedNode {
                     event.replace_block.is_none() &&
                     event.derivation_origin_update.is_none()
                 {
-                    debug!(target = "managed_node", "Received empty event with all fields None");
+                    debug!(target: "managed_node", "Received empty event with all fields None");
                 }
             }
             None => {
                 warn!(
-                    target = "managed_node",
+                    target: "managed_node",
                     "Received None event, possibly an empty notification or an issue with deserialization."
                 );
             }
@@ -137,7 +157,7 @@ impl ManagedNode {
     ///
     /// Establishes a WebSocket connection and subscribes to node events.
     /// Spawns a background task to process incoming events.
-    pub async fn start_subscription(&mut self) -> Result<(), SubscriptionError> {
+    pub async fn start_subscription(&mut self, event_tx: mpsc::Sender<ManagedEvent>) -> Result<(), SubscriptionError> {
         if self.task_handle.is_some() {
             return Err(SubscriptionError::from("Subscription already active".to_string()));
         }
@@ -190,13 +210,13 @@ impl ManagedNode {
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
-            info!(target = "managed_node", "Subscription task started");
+            info!(target: "managed_node", "Subscription task started");
             loop {
                 tokio::select! {
                     // Listen for stop signal
                     _ = stop_rx.changed() => {
                         if *stop_rx.borrow() {
-                            info!(target = "managed_node", "Stop signal received, shutting down subscription");
+                            info!(target: "managed_node", "Stop signal received, shutting down subscription");
                             break;
                         }
                     }
@@ -207,7 +227,7 @@ impl ManagedNode {
                                 debug!(target: "managed_node", event_result = ?event_result, "Received event");
                                 match event_result {
                                     Ok(managed_event) => {
-                                        Self::handle_managed_event(managed_event);
+                                        Self::handle_managed_event(&event_tx, managed_event);
                                     },
                                     Err(err) => {
                                         error!(
@@ -220,7 +240,7 @@ impl ManagedNode {
                             }
                             None => {
                                 // Subscription closed by the server
-                                warn!(target = "managed_node", "Subscription closed by server");
+                                warn!(target: "managed_node", "Subscription closed by server");
                                 break;
                             }
                         }
@@ -237,11 +257,11 @@ impl ManagedNode {
                 );
             }
 
-            info!(target = "managed_node", "Subscription task finished");
+            info!(target: "managed_node", "Subscription task finished");
         });
 
         self.task_handle = Some(handle);
-        info!(target = "managed_node", "Subscription started successfully");
+        info!(target: "managed_node", "Subscription started successfully");
         Ok(())
     }
 
@@ -276,7 +296,7 @@ impl ManagedNode {
                 );
                 SubscriptionError::from(err_msg)
             })?;
-            info!(target = "managed_node", "Subscription stopped and task joined");
+            info!(target: "managed_node", "Subscription stopped and task joined");
         } else {
             return Err(SubscriptionError::from(
                 "Subscription not active or already stopped".to_string(),
@@ -503,8 +523,11 @@ mod tests {
         assert!(subscriber.task_handle.is_none());
         assert!(subscriber.stop_tx.is_none());
 
+        // Create a channel for events
+        let (event_tx, _event_rx) = tokio::sync::mpsc::channel(100);
+
         // Test starting subscription to invalid server (should fail)
-        let start_result = subscriber.start_subscription().await;
+        let start_result = subscriber.start_subscription(event_tx).await;
         assert!(start_result.is_err(), "Subscription to invalid server should fail");
 
         // Verify state remains consistent after failure
