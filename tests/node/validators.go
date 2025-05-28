@@ -45,15 +45,3 @@ func sysHasAtMostOneL1Node(t systest.T, sys system.System) (context.Context, err
 	}
 	return t.Context(), nil
 }
-
-func sysHasAtMostTwoL2Nodes(t systest.T, sys system.System) (context.Context, error) {
-	l2s := sys.L2s()
-
-	for _, l2 := range l2s {
-		if len(l2.Nodes()) > 2 {
-			return nil, errors.New("the network has an L2 that has more than two L2 nodes")
-		}
-	}
-
-	return t.Context(), nil
-}

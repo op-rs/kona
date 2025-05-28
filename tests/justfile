@@ -54,7 +54,7 @@ test-e2e DEVNET GO_PKG_NAME="":
 
     export DEVNET_ENV_URL={{DEVNET}}
 
-    cd {{SOURCE}} && go test -parallel -v ./$GO_PKG_NAME
+    cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
 
 build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
     #!/bin/bash
