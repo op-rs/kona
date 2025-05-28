@@ -88,9 +88,7 @@ impl ManagedNode {
 
             let client =
                 WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
-                    |err| {
-                        ClientError::Custom(format!("failed to create WebSocket client: {err}"))
-                    },
+                    |err| ClientError::Custom(format!("failed to create WebSocket client: {err}")),
                 )?;
 
             *ws_client_guard = Some(Arc::new(client));
