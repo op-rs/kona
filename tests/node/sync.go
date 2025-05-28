@@ -87,7 +87,60 @@ func syncUnsafeTwoNodes() systest.SystemTestFunc {
 			t.Log("✓ unsafe head blocks match between all nodes")
 		}
 	}
+}
 
+// Check that unsafe heads eventually consolidate and become safe
+// For this test to be deterministic it should...
+// 1. Only have two L2 nodes
+// 2. Only have one DA layer node
+func syncUnsafeBecomesSafe() systest.SystemTestFunc {
+	const SECS_WAIT_FOR_UNSAFE_HEAD = 10
+	const SECS_WAIT_FOR_SAFE_HEAD = 30
+
+	return func(t systest.T, sys system.System) {
+		l2s := sys.L2s()
+		for _, l2 := range l2s {
+			require.LessOrEqual(t, len(l2.Nodes()), 2, "we can only test unsafe sync deterministically on networks with at most 2 nodes")
+			konaNode := l2.Nodes()[1]
+
+			clRPC := konaNode.CLRPC()
+			clName := konaNode.CLName()
+
+			require.True(t, nodeSupportsKonaWs(t, clRPC, clName), "kona node doesn't support ws endpoint")
+
+			wsRPC := websocketRPC(clRPC)
+			t.Log("node supports ws endpoint, continuing sync test", clName, wsRPC)
+
+			unsafeBlocks := GetKonaWS(t, wsRPC, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
+
+			safeBlocks := GetKonaWS(t, wsRPC, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
+
+			// Wait for the Goroutine to complete
+
+			require.GreaterOrEqual(t, len(unsafeBlocks), 1, "we didn't receive enough unsafe gossip blocks!")
+			require.GreaterOrEqual(t, len(safeBlocks), 1, "we didn't receive enough safe gossip blocks!")
+
+			safeBlockMap := make(map[uint64]eth.L2BlockRef)
+			// Create a map of safe blocks with block number as the key
+			for _, safeBlock := range safeBlocks {
+				safeBlockMap[safeBlock.Number] = safeBlock
+			}
+
+			cond := false
+
+			// Iterate over unsafe blocks and find matching safe blocks
+			for _, unsafeBlock := range unsafeBlocks {
+				if safeBlock, exists := safeBlockMap[unsafeBlock.Number]; exists {
+					require.Equal(t, unsafeBlock, safeBlock, "unsafe block %d doesn't match safe block %d", unsafeBlock.Number, safeBlock.Number)
+					cond = true
+				}
+			}
+
+			require.True(t, cond, "No matching safe block found for unsafe block")
+
+			t.Log("✓ unsafe and safe head blocks match between all nodes")
+		}
+	}
 }
 
 // System tests that ensure that the kona-nodes are syncing the safe chain.

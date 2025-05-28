@@ -57,6 +57,16 @@ func TestSystemSyncSafe(t *testing.T) {
 	)
 }
 
+// Ensures that the unsafe chain eventually becomes the safe chain.
+func TestSystemSyncUnsafeBecomesSafe(t *testing.T) {
+	systest.SystemTest(t,
+		syncUnsafeBecomesSafe(),
+		atLeastOneNodeSupportsKonaWs,
+		sysHasAtMostOneL1Node,
+		sysHasAtMostTwoL2Nodes,
+	)
+}
+
 // Ensures that the node synchronizes the unsafe chain correctly.
 func TestSystemSyncUnsafe(t *testing.T) {
 	systest.SystemTest(t,
