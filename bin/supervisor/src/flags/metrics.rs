@@ -1,19 +1,7 @@
-use kona_cli::{init_prometheus_server, unified_metrics::MetricsArgs};
-
-/// Initialize the tracing stack and Prometheus metrics recorder.
-///
-/// This function should be called at the beginning of the program.
-pub fn init_prometheus_metrics(args: &MetricsArgs) -> anyhow::Result<()> {
-    if args.enabled {
-        init_prometheus_server(args.addr, args.port)?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use clap::Parser;
+    use kona_cli::metrics_args::MetricsArgs;
     use std::net::{IpAddr, Ipv4Addr};
 
     // Helper struct to parse MetricsArgs within a test CLI structure

@@ -2,7 +2,7 @@
 
 use crate::flags::GlobalArgs;
 use clap::Parser;
-use kona_cli::unified_metrics::MetricsArgs;
+use kona_cli::metrics_args::MetricsArgs;
 use kona_p2p::BootStore;
 use std::path::PathBuf;
 

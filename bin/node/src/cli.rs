@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::{cli_styles, unified_metrics::MetricsArgs};
+use kona_cli::{cli_styles, metrics_args::MetricsArgs};
 
 /// Subcommands for the CLI.
 #[derive(Debug, PartialEq, Clone, Subcommand)]
