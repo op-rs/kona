@@ -43,7 +43,7 @@ impl ManagedNodeConfig {
             let err_msg = format!("Failed to read JWT file: {}", err);
             error!(
                 target: "managed_node",
-                ?err,
+                %err,
                 err_msg
             );
             SubscriptionError::from(err_msg)
@@ -83,27 +83,27 @@ impl ManagedNode {
     ) {
         match event_result {
             Some(event) => {
-                debug!(target: "managed_node", ?event, "Handling ManagedEvent");
+                debug!(target: "managed_node", %event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target: "managed_node", ?reset_id, "Reset event received");
+                    info!(target: "managed_node", %reset_id, "Reset event received");
                     // Handle reset action
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target: "managed_node", ?unsafe_block, "Unsafe block event received");
+                    info!(target: "managed_node", %unsafe_block, "Unsafe block event received");
 
                     // todo: check any pre processing needed
                     if let Err(err) =
                         event_tx.send(NodeEvent::UnsafeBlock { block: *unsafe_block }).await
                     {
-                        warn!(target: "managed_node", ?err, "Failed to send unsafe block event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", %err, "Failed to send unsafe block event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(derived_ref_pair) = &event.derivation_update {
-                    info!(target: "managed_node", ?derived_ref_pair, "Derivation update received");
+                    info!(target: "managed_node", %derived_ref_pair, "Derivation update received");
 
                     // todo: check any pre processing needed
                     if let Err(err) = event_tx
@@ -112,14 +112,14 @@ impl ManagedNode {
                         })
                         .await
                     {
-                        warn!(target: "managed_node", ?err, "Failed to derivation update event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", %err, "Failed to derivation update event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(
                         target: "managed_node",
-                        ?derived_ref_pair,
+                        %derived_ref_pair,
                         "L1 exhausted event received"
                     );
 
@@ -131,19 +131,19 @@ impl ManagedNode {
                 }
 
                 if let Some(replacement) = &event.replace_block {
-                    info!(target: "managed_node", ?replacement, "Block replacement received");
+                    info!(target: "managed_node", %replacement, "Block replacement received");
 
                     // todo: check any pre processing needed
                     if let Err(err) = event_tx
                         .send(NodeEvent::BlockReplaced { replacement: replacement.clone() })
                         .await
                     {
-                        warn!(target: "managed_node", ?err, "Failed to send block replacement event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", %err, "Failed to send block replacement event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!(target: "managed_node", ?origin, "Derivation origin update received");
+                    info!(target: "managed_node", %origin, "Derivation origin update received");
 
                     // todo: check if we need to send this to the event_tx
                 }
@@ -204,7 +204,7 @@ impl ManagedNode {
                 let err_msg = format!("Failed to establish WebSocket connection: {}", err);
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     err_msg
                 );
                 SubscriptionError::from(err_msg)
@@ -216,7 +216,7 @@ impl ManagedNode {
                 let err_msg = format!("Failed to subscribe to events: {}", err);
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     err_msg
                 );
                 SubscriptionError::from(err_msg)
@@ -242,7 +242,6 @@ impl ManagedNode {
                     event = subscription.next() => {
                         match event {
                             Some(event_result) => {
-                                debug!(target: "managed_node", event_result = ?event_result, "Received event");
                                 match event_result {
                                     Ok(managed_event) => {
                                         Self::handle_managed_event(&event_tx, managed_event).await;
@@ -250,8 +249,8 @@ impl ManagedNode {
                                     Err(err) => {
                                         error!(
                                             target: "managed_node",
-                                            ?err,
-                                            "Error in event deserialization: {:?}", err);
+                                            %err,
+                                            "Error in event deserialization.");
                                         // Continue processing next events despite this error
                                     }
                                 }
@@ -270,7 +269,7 @@ impl ManagedNode {
             if let Err(err) = subscription.unsubscribe().await {
                 warn!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     "Failed to unsubscribe gracefully"
                 );
             }
@@ -293,7 +292,7 @@ impl ManagedNode {
                 let err_msg = format!("Failed to send stop signal: {:?}", err);
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     err_msg
                 );
                 SubscriptionError::from(err_msg)
@@ -309,7 +308,7 @@ impl ManagedNode {
                 let err_msg = format!("Failed to join task: {:?}", err);
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     err_msg
                 );
                 SubscriptionError::from(err_msg)
