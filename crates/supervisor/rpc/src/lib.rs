@@ -8,4 +8,4 @@ pub use jsonrpsee::SupervisorApiClient;
 pub use jsonrpsee::SupervisorApiServer;
 
 #[cfg(all(feature = "jsonrpsee", feature = "client"))]
-pub use jsonrpsee::ManagedNodeApiClient;
+pub use jsonrpsee::ManagedModeApiClient;

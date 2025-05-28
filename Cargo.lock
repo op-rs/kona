@@ -5064,6 +5064,7 @@ dependencies = [
  "alloy-primitives",
  "jsonrpsee",
  "kona-interop",
+ "kona-protocol",
  "kona-supervisor-types",
 ]
 

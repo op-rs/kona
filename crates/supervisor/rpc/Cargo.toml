@@ -25,6 +25,7 @@ client = ["jsonrpsee", "jsonrpsee/client"] # Client feature builds upon the base
 [dependencies]
 # Workspace
 kona-interop.workspace = true
+kona-protocol.workspace = true
 kona-supervisor-types.workspace = true
 
 # jsonrpsee
