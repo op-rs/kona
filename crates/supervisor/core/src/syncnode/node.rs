@@ -80,7 +80,7 @@ impl ManagedNode {
         if ws_client_guard.is_none() {
             let headers = self.create_auth_headers().map_err(|err| {
                 error!(target: "managed_node", ?err, "Failed to create auth headers");
-                ClientError::Custom(format!("Failed to create auth headers: {}", err))
+                ClientError::Custom(format!("failed to create auth headers: {}", err))
             })?;
 
             let ws_url = format!("ws://{}", self.config.url);
@@ -89,7 +89,7 @@ impl ManagedNode {
             let client =
                 WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
                     |err| {
-                        ClientError::Custom(format!("Failed to create WebSocket client: {}", err))
+                        ClientError::Custom(format!("failed to create WebSocket client: {}", err))
                     },
                 )?;
 
@@ -104,20 +104,19 @@ impl ManagedNode {
     /// Spawns a background task to process incoming events.
     pub async fn start_subscription(&mut self) -> Result<(), SubscriptionError> {
         if self.task_handle.is_some() {
-            return Err(SubscriptionError::from("Subscription already active".to_string()));
+            return Err(SubscriptionError::from("subscription already active".to_string()));
         }
 
         let client = self.get_ws_client().await?;
 
         let mut subscription: Subscription<Option<ManagedEvent>> =
             ManagedNodeApiClient::subscribe_events(client.as_ref()).await.map_err(|err| {
-                let err_msg = format!("Failed to subscribe to events: {}", err);
                 error!(
                     target: "managed_node",
                     ?err,
-                    err_msg
+                    "Failed to subscribe to events"
                 );
-                SubscriptionError::from(err_msg)
+                SubscriptionError::from("failed to subscribe to events")
             })?;
 
         // Create stop channel for graceful shutdown
@@ -188,34 +187,32 @@ impl ManagedNode {
         if let Some(stop_tx) = self.stop_tx.take() {
             debug!(target: "managed_node", action = "send_stop_signal", "Sending stop signal to subscription task");
             stop_tx.send(true).map_err(|err| {
-                let err_msg = format!("Failed to send stop signal: {:?}", err);
                 error!(
                     target: "managed_node",
                     ?err,
-                    err_msg
+                    "Failed to send stop signal"
                 );
-                SubscriptionError::from(err_msg)
+                SubscriptionError::from("failed to send stop signal")
             })?;
         } else {
-            return Err(SubscriptionError::from("No active stop channel".to_string()));
+            return Err(SubscriptionError::from("no active stop channel".to_string()));
         }
 
         // Wait for task to complete
         if let Some(handle) = self.task_handle.take() {
             debug!(target: "managed_node", "Waiting for subscription task to complete");
             handle.await.map_err(|err| {
-                let err_msg = format!("Failed to join task: {:?}", err);
                 error!(
                     target: "managed_node",
                     ?err,
-                    err_msg
+                    "Failed to join task"
                 );
-                SubscriptionError::from(err_msg)
+                SubscriptionError::from("failed to join task")
             })?;
             info!(target: "managed_node", "Subscription stopped and task joined");
         } else {
             return Err(SubscriptionError::from(
-                "Subscription not active or already stopped".to_string(),
+                "subscription not active or already stopped".to_string(),
             ));
         }
 
@@ -226,7 +223,7 @@ impl ManagedNode {
     fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(ClientError::Custom("JWT secret not found or invalid".to_string()));
+            return Err(ClientError::Custom("jwt secret not found or invalid".to_string()));
         };
 
         let mut headers = HeaderMap::new();
