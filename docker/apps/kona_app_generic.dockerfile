@@ -42,30 +42,44 @@ RUN git clone https://github.com/${REPOSITORY} && \
 ################################
 #       App Build Stage        #
 ################################
-FROM app-${REPO_LOCATION}-setup-stage AS app-build-stage
-SHELL ["/bin/bash", "-c"]
+FROM app-${REPO_LOCATION}-setup-stage AS app-setup
 
 ARG BIN_TARGET
 ARG BUILD_PROFILE
 
 # Install rust
-ENV RUST_VERSION=1.85.0
+ENV RUST_VERSION=1.85
+WORKDIR /app
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+RUN cargo install cargo-chef
+
+
+FROM app-setup AS planner
+COPY --from=app-setup kona .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM app-setup AS builder 
+COPY --from=planner /app/recipe.json recipe.json
+
+# Build dependencies - this is the caching Docker layer!
+RUN RUSTFLAGS="-C target-cpu=native" cargo chef cook --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" --recipe-path recipe.json
+
+# Build application
+COPY --from=app-setup kona .
 # Build the application binary on the selected tag
-RUN cd kona && \
-  RUSTFLAGS="-C target-cpu=native" cargo build --workspace --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" && \
-  mv "./target/${BUILD_PROFILE}/${BIN_TARGET}" "/${BIN_TARGET}"
+RUN RUSTFLAGS="-C target-cpu=native" cargo build --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}"
 
 # Export stage
 FROM ubuntu:22.04 AS export-stage
 SHELL ["/bin/bash", "-c"]
 
 ARG BIN_TARGET
+ARG BUILD_PROFILE
 
 # Copy in the binary from the build image.
-COPY --from=app-build-stage "${BIN_TARGET}" "/usr/local/bin/${BIN_TARGET}"
+COPY --from=builder "app/target/${BUILD_PROFILE}/${BIN_TARGET}" "/usr/local/bin/${BIN_TARGET}"
 
 # Copy in the entrypoint script.
 COPY ./docker/apps/entrypoint.sh /entrypoint.sh
