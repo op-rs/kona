@@ -1,11 +1,9 @@
 //! Contains the supervisor CLI.
 
 use crate::flags::{GlobalArgs, SupervisorArgs};
-use clap::Parser;
-use kona_cli::unified_metrics::MetricsArgs;
-
 use anyhow::Result;
-use kona_cli::cli_styles;
+use clap::Parser;
+use kona_cli::{cli_styles, metrics_args::MetricsArgs};
 use kona_supervisor_service::{Config, Service};
 use std::net::SocketAddr;
 use tracing::info;
