@@ -4978,7 +4978,6 @@ dependencies = [
  "kona-cli",
  "kona-derive",
  "kona-genesis",
- "kona-macros",
  "kona-protocol",
  "kona-providers-alloy",
  "kona-registry",
@@ -5063,6 +5062,7 @@ dependencies = [
  "alloy-primitives",
  "jsonrpsee",
  "kona-interop",
+ "kona-protocol",
  "kona-supervisor-types",
 ]
 

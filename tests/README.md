@@ -14,7 +14,7 @@ The [`mise file`](./mise.toml) contains the dependencies and the tools used in t
 
 ## Description
 
-The interactions with this repository are done through the [`Justfile`](./Justfile) recipes.
+The interactions with this repository are done through the [`justfile`](./justfile) recipes.
 
 To run the e2e tests, run the following command:
 

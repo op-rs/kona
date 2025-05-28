@@ -46,7 +46,7 @@ variable "BIN_TARGET" {
 }
 
 variable "BUILD_PROFILE" {
-  default = "release"
+  default = "release-perf"
   description = "The cargo build profile to use when building the binary in the kona-app-generic target."
 }
 
