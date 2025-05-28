@@ -5045,6 +5045,7 @@ dependencies = [
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-rpc",
+ "kona-supervisor-storage",
  "kona-supervisor-types",
  "metrics",
  "op-alloy-rpc-types",

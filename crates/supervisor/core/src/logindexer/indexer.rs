@@ -1,50 +1,31 @@
-use async_trait::async_trait;
+use kona_supervisor_storage::LogStorage;
 use std::sync::Arc;
 use kona_interop::InteropProvider;
-use kona_protocol::BlockInfo;
 use kona_interop::parse_log_to_executing_message;
+use kona_protocol::BlockInfo;
 use crate::logindexer::{
     log_to_log_hash, 
     payload_hash_to_log_hash, 
-    ExecutingMessage, 
     LogEntry, 
     LogIndexerError,
 };
-
-/// The [`StateManager`] provides the database interface to persist
-/// logs for each processed block.
-/// TODO: remove it with actual trait when implemented
-#[async_trait]
-pub trait StateManager: Send + Sync {
-    /// Saves the processed logs for the given block.
-    ///
-    /// This should be an atomic operation.
-    ///
-    /// # Arguments
-    /// * `block` - The block reference (number, hash, timestamp).
-    /// * `logs` - The initiating/executing logs extracted from the block.
-    async fn save_block_logs(&self, block: &BlockInfo, logs: Vec<LogEntry>) -> Result<(), String>;
-}
-
+use crate::{ManagedNode, SupervisorService};
+use kona_supervisor_types::{Log, ExecutingMessage};
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting structured messages
 /// [`ExecutingMessage`] and persis them to the state manager
-pub struct LogIndexer<P, S> {
-    pub provider: Arc<P>,
-    pub state_manager: Arc<S>,
+pub struct LogIndexer {
+    pub provider: Arc<ManagedNode>,
+    pub state_manager: Arc<dyn LogStorage>,
 }
 
-impl<P, S> LogIndexer <P, S>
-where
-    P: InteropProvider + Send + Sync + 'static,
-    S: StateManager + Send + Sync + 'static,
-{
+impl LogIndexer {
     /// Creates a new [`LogIndexer`] with the given provider and state manager.
     ///
     /// # Arguments
     /// - `provider`: A shared reference to the interop provider used to fetch receipts.
     /// - `state_manager`: A shared reference to the component used to persist indexed logs.
-    pub fn new(provider: Arc<P>, state_manager: Arc<S>) -> Self {
+    pub fn new(provider: Arc<ManagedNode>, state_manager: Arc<dyn LogStorage>) -> Self {
         Self {
             provider,
             state_manager,
@@ -93,20 +74,19 @@ where
                     }
                 });
 
-                log_entries.push(LogEntry {
+                log_entries.push(Log {
+                    index: log.index,
                     hash: log_hash,
                     executing_message,
                 });
             }
         }
 
-        self.state_manager.save_block_logs(block, log_entries)
-            .await
+        self.state_manager.store_block_logs(block, log_entries)
             .map_err(|_| LogIndexerError::StateWrite {
                 chain_id,
                 block_number: block.number,
             })?;
-
         Ok(())
     }
 }
