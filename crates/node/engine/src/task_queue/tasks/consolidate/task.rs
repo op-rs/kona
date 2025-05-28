@@ -88,8 +88,6 @@ impl ConsolidateTask {
                 Ok(block_info) => {
                     debug!(target: "engine", ?block_info, "Promoted safe head");
 
-                    assert_eq!(block_hash, block_info.block_info.hash, "block hash mismatch");
-
                     state.set_local_safe_head(block_info);
                     state.set_safe_head(block_info);
                     match self.execute_forkchoice_task(state).await {

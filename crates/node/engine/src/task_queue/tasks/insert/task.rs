@@ -137,10 +137,8 @@ impl EngineTaskExt for InsertUnsafeTask {
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
                 .map_err(InsertUnsafeTaskError::L2BlockInfoConstruction)?;
 
-        let head_block_hash = new_unsafe_ref.block_info.hash;
-
         let fcu = ForkchoiceState {
-            head_block_hash,
+            head_block_hash: new_unsafe_ref.block_info.hash,
             safe_block_hash: state.safe_head().block_info.hash,
             finalized_block_hash: state.finalized_head().block_info.hash,
         };
