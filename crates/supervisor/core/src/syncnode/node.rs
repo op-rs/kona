@@ -328,11 +328,11 @@ impl ManagedNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
-    use kona_protocol::BlockInfo;
-    use kona_interop::DerivedRefPair;
-    use kona_supervisor_types::BlockReplacement;
     use alloy_primitives::B256;
+    use kona_interop::DerivedRefPair;
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_types::BlockReplacement;
+    use std::io::Write;
     use tempfile::NamedTempFile;
 
     fn create_mock_jwt_file() -> NamedTempFile {
@@ -587,73 +587,75 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_handle_managed_event_sends_derivation_update() {
-    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    async fn test_handle_managed_event_sends_derivation_update() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
-    // Create a mock DerivedRefPair (adjust fields as needed)
-    let derived_ref_pair = DerivedRefPair {
-        source: BlockInfo {
-            hash: B256::from([2u8; 32]),
-            number: 2,
-            parent_hash: B256::from([3u8; 32]),
-            timestamp: 100,
-        },
-        derived: BlockInfo {
-            hash: B256::from([4u8; 32]),
-            number: 3,
-            parent_hash: B256::from([5u8; 32]),
-            timestamp: 101,
-        },
-    };
+        // Create a mock DerivedRefPair (adjust fields as needed)
+        let derived_ref_pair = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 2,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 100,
+            },
+            derived: BlockInfo {
+                hash: B256::from([4u8; 32]),
+                number: 3,
+                parent_hash: B256::from([5u8; 32]),
+                timestamp: 101,
+            },
+        };
 
-    let managed_event = ManagedEvent {
-        reset: None,
-        unsafe_block: None,
-        derivation_update: Some(derived_ref_pair.clone()),
-        exhaust_l1: None,
-        replace_block: None,
-        derivation_origin_update: None,
-    };
+        let managed_event = ManagedEvent {
+            reset: None,
+            unsafe_block: None,
+            derivation_update: Some(derived_ref_pair.clone()),
+            exhaust_l1: None,
+            replace_block: None,
+            derivation_origin_update: None,
+        };
 
-    ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
+        ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
 
-    let event = rx.recv().await.expect("Should receive event");
-    match event {
-        NodeEvent::DerivedBlock { derived_ref_pair: pair } => assert_eq!(pair, derived_ref_pair),
-        _ => panic!("Expected DerivedBlock event"),
+        let event = rx.recv().await.expect("Should receive event");
+        match event {
+            NodeEvent::DerivedBlock { derived_ref_pair: pair } => {
+                assert_eq!(pair, derived_ref_pair)
+            }
+            _ => panic!("Expected DerivedBlock event"),
+        }
     }
-}
 
-#[tokio::test]
-async fn test_handle_managed_event_sends_block_replacement() {
-    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    #[tokio::test]
+    async fn test_handle_managed_event_sends_block_replacement() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
-    // Create a mock BlockReplacement (adjust fields as needed)
-    let replacement = BlockReplacement {
-        replacement: BlockInfo {
-            hash: B256::from([6u8; 32]),
-            number: 4,
-            parent_hash: B256::from([7u8; 32]),
-            timestamp: 200,
-        },
-        invalidated: B256::from([8u8; 32]),
-    };
+        // Create a mock BlockReplacement (adjust fields as needed)
+        let replacement = BlockReplacement {
+            replacement: BlockInfo {
+                hash: B256::from([6u8; 32]),
+                number: 4,
+                parent_hash: B256::from([7u8; 32]),
+                timestamp: 200,
+            },
+            invalidated: B256::from([8u8; 32]),
+        };
 
-    let managed_event = ManagedEvent {
-        reset: None,
-        unsafe_block: None,
-        derivation_update: None,
-        exhaust_l1: None,
-        replace_block: Some(replacement.clone()),
-        derivation_origin_update: None,
-    };
+        let managed_event = ManagedEvent {
+            reset: None,
+            unsafe_block: None,
+            derivation_update: None,
+            exhaust_l1: None,
+            replace_block: Some(replacement.clone()),
+            derivation_origin_update: None,
+        };
 
-    ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
+        ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
 
-    let event = rx.recv().await.expect("Should receive event");
-    match event {
-        NodeEvent::BlockReplaced { replacement: r } => assert_eq!(r, replacement),
-        _ => panic!("Expected BlockReplaced event"),
-    }
+        let event = rx.recv().await.expect("Should receive event");
+        match event {
+            NodeEvent::BlockReplaced { replacement: r } => assert_eq!(r, replacement),
+            _ => panic!("Expected BlockReplaced event"),
+        }
     }
 }
