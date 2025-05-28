@@ -8,8 +8,9 @@ on:
         description: Which image to release
         required: true
         options:
-          - kona-node
           - kona-host
+          - kona-node
+          - kona-supervisor
           - asterisc-builder
           - cannon-builder
           - kona-asterisc-prestate
