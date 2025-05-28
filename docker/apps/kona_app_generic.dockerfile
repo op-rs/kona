@@ -17,6 +17,13 @@ RUN apt-get update && apt-get install -y \
   clang \
   pkg-config
 
+# Install rust
+ENV RUST_VERSION=1.85
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN cargo install cargo-chef
+
 ################################
 #    Local Repo Setup Stage    #
 ################################
@@ -44,23 +51,17 @@ RUN git clone https://github.com/${REPOSITORY} && \
 ################################
 FROM app-${REPO_LOCATION}-setup-stage AS app-setup
 
+FROM dep-setup-stage AS build-entrypoint
 ARG BIN_TARGET
 ARG BUILD_PROFILE
 
-# Install rust
-ENV RUST_VERSION=1.85
 WORKDIR /app
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src
-ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN cargo install cargo-chef
-
-
-FROM app-setup AS planner
+FROM build-entrypoint AS planner
 COPY --from=app-setup kona .
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM app-setup AS builder 
+FROM build-entrypoint AS builder 
 COPY --from=planner /app/recipe.json recipe.json
 
 # Build dependencies - this is the caching Docker layer!
