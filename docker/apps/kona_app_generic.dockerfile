@@ -22,11 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ################################
 FROM dep-setup-stage AS app-local-setup-stage
 
-ARG TAG
-
 # Copy in the local repository
 COPY . /kona
-RUN cd kona && git checkout "${TAG}"
 
 ################################
 #   Remote Repo Setup Stage    #

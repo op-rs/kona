@@ -28,4 +28,4 @@ jobs:
           go-version: '1.24.3'
       - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
       - name: test with simple-supervisor devnet
-        run: just build-devnet-and-test-e2e simple-supervisor supervisor ${{ github.sha }}
+        run: just build-devnet-and-test-e2e simple-supervisor supervisor

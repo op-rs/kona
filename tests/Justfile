@@ -2,14 +2,14 @@ SOURCE := source_directory()
 DEFAULT_DEVNET_PATH := source_directory() + "/devnets/simple-kona.yaml"
 DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package"
 
-build-devnet BINARY COMMIT_TAG="" :
+build-devnet BINARY:
     #!/usr/bin/env bash
     if [ {{BINARY}} != "node" ] && [ {{BINARY}} != "supervisor" ]; then
         echo "Invalid binary specified. Must be either 'node' or 'supervisor'."
         exit 1
     fi
 
-    cd {{SOURCE}}/../docker/apps && just build-local "kona-{{BINARY}}" "{{COMMIT_TAG}}" "kona-{{BINARY}}:local"
+    cd {{SOURCE}}/../docker/apps && just build-local "kona-{{BINARY}}" "kona-{{BINARY}}:local"
 
 # Spins up kurtosis with the `kona-node` docker image
 # The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
@@ -55,7 +55,7 @@ test-e2e DEVNET GO_PKG_NAME="":
 
     cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
 
-build-devnet-and-test-e2e DEVNET BINARY COMMIT_TAG="" OP_PACKAGE_PATH="": (build-devnet BINARY COMMIT_TAG)
+build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
     #!/bin/bash
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
 

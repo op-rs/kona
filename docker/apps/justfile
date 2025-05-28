@@ -9,19 +9,12 @@ _docker_arch:
   fi
 
 # Builds the an application image from the local repository.
-build-local bin_name git_tag='' image_tag='kona:local':
+build-local bin_name image_tag='kona:local':
   #!/bin/bash
   export BIN_TARGET="{{bin_name}}"
   export DEFAULT_TAG="{{image_tag}}"
   export PLATFORMS="$(just _docker_arch)"
   export REPO_LOCATION="local"
-
-  # If no git tag is provided, use the current revision
-  if [[ -z "{{git_tag}}" ]]; then
-    export GIT_REF_NAME="$(git rev-parse HEAD)"
-  else
-    export GIT_REF_NAME="{{git_tag}}"
-  fi
 
   (cd "$(git rev-parse --show-toplevel)" && docker buildx bake \
     --progress plain \

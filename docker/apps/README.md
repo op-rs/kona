@@ -9,7 +9,7 @@ To build an image for any binary within `kona` locally, use the `justfile` locat
 
 ```sh
 # Build an application image from the local repository
-just build-local <bin_name> <git_tag> [image_tag (default: 'kona:local')]
+just build-local <bin_name> [image_tag (default: 'kona:local')]
 
 # Build an application image from a remote revision
 just build-remote <bin_name> <git_tag> [image_tag (default: 'kona:local')]
