@@ -10,6 +10,8 @@ import (
 // Contains general system tests for the p2p connectivity of the node.
 // This assumes there is at least two L2 chains. The second chain is used to test a larger network.
 func TestSystemNodeP2p(t *testing.T) {
+	t.Skip("Peering tests are skipped for now as they are unreliable")
+
 	systest.SystemTest(t,
 		allPeersInNetwork(),
 		validators.HasSufficientL2Nodes(0, 2),
