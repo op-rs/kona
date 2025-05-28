@@ -1,5 +1,8 @@
+//! Utility module to house implementation and declaration of MetricsArgs since it's being used in
+//! multiple places, it's just being referenced from this module.
+
 use crate::init_prometheus_server;
-use clap::{Parser, arg};
+use clap::{arg, Parser};
 use std::net::IpAddr;
 
 /// Configuration for Prometheus metrics.
