@@ -42,7 +42,7 @@ impl ManagedNodeConfig {
         if let Ok(secret) = std::fs::read_to_string(cur_dir.join("jwt.hex")).map_err(|err| {
             error!(
                 target: "managed_node",
-                ?err,
+                %err,
                 "Failed to read JWT file"
             );
         }) {
@@ -79,7 +79,7 @@ impl ManagedNode {
         let mut ws_client_guard = self.ws_client.lock().await;
         if ws_client_guard.is_none() {
             let headers = self.create_auth_headers().map_err(|err| {
-                error!(target: "managed_node", ?err, "Failed to create auth headers");
+                error!(target: "managed_node", %err, "Failed to create auth headers");
                 ClientError::Custom(format!("failed to create auth headers: {}", err))
             })?;
 
@@ -113,7 +113,7 @@ impl ManagedNode {
             ManagedNodeApiClient::subscribe_events(client.as_ref()).await.map_err(|err| {
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     "Failed to subscribe to events"
                 );
                 SubscriptionError::from("failed to subscribe to events")
@@ -147,7 +147,7 @@ impl ManagedNode {
                                     Err(err) => {
                                         error!(
                                             target: "managed_node",
-                                            ?err,
+                                            %err,
                                             "Error in event deserialization");
                                         // Continue processing next events despite this error
                                     }
@@ -167,7 +167,7 @@ impl ManagedNode {
             if let Err(err) = subscription.unsubscribe().await {
                 warn!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     "Failed to unsubscribe gracefully"
                 );
             }
@@ -189,7 +189,7 @@ impl ManagedNode {
             stop_tx.send(true).map_err(|err| {
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     "Failed to send stop signal"
                 );
                 SubscriptionError::from("failed to send stop signal")
@@ -204,7 +204,7 @@ impl ManagedNode {
             handle.await.map_err(|err| {
                 error!(
                     target: "managed_node",
-                    ?err,
+                    %err,
                     "Failed to join task"
                 );
                 SubscriptionError::from("failed to join task")
@@ -233,7 +233,7 @@ impl ManagedNode {
         headers.insert(
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
-                error!(target: "managed_node", ?err, "Invalid authorization header");
+                error!(target: "managed_node", %err, "Invalid authorization header");
                 ErrorObject::from(ErrorCode::ParseError)
             })?,
         );
