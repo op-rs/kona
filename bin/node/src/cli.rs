@@ -2,12 +2,12 @@
 
 use crate::{
     commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
-    flags::{GlobalArgs, MetricsArgs},
+    flags::GlobalArgs,
     version,
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::cli_styles;
+use kona_cli::{cli_styles, unified_metrics::MetricsArgs};
 
 /// Subcommands for the CLI.
 #[derive(Debug, PartialEq, Clone, Subcommand)]

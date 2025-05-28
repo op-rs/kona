@@ -1,7 +1,8 @@
 //! Contains the supervisor CLI.
 
-use crate::flags::{GlobalArgs, MetricsArgs, SupervisorArgs};
+use crate::flags::{GlobalArgs, SupervisorArgs};
 use clap::Parser;
+use kona_cli::unified_metrics::MetricsArgs;
 
 use anyhow::Result;
 use kona_cli::cli_styles;

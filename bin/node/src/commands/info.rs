@@ -1,7 +1,8 @@
 //! Info Subcommand
 
-use crate::flags::{GlobalArgs, MetricsArgs};
+use crate::flags::GlobalArgs;
 use clap::Parser;
+use kona_cli::unified_metrics::MetricsArgs;
 use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 use tracing::info;
 
