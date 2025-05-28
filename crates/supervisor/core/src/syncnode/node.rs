@@ -80,7 +80,7 @@ impl ManagedNode {
         if ws_client_guard.is_none() {
             let headers = self.create_auth_headers().map_err(|err| {
                 error!(target: "managed_node", %err, "Failed to create auth headers");
-                ClientError::Custom(format!("failed to create auth headers: {}", err))
+                ClientError::Custom(format!("failed to create auth headers: {err}"))
             })?;
 
             let ws_url = format!("ws://{}", self.config.url);
@@ -89,7 +89,7 @@ impl ManagedNode {
             let client =
                 WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
                     |err| {
-                        ClientError::Custom(format!("failed to create WebSocket client: {}", err))
+                        ClientError::Custom(format!("failed to create WebSocket client: {err}"))
                     },
                 )?;
 
