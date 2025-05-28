@@ -46,6 +46,7 @@ getting started with building your own programs, and a reference for the librari
 - [`client`](./bin/client): The bare-metal program that executes the state transition, to be ran on a prover.
 - [`host`](./bin/host): The host program that runs natively alongside the prover, serving as the [Preimage Oracle][g-preimage-oracle] server.
 - [`node`](./bin/node): [WIP] A [Rollup Node][rollup-node-spec] implementation, backed by [`kona-derive`](./crates/protocol/derive).
+- [`supervisor`](./bin/supervisor): [WIP] A [Supervisor][supervisor-spec] implementation.
 
 **Protocol**
 
@@ -55,6 +56,8 @@ getting started with building your own programs, and a reference for the librari
 - [`driver`](./crates/protocol/driver): Stateful derivation pipeline driver.
 - [`interop`](./crates/protocol/interop): Core functionality and primitives for the [Interop feature](https://specs.optimism.io/interop/overview.html) of the OP Stack.
 - [`registry`](./crates/protocol/registry): Rust bindings for the [superchain-registry][superchain-registry].
+- [`comp`](./crates/protocol/comp): Compression types for the OP Stack.
+- [`hardforks`](./crates/protocol/hardforks): Consensus layer hardfork types for the OP Stack including network upgrade transactions.
 
 **Proof**
 
@@ -68,20 +71,21 @@ getting started with building your own programs, and a reference for the librari
 
 **Node**
 
+- [`service`](./crates/node/service): The OP Stack rollup node service.
 - [`engine`](./crates/node/engine): An extensible implementation of the [OP Stack][op-stack] rollup node engine client
 - [`rpc`](./crates/node/rpc): OP Stack RPC types and extensions.
 - [`p2p`](./crates/node/p2p): OP Stack P2P Networking including Gossip and Discovery.
-- [`service`](./crates/node/service): The OP Stack rollup node service.
+- [`sources`](./crates/node/sources): Data source types and utilities for the kona-node.
 
 **Providers**
 
 - [`providers-alloy`](./crates/providers/providers-alloy): Provider implementations for `kona-derive` backed by [Alloy][alloy].
-- [`providers-local`](./crates/providers/providers-local): Local provider implementations for `kona-derive`.
 
 **Utilities**
 
 - [`serde`](./crates/utilities/serde): Serialization helpers.
 - [`cli`](./crates/utilities/cli): Standard CLI utilities, used across `kona`'s binaries.
+- [`macros`](./crates/utilities/macros): Utility macros.
 
 ### Proof
 
@@ -152,6 +156,7 @@ Licensed under the [MIT license.](https://github.com/op-rs/kona/blob/main/LICENS
 [cannon]: https://github.com/ethereum-optimism/optimism/tree/develop/cannon
 [cannon-rs]: https://github.com/op-rs/cannon-rs
 [rollup-node-spec]: https://specs.optimism.io/protocol/rollup-node.html
+[supervisor-spec]: https://specs.optimism.io/interop/supervisor.html
 [badboi-cannon-rs]: https://github.com/BadBoiLabs/cannon-rs
 [asterisc]: https://github.com/etheruem-optimism/asterisc
 [fpp-specs]: https://specs.optimism.io/fault-proof/index.html

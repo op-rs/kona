@@ -85,7 +85,6 @@ kona-hardforks = { path = "crates/protocol/hardforks", version = "0.3.0", defaul
 kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
 kona-rpc = { path = "crates/node/rpc", version = "0.2.0", default-features = false }
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
-kona-macros = { path = "crates/node/macros", version = "0.1.0", default-features = false }
 kona-sources = { path = "crates/node/sources", version = "0.1.0", default-features = false }
 kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
 
@@ -110,6 +109,7 @@ kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.2.0", d
 # Utilities
 kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.2.0", default-features = false }
+kona-macros = { path = "crates/utilities/macros", version = "0.1.0", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.11", default-features = false }

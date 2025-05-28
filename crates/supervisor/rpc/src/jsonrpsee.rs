@@ -49,7 +49,7 @@ pub trait SupervisorApi {
     ) -> RpcResult<()>;
 }
 
-/// ManagedNodeApi to send control signals to a managed node from supervisor
+/// ManagedModeApi to send control signals to a managed node from supervisor
 /// And get info for syncing the state with the given L2.
 ///
 /// See spec <https://specs.optimism.io/interop/managed-mode.html>
@@ -57,7 +57,7 @@ pub trait SupervisorApi {
 /// Default namespace separator is `_`.
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
-pub trait ManagedNodeApi {
+pub trait ManagedModeApi {
     /// Subscribe to the events from the managed node.
     #[subscription(name = "events", item = Option<ManagedEvent>, unsubscribe = "unsubscribeEvents")]
     async fn subscribe_events(&self) -> SubscriptionResult;
