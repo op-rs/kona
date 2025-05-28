@@ -28,13 +28,13 @@ where
         let result = self.tx.get::<SafetyHeadRefs>(head_ref_key).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
-                ?safety_level,
-                ?err,
+                %safety_level,
+                %err,
                 "Failed to seek head reference"
             );
         })?;
         let block_ref = result.ok_or_else(|| {
-            warn!(target: "supervisor_storage", ?safety_level, "No head reference found");
+            warn!(target: "supervisor_storage", %safety_level, "No head reference found");
             StorageError::EntryNotFound("no head reference found".to_string())
         })?;
         Ok(block_ref.into())
@@ -54,8 +54,8 @@ where
             |err| {
                 error!(
                     target: "supervisor_storage",
-                    ?safety_level,
-                    ?err,
+                    %safety_level,
+                    %err,
                     "Failed to store head reference"
                 )
             },
