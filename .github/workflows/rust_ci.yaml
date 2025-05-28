@@ -11,7 +11,7 @@ env:
 
 jobs:
   cargo-tests:
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 40
     name: test
     steps:
@@ -27,7 +27,7 @@ jobs:
         run: just test
 
   cargo-lint:
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 40
     strategy:
       matrix:
@@ -60,7 +60,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) ./target
 
   cargo-build:
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 40
     strategy:
       matrix:
@@ -107,7 +107,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) ./target
 
   cargo-udeps:
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 40
     name: check-udeps
     steps:
@@ -148,7 +148,7 @@ jobs:
         run: just test-docs
 
   cargo-hack:
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 40
     steps:
       - name: Checkout sources
@@ -156,8 +156,6 @@ jobs:
         with:
           submodules: true
       - uses: ./.github/actions/setup
-      - name: Install clang
-        run: sudo apt install clang libclang-dev
       - uses: taiki-e/install-action@cargo-hack
       - name: cargo hack
         run: just hack
@@ -180,16 +178,12 @@ jobs:
         run: ./.github/scripts/check_no_std.sh
 
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     name: coverage
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          large-packages: false
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview

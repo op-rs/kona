@@ -11,7 +11,7 @@ env:
 jobs:
   action-tests:
     name: FPP actions (${{ matrix.kind }})
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 60
     strategy:
       matrix:
@@ -19,10 +19,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          large-packages: false
       - uses: taiki-e/install-action@just
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,7 +97,7 @@ jobs:
       matrix:
         target: ["native", "asterisc"]
         name: ["OP Sepolia (Holocene) - Block #26215604"]
-    runs-on: ubuntu-latest
+    runs-on: kona-runner-set
     timeout-minutes: 20
     steps:
       - name: Checkout sources
