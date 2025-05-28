@@ -104,7 +104,7 @@ where
 
         let block = block_option.ok_or_else(|| {
             warn!(target: "supervisor_storage", block_number, "Block not found");
-            StorageError::EntryNotFound(format!("block {} not found", block_number))
+            StorageError::EntryNotFound(format!("block {block_number} not found"))
         })?;
         Ok(block.into())
     }
@@ -161,8 +161,8 @@ where
                 "Log not found"
             );
             StorageError::EntryNotFound(format!(
-                "log not found at block {} index {}",
-                block_number, log.index
+                "log not found at block {block_number} index {}",
+                log.index,
             ))
         })?;
 

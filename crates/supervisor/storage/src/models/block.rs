@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// in the [`crate::models::BlockRefs`] table.
 #[derive(Debug, Clone, Display, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
 #[display(
-    "BlockRef {{ number: {number}, hash: {hash}, parent_hash: {parent_hash}, timestamp: {timestamp} }}"
+    "number: {number}, hash: {hash}, parent_hash: {parent_hash}, timestamp: {timestamp}"
 )]
 pub struct BlockRef {
     /// The height of the block.
