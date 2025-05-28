@@ -150,7 +150,7 @@ impl ManagedNode {
                                         error!(
                                             target: "managed_node",
                                             %err,
-                                            "Error in event deserialization.");
+                                            "Error in event deserialization");
                                         // Continue processing next events despite this error
                                     }
                                 }
