@@ -6,4 +6,3 @@
 <a href="https://img.shields.io/codecov/c/github/op-rs/kona"><img src="https://img.shields.io/codecov/c/github/op-rs/kona" alt="Codecov"></a>
 
 Utility helper macros for kona crates.
-
