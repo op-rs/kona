@@ -18,41 +18,6 @@ optimism_package:
         network_id: "2151908"
         seconds_per_slot: 2
         name: "op-kurtosis"
-        fjord_time_offset: 0
-        granite_time_offset: 0
-        holocene_time_offset: 0
-        fund_dev_accounts: true
-      batcher_params:
-        image: {{ localDockerImage "op-batcher" }}
-        extra_params: []
-      proposer_params:
-        image: {{ localDockerImage "op-proposer" }}
-        extra_params: []
-        game_type: 1
-        proposal_interval: 10m
-      mev_params:
-        rollup_boost_image: ""
-        builder_host: ""
-        builder_port: ""
-      additional_services: []
-
-  challengers:
-    challenger:
-      enabled: true
-      image: {{ localDockerImage "op-challenger" }}
-      participants: "*"
-      cannon_prestates_url: {{ localPrestate.URL }}
-      cannon_trace_types: ["cannon", "permissioned"]
-  op_contract_deployer_params:
-    image: {{ localDockerImage "op-deployer" }}
-    l1_artifacts_locator: {{ localContractArtifacts "l1" }}
-    l2_artifacts_locator: {{ localContractArtifacts "l2" }}
-    overrides:
-      faultGameAbsolutePrestate: {{ localPrestate.Hashes.prestate_mt64 }}
-  global_log_level: "info"
-  global_node_selectors: {}
-  global_tolerations: []
-  persistent: false
 ethereum_package:
   participants:
   - el_type: geth
