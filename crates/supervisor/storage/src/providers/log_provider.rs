@@ -73,14 +73,13 @@ where
         })?;
 
         for log in logs {
-            cursor.append_dup(block.number, log.into())
-                .inspect_err(|err| {
-                    error!(
-                        target: "supervisor_storage",
-                        block_number = block.number,
-                        %err,
-                        "Failed to append logs"
-                    );
+            cursor.append_dup(block.number, log.into()).inspect_err(|err| {
+                error!(
+                    target: "supervisor_storage",
+                    block_number = block.number,
+                    %err,
+                    "Failed to append logs"
+                );
             })?;
         }
         Ok(())
