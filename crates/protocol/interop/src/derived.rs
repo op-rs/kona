@@ -1,6 +1,7 @@
 //! Contains derived types for interop.
 
 use alloy_eips::eip1898::BlockNumHash;
+use derive_more::Display;
 use kona_protocol::BlockInfo;
 
 /// A pair of [`BlockNumHash`]s representing a derivation relationship between two blocks.
@@ -28,7 +29,8 @@ pub struct DerivedIdPair {
 /// - `source`: The [`BlockInfo`] of the source (L1) block.
 /// - `derived`: The [`BlockInfo`] of the derived (L2) block.
 // todo: link specs in docs once spec PR #708 is merged
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Display, PartialEq, Eq)]
+#[display(" source: {source}, derived: {derived} ")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct DerivedRefPair {
