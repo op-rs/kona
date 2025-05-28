@@ -83,11 +83,11 @@ impl ManagedNode {
     ) {
         match event_result {
             Some(event) => {
-                debug!(target: "managed_node", event = ?event, "Handling ManagedEvent");
+                debug!(target: "managed_node", ?event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target: "managed_node", reset_id = %reset_id, "Reset event received");
+                    info!(target: "managed_node", ?reset_id, "Reset event received");
                     // Handle reset action
                 }
 
@@ -95,10 +95,10 @@ impl ManagedNode {
                     info!(target: "managed_node", ?unsafe_block, "Unsafe block event received");
 
                     // todo: check any pre processing needed
-                    if let Err(e) =
+                    if let Err(err) =
                         event_tx.send(NodeEvent::UnsafeBlock { block: *unsafe_block }).await
                     {
-                        warn!(target: "managed_node", ?e, "Failed to send unsafe block event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", ?err, "Failed to send unsafe block event, channel closed or receiver dropped");
                     }
                 }
 
@@ -106,13 +106,13 @@ impl ManagedNode {
                     info!(target: "managed_node", ?derived_ref_pair, "Derivation update received");
 
                     // todo: check any pre processing needed
-                    if let Err(e) = event_tx
+                    if let Err(err) = event_tx
                         .send(NodeEvent::DerivedBlock {
                             derived_ref_pair: derived_ref_pair.clone(),
                         })
                         .await
                     {
-                        warn!(target: "managed_node", ?e, "Failed to derivation update event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", ?err, "Failed to derivation update event, channel closed or receiver dropped");
                     }
                 }
 
@@ -134,11 +134,11 @@ impl ManagedNode {
                     info!(target: "managed_node", ?replacement, "Block replacement received");
 
                     // todo: check any pre processing needed
-                    if let Err(e) = event_tx
+                    if let Err(err) = event_tx
                         .send(NodeEvent::BlockReplaced { replacement: replacement.clone() })
                         .await
                     {
-                        warn!(target: "managed_node", ?e, "Failed to send block replacement event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", ?err, "Failed to send block replacement event, channel closed or receiver dropped");
                     }
                 }
 
@@ -570,7 +570,7 @@ mod tests {
         };
         let managed_event = ManagedEvent {
             reset: None,
-            unsafe_block: Some(block_info.clone()),
+            unsafe_block: Some(block_info),
             derivation_update: None,
             exhaust_l1: None,
             replace_block: None,
