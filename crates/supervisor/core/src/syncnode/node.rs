@@ -97,7 +97,7 @@ impl ManagedNode {
 
                     // todo: check any pre processing needed
                     if let Err(e) =
-                        event_tx.send(NodeEvent::UnsafeBlock { block: unsafe_block.clone() }).await
+                        event_tx.send(NodeEvent::UnsafeBlock { block: *unsafe_block }).await
                     {
                         warn!(target: "managed_node", ?e, "Failed to send unsafe block event, channel closed or receiver dropped");
                     }
@@ -113,7 +113,7 @@ impl ManagedNode {
                         })
                         .await
                     {
-                        warn!(target: "managed_node", ?e, "Failed to send safe block event, channel closed or receiver dropped");
+                        warn!(target: "managed_node", ?e, "Failed to derivation update event, channel closed or receiver dropped");
                     }
                 }
 
