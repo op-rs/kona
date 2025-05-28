@@ -19,9 +19,7 @@ use serde::{Deserialize, Serialize};
 /// block lineage and verify ancestry. It is stored as the value
 /// in the [`crate::models::BlockRefs`] table.
 #[derive(Debug, Clone, Display, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
-#[display(
-    "number: {number}, hash: {hash}, parent_hash: {parent_hash}, timestamp: {timestamp}"
-)]
+#[display("number: {number}, hash: {hash}, parent_hash: {parent_hash}, timestamp: {timestamp}")]
 pub struct BlockRef {
     /// The height of the block.
     pub number: u64,
