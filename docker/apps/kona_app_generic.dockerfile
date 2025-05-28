@@ -51,6 +51,8 @@ RUN git clone https://github.com/${REPOSITORY} && \
 ################################
 FROM app-${REPO_LOCATION}-setup-stage AS app-setup
 
+# We need a separate entrypoint to take advantage of docker's cache.
+# If we didn't do this, the full build would be triggered every time the source code changes.
 FROM dep-setup-stage AS build-entrypoint
 ARG BIN_TARGET
 ARG BUILD_PROFILE
@@ -58,18 +60,21 @@ ARG BUILD_PROFILE
 WORKDIR /app
 
 FROM build-entrypoint AS planner
+# Triggers a cache invalidation if `app-setup` is modified.
 COPY --from=app-setup kona .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM build-entrypoint AS builder 
+# Since we only copy recipe.json, if the dependencies don't change, this step and the next one will be cached.
 COPY --from=planner /app/recipe.json recipe.json
 
 # Build dependencies - this is the caching Docker layer!
 RUN RUSTFLAGS="-C target-cpu=native" cargo chef cook --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" --recipe-path recipe.json
 
-# Build application
+# Build application. This step will systematically trigger a cache invalidation if the source code changes.
 COPY --from=app-setup kona .
-# Build the application binary on the selected tag
+# Build the application binary on the selected tag. Since we build the external dependencies in the previous step, 
+# this step will reuse the target directory from the previous step.
 RUN RUSTFLAGS="-C target-cpu=native" cargo build --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}"
 
 # Export stage
