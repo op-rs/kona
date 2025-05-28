@@ -66,6 +66,11 @@ panic = "abort"
 codegen-units = 1
 lto = "fat"
 
+[profile.release-perf]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "1.0.1", default-features = false }
