@@ -5,7 +5,7 @@ use jsonrpsee::{
     core::{SubscriptionError, client::Subscription},
     ws_client::{HeaderMap, HeaderValue, WsClientBuilder},
 };
-use kona_supervisor_rpc::ManagedNodeApiClient;
+use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
 use tokio::{sync::watch, task::JoinHandle};
@@ -174,7 +174,7 @@ impl ManagedNode {
         )?;
 
         let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedNodeApiClient::subscribe_events(&client).await.map_err(|err| {
+            ManagedModeApiClient::subscribe_events(&client).await.map_err(|err| {
                 let err_msg = format!("Failed to subscribe to events: {}", err);
                 error!(
                     target: "managed_node",
