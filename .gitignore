@@ -4,11 +4,17 @@
 # Rust target
 target/
 
+# Ignore VSCode Configuration
+.vscode/
+
 # Monorepo workspace
 monorepo/
 
 # `optimism-package` workspace
 optimism-package/
+
+# `optimism` workspace
+optimism/
 
 # Environment Variables
 .env

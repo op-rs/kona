@@ -1,13 +1,15 @@
 //! A task for the `engine_forkchoiceUpdated` method, with no attributes.
 
-use crate::{EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError};
+use crate::{
+    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTaskError, Metrics,
+};
 use alloy_rpc_types_engine::INVALID_FORK_CHOICE_STATE_ERROR;
 use async_trait::async_trait;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
 
-/// The [ForkchoiceTask] executes an `engine_forkchoiceUpdated` call with the current
-/// [EngineState]'s forkchoice, and no payload attributes.
+/// The [`ForkchoiceTask`] executes an `engine_forkchoiceUpdated` call with the current
+/// [`EngineState`]'s forkchoice, and no payload attributes.
 #[derive(Debug, Clone)]
 pub struct ForkchoiceTask {
     /// The engine client.
@@ -15,7 +17,7 @@ pub struct ForkchoiceTask {
 }
 
 impl ForkchoiceTask {
-    /// Creates a new [ForkchoiceTask].
+    /// Creates a new [`ForkchoiceTask`].
     pub const fn new(client: Arc<EngineClient>) -> Self {
         Self { client }
     }
@@ -29,9 +31,9 @@ impl EngineTaskExt for ForkchoiceTask {
             return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
         }
 
-        // If the engine is syncing, log a warning. We can still attempt to apply the forkchoice
-        // update.
-        if state.sync_status.is_syncing() {
+        // If the engine is syncing, log a warning. We can still attempt to apply the
+        // forkchoice update.
+        if !state.el_sync_finished {
             warn!(target: "engine", "Attempting to update forkchoice state while EL syncing");
         }
 
@@ -61,6 +63,10 @@ impl EngineTaskExt for ForkchoiceTask {
         }
 
         state.forkchoice_update_needed = false;
+
+        // Update metrics.
+        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FORKCHOICE_TASK_LABEL);
+
         Ok(())
     }
 }

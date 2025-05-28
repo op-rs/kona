@@ -40,6 +40,8 @@ pub struct GossipDriverBuilder {
     peer_redial: Option<u64>,
     /// The [`RollupConfig`] for the network.
     rollup_config: Option<RollupConfig>,
+    /// Topic scoring. Disabled by default.
+    topic_scoring: bool,
 }
 
 impl GossipDriverBuilder {
@@ -56,6 +58,7 @@ impl GossipDriverBuilder {
             peer_monitoring: None,
             peer_redial: None,
             rollup_config: None,
+            topic_scoring: false,
         }
     }
 
@@ -77,6 +80,13 @@ impl GossipDriverBuilder {
     /// Sets the block time for the peer scoring.
     pub const fn with_block_time(mut self, block_time: u64) -> Self {
         self.block_time = Some(block_time);
+        self
+    }
+
+    /// Sets topic scoring.
+    /// This is disabled by default.
+    pub const fn with_topic_scoring(mut self, topic_scoring: bool) -> Self {
+        self.topic_scoring = topic_scoring;
         self
     }
 
@@ -160,7 +170,9 @@ impl GossipDriverBuilder {
         if let Some(scoring) = self.scoring {
             use crate::gossip::handler::Handler;
             let block_time = self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
-            let params = scoring.to_params(handler.topics(), block_time).unwrap_or_default();
+            let params = scoring
+                .to_params(handler.topics(), self.topic_scoring, block_time)
+                .unwrap_or_default();
             match behaviour.gossipsub.with_peer_score(params, PeerScoreLevel::thresholds()) {
                 Ok(_) => debug!(target: "scoring", "Peer scoring enabled successfully"),
                 Err(e) => warn!(target: "scoring", "Peer scoring failed: {}", e),

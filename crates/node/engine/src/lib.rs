@@ -11,9 +11,9 @@ extern crate tracing;
 
 mod task_queue;
 pub use task_queue::{
-    BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineTask,
-    EngineTaskError, EngineTaskExt, EngineTaskType, ForkchoiceTask, ForkchoiceTaskError,
-    InsertUnsafeTask, InsertUnsafeTaskError,
+    BuildTask, BuildTaskError, ConsolidateTask, ConsolidateTaskError, Engine, EngineResetError,
+    EngineTask, EngineTaskError, EngineTaskExt, FinalizeTask, FinalizeTaskError, ForkchoiceTask,
+    ForkchoiceTaskError, InsertUnsafeTask, InsertUnsafeTaskError,
 };
 
 mod attributes;
@@ -25,14 +25,14 @@ pub use client::{EngineClient, EngineClientError};
 mod versions;
 pub use versions::{EngineForkchoiceVersion, EngineGetPayloadVersion, EngineNewPayloadVersion};
 
-mod sync;
-pub use sync::{SyncConfig, SyncMode, SyncStatus};
-
 mod state;
-pub use state::{EngineState, EngineStateBuilder, EngineStateBuilderError};
+pub use state::EngineState;
 
 mod kinds;
 pub use kinds::EngineKind;
 
 mod query;
 pub use query::{EngineQueries, EngineQueriesError, EngineQuerySender};
+
+mod metrics;
+pub use metrics::Metrics;

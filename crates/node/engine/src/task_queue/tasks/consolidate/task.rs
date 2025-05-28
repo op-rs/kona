@@ -2,7 +2,7 @@
 
 use crate::{
     BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskError, EngineTaskExt,
-    ForkchoiceTask,
+    ForkchoiceTask, Metrics,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -17,9 +17,9 @@ use std::sync::Arc;
 pub struct ConsolidateTask {
     /// The engine client.
     pub client: Arc<EngineClient>,
-    /// The [RollupConfig].
+    /// The [`RollupConfig`].
     pub cfg: Arc<RollupConfig>,
-    /// The [OpAttributesWithParent] to instruct the execution layer to build.
+    /// The [`OpAttributesWithParent`] to instruct the execution layer to build.
     pub attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,
@@ -37,7 +37,7 @@ impl ConsolidateTask {
     }
 
     /// Executes the [`ForkchoiceTask`] if the attributes match the block.
-    pub async fn execute_forkchoice_task(
+    async fn execute_forkchoice_task(
         &self,
         state: &mut EngineState,
     ) -> Result<(), EngineTaskError> {
@@ -47,7 +47,7 @@ impl ConsolidateTask {
 
     /// Executes a new [`BuildTask`].
     /// This is used when the [`ConsolidateTask`] fails to consolidate the engine state.
-    pub async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    async fn execute_build_task(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         let build_task = BuildTask::new(
             self.client.clone(),
             self.cfg.clone(),
@@ -84,13 +84,22 @@ impl ConsolidateTask {
                 block_hash = %block.header.hash,
                 "Consolidating engine state",
             );
-            match L2BlockInfo::from_rpc_block_and_genesis(block, &self.cfg.genesis) {
+            match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
                 Ok(block_info) => {
                     debug!(target: "engine", ?block_info, "Promoted safe head");
+                    state.set_local_safe_head(block_info);
                     state.set_safe_head(block_info);
                     match self.execute_forkchoice_task(state).await {
                         Ok(()) => {
                             debug!(target: "engine", "Consolidation successful");
+
+                            // Update metrics.
+                            kona_macros::inc!(
+                                counter,
+                                Metrics::ENGINE_TASK_COUNT,
+                                Metrics::CONSOLIDATE_TASK_LABEL
+                            );
+
                             return Ok(());
                         }
                         Err(e) => {
@@ -120,10 +129,11 @@ impl ConsolidateTask {
 #[async_trait]
 impl EngineTaskExt for ConsolidateTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // Skip to processing the payload attributes if consolidation is not needed.
-        match state.needs_consolidation() {
-            true => self.consolidate(state).await,
-            false => self.execute_build_task(state).await,
+        // Skip to building the payload attributes if consolidation is not needed.
+        if state.safe_head().block_info.number < state.unsafe_head().block_info.number {
+            self.consolidate(state).await
+        } else {
+            self.execute_build_task(state).await
         }
     }
 }

@@ -1,3 +1,5 @@
+import "./tests/Justfile"
+
 set positional-arguments
 alias t := tests
 alias la := lint-all
@@ -80,16 +82,6 @@ test-docs:
 build-native *args='':
   cargo build --workspace $@
 
-# Build target for the `kona-node` docker image.
-build-node:
-  docker build \
-    --progress plain \
-    -f docker/apps/kona_app_generic.dockerfile \
-    --build-arg "BIN_TARGET=kona-node" \
-    --build-arg "TAG=$(git rev-parse HEAD)" \
-    -t ghcr.io/op-rs/kona/kona-node:latest \
-    .
-
 # Build `kona-client` for the `cannon` target.
 build-cannon-client:
   docker run \
@@ -128,40 +120,6 @@ monorepo:
 # Remove the monorepo directory
 clean-monorepo:
   rm -rf monorepo/
-
-# Installs the optimism-package repository
-optimism-package:
-  #!/bin/bash
-  OPTIMISM_PACKAGE_REPO=$(jq -r '.repository' .config/optimism_package.json)
-  OPTIMISM_PACKAGE_BRANCH=$(jq -r '.branch' .config/optimism_package.json)
-  ([ ! -d optimism-package ] && git clone ${OPTIMISM_PACKAGE_REPO} optimism-package)
-  (cd optimism-package && git fetch origin && git checkout ${OPTIMISM_PACKAGE_BRANCH})
-
-# Remove the optimism-package directory
-clean-optimism-package:
-  rm -rf optimism-package/
-
-# Spins up kurtosis with the `kona-node` docker image
-kurtosis-up:
-  #!/bin/bash
-  # Check if the optimism-package directory exists
-  if [ ! -d optimism-package ]; then
-    echo "optimism-package directory not found. Installing with `just optimism-package`."
-    just optimism-package
-  fi
-
-  # Check if the kurtosis command is available
-  if ! command -v kurtosis &> /dev/null; then
-    echo "kurtosis command not found. Please install kurtosis."
-    exit 1
-  fi
-
-  # Run the kurtosis test
-  (cd optimism-package && kurtosis run . --args-file ../.config/kurtosis_network_params.yaml)
-
-# Winds down kurtosis, cleaning up the network
-kurtosis-down:
-  kurtosis clean -a
 
 # Run action tests for the single-chain client program on the native target
 action-tests-single test_name='Test_ProgramAction' *args='':

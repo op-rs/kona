@@ -21,6 +21,7 @@ kona-p2p.workspace = true
 kona-engine.workspace = true
 kona-macros.workspace = true
 kona-genesis = {workspace = true, features = ["serde", "std"]}
+kona-supervisor-rpc = { workspace = true, features = ["client"] }
 
 # `interop` feature
 kona-interop = { workspace = true, features = ["serde"] }
@@ -28,6 +29,7 @@ kona-interop = { workspace = true, features = ["serde"] }
 # OP Alloy
 op-alloy-consensus.workspace = true
 op-alloy-rpc-types-engine = {workspace = true, features = ["serde", "std"]}
+op-alloy-rpc-types.workspace = true
 
 # Alloy
 alloy-eips = { workspace = true, features = ["serde", "std"] }
@@ -63,7 +65,7 @@ serde_json.workspace = true
 
 [features]
 default = []
-reqwest = ["dep:alloy-rpc-client"]
+reqwest = ["client", "dep:alloy-rpc-client"]
 client = [
     "jsonrpsee/client",
     "jsonrpsee/async-client",

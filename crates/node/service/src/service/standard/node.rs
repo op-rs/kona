@@ -1,9 +1,8 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    EngineLauncher, L1WatcherRpc, L2ForkchoiceState, NodeMode, RollupNodeBuilder, RollupNodeError,
-    RollupNodeService, RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
-    find_starting_forkchoice,
+    EngineLauncher, L1WatcherRpc, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
+    RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
@@ -12,9 +11,7 @@ use op_alloy_network::Optimism;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
-use tracing::info;
 
-use kona_derive::traits::ChainProvider;
 use kona_genesis::RollupConfig;
 use kona_p2p::{Config, Network, NetworkBuilder};
 use kona_protocol::BlockInfo;
@@ -86,7 +83,8 @@ impl ValidatorNodeService for RollupNode {
 
     fn new_da_watcher(
         &self,
-        new_da_tx: UnboundedSender<BlockInfo>,
+        new_data_tx: UnboundedSender<BlockInfo>,
+        new_finalized_tx: UnboundedSender<BlockInfo>,
         block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -94,7 +92,8 @@ impl ValidatorNodeService for RollupNode {
         L1WatcherRpc::new(
             self.config.clone(),
             self.l1_provider.clone(),
-            new_da_tx,
+            new_data_tx,
+            new_finalized_tx,
             block_signer_tx,
             cancellation,
             l1_watcher_inbound_queries,
@@ -109,8 +108,8 @@ impl ValidatorNodeService for RollupNode {
         self.engine_launcher.clone()
     }
 
-    fn rpc(&self) -> Option<RpcLauncher> {
-        Some(self.rpc_launcher.clone())
+    fn rpc(&self) -> RpcLauncher {
+        self.rpc_launcher.clone()
     }
 
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error> {
@@ -134,50 +133,23 @@ impl ValidatorNodeService for RollupNode {
         Ok(Some((builder, p2p_module)))
     }
 
-    async fn init_derivation(&self) -> Result<(L2ForkchoiceState, OnlinePipeline), Self::Error> {
+    async fn init_derivation(&self) -> Result<OnlinePipeline, Self::Error> {
         // Create the caching L1/L2 EL providers for derivation.
-        let mut l1_derivation_provider =
+        let l1_derivation_provider =
             AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
-        let mut l2_derivation_provider = AlloyL2ChainProvider::new(
+        let l2_derivation_provider = AlloyL2ChainProvider::new(
             self.l2_provider.clone(),
             self.config.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
         );
 
-        // Find the starting forkchoice state.
-        let starting_forkchoice = find_starting_forkchoice(
-            self.config.as_ref(),
-            &mut l1_derivation_provider,
-            &mut l2_derivation_provider,
-        )
-        .await?;
-
-        info!(
-            target: "rollup_node",
-            unsafe = %starting_forkchoice.un_safe.block_info.number,
-            safe = %starting_forkchoice.safe.block_info.number,
-            finalized = %starting_forkchoice.finalized.block_info.number,
-            "Found starting forkchoice state"
-        );
-
-        // Start the derivation pipeline's L1 origin 1 channel timeout before the L1 origin of the
-        // safe head block.
-        let starting_origin_num = starting_forkchoice.safe.l1_origin.number.saturating_sub(
-            self.config.channel_timeout(starting_forkchoice.safe.block_info.timestamp),
-        );
-        let starting_origin =
-            l1_derivation_provider.block_info_by_number(starting_origin_num).await?;
-
-        let pipeline = OnlinePipeline::new(
+        let pipeline = OnlinePipeline::new_uninitialized(
             self.config.clone(),
-            starting_forkchoice.safe,
-            starting_origin,
             OnlineBlobProvider::init(self.l1_beacon.clone()).await,
             l1_derivation_provider,
             l2_derivation_provider,
-        )
-        .await?;
+        );
 
-        Ok((starting_forkchoice, pipeline))
+        Ok(pipeline)
     }
 }

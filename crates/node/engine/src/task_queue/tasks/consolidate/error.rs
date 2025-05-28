@@ -17,7 +17,7 @@ pub enum ConsolidateTaskError {
 impl From<ConsolidateTaskError> for EngineTaskError {
     fn from(value: ConsolidateTaskError) -> Self {
         match value {
-            ConsolidateTaskError::MissingUnsafeL2Block(_) => Self::Temporary(Box::new(value)),
+            ConsolidateTaskError::MissingUnsafeL2Block(_) => Self::Reset(Box::new(value)),
             ConsolidateTaskError::FailedToFetchUnsafeL2Block => Self::Temporary(Box::new(value)),
         }
     }

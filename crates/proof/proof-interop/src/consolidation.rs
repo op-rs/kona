@@ -244,7 +244,7 @@ where
                 source_hash: source.source_hash(),
                 from: REPLACEMENT_SENDER,
                 to: TxKind::Call(Address::ZERO),
-                mint: None,
+                mint: 0,
                 value: U256::ZERO,
                 gas_limit: REPLACEMENT_GAS,
                 is_system_transaction: false,

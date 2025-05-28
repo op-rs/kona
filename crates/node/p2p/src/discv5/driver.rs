@@ -1,5 +1,6 @@
 //! Discovery Module.
 
+use backon::{ExponentialBuilder, RetryableWithContext};
 use derive_more::Debug;
 use discv5::{Discv5, Enr, enr::NodeId};
 use libp2p::Multiaddr;
@@ -28,36 +29,6 @@ use crate::{
 /// If an `Arc<Mutex<>>` were used, a lock held across the operation's future
 /// would be needed since some asynchronous operations require a mutable
 /// reference to the [`Discv5`] service.
-///
-/// ## Example
-///
-/// ```no_run
-/// use discv5::enr::CombinedKey;
-/// use kona_p2p::{Discv5Driver, LocalNode};
-/// use std::net::{IpAddr, Ipv4Addr};
-///
-/// #[tokio::main]
-/// async fn main() {
-///     let CombinedKey::Secp256k1(k256_key) = CombinedKey::generate_secp256k1() else {
-///         unreachable!()
-///     };
-///
-///     let advertise_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-///     let addr = LocalNode::new(k256_key, advertise_ip, 9099, 9098);
-///     let mut disc = Discv5Driver::builder()
-///         .with_local_node(addr)
-///         .with_chain_id(10) // OP Mainnet chain id
-///         .build()
-///         .expect("Failed to build discovery service");
-///     let (_, mut enr_receiver) = disc.start();
-///
-///     loop {
-///         if let Some(enr) = enr_receiver.recv().await {
-///             println!("Received peer enr: {:?}", enr);
-///         }
-///     }
-/// }
-/// ```
 #[derive(Debug)]
 pub struct Discv5Driver {
     /// The [`Discv5`] discovery service.
@@ -65,6 +36,8 @@ pub struct Discv5Driver {
     pub disc: Discv5,
     /// The [`BootStore`].
     pub store: BootStore,
+    /// Bootnodes used to bootstrap the discovery service.
+    pub bootnodes: Vec<Enr>,
     /// The chain ID of the network.
     pub chain_id: u64,
     /// The interval to discovery random nodes.
@@ -93,10 +66,11 @@ impl Discv5Driver {
         bootstore: Option<PathBuf>,
         bootnodes: Vec<Enr>,
     ) -> Self {
-        let store = BootStore::from_chain_id(chain_id, bootstore, bootnodes);
+        let store = BootStore::from_chain_id(chain_id, bootstore, bootnodes.clone());
         Self {
             disc,
             chain_id,
+            bootnodes,
             store,
             interval,
             forward: true,
@@ -106,17 +80,20 @@ impl Discv5Driver {
     }
 
     /// Starts the inner [`Discv5`] service.
-    async fn init(&mut self) {
-        loop {
-            if let Err(e) = self.disc.start().await {
-                warn!(target: "discovery", "Failed to start discovery service: {:?}", e);
-                sleep(Duration::from_secs(2)).await;
-                info!(target: "discovery", "Retrying discovery startup...");
-                continue;
+    async fn init(self) -> Result<Self, discv5::Error> {
+        let (s, res) = {
+            |mut v: Self| async {
+                let res = v.disc.start().await;
+                (v, res)
             }
-            debug!(target: "discovery", "Discovery service enr: {:?}", self.disc.local_enr());
-            break;
         }
+            .retry(ExponentialBuilder::default())
+            .context(self)
+            .notify(|err: &discv5::Error, dur: Duration| {
+                warn!(target: "discovery", ?err, "Failed to start discovery service [Duration: {:?}]", dur);
+            })
+            .await;
+        res.map(|_| s)
     }
 
     /// Adds a bootnode to the discv5 service given an enode address.
@@ -153,7 +130,7 @@ impl Discv5Driver {
     fn bootnode_bootstrap(&mut self) {
         let nodes = BootNodes::from_chain_id(self.chain_id);
 
-        let boot_enrs: Vec<Enr> = nodes
+        let mut boot_enrs: Vec<Enr> = nodes
             .0
             .iter()
             .filter_map(|bn| match bn {
@@ -161,6 +138,8 @@ impl Discv5Driver {
                 _ => None,
             })
             .collect();
+
+        boot_enrs.append(&mut self.bootnodes);
 
         // First attempt to add the bootnodes to the discovery table.
         let mut count = 0;
@@ -269,7 +248,11 @@ impl Discv5Driver {
             let mut store_interval = tokio::time::interval(self.store_interval);
 
             // Step 1: Start the discovery service.
-            self.init().await;
+            let Ok(s) = self.init().await else {
+                error!(target: "discovery", "Failed to start discovery service");
+                return;
+            };
+            self = s;
             trace!(target: "discovery", "Discv5 Initialized");
 
             // Step 2: Bootstrap discovery service bootnodes.
@@ -329,13 +312,22 @@ impl Discv5Driver {
                                 HandlerRequest::AddEnr(enr) => {
                                     let _ = self.disc.add_enr(enr);
                                 }
-                                HandlerRequest::RequestEnr(enode) => {
-                                    let _ = self.disc.request_enr(enode).await;
+                                HandlerRequest::RequestEnr{out, addr} => {
+                                    let enr = self.disc.request_enr(addr).await;
+                                    if let Err(e) = out.send(enr) {
+                                        warn!(target: "discovery", "Failed to send request enr: {:?}", e);
+                                    }
                                 }
                                 HandlerRequest::TableEnrs(tx) => {
                                     let enrs = self.disc.table_entries_enr();
                                     if let Err(e) = tx.send(enrs) {
                                         warn!(target: "discovery", "Failed to send table enrs: {:?}", e);
+                                    }
+                                },
+                                HandlerRequest::TableInfos(tx) => {
+                                    let infos = self.disc.table_entries();
+                                    if let Err(e) = tx.send(infos) {
+                                        warn!(target: "discovery", "Failed to send table infos: {:?}", e);
                                     }
                                 },
                                 HandlerRequest::BanAddrs{addrs_to_ban, ban_duration} => {
@@ -350,7 +342,7 @@ impl Discv5Driver {
                                             self.disc.ban_node(&enr.node_id(), Some(ban_duration));
                                         }
                                     }
-                                }
+                                },
                             }
                             None => {
                                 trace!(target: "discovery", "Receiver `None` peer enr");
@@ -366,7 +358,7 @@ impl Discv5Driver {
                             discv5::Event::Discovered(enr) => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
-                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "discovered", "discovered");
+                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type", "discovered");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -379,7 +371,7 @@ impl Discv5Driver {
                             discv5::Event::SessionEstablished(enr, addr) => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Session established with valid ENR, forwarding to swarm. Address: {:?}, ENR: {:?}", addr, enr);
-                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "session_established", "session_established");
+                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type", "session_established");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -392,7 +384,7 @@ impl Discv5Driver {
                             discv5::Event::UnverifiableEnr { enr, .. } => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
-                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "unverifiable_enr", "unverifiable_enr");
+                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type", "unverifiable_enr");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -505,7 +497,7 @@ mod tests {
             .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
 
-        discovery.init().await;
+        discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
         // There are no ENRs for `OP_SEPOLIA_CHAIN_ID` in the bootstore.
         // If an ENR is added, this check will fail.
@@ -593,7 +585,7 @@ mod tests {
             .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
 
-        discovery.init().await;
+        discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
         // There are no ENRs for op mainnet in the bootstore.
         // If an ENR is added, this check will fail.

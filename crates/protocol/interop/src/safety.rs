@@ -1,42 +1,6 @@
 //! Message safety level for interoperability.
-use alloc::string::{String, ToString};
-use core::str::FromStr;
-use derive_more::Display;
+use alloc::string::String;
 use thiserror::Error;
-/// The safety level of a message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
-pub enum SafetyLevel {
-    /// The message is finalized.
-    Finalized,
-    /// The message is safe.
-    Safe,
-    /// The message is safe locally.
-    LocalSafe,
-    /// The message is unsafe across chains.
-    CrossUnsafe,
-    /// The message is unsafe.
-    Unsafe,
-    /// The message is invalid.
-    Invalid,
-}
-
-impl FromStr for SafetyLevel {
-    type Err = SafetyLevelParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "finalized" => Ok(Self::Finalized),
-            "safe" => Ok(Self::Safe),
-            "local-safe" | "localsafe" => Ok(Self::LocalSafe),
-            "cross-unsafe" | "crossunsafe" => Ok(Self::CrossUnsafe),
-            "unsafe" => Ok(Self::Unsafe),
-            "invalid" => Ok(Self::Invalid),
-            _ => Err(SafetyLevelParseError(s.to_string())),
-        }
-    }
-}
 
 /// Error when parsing SafetyLevel from string.
 #[derive(Error, Debug)]
@@ -45,7 +9,8 @@ pub struct SafetyLevelParseError(pub String);
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use core::str::FromStr;
+    use op_alloy_consensus::interop::SafetyLevel;
 
     #[test]
     #[cfg(feature = "serde")]

@@ -83,7 +83,7 @@ where
     match boot.agreed_pre_state {
         PreState::SuperRoot(ref super_root) => {
             // If the claimed L2 block timestamp is less than the super root timestamp, the
-            // post-state muust be the agreed pre-state to accommodate trace extension.
+            // post-state must be the agreed pre-state to accommodate trace extension.
             if super_root.timestamp >= boot.claimed_l2_timestamp {
                 if boot.agreed_pre_state_commitment == boot.claimed_post_state {
                     return Ok(());

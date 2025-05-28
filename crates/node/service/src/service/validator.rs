@@ -1,25 +1,27 @@
 //! [ValidatorNodeService] trait.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, L2ForkchoiceState, NetworkActor, NodeActor,
-    RpcActor, RuntimeLauncher, service::spawn_and_wait,
+    DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
+    RuntimeLauncher, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_derive::traits::{Pipeline, SignalReceiver};
-use kona_engine::EngineStateBuilderError;
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
-use kona_protocol::BlockInfo;
+use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{
     L1WatcherQueries, NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher,
-    RpcLauncherError,
+    RpcLauncherError, WsRPC, WsServer,
 };
 use std::fmt::Display;
-use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::{
+    mpsc::{self, UnboundedSender},
+    oneshot,
+};
 use tokio_util::sync::CancellationToken;
 
-/// The [ValidatorNodeService] trait defines the common interface for running a validator node
+/// The [`ValidatorNodeService`] trait defines the common interface for running a validator node
 /// service in the rollup node. The validator node listens to two sources of information to sync the
 /// L2 chain:
 ///
@@ -28,29 +30,13 @@ use tokio_util::sync::CancellationToken;
 /// 2. The L2 sequencer, which produces unsafe L2 blocks and sends them to the network over p2p
 ///    gossip.
 ///
-/// From these two sources, the validator node imports `unsafe` blocks from the L2 sequencer and
-/// `safe` blocks from the L2 derivation pipeline into the L2 execution layer via the Engine API.
-///
-/// Finally, a state actor listens for new L2 block import events and updates the L2 state
-/// accordingly, sending notifications to the other actors for synchronization.
-///
-/// ## Actor Communication
-/// ```not_rust
-/// ┌────────────┐
-/// │L2 Sequencer│
-/// │            ├───┐
-/// │   Gossip   │   │   ┌────────────┐   ┌────────────┐   ┌────────────┐
-/// └────────────┘   │   │            │   │            │   │            │
-///                  ├──►│ Derivation │──►│ Engine API │──►│   State    │
-/// ┌────────────┐   │   │            │   │            │   │            │
-/// │     DA     │   │   └────────────┘   └┬───────────┘   └┬───────────┘
-/// │            ├───┘              ▲      │                │
-/// │   Watcher  │                  └──────┴────────────────┘
-/// └────────────┘
-/// ```
+/// From these two sources, the validator node imports `unsafe` blocks from the L2 sequencer,
+/// `safe` blocks from the L2 derivation pipeline into the L2 execution layer via the Engine API,
+/// and finalizes `safe` blocks that it has derived when L1 finalized block updates are received.
 ///
 /// ## Types
-/// - `DataAvailabilityWatcher`: The type of [NodeActor] to use for the DA watcher service.
+///
+/// - `DataAvailabilityWatcher`: The type of [`NodeActor`] to use for the DA watcher service.
 /// - `DerivationPipeline`: The type of [Pipeline] to use for the service. Can be swapped out from
 ///   the default implementation for the sake of plugins like Alt DA.
 /// - `Error`: The type of error for the service's entrypoint.
@@ -61,17 +47,22 @@ pub trait ValidatorNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError> + From<EngineStateBuilderError> + std::fmt::Debug;
+    type Error: From<RpcLauncherError>
+        + From<jsonrpsee::server::RegisterMethodError>
+        + std::fmt::Debug;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
     fn config(&self) -> &RollupConfig;
 
     /// Creates a new [`NodeActor`] instance that watches the data availability layer. The
     /// `new_data_tx` channel is used to send updates on the data availability layer to the
-    /// derivation pipeline. The `cancellation` token is used to gracefully shut down the actor.
+    /// derivation pipeline. The `new_finalized_tx` is used to send updates on the data
+    /// availability layer to the engine for finalizing derived blocks. The `cancellation`
+    /// token is used to gracefully shut down the actor.
     fn new_da_watcher(
         &self,
         new_data_tx: UnboundedSender<BlockInfo>,
+        new_finalized_tx: UnboundedSender<BlockInfo>,
         block_signer_tx: UnboundedSender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -79,9 +70,7 @@ pub trait ValidatorNodeService {
 
     /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
     /// forkchoice state and the initialized derivation pipeline.
-    async fn init_derivation(
-        &self,
-    ) -> Result<(L2ForkchoiceState, Self::DerivationPipeline), Self::Error>;
+    async fn init_derivation(&self) -> Result<Self::DerivationPipeline, Self::Error>;
 
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
@@ -93,7 +82,7 @@ pub trait ValidatorNodeService {
     fn engine(&self) -> EngineLauncher;
 
     /// Returns the [`RpcLauncher`] for the node.
-    fn rpc(&self) -> Option<RpcLauncher>;
+    fn rpc(&self) -> RpcLauncher;
 
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), Self::Error> {
@@ -102,32 +91,35 @@ pub trait ValidatorNodeService {
 
         // Create channels for communication between actors.
         let (new_head_tx, new_head_rx) = mpsc::unbounded_channel();
+        let (new_finalized_tx, new_finalized_rx) = mpsc::unbounded_channel();
         let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
-        let (sync_complete_tx, sync_complete_rx) = mpsc::unbounded_channel();
+        let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
         let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
+        let (reset_request_tx, reset_request_rx) = mpsc::unbounded_channel();
 
         let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
         let da_watcher = Some(self.new_da_watcher(
             new_head_tx,
+            new_finalized_tx,
             block_signer_tx,
             cancellation.clone(),
             Some(l1_watcher_queries_recv),
         ));
 
-        let (l2_forkchoice_state, derivation_pipeline) = self.init_derivation().await?;
+        let derivation_pipeline = self.init_derivation().await?;
         let (engine_l2_safe_tx, engine_l2_safe_rx) =
-            tokio::sync::watch::channel(l2_forkchoice_state.safe);
+            tokio::sync::watch::channel(L2BlockInfo::default());
         let derivation = DerivationActor::new(
             derivation_pipeline,
-            l2_forkchoice_state.safe,
             engine_l2_safe_rx,
             sync_complete_rx,
             derivation_signal_rx,
-            derived_payload_tx,
             new_head_rx,
+            derived_payload_tx,
+            reset_request_tx,
             cancellation.clone(),
         );
         let derivation = Some(derivation);
@@ -146,7 +138,8 @@ pub trait ValidatorNodeService {
 
         let launcher = self.engine();
         let client = launcher.client();
-        let engine = launcher.launch().await?;
+        let engine = launcher.launch();
+
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
             client,
@@ -157,6 +150,8 @@ pub trait ValidatorNodeService {
             runtime_config_rx,
             derived_payload_rx,
             unsafe_block_rx,
+            reset_request_rx,
+            new_finalized_rx,
             Some(engine_query_recv),
             cancellation.clone(),
         );
@@ -176,20 +171,16 @@ pub trait ValidatorNodeService {
             },
         );
 
-        let rollup_rpc = RollupRpc::new(engine_query_sender, l1_watcher_queries_sender);
-
         // The RPC Server should go last to let other actors register their rpc modules.
-        let rpc = if let Some(mut rpc) = self.rpc() {
-            if let Some(p2p_module) = p2p_module {
-                rpc = rpc.merge(p2p_module.into_rpc()).expect("failed to merge p2p rpc module");
-            }
+        let mut launcher = self.rpc();
+        launcher = launcher.merge(p2p_module.map(|r| r.into_rpc())).map_err(Self::Error::from)?;
+        let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
+        launcher = launcher.merge(Some(rollup_rpc.into_rpc())).map_err(Self::Error::from)?;
+        let subscriptions_rpc = WsRPC::new(engine_query_sender);
+        launcher = launcher.merge(Some(subscriptions_rpc.into_rpc())).map_err(Self::Error::from)?;
 
-            rpc = rpc.merge(rollup_rpc.into_rpc()).expect("failed to merge engine rpc module");
-            let handle = rpc.start().await?;
-            Some(RpcActor::new(handle, cancellation.clone()))
-        } else {
-            None
-        };
+        let handle = launcher.launch().await?;
+        let rpc = handle.map(|h| RpcActor::new(h, cancellation.clone()));
 
         spawn_and_wait!(
             cancellation,

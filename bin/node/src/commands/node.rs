@@ -2,6 +2,7 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
+use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
@@ -20,7 +21,7 @@ use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs, SequencerArgs};
 /// of the [op-node] CLI.
 ///
 /// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
@@ -73,6 +74,24 @@ pub struct NodeCommand {
     pub sequencer_flags: SequencerArgs,
 }
 
+impl Default for NodeCommand {
+    fn default() -> Self {
+        Self {
+            l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l1_beacon: Url::parse("http://localhost:5052").unwrap(),
+            l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
+            l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l2_engine_jwt_secret: None,
+            l2_config_file: None,
+            l1_runtime_config_reload_interval: 600,
+            p2p_flags: P2PArgs::default(),
+            rpc_flags: RpcArgs::default(),
+            sequencer_flags: SequencerArgs::default(),
+            l2_engine_kind: EngineKind::Geth,
+        }
+    }
+}
+
 impl NodeCommand {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
     pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
@@ -92,26 +111,38 @@ impl NodeCommand {
         let engine_client = kona_engine::EngineClient::new_http(
             self.l2_engine_rpc.clone(),
             self.l2_provider_rpc.clone(),
+            self.l1_eth_rpc.clone(),
             Arc::new(config.clone()),
             jwt_secret,
         );
-        match engine_client.exchange_capabilities(vec![]).await {
-            Ok(_) => {
-                debug!("Successfully exchanged capabilities with engine");
-                Ok(jwt_secret)
-            }
-            Err(e) => {
-                if e.to_string().contains("signature invalid") {
-                    error!(
-                        "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
-                    );
-                    error!(
-                        "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
-                    );
+
+        let exchange = || async {
+            match engine_client.exchange_capabilities(vec![]).await {
+                Ok(_) => {
+                    debug!("Successfully exchanged capabilities with engine");
+                    Ok(jwt_secret)
                 }
-                bail!("Failed to exchange capabilities with engine: {}", e);
+                Err(e) => {
+                    if e.to_string().contains("signature invalid") {
+                        error!(
+                            "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
+                        );
+                        error!(
+                            "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
+                        );
+                    }
+                    bail!("Failed to exchange capabilities with engine: {}", e);
+                }
             }
-        }
+        };
+
+        exchange
+            .retry(ExponentialBuilder::default())
+            .when(|e| !e.to_string().contains("signature invalid"))
+            .notify(|_, duration| {
+                debug!("Retrying engine capability handshake after {duration:?}");
+            })
+            .await
     }
 
     /// Run the Node subcommand.
@@ -120,6 +151,7 @@ impl NodeCommand {
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
         self.p2p_flags.check_ports()?;
+        let disabled = self.p2p_flags.disabled;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
 
@@ -134,7 +166,7 @@ impl NodeCommand {
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
-            .with_network_disabled(self.p2p_flags.disabled)
+            .with_network_disabled(disabled)
             .with_rpc_config(rpc_config)
             .build()
             .start()

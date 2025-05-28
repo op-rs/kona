@@ -9,3 +9,6 @@ mod logindexer;
 pub use logindexer::LogIndexer;
 
 pub use rpc::SupervisorRpc;
+
+mod syncnode;
+pub use syncnode::{ManagedNode, ManagedNodeConfig};

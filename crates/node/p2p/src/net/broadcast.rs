@@ -1,8 +1,15 @@
 //! Broadcast handles broadcasting unsafe blocks in-order.
 
+use backon::{ExponentialBuilder, Retryable};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::collections::VecDeque;
-use tokio::sync::broadcast::{Receiver as BroadcastReceiver, Sender as BroadcastSender};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
+use tokio::{
+    sync::broadcast::{Receiver as BroadcastReceiver, Sender as BroadcastSender},
+    time::Duration,
+};
 
 /// The `Broadcast` struct is responsible for broadcasting unsafe blocks in order.
 #[derive(Debug)]
@@ -11,12 +18,14 @@ pub struct Broadcast {
     buffer: VecDeque<OpNetworkPayloadEnvelope>,
     /// The channel to broadcast blocks.
     channel: BroadcastSender<OpNetworkPayloadEnvelope>,
+    /// Tracks if broadcasting is being attempted.
+    broadcasting: Arc<Mutex<bool>>,
 }
 
 impl Broadcast {
     /// Creates a new `Broadcast` instance with the given channel.
-    pub const fn new(channel: BroadcastSender<OpNetworkPayloadEnvelope>) -> Self {
-        Self { buffer: VecDeque::new(), channel }
+    pub fn new(channel: BroadcastSender<OpNetworkPayloadEnvelope>) -> Self {
+        Self { buffer: VecDeque::new(), channel, broadcasting: Arc::new(Mutex::new(false)) }
     }
 
     /// Pushes a new unsafe block to the buffer.
@@ -34,17 +43,43 @@ impl Broadcast {
     /// If an error occurs, the function will exit early, maintaining the invariant that unsafe
     /// blocks are held in order.
     pub fn broadcast(&mut self) {
-        loop {
-            if self.buffer.is_empty() {
-                break;
-            }
-            if let Some(block) = self.buffer.front() {
-                if let Err(e) = self.channel.send(block.clone()) {
-                    trace!("Failed to send unsafe block through channel: {:?}", e);
+        if self.broadcasting.lock().map_or(true, |v| *v) {
+            trace!(target: "net", "Broadcasting in flight, skipping");
+            return;
+        }
+        if let Ok(mut broadcasting) = self.broadcasting.lock() {
+            *broadcasting = true;
+        }
+        let flag = Arc::clone(&self.broadcasting);
+        let channel = self.channel.clone();
+        let mut drained = std::mem::take(&mut self.buffer);
+        tokio::spawn(async move {
+            loop {
+                if drained.is_empty() {
                     break;
                 }
-                self.buffer.pop_front();
+                let front = drained.front();
+                let fut = || async {
+                    if let Some(block) = front {
+                        channel.send(block.clone())?;
+                    }
+                    Ok(())
+                };
+
+                let res = fut.retry(ExponentialBuilder::default())
+                .notify(|err: &tokio::sync::broadcast::error::SendError<OpNetworkPayloadEnvelope>, dur: Duration| {
+                    warn!(target: "net", ?err, "Failed to broadcast block [Duration: {:?}]", dur);
+                })
+                .await;
+                if let Err(e) = res {
+                    warn!(target: "net", ?e, "Block broadcasting failed with exponential backoff");
+                    break;
+                }
+                drained.pop_front();
             }
-        }
+            if let Ok(mut broadcasting) = flag.lock() {
+                *broadcasting = false;
+            }
+        });
     }
 }

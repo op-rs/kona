@@ -20,36 +20,32 @@ mod p2p;
 mod response;
 pub use response::SafeHeadResponse;
 
-mod superchain;
-pub use superchain::{
-    ProtocolVersion, ProtocolVersionError, ProtocolVersionFormatV0, SuperchainSignal,
-};
-
 mod output;
 pub use output::OutputResponse;
 
 mod jsonrpsee;
-#[cfg(feature = "client")]
-pub use jsonrpsee::SupervisorApiClient;
-#[cfg(feature = "client")]
 pub use jsonrpsee::{
-    EngineApiExtClient, MinerApiExtClient, OpAdminApiClient, OpP2PApiClient, RollupNodeApiClient,
-};
-pub use jsonrpsee::{
-    EngineApiExtServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
-    SupervisorApiServer,
+    MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer, WsServer,
 };
 
 #[cfg(feature = "reqwest")]
 pub mod reqwest;
-#[cfg(all(feature = "reqwest", feature = "client"))]
+#[cfg(feature = "reqwest")]
 pub use reqwest::SupervisorClient;
 
+#[cfg(feature = "client")]
 mod interop;
-pub use interop::{CheckAccessList, InteropTxValidator, InteropTxValidatorError};
+#[cfg(feature = "client")]
+pub use interop::{CheckAccessListClient, InteropTxValidator, InteropTxValidatorError};
+
+#[cfg(feature = "client")]
+pub use kona_supervisor_rpc::SupervisorApiClient;
 
 mod rollup;
 pub use rollup::RollupRpc;
 
 mod l1_watcher;
 pub use l1_watcher::{L1State, L1WatcherQueries, L1WatcherQuerySender};
+
+mod ws;
+pub use ws::WsRPC;

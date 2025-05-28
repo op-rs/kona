@@ -2,7 +2,7 @@
 
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
-    InsertUnsafeTaskError, SyncStatus,
+    InsertUnsafeTaskError, Metrics,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
@@ -41,18 +41,8 @@ impl InsertUnsafeTask {
         Self { client, rollup_config, version, envelope }
     }
 
-    /// Checks the response of the `engine_newPayload` call, and updates the sync status if
-    /// necessary.
-    fn check_new_payload_status(
-        &self,
-        state: &mut EngineState,
-        status: &PayloadStatusEnum,
-    ) -> bool {
-        debug!(target: "engine", ?status, "Checking payload status");
-        if matches!(status, PayloadStatusEnum::Valid) {
-            debug!(target: "engine", "Valid new payload status. Finished execution layer sync");
-            state.sync_status = SyncStatus::ExecutionLayerFinished;
-        }
+    /// Checks the response of the `engine_newPayload` call.
+    const fn check_new_payload_status(&self, status: &PayloadStatusEnum) -> bool {
         matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
 
@@ -63,10 +53,12 @@ impl InsertUnsafeTask {
         state: &mut EngineState,
         status: &PayloadStatusEnum,
     ) -> bool {
-        if matches!(status, PayloadStatusEnum::Valid) &&
-            state.sync_status == SyncStatus::ExecutionLayerStarted
-        {
-            state.sync_status = SyncStatus::ExecutionLayerNotFinalized;
+        if matches!(status, PayloadStatusEnum::Valid) && !state.el_sync_finished {
+            info!(
+                target: "engine",
+                "Finished execution layer sync."
+            );
+            state.el_sync_finished = true;
         }
         matches!(status, PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing)
     }
@@ -75,12 +67,6 @@ impl InsertUnsafeTask {
 #[async_trait]
 impl EngineTaskExt for InsertUnsafeTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
-        // Always transition to EL sync on startup.
-        if state.sync_status == SyncStatus::ExecutionLayerWillStart {
-            info!(target: "engine", "Starting execution layer sync");
-            state.sync_status = SyncStatus::ExecutionLayerStarted;
-        }
-
         let time_start = Instant::now();
 
         // Insert the new payload.
@@ -108,7 +94,7 @@ impl EngineTaskExt for InsertUnsafeTask {
             Ok(resp) => resp,
             Err(e) => return Err(InsertUnsafeTaskError::InsertFailed(e).into()),
         };
-        if !self.check_new_payload_status(state, &response.status) {
+        if !self.check_new_payload_status(&response.status) {
             return Err(InsertUnsafeTaskError::UnexpectedPayloadStatus(response.status).into());
         }
         let insert_duration = insert_time_start.elapsed();
@@ -124,22 +110,11 @@ impl EngineTaskExt for InsertUnsafeTask {
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
                 .map_err(InsertUnsafeTaskError::L2BlockInfoConstruction)?;
 
-        let mut fcu = ForkchoiceState {
+        let fcu = ForkchoiceState {
             head_block_hash: self.envelope.payload.block_hash(),
             safe_block_hash: state.safe_head().block_info.hash,
             finalized_block_hash: state.finalized_head().block_info.hash,
         };
-        if state.sync_status == SyncStatus::ExecutionLayerNotFinalized {
-            // Use the new payload as the safe and finalized block for the FCU.
-            fcu.safe_block_hash = self.envelope.payload.block_hash();
-            fcu.finalized_block_hash = self.envelope.payload.block_hash();
-
-            // Update the local engine state to match.
-            state.set_unsafe_head(new_unsafe_ref);
-            state.set_safe_head(new_unsafe_ref);
-            state.set_local_safe_head(new_unsafe_ref);
-            state.set_finalized_head(new_unsafe_ref);
-        }
 
         // Send the forkchoice update to finalize the payload insertion.
         let fcu_time_start = Instant::now();
@@ -174,29 +149,23 @@ impl EngineTaskExt for InsertUnsafeTask {
         }
 
         // Update the local engine state.
+        state.set_cross_unsafe_head(new_unsafe_ref);
         state.set_unsafe_head(new_unsafe_ref);
         state.forkchoice_update_needed = false;
 
-        // Finish EL sync if the EL sync state was finished, but not finalized before this
-        // operation.
-        if state.sync_status == SyncStatus::ExecutionLayerNotFinalized {
-            info!(
-                target: "engine",
-                finalized_block = new_unsafe_ref.block_info.number,
-                "Finished execution layer sync."
-            );
-            state.sync_status = SyncStatus::ExecutionLayerFinished;
-        }
-
         info!(
             target: "engine",
-            hash = new_unsafe_ref.block_info.hash.to_string(),
+            hash = %new_unsafe_ref.block_info.hash,
             number = new_unsafe_ref.block_info.number,
             total_duration = ?total_duration,
             insert_duration = ?insert_duration,
             fcu_duration = ?fcu_duration,
             "Inserted new unsafe block"
         );
+
+        // Update metrics.
+        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::INSERT_TASK_LABEL);
+
         Ok(())
     }
 }

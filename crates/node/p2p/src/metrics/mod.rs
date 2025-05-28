@@ -113,15 +113,9 @@ impl Metrics {
         kona_macros::set!(gauge, Self::UNSAFE_BLOCK_PUBLISHED, 0);
 
         // Discovery Event
-        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "discovered", "discovered", 0);
-        kona_macros::set!(
-            gauge,
-            Self::DISCOVERY_EVENT,
-            "session_established",
-            "session_established",
-            0
-        );
-        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "unverifiable_enr", "unverifiable_enr", 0);
+        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "type", "discovered", 0);
+        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "type", "session_established", 0);
+        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "type", "unverifiable_enr", 0);
 
         // Peer Counts
         kona_macros::set!(gauge, Self::GOSSIP_PEER_COUNT, 0);

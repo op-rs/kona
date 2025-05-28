@@ -1,23 +1,24 @@
 //! The Optimism RPC API using `jsonrpsee`
 
-use crate::{OutputResponse, ProtocolVersion, SafeHeadResponse, SuperchainSignal};
+use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
-use jsonrpsee::{core::RpcResult, proc_macros::rpc};
+use jsonrpsee::{
+    core::{RpcResult, SubscriptionResult},
+    proc_macros::rpc,
+};
 use kona_genesis::RollupConfig;
-use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
+use op_alloy_consensus::interop::SafetyLevel;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
 
 // Re-export apis defined in upstream `op-alloy-rpc-jsonrpsee`
 pub use op_alloy_rpc_jsonrpsee::traits::{MinerApiExtServer, OpAdminApiServer};
-
-#[cfg(feature = "client")]
-pub use op_alloy_rpc_jsonrpsee::traits::{MinerApiExtClient, OpAdminApiClient};
 
 /// Optimism specified rpc interface.
 ///
@@ -63,9 +64,9 @@ pub trait OpP2PApi {
     #[method(name = "peerCount")]
     async fn opp2p_peer_count(&self) -> RpcResult<PeerCount>;
 
-    /// Returns information of peers
+    /// Returns information of peers. If `connected` is true, only returns connected peers.
     #[method(name = "peers")]
-    async fn opp2p_peers(&self) -> RpcResult<PeerDump>;
+    async fn opp2p_peers(&self, connected: bool) -> RpcResult<PeerDump>;
 
     /// Returns statistics of peers
     #[method(name = "peerStats")]
@@ -127,22 +128,22 @@ pub trait OpP2PApi {
     async fn opp2p_disconnect_peer(&self, peer: String) -> RpcResult<()>;
 }
 
-/// Engine API extension for Optimism superchain signaling
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "engine"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "engine"))]
-pub trait EngineApiExt {
-    /// Signal superchain v1 message
-    ///
-    /// The execution engine SHOULD warn when the recommended version is newer than the current
-    /// version. The execution engine SHOULD take safety precautions if it does not meet
-    /// the required version.
-    ///
-    /// # Returns
-    /// The latest supported OP-Stack protocol version of the execution engine.
-    ///
-    /// See: <https://specs.optimism.io/protocol/exec-engine.html#engine_signalsuperchainv1>
-    #[method(name = "signalSuperchainV1")]
-    async fn signal_superchain_v1(&self, signal: SuperchainSignal) -> RpcResult<ProtocolVersion>;
+/// Websockets API for the node.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws"))]
+#[async_trait]
+pub trait Ws {
+    /// Subscribes to the stream of finalized head updates.
+    #[subscription(name = "subscribe_finalized_head", item = kona_protocol::L2BlockInfo)]
+    async fn ws_finalized_head_updates(&self) -> SubscriptionResult;
+
+    /// Subscribes to the stream of safe head updates.
+    #[subscription(name = "subscribe_safe_head", item = kona_protocol::L2BlockInfo)]
+    async fn ws_safe_head_updates(&self) -> SubscriptionResult;
+
+    /// Subscribes to the stream of unsafe head updates.
+    #[subscription(name = "subscribe_unsafe_head", item = kona_protocol::L2BlockInfo)]
+    async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
 }
 
 /// Supervisor API for interop.
@@ -157,20 +158,4 @@ pub trait SupervisorApi {
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
-}
-
-#[cfg(feature = "client")]
-impl<T> crate::CheckAccessList for T
-where
-    T: SupervisorApiClient + Send + Sync,
-{
-    async fn check_access_list(
-        &self,
-        inbox_entries: &[B256],
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> Result<(), crate::InteropTxValidatorError> {
-        Ok(T::check_access_list(self, inbox_entries.to_vec(), min_safety, executing_descriptor)
-            .await?)
-    }
 }
