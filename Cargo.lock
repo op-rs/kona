@@ -5123,7 +5123,9 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips 1.0.1",
  "alloy-primitives",
+ "async-trait",
  "derive_more",
+ "jsonrpsee",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus 0.17.1",

@@ -45,5 +45,6 @@ pub use derived::{DerivedIdPair, DerivedRefPair};
 mod constants;
 pub use constants::{MESSAGE_EXPIRY_WINDOW, SUPER_ROOT_VERSION};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 mod test_util;
+pub use test_util::{SuperchainBuilder, ExecutingMessageBuilder};

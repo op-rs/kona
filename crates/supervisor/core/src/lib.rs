@@ -4,9 +4,9 @@
 mod supervisor;
 pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
-mod rpc;
 mod logindexer;
-pub use logindexer::LogIndexer;
+pub use logindexer::{LogIndexer, LogIndexerError};
+mod rpc;
 
 pub use rpc::SupervisorRpc;
 

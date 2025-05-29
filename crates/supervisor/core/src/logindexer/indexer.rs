@@ -1,92 +1,203 @@
-use kona_supervisor_storage::LogStorage;
-use std::sync::Arc;
-use kona_interop::InteropProvider;
+use crate::logindexer::{log_to_log_hash, payload_hash_to_log_hash};
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
-use crate::logindexer::{
-    log_to_log_hash, 
-    payload_hash_to_log_hash, 
-    LogEntry, 
-    LogIndexerError,
-};
-use crate::{ManagedNode, SupervisorService};
-use kona_supervisor_types::{Log, ExecutingMessage};
+use kona_supervisor_storage::LogStorageWriter;
+use std::sync::Arc;
+use thiserror::Error;
 
-/// The [`LogIndexer`] is responsible for processing L2 receipts, extracting structured messages
-/// [`ExecutingMessage`] and persis them to the state manager
+use kona_supervisor_types::{ExecutingMessage, Log, ReceiptProvider};
+
+/// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
+/// and persisting them to the state manager.
+#[derive(Debug)]
 pub struct LogIndexer {
-    pub provider: Arc<ManagedNode>,
-    pub state_manager: Arc<dyn LogStorage>,
+    /// Component that provides receipts for a given block hash.
+    pub receipt_provider: Arc<dyn ReceiptProvider>,
+    /// Component that persists parsed log entries to storage.
+    pub log_writer: Arc<dyn LogStorageWriter>,
 }
 
+#[allow(dead_code)]
 impl LogIndexer {
-    /// Creates a new [`LogIndexer`] with the given provider and state manager.
+    /// Creates a new [`LogIndexer`] with the given receipt provider and state manager.
     ///
     /// # Arguments
-    /// - `provider`: A shared reference to the interop provider used to fetch receipts.
-    /// - `state_manager`: A shared reference to the component used to persist indexed logs.
-    pub fn new(provider: Arc<ManagedNode>, state_manager: Arc<dyn LogStorage>) -> Self {
-        Self {
-            provider,
-            state_manager,
-        }
+    /// - `receipt_provider`: Shared reference to a component capable of fetching receipts.
+    /// - `log_writer`: Shared reference to the storage layer for persisting parsed logs.
+    pub fn new(
+        receipt_provider: Arc<dyn ReceiptProvider>,
+        log_writer: Arc<dyn LogStorageWriter>,
+    ) -> Self {
+        Self { receipt_provider, log_writer }
     }
-    
+
     /// Processes the logs of a given block and stores them into the state manager.
     ///
     /// This function:
     /// - Fetches all receipts for the given block from the specified chain.
     /// - Iterates through all logs in all receipts.
-    /// - For each log, computes a [`log_to_log_hash`] and optionally parses an [`ExecutingMessage`].
-    /// - Records each log into a [`LogEntry`], including the message if found.
-    /// - Saves all log entries atomically using the [`StateManager`].
+    /// - For each log, computes a hash from the log and optionally parses an [`ExecutingMessage`].
+    /// - Records each [`Log`] including the message if found.
+    /// - Saves all log entries atomically using the [`LogStorage`].
     ///
     /// # Arguments
-    /// - `chain_id`: The chain ID from which the block originated.
     /// - `block`: Metadata about the block being processed.
     pub async fn process_and_store_logs(
         &self,
-        chain_id: u64,
         block: &BlockInfo,
     ) -> Result<(), LogIndexerError> {
-        let receipts = self.provider
-            .receipts_by_number(chain_id, block.number)
-            .await
-            .map_err(|_| LogIndexerError::FetchFailed {
-                chain_id,
-                block_number: block.number,
-            })?;
+        let receipts = self.receipt_provider.fetch_receipts(block.hash).await?;
 
         let mut log_entries = Vec::new();
+        let mut log_index: u32 = 0;
 
-        for receipt in &receipts {
+        for receipt in receipts {
             for log in receipt.logs() {
                 let log_hash = log_to_log_hash(log);
 
                 let executing_message = parse_log_to_executing_message(log).map(|msg| {
-                    let payload_hash = payload_hash_to_log_hash(msg.payloadHash, msg.identifier.origin);
+                    let payload_hash =
+                        payload_hash_to_log_hash(msg.payloadHash, msg.identifier.origin);
                     ExecutingMessage {
-                        chain_id,
-                        block_number: msg.identifier.blockNumber.try_into().unwrap_or(0),
-                        log_index: msg.identifier.logIndex.try_into().unwrap_or(0),
-                        timestamp: msg.identifier.timestamp.try_into().unwrap_or(0),
+                        chain_id: msg.identifier.chainId.try_into().unwrap(),
+                        block_number: msg.identifier.blockNumber.try_into().unwrap(),
+                        log_index: msg.identifier.logIndex.try_into().unwrap(),
+                        timestamp: msg.identifier.timestamp.try_into().unwrap(),
                         hash: payload_hash,
                     }
                 });
 
-                log_entries.push(Log {
-                    index: log.index,
-                    hash: log_hash,
-                    executing_message,
-                });
+                log_entries.push(Log { index: log_index, hash: log_hash, executing_message });
+
+                log_index += 1;
             }
         }
 
-        self.state_manager.store_block_logs(block, log_entries)
-            .map_err(|_| LogIndexerError::StateWrite {
-                chain_id,
-                block_number: block.number,
-            })?;
+        self.log_writer.store_block_logs(block, log_entries)?;
+
         Ok(())
     }
+}
+
+/// Error type for the [`LogIndexer`].
+#[derive(Error, Debug)]
+pub enum LogIndexerError {
+    /// Failed to write processed logs for a block to the state manager.
+    #[error(transparent)]
+    StateWrite(#[from] kona_supervisor_storage::StorageError),
+
+    /// Failed to fetch logs for a block from the state manager.   
+    #[error(transparent)]
+    FetchFailed(#[from] jsonrpsee::core::ClientError),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::{b256, Address, Bytes, B256};
+    use async_trait::async_trait;
+    use jsonrpsee::core::ClientError;
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_types::{Log, Receipts};
+    use std::fmt::Debug;
+    use std::sync::{Arc, Mutex};
+
+    use kona_interop::{ExecutingMessageBuilder, InteropProvider, SuperchainBuilder};
+    use kona_supervisor_storage::StorageError;
+
+    #[derive(Debug)]
+    struct MockReceiptProvider {
+        pub receipts: Receipts,
+    }
+
+    impl MockReceiptProvider {
+        fn new(receipts: Receipts) -> Self {
+            Self { receipts }
+        }
+    }
+
+    #[async_trait]
+    impl ReceiptProvider for MockReceiptProvider {
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ClientError> {
+            Ok(self.receipts.clone())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct MockLogStorage {
+        pub blocks: Vec<BlockInfo>,
+        pub logs: Vec<Log>, // each block has a Vec<Log>
+    }
+
+    impl LogStorageWriter for MockLogStorage {
+        fn store_block_logs(
+            &mut self,
+            block: &BlockInfo,
+            logs: Vec<Log>,
+        ) -> Result<(), StorageError> {
+            self.blocks.push(block.clone());
+            self.logs.extend(logs);
+            Ok(())
+        }
+    }
+
+    fn build_receipts() -> Receipts {
+        let mut builder = SuperchainBuilder::new();
+        builder
+            .chain(10)
+            .with_timestamp(123456)
+            .add_initiating_message(Bytes::from_static(b"init-msg"))
+            .add_executing_message(
+                ExecutingMessageBuilder::default()
+                    .with_message_hash(B256::repeat_byte(0xaa))
+                    .with_origin_address(Address::ZERO)
+                    .with_origin_log_index(0)
+                    .with_origin_block_number(1)
+                    .with_origin_chain_id(10)
+                    .with_origin_timestamp(123456),
+            );
+        let (headers, _, mock_provider) = builder.build();
+        let block = headers.get(&10).unwrap();
+
+        mock_provider.receipts_by_hash(10, block.hash())
+    }
+
+    #[tokio::test]
+    async fn test_process_and_store_logs_success() {
+        let receipt_provider = Arc::new(MockReceiptProvider::new(build_receipts()));
+        let log_writer = Arc::new(MockLogStorage::default());
+        let log_indexer = LogIndexer::new(receipt_provider, log_writer);
+
+        let block_info = BlockInfo {
+            number: 1,
+            hash: b256!("0xabc"),
+            timestamp: 123456789,
+            ..Default::default()
+        };
+
+        let result = log_indexer.process_and_store_logs( &block_info).await;
+
+        assert!(result.is_ok());
+    }
+
+    // #[tokio::test]
+    // async fn test_process_and_store_logs_empty_receipts() {
+    //     let receipt_provider = Arc::new(MockReceiptProvider { receipts: vec![] });
+    //     let stored_logs = Arc::new(Mutex::new(vec![]));
+    //     let state_manager = Arc::new(MockLogStorage { saved_logs: stored_logs.clone() });
+    // 
+    //     let log_indexer = LogIndexer::new(receipt_provider, state_manager);
+    // 
+    //     let block_info = BlockInfo {
+    //         number: 1,
+    //         hash: b256!("0xabc"),
+    //         timestamp: 123456789,
+    //         ..Default::default()
+    //     };
+    // 
+    //     let result = log_indexer.process_and_store_logs(420, &block_info).await;
+    // 
+    //     assert!(result.is_ok());
+    //     assert!(stored_logs.lock().unwrap().is_empty());
+    // }
 }

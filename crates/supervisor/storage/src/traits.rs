@@ -4,6 +4,7 @@ use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use op_alloy_consensus::interop::SafetyLevel;
+use std::fmt::Debug;
 
 /// Provides an interface for supervisor storage to manage source and derived blocks.
 ///
@@ -55,13 +56,13 @@ pub trait DerivationStorage {
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 }
 
-/// Provides an interface for storing and retrieving logs associated with blocks.
+/// Provides an interface for retrieving logs associated with blocks.
 ///
-/// This trait defines methods to store logs for a specific block, retrieve the latest block,
+/// This trait defines methods to retrieve the latest block,
 /// find a block by a specific log, and retrieve logs for a given block number.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
-pub trait LogStorage {
+pub trait LogStorageReader: Send + Sync + Debug {
     /// Retrieves the latest [`BlockInfo`] from the storage.
     ///
     /// # Returns
@@ -92,7 +93,12 @@ pub trait LogStorage {
     /// * `Ok(Vec<Log>)` containing the logs associated with the block number.
     /// * `Err(StorageError)` if there is an issue retrieving the logs or if no logs are found.
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+}
 
+/// Provides an interface for storing blocks and  logs associated with blocks.
+///
+/// Implementations are expected to provide persistent and thread-safe access to block logs.
+pub trait LogStorageWriter: Send + Sync + Debug {
     /// Stores [`BlockInfo`] and [`Log`]s in the storage.
     ///
     /// # Arguments
@@ -104,6 +110,14 @@ pub trait LogStorage {
     /// * `Err(StorageError)` if there is an issue storing the logs.
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError>;
 }
+
+/// Combines both reading and writing capabilities for log storage.
+///
+/// Any type that implements both [`LogStorageReader`] and [`LogStorageWriter`]
+/// automatically implements this trait.
+pub trait LogStorage: LogStorageReader + LogStorageWriter {}
+
+impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
 
 /// Provides an interface for storing and retrieving safety head references.
 ///

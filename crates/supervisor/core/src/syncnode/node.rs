@@ -1,13 +1,15 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use alloy_primitives::B256;
 use alloy_rpc_types_engine::JwtSecret;
+use async_trait::async_trait;
 use jsonrpsee::{
     core::{ClientError, SubscriptionError, client::Subscription},
     types::{ErrorCode, ErrorObject},
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_types::ManagedEvent;
+use kona_supervisor_types::{ManagedEvent, ReceiptProvider, Receipts};
 use std::sync::Arc;
 use tokio::{
     sync::{Mutex, watch},
@@ -303,6 +305,19 @@ impl ManagedNode {
                 );
             }
         }
+    }
+}
+
+/// Implements [`ReceiptProvider`] for [`ManagedNode`] by delegating to the underlying WebSocket
+/// client.
+///
+/// This allows `LogIndexer` and similar components to remain decoupled from the full
+/// [`ManagedModeApiClient`] interface, using only the receipt-fetching capability
+#[async_trait]
+impl ReceiptProvider for ManagedNode {
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError> {
+        let client = self.get_ws_client().await?;
+        ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await
     }
 }
 

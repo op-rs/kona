@@ -14,7 +14,7 @@ exclude.workspace = true
 
 [dependencies]
 # workspace
-kona-interop.workspace = true
+kona-interop = {workspace = true, features = ["test-utils"]}
 kona-supervisor-types.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee", "client"] }
 kona-supervisor-storage.workspace = true
