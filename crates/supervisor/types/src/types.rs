@@ -160,9 +160,9 @@ impl fmt::Display for ManagedEvent {
         }
 
         if parts.is_empty() {
-            write!(f, "ManagedEvent {{ none }}")
+            write!(f, "none")
         } else {
-            write!(f, "ManagedEvent {{ {} }}", parts.join(", "))
+            write!(f, "{}", parts.join(", "))
         }
     }
 }
