@@ -2,8 +2,7 @@
 
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
-    core::{ClientError, SubscriptionError, client::Subscription},
-    types::{ErrorCode, ErrorObject},
+    core::client::Subscription,
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedModeApiClient;
@@ -15,6 +14,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
+use super::ManagedNodeError;
 use crate::NodeEvent;
 
 /// TODO: Introduce ManagedNodeError type and redo error handling
@@ -71,27 +71,23 @@ pub struct ManagedNode {
 
 impl ManagedNode {
     /// Creates a new [`ManagedNode`] with the specified configuration.
-    pub fn new(config: Arc<ManagedNodeConfig>) -> Result<Self, ClientError> {
-        Ok(Self { config, ws_client: Mutex::new(None), stop_tx: None, task_handle: None })
+    pub fn new(config: Arc<ManagedNodeConfig>) -> Self {
+        Self { config, ws_client: Mutex::new(None), stop_tx: None, task_handle: None }
     }
 
     /// Returns a reference to the WebSocket client, creating it if it doesn't exist.
     // todo: support http client as well
-    pub async fn get_ws_client(&self) -> Result<Arc<WsClient>, ClientError> {
+    pub async fn get_ws_client(&self) -> Result<Arc<WsClient>, ManagedNodeError> {
         let mut ws_client_guard = self.ws_client.lock().await;
         if ws_client_guard.is_none() {
-            let headers = self.create_auth_headers().map_err(|err| {
+            let headers = self.create_auth_headers().inspect_err(|err| {
                 error!(target: "managed_node", %err, "Failed to create auth headers");
-                ClientError::Custom(format!("failed to create auth headers: {err}"))
             })?;
 
             let ws_url = format!("ws://{}", self.config.url);
             info!(target: "managed_node", ws_url, "Creating a new web socket client");
 
-            let client =
-                WsClientBuilder::default().set_headers(headers).build(&ws_url).await.map_err(
-                    |err| ClientError::Custom(format!("failed to create WebSocket client: {err}")),
-                )?;
+            let client = WsClientBuilder::default().set_headers(headers).build(&ws_url).await?;
 
             *ws_client_guard = Some(Arc::new(client));
         }
@@ -105,21 +101,20 @@ impl ManagedNode {
     pub async fn start_subscription(
         &mut self,
         event_tx: mpsc::Sender<NodeEvent>,
-    ) -> Result<(), SubscriptionError> {
+    ) -> Result<(), ManagedNodeError> {
         if self.task_handle.is_some() {
-            return Err(SubscriptionError::from("subscription already active".to_string()));
+            return Err(ManagedNodeError::Subscription("subscription already active".to_string()));
         }
 
         let client = self.get_ws_client().await?;
 
         let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedModeApiClient::subscribe_events(client.as_ref()).await.map_err(|err| {
+            ManagedModeApiClient::subscribe_events(client.as_ref()).await.inspect_err(|err| {
                 error!(
                     target: "managed_node",
                     %err,
                     "Failed to subscribe to events"
                 );
-                SubscriptionError::from("failed to subscribe to events")
             })?;
 
         // Create stop channel for graceful shutdown
@@ -185,7 +180,7 @@ impl ManagedNode {
     /// Stops the subscription to the managed node.
     ///
     /// Sends a stop signal to the background task and waits for it to complete.
-    pub async fn stop_subscription(&mut self) -> Result<(), SubscriptionError> {
+    pub async fn stop_subscription(&mut self) -> Result<(), ManagedNodeError> {
         if let Some(stop_tx) = self.stop_tx.take() {
             debug!(target: "managed_node", action = "send_stop_signal", "Sending stop signal to subscription task");
             stop_tx.send(true).map_err(|err| {
@@ -194,10 +189,10 @@ impl ManagedNode {
                     %err,
                     "Failed to send stop signal"
                 );
-                SubscriptionError::from("failed to send stop signal")
+                ManagedNodeError::Subscription("failed to send stop signal".to_string())
             })?;
         } else {
-            return Err(SubscriptionError::from("no active stop channel".to_string()));
+            return Err(ManagedNodeError::Subscription("no active stop channel".to_string()));
         }
 
         // Wait for task to complete
@@ -209,11 +204,11 @@ impl ManagedNode {
                     %err,
                     "Failed to join task"
                 );
-                SubscriptionError::from("failed to join task")
+                ManagedNodeError::Subscription("failed to join task".to_string())
             })?;
             info!(target: "managed_node", "Subscription stopped and task joined");
         } else {
-            return Err(SubscriptionError::from(
+            return Err(ManagedNodeError::Subscription(
                 "subscription not active or already stopped".to_string(),
             ));
         }
@@ -222,10 +217,12 @@ impl ManagedNode {
     }
 
     /// Creates authentication headers using JWT secret.
-    fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
+    fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(ClientError::Custom("jwt secret not found or invalid".to_string()));
+            return Err(ManagedNodeError::Authentication(
+                "jwt secret not found or invalid".to_string(),
+            ));
         };
 
         let mut headers = HeaderMap::new();
@@ -236,11 +233,10 @@ impl ManagedNode {
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
                 error!(target: "managed_node", %err, "Invalid authorization header");
-                ErrorObject::from(ErrorCode::ParseError)
+                ManagedNodeError::Authentication("invalid authorization header".to_string())
             })?,
         );
 
-        debug!(target: "managed_node", "Authentication headers created");
         Ok(headers)
     }
 
@@ -554,7 +550,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut subscriber = ManagedNode::new(config).expect("Should create ManagedNode");
+        let mut subscriber = ManagedNode::new(config);
 
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.is_none());
@@ -685,7 +681,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let managed_node = ManagedNode::new(config).expect("Should create ManagedNode");
+        let managed_node = ManagedNode::new(config);
 
         // Test WebSocket client creation - should fail with invalid server
         let client_result = managed_node.get_ws_client().await;
@@ -700,8 +696,7 @@ mod tests {
             jwt_path: "/nonexistent/jwt.hex".to_string(),
         });
 
-        let managed_node_no_jwt =
-            ManagedNode::new(config_no_jwt).expect("Should create ManagedNode");
+        let managed_node_no_jwt = ManagedNode::new(config_no_jwt);
         let client_no_jwt_result = managed_node_no_jwt.get_ws_client().await;
         assert!(client_no_jwt_result.is_err(), "Should fail with missing JWT file");
     }
@@ -718,7 +713,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let managed_node = Arc::new(ManagedNode::new(config).expect("Should create ManagedNode"));
+        let managed_node = Arc::new(ManagedNode::new(config));
 
         // Test that the ManagedNode can be shared across threads (Send + Sync)
         let node1 = managed_node.clone();
