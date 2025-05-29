@@ -30,7 +30,7 @@ impl ChainProcessor {
         Self { chain_id, managed_node: None, event_tx, event_rx, shutdown_tx, shutdown_rx }
     }
 
-    /// Returns the chain ID associated with this processor.
+    /// Returns the [`ChainId`] associated with this processor.
     pub const fn chain_id(&self) -> ChainId {
         self.chain_id
     }
