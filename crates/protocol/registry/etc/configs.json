@@ -2332,6 +2332,87 @@
           }
         },
         {
+          "Name": "Celo",
+          "PublicRPC": "https://forno.celo.org",
+          "SequencerRPC": "https://cel2-sequencer.celo.org/",
+          "Explorer": "https://celoscan.io/",
+          "SuperchainLevel": 0,
+          "GovernedByOptimism": false,
+          "SuperchainTime": null,
+          "DataAvailabilityType": "alt-da",
+          "l2_chain_id": 42220,
+          "batch_inbox_address": "0xff00000000000000000000000000000000042220",
+          "block_time": 1,
+          "seq_window_size": 7200,
+          "max_sequencer_drift": 2892,
+          "GasPayingToken": "0x057898f3c43f129a17517b9056d23851f124b19f",
+          "hardfork_configuration": {
+            "canyon_time": 0,
+            "delta_time": 0,
+            "ecotone_time": 0,
+            "fjord_time": 0,
+            "granite_time": 0
+          },
+          "optimism": {
+            "eip1559Elasticity": "0x5",
+            "eip1559Denominator": "0x190",
+            "eip1559DenominatorCanyon": "0x190"
+          },
+          "alt_da": null,
+          "genesis": {
+            "l1": {
+              "number": 22128103,
+              "hash": "0xe499ec12e12fc2c94e6714a94f2640dbc748ff6c26fd3f420b25264a3d90066f"
+            },
+            "l2": {
+              "number": 31056500,
+              "hash": "0x7586014e20c69b3fa7c9070baf1a7edd95833db57853126f32593b455da2e5c5"
+            },
+            "l2_time": 1742957258,
+            "system_config": {
+              "batcherAddress": "0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60",
+              "overhead": "0x0",
+              "scalar": "0x100000000000000000000000000000000000000000000000000000000000000",
+              "gasLimit": 30000000,
+              "baseFeeScalar": null,
+              "blobBaseFeeScalar": null,
+              "eip1559Denominator": null,
+              "eip1559Elasticity": null,
+              "operatorFeeScalar": null,
+              "operatorFeeConstant": null
+            }
+          },
+          "Roles": {
+            "SystemConfigOwner": "0x4092a77baf58fef0309452ceacb09221e556e112",
+            "ProxyAdminOwner": "0x4092a77baf58fef0309452ceacb09221e556e112",
+            "Guardian": "0x6e226fa22e5f19363d231d3fa048aaba73cc1f47",
+            "Challenger": "0x6b145ebf66602ec524b196426b46631259689583",
+            "Proposer": "0x1204884e697efd929729b9a717ea14496298a689",
+            "UnsafeBlockSigner": "0xa6f1c6c24de8b112dd3867db907d187d490e6ddf",
+            "BatchSubmitter": "0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60"
+          },
+          "Addresses": {
+            "AddressManager": "0x55093104b76faa602f9d6c35a5fff576be78d753",
+            "L1CrossDomainMessengerProxy": "0x1ac1181fc4e4f877963680587aeaa2c90d7ebb95",
+            "L1Erc721BridgeProxy": "0x3c519816c5bdc0a0199147594f83fed4f5847f13",
+            "L1StandardBridgeProxy": "0x9c4955b92f34148dbcfdcd82e9c9ece5cf2badfe",
+            "L2OutputOracleProxy": "0x7617b249aeb1f06c90bdf9c4f6c903c09a6a4220",
+            "OptimismMintableErc20FactoryProxy": "0x6f0e4f1eb98a52efacf7be11d48b9d9d6510a906",
+            "OptimismPortalProxy": "0xc5c5d157928bdbd2acf6d0777626b6c75a9eaedc",
+            "SystemConfigProxy": "0x89e31965d844a309231b1f17759ccaf1b7c09861",
+            "ProxyAdmin": "0x783a434532ee94667979213af1711505e8bfe374",
+            "SuperchainConfig": "0x95703e0982140d16f8eba6d158fccede42f04a4c",
+            "AnchorStateRegistryProxy": "0xa24bf5bc02997f63da4e2c7f802067e05a102504",
+            "DelayedWethProxy": "0xa316d42e8fd98d2ec364b8bf853d2623e768f95a",
+            "DisputeGameFactoryProxy": "0xfbac162162f4009bb007c6debc36b1dac10af683",
+            "FaultDisputeGame": null,
+            "Mips": "0x8a12e1754f729c0856e2e32d4821577f0b245bfa",
+            "PermissionedDisputeGame": null,
+            "PreimageOracle": "0xfab0f466955d87e596ca87e20c505bb6470d0dc4",
+            "DataAvailabilityChallenge": null
+          }
+        },
+        {
           "Name": "Ink",
           "PublicRPC": "https://rpc-gel.inkonchain.com",
           "SequencerRPC": "https://rpc-gel.inkonchain.com",

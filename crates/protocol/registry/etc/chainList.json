@@ -1221,5 +1221,27 @@
     "faultProofs": {
       "status": "none"
     }
+  },
+  {
+    "name": "Celo",
+    "identifier": "mainnet/celo",
+    "chainId": 42220,
+    "rpc": [
+      "https://forno.celo.org"
+    ],
+    "explorers": [
+      "https://celoscan.io/"
+    ],
+    "superchainLevel": 0,
+    "governedByOptimism": false,
+    "dataAvailabilityType": "alt-da",
+    "parent": {
+      "type": "L2",
+      "chain": "mainnet"
+    },
+    "gasPayingToken": "0x057898f3C43F129a17517B9056D23851F124b19f",
+    "faultProofs": {
+      "status": "permissioned"
+    }
   }
 ]
