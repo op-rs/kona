@@ -5039,10 +5039,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips 1.0.1",
  "alloy-primitives",
+ "alloy-provider",
  "alloy-rpc-types-engine",
  "async-trait",
  "jsonrpsee",
  "kona-interop",
+ "kona-protocol",
  "kona-supervisor-rpc",
  "kona-supervisor-types",
  "metrics",

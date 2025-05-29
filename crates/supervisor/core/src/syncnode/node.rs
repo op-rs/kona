@@ -1,11 +1,15 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use alloy_eips::BlockNumberOrTag;
+use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
     core::{ClientError, SubscriptionError, client::Subscription},
     types::{ErrorCode, ErrorObject},
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
+use kona_interop::DerivedRefPair;
+use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
@@ -23,6 +27,8 @@ pub struct ManagedNodeConfig {
     pub url: String,
     /// The path to the JWT token for the managed node
     pub jwt_path: String,
+    /// The URL of the L1 RPC endpoint
+    pub l1_rpc_url: String,
 }
 
 impl ManagedNodeConfig {
@@ -120,6 +126,7 @@ impl ManagedNode {
         // Create stop channel for graceful shutdown
         let (stop_tx, mut stop_rx) = watch::channel(false);
         self.stop_tx = Some(stop_tx);
+        let rpc_url = self.config.l1_rpc_url.clone();
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
@@ -140,7 +147,7 @@ impl ManagedNode {
                                 debug!(target: "managed_node", ?event_result, "Received event");
                                 match event_result {
                                     Ok(managed_event) => {
-                                        Self::handle_managed_event(managed_event);
+                                        Self::handle_managed_event(rpc_url.clone(), client.clone(), managed_event).await;
                                     },
                                     Err(err) => {
                                         error!(
@@ -245,7 +252,11 @@ impl ManagedNode {
     /// Analyzes the event content and takes appropriate actions based on the
     /// event fields.
     /// TODO: Call relevant DB functions to update the state
-    fn handle_managed_event(event_result: Option<ManagedEvent>) {
+    async fn handle_managed_event(
+        rpc_url: String,
+        client: Arc<WsClient>,
+        event_result: Option<ManagedEvent>,
+    ) {
         match event_result {
             Some(event) => {
                 debug!(target: "managed_node", ?event, "Handling ManagedEvent");
@@ -267,12 +278,9 @@ impl ManagedNode {
                 }
 
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
-                    info!(
-                        target: "managed_node",
-                        ?derived_ref_pair,
-                        "L1 exhausted event received"
-                    );
-                    // Handle L1 exhaustion
+                    info!(target: "managed_node", ?derived_ref_pair, "L1 exhausted event received");
+
+                    return Self::handle_exhaust_l1(rpc_url, client, &derived_ref_pair).await;
                 }
 
                 if let Some(replacement) = &event.replace_block {
@@ -304,8 +312,34 @@ impl ManagedNode {
             }
         }
     }
-}
 
+    async fn handle_exhaust_l1(
+        rpc_url: String,
+        client: Arc<WsClient>,
+        derived_ref_pair: &DerivedRefPair,
+    ) {
+        let provider = ProviderBuilder::new().connect_http(rpc_url.parse().unwrap());
+
+        if let Some(block) = provider
+            .get_block_by_number(BlockNumberOrTag::Number(derived_ref_pair.source.number + 1))
+            .await
+            .unwrap()
+        {
+            if block.header.parent_hash != derived_ref_pair.source.hash {
+                error!(target: "managed_node", "Block parent hash mismatch");
+                // TODO: Trigger a reset
+            } else {
+                let block_info = BlockInfo {
+                    hash: block.header.hash,
+                    number: block.header.number,
+                    parent_hash: block.header.parent_hash,
+                    timestamp: block.header.timestamp,
+                };
+                ManagedModeApiClient::provide_l1(client.as_ref(), block_info).await.unwrap();
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -450,6 +484,7 @@ mod tests {
         let config = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret = config.jwt_secret();
@@ -459,6 +494,7 @@ mod tests {
         let config_invalid = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: "/nonexistent/path/jwt.hex".to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret_fallback = config_invalid.jwt_secret();
@@ -489,6 +525,7 @@ mod tests {
         let config = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret = config.jwt_secret().expect("Should have JWT secret");
@@ -514,6 +551,7 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "invalid.server:8545".to_string(), // Intentionally invalid to test error handling
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let mut subscriber = ManagedNode::new(config).expect("Should create ManagedNode");
@@ -539,6 +577,7 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "invalid.server:8545".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let managed_node = ManagedNode::new(config).expect("Should create ManagedNode");
@@ -554,6 +593,7 @@ mod tests {
         let config_no_jwt = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(),
             jwt_path: "/nonexistent/jwt.hex".to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let managed_node_no_jwt =
@@ -572,6 +612,7 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(), // Use localhost to avoid DNS resolution delays
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let managed_node = Arc::new(ManagedNode::new(config).expect("Should create ManagedNode"));
