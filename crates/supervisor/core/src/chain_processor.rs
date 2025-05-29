@@ -1,8 +1,9 @@
 use crate::syncnode::{ManagedNode, NodeEvent};
 use alloy_primitives::ChainId;
 use tokio::sync::{mpsc, watch};
+use tracing::warn;
 
-/// Responsible for manging [`ManagedNode`] and processing [`NodeEvent`].
+/// Responsible for managing [`ManagedNode`] and processing [`NodeEvent`].
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessor {
@@ -65,7 +66,13 @@ impl ChainProcessor {
     }
 
     /// Triggers a graceful shutdown of the processor.
-    pub fn shutdown(&self) {
+    pub async fn shutdown(&mut self) {
+        if let Some(managed_node) = &mut self.managed_node {
+            // Stop the managed node's subscription
+            if let Err(err) = managed_node.stop_subscription().await {
+                warn!(target: "chain_processor", %err, "Failed to stop managed node subscription");
+            }
+        }
         let _ = self.shutdown_tx.send(true);
     }
 
