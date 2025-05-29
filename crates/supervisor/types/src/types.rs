@@ -159,10 +159,6 @@ impl fmt::Display for ManagedEvent {
             parts.push(format!("derivation_origin_update: {origin}"));
         }
 
-        if parts.is_empty() {
-            write!(f, "none")
-        } else {
-            write!(f, "{}", parts.join(", "))
-        }
+        if parts.is_empty() { write!(f, "none") } else { write!(f, "{}", parts.join(", ")) }
     }
 }
