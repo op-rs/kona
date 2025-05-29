@@ -136,27 +136,18 @@ impl RuntimeLoader {
         }
 
         // Metrics
-        kona_macros::record!(
-            histogram,
-            crate::Metrics::RUNTIME_LOADER,
-            "unsafe_block_signer",
-            format!("{:#x}", unsafe_block_signer_address),
-            1
-        );
-        kona_macros::record!(
-            histogram,
-            crate::Metrics::RUNTIME_LOADER,
-            "recommended_version",
-            recommended_protocol_version.to_string(),
-            1
-        );
-        kona_macros::record!(
-            histogram,
-            crate::Metrics::RUNTIME_LOADER,
-            "required_version",
-            required_protocol_version.to_string(),
-            1
-        );
+        #[cfg(feature = "metrics")]
+        {
+            let gauge = metrics::gauge!(
+                crate::Metrics::RUNTIME_LOADER,
+                &[
+                    ("unsafe_block_signer_address", unsafe_block_signer_address.to_string()),
+                    ("required_protocol_version", required_protocol_version.to_string()),
+                    ("recommended_protocol_version", recommended_protocol_version.to_string()),
+                ]
+            );
+            gauge.set(1);
+        }
 
         // Construct the runtime config.
         let runtime_config = RuntimeConfig {

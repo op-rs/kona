@@ -2,7 +2,7 @@ use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::BlockReplacement;
 
-/// Represents node events that [`super::ManagedNode`] emits.
+/// Represents node events that [`ManagedNode`](`super::ManagedNode`) emits.
 /// These events are used to notify the supervisor about changes in block states,
 /// such as unsafe blocks, safe blocks, or block replacements.
 /// Each event carries relevant information about the block involved,

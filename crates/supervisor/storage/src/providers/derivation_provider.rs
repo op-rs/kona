@@ -40,7 +40,7 @@ where
                 error!(
                   target: "supervisor_storage",
                   derived_block_number,
-                  ?err,
+                  %err,
                   "Failed to get derived block pair"
                 );
             })?;
@@ -48,7 +48,7 @@ where
         let derived_block_pair = derived_block_pair_opt.ok_or_else(|| {
             warn!(
               target: "supervisor_storage",
-              derived_block_number = ?derived_block_number,
+              derived_block_number,
               "Derived block not found"
             );
             StorageError::EntryNotFound("derived block not found".to_string())
@@ -69,9 +69,9 @@ where
         if derived_block_pair.derived.hash != derived_block_id.hash {
             warn!(
               target: "supervisor_storage",
-              derived_block_id = ?derived_block_id,
-              expected_hash = ?derived_block_id.hash,
-              actual_hash = ?derived_block_pair.derived.hash,
+              derived_block_number = derived_block_id.number,
+              expected_hash = %derived_block_id.hash,
+              actual_hash = %derived_block_pair.derived.hash,
               "Derived block hash mismatch"
             );
             return Err(StorageError::EntryNotFound(
@@ -101,7 +101,7 @@ where
                 error!(
                     target: "supervisor_storage",
                     source_block_number,
-                    ?err,
+                    %err,
                     "Failed to get source to derived block numbers"
                 );
             })?;
@@ -128,10 +128,10 @@ where
             // todo:: make sure unwinding removes the entry properly
             error!(
               target: "supervisor_storage",
-              source_block_id = ?source_block_id,
+              source_block_number = source_block_id.number,
               "source to derived block numbers list is empty"
             );
-            StorageError::EntryNotFound("No derived blocks found for source block".to_string())
+            StorageError::EntryNotFound("no derived blocks found for source block".to_string())
         })?;
 
         let derived_block_pair = self.get_derived_block_pair_by_number(*derived_block_number)?;
@@ -141,9 +141,9 @@ where
         if derived_block_pair.source.hash != source_block_id.hash {
             warn!(
               target: "supervisor_storage",
-              source_block_id = ?source_block_id,
-              expected_hash = ?source_block_id.hash,
-              actual_hash = ?derived_block_pair.source.hash,
+              source_block_number = source_block_id.number,
+              expected_hash = %source_block_id.hash,
+              actual_hash = %derived_block_pair.source.hash,
               "Source block hash mismatch"
             );
             return Err(StorageError::EntryNotFound("source block hash does not match".to_string()));
@@ -156,7 +156,7 @@ where
     pub(crate) fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().inspect_err(|err| {
             error!(target: "supervisor_storage",
-              ?err,
+              %err,
               "Failed to get cursor for DerivedBlocks"
             );
         })?;
@@ -164,14 +164,14 @@ where
         let result = cursor.last().inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
-                ?err,
+                %err,
                 "Failed to seek to last block"
             );
         })?;
 
         let (_, block) = result.ok_or_else(|| {
             error!(target: "supervisor_storage", "No blocks found in storage");
-            StorageError::EntryNotFound("No blocks found".to_string())
+            StorageError::EntryNotFound("no blocks found".to_string())
         })?;
         Ok(block.into())
     }
@@ -201,12 +201,12 @@ where
             if !latest_block_pair.derived.is_parent_of(&incoming_pair.derived) {
                 warn!(
                   target: "supervisor_storage",
-                  latest_derived_block_pair = ?latest_block_pair,
-                  incoming_derived_block_pair = ?incoming_pair,
+                  latest_derived_block_pair = %latest_block_pair,
+                  incoming_derived_block_pair = %incoming_pair,
                   "Latest stored derived block is not parent of the incoming derived block"
                 );
                 return Err(StorageError::ConflictError(
-                    "Latest stored derived block is not parent of the incoming derived block"
+                    "latest stored derived block is not parent of the incoming derived block"
                         .to_string(),
                 ));
             }
@@ -221,8 +221,8 @@ where
                 Err(err) => {
                     error!(
                       target: "supervisor_storage",
-                      incoming_derived_block_pair = ?incoming_pair,
-                      ?err,
+                      incoming_derived_block_pair = %incoming_pair,
+                      %err,
                       "Failed to get derived block numbers for source block"
                     );
                     return Err(err);
@@ -238,8 +238,8 @@ where
             .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
-                    incoming_derived_block_pair = ?incoming_pair,
-                    ?err,
+                    incoming_derived_block_pair = %incoming_pair,
+                    %err,
                     "Failed to save derived block pair"
                 );
             })?;
@@ -250,8 +250,8 @@ where
             .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
-                    incoming_derived_block_pair = ?incoming_pair,
-                    ?err,
+                    incoming_derived_block_pair = %incoming_pair,
+                    %err,
                     "Failed to save derived block numbers for source block"
                 );
             })?;
