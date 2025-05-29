@@ -17,7 +17,6 @@ pub struct LogIndexer {
     pub log_writer: Arc<dyn LogStorageWriter>,
 }
 
-#[allow(dead_code)]
 impl LogIndexer {
     /// Creates a new [`LogIndexer`] with the given receipt provider and state manager.
     ///
