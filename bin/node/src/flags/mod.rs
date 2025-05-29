@@ -10,6 +10,7 @@ mod rpc;
 pub use rpc::RpcArgs;
 
 mod metrics;
+pub use metrics::init_unified_metrics;
 
 mod sequencer;
 pub use sequencer::SequencerArgs;

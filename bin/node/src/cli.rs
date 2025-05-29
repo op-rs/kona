@@ -2,7 +2,7 @@
 
 use crate::{
     commands::{BootstoreCommand, InfoCommand, NetCommand, NodeCommand, RegistryCommand},
-    flags::GlobalArgs,
+    flags::{GlobalArgs, init_unified_metrics},
     version,
 };
 use anyhow::Result;
@@ -54,17 +54,15 @@ pub struct Cli {
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
+        // Initialize unified metrics
+        init_unified_metrics(&self.metrics)?;
         // Initialize telemetry - allow subcommands to customize the filter.
         match self.subcommand {
-            Commands::Node(ref node) => node.init_telemetry(&self.global, &self.metrics)?,
-            Commands::Net(ref net) => net.init_telemetry(&self.global, &self.metrics)?,
-            Commands::Registry(ref registry) => {
-                registry.init_telemetry(&self.global, &self.metrics)?
-            }
-            Commands::Bootstore(ref bootstore) => {
-                bootstore.init_telemetry(&self.global, &self.metrics)?
-            }
-            Commands::Info(ref info) => info.init_telemetry(&self.global, &self.metrics)?,
+            Commands::Node(ref node) => node.init_logs(&self.global)?,
+            Commands::Net(ref net) => net.init_logs(&self.global)?,
+            Commands::Registry(ref registry) => registry.init_logs(&self.global)?,
+            Commands::Bootstore(ref bootstore) => bootstore.init_logs(&self.global)?,
+            Commands::Info(ref info) => info.init_logs(&self.global)?,
         }
 
         // Run the subcommand.
