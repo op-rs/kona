@@ -19,10 +19,13 @@ RUN apt-get update && apt-get install -y \
 
 # Install rust
 ENV RUST_VERSION=1.85
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN cargo install cargo-chef
+# Install cargo-binstall
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+RUN cargo binstall cargo-chef -y
 
 ################################
 #    Local Repo Setup Stage    #
