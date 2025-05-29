@@ -21,6 +21,7 @@ use std::{
 };
 use tokio::time::Duration;
 use url::Url;
+use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -373,6 +374,9 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
+        let (_publish_tx, publish_rx) = tokio::sync::mpsc::channel::<OpNetworkPayloadEnvelope>(100);
+        let publish_rx = Arc::new(publish_rx);
+
         Ok(Config {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
@@ -390,6 +394,7 @@ impl P2PArgs {
             redial: self.peer_redial,
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
+            publish_rx: publish_rx,
         })
     }
 
