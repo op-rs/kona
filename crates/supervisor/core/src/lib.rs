@@ -8,4 +8,7 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
-pub use syncnode::{ManagedNode, ManagedNodeConfig};
+pub use syncnode::{ManagedNode, ManagedNodeConfig, ManagedNodeError, NodeEvent};
+
+mod chain_processor;
+pub use chain_processor::ChainProcessor;
