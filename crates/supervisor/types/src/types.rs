@@ -69,7 +69,7 @@ impl<T> L2BlockRef<T> {
 
 /// Represents a [`BlockReplacement`] event where one block replaces another.
 #[derive(Debug, Clone, Display, PartialEq, Eq, Serialize, Deserialize)]
-#[display("BlockReplacement {{ replacement: {replacement}, invalidated: {invalidated} }}")]
+#[display("replacement: {replacement}, invalidated: {invalidated}")]
 #[serde(rename_all = "camelCase")]
 pub struct BlockReplacement<T = BlockInfo> {
     /// The block that replaces the invalidated block
@@ -159,10 +159,6 @@ impl fmt::Display for ManagedEvent {
             parts.push(format!("derivation_origin_update: {origin}"));
         }
 
-        if parts.is_empty() {
-            write!(f, "ManagedEvent {{ none }}")
-        } else {
-            write!(f, "ManagedEvent {{ {} }}", parts.join(", "))
-        }
+        if parts.is_empty() { write!(f, "none") } else { write!(f, "{}", parts.join(", ")) }
     }
 }

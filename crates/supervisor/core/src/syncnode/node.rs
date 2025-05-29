@@ -17,7 +17,6 @@ use tracing::{debug, error, info, warn};
 use super::ManagedNodeError;
 use crate::NodeEvent;
 
-/// TODO: Introduce ManagedNodeError type and redo error handling
 /// Configuration for the managed node.
 #[derive(Debug)]
 pub struct ManagedNodeConfig {
