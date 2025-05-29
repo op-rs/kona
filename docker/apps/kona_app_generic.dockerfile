@@ -8,7 +8,7 @@ FROM ubuntu:22.04 AS dep-setup-stage
 SHELL ["/bin/bash", "-c"]
 
 # Install deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
   build-essential \
   git \
   curl \

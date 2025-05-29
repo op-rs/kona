@@ -6,11 +6,12 @@
 
 use alloy_eips::BlockId;
 use alloy_primitives::{B256, U64};
-use derive_more::Constructor;
+use derive_more::{Constructor, Display};
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use op_alloy_consensus::OpReceiptEnvelope;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // todo:: Determine appropriate locations for these structs and move them accordingly.
 // todo:: Link these structs to the spec documentation after the related PR is merged.
@@ -67,7 +68,8 @@ impl<T> L2BlockRef<T> {
 }
 
 /// Represents a [`BlockReplacement`] event where one block replaces another.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Display, PartialEq, Eq, Serialize, Deserialize)]
+#[display("replacement: {replacement}, invalidated: {invalidated}")]
 #[serde(rename_all = "camelCase")]
 pub struct BlockReplacement<T = BlockInfo> {
     /// The block that replaces the invalidated block
@@ -133,4 +135,30 @@ pub struct ManagedEvent {
 
     /// Indicates an update to the derivation origin
     pub derivation_origin_update: Option<BlockInfo>,
+}
+
+impl fmt::Display for ManagedEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut parts = Vec::new();
+        if let Some(ref reset) = self.reset {
+            parts.push(format!("reset: {reset}"));
+        }
+        if let Some(ref block) = self.unsafe_block {
+            parts.push(format!("unsafe_block: {block}"));
+        }
+        if let Some(ref pair) = self.derivation_update {
+            parts.push(format!("derivation_update: {pair}"));
+        }
+        if let Some(ref pair) = self.exhaust_l1 {
+            parts.push(format!("exhaust_l1: {pair}"));
+        }
+        if let Some(ref replacement) = self.replace_block {
+            parts.push(format!("replace_block: {replacement}"));
+        }
+        if let Some(ref origin) = self.derivation_origin_update {
+            parts.push(format!("derivation_origin_update: {origin}"));
+        }
+
+        if parts.is_empty() { write!(f, "none") } else { write!(f, "{}", parts.join(", ")) }
+    }
 }

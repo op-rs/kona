@@ -5042,6 +5042,7 @@ dependencies = [
  "async-trait",
  "jsonrpsee",
  "kona-interop",
+ "kona-protocol",
  "kona-supervisor-rpc",
  "kona-supervisor-types",
  "metrics",
