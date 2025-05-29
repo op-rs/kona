@@ -280,7 +280,7 @@ impl ManagedNode {
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(target: "managed_node", ?derived_ref_pair, "L1 exhausted event received");
 
-                    return Self::handle_exhaust_l1(rpc_url, client, &derived_ref_pair).await;
+                    return Self::handle_exhaust_l1(rpc_url, client, derived_ref_pair).await;
                 }
 
                 if let Some(replacement) = &event.replace_block {
