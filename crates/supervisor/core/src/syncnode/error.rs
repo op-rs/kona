@@ -4,7 +4,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ManagedNodeError {
     /// Represents an error that occurred while starting the managed node.
-    #[error("webSocket connection failed: {0}")]
+    #[error(transparent)]
     Client(#[from] jsonrpsee::core::ClientError),
 
     /// Represents an error that occurred while subscribing to the managed node.
