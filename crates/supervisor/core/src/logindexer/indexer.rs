@@ -38,14 +38,11 @@ impl LogIndexer {
     /// - Iterates through all logs in all receipts.
     /// - For each log, computes a hash from the log and optionally parses an [`ExecutingMessage`].
     /// - Records each [`Log`] including the message if found.
-    /// - Saves all log entries atomically using the [`LogStorage`].
+    /// - Saves all log entries atomically using the [`LogStorageWriter`].
     ///
     /// # Arguments
     /// - `block`: Metadata about the block being processed.
-    pub async fn process_and_store_logs(
-        &self,
-        block: &BlockInfo,
-    ) -> Result<(), LogIndexerError> {
+    pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
         let receipts = self.receipt_provider.fetch_receipts(block.hash).await?;
 
         let mut log_entries = Vec::new();
@@ -94,16 +91,17 @@ pub enum LogIndexerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::{b256, Address, Bytes, B256};
+    use alloy_primitives::{Address, B256, Bytes};
     use async_trait::async_trait;
     use jsonrpsee::core::ClientError;
-    use kona_protocol::BlockInfo;
-    use kona_supervisor_types::{Log, Receipts};
-    use std::fmt::Debug;
-    use std::sync::{Arc, Mutex};
-
     use kona_interop::{ExecutingMessageBuilder, InteropProvider, SuperchainBuilder};
+    use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
+    use kona_supervisor_types::{Log, Receipts};
+    use std::{
+        fmt::Debug,
+        sync::{Arc, Mutex},
+    };
 
     #[derive(Debug)]
     struct MockReceiptProvider {
@@ -111,7 +109,7 @@ mod tests {
     }
 
     impl MockReceiptProvider {
-        fn new(receipts: Receipts) -> Self {
+        const fn new(receipts: Receipts) -> Self {
             Self { receipts }
         }
     }
@@ -125,23 +123,19 @@ mod tests {
 
     #[derive(Debug, Default)]
     struct MockLogStorage {
-        pub blocks: Vec<BlockInfo>,
-        pub logs: Vec<Log>, // each block has a Vec<Log>
+        pub blocks: Mutex<Vec<BlockInfo>>,
+        pub logs: Mutex<Vec<Log>>,
     }
 
     impl LogStorageWriter for MockLogStorage {
-        fn store_block_logs(
-            &mut self,
-            block: &BlockInfo,
-            logs: Vec<Log>,
-        ) -> Result<(), StorageError> {
-            self.blocks.push(block.clone());
-            self.logs.extend(logs);
+        fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
+            self.blocks.lock().unwrap().push(*block);
+            self.logs.lock().unwrap().extend(logs);
             Ok(())
         }
     }
 
-    fn build_receipts() -> Receipts {
+    async fn build_receipts() -> Receipts {
         let mut builder = SuperchainBuilder::new();
         builder
             .chain(10)
@@ -159,45 +153,24 @@ mod tests {
         let (headers, _, mock_provider) = builder.build();
         let block = headers.get(&10).unwrap();
 
-        mock_provider.receipts_by_hash(10, block.hash())
+        mock_provider.receipts_by_hash(10, block.hash()).await.unwrap()
     }
 
     #[tokio::test]
     async fn test_process_and_store_logs_success() {
-        let receipt_provider = Arc::new(MockReceiptProvider::new(build_receipts()));
+        let receipt_provider = Arc::new(MockReceiptProvider::new(build_receipts().await));
         let log_writer = Arc::new(MockLogStorage::default());
         let log_indexer = LogIndexer::new(receipt_provider, log_writer);
 
         let block_info = BlockInfo {
             number: 1,
-            hash: b256!("0xabc"),
+            hash: B256::random(),
             timestamp: 123456789,
             ..Default::default()
         };
 
-        let result = log_indexer.process_and_store_logs( &block_info).await;
+        let result = log_indexer.process_and_store_logs(&block_info).await;
 
         assert!(result.is_ok());
     }
-
-    // #[tokio::test]
-    // async fn test_process_and_store_logs_empty_receipts() {
-    //     let receipt_provider = Arc::new(MockReceiptProvider { receipts: vec![] });
-    //     let stored_logs = Arc::new(Mutex::new(vec![]));
-    //     let state_manager = Arc::new(MockLogStorage { saved_logs: stored_logs.clone() });
-    // 
-    //     let log_indexer = LogIndexer::new(receipt_provider, state_manager);
-    // 
-    //     let block_info = BlockInfo {
-    //         number: 1,
-    //         hash: b256!("0xabc"),
-    //         timestamp: 123456789,
-    //         ..Default::default()
-    //     };
-    // 
-    //     let result = log_indexer.process_and_store_logs(420, &block_info).await;
-    // 
-    //     assert!(result.is_ok());
-    //     assert!(stored_logs.lock().unwrap().is_empty());
-    // }
 }

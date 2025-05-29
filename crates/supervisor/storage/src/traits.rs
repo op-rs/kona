@@ -62,7 +62,7 @@ pub trait DerivationStorage {
 /// find a block by a specific log, and retrieve logs for a given block number.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
-pub trait LogStorageReader: Send + Sync + Debug {
+pub trait LogStorageReader: Debug {
     /// Retrieves the latest [`BlockInfo`] from the storage.
     ///
     /// # Returns

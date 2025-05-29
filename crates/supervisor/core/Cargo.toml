@@ -14,7 +14,7 @@ exclude.workspace = true
 
 [dependencies]
 # workspace
-kona-interop = {workspace = true, features = ["test-utils"]}
+kona-interop.workspace = true
 kona-supervisor-types.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee", "client"] }
 kona-supervisor-storage.workspace = true
@@ -44,6 +44,8 @@ metrics = { workspace = true }
 [dev-dependencies]
 serde_json.workspace = true
 tempfile.workspace = true
+kona-interop = {workspace = true, features = ["std", "test-utils"]}
+
 
 [lints]
 workspace = true
