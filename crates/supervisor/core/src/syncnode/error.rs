@@ -13,5 +13,16 @@ pub enum ManagedNodeError {
 
     /// Represents an error that occurred while authenticating to the managed node.
     #[error("failed to authenticate: {0}")]
-    Authentication(String),
+    Authentication(#[from] AuthenticationError),
+}
+
+/// Error establishing authenticated connection to managed node.
+#[derive(Debug, Error)]
+pub enum AuthenticationError {
+    /// Missing valid JWT secret for authentication header.
+    #[error("jwt secret not found or invalid")]
+    InvalidJwt,
+    /// Invalid header format.
+    #[error("invalid authorization header")]
+    InvalidHeader,
 }

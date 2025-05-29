@@ -15,7 +15,7 @@ use tokio::{
 use tracing::{debug, error, info, warn};
 
 use super::ManagedNodeError;
-use crate::NodeEvent;
+use crate::{AuthenticationError, NodeEvent};
 
 /// Configuration for the managed node.
 #[derive(Debug)]
@@ -219,9 +219,7 @@ impl ManagedNode {
     fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(ManagedNodeError::Authentication(
-                "jwt secret not found or invalid".to_string(),
-            ));
+            return Err(AuthenticationError::InvalidJwt.into())
         };
 
         let mut headers = HeaderMap::new();
@@ -232,7 +230,7 @@ impl ManagedNode {
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
                 error!(target: "managed_node", %err, "Invalid authorization header");
-                ManagedNodeError::Authentication("invalid authorization header".to_string())
+                AuthenticationError::InvalidHeader
             })?,
         );
 
