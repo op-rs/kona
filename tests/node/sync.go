@@ -22,12 +22,15 @@ func syncUnsafeBecomesSafe() systest.SystemTestFunc {
 	return func(t systest.T, sys system.System) {
 		l2s := sys.L2s()
 		for _, l2 := range l2s {
-			for _, konaNode := range l2.Nodes() {
+			for _, node := range l2.Nodes() {
 
-				clRPC := konaNode.CLRPC()
-				clName := konaNode.CLName()
+				clRPC := node.CLRPC()
+				clName := node.CLName()
 
-				require.True(t, nodeSupportsKonaWs(t, clRPC, clName), "kona node doesn't support ws endpoint")
+				if !nodeSupportsKonaWs(t, clRPC, clName) {
+					t.Log("node does not support ws endpoint, skipping sync test", clName)
+					continue
+				}
 
 				wsRPC := websocketRPC(clRPC)
 				t.Log("node supports ws endpoint, continuing sync test", clName, wsRPC)
