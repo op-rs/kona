@@ -14,8 +14,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, warn};
 
-use super::ManagedNodeError;
-use crate::NodeEvent;
+use crate::{ManagedNodeError, NodeEvent, SubscriptionError};
 
 /// Configuration for the managed node.
 #[derive(Debug)]
@@ -102,7 +101,7 @@ impl ManagedNode {
         event_tx: mpsc::Sender<NodeEvent>,
     ) -> Result<(), ManagedNodeError> {
         if self.task_handle.is_some() {
-            return Err(ManagedNodeError::Subscription("subscription already active".to_string()));
+            Err(SubscriptionError::AlreadyActive)?
         }
 
         let client = self.get_ws_client().await?;
@@ -188,10 +187,10 @@ impl ManagedNode {
                     %err,
                     "Failed to send stop signal"
                 );
-                ManagedNodeError::Subscription("failed to send stop signal".to_string())
+                SubscriptionError::SendStopSignalFailed
             })?;
         } else {
-            return Err(ManagedNodeError::Subscription("no active stop channel".to_string()));
+            Err(SubscriptionError::MissingStopChannel)?;
         }
 
         // Wait for task to complete
@@ -203,13 +202,11 @@ impl ManagedNode {
                     %err,
                     "Failed to join task"
                 );
-                ManagedNodeError::Subscription("failed to join task".to_string())
+                SubscriptionError::ShutdownDaemonFailed
             })?;
             info!(target: "managed_node", "Subscription stopped and task joined");
         } else {
-            return Err(ManagedNodeError::Subscription(
-                "subscription not active or already stopped".to_string(),
-            ));
+            Err(SubscriptionError::SubscriptionNotFound)?;
         }
 
         Ok(())

@@ -7,4 +7,4 @@ mod event;
 pub use event::NodeEvent;
 
 mod error;
-pub use error::ManagedNodeError;
+pub use error::{ManagedNodeError, SubscriptionError};
