@@ -1,6 +1,6 @@
 //! Info Subcommand
 
-use crate::flags::{GlobalArgs, MetricsArgs};
+use crate::flags::GlobalArgs;
 use clap::Parser;
 use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 use tracing::info;
@@ -20,10 +20,10 @@ use tracing::info;
 pub struct InfoCommand;
 
 impl InfoCommand {
-    /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+    /// Initializes the logging system based on global arguments.
+    pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         args.init_tracing(None)?;
-        metrics.init_metrics()
+        Ok(())
     }
 
     /// Runs the information stack for the kona-node.
