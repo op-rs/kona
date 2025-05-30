@@ -18,6 +18,7 @@ build-devnet BINARY:
 # The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
 devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
   #!/bin/bash
+  mise install && mise activate
 
   export ENCLAVE=""
   if ! [ -z "{{ENCLAVE}}" ]; then
@@ -38,7 +39,7 @@ devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
   fi
 
   # Run the kurtosis test
-  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
+  mise x -- kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
 
 # Winds down kurtosis, cleaning up the network
 cleanup-kurtosis:
@@ -62,11 +63,9 @@ build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
 
     just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
 
-build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
+build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH)
     #!/bin/bash
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-
-    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
 
     just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
 
