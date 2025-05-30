@@ -144,6 +144,8 @@ impl RollupNodeBuilder {
             jwt_secret,
         };
 
+        let p2p_config = self.p2p_config.expect("p2p config not set");
+
         let runtime_launcher = RuntimeLauncher::new(
             kona_sources::RuntimeLoader::new(l1_rpc_url, config.clone()),
             self.runtime_load_interval,
@@ -157,7 +159,7 @@ impl RollupNodeBuilder {
             l2_provider,
             engine_launcher,
             rpc_launcher,
-            p2p_config: self.p2p_config,
+            p2p_config,
             network_disabled: self.network_disabled,
             runtime_launcher,
         }
