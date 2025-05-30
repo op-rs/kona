@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use kona_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
     traits::{Pipeline, SignalReceiver},
-    types::{ActivationSignal, Signal, StepResult},
+    types::{ActivationSignal, ResetSignal, Signal, StepResult},
 };
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
@@ -110,6 +110,10 @@ where
 
     /// Handles a [`Signal`] received over the derivation signal receiver channel.
     async fn signal(&mut self, signal: Signal) {
+        if let Signal::Reset(ResetSignal { l1_origin, .. }) = signal {
+            kona_macros::set!(counter, Metrics::DERIVATION_L1_ORIGIN, l1_origin.number);
+        }
+
         match self.pipeline.signal(signal).await {
             Ok(_) => info!(target: "derivation", ?signal, "[SIGNAL] Executed Successfully"),
             Err(e) => {
@@ -129,11 +133,11 @@ where
             match self.pipeline.step(l2_safe_head).await {
                 StepResult::PreparedAttributes => { /* continue; attributes will be sent off. */ }
                 StepResult::AdvancedOrigin => {
-                    debug!(
-                        target: "derivation",
-                        "Advanced L1 origin to block #{}",
-                        self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?.number,
-                    );
+                    let origin =
+                        self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?.number;
+
+                    kona_macros::set!(counter, Metrics::DERIVATION_L1_ORIGIN, origin);
+                    debug!(target: "derivation", l1_block = origin, "Advanced L1 origin");
                 }
                 StepResult::OriginAdvanceErr(e) | StepResult::StepFailed(e) => {
                     match e {

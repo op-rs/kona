@@ -1,4 +1,7 @@
-import "./tests/Justfile"
+# E2e integration tests for kona.
+import "./tests/justfile"
+# Builds docker images for kona
+import "./docker/apps/justfile"
 
 set positional-arguments
 alias t := tests
@@ -161,8 +164,8 @@ action-tests-interop test_name='TestInteropFaultProofs' *args='':
 
 # Updates the `superchain-registry` git submodule source
 source-registry:
-  @just --justfile ./crates/protocol/registry/Justfile source
+  @just --justfile ./crates/protocol/registry/justfile source
 
 # Generate file bindings for super-registry
 bind-registry:
-  @just --justfile ./crates/protocol/registry/Justfile bind
+  @just --justfile ./crates/protocol/registry/justfile bind

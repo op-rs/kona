@@ -9,6 +9,7 @@ build-devnet BINARY:
         exit 1
     fi
 
+    export BUILD_PROFILE="release"
     cd {{SOURCE}}/../docker/apps && just build-local "kona-{{BINARY}}" "kona-{{BINARY}}:local"
 
 # Spins up kurtosis with the `kona-node` docker image

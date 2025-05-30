@@ -6,15 +6,15 @@ optimism_package:
         cl_log_level: debug
       - el_type: op-reth
         cl_type: op-node
-        el_image: "ghcr.io/paradigmxyz/op-reth:kurtosis-ci"
         cl_log_level: debug
       network_params:
         interop_time_offset: 0
   superchains: 
-    superchain-a: # empty config creates default including all L2 networks
+    superchain: # empty config creates default including all L2 networks
+      enabled: true
   supervisors:
-    supervisor-a: # default op-supervisor
-      superchain: superchain-a
+    supervisor: # default op-supervisor
+      superchain: superchain
     # uncomment when closed <https://github.com/ethpandaops/optimism-package/issues/281> 
     #supervisor-b: 
       #superchain: superchain-a
@@ -22,7 +22,7 @@ optimism_package:
       #extra_params: ["-vvvv"]
 ethereum_package:
   participants:
-    - el_type: reth
+    - el_type: geth
       cl_type: teku
   network_params:
     preset: minimal
