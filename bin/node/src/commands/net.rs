@@ -35,8 +35,8 @@ pub struct NetCommand {
 }
 
 impl NetCommand {
-    /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+    /// Initializes the logging system based on global arguments.
+    pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?)
@@ -44,7 +44,7 @@ impl NetCommand {
 
         // Initialize the telemetry stack.
         args.init_tracing(Some(filter))?;
-        metrics.init_metrics()
+        Ok(())
     }
 
     /// Run the Net subcommand.
