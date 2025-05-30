@@ -176,8 +176,11 @@ pub trait ValidatorNodeService {
         launcher = launcher.merge(p2p_module.map(|r| r.into_rpc())).map_err(Self::Error::from)?;
         let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
         launcher = launcher.merge(Some(rollup_rpc.into_rpc())).map_err(Self::Error::from)?;
-        let subscriptions_rpc = WsRPC::new(engine_query_sender);
-        launcher = launcher.merge(Some(subscriptions_rpc.into_rpc())).map_err(Self::Error::from)?;
+        if self.config().ws_enabled {
+            let subscriptions_rpc = WsRPC::new(engine_query_sender);
+            launcher =
+                launcher.merge(Some(subscriptions_rpc.into_rpc())).map_err(Self::Error::from)?;
+        }
 
         let handle = launcher.launch().await?;
         let rpc = handle.map(|h| RpcActor::new(h, cancellation.clone()));
