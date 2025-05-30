@@ -3,7 +3,7 @@
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
@@ -72,6 +72,9 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
+    /// WebSockets CLI arguments.
+    #[arg(long, help = "Enables WebSockets",action = ArgAction::SetTrue)]
+    pub ws_enabled: bool,
 }
 
 impl Default for NodeCommand {
@@ -88,6 +91,7 @@ impl Default for NodeCommand {
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
             l2_engine_kind: EngineKind::Geth,
+            ws_enabled: false,
         }
     }
 }
