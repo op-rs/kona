@@ -64,6 +64,7 @@ build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
 build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH)
     #!/bin/bash
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
 
     just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
 
