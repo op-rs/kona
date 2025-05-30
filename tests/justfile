@@ -18,8 +18,6 @@ build-devnet BINARY:
 # The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
 devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
   #!/bin/bash
-  mise install && mise activate
-
   export ENCLAVE=""
   if ! [ -z "{{ENCLAVE}}" ]; then
     export ENCLAVE="--enclave {{ENCLAVE}}"
@@ -39,7 +37,7 @@ devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
   fi
 
   # Run the kurtosis test
-  mise x -- kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
+  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
 
 # Winds down kurtosis, cleaning up the network
 cleanup-kurtosis:

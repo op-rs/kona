@@ -1,3 +1,6 @@
 [tools]
 
 kurtosis = "1.8.1"
+
+[alias]
+kurtosis = "ubi:kurtosis-tech/kurtosis-cli-release-artifacts[exe=kurtosis]"
