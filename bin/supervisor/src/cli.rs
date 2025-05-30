@@ -28,7 +28,8 @@ pub struct Cli {
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
-        self.init_telemetry(&self.global, &self.metrics)?;
+        self.metrics.init_metrics()?;
+        self.init_logs(&self.global)?;
 
         Self::run_until_ctrl_c(async move {
             let dependency_set = self.supervisor.init_dependency_set().await?;
@@ -65,11 +66,11 @@ impl Cli {
     }
 
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+    pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env();
 
         args.init_tracing(Some(filter))?;
-        metrics.init_metrics()
+        Ok(())
     }
 }
