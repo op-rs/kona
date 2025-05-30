@@ -3,7 +3,6 @@
 use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
 use futures::future::OptionFuture;
-use kona_cli::metrics_args::MetricsArgs;
 use kona_p2p::{NetworkBuilder, P2pRpcRequest};
 use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcConfig};
 use tracing::{debug, info, warn};

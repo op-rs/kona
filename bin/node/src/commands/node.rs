@@ -5,7 +5,6 @@ use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use kona_cli::metrics_args::MetricsArgs;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
