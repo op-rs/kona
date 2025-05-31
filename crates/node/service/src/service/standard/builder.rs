@@ -156,7 +156,7 @@ impl RollupNodeBuilder {
             l2_provider,
             engine_launcher,
             rpc_launcher,
-            p2p_config,
+            p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,
             runtime_launcher,
         }
