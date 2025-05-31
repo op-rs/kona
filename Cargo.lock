@@ -5044,6 +5044,7 @@ dependencies = [
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-rpc",
+ "kona-supervisor-storage",
  "kona-supervisor-types",
  "metrics",
  "op-alloy-rpc-types",
@@ -5121,7 +5122,9 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips 1.0.1",
  "alloy-primitives",
+ "async-trait",
  "derive_more",
+ "jsonrpsee",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus 0.17.1",

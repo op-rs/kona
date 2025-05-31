@@ -4,7 +4,12 @@
 //! Optimism supervisor.
 mod log;
 pub use log::Log;
+
 mod message;
 pub use message::ExecutingMessage;
+
+mod receipt;
+pub use receipt::{ReceiptProvider, Receipts};
+
 mod types;
-pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
+pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0};

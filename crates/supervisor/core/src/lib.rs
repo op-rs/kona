@@ -4,7 +4,10 @@
 mod supervisor;
 pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
+mod logindexer;
+pub use logindexer::{LogIndexer, LogIndexerError};
 mod rpc;
+
 pub use rpc::SupervisorRpc;
 
 mod syncnode;
