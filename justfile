@@ -21,7 +21,7 @@ tests: test test-docs
 
 # Test for the native target with all features. By default, excludes online tests.
 test *args="-E '!test(test_online)'":
-  cargo nextest run --workspace --all-features {{args}}
+  cargo nextest run --workspace --all-targets --all-features {{args}}
 
 # Run all online tests
 test-online:
@@ -39,7 +39,7 @@ benches:
   cargo bench --no-run --workspace --features test-utils --exclude example-gossip --exclude example-discovery
 
 # Lint the workspace for all available targets
-lint-all: lint-native lint-cannon lint-asterisc lint-docs
+lint-all: lint-native lint-cannon-client lint-asterisc-client lint-docs
 
 # Runs `cargo hack check` against the workspace
 hack:
@@ -58,7 +58,7 @@ lint-native: fmt-native-check lint-docs
   cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 # Lint the workspace (mips arch). Currently, only the `kona-std-fpvm` crate is linted for the `cannon` target, as it is the only crate with architecture-specific code.
-lint-cannon:
+lint-cannon-client:
   docker run \
     --rm \
     -v `pwd`/:/workdir \
@@ -66,7 +66,7 @@ lint-cannon:
     ghcr.io/op-rs/kona/cannon-builder:0.1.0 cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
 
 # Lint the workspace (risc-v arch). Currently, only the `kona-std-fpvm` crate is linted for the `asterisc` target, as it is the only crate with architecture-specific code.
-lint-asterisc:
+lint-asterisc-client:
   docker run \
     --rm \
     -v `pwd`/:/workdir \

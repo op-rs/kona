@@ -11,8 +11,8 @@ inputs:
     description: The Rust channel release to use
     required: false
     default: "stable"
-  prefix-key:
-    description: The prefix key for the rust cache
+  shared-key:
+    description: The shared key for the rust cache
     required: false
     default: ""
 
@@ -21,6 +21,9 @@ runs:
   steps:
     - name: Install Just
       uses: taiki-e/install-action@just
+
+    - name: Install mold
+      uses: rui314/setup-mold@v1
 
     - name: Installs stable rust toolchain
       if: ${{ inputs.channel == 'stable' && inputs.components == '' }}
@@ -33,9 +36,7 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: 1.85
-        components: $COMPONENTS
-      env:
-        COMPONENTS: ${{ inputs.components }}
+        components: ${{ inputs.components }}
 
     - name: Installs nightly rust toolchain
       if: ${{ inputs.channel == 'nightly' && inputs.components == '' }}
@@ -45,14 +46,10 @@ runs:
       if: ${{ inputs.channel == 'nightly' && inputs.components != '' }}
       uses: dtolnay/rust-toolchain@nightly
       with:
-        components: $COMPONENTS
-      env:
-        COMPONENTS: ${{ inputs.components }}
+        components: ${{ inputs.components }}
 
     - name: Installs the rust cache
       uses: Swatinem/rust-cache@v2
       with:
         cache-on-failure: true
-        prefix-key: $PREFIX_KEY
-      env:
-        PREFIX_KEY: ${{ inputs.prefix-key }}
+        shared-key: ${{ inputs.shared-key }}

@@ -10,10 +10,11 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  cargo-tests:
+  # Stage 1.A (stable): Core build and cache warming
+  build-workspace-stable:
+    name: build-workspace-stable
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: test
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -21,95 +22,48 @@ jobs:
           submodules: true
       - uses: ./.github/actions/setup
         with:
-          components: rustfmt
-      - uses: taiki-e/install-action@nextest
-      - name: cargo test
-        run: just test
-
-  cargo-lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    strategy:
-      matrix:
-        target: ["native", "cannon", "asterisc"]
-    name: lint-${{ matrix.target }}
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/setup
-        with:
+          shared-key: native-build-stable
           channel: stable
-          components: clippy
-          prefix-key: ${{ matrix.target }}
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt
-      - name: Log into ghcr
-        if: ${{ matrix.target != 'native' }}
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: fmt + lint
-        run: just lint-${{ matrix.target }}
-      - name: chown target
+      - name: Build workspace
         run: |
-          sudo chown -R $(id -u):$(id -g) ./target
+          just build-native --all-targets --all-features
 
-  cargo-build:
+  # Stage 1.B (mips64r1 + riscv64ima): Build proof programs
+  build-proof-programs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       matrix:
-        target: ["native", "cannon-client", "asterisc-client"]
+        target: ["cannon-client", "asterisc-client"]
     name: build-${{ matrix.target }}
-    continue-on-error: true
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: ./.github/actions/setup
+      - uses: Swatinem/rust-cache@v2
         with:
-          channel: nightly
-          prefix-key: ${{ matrix.target }}
+          cache-on-failure: true
+          shared-key: proof-program-build-${{ matrix.target }}
       - name: Log into ghcr
-        if: ${{ matrix.target != 'native' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: taiki-e/install-action@just
       - name: build
         run: just build-${{ matrix.target }}
       - name: chown target
         run: |
           sudo chown -R $(id -u):$(id -g) ./target
 
-  cargo-build-benches:
+  # Stage 2.A (stable): Tests
+  cargo-tests:
+    name: test
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: build-benchmarks
-    continue-on-error: true
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/setup
-      - name: build benches
-        run: just benches
-      - name: chown target
-        run: |
-          sudo chown -R $(id -u):$(id -g) ./target
-
-  cargo-udeps:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    name: check-udeps
+    needs: build-workspace-stable
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -117,71 +71,18 @@ jobs:
           submodules: true
       - uses: ./.github/actions/setup
         with:
-          channel: nightly
+          components: rustfmt
+          shared-key: native-build-stable
       - uses: taiki-e/install-action@nextest
-      - uses: taiki-e/install-action@cargo-udeps
-      - name: cargo udeps
-        run: just check-udeps
+      - name: cargo test
+        run: just test
 
-  cargo-doc-lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/setup
-      - name: doclint
-        run: just lint-docs
-
-  cargo-doc-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/setup
-      - name: doctest
-        run: just test-docs
-
-  cargo-hack:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/setup
-      - name: Install clang
-        run: sudo apt install clang libclang-dev
-      - uses: taiki-e/install-action@cargo-hack
-      - name: cargo hack
-        run: just hack
-
-  check-no-std:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          target: riscv32imac-unknown-none-elf
-      - uses: taiki-e/install-action@cargo-hack
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-      - name: check
-        run: ./.github/scripts/check_no_std.sh
-
-  coverage:
-    runs-on: ubuntu-latest
+  # Stage 2.B (stable): LLVM cov tests
+  cargo-llvm-cov-tests:
     name: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: build-workspace-stable
     steps:
       - uses: actions/checkout@v4
         with:
@@ -193,11 +94,12 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-      - uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: taiki-e/install-action@nextest
+          shared-key: native-build-stable
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@nextest
       - name: cargo llvm-cov
         run: |
            just llvm-cov-tests && mv ./target/nextest/ci/junit.xml ./junit.xml
@@ -216,6 +118,150 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  # Stage 2.C (stable): Lints
+  cargo-lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: build-workspace-stable
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+        with:
+          components: clippy
+          shared-key: native-build-stable
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: fmt + lint
+        run: just lint-native
+
+  # Stage 2.D (stable): Lint and test docs
+  cargo-doc:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: build-workspace-stable
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+        with:
+          shared-key: native-build-stable
+      - name: doctest
+        run: just test-docs
+      - name: doclint
+        run: just lint-docs
+
+  # Stage 2.E (proof programs): Lints
+  cargo-lint-proof-programs:
+    name: lint-${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        target: ["cannon-client", "asterisc-client"]
+    needs: build-proof-programs
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+        with:
+          components: clippy
+          shared-key: proof-program-build-${{ matrix.target }}
+      - name: Log into ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: fmt + lint
+        run: just lint-${{ matrix.target }}
+      - name: chown target
+        run: |
+          sudo chown -R $(id -u):$(id -g) ./target
+
+  # Independent: Build workspace's benchmarks
+  # Since this job uses the `bench` build profile, it maintains its own cache.
+  cargo-build-benches:
+    name: build-benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+      - name: build benches
+        run: just benches
+      - name: chown target
+        run: |
+          sudo chown -R $(id -u):$(id -g) ./target
+
+  # Independent: Check for unused dependencies
+  # Since this job uses the nightly toolchain, it maintains its own cache.
+  cargo-udeps:
+    name: check-udeps
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+        with:
+          channel: nightly
+      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@cargo-udeps
+      - name: cargo udeps
+        run: just check-udeps
+
+  # Independent: Check feature superset of workspace's crates
+  # Since this job compiles many different feature permutations of crates, it maintains its own cache.
+  cargo-hack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup
+      - name: Install clang
+        run: sudo apt install clang libclang-dev
+      - uses: taiki-e/install-action@cargo-hack
+      - name: cargo hack
+        run: just hack
+
+  # Independent: Check `no_std` compatibility of certain crates
+  # Since this job operates on a unique bare-metal target (rv32imac), it maintains its own cache.
+  check-no-std:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          target: riscv32imac-unknown-none-elf
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: check
+        run: ./.github/scripts/check_no_std.sh
+
+  # Independent: `cargo-deny` Dependency checks (no build needed)
   deny:
     runs-on: ubuntu-latest
     steps:
