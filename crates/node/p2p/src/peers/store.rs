@@ -79,12 +79,12 @@ impl BootStore {
     }
 
     /// Returns the number of peers in the in-memory store.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.peers.len()
     }
 
     /// Returns if the in-memory store is empty.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.peers.is_empty()
     }
 

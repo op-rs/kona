@@ -21,7 +21,7 @@ impl BatchTransaction {
     }
 
     /// Returns if the transaction has reached the max frame count.
-    pub fn is_full(&self, max_frames: u16) -> bool {
+    pub const fn is_full(&self, max_frames: u16) -> bool {
         self.frames.len() as u16 >= max_frames
     }
 

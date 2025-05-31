@@ -17,7 +17,7 @@ pub struct OperatorFeeUpdate {
 
 impl OperatorFeeUpdate {
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         config.operator_fee_scalar = Some(self.operator_fee_scalar);
         config.operator_fee_constant = Some(self.operator_fee_constant);
     }

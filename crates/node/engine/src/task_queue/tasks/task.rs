@@ -12,6 +12,7 @@ use thiserror::Error;
 ///
 /// [`Engine`]: crate::Engine
 #[derive(Debug, Clone)]
+#[expect(clippy::large_enum_variant)]
 pub enum EngineTask {
     /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
     /// and no payload attributes.

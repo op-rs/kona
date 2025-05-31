@@ -170,6 +170,7 @@ where
 
 /// Transitions the [PreState] with the given [OptimisticBlock] and checks if the resulting state
 /// commitment matches the expected commitment.
+#[expect(clippy::result_large_err)]
 fn transition_and_check(
     pre_state: PreState,
     optimistic_block: Option<OptimisticBlock>,

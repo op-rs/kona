@@ -7,7 +7,9 @@ use crate::{
     types::PipelineResult,
 };
 use alloc::{boxed::Box, string::ToString, vec::Vec};
-use alloy_consensus::{Transaction, TxEip4844Variant, TxEnvelope, TxType};
+use alloy_consensus::{
+    Transaction, TxEip4844Variant, TxEnvelope, TxType, transaction::SignerRecoverable,
+};
 use alloy_eips::eip4844::IndexedBlobHash;
 use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
@@ -157,6 +159,7 @@ where
     }
 
     /// Extracts the next data from the source.
+    #[expect(clippy::result_large_err)]
     fn next_data(&mut self) -> Result<BlobData, PipelineResult<Bytes>> {
         if self.data.is_empty() {
             return Err(Err(PipelineError::Eof.temp()));

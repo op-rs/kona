@@ -53,7 +53,7 @@ impl Network {
     }
 
     /// Take the unsafe block signer sender.
-    pub fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
+    pub const fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
         self.unsafe_block_signer_sender.take()
     }
 

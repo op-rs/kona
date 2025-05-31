@@ -33,12 +33,12 @@ impl ChainList {
     }
 
     /// Returns the number of chains.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.chains.len()
     }
 
     /// Returns true if the list is empty.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.chains.is_empty()
     }
 }

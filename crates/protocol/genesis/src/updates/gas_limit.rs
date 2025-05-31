@@ -15,7 +15,7 @@ pub struct GasLimitUpdate {
 
 impl GasLimitUpdate {
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         config.gas_limit = self.gas_limit;
     }
 }

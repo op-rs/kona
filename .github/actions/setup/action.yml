@@ -26,13 +26,13 @@ runs:
       if: ${{ inputs.channel == 'stable' && inputs.components == '' }}
       uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: 1.85
+        toolchain: 1.87
 
     - name: Installs stable rust toolchain
       if: ${{ inputs.channel == 'stable' && inputs.components != '' }}
       uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: 1.85
+        toolchain: 1.87
         components: $COMPONENTS
       env:
         COMPONENTS: ${{ inputs.components }}
