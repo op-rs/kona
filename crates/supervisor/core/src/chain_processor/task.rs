@@ -5,7 +5,10 @@ use kona_supervisor_types::BlockReplacement;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-pub(super) struct ChainProcessorTask {
+/// Represents a task that processes chain events from a managed node.
+/// It listens for events emitted by the managed node and handles them accordingly.
+#[derive(Debug)]
+pub struct ChainProcessorTask {
     cancel_token: CancellationToken,
 
     /// The channel for receiving node events.
@@ -14,14 +17,13 @@ pub(super) struct ChainProcessorTask {
 
 impl ChainProcessorTask {
     /// Creates a new [`ChainProcessorTask`].
-    pub(super) const fn new(
-        cancel_token: CancellationToken,
-        event_rx: mpsc::Receiver<NodeEvent>,
-    ) -> Self {
+    pub const fn new(cancel_token: CancellationToken, event_rx: mpsc::Receiver<NodeEvent>) -> Self {
         Self { cancel_token, event_rx }
     }
 
-    pub(super) async fn run(mut self) {
+    /// Runs the chain processor task, which listens for events and processes them.
+    /// This method will run indefinitely until the cancellation token is triggered.
+    pub async fn run(mut self) {
         loop {
             tokio::select! {
                 maybe_event = self.event_rx.recv() => {
