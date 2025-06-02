@@ -3,10 +3,9 @@ use jsonrpsee::core::ClientError;
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{LogStorageWriter, StorageError};
+use kona_supervisor_types::{ExecutingMessage, Log, ReceiptProvider};
 use std::sync::Arc;
 use thiserror::Error;
-
-use kona_supervisor_types::{ExecutingMessage, Log, ReceiptProvider};
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
@@ -100,6 +99,7 @@ mod tests {
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
     use kona_supervisor_types::{Log, Receipts};
+    use op_alloy_consensus::{OpReceiptEnvelope, OpTxType};
     use std::{
         fmt::Debug,
         sync::{Arc, Mutex},
@@ -107,19 +107,27 @@ mod tests {
 
     #[derive(Debug)]
     struct MockReceiptProvider {
-        pub receipts: Receipts,
+        receipts: Receipts,
+        should_error: bool,
     }
 
     impl MockReceiptProvider {
         const fn new(receipts: Receipts) -> Self {
-            Self { receipts }
+            Self { receipts, should_error: false }
+        }
+        const fn new_with_error() -> Self {
+            Self { receipts: vec![], should_error: true }
         }
     }
 
     #[async_trait]
     impl ReceiptProvider for MockReceiptProvider {
         async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ClientError> {
-            Ok(self.receipts.clone())
+            if self.should_error {
+                Err(ClientError::Custom("failed to fetch receipts".into()))
+            } else {
+                Ok(self.receipts.clone())
+            }
         }
     }
 
@@ -162,7 +170,7 @@ mod tests {
     async fn test_process_and_store_logs_success() {
         let receipt_provider = Arc::new(MockReceiptProvider::new(build_receipts().await));
         let log_writer = Arc::new(MockLogStorage::default());
-        let log_indexer = LogIndexer::new(receipt_provider, log_writer);
+        let log_indexer = LogIndexer::new(receipt_provider, log_writer.clone());
 
         let block_info = BlockInfo {
             number: 1,
@@ -174,5 +182,73 @@ mod tests {
         let result = log_indexer.process_and_store_logs(&block_info).await;
 
         assert!(result.is_ok());
+        let blocks = log_writer.blocks.lock().unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0], block_info);
+
+        // Check logs match known injected values
+        let logs = log_writer.logs.lock().unwrap();
+        assert_eq!(logs.len(), 2);
+        assert_eq!(logs[0].index, 0);
+        assert_eq!(logs[0].executing_message, None);
+
+        assert_eq!(logs[1].index, 1);
+        assert_eq!(
+            logs[1].executing_message,
+            Some(ExecutingMessage {
+                chain_id: 10,
+                block_number: 1,
+                log_index: 0,
+                timestamp: 123456,
+                hash: payload_hash_to_log_hash(B256::repeat_byte(0xaa), Address::ZERO),
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn test_process_and_store_logs_with_empty_logs() {
+        let empty_log_receipt =
+            OpReceiptEnvelope::from_parts(true, 21000, vec![], OpTxType::Eip1559, None, None);
+
+        let receipts = vec![empty_log_receipt];
+
+        let receipt_provider = Arc::new(MockReceiptProvider::new(receipts.clone()));
+        let log_writer = Arc::new(MockLogStorage::default());
+        let log_indexer = LogIndexer::new(receipt_provider.clone(), log_writer.clone());
+
+        let block_info = BlockInfo {
+            number: 2,
+            hash: B256::random(),
+            timestamp: 111111111,
+            ..Default::default()
+        };
+
+        let result = log_indexer.process_and_store_logs(&block_info).await;
+
+        assert!(result.is_ok());
+
+        let blocks = log_writer.blocks.lock().unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0], block_info);
+
+        let logs = log_writer.logs.lock().unwrap();
+        assert!(logs.is_empty(), "Expected no logs to be stored");
+    }
+
+    #[tokio::test]
+    async fn test_process_and_store_logs_receipt_fetch_fails() {
+        let receipt_provider = Arc::new(MockReceiptProvider::new_with_error());
+        let log_writer = Arc::new(MockLogStorage::default());
+        let log_indexer = LogIndexer::new(receipt_provider, log_writer.clone());
+
+        let block_info =
+            BlockInfo { number: 3, hash: B256::random(), timestamp: 123456, ..Default::default() };
+
+        let result = log_indexer.process_and_store_logs(&block_info).await;
+        assert!(result.is_err());
+
+        // Ensure no data was written to storage
+        assert!(log_writer.blocks.lock().unwrap().is_empty());
+        assert!(log_writer.logs.lock().unwrap().is_empty());
     }
 }

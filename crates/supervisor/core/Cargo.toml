@@ -46,6 +46,10 @@ serde_json.workspace = true
 tempfile.workspace = true
 kona-interop = {workspace = true, features = ["std", "test-utils"]}
 
+# op-alloy
+op-alloy-consensus.workspace = true
+
+
 
 [lints]
 workspace = true
