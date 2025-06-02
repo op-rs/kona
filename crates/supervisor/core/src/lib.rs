@@ -13,8 +13,6 @@ mod rpc;
 
 pub use rpc::SupervisorRpc;
 
-mod syncnode;
-pub use syncnode::{
-    AuthenticationError, ManagedNode, ManagedNodeConfig, ManagedNodeError, NodeEvent,
-    SubscriptionError,
-};
+pub mod syncnode;
+
+pub mod chain_processor;
