@@ -1,5 +1,6 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use alloy_primitives::ChainId;
 use alloy_rpc_types_engine::JwtSecret;
 use jsonrpsee::{
     core::client::Subscription,
@@ -7,15 +8,15 @@ use jsonrpsee::{
 };
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_types::ManagedEvent;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::{
-    sync::{Mutex, mpsc, watch},
+    sync::{Mutex, mpsc},
     task::JoinHandle,
 };
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
-use super::ManagedNodeError;
-use crate::NodeEvent;
+use super::{ManagedNodeError, NodeEvent};
 
 /// TODO: Introduce ManagedNodeError type and redo error handling
 /// Configuration for the managed node.
@@ -61,18 +62,26 @@ impl ManagedNodeConfig {
 pub struct ManagedNode {
     /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
+    /// Chain ID of the managed node
+    chain_id: OnceLock<ChainId>,
     /// The attached web socket client
     ws_client: Mutex<Option<Arc<WsClient>>>,
-    /// Channel for signaling the subscription task to stop
-    stop_tx: Option<watch::Sender<bool>>,
+    // Cancellation token to stop the processor
+    cancel_token: CancellationToken,
     /// Handle to the async subscription task
     task_handle: Option<JoinHandle<()>>,
 }
 
 impl ManagedNode {
     /// Creates a new [`ManagedNode`] with the specified configuration.
-    pub fn new(config: Arc<ManagedNodeConfig>) -> Self {
-        Self { config, ws_client: Mutex::new(None), stop_tx: None, task_handle: None }
+    pub fn new(config: Arc<ManagedNodeConfig>, cancel_token: CancellationToken) -> Self {
+        Self {
+            config,
+            chain_id: OnceLock::new(),
+            ws_client: Mutex::new(None),
+            cancel_token,
+            task_handle: None,
+        }
     }
 
     /// Returns a reference to the WebSocket client, creating it if it doesn't exist.
@@ -92,6 +101,24 @@ impl ManagedNode {
             *ws_client_guard = Some(Arc::new(client));
         }
         Ok(ws_client_guard.clone().unwrap())
+    }
+
+    /// Returns the [`ChainId`] of the [`ManagedNode`].
+    /// If the chain ID is already cached, it returns that.
+    /// If not, it fetches the chain ID from the managed node.
+    pub async fn chain_id(&self) -> Result<ChainId, ManagedNodeError> {
+        if let Some(chain_id) = self.chain_id.get() {
+            return Ok(*chain_id);
+        }
+
+        // Fetch chain ID from the managed node
+        let client = self.get_ws_client().await?;
+        let chain_id = client.chain_id().await.inspect_err(|err| {
+            error!(target: "managed_node", %err, "Failed to get chain ID");
+        })?;
+
+        let _ = self.chain_id.set(chain_id);
+        Ok(chain_id)
     }
 
     /// Starts a subscription to the managed node.
@@ -117,9 +144,7 @@ impl ManagedNode {
                 );
             })?;
 
-        // Create stop channel for graceful shutdown
-        let (stop_tx, mut stop_rx) = watch::channel(false);
-        self.stop_tx = Some(stop_tx);
+        let cancel_token = self.cancel_token.clone();
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
@@ -127,12 +152,11 @@ impl ManagedNode {
             loop {
                 tokio::select! {
                     // Listen for stop signal
-                    _ = stop_rx.changed() => {
-                        if *stop_rx.borrow() {
-                            info!(target: "managed_node", "Stop signal received, shutting down subscription");
-                            break;
-                        }
+                    _ = cancel_token.cancelled() => {
+                        info!(target: "managed_node", "Cancellation token triggered, shutting down subscription");
+                        break;
                     }
+
                     // Listen for events from subscription
                     event = subscription.next() => {
                         match event {
@@ -173,46 +197,8 @@ impl ManagedNode {
         });
 
         self.task_handle = Some(handle);
+
         info!(target: "managed_node", "Subscription started successfully");
-        Ok(())
-    }
-
-    /// Stops the subscription to the managed node.
-    ///
-    /// Sends a stop signal to the background task and waits for it to complete.
-    pub async fn stop_subscription(&mut self) -> Result<(), ManagedNodeError> {
-        if let Some(stop_tx) = self.stop_tx.take() {
-            debug!(target: "managed_node", action = "send_stop_signal", "Sending stop signal to subscription task");
-            stop_tx.send(true).map_err(|err| {
-                error!(
-                    target: "managed_node",
-                    %err,
-                    "Failed to send stop signal"
-                );
-                ManagedNodeError::Subscription("failed to send stop signal".to_string())
-            })?;
-        } else {
-            return Err(ManagedNodeError::Subscription("no active stop channel".to_string()));
-        }
-
-        // Wait for task to complete
-        if let Some(handle) = self.task_handle.take() {
-            debug!(target: "managed_node", "Waiting for subscription task to complete");
-            handle.await.map_err(|err| {
-                error!(
-                    target: "managed_node",
-                    %err,
-                    "Failed to join task"
-                );
-                ManagedNodeError::Subscription("failed to join task".to_string())
-            })?;
-            info!(target: "managed_node", "Subscription stopped and task joined");
-        } else {
-            return Err(ManagedNodeError::Subscription(
-                "subscription not active or already stopped".to_string(),
-            ));
-        }
-
         Ok(())
     }
 
@@ -550,11 +536,10 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut subscriber = ManagedNode::new(config);
+        let mut subscriber = ManagedNode::new(config, CancellationToken::new());
 
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.is_none());
-        assert!(subscriber.stop_tx.is_none());
 
         // Create a channel for events
         let (event_tx, _event_rx) = tokio::sync::mpsc::channel(100);
@@ -681,7 +666,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let managed_node = ManagedNode::new(config);
+        let managed_node = ManagedNode::new(config, CancellationToken::new());
 
         // Test WebSocket client creation - should fail with invalid server
         let client_result = managed_node.get_ws_client().await;
@@ -696,7 +681,7 @@ mod tests {
             jwt_path: "/nonexistent/jwt.hex".to_string(),
         });
 
-        let managed_node_no_jwt = ManagedNode::new(config_no_jwt);
+        let managed_node_no_jwt = ManagedNode::new(config_no_jwt, CancellationToken::new());
         let client_no_jwt_result = managed_node_no_jwt.get_ws_client().await;
         assert!(client_no_jwt_result.is_err(), "Should fail with missing JWT file");
     }
@@ -713,7 +698,7 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let managed_node = Arc::new(ManagedNode::new(config));
+        let managed_node = Arc::new(ManagedNode::new(config, CancellationToken::new()));
 
         // Test that the ManagedNode can be shared across threads (Send + Sync)
         let node1 = managed_node.clone();

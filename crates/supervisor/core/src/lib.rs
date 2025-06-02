@@ -7,8 +7,8 @@ pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 mod rpc;
 pub use rpc::SupervisorRpc;
 
-mod syncnode;
-pub use syncnode::{ManagedNode, ManagedNodeConfig, ManagedNodeError, NodeEvent};
+/// Contains the managed node logic, which handles interactions with the op-node.
+pub mod syncnode;
 
-mod chain_processor;
-pub use chain_processor::ChainProcessor;
+/// Contains the chain processor logic, which handles events processing from the managed node.
+pub mod chain_processor;
