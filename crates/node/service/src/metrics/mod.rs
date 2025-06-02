@@ -11,7 +11,7 @@ impl Metrics {
     /// Identifier for the counter that tracks the L1 origin of the derivation pipeline.
     pub const DERIVATION_L1_ORIGIN: &str = "kona_node_derivation_l1_origin";
 
-    /// Identifer for the counter of critical derivation errors (strictly for alerting.)
+    /// Identifier for the counter of critical derivation errors (strictly for alerting.)
     pub const DERIVATION_CRITICAL_ERROR: &str = "kona_node_derivation_critical_errors";
 
     /// Initializes metrics for the node service.
