@@ -30,10 +30,9 @@ impl OpAttributesWithParent {
         Self { inner, parent, l1_origin, is_last_in_span }
     }
 
-    /// Returns the block number of these attributes.
-    ///
-    /// This is the parent block number + 1.
-    pub fn block_number(&self) -> u64 {
+    /// Returns the L2 block number for the payload attributes if made canonical.
+    /// Derived as the parent block height plus one.
+    pub const fn block_number(&self) -> u64 {
         self.parent.block_info.number.saturating_add(1)
     }
 
