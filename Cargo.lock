@@ -5128,7 +5128,6 @@ dependencies = [
  "alloy-primitives",
  "async-trait",
  "derive_more",
- "jsonrpsee",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus 0.17.1",
