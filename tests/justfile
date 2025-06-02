@@ -52,6 +52,8 @@ test-e2e DEVNET GO_PKG_NAME="":
     fi
 
     export DEVNET_ENV_URL={{DEVNET}}
+    export DEVSTACK_ORCHESTRATOR="sysext"
+    export DISABLE_OP_E2E_LEGACY="true"
 
     cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
 
@@ -69,7 +71,7 @@ build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-deploy-devnet
 
 # Updates the devnet with the latest local changes. This is useful to
 # rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
-update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
+update-node-devnet DEVNET: (build-devnet "node")
     #!/bin/bash
 
     # Ensure there is a kurtosis enclave running with the name {{DEVNET}}
@@ -85,3 +87,9 @@ update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
     for service in $SERVICES; do
         kurtosis service update {{DEVNET}} $service --image kona-node:local
     done
+
+relaunch-tests DEVNET GO_PKG_NAME="": (update-node-devnet DEVNET)
+    #!/bin/bash
+    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+
+    just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{GO_PKG_NAME}}"
