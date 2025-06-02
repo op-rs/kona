@@ -42,8 +42,8 @@ impl L2Finalizer {
     pub fn enqueue_for_finalization(&mut self, attributes: &OpAttributesWithParent) {
         self.awaiting_finalization
             .entry(attributes.l1_origin.number)
-            .and_modify(|n| *n = (*n).max(attributes.parent.block_info.number + 1))
-            .or_insert(attributes.parent.block_info.number + 1);
+            .and_modify(|n| *n = (*n).max(attributes.block_number()))
+            .or_insert(attributes.block_number());
     }
 
     /// Clears the finalization queue.

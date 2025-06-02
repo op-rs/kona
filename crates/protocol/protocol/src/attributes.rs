@@ -30,6 +30,13 @@ impl OpAttributesWithParent {
         Self { inner, parent, l1_origin, is_last_in_span }
     }
 
+    /// Returns the block number of these attributes.
+    ///
+    /// This is the parent block number + 1.
+    pub fn block_number(&self) -> u64 {
+        self.parent.block_info.number + 1
+    }
+
     /// Consumes `self` and returns the inner [`OpPayloadAttributes`].
     pub fn take_inner(self) -> OpPayloadAttributes {
         self.inner
