@@ -21,6 +21,7 @@ kona-genesis = { workspace = true, features = ["serde"] }
 # Alloy
 alloy-primitives = { workspace = true, features = ["map"] }
 alloy-chains = { workspace = true, features = ["serde"] }
+alloy-op-hardforks = { workspace = true }
 
 # `serde`
 serde = { workspace = true, features = ["derive", "alloc"] }

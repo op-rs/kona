@@ -1,6 +1,10 @@
 //! OP Sepolia Rollup Config.
 
 use alloy_eips::BlockNumHash;
+use alloy_op_hardforks::{
+    OP_SEPOLIA_CANYON_TIMESTAMP, OP_SEPOLIA_ECOTONE_TIMESTAMP, OP_SEPOLIA_FJORD_TIMESTAMP,
+    OP_SEPOLIA_GRANITE_TIMESTAMP, OP_SEPOLIA_HOLOCENE_TIMESTAMP, OP_SEPOLIA_ISTHMUS_TIMESTAMP,
+};
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
     ChainGenesis, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW, HardForkConfig,
@@ -43,14 +47,14 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
     alt_da_config: None,
     hardforks: HardForkConfig {
         regolith_time: None,
-        canyon_time: Some(1699981200),
+        canyon_time: Some(OP_SEPOLIA_CANYON_TIMESTAMP),
         delta_time: Some(1703203200),
-        ecotone_time: Some(1708534800),
-        fjord_time: Some(1716998400),
-        granite_time: Some(1723478400),
-        holocene_time: Some(1732633200),
+        ecotone_time: Some(OP_SEPOLIA_ECOTONE_TIMESTAMP),
+        fjord_time: Some(OP_SEPOLIA_FJORD_TIMESTAMP),
+        granite_time: Some(OP_SEPOLIA_GRANITE_TIMESTAMP),
+        holocene_time: Some(OP_SEPOLIA_HOLOCENE_TIMESTAMP),
         pectra_blob_schedule_time: Some(1742486400),
-        isthmus_time: Some(1744905600),
+        isthmus_time: Some(OP_SEPOLIA_ISTHMUS_TIMESTAMP),
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000011155420"),

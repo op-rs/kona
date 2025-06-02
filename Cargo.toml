@@ -140,7 +140,7 @@ alloy-network-primitives = { version = "1.0.0", default-features = false }
 
 # OP Alloy
 op-alloy-network = { version = "0.17.0", default-features = false }
-alloy-op-hardforks = { version = "0.2.0", default-features = false }
+alloy-op-hardforks = { version = "0.2.6", default-features = false }
 op-alloy-provider = { version = "0.17.0", default-features = false }
 op-alloy-consensus = { version = "0.17.0", default-features = false }
 op-alloy-rpc-types = { version = "0.17.0", default-features = false }
