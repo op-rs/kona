@@ -1,5 +1,3 @@
-set positional-arguments
-
 _docker_arch:
   #!/bin/bash
   if [[ -z "$PLATFORMS" ]]; then

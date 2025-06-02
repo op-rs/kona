@@ -1,6 +1,6 @@
 //! Bootstore Subcommand
 
-use crate::flags::{GlobalArgs, MetricsArgs};
+use crate::flags::GlobalArgs;
 use clap::Parser;
 use kona_p2p::BootStore;
 use std::path::PathBuf;
@@ -27,10 +27,10 @@ pub struct BootstoreCommand {
 }
 
 impl BootstoreCommand {
-    /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+    /// Initializes the logging system based on global arguments.
+    pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         args.init_tracing(None)?;
-        metrics.init_metrics()
+        Ok(())
     }
 
     /// Runs the subcommand.

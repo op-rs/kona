@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
@@ -33,6 +34,20 @@ type rpcResponse struct {
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+// push { "jsonrpc":"2.0", "method":"time", "params":{ "subscription":"0x…", "result":"…" } }
+type push struct {
+	Method string `json:"method"`
+	Params struct {
+		SubID  uint64         `json:"subscription"`
+		Result eth.L2BlockRef `json:"result"`
+	} `json:"params"`
+}
+
+func websocketRPC(clRPC string) string {
+	// Remove the leading http and replace it with ws.
+	return strings.Replace(clRPC, "http", "ws", 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +137,20 @@ func GetKonaWS[T any](t systest.T, wsRPC string, method string, runUntil <-chan 
 
 	output := make([]eth.L2BlockRef, 0)
 
+	// Function to handle JSON reading with error channel
+	readJSON := func(conn *websocket.Conn, msg *json.RawMessage) <-chan error {
+		errChan := make(chan error, 1) // Buffered channel to avoid goroutine leak
+
+		go func() {
+			errChan <- conn.ReadJSON(msg)
+			close(errChan)
+		}()
+
+		return errChan
+	}
+
+	var msg json.RawMessage
+
 	// 3. start a goroutine that keeps reading pushes
 outer_loop:
 	for {
@@ -134,14 +163,13 @@ outer_loop:
 			// Clean‑up if necessary, then exit
 			t.Log("unsafe head subscriber", "stopping: context cancelled")
 			break outer_loop
-		default:
-			var msg json.RawMessage
-			require.NoError(t, conn.ReadJSON(&msg), "read: %v", err)
+		case err := <-readJSON(conn, &msg):
+			require.NoError(t, err, "read: %v", err)
 
 			var p push
 			require.NoError(t, json.Unmarshal(msg, &p), "decode: %v", err)
 
-			t.Log("received websocket message - ", p.Params.Result)
+			t.Log(wsRPC, method, "received websocket message", p.Params.Result)
 			output = append(output, p.Params.Result)
 		}
 	}

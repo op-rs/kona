@@ -4301,6 +4301,7 @@ name = "kona-cli"
 version = "0.2.0"
 dependencies = [
  "alloy-primitives",
+ "anyhow",
  "clap",
  "libc",
  "libp2p",
@@ -4978,7 +4979,6 @@ dependencies = [
  "kona-cli",
  "kona-derive",
  "kona-genesis",
- "kona-macros",
  "kona-protocol",
  "kona-providers-alloy",
  "kona-registry",

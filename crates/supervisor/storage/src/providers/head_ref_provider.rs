@@ -25,17 +25,17 @@ where
         safety_level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError> {
         let head_ref_key = safety_level.into();
-        let result = self.tx.get::<SafetyHeadRefs>(head_ref_key).inspect_err(|error| {
+        let result = self.tx.get::<SafetyHeadRefs>(head_ref_key).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
-                ?safety_level,
-                ?error,
+                %safety_level,
+                %err,
                 "Failed to seek head reference"
             );
         })?;
         let block_ref = result.ok_or_else(|| {
-            warn!(target: "supervisor_storage", ?safety_level, "No head reference found");
-            StorageError::EntryNotFound("No head reference found".to_string())
+            warn!(target: "supervisor_storage", %safety_level, "No head reference found");
+            StorageError::EntryNotFound("no head reference found".to_string())
         })?;
         Ok(block_ref.into())
     }
@@ -51,11 +51,11 @@ where
         block_info: &BlockInfo,
     ) -> Result<(), StorageError> {
         self.tx.put::<SafetyHeadRefs>(safety_level.into(), (*block_info).into()).inspect_err(
-            |error| {
+            |err| {
                 error!(
                     target: "supervisor_storage",
-                    ?safety_level,
-                    ?error,
+                    %safety_level,
+                    %err,
                     "Failed to store head reference"
                 )
             },

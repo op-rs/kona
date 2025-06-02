@@ -18,7 +18,6 @@ workspace = true
 # workspace
 kona-rpc.workspace = true
 kona-derive.workspace = true
-kona-sources.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 
@@ -27,6 +26,7 @@ kona-engine = { workspace = true, features = ["metrics"] }
 kona-p2p = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }
 kona-node-service = { workspace = true, features = ["metrics"] }
+kona-sources = { workspace = true, features = ["metrics"] }
 
 # alloy
 alloy-provider.workspace = true

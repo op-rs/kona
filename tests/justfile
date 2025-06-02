@@ -18,7 +18,6 @@ build-devnet BINARY:
 # The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
 devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
   #!/bin/bash
-
   export ENCLAVE=""
   if ! [ -z "{{ENCLAVE}}" ]; then
     export ENCLAVE="--enclave {{ENCLAVE}}"
@@ -56,9 +55,33 @@ test-e2e DEVNET GO_PKG_NAME="":
 
     cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
 
-build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
+build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
     #!/bin/bash
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
 
     just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
+
+build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH)
+    #!/bin/bash
+    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+
     just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
+
+# Updates the devnet with the latest local changes. This is useful to
+# rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
+update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
+    #!/bin/bash
+
+    # Ensure there is a kurtosis enclave running with the name {{DEVNET}}
+    ENCLAVE_EXISTS=$(kurtosis enclave ls | grep {{DEVNET}} || true)
+    if [ -z "$ENCLAVE_EXISTS" ]; then
+        echo "No kurtosis enclave found with name {{DEVNET}}"
+        exit 1
+    fi
+
+    # Get all the services that contain the words "cl" and "kona"
+    SERVICES=$(kurtosis enclave inspect {{DEVNET}} | grep "cl" | grep "kona" | awk '{print $2}')
+
+    for service in $SERVICES; do
+        kurtosis service update {{DEVNET}} $service --image kona-node:local
+    done

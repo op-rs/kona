@@ -22,3 +22,5 @@ mod prometheus;
 pub use prometheus::init_prometheus_server;
 
 pub mod sigsegv_handler;
+
+pub mod metrics_args;

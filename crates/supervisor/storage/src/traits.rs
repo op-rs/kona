@@ -46,6 +46,8 @@ pub trait DerivationStorage {
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
 
     /// Saves a [`DerivedRefPair`] to the storage.
+    /// This method is append only and does not overwrite existing pairs.
+    /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
     ///
     /// # Arguments
     /// * `incoming_pair` - The derived block pair to save.
@@ -100,6 +102,8 @@ pub trait LogStorageReader: Debug {
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
 pub trait LogStorageWriter: Send + Sync + Debug {
     /// Stores [`BlockInfo`] and [`Log`]s in the storage.
+    /// This method is append-only and does not overwrite existing logs.
+    /// Ensures that the latest stored block is the parent of the incoming block before saving.
     ///
     /// # Arguments
     /// * `block` - [`BlockInfo`] to associate with the logs.

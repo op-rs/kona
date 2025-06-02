@@ -8,6 +8,7 @@
 //! require dup-sorting.
 
 use alloy_primitives::B256;
+use derive_more::Display;
 use kona_protocol::BlockInfo;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,8 @@ use serde::{Deserialize, Serialize};
 /// This struct captures essential block information required to track canonical
 /// block lineage and verify ancestry. It is stored as the value
 /// in the [`crate::models::BlockRefs`] table.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
+#[derive(Debug, Clone, Display, PartialEq, Eq, Default, Serialize, Deserialize, Compact)]
+#[display("number: {number}, hash: {hash}, parent_hash: {parent_hash}, timestamp: {timestamp}")]
 pub struct BlockRef {
     /// The height of the block.
     pub number: u64,
