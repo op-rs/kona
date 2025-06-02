@@ -82,7 +82,7 @@ impl LogIndexer {
 pub enum LogIndexerError {
     /// Failed to write processed logs for a block to the state manager.
     #[error(transparent)]
-    StateWrite(#[from] kona_supervisor_storage::StorageError),
+    StateWrite(#[from] StorageError),
 
     /// Failed to fetch logs for a block from the state manager.   
     #[error(transparent)]
