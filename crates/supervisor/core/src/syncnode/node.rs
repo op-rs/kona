@@ -1,7 +1,6 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
-use alloy_primitives::B256;
-use alloy_primitives::ChainId;
+use alloy_primitives::{B256, ChainId};
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use jsonrpsee::{

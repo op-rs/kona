@@ -1,6 +1,6 @@
 use crate::{
-    ManagedNodeError,
     logindexer::{log_to_log_hash, payload_hash_to_log_hash},
+    syncnode::ManagedNodeError,
 };
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
@@ -95,7 +95,7 @@ pub enum LogIndexerError {
 #[derive(Error, Debug)]
 /// Error type for fetching the receipts from the provider.
 pub enum ReceiptFetchError {
-    /// Failed to fetch receipts from the [`ManagedNode`](crate::ManagedNode) provider.
+    /// Failed to fetch receipts from the [`ManagedNode`](crate::syncnode::ManagedNode) provider.
     #[error(transparent)]
     Managed(#[from] ManagedNodeError),
 }
