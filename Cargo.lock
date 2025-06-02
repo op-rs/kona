@@ -5051,7 +5051,7 @@ dependencies = [
  "kona-supervisor-storage",
  "kona-supervisor-types",
  "metrics",
- "op-alloy-consensus 0.17.1",
+ "op-alloy-consensus 0.17.2",
  "op-alloy-rpc-types",
  "serde",
  "serde_json",
