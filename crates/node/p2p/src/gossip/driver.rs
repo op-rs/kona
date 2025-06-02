@@ -11,7 +11,7 @@ use libp2p::{
     swarm::SwarmEvent,
 };
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use crate::{
     Behaviour, BlockHandler, EnrValidation, Event, GossipDriverBuilder, Handler, PublishError,
@@ -48,6 +48,8 @@ pub struct GossipDriver {
     pub peer_monitoring: Option<PeerMonitoring>,
     /// The number of times to redial a peer.
     pub peer_redialing: Option<u64>,
+    /// Tracks connection start time for peers
+    pub peer_connection_start: HashMap<PeerId, Instant>,
 }
 
 impl GossipDriver {
@@ -73,6 +75,7 @@ impl GossipDriver {
             peer_infos: Default::default(),
             peer_monitoring: None,
             peer_redialing: redialing,
+            peer_connection_start: Default::default(),
         }
     }
 
@@ -310,6 +313,7 @@ impl GossipDriver {
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
 
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
+                self.peer_connection_start.insert(peer_id, Instant::now());
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 debug!(target: "gossip", "Outgoing connection error: {:?}", error);
@@ -345,6 +349,15 @@ impl GossipDriver {
                     "peer" => peer_id.to_string()
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
+
+                if let Some(start_time) = self.peer_connection_start.remove(&peer_id) {
+                    let duration = start_time.elapsed();
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                        duration.as_secs_f64()
+                    );
+                }
 
                 // If the connection was initiated by us, remove the peer from the current dials
                 // set so that we can dial it again.

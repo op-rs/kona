@@ -44,6 +44,10 @@ impl Metrics {
     /// Identifier for a histogram that tracks peer scores.
     pub const PEER_SCORES: &str = "kona_node_peer_scores";
 
+    /// Identifier for the gauge that tracks the duration of peer connections in seconds.
+    pub const GOSSIP_PEER_CONNECTION_DURATION_SECONDS: &str =
+        "kona_node_gossip_peer_connection_duration_seconds";
+
     /// Initializes metrics for the P2P stack.
     ///
     /// This does two things:
