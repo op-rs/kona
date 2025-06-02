@@ -56,6 +56,7 @@ impl Cli {
     pub fn run(self) -> Result<()> {
         // Initialize unified metrics
         init_unified_metrics(&self.metrics)?;
+
         // Initialize telemetry - allow subcommands to customize the filter.
         match self.subcommand {
             Commands::Node(ref node) => node.init_logs(&self.global)?,
@@ -63,6 +64,14 @@ impl Cli {
             Commands::Registry(ref registry) => registry.init_logs(&self.global)?,
             Commands::Bootstore(ref bootstore) => bootstore.init_logs(&self.global)?,
             Commands::Info(ref info) => info.init_logs(&self.global)?,
+        }
+
+        // Allow subcommands to initialize cli metrics.
+        match self.subcommand {
+            Commands::Node(ref node) => node.init_cli_metrics(&self.metrics)?,
+            _ => {
+                tracing::debug!(target: "cli", "No CLI metrics initialized for subcommand: {:?}", self.subcommand)
+            }
         }
 
         // Run the subcommand.

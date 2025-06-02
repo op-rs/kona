@@ -1,10 +1,14 @@
 //! Node Subcommand.
 
-use crate::flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs};
+use crate::{
+    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    metrics::CliMetrics,
+};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
+use kona_cli::metrics_args::MetricsArgs;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
@@ -99,6 +103,28 @@ impl NodeCommand {
             .add_directive("discv5=error".parse()?);
 
         args.init_tracing(Some(filter))?;
+        Ok(())
+    }
+
+    /// Initializes CLI metrics for the Node subcommand.
+    pub fn init_cli_metrics(&self, args: &MetricsArgs) -> anyhow::Result<()> {
+        if !args.enabled {
+            debug!("CLI metrics are disabled");
+            return Ok(());
+        }
+        metrics::gauge!(
+            CliMetrics::IDENTIFIER,
+            &[
+                (CliMetrics::P2P_PEER_SCORING_LEVEL, self.p2p_flags.scoring.to_string()),
+                (CliMetrics::P2P_TOPIC_SCORING_ENABLED, self.p2p_flags.topic_scoring.to_string()),
+                (CliMetrics::P2P_BANNING_ENABLED, self.p2p_flags.ban_enabled.to_string()),
+                (
+                    CliMetrics::P2P_PEER_REDIALING,
+                    self.p2p_flags.peer_redial.unwrap_or(0).to_string()
+                ),
+            ]
+        )
+        .set(1);
         Ok(())
     }
 
