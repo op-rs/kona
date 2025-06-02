@@ -1,7 +1,8 @@
 use crate::logindexer::{log_to_log_hash, payload_hash_to_log_hash};
+use jsonrpsee::core::ClientError;
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::LogStorageWriter;
+use kona_supervisor_storage::{LogStorageWriter, StorageError};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -68,7 +69,7 @@ impl LogIndexer {
                 log_index += 1;
             }
         }
-        
+
         log_entries.shrink_to_fit();
 
         self.log_writer.store_block_logs(block, log_entries)?;
@@ -86,7 +87,7 @@ pub enum LogIndexerError {
 
     /// Failed to fetch logs for a block from the state manager.   
     #[error(transparent)]
-    FetchFailed(#[from] jsonrpsee::core::ClientError),
+    FetchFailed(#[from] ClientError),
 }
 
 #[cfg(test)]

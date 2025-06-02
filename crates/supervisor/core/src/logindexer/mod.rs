@@ -14,4 +14,4 @@ mod indexer;
 pub use indexer::{LogIndexer, LogIndexerError};
 
 mod util;
-pub(crate) use util::{log_to_log_hash, payload_hash_to_log_hash};
+pub use util::{log_to_log_hash, log_to_message_payload, payload_hash_to_log_hash};

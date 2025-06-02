@@ -10,7 +10,7 @@ pub type Receipts = Vec<OpReceiptEnvelope>;
 /// [`ReceiptProvider`] abstracts fetching receipts for a given block hash.
 ///
 /// This trait exists to decouple the indexing logs from tightly coupling with
-/// the full ManagedModeApi. It allows using a minimal provider
+/// the full `ManagedModeApi`. It allows using a minimal provider
 /// focused only on receipt access.
 #[async_trait]
 pub trait ReceiptProvider: Send + Sync + Debug {
