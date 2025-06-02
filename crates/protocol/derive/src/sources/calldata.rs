@@ -6,7 +6,7 @@ use crate::{
     types::PipelineResult,
 };
 use alloc::{boxed::Box, collections::VecDeque};
-use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_consensus::{Transaction, TxEnvelope, transaction::SignerRecoverable};
 use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
