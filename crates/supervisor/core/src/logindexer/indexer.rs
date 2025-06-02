@@ -44,7 +44,7 @@ impl LogIndexer {
     pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
         let receipts = self.receipt_provider.fetch_receipts(block.hash).await?;
 
-        let mut log_entries = Vec::new();
+        let mut log_entries = Vec::with_capacity(receipts.len());
         let mut log_index: u32 = 0;
 
         for receipt in receipts {
@@ -68,6 +68,8 @@ impl LogIndexer {
                 log_index += 1;
             }
         }
+        
+        log_entries.shrink_to_fit();
 
         self.log_writer.store_block_logs(block, log_entries)?;
 
