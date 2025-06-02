@@ -34,7 +34,7 @@ impl OpAttributesWithParent {
     ///
     /// This is the parent block number + 1.
     pub fn block_number(&self) -> u64 {
-        self.parent.block_info.number + 1
+        self.parent.block_info.number.saturating_add(1)
     }
 
     /// Consumes `self` and returns the inner [`OpPayloadAttributes`].
