@@ -32,17 +32,13 @@ macro_rules! set {
 /// Increments a metric value, optionally with a specified label.
 #[macro_export]
 macro_rules! inc {
-    ($instrument:ident, $metric:path, $key:expr, $value:expr) => {
-        #[cfg(feature = "metrics")]
-        metrics::$instrument!($metric, $key => $value).increment(1);
-    };
     ($instrument:ident, $metric:path, $value:expr) => {
         #[cfg(feature = "metrics")]
         metrics::$instrument!($metric, "type" => $value).increment(1);
     };
-    ($instrument:ident, $metric:path) => {
+    ($instrument:ident, $metric:path $(, $label_key:expr $(=> $label_value:expr)?)*$(,)?) => {
         #[cfg(feature = "metrics")]
-        metrics::$instrument!($metric).increment(1);
+        metrics::$instrument!($metric $(, $label_key $(=> $label_value)?)*).increment(1);
     };
 }
 
