@@ -65,7 +65,7 @@ impl ChainProcessor {
         // todo: figure out value for buffer size
         let (event_tx, event_rx) = mpsc::channel::<NodeEvent>(100);
         if let Some(managed_node) = &mut self.managed_node {
-            managed_node.start_subscription(event_tx.clone()).await.unwrap();
+            managed_node.start_subscription(event_tx).await.unwrap();
         }
 
         let task = ChainProcessorTask::new(self.cancel_token.clone(), event_rx);
