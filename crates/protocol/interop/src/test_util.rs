@@ -71,6 +71,7 @@ impl InteropProvider for MockInteropProvider {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct SuperchainBuilder {
     chains: HashMap<u64, ChainBuilder>,
 }
@@ -114,7 +115,7 @@ impl SuperchainBuilder {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ChainBuilder {
     pub rollup_config: RollupConfig,
     pub header: Header,
@@ -187,7 +188,7 @@ impl ChainBuilder {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ExecutingMessageBuilder {
     pub message_hash: B256,
     pub origin_address: Address,

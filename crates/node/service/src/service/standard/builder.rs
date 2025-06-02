@@ -112,7 +112,6 @@ impl RollupNodeBuilder {
     /// - The L1 beacon API URL is not set.
     /// - The L2 provider RPC URL is not set.
     /// - The L2 engine URL is not set.
-    /// - The sync config is not set.
     /// - The jwt secret is not set.
     pub fn build(self) -> RollupNode {
         let l1_rpc_url = self.l1_provider_rpc_url.expect("l1 provider rpc url not set");
