@@ -4978,7 +4978,6 @@ dependencies = [
  "kona-cli",
  "kona-derive",
  "kona-genesis",
- "kona-macros",
  "kona-protocol",
  "kona-providers-alloy",
  "kona-registry",

@@ -56,6 +56,7 @@ impl MetricsArgs {
             kona_p2p::Metrics::init();
             kona_engine::Metrics::init();
             kona_node_service::Metrics::init();
+            kona_sources::Metrics::init();
             VersionInfo::from_build().register_version_metrics();
         }
 

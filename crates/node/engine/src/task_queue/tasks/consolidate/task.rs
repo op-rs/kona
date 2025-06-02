@@ -87,6 +87,7 @@ impl ConsolidateTask {
             match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
                 Ok(block_info) => {
                     debug!(target: "engine", ?block_info, "Promoted safe head");
+
                     state.set_local_safe_head(block_info);
                     state.set_safe_head(block_info);
                     match self.execute_forkchoice_task(state).await {

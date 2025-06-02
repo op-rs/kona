@@ -8,7 +8,7 @@ FROM ubuntu:22.04 AS dep-setup-stage
 SHELL ["/bin/bash", "-c"]
 
 # Install deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
   build-essential \
   git \
   curl \
@@ -16,6 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libssl-dev \
   clang \
   pkg-config
+
+# Install rust
+ENV RUST_VERSION=1.85
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install cargo-binstall
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+RUN cargo binstall cargo-chef -y
 
 ################################
 #    Local Repo Setup Stage    #
@@ -42,30 +52,43 @@ RUN git clone https://github.com/${REPOSITORY} && \
 ################################
 #       App Build Stage        #
 ################################
-FROM app-${REPO_LOCATION}-setup-stage AS app-build-stage
-SHELL ["/bin/bash", "-c"]
+FROM app-${REPO_LOCATION}-setup-stage AS app-setup
 
+# We need a separate entrypoint to take advantage of docker's cache.
+# If we didn't do this, the full build would be triggered every time the source code changes.
+FROM dep-setup-stage AS build-entrypoint
 ARG BIN_TARGET
 ARG BUILD_PROFILE
 
-# Install rust
-ENV RUST_VERSION=1.85.0
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src
-ENV PATH="/root/.cargo/bin:${PATH}"
+WORKDIR /app
 
-# Build the application binary on the selected tag
-RUN cd kona && \
-  cargo build --workspace --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" && \
-  mv "./target/${BUILD_PROFILE}/${BIN_TARGET}" "/${BIN_TARGET}"
+FROM build-entrypoint AS planner
+# Triggers a cache invalidation if `app-setup` is modified.
+COPY --from=app-setup kona .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM build-entrypoint AS builder 
+# Since we only copy recipe.json, if the dependencies don't change, this step and the next one will be cached.
+COPY --from=planner /app/recipe.json recipe.json
+
+# Build dependencies - this is the caching Docker layer!
+RUN RUSTFLAGS="-C target-cpu=native" cargo chef cook --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}" --recipe-path recipe.json
+
+# Build application. This step will systematically trigger a cache invalidation if the source code changes.
+COPY --from=app-setup kona .
+# Build the application binary on the selected tag. Since we build the external dependencies in the previous step, 
+# this step will reuse the target directory from the previous step.
+RUN RUSTFLAGS="-C target-cpu=native" cargo build --bin "${BIN_TARGET}" --profile "${BUILD_PROFILE}"
 
 # Export stage
 FROM ubuntu:22.04 AS export-stage
 SHELL ["/bin/bash", "-c"]
 
 ARG BIN_TARGET
+ARG BUILD_PROFILE
 
 # Copy in the binary from the build image.
-COPY --from=app-build-stage "${BIN_TARGET}" "/usr/local/bin/${BIN_TARGET}"
+COPY --from=builder "app/target/${BUILD_PROFILE}/${BIN_TARGET}" "/usr/local/bin/${BIN_TARGET}"
 
 # Copy in the entrypoint script.
 COPY ./docker/apps/entrypoint.sh /entrypoint.sh

@@ -16,7 +16,5 @@ pub use sync::{L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
 mod runtime;
 pub use runtime::{RuntimeConfig, RuntimeLoader, RuntimeLoaderError};
 
-#[cfg(feature = "metrics")]
 mod metrics;
-#[cfg(feature = "metrics")]
 pub use metrics::Metrics;
