@@ -178,6 +178,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: check
         run: ./.github/scripts/check_no_std.sh
 

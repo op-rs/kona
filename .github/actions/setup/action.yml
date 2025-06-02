@@ -53,3 +53,4 @@ runs:
       with:
         cache-on-failure: true
         prefix-key: ${{ inputs.prefix-key }}
+        save-if: ${{ github.ref == 'refs/heads/main' }}
