@@ -60,7 +60,7 @@ impl ConsolidateTask {
     /// Attempts consolidation on the engine state.
     pub async fn consolidate(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         // Fetch the unsafe l2 block after the attributes parent.
-        let block_num = self.attributes.parent.block_info.number + 1;
+        let block_num = self.attributes.block_number();
         let block = match self.client.l2_block_by_label(block_num.into()).await {
             Ok(Some(block)) => block,
             Ok(None) => {
