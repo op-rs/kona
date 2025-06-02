@@ -1,5 +1,7 @@
-use crate::logindexer::{log_to_log_hash, payload_hash_to_log_hash};
-use jsonrpsee::core::ClientError;
+use crate::{
+    ManagedNodeError,
+    logindexer::{log_to_log_hash, payload_hash_to_log_hash},
+};
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{LogStorageWriter, StorageError};
@@ -10,23 +12,24 @@ use thiserror::Error;
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
 #[derive(Debug)]
-pub struct LogIndexer {
+pub struct LogIndexer<P: ReceiptProvider<Error = ReceiptFetchError>, W: LogStorageWriter> {
     /// Component that provides receipts for a given block hash.
-    pub receipt_provider: Arc<dyn ReceiptProvider>,
+    pub receipt_provider: Arc<P>,
     /// Component that persists parsed log entries to storage.
-    pub log_writer: Arc<dyn LogStorageWriter>,
+    pub log_writer: Arc<W>,
 }
 
-impl LogIndexer {
+impl<P, W> LogIndexer<P, W>
+where
+    P: ReceiptProvider<Error = ReceiptFetchError>,
+    W: LogStorageWriter,
+{
     /// Creates a new [`LogIndexer`] with the given receipt provider and state manager.
     ///
     /// # Arguments
     /// - `receipt_provider`: Shared reference to a component capable of fetching receipts.
     /// - `log_writer`: Shared reference to the storage layer for persisting parsed logs.
-    pub fn new(
-        receipt_provider: Arc<dyn ReceiptProvider>,
-        log_writer: Arc<dyn LogStorageWriter>,
-    ) -> Self {
+    pub const fn new(receipt_provider: Arc<P>, log_writer: Arc<W>) -> Self {
         Self { receipt_provider, log_writer }
     }
 
@@ -85,8 +88,16 @@ pub enum LogIndexerError {
     StateWrite(#[from] StorageError),
 
     /// Failed to fetch logs for a block from the state manager.   
+    #[error("receipt fetch failed: {0}")]
+    FetchReceipt(#[from] ReceiptFetchError),
+}
+
+#[derive(Error, Debug)]
+/// Error type for fetching the receipts from the provider.
+pub enum ReceiptFetchError {
+    /// Failed to fetch receipts from the [`ManagedNode`](crate::ManagedNode) provider.
     #[error(transparent)]
-    FetchFailed(#[from] ClientError),
+    Managed(#[from] ManagedNodeError),
 }
 
 #[cfg(test)]
@@ -122,9 +133,13 @@ mod tests {
 
     #[async_trait]
     impl ReceiptProvider for MockReceiptProvider {
-        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ClientError> {
+        type Error = ReceiptFetchError;
+
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, Self::Error> {
             if self.should_error {
-                Err(ClientError::Custom("failed to fetch receipts".into()))
+                Err(ReceiptFetchError::Managed(ManagedNodeError::Client(ClientError::Custom(
+                    "forced error".to_string(),
+                ))))
             } else {
                 Ok(self.receipts.clone())
             }

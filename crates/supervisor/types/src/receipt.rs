@@ -1,6 +1,5 @@
 use alloy_primitives::B256;
 use async_trait::async_trait;
-use jsonrpsee::core::ClientError;
 use op_alloy_consensus::OpReceiptEnvelope;
 use std::fmt::Debug;
 
@@ -14,6 +13,9 @@ pub type Receipts = Vec<OpReceiptEnvelope>;
 /// focused only on receipt access.
 #[async_trait]
 pub trait ReceiptProvider: Send + Sync + Debug {
+    /// Associated Error Type to avoid dependency
+    type Error: Debug + Send + Sync + 'static;
+
     /// Fetch all transaction receipts for the block with the given hash.
     ///
     /// # Arguments
@@ -22,5 +24,5 @@ pub trait ReceiptProvider: Send + Sync + Debug {
     /// # Returns
     /// A vector of [`OpReceiptEnvelope`]s representing all transaction receipts in the block,
     /// or an error if the fetch fails.
-    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError>;
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, Self::Error>;
 }

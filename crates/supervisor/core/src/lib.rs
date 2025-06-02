@@ -6,7 +6,8 @@ pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
 mod logindexer;
 pub use logindexer::{
-    LogIndexer, LogIndexerError, log_to_log_hash, log_to_message_payload, payload_hash_to_log_hash,
+    LogIndexer, LogIndexerError, ReceiptFetchError, log_to_log_hash, log_to_message_payload,
+    payload_hash_to_log_hash,
 };
 mod rpc;
 

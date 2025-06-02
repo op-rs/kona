@@ -339,9 +339,12 @@ impl ManagedNode {
 /// [`ManagedModeApiClient`] interface, using only the receipt-fetching capability
 #[async_trait]
 impl ReceiptProvider for ManagedNode {
-    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError> {
+    type Error = ManagedNodeError;
+
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, Self::Error> {
         let client = self.get_ws_client().await?;
-        ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await
+        let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
+        Ok(receipts)
     }
 }
 
