@@ -5,7 +5,7 @@ use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
-    gossipsub::{IdentTopic, MessageId},
+    gossipsub::{self, IdentTopic, MessageId},
     swarm::SwarmEvent,
 };
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
@@ -316,7 +316,63 @@ impl GossipDriver {
                 debug!(target: "gossip", reporter_id = ?listener_id, new_address = ?address, "New listen address");
                 return None;
             }
-            SwarmEvent::Behaviour(event) => event,
+            SwarmEvent::Behaviour(event) => {
+                match &event {
+                    crate::Event::Gossipsub(gossipsub::Event::Subscribed { peer_id: _, topic }) => {
+                        kona_macros::inc!(
+                            gauge,
+                            crate::Metrics::GOSSIPSUB_EVENT,
+                            "subscribed",
+                            topic.to_string()
+                        );
+                    }
+                    crate::Event::Gossipsub(gossipsub::Event::Unsubscribed {
+                        peer_id: _,
+                        topic,
+                    }) => {
+                        kona_macros::inc!(
+                            gauge,
+                            crate::Metrics::GOSSIPSUB_EVENT,
+                            "unsubscribed",
+                            topic.to_string()
+                        );
+                    }
+                    crate::Event::Gossipsub(gossipsub::Event::GossipsubNotSupported {
+                        peer_id,
+                    }) => {
+                        kona_macros::inc!(
+                            gauge,
+                            crate::Metrics::GOSSIPSUB_EVENT,
+                            "not_supported",
+                            peer_id.to_string()
+                        );
+                    }
+                    crate::Event::Gossipsub(gossipsub::Event::SlowPeer { peer_id, .. }) => {
+                        kona_macros::inc!(
+                            gauge,
+                            crate::Metrics::GOSSIPSUB_EVENT,
+                            "slow_peer",
+                            peer_id.to_string()
+                        );
+                    }
+                    crate::Event::Gossipsub(gossipsub::Event::Message {
+                        propagation_source: peer_id,
+                        message_id: _,
+                        message: _,
+                    }) => {
+                        kona_macros::inc!(
+                            gauge,
+                            crate::Metrics::GOSSIPSUB_EVENT,
+                            "message_received",
+                            peer_id.to_string()
+                        );
+                    }
+                    _ => {
+                        debug!(target: "gossip", ?event, "Ignoring non-gossipsub event");
+                    }
+                }
+                event
+            }
             _ => {
                 debug!(target: "gossip", ?event, "Ignoring non-behaviour in event handler");
                 return None;

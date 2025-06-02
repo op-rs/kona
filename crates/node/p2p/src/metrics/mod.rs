@@ -8,6 +8,9 @@ impl Metrics {
     /// Identifier for the gauge that tracks gossip events.
     pub const GOSSIP_EVENT: &str = "kona_node_gossip_events";
 
+    /// Identifier for the gauge that tracks libp2p gossipsub events.
+    pub const GOSSIPSUB_EVENT: &str = "kona_node_gossipsub_events";
+
     /// Identifier for the gauge that tracks libp2p gossipsub connections.
     pub const GOSSIPSUB_CONNECTION: &str = "kona_node_gossipsub_connection";
 
@@ -50,7 +53,10 @@ impl Metrics {
     #[cfg(feature = "metrics")]
     pub fn describe() {
         metrics::describe_gauge!(Self::RPC_CALLS, "Calls made to the P2P RPC module");
-        metrics::describe_gauge!(Self::GOSSIP_EVENT, "Gossip events received by the libp2p Swarm");
+        metrics::describe_gauge!(
+            Self::GOSSIPSUB_EVENT,
+            "Events received by the libp2p gossipsub Swarm"
+        );
         metrics::describe_gauge!(Self::DIAL_PEER, "Number of peers dialed by the libp2p Swarm");
         metrics::describe_gauge!(
             Self::UNSAFE_BLOCK_PUBLISHED,
@@ -127,5 +133,12 @@ impl Metrics {
         kona_macros::set!(gauge, Self::GOSSIPSUB_CONNECTION, "type", "outgoing_error", 0);
         kona_macros::set!(gauge, Self::GOSSIPSUB_CONNECTION, "type", "incoming_error", 0);
         kona_macros::set!(gauge, Self::GOSSIPSUB_CONNECTION, "type", "closed", 0);
+
+        // Gossipsub Events
+        kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "subscribed", 0);
+        kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "unsubscribed", 0);
+        kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "gossipsub_not_supported", 0);
+        kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "slow_peer", 0);
+        kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "message_received", 0);
     }
 }
