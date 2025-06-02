@@ -30,7 +30,7 @@ pub struct DerivedIdPair {
 /// - `derived`: The [`BlockInfo`] of the derived (L2) block.
 // todo: link specs in docs once spec PR #708 is merged
 #[derive(Debug, Clone, Display, PartialEq, Eq)]
-#[display(" source: {source}, derived: {derived} ")]
+#[display("source: {source}, derived: {derived}")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct DerivedRefPair {

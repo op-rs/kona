@@ -1,4 +1,7 @@
+# E2e integration tests for kona.
 import "./tests/justfile"
+# Builds docker images for kona
+import "./docker/apps/justfile"
 
 set positional-arguments
 alias t := tests

@@ -16,9 +16,8 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
-use super::{ManagedNodeError, NodeEvent};
+use super::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
 
-/// TODO: Introduce ManagedNodeError type and redo error handling
 /// Configuration for the managed node.
 #[derive(Debug)]
 pub struct ManagedNodeConfig {
@@ -130,7 +129,7 @@ impl ManagedNode {
         event_tx: mpsc::Sender<NodeEvent>,
     ) -> Result<(), ManagedNodeError> {
         if self.task_handle.is_some() {
-            return Err(ManagedNodeError::Subscription("subscription already active".to_string()));
+            Err(SubscriptionError::AlreadyActive)?
         }
 
         let client = self.get_ws_client().await?;
@@ -206,9 +205,7 @@ impl ManagedNode {
     fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(ManagedNodeError::Authentication(
-                "jwt secret not found or invalid".to_string(),
-            ));
+            return Err(AuthenticationError::InvalidJwt.into())
         };
 
         let mut headers = HeaderMap::new();
@@ -219,7 +216,7 @@ impl ManagedNode {
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
                 error!(target: "managed_node", %err, "Invalid authorization header");
-                ManagedNodeError::Authentication("invalid authorization header".to_string())
+                AuthenticationError::InvalidHeader
             })?,
         );
 
@@ -331,6 +328,7 @@ mod tests {
     use kona_supervisor_types::BlockReplacement;
     use std::io::Write;
     use tempfile::NamedTempFile;
+    use tokio::sync::mpsc;
 
     fn create_mock_jwt_file() -> NamedTempFile {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
@@ -542,7 +540,7 @@ mod tests {
         assert!(subscriber.task_handle.is_none());
 
         // Create a channel for events
-        let (event_tx, _event_rx) = tokio::sync::mpsc::channel(100);
+        let (event_tx, _event_rx) = mpsc::channel(100);
 
         // Test starting subscription to invalid server (should fail)
         let start_result = subscriber.start_subscription(event_tx).await;
@@ -584,7 +582,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_managed_event_sends_derivation_update() {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let (tx, mut rx) = mpsc::channel(1);
 
         // Create a mock DerivedRefPair (adjust fields as needed)
         let derived_ref_pair = DerivedRefPair {
@@ -624,7 +622,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_managed_event_sends_block_replacement() {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        let (tx, mut rx) = mpsc::channel(1);
 
         // Create a mock BlockReplacement (adjust fields as needed)
         let replacement = BlockReplacement {

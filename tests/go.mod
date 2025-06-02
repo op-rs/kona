@@ -5,9 +5,11 @@ go 1.24.3
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devnet-sdk` package.
 require github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
 
-require github.com/stretchr/testify v1.10.0 
+require github.com/stretchr/testify v1.10.0
+
 require github.com/gorilla/websocket v1.5.3
-require	github.com/ethereum/go-ethereum v1.15.11 
+
+require github.com/ethereum/go-ethereum v1.15.11
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
@@ -78,7 +80,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kurtosis-tech/kurtosis-portal/api/golang v0.0.0-20230818182330-1a86869414d2 // indirect
-	github.com/kurtosis-tech/kurtosis/api/golang v1.6.0 // indirect
+	github.com/kurtosis-tech/kurtosis/api/golang v1.8.1 // indirect
 	github.com/kurtosis-tech/kurtosis/contexts-config-store v0.0.0-20230818184218-f4e3e773463b // indirect
 	github.com/kurtosis-tech/kurtosis/grpc-file-transfer/golang v0.0.0-20230803130419-099ee7a4e3dc // indirect
 	github.com/kurtosis-tech/kurtosis/path-compression v0.0.0-20250108161014-0819b8ca912f // indirect
@@ -153,7 +155,7 @@ require (
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
-	golang.org/x/time v0.10.0 // indirect
+	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/grpc v1.69.4 // indirect
@@ -168,6 +170,6 @@ require (
 replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
 
 // Patched version of the Optimism repo that includes the latest changes of the `devnet-sdk` package to enable testing for the CL clients.
-replace github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6 => github.com/theochap/optimism v0.0.0-20250520030832-c6ddf76c3505
+replace github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6 => github.com/theochap/optimism v0.0.0-20250529195514-1e6611bcd703
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101503.4-rc.1
