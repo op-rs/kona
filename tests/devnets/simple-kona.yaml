@@ -2,6 +2,8 @@
 # Spins up a 2 EL/CL networks. One with op-geth/op-node and one with op-reth/kona-node.
 
 optimism_package:
+  faucet:
+    enabled: true
   chains:
     # Chain with only two nodes
     - participants:
@@ -20,18 +22,6 @@ optimism_package:
         network_id: "2151908"
         seconds_per_slot: 2
         name: "op-kurtosis"
-      batcher_params:
-        extra_params: []
-      proposer_params:
-        extra_params: []
-        game_type: 1
-        proposal_interval: 10m
-      additional_services: []
-  challengers:
-    challenger:
-      enabled: true
-      participants: "*"
-      cannon_trace_types: ["cannon", "permissioned"]
   global_log_level: "info"
   global_node_selectors: {}
   global_tolerations: []

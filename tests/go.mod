@@ -277,9 +277,9 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.4-0.20250602152434-ff50fe42b2ad
+replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.4-0.20250602180914-503d00570d59
 
 // Patched version of the Optimism repo that includes the latest changes of the `devnet-sdk` package to enable testing for the CL clients.
-replace github.com/ethereum-optimism/optimism v1.13.4-0.20250602152434-ff50fe42b2ad => github.com/theochap/optimism v0.0.0-20250602190032-09a8351a72e4
+replace github.com/ethereum-optimism/optimism v1.13.4-0.20250602180914-503d00570d59 => github.com/theochap/optimism v0.0.0-20250602190032-09a8351a72e4
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-0.20250523133920-e3f85bf38455
