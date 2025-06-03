@@ -109,8 +109,11 @@ impl Metrics {
         kona_macros::set!(gauge, Self::RPC_CALLS, "method", "opp2p_disconnectPeer", 0);
 
         // Gossip Events
-        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "total", "total", 0);
-        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "not_supported", "not_supported", 0);
+        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "type", "message", 0);
+        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "type", "subscribed", 0);
+        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "type", "unsubscribed", 0);
+        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "type", "slow_peer", 0);
+        kona_macros::set!(gauge, Self::GOSSIP_EVENT, "type", "not_supported", 0);
 
         // Peer dials
         kona_macros::set!(gauge, Self::DIAL_PEER, 0);

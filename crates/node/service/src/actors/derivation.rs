@@ -197,6 +197,7 @@ where
                         }
                         PipelineErrorKind::Critical(_) => {
                             error!(target: "derivation", "Critical derivation error: {e}");
+                            kona_macros::inc!(counter, Metrics::DERIVATION_CRITICAL_ERROR);
                             return Err(e.into());
                         }
                     }

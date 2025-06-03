@@ -11,6 +11,9 @@ impl Metrics {
     /// Identifier for the counter that tracks the L1 origin of the derivation pipeline.
     pub const DERIVATION_L1_ORIGIN: &str = "kona_node_derivation_l1_origin";
 
+    /// Identifier for the counter of critical derivation errors (strictly for alerting.)
+    pub const DERIVATION_CRITICAL_ERROR: &str = "kona_node_derivation_critical_errors";
+
     /// Initializes metrics for the node service.
     ///
     /// This does two things:
@@ -30,6 +33,12 @@ impl Metrics {
 
         // Derivation L1 origin
         metrics::describe_counter!(Self::DERIVATION_L1_ORIGIN, "Derivation pipeline L1 origin");
+
+        // Derivation critical error
+        metrics::describe_counter!(
+            Self::DERIVATION_CRITICAL_ERROR,
+            "Critical errors in the derivation pipeline"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
@@ -38,5 +47,8 @@ impl Metrics {
     pub fn zero() {
         // L1 reorg reset count
         kona_macros::set!(counter, Self::L1_REORG_COUNT, 0);
+
+        // Derivation critical error
+        kona_macros::set!(counter, Self::DERIVATION_CRITICAL_ERROR, 0);
     }
 }

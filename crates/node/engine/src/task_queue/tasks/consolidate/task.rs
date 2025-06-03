@@ -78,36 +78,37 @@ impl ConsolidateTask {
         // Otherwise, the attributes need to be processed.
         let block_hash = block.header.hash;
         if crate::AttributesMatch::check(&self.cfg, &self.attributes, &block).is_match() {
-            debug!(
+            trace!(
                 target: "engine",
                 attributes = ?self.attributes,
-                block_hash = %block.header.hash,
+                block_hash = %block_hash,
                 "Consolidating engine state",
             );
             match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
                 Ok(block_info) => {
-                    debug!(target: "engine", ?block_info, "Promoted safe head");
-
                     state.set_local_safe_head(block_info);
                     state.set_safe_head(block_info);
-                    match self.execute_forkchoice_task(state).await {
-                        Ok(()) => {
-                            debug!(target: "engine", "Consolidation successful");
 
-                            // Update metrics.
-                            kona_macros::inc!(
-                                counter,
-                                Metrics::ENGINE_TASK_COUNT,
-                                Metrics::CONSOLIDATE_TASK_LABEL
-                            );
+                    debug!(target: "engine", ?block_info, "Promoted safe head");
 
-                            return Ok(());
-                        }
-                        Err(e) => {
+                    // Only issue a forkchoice update if the attributes are the last in the span
+                    // batch. This is an optimization to avoid sending a FCU
+                    // call for every block in the span batch.
+                    if self.attributes.is_last_in_span {
+                        if let Err(e) = self.execute_forkchoice_task(state).await {
                             warn!(target: "engine", ?e, "Consolidation failed");
                             return Err(e);
                         }
                     }
+
+                    // Update metrics.
+                    kona_macros::inc!(
+                        counter,
+                        Metrics::ENGINE_TASK_COUNT,
+                        Metrics::CONSOLIDATE_TASK_LABEL
+                    );
+
+                    return Ok(());
                 }
                 Err(e) => {
                     // Continue on to build the block since we failed to construct the block info.
@@ -117,7 +118,7 @@ impl ConsolidateTask {
         }
 
         // Otherwise, the attributes need to be processed.
-        debug!(
+        trace!(
             target: "engine",
             attributes = ?self.attributes,
             block_hash = %block_hash,

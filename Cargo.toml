@@ -1,7 +1,7 @@
 [workspace.package]
 edition = "2024"
 license = "MIT"
-rust-version = "1.85"
+rust-version = "1.86"
 authors = ["clabby", "refcell"]
 homepage = "https://github.com/op-rs/kona"
 repository = "https://github.com/op-rs/kona"
@@ -155,9 +155,9 @@ alloy-evm = { version = "0.10.0", default-features = false }
 alloy-op-evm = { version = "0.10.0", default-features = false }
 
 # Reth (pinned to v1.3.12 for kona-supervisor-storage)
-reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.12" }
+reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.7" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.7" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.7" }
 
 # General
 url = "2.5.4"

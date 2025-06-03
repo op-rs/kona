@@ -26,7 +26,7 @@ pub enum SystemConfigUpdate {
 
 impl SystemConfigUpdate {
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         match self {
             Self::Batcher(update) => update.apply(config),
             Self::GasConfig(update) => update.apply(config),

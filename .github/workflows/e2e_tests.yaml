@@ -21,9 +21,6 @@ jobs:
         with:
           large-packages: false
       - uses: taiki-e/install-action@just
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.85
       - name: Setup Go 1.24.3
         uses: actions/setup-go@v5
         with:
@@ -46,9 +43,6 @@ jobs:
         with:
           large-packages: false
       - uses: taiki-e/install-action@just
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.85
       - name: Setup Go 1.24.3
         uses: actions/setup-go@v5
         with:
