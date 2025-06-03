@@ -103,7 +103,7 @@ impl EngineClient {
 
     /// Returns a reference to the inner [`RollupConfig`].
     pub fn cfg(&self) -> &RollupConfig {
-        &self.cfg
+        self.cfg.as_ref()
     }
 
     /// Fetches the [`Block<T>`] for the given [`BlockNumberOrTag`].
