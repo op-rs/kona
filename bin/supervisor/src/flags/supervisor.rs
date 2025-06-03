@@ -168,6 +168,8 @@ mod tests {
             "/tmp/supervisor_data",
             "--dependency-set",
             "/path/to/deps.json",
+            "--rollup-config-paths",
+            "/configs/rollup-*.json",
         ]);
 
         assert_eq!(cli.supervisor.l1_rpc, "http://localhost:8545");
@@ -182,6 +184,7 @@ mod tests {
         assert_eq!(cli.supervisor.datadir, "/tmp/supervisor_data");
         assert_eq!(cli.supervisor.datadir_sync_endpoint, None);
         assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
+        assert_eq!(cli.supervisor.rollup_config_paths, PathBuf::from("/configs/rollup-*.json"));
         assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
         assert_eq!(cli.supervisor.rpc_port, 8545);
     }
@@ -202,6 +205,8 @@ mod tests {
             "http://sync.example.com",
             "--dependency-set",
             "/path/to/deps.json",
+            "--rollup-config-paths",
+            "/configs/rollup-*.json",
             "--rpc.addr",
             "192.168.1.100",
             "--rpc.port",
@@ -217,6 +222,7 @@ mod tests {
             Some("http://sync.example.com".to_string())
         );
         assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
+        assert_eq!(cli.supervisor.rollup_config_paths, PathBuf::from("/configs/rollup-*.json"));
         assert_eq!(cli.supervisor.rpc_address, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 100)));
         assert_eq!(cli.supervisor.rpc_port, 9001);
     }

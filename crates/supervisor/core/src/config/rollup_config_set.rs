@@ -1,6 +1,7 @@
 use alloy_primitives::U64;
 use kona_supervisor_types::BlockSeal;
 use std::collections::HashMap;
+use kona_genesis::ChainGenesis;
 
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
@@ -18,7 +19,7 @@ impl Genesis {
     }
 
     /// Creates a new Genesis from a RollupConfig.
-    pub fn new_from_rollup_genesis(genesis: kona_genesis::ChainGenesis, l1_time: u64) -> Self {
+    pub fn new_from_rollup_genesis(genesis: ChainGenesis, l1_time: u64) -> Self {
         Self {
             l1: BlockSeal::new(genesis.l1.hash, U64::from(genesis.l1.number), U64::from(l1_time)),
             l2: BlockSeal::new(
