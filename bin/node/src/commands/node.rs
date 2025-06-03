@@ -122,9 +122,20 @@ impl NodeCommand {
                     CliMetrics::P2P_PEER_REDIALING,
                     self.p2p_flags.peer_redial.unwrap_or(0).to_string()
                 ),
+                (CliMetrics::P2P_FLOOD_PUBLISH, self.p2p_flags.gossip_flood_publish.to_string()),
+                (CliMetrics::P2P_DISCOVERY_INTERVAL, self.p2p_flags.discovery_interval.to_string()),
+                (
+                    CliMetrics::P2P_ADVERTISE_IP,
+                    self.p2p_flags
+                        .advertise_ip
+                        .map(|ip| ip.to_string())
+                        .unwrap_or(String::from("0.0.0.0"))
+                ),
+                (CliMetrics::P2P_ADVERTISE_TCP_PORT, self.p2p_flags.advertise_tcp_port.to_string()),
+                (CliMetrics::P2P_ADVERTISE_UDP_PORT, self.p2p_flags.advertise_udp_port.to_string()),
             ]
         )
-        .set(1);
+        .increment(1);
         Ok(())
     }
 

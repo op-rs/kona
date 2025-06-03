@@ -68,18 +68,18 @@ impl EngineQueries {
                 sender.send(state).map_err(|_| EngineQueriesError::OutputChannelClosed)
             }
             Self::OutputAtBlock { block, sender } => {
-                // TODO(@theochap): it is not very efficient to fetch the block info and the full
-                // block with two separate RPC calls. We can get the block info from
-                // the full block by using the `from_rpc_block_and_genesis` method which requires
-                // accessing the `ChainGenesis` struct.
-                let (output_block, output_block_info) = tokio::try_join!(
-                    client.l2_block_by_label(block),
-                    client.l2_block_info_by_label(block)
-                )?;
-
+                let output_block = client.l2_block_by_label(block).await?;
                 let output_block = output_block.ok_or(EngineQueriesError::NoL2BlockFound(block))?;
+                // Cloning the l2 block below is cheaper than sending a network request to get the
+                // l2 block info. Querying the `L2BlockInfo` from the client ends up
+                // fetching the full l2 block again.
+                let consensus_block = output_block.clone().into_consensus();
                 let output_block_info =
-                    output_block_info.ok_or(EngineQueriesError::NoL2BlockFound(block))?;
+                    L2BlockInfo::from_block_and_genesis::<op_alloy_consensus::OpTxEnvelope>(
+                        &consensus_block.map_transactions(|tx| tx.inner.inner.into_inner()),
+                        &rollup_config.genesis,
+                    )
+                    .map_err(|_| EngineQueriesError::NoL2BlockFound(block))?;
 
                 let state_root = output_block.header.state_root;
 
