@@ -122,14 +122,17 @@ impl Network {
                         // We collect a list of peers to remove
                         let peers_to_remove = self.gossip.swarm.connected_peers().filter_map(
                             |peer_id| {
-                                 // If the score is not available, we use a default value of 0.
-                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
+                                // If the score is not available, we use a default value of 0.
+                                let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
 
-                                 if score < ban_peers.ban_threshold {
-                                    return Some(*peer_id);
-                                 }
+                                // Record the peer score in the metrics.
+                                kona_macros::record!(histogram, crate::Metrics::PEER_SCORES, score);
 
-                                 None
+                                if score < ban_peers.ban_threshold {
+                                   return Some(*peer_id);
+                                }
+
+                                None
                             }
                         ).collect::<Vec<_>>();
 

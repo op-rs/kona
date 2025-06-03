@@ -41,6 +41,9 @@ impl Metrics {
     /// Identifier for a gauge that tracks the number of banned peers.
     pub const BANNED_PEERS: &str = "kona_node_banned_peers";
 
+    /// Identifier for a histogram that tracks peer scores.
+    pub const PEER_SCORES: &str = "kona_node_peer_scores";
+
     /// Initializes metrics for the P2P stack.
     ///
     /// This does two things:
@@ -87,6 +90,10 @@ impl Metrics {
             "Connections made to the libp2p Swarm"
         );
         metrics::describe_gauge!(Self::BANNED_PEERS, "Number of peers banned by kona's P2P stack");
+        metrics::describe_histogram!(
+            Self::PEER_SCORES,
+            "Observations of peer scores in the gossipsub mesh"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
