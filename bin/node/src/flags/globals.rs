@@ -52,6 +52,27 @@ impl GlobalArgs {
             ]
         )
         .set(1);
+        let config = self.rollup_config().unwrap_or_default();
+        metrics::gauge!(
+            CliMetrics::ROLLUP_CONFIG,
+            &[
+                ("l1_genesis_block_num", config.genesis.l1.number.to_string()),
+                ("l2_genesis_block_num", config.genesis.l2.number.to_string()),
+                ("genesis_l2_time", config.genesis.l2_time.to_string()),
+                ("l1_chain_id", config.l1_chain_id.to_string()),
+                ("l2_chain_id", config.l2_chain_id.to_string()),
+                ("block_time", config.block_time.to_string()),
+                ("max_sequencer_drift", config.max_sequencer_drift.to_string()),
+                ("sequencer_window_size", config.seq_window_size.to_string()),
+                ("channel_timeout", config.channel_timeout.to_string()),
+                ("granite_channel_timeout", config.granite_channel_timeout.to_string()),
+                ("batch_inbox_address", config.batch_inbox_address.to_string()),
+                ("deposit_contract_address", config.deposit_contract_address.to_string()),
+                ("l1_system_config_address", config.l1_system_config_address.to_string()),
+                ("protocol_versions_address", config.protocol_versions_address.to_string()),
+            ]
+        )
+        .set(1);
     }
 
     /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global

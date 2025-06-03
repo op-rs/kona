@@ -58,4 +58,7 @@ impl CliMetrics {
 
     /// Hardfork activation times.
     pub const HARDFORK_ACTIVATION_TIMES: &'static str = "kona_node_hardforks";
+
+    /// Top-level rollup config settings.
+    pub const ROLLUP_CONFIG: &'static str = "kona_node_rollup_config";
 }
