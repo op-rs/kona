@@ -8,6 +8,8 @@ use kona_supervisor_rpc::SupervisorApiServer;
 use op_alloy_rpc_types::InvalidInboxEntry;
 use thiserror::Error;
 
+use crate::config::RollupConfigSet;
+
 /// Custom error type for the Supervisor core logic.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum SupervisorError {
@@ -48,13 +50,14 @@ pub trait SupervisorService: Debug + Send + Sync {
 #[derive(Debug)]
 pub struct Supervisor {
     _dependency_set: DependencySet,
+    _rollup_config_set: RollupConfigSet,
 }
 
 impl Supervisor {
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new(dependency_set: DependencySet) -> Self {
-        Self { _dependency_set: dependency_set }
+    pub fn new(dependency_set: DependencySet, rollup_config_set: RollupConfigSet) -> Self {
+        Self { _dependency_set: dependency_set, _rollup_config_set: rollup_config_set }
     }
 }
 

@@ -19,6 +19,7 @@ kona-protocol.workspace = true
 kona-supervisor-types.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee", "client"] }
 kona-supervisor-storage.workspace = true
+kona-genesis.workspace = true
 
 # alloy
 alloy-eips.workspace = true

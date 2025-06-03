@@ -1,5 +1,10 @@
-use anyhow::{Context as _, Result};
+use alloy_network::Ethereum;
+use alloy_provider::{Provider, RootProvider};
+use anyhow::{Context as _, Ok, Result};
 use clap::Args;
+use glob::glob;
+use kona_supervisor_core::config::RollupConfigSet;
+
 use kona_interop::DependencySet;
 use std::{net::IpAddr, path::PathBuf};
 use tokio::{fs::File, io::AsyncReadExt};
@@ -35,6 +40,12 @@ pub struct SupervisorArgs {
     #[arg(long = "dependency-set", env = "DEPENDENCY_SET")]
     pub dependency_set: PathBuf,
 
+    /// Path pattern to op-node rollup.json configs to load as a rollup config set.
+    /// The pattern should use the glob sytax, e.g. '/configs/rollup-*.json'
+    /// When using this flag, the L1 timestamps are loaded from the provided L1 RPC",
+    #[arg(long = "rollup-config-paths", env = "ROLLUP_CONFIG_PATHS")]
+    pub rollup_config_paths: PathBuf,
+
     /// IP address for the Supervisor RPC server to listen on.
     #[arg(long = "rpc.addr", env = "RPC_ADDR", default_value = "0.0.0.0")]
     pub rpc_address: IpAddr,
@@ -66,6 +77,64 @@ impl SupervisorArgs {
             )
         })?;
         Ok(dependency_set)
+    }
+
+    /// initialise and return the rollup config set.
+    pub async fn init_rollup_config_set(&self) -> Result<RollupConfigSet> {
+        let pattern = self.rollup_config_paths.to_string_lossy();
+        if pattern.is_empty() {
+            return Err(anyhow::anyhow!("rollup_config_paths pattern is empty"));
+        }
+
+        let l1_url = self
+            .l1_rpc
+            .parse()
+            .with_context(|| format!("Failed to parse L1 RPC URL '{}'", &self.l1_rpc))?;
+        let provider = RootProvider::<Ethereum>::new_http(l1_url);
+
+        let mut rollup_config_set = RollupConfigSet::default();
+        for entry in glob(&pattern)? {
+            let path = entry?;
+            let mut file = File::open(&path).await.with_context(|| {
+                format!("Failed to open rollup config file '{}'", path.display())
+            })?;
+            let mut contents = String::new();
+            file.read_to_string(&mut contents).await.with_context(|| {
+                format!("Failed to read rollup config file '{}'", path.display())
+            })?;
+
+            let rollup_config: kona_genesis::RollupConfig = serde_json::from_str(&contents)
+                .with_context(|| {
+                    format!("Failed to parse JSON from rollup config file '{}'", path.display())
+                })?;
+
+            let chain_id = rollup_config.l2_chain_id;
+
+            let l1_genesis = provider
+                .get_block_by_hash(rollup_config.genesis.l1.hash)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to fetch L1 genesis block for hash {}",
+                        rollup_config.genesis.l1.hash
+                    )
+                })?;
+
+            let l1_genesis = l1_genesis.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "L1 genesis block not found for hash {}",
+                    rollup_config.genesis.l1.hash
+                )
+            })?;
+
+            rollup_config_set.add_from_rollup_config(
+                chain_id,
+                rollup_config,
+                l1_genesis.header.timestamp,
+            );
+        }
+
+        Ok(rollup_config_set)
     }
 }
 
@@ -181,6 +250,7 @@ mod tests {
             datadir: "dummy".to_string(),
             datadir_sync_endpoint: None,
             dependency_set: temp_file.path().to_path_buf(),
+            rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
         };
@@ -225,6 +295,7 @@ mod tests {
             datadir: "dummy".to_string(),
             datadir_sync_endpoint: None,
             dependency_set: PathBuf::from("/path/to/non_existent_file.json"),
+            rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
         };
@@ -249,6 +320,7 @@ mod tests {
             datadir: "dummy".to_string(),
             datadir_sync_endpoint: None,
             dependency_set: temp_file.path().to_path_buf(),
+            rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
             rpc_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             rpc_port: 8545,
         };
