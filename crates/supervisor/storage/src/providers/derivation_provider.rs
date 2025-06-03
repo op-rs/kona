@@ -182,7 +182,6 @@ where
     TX: DbTxMut + DbTx,
 {
     /// initialises the database with a derived block pair anchor.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         match self.get_derived_block_pair_by_number(0) {
             Ok(pair)

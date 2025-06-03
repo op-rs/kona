@@ -33,9 +33,7 @@ impl ChainDb {
 
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
-        self.env.update(|tx| {
-            DerivationProvider::new(tx).initialise(anchor)
-        })?
+        self.env.update(|tx| DerivationProvider::new(tx).initialise(anchor))?
     }
 }
 
