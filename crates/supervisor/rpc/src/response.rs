@@ -79,7 +79,7 @@ mod test {
     #[cfg(feature = "serde")]
     #[test]
     fn test_serialize_supervisor_chain_sync_status() {
-        const STATUS: &'static str = r#"
+        const STATUS: &str = r#"
             {
                 "unsafe": {
                     "number": 100,
