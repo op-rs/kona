@@ -148,9 +148,18 @@ impl OpP2PApiServer for NetworkRpc {
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
-    async fn opp2p_disconnect_peer(&self, _peer: String) -> RpcResult<()> {
+    async fn opp2p_disconnect_peer(&self, peer_id: String) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_disconnectPeer");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let peer_id = match peer_id.parse() {
+            Ok(id) => id,
+            Err(err) => {
+                warn!(target: "rpc", ?err, ?peer_id, "Failed to parse peer ID");
+                return Err(ErrorObject::from(ErrorCode::InvalidParams))
+            }
+        };
+        self.sender
+            .send(P2pRpcRequest::DisconnectPeer { peer_id })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 }
