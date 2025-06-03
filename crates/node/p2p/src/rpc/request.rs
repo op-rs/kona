@@ -40,6 +40,11 @@ pub enum P2pRpcRequest {
         /// Whether to only return connected peers.
         connected: bool,
     },
+    /// Request to disconnect the specified peer.
+    DisconnectPeer {
+        /// The peer id to disconnect.
+        peer_id: PeerId,
+    },
     /// Returns the current peer stats for both the
     /// - Discovery Service ([`crate::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
@@ -51,13 +56,22 @@ pub enum P2pRpcRequest {
 
 impl P2pRpcRequest {
     /// Handles the peer count request.
-    pub fn handle(self, gossip: &GossipDriver, disc: &Discv5Handler) {
+    pub fn handle(self, gossip: &mut GossipDriver, disc: &Discv5Handler) {
         match self {
             Self::PeerCount(s) => Self::handle_peer_count(s, gossip, disc),
             Self::DiscoveryTable(s) => Self::handle_discovery_table(s, disc),
             Self::PeerInfo(s) => Self::handle_peer_info(s, gossip, disc),
             Self::Peers { out, connected } => Self::handle_peers(out, connected, gossip, disc),
+            Self::DisconnectPeer { peer_id } => Self::disconnect_peer(peer_id, gossip),
             Self::PeerStats(s) => Self::handle_peer_stats(s, gossip, disc),
+        }
+    }
+
+    fn disconnect_peer(peer_id: PeerId, gossip: &mut GossipDriver) {
+        if let Err(e) = gossip.swarm.disconnect_peer_id(peer_id) {
+            warn!(target: "p2p::rpc", "Failed to disconnect peer {}: {:?}", peer_id, e);
+        } else {
+            info!(target: "p2p::rpc", "Disconnected peer {}", peer_id);
         }
     }
 

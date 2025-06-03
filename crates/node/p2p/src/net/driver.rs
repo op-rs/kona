@@ -160,7 +160,7 @@ impl Network {
                             error!(target: "node::p2p", "The rpc receiver channel has closed");
                             return;
                         };
-                        req.handle(&self.gossip, &handler);
+                        req.handle(&mut self.gossip, &handler);
                     },
                 }
             }
