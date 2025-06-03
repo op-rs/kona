@@ -18,6 +18,9 @@ pub struct GlobalArgs {
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
+    /// Embed the override flags globally to provide override values adjacent to the configs.
+    #[command(flatten)]
+    pub override_args: super::OverrideArgs,
 }
 
 impl GlobalArgs {
@@ -29,7 +32,14 @@ impl GlobalArgs {
     /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global
     /// arguments.
     pub fn rollup_config(&self) -> Option<RollupConfig> {
-        ROLLUP_CONFIGS.get(&self.l2_chain_id).cloned()
+        ROLLUP_CONFIGS.get(&self.l2_chain_id).cloned().map(|c| self.apply_overrides(c))
+    }
+
+    /// Applies the specified overrides to the given rollup config.
+    ///
+    /// Transforms the rollup config and returns the updated config with the overrides applied.
+    pub fn apply_overrides(&self, config: RollupConfig) -> RollupConfig {
+        self.override_args.apply(config)
     }
 
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.
