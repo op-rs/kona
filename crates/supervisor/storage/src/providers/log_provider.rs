@@ -54,36 +54,33 @@ where
             if !latest_block.is_parent_of(block) {
                 warn!(
                     target: "supervisor_storage",
-                    latest_block = ?latest_block,
-                    incoming_block = ?block,
+                    %latest_block,
+                    incoming_block = %block,
                     "Incoming block does not follow latest stored block"
                 );
                 return Err(StorageError::ConflictError(
-                    "Incoming block does not follow latest stored block".into(),
+                    "incoming block does not follow latest stored block".into(),
                 ));
             }
         }
 
-        self.tx.put::<BlockRefs>(block.number, (*block).into()).map_err(|e| {
-            error!(target: "supervisor_storage", block_number = block.number, error = ?e, "Failed to insert block");
-            StorageError::Database(e)
+        self.tx.put::<BlockRefs>(block.number, (*block).into()).inspect_err(|err| {
+            error!(target: "supervisor_storage", block_number = block.number, %err, "Failed to insert block");
         })?;
 
-        let mut cursor = self.tx.cursor_dup_write::<LogEntries>().map_err(|e| {
-            error!(target: "supervisor_storage", error = ?e, "Failed to get dup cursor");
-            StorageError::Database(e)
+        let mut cursor = self.tx.cursor_dup_write::<LogEntries>().inspect_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to get dup cursor");
         })?;
 
         for log in logs {
-            if let Err(e) = cursor.append_dup(block.number, log.into()) {
+            cursor.append_dup(block.number, log.into()).inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
                     block_number = block.number,
-                    error = ?e,
+                    %err,
                     "Failed to append logs"
                 );
-                return Err(StorageError::Database(e));
-            }
+            })?;
         }
         Ok(())
     }
@@ -96,19 +93,18 @@ where
     fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
         debug!(target: "supervisor_storage", block_number, "Fetching block");
 
-        let block_option = self.tx.get::<BlockRefs>(block_number).map_err(|e| {
+        let block_option = self.tx.get::<BlockRefs>(block_number).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
                 block_number,
-                error = ?e,
+                %err,
                 "Failed to read block",
             );
-            StorageError::Database(e)
         })?;
 
         let block = block_option.ok_or_else(|| {
             warn!(target: "supervisor_storage", block_number, "Block not found");
-            StorageError::EntryNotFound(format!("Block {} not found", block_number))
+            StorageError::EntryNotFound(format!("block {block_number} not found"))
         })?;
         Ok(block.into())
     }
@@ -116,19 +112,17 @@ where
     pub(crate) fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         debug!(target: "supervisor_storage", "Fetching latest block");
 
-        let mut cursor = self.tx.cursor_read::<BlockRefs>().map_err(|e| {
-            error!(target: "supervisor_storage", error = ?e, "Failed to get cursor");
-            StorageError::Database(e)
+        let mut cursor = self.tx.cursor_read::<BlockRefs>().inspect_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to get cursor");
         })?;
 
-        let result = cursor.last().map_err(|e| {
-            error!(target: "supervisor_storage", error = ?e, "Failed to seek to last block");
-            StorageError::Database(e)
+        let result = cursor.last().inspect_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to seek to last block");
         })?;
 
         let (_, block) = result.ok_or_else(|| {
             warn!(target: "supervisor_storage", "No blocks found in storage");
-            StorageError::EntryNotFound("No blocks found".to_string())
+            StorageError::EntryNotFound("no blocks found".to_string())
         })?;
         Ok(block.into())
     }
@@ -145,20 +139,18 @@ where
             "Fetching block  by log"
         );
 
-        let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
-            error!(target: "supervisor_storage", error = ?e, "Failed to get cursor for LogEntries");
-            StorageError::Database(e)
+        let mut cursor = self.tx.cursor_dup_read::<LogEntries>().inspect_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to get cursor for LogEntries");
         })?;
 
-        let result = cursor.seek_by_key_subkey(block_number, log.index).map_err(|e| {
+        let result = cursor.seek_by_key_subkey(block_number, log.index).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
                 block_number,
                 log_index = log.index,
-                error = ?e,
+                %err,
                 "Failed to read log entry"
             );
-            StorageError::Database(e)
         })?;
 
         let log_entry = result.ok_or_else(|| {
@@ -169,8 +161,8 @@ where
                 "Log not found"
             );
             StorageError::EntryNotFound(format!(
-                "Log not found at block {} index {}",
-                block_number, log.index
+                "log not found at block {block_number} index {}",
+                log.index,
             ))
         })?;
 
@@ -181,7 +173,7 @@ where
                 log_index = log.index,
                 "Log hash mismatch"
             );
-            return Err(StorageError::EntryNotFound("Log hash mismatch".to_string()));
+            return Err(StorageError::EntryNotFound("log hash mismatch".to_string()));
         }
         self.get_block(block_number)
     }
@@ -189,33 +181,31 @@ where
     pub(crate) fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
         debug!(target: "supervisor_storage", block_number, "Fetching logs");
 
-        let mut cursor = self.tx.cursor_dup_read::<LogEntries>().map_err(|e| {
-            error!(target: "supervisor_storage", error = ?e, "Failed to get dup cursor");
-            StorageError::Database(e)
+        let mut cursor = self.tx.cursor_dup_read::<LogEntries>().inspect_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to get dup cursor");
         })?;
 
-        let walker = cursor.walk_range(block_number..=block_number).map_err(|e| {
+        let walker = cursor.walk_range(block_number..=block_number).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
                 block_number,
-                error = ?e,
+                %err,
                 "Failed to walk dup range",
             );
-            StorageError::Database(e)
         })?;
 
         let mut logs = Vec::new();
         for row in walker {
             match row {
                 Ok((_, entry)) => logs.push(entry.into()),
-                Err(e) => {
+                Err(err) => {
                     error!(
                         target: "supervisor_storage",
                         block_number,
-                        error = ?e,
+                        %err,
                         "Failed to read log entry",
                     );
-                    return Err(StorageError::Database(e));
+                    return Err(StorageError::Database(err));
                 }
             }
         }

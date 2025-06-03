@@ -1,0 +1,87 @@
+SOURCE := source_directory()
+DEFAULT_DEVNET_PATH := source_directory() + "/devnets/simple-kona.yaml"
+DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package"
+
+build-devnet BINARY:
+    #!/usr/bin/env bash
+    if [ {{BINARY}} != "node" ] && [ {{BINARY}} != "supervisor" ]; then
+        echo "Invalid binary specified. Must be either 'node' or 'supervisor'."
+        exit 1
+    fi
+
+    export BUILD_PROFILE="release"
+    cd {{SOURCE}}/../docker/apps && just build-local "kona-{{BINARY}}" "kona-{{BINARY}}:local"
+
+# Spins up kurtosis with the `kona-node` docker image
+# The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
+# If not specified, the default devnet path will be used.
+# The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
+devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
+  #!/bin/bash
+  export ENCLAVE=""
+  if ! [ -z "{{ENCLAVE}}" ]; then
+    export ENCLAVE="--enclave {{ENCLAVE}}"
+  fi
+
+  export DEVNET_PATH="{{CUSTOM_DEVNET_PATH}}"
+  if [ -z "{{CUSTOM_DEVNET_PATH}}" ]; then
+    export DEVNET_PATH="{{DEFAULT_DEVNET_PATH}}"
+  fi
+
+  export OP_PACKAGE_PATH="{{OP_PACKAGE_PATH}}"
+  if [ -z "{{OP_PACKAGE_PATH}}" ]; then
+    export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
+  # if the OP_PACKAGE_PATH is a local path, use mise to install it
+  elif [ -d "{{OP_PACKAGE_PATH}}" ]; then
+    cd $OP_PACKAGE_PATH && mise install
+  fi
+
+  # Run the kurtosis test
+  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
+
+# Winds down kurtosis, cleaning up the network
+cleanup-kurtosis:
+  kurtosis clean -a
+
+test-e2e DEVNET GO_PKG_NAME="":
+    #!/bin/bash
+    if [ -z "{{GO_PKG_NAME}}" ]; then
+        export GO_PKG_NAME="..."
+    else
+        export GO_PKG_NAME="{{GO_PKG_NAME}}"
+    fi
+
+    export DEVNET_ENV_URL={{DEVNET}}
+
+    cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
+
+build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
+    #!/bin/bash
+    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+
+    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
+
+build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH)
+    #!/bin/bash
+    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+
+    just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
+
+# Updates the devnet with the latest local changes. This is useful to
+# rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
+update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
+    #!/bin/bash
+
+    # Ensure there is a kurtosis enclave running with the name {{DEVNET}}
+    ENCLAVE_EXISTS=$(kurtosis enclave ls | grep {{DEVNET}} || true)
+    if [ -z "$ENCLAVE_EXISTS" ]; then
+        echo "No kurtosis enclave found with name {{DEVNET}}"
+        exit 1
+    fi
+
+    # Get all the services that contain the words "cl" and "kona"
+    SERVICES=$(kurtosis enclave inspect {{DEVNET}} | grep "cl" | grep "kona" | awk '{print $2}')
+
+    for service in $SERVICES; do
+        kurtosis service update {{DEVNET}} $service --image kona-node:local
+    done

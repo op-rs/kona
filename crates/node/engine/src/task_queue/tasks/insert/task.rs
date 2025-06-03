@@ -4,16 +4,20 @@ use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
     InsertUnsafeTaskError, Metrics,
 };
+use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{
-    ExecutionPayloadInputV2, ForkchoiceState, INVALID_FORK_CHOICE_STATE_ERROR, PayloadStatusEnum,
+    CancunPayloadFields, ExecutionPayloadInputV2, ForkchoiceState, INVALID_FORK_CHOICE_STATE_ERROR,
+    PayloadStatusEnum, PraguePayloadFields,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_consensus::OpBlock;
 use op_alloy_provider::ext::engine::OpEngineApi;
-use op_alloy_rpc_types_engine::{OpExecutionPayload, OpNetworkPayloadEnvelope};
+use op_alloy_rpc_types_engine::{
+    OpExecutionPayload, OpExecutionPayloadSidecar, OpNetworkPayloadEnvelope,
+};
 use std::{sync::Arc, time::Instant};
 
 /// The task to insert an unsafe payload into the execution engine.
@@ -70,23 +74,53 @@ impl EngineTaskExt for InsertUnsafeTask {
         let time_start = Instant::now();
 
         // Insert the new payload.
-        let block_root = self.envelope.parent_beacon_block_root.unwrap_or_default();
+        // Form the new unsafe block ref from the execution payload.
+        let parent_beacon_block_root = self.envelope.parent_beacon_block_root.unwrap_or_default();
         let insert_time_start = Instant::now();
-        let response = match self.envelope.payload.clone() {
-            OpExecutionPayload::V1(payload) => self.client.new_payload_v1(payload).await,
+        let (response, block): (_, OpBlock) = match self.envelope.payload.clone() {
+            OpExecutionPayload::V1(payload) => (
+                self.client.new_payload_v1(payload).await,
+                self.envelope
+                    .payload
+                    .clone()
+                    .try_into_block()
+                    .map_err(InsertUnsafeTaskError::FromBlockError)?,
+            ),
             OpExecutionPayload::V2(payload) => {
                 let payload_input = ExecutionPayloadInputV2 {
                     execution_payload: payload.payload_inner,
                     withdrawals: Some(payload.withdrawals),
                 };
-                self.client.new_payload_v2(payload_input).await
+                (
+                    self.client.new_payload_v2(payload_input).await,
+                    self.envelope
+                        .payload
+                        .clone()
+                        .try_into_block()
+                        .map_err(InsertUnsafeTaskError::FromBlockError)?,
+                )
             }
-            OpExecutionPayload::V3(payload) => {
-                self.client.new_payload_v3(payload, block_root).await
-            }
-            OpExecutionPayload::V4(payload) => {
-                self.client.new_payload_v4(payload, block_root).await
-            }
+            OpExecutionPayload::V3(payload) => (
+                self.client.new_payload_v3(payload, parent_beacon_block_root).await,
+                self.envelope
+                    .payload
+                    .clone()
+                    .try_into_block_with_sidecar(&OpExecutionPayloadSidecar::v3(
+                        CancunPayloadFields::new(parent_beacon_block_root, vec![]),
+                    ))
+                    .map_err(InsertUnsafeTaskError::FromBlockError)?,
+            ),
+            OpExecutionPayload::V4(payload) => (
+                self.client.new_payload_v4(payload, parent_beacon_block_root).await,
+                self.envelope
+                    .payload
+                    .clone()
+                    .try_into_block_with_sidecar(&OpExecutionPayloadSidecar::v4(
+                        CancunPayloadFields::new(parent_beacon_block_root, vec![]),
+                        PraguePayloadFields::new(EMPTY_REQUESTS_HASH),
+                    ))
+                    .map_err(InsertUnsafeTaskError::FromBlockError)?,
+            ),
         };
 
         // Check the `engine_newPayload` response.
@@ -99,19 +133,12 @@ impl EngineTaskExt for InsertUnsafeTask {
         }
         let insert_duration = insert_time_start.elapsed();
 
-        // Form the new unsafe block ref from the execution payload.
-        let block: OpBlock = self
-            .envelope
-            .payload
-            .clone()
-            .try_into_block()
-            .map_err(InsertUnsafeTaskError::FromBlockError)?;
         let new_unsafe_ref =
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
                 .map_err(InsertUnsafeTaskError::L2BlockInfoConstruction)?;
 
         let fcu = ForkchoiceState {
-            head_block_hash: self.envelope.payload.block_hash(),
+            head_block_hash: new_unsafe_ref.block_info.hash,
             safe_block_hash: state.safe_head().block_info.hash,
             finalized_block_hash: state.finalized_head().block_info.hash,
         };

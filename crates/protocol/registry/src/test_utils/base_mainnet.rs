@@ -1,6 +1,11 @@
 //! Base Mainnet Rollup Config.
 
 use alloy_eips::BlockNumHash;
+use alloy_op_hardforks::{
+    BASE_MAINNET_CANYON_TIMESTAMP, BASE_MAINNET_ECOTONE_TIMESTAMP, BASE_MAINNET_FJORD_TIMESTAMP,
+    BASE_MAINNET_GRANITE_TIMESTAMP, BASE_MAINNET_HOLOCENE_TIMESTAMP,
+    BASE_MAINNET_ISTHMUS_TIMESTAMP,
+};
 use alloy_primitives::{address, b256, uint};
 use kona_genesis::{
     BASE_MAINNET_BASE_FEE_CONFIG, ChainGenesis, DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
@@ -41,14 +46,14 @@ pub const BASE_MAINNET_CONFIG: RollupConfig = RollupConfig {
     l2_chain_id: 8453,
     hardforks: HardForkConfig {
         regolith_time: None,
-        canyon_time: Some(1704992401),
+        canyon_time: Some(BASE_MAINNET_CANYON_TIMESTAMP),
         delta_time: Some(1708560000),
-        ecotone_time: Some(1710374401),
-        fjord_time: Some(1720627201),
-        granite_time: Some(1_726_070_401_u64),
-        holocene_time: Some(1736445601),
+        ecotone_time: Some(BASE_MAINNET_ECOTONE_TIMESTAMP),
+        fjord_time: Some(BASE_MAINNET_FJORD_TIMESTAMP),
+        granite_time: Some(BASE_MAINNET_GRANITE_TIMESTAMP),
+        holocene_time: Some(BASE_MAINNET_HOLOCENE_TIMESTAMP),
         pectra_blob_schedule_time: None,
-        isthmus_time: Some(1746806401),
+        isthmus_time: Some(BASE_MAINNET_ISTHMUS_TIMESTAMP),
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000000008453"),

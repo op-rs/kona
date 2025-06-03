@@ -3,7 +3,7 @@
 use crate::{
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
-    traits::{DerivationStorage, LogStorage, SafetyHeadRefStorage},
+    traits::{DerivationStorage, LogStorageReader, LogStorageWriter, SafetyHeadRefStorage},
 };
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
@@ -56,7 +56,7 @@ impl DerivationStorage for ChainDb {
     }
 }
 
-impl LogStorage for ChainDb {
+impl LogStorageReader for ChainDb {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| LogProvider::new(tx).get_latest_block())?
     }
@@ -68,7 +68,9 @@ impl LogStorage for ChainDb {
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
         self.env.view(|tx| LogProvider::new(tx).get_logs(block_number))?
     }
+}
 
+impl LogStorageWriter for ChainDb {
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
         self.env.update(|ctx| LogProvider::new(ctx).store_block_logs(block, logs))?
     }

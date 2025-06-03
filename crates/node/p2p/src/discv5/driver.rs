@@ -358,7 +358,7 @@ impl Discv5Driver {
                             discv5::Event::Discovered(enr) => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
-                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type", "discovered");
+                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type" => "discovered");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -371,7 +371,7 @@ impl Discv5Driver {
                             discv5::Event::SessionEstablished(enr, addr) => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Session established with valid ENR, forwarding to swarm. Address: {:?}, ENR: {:?}", addr, enr);
-                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type", "session_established");
+                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type" => "session_established");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -384,7 +384,7 @@ impl Discv5Driver {
                             discv5::Event::UnverifiableEnr { enr, .. } => {
                                 if EnrValidation::validate(&enr, chain_id).is_valid() {
                                     debug!(target: "discovery", "Valid ENR discovered, forwarding to swarm: {:?}", enr);
-                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type", "unverifiable_enr");
+                                    kona_macros::inc!(gauge, crate::Metrics::DISCOVERY_EVENT, "type" => "unverifiable_enr");
                                     self.store.add_enr(enr.clone());
                                     let sender = enr_sender.clone();
                                     tokio::spawn(async move {
@@ -401,7 +401,7 @@ impl Discv5Driver {
                     _ = interval.tick() => {
                         let id = NodeId::random();
                         trace!(target: "discovery", "Finding random node: {}", id);
-                        kona_macros::inc!(gauge, crate::Metrics::FIND_NODE_REQUEST, "find_node", "find_node");
+                        kona_macros::inc!(gauge, crate::Metrics::FIND_NODE_REQUEST, "find_node" => "find_node");
                         let fut = self.disc.find_node(id);
                         let enr_sender = enr_sender.clone();
                         tokio::spawn(async move {
