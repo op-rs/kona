@@ -7,11 +7,14 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
+        cl_log_level: info
+
         count: 2
       - el_type: op-reth
         cl_type: kona-node
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
+        cl_log_level: info
         count: 4
       network_params:
         network: "kurtosis"
