@@ -46,3 +46,23 @@ pub enum SubscriptionError {
     #[error("subscription not active or already stopped")]
     SubscriptionNotFound,
 }
+
+/// Error handling managed event task.
+#[derive(Debug, Error, PartialEq)]
+pub enum ManagedEventTaskError {
+    /// Unable to successfully fetch next L1 block.
+    #[error("failed to get block by number")]
+    GetBlockByNumberFailed,
+    /// Current block hash and parent block hash do not match.
+    #[error("current block hash and parent hash mismatch")]
+    BlockHashMismatch,
+    /// This should never happen, new() always sets the rpc client when creating the task.
+    #[error("rpc client for managed node is not set")]
+    ManagedNodeClientEmpty,
+    /// Managed node api call failed.
+    #[error("managed node api call failed")]
+    ManagedNodeAPICallFailed,
+    /// Next block is either empty or unavailable.
+    #[error("next block is either empty or unavailable")]
+    NextBlockNotFound,
+}

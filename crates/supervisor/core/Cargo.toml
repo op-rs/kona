@@ -21,6 +21,7 @@ kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee", "client"] }
 
 # alloy
 alloy-eips.workspace = true
+alloy-network.workspace = true
 alloy-provider = { workspace = true, features = ["reqwest"] }
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
@@ -38,6 +39,7 @@ tracing.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "macros"] }
 tokio-util.workspace = true
+reqwest = { workspace = true }
 
 # `metrics` feature
 metrics = { workspace = true }
@@ -45,6 +47,7 @@ metrics = { workspace = true }
 [dev-dependencies]
 serde_json.workspace = true
 tempfile.workspace = true
+alloy-transport.workspace = true
 
 [lints]
 workspace = true
