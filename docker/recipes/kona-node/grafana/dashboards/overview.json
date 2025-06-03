@@ -1463,8 +1463,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1530,8 +1529,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1603,8 +1601,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1784,6 +1781,7 @@
         }
       ],
       "title": "Peer Count",
+      "transparent": true,
       "type": "timeseries"
     },
     {
@@ -1883,6 +1881,7 @@
         }
       ],
       "title": "Discovery Events / min",
+      "transparent": true,
       "type": "timeseries"
     },
     {
@@ -1982,6 +1981,7 @@
         }
       ],
       "title": "Peers Dialed / min",
+      "transparent": true,
       "type": "timeseries"
     },
     {
@@ -1989,7 +1989,6 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2004,7 +2003,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 14,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2042,7 +2041,22 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gossip events"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-YlBl"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -2050,7 +2064,7 @@
         "x": 12,
         "y": 54
       },
-      "id": 24,
+      "id": 31,
       "options": {
         "legend": {
           "calcs": [],
@@ -2071,17 +2085,18 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "kona_node_find_node_requests{instance=~\"$instance\", find_node=\"find_node\"}",
+          "expr": "sum by(type) (rate(kona_node_gossip_events{instance=~\"$instance\"}[$__rate_interval])) * 60",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "find-node requests",
+          "legendFormat": "gossip events",
           "range": true,
           "refId": "A",
           "useBackend": false
         }
       ],
-      "title": "Find Node Request Count",
+      "title": "Gossip Events / min",
+      "transparent": true,
       "type": "timeseries"
     },
     {
@@ -2176,7 +2191,109 @@
         }
       ],
       "title": "ENR Store Time",
+      "transparent": true,
       "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 62
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kona_node_find_node_requests{instance=~\"$instance\", find_node=\"find_node\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "instant": false,
+          "legendFormat": "find-node requests",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Find Node Request Count",
+      "transparent": true,
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -2441,13 +2558,13 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Kona Node",
   "uid": "eelp13vmygsu8b",
-  "version": 50,
+  "version": 53,
   "weekStart": ""
 }

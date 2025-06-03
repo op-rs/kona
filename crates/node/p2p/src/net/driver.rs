@@ -98,7 +98,6 @@ impl Network {
                             return;
                         };
 
-                        kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
                             broadcast.broadcast();

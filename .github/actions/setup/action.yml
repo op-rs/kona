@@ -14,13 +14,16 @@ inputs:
   prefix-key:
     description: The prefix key for the rust cache
     required: false
-    default: ""
+    default: "v0-rust"
 
 runs:
   using: "composite"
   steps:
     - name: Install Just
       uses: taiki-e/install-action@just
+
+    - name: Install mold linker
+      uses: rui314/setup-mold@v1
 
     - name: Installs stable rust toolchain
       if: ${{ inputs.channel == 'stable' && inputs.components == '' }}
@@ -33,9 +36,7 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: 1.85
-        components: $COMPONENTS
-      env:
-        COMPONENTS: ${{ inputs.components }}
+        components: ${{ inputs.components }}
 
     - name: Installs nightly rust toolchain
       if: ${{ inputs.channel == 'nightly' && inputs.components == '' }}
@@ -45,14 +46,11 @@ runs:
       if: ${{ inputs.channel == 'nightly' && inputs.components != '' }}
       uses: dtolnay/rust-toolchain@nightly
       with:
-        components: $COMPONENTS
-      env:
-        COMPONENTS: ${{ inputs.components }}
+        components: ${{ inputs.components }}
 
     - name: Installs the rust cache
       uses: Swatinem/rust-cache@v2
       with:
         cache-on-failure: true
-        prefix-key: $PREFIX_KEY
-      env:
-        PREFIX_KEY: ${{ inputs.prefix-key }}
+        prefix-key: ${{ inputs.prefix-key }}
+        save-if: ${{ github.ref == 'refs/heads/main' }}

@@ -41,8 +41,8 @@ are both `admin`.
 The `kona-node` dashboard is provisioned within the grafana instance by default. A new visualization can be added to the
 dashboard by navigating to the `Kona Node` dashboard, and then clicking `Add` > `Visualization` in the top right.
 
-Once your visualization has been added, click `Export` > `Export as JSON`, and toggle "Export the dashboard to use in
-another instance" on. Then, copy the JSON, and replace the contents of [`overview.json`](./grafana/dashboards/overview.json)
+Once your visualization has been added, click `Share` > `Export` (tab), and toggle "Export for sharing externally" on.
+Then, copy the JSON, and replace the contents of [`overview.json`](./grafana/dashboards/overview.json)
 before making a PR.
 
 ## Configuration
