@@ -227,6 +227,14 @@ impl GossipDriver {
             Event::Gossipsub(e) => return self.handle_gossipsub_event(e),
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!(target: "gossip", ?peer, ?result, "Ping received");
+                if let Some(start_time) = self.peer_connection_start.get(&peer) {
+                    let ping_duration = start_time.elapsed();
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                        ping_duration.as_secs_f64()
+                    );
+                }
             }
             Event::Identify(e) => self.handle_identify_event(e),
         };
@@ -351,11 +359,11 @@ impl GossipDriver {
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
 
                 if let Some(start_time) = self.peer_connection_start.remove(&peer_id) {
-                    let duration = start_time.elapsed();
+                    let peer_duration = start_time.elapsed();
                     kona_macros::record!(
                         histogram,
                         crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
-                        duration.as_secs_f64()
+                        peer_duration.as_secs_f64()
                     );
                 }
 

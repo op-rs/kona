@@ -98,6 +98,10 @@ impl Metrics {
             Self::PEER_SCORES,
             "Observations of peer scores in the gossipsub mesh"
         );
+        metrics::describe_histogram!(
+            Self::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+            "Duration of peer connections in seconds"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
