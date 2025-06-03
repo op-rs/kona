@@ -5,9 +5,9 @@ use std::collections::HashMap;
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
 pub struct Genesis {
-    /// The L1 block that the rollup starts *after* (no derived transactions)
+    /// The L1 [`BlockSeal`] that the rollup starts after.
     pub l1: BlockSeal,
-    /// The L2 block the rollup starts from (no transactions, pre-configured state, no parent)
+    /// The L2 [`BlockSeal`] that the rollup starts from.
     pub l2: BlockSeal,
 }
 
