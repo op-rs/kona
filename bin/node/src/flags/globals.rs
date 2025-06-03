@@ -1,5 +1,6 @@
 //! Global arguments for the CLI.
 
+use crate::metrics::CliMetrics;
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
@@ -24,6 +25,30 @@ impl GlobalArgs {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
     pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
         Ok(init_tracing_subscriber(self.v, filter)?)
+    }
+
+    /// Initializes cli metrics for global argument values.
+    pub fn init_cli_metrics(&self) {
+        let hardforks = self.rollup_config().map(|config| config.hardforks).unwrap_or_default();
+        metrics::gauge!(
+            CliMetrics::HARDFORK_ACTIVATION_TIMES,
+            &[
+                ("regolith_time", hardforks.regolith_time.unwrap_or_default().to_string()),
+                ("canyon_time", hardforks.canyon_time.unwrap_or_default().to_string()),
+                ("delta_time", hardforks.delta_time.unwrap_or_default().to_string()),
+                ("ecotone_time", hardforks.ecotone_time.unwrap_or_default().to_string()),
+                ("fjord_time", hardforks.fjord_time.unwrap_or_default().to_string()),
+                ("granite_time", hardforks.granite_time.unwrap_or_default().to_string()),
+                ("holocene_time", hardforks.holocene_time.unwrap_or_default().to_string()),
+                (
+                    "pectra_blob_schedule_time",
+                    hardforks.pectra_blob_schedule_time.unwrap_or_default().to_string()
+                ),
+                ("isthmus_time", hardforks.isthmus_time.unwrap_or_default().to_string()),
+                ("interop_time", hardforks.interop_time.unwrap_or_default().to_string()),
+            ]
+        )
+        .set(1);
     }
 
     /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global

@@ -35,6 +35,9 @@ impl CliMetrics {
     /// The advertised udp port via P2P.
     pub const P2P_ADVERTISE_UDP_PORT: &'static str = "kona_node_advertise_udp";
 
+    /// Hardfork activation times.
+    pub const HARDFORK_ACTIVATION_TIMES: &'static str = "kona_node_hardforks";
+
     /// Initializes the CLI metrics.
     pub fn init() {
         let labels: [(&str, &str); 9] = [
