@@ -1,24 +1,51 @@
-use crate::syncnode::NodeEvent;
+use crate::{
+    LogIndexer, ReceiptFetchError,
+    syncnode::{ManagedNodeProvider, NodeEvent},
+};
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
+use kona_supervisor_storage::LogStorageWriter;
 use kona_supervisor_types::BlockReplacement;
+use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+use tracing::{error, info};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
-pub struct ChainProcessorTask {
+pub struct ChainProcessorTask<
+    P: ManagedNodeProvider<Error = ReceiptFetchError>,
+    W: LogStorageWriter, // TODO: replace with more wider traits to covers others
+> {
+    log_indexer: Arc<LogIndexer<P, W>>,
+
     cancel_token: CancellationToken,
 
     /// The channel for receiving node events.
     event_rx: mpsc::Receiver<NodeEvent>,
 }
 
-impl ChainProcessorTask {
+impl<P, W> ChainProcessorTask<P, W>
+where
+    P: ManagedNodeProvider<Error = ReceiptFetchError> + 'static,
+    W: LogStorageWriter + 'static,
+{
     /// Creates a new [`ChainProcessorTask`].
-    pub const fn new(cancel_token: CancellationToken, event_rx: mpsc::Receiver<NodeEvent>) -> Self {
-        Self { cancel_token, event_rx }
+    pub fn new(
+        managed_node: Arc<P>,
+        state_manager: Arc<W>,
+        cancel_token: CancellationToken,
+        event_rx: mpsc::Receiver<NodeEvent>,
+    ) -> Self {
+        Self {
+            cancel_token,
+            event_rx,
+            log_indexer: Arc::from(LogIndexer::new(
+                Arc::clone(&managed_node),
+                Arc::clone(&state_manager),
+            )),
+        }
     }
 
     /// Runs the chain processor task, which listens for events and processes them.
@@ -56,7 +83,20 @@ impl ChainProcessorTask {
         // Logic to handle safe events
     }
 
-    async fn handle_unsafe_event(&self, _block_info: BlockInfo) {
-        // Logic to handle unsafe events
+    async fn handle_unsafe_event(&self, block_info: BlockInfo) {
+        info!(
+            target: "chain_processor",
+            block_number = block_info.number,
+            "Processing unsafe block"
+        );
+        if let Err(err) = self.log_indexer.process_and_store_logs(&block_info).await {
+            error!(
+                target: "chain_processor",
+                block_number = block_info.number,
+                %err,
+                "Failed to process unsafe block"
+            );
+            // TODO: take next action based on the error
+        }
     }
 }

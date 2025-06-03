@@ -8,4 +8,7 @@ mod event;
 pub use event::NodeEvent;
 
 mod error;
+mod traits;
+pub use traits::{ManagedNodeProvider, NodeSubscriber};
+
 pub use error::{AuthenticationError, ManagedNodeError, SubscriptionError};

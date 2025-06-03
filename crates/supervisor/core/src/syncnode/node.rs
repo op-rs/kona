@@ -1,5 +1,7 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use super::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
+use crate::syncnode::traits::NodeSubscriber;
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
@@ -16,8 +18,6 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
-
-use super::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
 
 /// Configuration for the managed node.
 #[derive(Debug)]
@@ -69,7 +69,7 @@ pub struct ManagedNode {
     // Cancellation token to stop the processor
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
-    task_handle: Option<JoinHandle<()>>,
+    task_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl ManagedNode {
@@ -80,7 +80,7 @@ impl ManagedNode {
             chain_id: OnceLock::new(),
             ws_client: Mutex::new(None),
             cancel_token,
-            task_handle: None,
+            task_handle: Mutex::new(None),
         }
     }
 
@@ -120,88 +120,6 @@ impl ManagedNode {
         let _ = self.chain_id.set(chain_id);
         Ok(chain_id)
     }
-
-    /// Starts a subscription to the managed node.
-    ///
-    /// Establishes a WebSocket connection and subscribes to node events.
-    /// Spawns a background task to process incoming events.
-    pub async fn start_subscription(
-        &mut self,
-        event_tx: mpsc::Sender<NodeEvent>,
-    ) -> Result<(), ManagedNodeError> {
-        if self.task_handle.is_some() {
-            Err(SubscriptionError::AlreadyActive)?
-        }
-
-        let client = self.get_ws_client().await?;
-
-        let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedModeApiClient::subscribe_events(client.as_ref()).await.inspect_err(|err| {
-                error!(
-                    target: "managed_node",
-                    %err,
-                    "Failed to subscribe to events"
-                );
-            })?;
-
-        let cancel_token = self.cancel_token.clone();
-
-        // Start background task to handle events
-        let handle = tokio::spawn(async move {
-            info!(target: "managed_node", "Subscription task started");
-            loop {
-                tokio::select! {
-                    // Listen for stop signal
-                    _ = cancel_token.cancelled() => {
-                        info!(target: "managed_node", "Cancellation token triggered, shutting down subscription");
-                        break;
-                    }
-
-                    // Listen for events from subscription
-                    event = subscription.next() => {
-                        match event {
-                            Some(event_result) => {
-                                match event_result {
-                                    Ok(managed_event) => {
-                                        Self::handle_managed_event(&event_tx, managed_event).await;
-                                    },
-                                    Err(err) => {
-                                        error!(
-                                            target: "managed_node",
-                                            %err,
-                                            "Error in event deserialization");
-                                        // Continue processing next events despite this error
-                                    }
-                                }
-                            }
-                            None => {
-                                // Subscription closed by the server
-                                warn!(target: "managed_node", "Subscription closed by server");
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Try to unsubscribe gracefully
-            if let Err(err) = subscription.unsubscribe().await {
-                warn!(
-                    target: "managed_node",
-                    %err,
-                    "Failed to unsubscribe gracefully"
-                );
-            }
-
-            info!(target: "managed_node", "Subscription task finished");
-        });
-
-        self.task_handle = Some(handle);
-
-        info!(target: "managed_node", "Subscription started successfully");
-        Ok(())
-    }
-
     /// Creates authentication headers using JWT secret.
     fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
@@ -317,6 +235,90 @@ impl ManagedNode {
                 );
             }
         }
+    }
+}
+#[async_trait]
+impl NodeSubscriber for ManagedNode {
+    /// Starts a subscription to the managed node.
+    ///
+    /// Establishes a WebSocket connection and subscribes to node events.
+    /// Spawns a background task to process incoming events.
+    async fn start_subscription(
+        &self,
+        event_tx: mpsc::Sender<NodeEvent>,
+    ) -> Result<(), ManagedNodeError> {
+        let mut handle_guard = self.task_handle.lock().await;
+        if handle_guard.is_some() {
+            Err(SubscriptionError::AlreadyActive)?
+        }
+
+        let client = self.get_ws_client().await?;
+
+        let mut subscription: Subscription<Option<ManagedEvent>> =
+            ManagedModeApiClient::subscribe_events(client.as_ref()).await.inspect_err(|err| {
+                error!(
+                    target: "managed_node",
+                    %err,
+                    "Failed to subscribe to events"
+                );
+            })?;
+
+        let cancel_token = self.cancel_token.clone();
+
+        // Start background task to handle events
+        let handle = tokio::spawn(async move {
+            info!(target: "managed_node", "Subscription task started");
+            loop {
+                tokio::select! {
+                    // Listen for stop signal
+                    _ = cancel_token.cancelled() => {
+                        info!(target: "managed_node", "Cancellation token triggered, shutting down subscription");
+                        break;
+                    }
+
+                    // Listen for events from subscription
+                    event = subscription.next() => {
+                        match event {
+                            Some(event_result) => {
+                                match event_result {
+                                    Ok(managed_event) => {
+                                        Self::handle_managed_event(&event_tx, managed_event).await;
+                                    },
+                                    Err(err) => {
+                                        error!(
+                                            target: "managed_node",
+                                            %err,
+                                            "Error in event deserialization");
+                                        // Continue processing next events despite this error
+                                    }
+                                }
+                            }
+                            None => {
+                                // Subscription closed by the server
+                                warn!(target: "managed_node", "Subscription closed by server");
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Try to unsubscribe gracefully
+            if let Err(err) = subscription.unsubscribe().await {
+                warn!(
+                    target: "managed_node",
+                    %err,
+                    "Failed to unsubscribe gracefully"
+                );
+            }
+
+            info!(target: "managed_node", "Subscription task finished");
+        });
+
+        *handle_guard = Some(handle);
+
+        info!(target: "managed_node", "Subscription started successfully");
+        Ok(())
     }
 }
 
@@ -551,10 +553,10 @@ mod tests {
             jwt_path: jwt_path.to_str().unwrap().to_string(),
         });
 
-        let mut subscriber = ManagedNode::new(config, CancellationToken::new());
+        let subscriber = ManagedNode::new(config, CancellationToken::new());
 
         // Test that we can create the subscriber instance
-        assert!(subscriber.task_handle.is_none());
+        assert!(subscriber.task_handle.lock().await.is_none());
 
         // Create a channel for events
         let (event_tx, _event_rx) = mpsc::channel(100);
@@ -564,7 +566,7 @@ mod tests {
         assert!(start_result.is_err(), "Subscription to invalid server should fail");
 
         // Verify state remains consistent after failure
-        assert!(subscriber.task_handle.is_none());
+        assert!(subscriber.task_handle.lock().await.is_none());
     }
 
     #[tokio::test]
