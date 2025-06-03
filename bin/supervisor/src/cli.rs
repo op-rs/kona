@@ -34,7 +34,6 @@ impl Cli {
         Self::run_until_ctrl_c(async move {
             let dependency_set = self.supervisor.init_dependency_set().await?;
             let rollup_config_set = self.supervisor.init_rollup_config_set().await?;
-            info!(?rollup_config_set, "Rollup config set initialized");
             let config = Config {
                 rpc_addr: SocketAddr::new(self.supervisor.rpc_address, self.supervisor.rpc_port),
                 dependency_set,
