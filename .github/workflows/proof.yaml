@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         kind: ["single", "interop"]
     steps:
@@ -38,7 +39,7 @@ jobs:
             monorepo/packages/contracts-bedrock/forge-artifacts
             monorepo/packages/contracts-bedrock/artifacts
             monorepo/packages/contracts-bedrock/cache
-          key: ${{ matrix.kind }}-forge-artifacts
+          key: ${{ matrix.kind }}-${{ hashFiles('monorepo/packages/contracts-bedrock/src/**') }}-forge-artifacts
       - name: Setup Go toolchain
         uses: actions/setup-go@v5
         with:
@@ -76,13 +77,14 @@ jobs:
           cargo llvm-cov report --lcov --output-path actions_cov.lcov
       - name: Cache forge artifacts
         id: cache-forge-build-save
+        if: ${{ github.ref == 'refs/heads/main' }}
         uses: actions/cache/save@v4
         with:
           path: |
             monorepo/packages/contracts-bedrock/forge-artifacts
             monorepo/packages/contracts-bedrock/artifacts
             monorepo/packages/contracts-bedrock/cache
-          key: ${{ matrix.kind }}-forge-artifacts
+          key: ${{ matrix.kind }}-${{ hashFiles('monorepo/packages/contracts-bedrock/src/**') }}-forge-artifacts
       - name: Upload coverage to codecov.io
         uses: codecov/codecov-action@v5
         with:
