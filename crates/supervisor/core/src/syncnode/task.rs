@@ -138,7 +138,10 @@ impl ManagedEventTask {
             Ok(Some(block)) => {
                 if block.header.parent_hash != derived_ref_pair.source.hash {
                     error!(target: "managed_event_task", "Block parent hash mismatch");
-                    Err(ManagedEventTaskError::BlockHashMismatch)?
+                    Err(ManagedEventTaskError::BlockHashMismatch {
+                        current: derived_ref_pair.source.hash,
+                        parent: block.header.parent_hash,
+                    })?
                 }
 
                 let block_info = BlockInfo {
@@ -149,7 +152,7 @@ impl ManagedEventTask {
                 };
 
                 let client =
-                    self.client.clone().ok_or(ManagedEventTaskError::ManagedNodeClientEmpty)?;
+                    self.client.clone().ok_or(ManagedEventTaskError::ManagedNodeClientMissing)?;
 
                 if let Err(err) =
                     ManagedModeApiClient::provide_l1(client.as_ref(), block_info).await
@@ -163,11 +166,13 @@ impl ManagedEventTask {
             }
             Ok(None) => {
                 error!(target: "managed_event_task", "Next block is either empty or unavailable");
-                Err(ManagedEventTaskError::NextBlockNotFound)?
+                Err(ManagedEventTaskError::NextBlockNotFound(derived_ref_pair.source.number + 1))?
             }
             Err(err) => {
                 error!(target: "managed_event_task", %err, "Error fetching next L1 block");
-                Err(ManagedEventTaskError::GetBlockByNumberFailed)?
+                Err(ManagedEventTaskError::GetBlockByNumberFailed(
+                    derived_ref_pair.source.number + 1,
+                ))?
             }
         }
     }
@@ -358,6 +363,14 @@ mod tests {
         let result = task.handle_exhaust_l1(provider, &derived_ref_pair).await;
 
         assert!(result.is_err(), "Expected error");
-        assert_eq!(result.err().unwrap(), ManagedEventTaskError::BlockHashMismatch);
+        assert_eq!(
+            result.err().unwrap(),
+            ManagedEventTaskError::BlockHashMismatch {
+                current: derived_ref_pair.source.hash,
+                parent: "0x1f68ac259155e2f38211ddad0f0a15394d55417b185a93923e2abe71bb7a4d6d"
+                    .parse()
+                    .unwrap(),
+            }
+        );
     }
 }

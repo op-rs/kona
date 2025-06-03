@@ -5040,7 +5040,7 @@ dependencies = [
 name = "kona-supervisor-core"
 version = "0.1.0"
 dependencies = [
- "alloy-eips 1.0.1",
+ "alloy-eips 1.0.9",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
