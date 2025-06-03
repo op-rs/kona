@@ -4,11 +4,15 @@
 mod supervisor;
 pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
 
+mod logindexer;
+pub use logindexer::{
+    LogIndexer, LogIndexerError, ReceiptFetchError, log_to_log_hash, log_to_message_payload,
+    payload_hash_to_log_hash,
+};
 mod rpc;
+
 pub use rpc::SupervisorRpc;
 
-mod syncnode;
-pub use syncnode::{
-    AuthenticationError, ManagedNode, ManagedNodeConfig, ManagedNodeError, NodeEvent,
-    SubscriptionError,
-};
+pub mod syncnode;
+
+pub mod chain_processor;

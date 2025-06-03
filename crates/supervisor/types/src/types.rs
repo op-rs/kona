@@ -9,7 +9,6 @@ use alloy_primitives::{B256, U64};
 use derive_more::{Constructor, Display};
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use op_alloy_consensus::OpReceiptEnvelope;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -107,9 +106,6 @@ impl OutputV0 {
         Self { state_root, message_passer_storage_root, block_hash }
     }
 }
-
-/// Collection of transaction receipts.
-pub type Receipts = Vec<OpReceiptEnvelope>;
 
 /// Event sent by the node to the supervisor to share updates.
 ///

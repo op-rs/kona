@@ -18,7 +18,7 @@ use crate::{OpP2PApiServer, net::NetworkRpc};
 #[async_trait]
 impl OpP2PApiServer for NetworkRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_self");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::PeerInfo(tx))
@@ -29,7 +29,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_peer_count(&self) -> RpcResult<PeerCount> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_peerCount");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_peerCount");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::PeerCount(tx))
@@ -43,7 +43,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_peers(&self, connected: bool) -> RpcResult<PeerDump> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_peers");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_peers");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::Peers { out: tx, connected })
@@ -68,7 +68,7 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_discovery_table(&self) -> RpcResult<Vec<String>> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_discoveryTable");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_discoveryTable");
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.sender
             .send(P2pRpcRequest::DiscoveryTable(tx))
@@ -79,43 +79,43 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_block_peer(&self, _peer: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_blockPeer");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockPeer");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_list_blocked_peers(&self) -> RpcResult<Vec<String>> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_listBlockedPeers");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedPeers");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_block_addr(&self, _ip: IpAddr) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_blockAddr");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockAddr");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_unblock_addr(&self, _ip: IpAddr) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_unblockAddr");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockAddr");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_list_blocked_addrs(&self) -> RpcResult<Vec<IpAddr>> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_listBlockedAddrs");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedAddrs");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_block_subnet(&self, _subnet: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_blockSubnet");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockSubnet");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_unblock_subnet(&self, _subnet: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_unblockSubnet");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockSubnet");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
@@ -124,33 +124,32 @@ impl OpP2PApiServer for NetworkRpc {
         kona_macros::inc!(
             gauge,
             kona_p2p::Metrics::RPC_CALLS,
-            "method",
-            "opp2p_listBlockedSubnets"
+            "method" => "opp2p_listBlockedSubnets"
         );
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_protect_peer(&self, _peer: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_protectPeer");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_protectPeer");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_unprotect_peer(&self, _peer: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_unprotectPeer");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unprotectPeer");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_connect_peer(&self, _peer: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_connectPeer");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_connectPeer");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
     async fn opp2p_disconnect_peer(&self, _peer: String) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method", "opp2p_disconnectPeer");
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_disconnectPeer");
         // Method not supported yet.
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }

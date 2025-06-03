@@ -17,7 +17,7 @@ pub struct Eip1559Update {
 
 impl Eip1559Update {
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         config.eip1559_denominator = Some(self.eip1559_denominator);
         config.eip1559_elasticity = Some(self.eip1559_elasticity);
     }

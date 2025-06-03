@@ -53,7 +53,7 @@ impl Network {
     }
 
     /// Take the unsafe block signer sender.
-    pub fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
+    pub const fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
         self.unsafe_block_signer_sender.take()
     }
 
@@ -98,7 +98,6 @@ impl Network {
                             return;
                         };
 
-                        kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
                             broadcast.broadcast();

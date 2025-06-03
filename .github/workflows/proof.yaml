@@ -23,15 +23,11 @@ jobs:
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
-      - uses: taiki-e/install-action@just
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-          toolchain: 1.85
+          prefix-key: ${{ matrix.kind }}
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
       - name: Prep action test environment
         run: just monorepo
       - name: Restore cached Forge artifacts
@@ -106,17 +102,11 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - uses: taiki-e/install-action@just
-      - uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Install Rust stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-          toolchain: 1.85
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
           prefix-key: ${{ matrix.target }}-${{ matrix.name }}
+      - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Log into ghcr
         if: "!contains(matrix.target, 'native')"
         uses: docker/login-action@v3

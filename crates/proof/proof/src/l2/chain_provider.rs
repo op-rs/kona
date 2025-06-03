@@ -39,7 +39,7 @@ impl<T: CommsClient> OracleL2ChainProvider<T> {
     }
 
     /// Sets the L2 chain ID to use for the provider's hints.
-    pub fn set_chain_id(&mut self, chain_id: Option<u64>) {
+    pub const fn set_chain_id(&mut self, chain_id: Option<u64>) {
         self.chain_id = chain_id;
     }
 

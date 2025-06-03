@@ -576,7 +576,7 @@ pub(crate) mod tests {
         signature_bytes[0] = !signature_bytes[0];
         envelope.signature = Signature::from_raw_array(&signature_bytes).unwrap();
 
-        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Signature { .. })));
+        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Signature)));
     }
 
     /// Blocks with invalid signers should be rejected.
