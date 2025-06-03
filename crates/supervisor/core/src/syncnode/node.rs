@@ -1,7 +1,7 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
 use super::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
-use crate::syncnode::traits::NodeSubscriber;
+use crate::syncnode::traits::{NodeSubscriber, ReceiptProvider};
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
@@ -10,7 +10,7 @@ use jsonrpsee::{
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_types::{ManagedEvent, ReceiptProvider, Receipts};
+use kona_supervisor_types::{ManagedEvent, Receipts};
 use std::sync::{Arc, OnceLock};
 use tokio::{
     sync::{Mutex, mpsc},
@@ -329,9 +329,7 @@ impl NodeSubscriber for ManagedNode {
 /// [`ManagedModeApiClient`] interface, using only the receipt-fetching capability
 #[async_trait]
 impl ReceiptProvider for ManagedNode {
-    type Error = ManagedNodeError;
-
-    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, Self::Error> {
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         let client = self.get_ws_client().await?;
         let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
         Ok(receipts)

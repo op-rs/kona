@@ -1,8 +1,5 @@
 use super::task::ChainProcessorTask;
-use crate::{
-    ReceiptFetchError,
-    syncnode::{ManagedNodeProvider, NodeEvent},
-};
+use crate::syncnode::{ManagedNodeProvider, NodeEvent};
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::LogStorageWriter;
 use std::sync::Arc;
@@ -18,8 +15,8 @@ use tracing::warn;
 /// and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessor<
-    P: ManagedNodeProvider<Error = ReceiptFetchError>,
-    W: LogStorageWriter, // TODO: replace with more wider traits to covers others
+    P: ManagedNodeProvider,
+    W: LogStorageWriter, // TODO: replace with more wider traits to cover others
 > {
     // The chainId that this processor is associated with
     chain_id: ChainId,
@@ -39,7 +36,7 @@ pub struct ChainProcessor<
 
 impl<P, W> ChainProcessor<P, W>
 where
-    P: ManagedNodeProvider<Error = ReceiptFetchError> + 'static,
+    P: ManagedNodeProvider + 'static,
     W: LogStorageWriter + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].

@@ -9,6 +9,6 @@ pub use event::NodeEvent;
 
 mod error;
 mod traits;
-pub use traits::{ManagedNodeProvider, NodeSubscriber};
+pub use traits::{ManagedNodeProvider, NodeSubscriber, ReceiptProvider};
 
 pub use error::{AuthenticationError, ManagedNodeError, SubscriptionError};

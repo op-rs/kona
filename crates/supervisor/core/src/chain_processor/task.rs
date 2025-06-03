@@ -1,5 +1,5 @@
 use crate::{
-    LogIndexer, ReceiptFetchError,
+    LogIndexer,
     syncnode::{ManagedNodeProvider, NodeEvent},
 };
 use kona_interop::DerivedRefPair;
@@ -15,8 +15,8 @@ use tracing::{error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<
-    P: ManagedNodeProvider<Error = ReceiptFetchError>,
-    W: LogStorageWriter, // TODO: replace with more wider traits to covers others
+    P: ManagedNodeProvider,
+    W: LogStorageWriter, // TODO: replace with more wider traits to cover others
 > {
     log_indexer: Arc<LogIndexer<P, W>>,
 
@@ -28,7 +28,7 @@ pub struct ChainProcessorTask<
 
 impl<P, W> ChainProcessorTask<P, W>
 where
-    P: ManagedNodeProvider<Error = ReceiptFetchError> + 'static,
+    P: ManagedNodeProvider + 'static,
     W: LogStorageWriter + 'static,
 {
     /// Creates a new [`ChainProcessorTask`].
@@ -41,10 +41,7 @@ where
         Self {
             cancel_token,
             event_rx,
-            log_indexer: Arc::from(LogIndexer::new(
-                Arc::clone(&managed_node),
-                Arc::clone(&state_manager),
-            )),
+            log_indexer: Arc::from(LogIndexer::new(managed_node, state_manager)),
         }
     }
 

@@ -1,6 +1,7 @@
 use crate::syncnode::{ManagedNodeError, NodeEvent};
+use alloy_primitives::B256;
 use async_trait::async_trait;
-use kona_supervisor_types::ReceiptProvider;
+use kona_supervisor_types::Receipts;
 use std::fmt::Debug;
 use tokio::sync::mpsc;
 
@@ -22,6 +23,24 @@ pub trait NodeSubscriber: Send + Sync {
         &self,
         event_tx: mpsc::Sender<NodeEvent>,
     ) -> Result<(), ManagedNodeError>;
+}
+
+/// [`ReceiptProvider`] abstracts fetching receipts for a given block hash.
+///
+/// This trait exists to decouple the indexing logs from tightly coupling with
+/// the full `ManagedModeApi`. It allows using a minimal provider
+/// focused only on receipt access.
+#[async_trait]
+pub trait ReceiptProvider: Send + Sync + Debug {
+    /// Fetch all transaction receipts for the block with the given hash.
+    ///
+    /// # Arguments
+    /// * `block_hash` - The hash of the block whose receipts should be fetched.
+    ///
+    /// # Returns
+    /// [Receipts] representing all transaction receipts in the block,
+    /// or an error if the fetch fails.
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:
