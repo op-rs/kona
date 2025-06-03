@@ -5,6 +5,7 @@ pub use jsonrpsee::{
     types::{ErrorCode, ErrorObjectOwned},
 };
 
+use crate::SupervisorSyncStatus;
 use alloy_eips::{BlockId, BlockNumHash};
 use alloy_primitives::{B256, BlockHash, ChainId};
 use jsonrpsee::proc_macros::rpc;
@@ -47,6 +48,12 @@ pub trait SupervisorApi {
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
+
+    /// Describes superchain sync status.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_syncstatus>
+    #[method(name = "syncStatus")]
+    async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus>;
 }
 
 /// ManagedModeApi to send control signals to a managed node from supervisor

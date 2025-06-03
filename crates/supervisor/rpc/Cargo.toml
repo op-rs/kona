@@ -16,10 +16,10 @@ exclude.workspace = true
 workspace = true
 
 [features]
+serde = ["kona-interop/serde"]
 # The `jsonrpsee` feature enables the core RPC functionality.
-# When it's active, we also need the `serde` feature from `kona-interop`
-# for serializing/deserializing RPC message types.
-jsonrpsee = ["dep:jsonrpsee", "kona-interop/serde"]
+# When it's active, we also need the `serde` feature.
+jsonrpsee = ["serde", "dep:jsonrpsee"]
 client = ["jsonrpsee", "jsonrpsee/client"] # Client feature builds upon the base jsonrpsee feature
 
 [dependencies]
@@ -29,6 +29,7 @@ kona-protocol.workspace = true
 kona-supervisor-types.workspace = true
 
 # jsonrpsee
+serde.workspace = true
 jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"] }
 
 # Alloy
