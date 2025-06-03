@@ -35,9 +35,9 @@ pub struct SupervisorSyncStatus {
     serde(rename_all = "camelCase")
 )]
 pub struct SupervisorChainSyncStatus {
-    /// Highest [`Unsafe`] head of chain [`BlockRef`].
+    /// Highest [`Unsafe`] head of chain.
     ///
-    /// [`LocalUnsafe`]: op_alloy_consensus::interop::SafetyLevel::Unsafe
+    /// [`Unsafe`]: op_alloy_consensus::interop::SafetyLevel::Unsafe
     pub r#unsafe: BlockInfo,
     /// Highest [`CrossUnsafe`] head of chain.
     ///
