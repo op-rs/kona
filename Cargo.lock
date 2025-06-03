@@ -4909,9 +4909,12 @@ dependencies = [
 name = "kona-supervisor-core"
 version = "0.1.0"
 dependencies = [
+ "alloy-network",
  "alloy-eips",
  "alloy-primitives",
+ "alloy-provider",
  "alloy-rpc-types-engine",
+ "alloy-transport",
  "async-trait",
  "jsonrpsee",
  "kona-interop",
@@ -4922,6 +4925,7 @@ dependencies = [
  "metrics",
  "op-alloy-consensus",
  "op-alloy-rpc-types",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
