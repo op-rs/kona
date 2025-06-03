@@ -1,5 +1,6 @@
 //! Global arguments for the CLI.
 
+use crate::metrics::CliMetrics;
 use alloy_primitives::Address;
 use clap::{ArgAction, Parser};
 use kona_cli::init_tracing_subscriber;
@@ -18,6 +19,9 @@ pub struct GlobalArgs {
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
+    /// Embed the override flags globally to provide override values adjacent to the configs.
+    #[command(flatten)]
+    pub override_args: super::OverrideArgs,
 }
 
 impl GlobalArgs {
@@ -26,10 +30,41 @@ impl GlobalArgs {
         Ok(init_tracing_subscriber(self.v, filter)?)
     }
 
+    /// Initializes cli metrics for global argument values.
+    pub fn init_cli_metrics(&self) {
+        let hardforks = self.rollup_config().map(|config| config.hardforks).unwrap_or_default();
+        metrics::gauge!(
+            CliMetrics::HARDFORK_ACTIVATION_TIMES,
+            &[
+                ("regolith_time", hardforks.regolith_time.unwrap_or_default().to_string()),
+                ("canyon_time", hardforks.canyon_time.unwrap_or_default().to_string()),
+                ("delta_time", hardforks.delta_time.unwrap_or_default().to_string()),
+                ("ecotone_time", hardforks.ecotone_time.unwrap_or_default().to_string()),
+                ("fjord_time", hardforks.fjord_time.unwrap_or_default().to_string()),
+                ("granite_time", hardforks.granite_time.unwrap_or_default().to_string()),
+                ("holocene_time", hardforks.holocene_time.unwrap_or_default().to_string()),
+                (
+                    "pectra_blob_schedule_time",
+                    hardforks.pectra_blob_schedule_time.unwrap_or_default().to_string()
+                ),
+                ("isthmus_time", hardforks.isthmus_time.unwrap_or_default().to_string()),
+                ("interop_time", hardforks.interop_time.unwrap_or_default().to_string()),
+            ]
+        )
+        .set(1);
+    }
+
     /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global
     /// arguments.
     pub fn rollup_config(&self) -> Option<RollupConfig> {
-        ROLLUP_CONFIGS.get(&self.l2_chain_id).cloned()
+        ROLLUP_CONFIGS.get(&self.l2_chain_id).cloned().map(|c| self.apply_overrides(c))
+    }
+
+    /// Applies the specified overrides to the given rollup config.
+    ///
+    /// Transforms the rollup config and returns the updated config with the overrides applied.
+    pub fn apply_overrides(&self, config: RollupConfig) -> RollupConfig {
+        self.override_args.apply(config)
     }
 
     /// Returns the signer [`Address`] from the rollup config for the given l2 chain id.

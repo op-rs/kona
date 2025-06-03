@@ -144,6 +144,8 @@ impl Network {
 
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
                                 self.gossip.dialed_peers.remove(&addr);
+                                let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
+                                kona_macros::inc!(gauge, crate::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
                                 return Some(addr);
                             }
 
