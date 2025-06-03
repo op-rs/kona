@@ -245,7 +245,7 @@ impl GossipDriver {
         let event = match event {
             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
-                debug!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
+                info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -270,7 +270,7 @@ impl GossipDriver {
                 return None;
             }
             SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
-                trace!(target: "gossip", "Incoming connection error: {:?}", error);
+                error!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
