@@ -249,7 +249,8 @@ impl GossipDriver {
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
-                    "connected" => peer_id.to_string()
+                    "type" => "connected",
+                    "peer" => peer_id.to_string(),
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
@@ -260,7 +261,8 @@ impl GossipDriver {
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
-                    "outgoing_error" => peer_id.map(|p| p.to_string()).unwrap_or_default()
+                    "type" => "outgoing_error",
+                    "peer" => peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
                 if let Some(id) = peer_id {
                     self.redial(id);
@@ -272,14 +274,20 @@ impl GossipDriver {
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
-                    "incoming_error" => connection_id.to_string()
+                    "type" => "incoming_error",
+                    "connection_id" => connection_id.to_string()
                 );
                 return None;
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 debug!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
-                kona_macros::inc!(gauge, crate::Metrics::GOSSIPSUB_CONNECTION, "type" => "closed");
+                kona_macros::inc!(
+                    gauge,
+                    crate::Metrics::GOSSIPSUB_CONNECTION,
+                    "type" => "closed",
+                    "peer" => peer_id.to_string()
+                );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
                 self.redial(peer_id);
                 return None;
