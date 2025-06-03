@@ -3,6 +3,7 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
+        cl_log_level: debug
         count: 1
       network_params:
         network: "kurtosis"
@@ -18,6 +19,7 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
+        cl_log_level: debug
         count: 1
       network_params:
         network: "kurtosis"
