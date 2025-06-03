@@ -135,7 +135,7 @@ impl NodeCommand {
                 (CliMetrics::P2P_ADVERTISE_UDP_PORT, self.p2p_flags.advertise_udp_port.to_string()),
             ]
         )
-        .increment(1);
+        .set(1);
         Ok(())
     }
 
