@@ -77,7 +77,7 @@ where
 
     /// Takes the inner list of the [OrderedListWalker], returning it and setting the inner list to
     /// [None].
-    pub fn take_inner(&mut self) -> Option<VecDeque<(Bytes, Bytes)>> {
+    pub const fn take_inner(&mut self) -> Option<VecDeque<(Bytes, Bytes)>> {
         self.inner.take()
     }
 

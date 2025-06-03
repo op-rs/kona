@@ -45,7 +45,7 @@ impl RpcLauncher {
     }
 
     /// Disable the RPC server, preventing the launcher from starting the RPC server.
-    pub fn disable(&mut self) {
+    pub const fn disable(&mut self) {
         self.disabled = true;
     }
 
