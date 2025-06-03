@@ -35,6 +35,27 @@ impl CliMetrics {
     /// The advertised udp port via P2P.
     pub const P2P_ADVERTISE_UDP_PORT: &'static str = "kona_node_advertise_udp";
 
+    /// The low-tide peer count.
+    pub const P2P_PEERS_LO: &'static str = "kona_node_peers_lo";
+
+    /// The high-tide peer count.
+    pub const P2P_PEERS_HI: &'static str = "kona_node_peers_hi";
+
+    /// The gossip mesh d option.
+    pub const P2P_GOSSIP_MESH_D: &'static str = "kona_node_gossip_mesh_d";
+
+    /// The gossip mesh d lo option.
+    pub const P2P_GOSSIP_MESH_D_LO: &'static str = "kona_node_gossip_mesh_d_lo";
+
+    /// The gossip mesh d hi option.
+    pub const P2P_GOSSIP_MESH_D_HI: &'static str = "kona_node_gossip_mesh_d_hi";
+
+    /// The gossip mesh d lazy option.
+    pub const P2P_GOSSIP_MESH_D_LAZY: &'static str = "kona_node_gossip_mesh_d_lazy";
+
+    /// The duration to ban peers.
+    pub const P2P_BAN_DURATION: &'static str = "kona_node_ban_duration";
+
     /// Hardfork activation times.
     pub const HARDFORK_ACTIVATION_TIMES: &'static str = "kona_node_hardforks";
 
