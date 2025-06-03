@@ -34,20 +34,4 @@ impl CliMetrics {
 
     /// The advertised udp port via P2P.
     pub const P2P_ADVERTISE_UDP_PORT: &'static str = "kona_node_advertise_udp";
-
-    /// Initializes the CLI metrics.
-    pub fn init() {
-        let labels: [(&str, &str); 9] = [
-            (Self::P2P_PEER_SCORING_LEVEL, "Off"),
-            (Self::P2P_TOPIC_SCORING_ENABLED, "false"),
-            (Self::P2P_BANNING_ENABLED, "false"),
-            (Self::P2P_PEER_REDIALING, "0"),
-            (Self::P2P_FLOOD_PUBLISH, "false"),
-            (Self::P2P_DISCOVERY_INTERVAL, "5"),
-            (Self::P2P_ADVERTISE_IP, "0.0.0.0"),
-            (Self::P2P_ADVERTISE_TCP_PORT, "0"),
-            (Self::P2P_ADVERTISE_UDP_PORT, "0"),
-        ];
-        metrics::gauge!(Self::IDENTIFIER, &labels).set(1);
-    }
 }
