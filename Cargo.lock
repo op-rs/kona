@@ -4944,6 +4944,7 @@ dependencies = [
  "kona-supervisor-types",
  "op-alloy-consensus",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
