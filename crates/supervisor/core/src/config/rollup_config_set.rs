@@ -1,7 +1,7 @@
 use alloy_primitives::U64;
+use kona_genesis::ChainGenesis;
 use kona_supervisor_types::BlockSeal;
 use std::collections::HashMap;
-use kona_genesis::ChainGenesis;
 
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
