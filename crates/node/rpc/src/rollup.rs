@@ -29,6 +29,9 @@ pub struct RollupRpc {
 }
 
 impl RollupRpc {
+    /// The identifier for the Metric that tracks rollup RPC calls.
+    pub const RPC_IDENT: &'static str = "rollup_rpc";
+
     /// Constructs a new [`RollupRpc`] given a sender channel.
     pub const fn new(sender: EngineQuerySender, l1_watcher_sender: L1WatcherQuerySender) -> Self {
         Self { engine_sender: sender, l1_watcher_sender }
@@ -58,7 +61,7 @@ impl RollupRpc {
 #[async_trait]
 impl RollupNodeApiServer for RollupRpc {
     async fn op_output_at_block(&self, block_num: BlockNumberOrTag) -> RpcResult<OutputResponse> {
-        // TODO(@theochap): add metrics
+        kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_outputAtBlock");
 
         let (output_send, output_recv) = tokio::sync::oneshot::channel();
         let (l1_sync_status_send, l1_sync_status_recv) = tokio::sync::oneshot::channel();
@@ -93,12 +96,12 @@ impl RollupNodeApiServer for RollupRpc {
         &self,
         _block_num: BlockNumberOrTag,
     ) -> RpcResult<SafeHeadResponse> {
-        // TODO(@theochap): add metrics
+        kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_safeHeadAtL1Block");
         return Err(ErrorObject::from(ErrorCode::MethodNotFound));
     }
 
     async fn op_sync_status(&self) -> RpcResult<SyncStatus> {
-        // TODO(@theochap): add metrics
+        kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_syncStatus");
 
         let (l1_sync_status_send, l1_sync_status_recv) = tokio::sync::oneshot::channel();
         let (l2_sync_status_send, l2_sync_status_recv) = tokio::sync::oneshot::channel();
@@ -125,7 +128,7 @@ impl RollupNodeApiServer for RollupRpc {
     }
 
     async fn op_rollup_config(&self) -> RpcResult<RollupConfig> {
-        // TODO(@theochap): add metrics
+        kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_rollupConfig");
 
         let (rollup_config_send, rollup_config_recv) = tokio::sync::oneshot::channel();
         let Ok(()) = self.engine_sender.send(EngineQueries::Config(rollup_config_send)).await
@@ -137,7 +140,7 @@ impl RollupNodeApiServer for RollupRpc {
     }
 
     async fn op_version(&self) -> RpcResult<String> {
-        // TODO(@theochap): add metrics
+        kona_macros::inc!(gauge, Self::RPC_IDENT, "method" => "op_version");
 
         const RPC_VERSION: &str = env!("CARGO_PKG_VERSION");
 
