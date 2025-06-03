@@ -97,3 +97,82 @@ where
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
+    use alloy_primitives::B256;
+    use async_trait::async_trait;
+    use kona_supervisor_storage::{LogStorageWriter, StorageError};
+    use kona_supervisor_types::{Log, Receipts};
+    use std::{
+        sync::atomic::{AtomicBool, Ordering},
+        time::Duration,
+    };
+    use tokio::sync::mpsc;
+
+    #[derive(Debug)]
+    struct MockNode;
+
+    #[async_trait]
+    impl NodeSubscriber for MockNode {
+        async fn start_subscription(
+            &self,
+            _event_tx: mpsc::Sender<NodeEvent>,
+        ) -> Result<(), ManagedNodeError> {
+            Ok(())
+        }
+    }
+    #[async_trait]
+    impl ReceiptProvider for MockNode {
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
+            Ok(vec![])
+        }
+    }
+
+    #[derive(Debug)]
+    struct MockStorage {
+        called: Arc<AtomicBool>,
+    }
+
+    impl LogStorageWriter for MockStorage {
+        fn store_block_logs(
+            &self,
+            _block: &BlockInfo,
+            _logs: Vec<Log>,
+        ) -> Result<(), StorageError> {
+            self.called.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_unsafe_event_triggers() {
+        let called = Arc::new(AtomicBool::new(false));
+
+        let node = Arc::new(MockNode);
+        let writer = Arc::new(MockStorage { called: Arc::clone(&called) });
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(node, writer, cancel_token.clone(), rx);
+
+        // Send unsafe block event
+        let block =
+            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
+
+        tx.send(NodeEvent::UnsafeBlock { block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+
+        assert!(called.load(Ordering::SeqCst));
+    }
+}

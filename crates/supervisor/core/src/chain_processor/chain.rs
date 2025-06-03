@@ -79,3 +79,82 @@ where
         *handle_guard = Some(handle);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
+    use alloy_primitives::B256;
+    use async_trait::async_trait;
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_storage::{LogStorageWriter, StorageError};
+    use kona_supervisor_types::{Log, Receipts};
+    use std::{
+        sync::atomic::{AtomicBool, Ordering},
+        time::Duration,
+    };
+    use tokio::time::sleep;
+
+    #[derive(Debug)]
+    struct MockNode {
+        subscribed: Arc<AtomicBool>,
+    }
+
+    impl MockNode {
+        fn new() -> Self {
+            Self { subscribed: Arc::new(AtomicBool::new(false)) }
+        }
+    }
+
+    #[async_trait]
+    impl NodeSubscriber for MockNode {
+        async fn start_subscription(
+            &self,
+            _tx: mpsc::Sender<NodeEvent>,
+        ) -> Result<(), ManagedNodeError> {
+            self.subscribed.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl ReceiptProvider for MockNode {
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
+            Ok(vec![]) // dummy
+        }
+    }
+
+    #[derive(Debug)]
+    struct MockStorage;
+
+    impl LogStorageWriter for MockStorage {
+        fn store_block_logs(
+            &self,
+            _block: &BlockInfo,
+            _logs: Vec<Log>,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_chain_processor_start_sets_task_and_calls_subscription() {
+        let mock_node = Arc::new(MockNode::new());
+        let storage = Arc::new(MockStorage);
+        let cancel_token = CancellationToken::new();
+
+        let processor =
+            ChainProcessor::new(1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
+
+        processor.start().await;
+
+        // Wait a moment for task to spawn and subscription to run
+        sleep(Duration::from_millis(50)).await;
+
+        // Ensure start_subscription was called
+        assert!(mock_node.subscribed.load(Ordering::SeqCst));
+
+        let handle_guard = processor.task_handle.lock().await;
+        assert!(handle_guard.is_some());
+    }
+}
