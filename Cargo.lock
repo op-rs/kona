@@ -4942,6 +4942,7 @@ dependencies = [
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-types",
+ "op-alloy-consensus",
  "serde",
 ]
 

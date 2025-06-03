@@ -35,3 +35,4 @@ jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"]
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+op-alloy-consensus.workspace = true

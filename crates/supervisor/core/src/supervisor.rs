@@ -100,13 +100,9 @@ mod test {
 
     #[test]
     fn test_rpc_error_conversion() {
-        let err_code = InvalidInboxEntry::UnknownChain;
-        let err = ErrorObjectOwned::owned(err_code as i32, "", None::<()>);
+        let err = InvalidInboxEntry::UnknownChain;
+        let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(SupervisorError::InvalidInboxEntry(err_code), err.into());
-
-        let err = ErrorObjectOwned::owned(i32::MAX, "", None::<()>);
-
-        assert_eq!(SupervisorError::Unimplemented, err.into())
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
     }
 }

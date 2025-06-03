@@ -41,7 +41,7 @@ pub struct SupervisorChainSyncStatus {
     pub r#unsafe: BlockInfo,
     /// Highest [`CrossUnsafe`] head of chain.
     ///
-    /// [`CrossUnsafe`]: op_alloy_consensus::intclear erop::SafetyLevel::CrossUnsafe
+    /// [`CrossUnsafe`]: op_alloy_consensus::interop::SafetyLevel::CrossUnsafe
     pub cross_unsafe: BlockNumHash,
     /// Highest [`LocalSafe`] head of chain.
     ///
