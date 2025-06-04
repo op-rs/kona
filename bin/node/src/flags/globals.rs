@@ -32,27 +32,17 @@ impl GlobalArgs {
 
     /// Initializes cli metrics for global argument values.
     pub fn init_cli_metrics(&self) {
-        let hardforks = self.rollup_config().map(|config| config.hardforks).unwrap_or_default();
-        metrics::gauge!(
+        metrics::describe_gauge!(
+            CliMetrics::ROLLUP_CONFIG,
+            "Rollup configuration settings for the OP Stack"
+        );
+        metrics::describe_gauge!(
             CliMetrics::HARDFORK_ACTIVATION_TIMES,
-            &[
-                ("regolith_time", hardforks.regolith_time.unwrap_or_default().to_string()),
-                ("canyon_time", hardforks.canyon_time.unwrap_or_default().to_string()),
-                ("delta_time", hardforks.delta_time.unwrap_or_default().to_string()),
-                ("ecotone_time", hardforks.ecotone_time.unwrap_or_default().to_string()),
-                ("fjord_time", hardforks.fjord_time.unwrap_or_default().to_string()),
-                ("granite_time", hardforks.granite_time.unwrap_or_default().to_string()),
-                ("holocene_time", hardforks.holocene_time.unwrap_or_default().to_string()),
-                (
-                    "pectra_blob_schedule_time",
-                    hardforks.pectra_blob_schedule_time.unwrap_or_default().to_string()
-                ),
-                ("isthmus_time", hardforks.isthmus_time.unwrap_or_default().to_string()),
-                ("interop_time", hardforks.interop_time.unwrap_or_default().to_string()),
-            ]
-        )
-        .set(1);
+            "Activation times for hardforks in the OP Stack"
+        );
+
         let config = self.rollup_config().unwrap_or_default();
+
         metrics::gauge!(
             CliMetrics::ROLLUP_CONFIG,
             &[
@@ -73,6 +63,13 @@ impl GlobalArgs {
             ]
         )
         .set(1);
+
+        for (fork_name, activation_time) in config.hardforks.iter() {
+            // Set the value of the metric for the given hardfork, using `-1` as a signal that the
+            // fork is not scheduled.
+            metrics::gauge!(CliMetrics::HARDFORK_ACTIVATION_TIMES, "fork" => fork_name)
+                .set(activation_time.map(|t| t as f64).unwrap_or(-1f64));
+        }
     }
 
     /// Returns the [`RollupConfig`] for the [`GlobalArgs::l2_chain_id`] specified on the global
