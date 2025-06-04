@@ -129,7 +129,7 @@ where
         }
 
         let mut min_synced_l1 = BlockInfo { number: u64::MAX, ..Default::default() };
-        let mut safe_timestamp = u64::MAX;
+        let mut cross_safe_timestamp = u64::MAX;
         let mut finalized_timestamp = u64::MAX;
 
         for (id, status) in chains.iter_mut() {
@@ -140,12 +140,12 @@ where
             // <https://github.com/ethereum-optimism/optimism/blob/fac40575a8bcefd325c50a52e12b0e93254ac3f8/op-supervisor/supervisor/backend/status/status.go#L117-L131>
             //
             // todo: add to spec
-            let SuperHead { l1_source, safe, finalized, .. } = &head;
+            let SuperHead { l1_source, cross_safe, finalized, .. } = &head;
             if l1_source.number < min_synced_l1.number {
                 min_synced_l1 = *l1_source;
             }
-            if safe.timestamp < safe_timestamp {
-                safe_timestamp = safe.timestamp;
+            if cross_safe.timestamp < cross_safe_timestamp {
+                cross_safe_timestamp = cross_safe.timestamp;
             }
             if finalized.timestamp < finalized_timestamp {
                 finalized_timestamp = finalized.timestamp;
@@ -154,7 +154,12 @@ where
             *status = head.into()
         }
 
-        Ok(SupervisorSyncStatus { min_synced_l1, safe_timestamp, finalized_timestamp, chains })
+        Ok(SupervisorSyncStatus {
+            min_synced_l1,
+            cross_safe_timestamp,
+            finalized_timestamp,
+            chains,
+        })
     }
 }
 

@@ -17,8 +17,12 @@ use kona_supervisor_types::SuperHead;
 pub struct SupervisorSyncStatus {
     /// [`BlockInfo`] of highest L1 block.
     pub min_synced_l1: BlockInfo,
-    /// Timestamp of highest safe block.
-    pub safe_timestamp: u64,
+    /// Timestamp of highest cross-safe block.
+    ///
+    /// NOTE: Some fault-proof releases may already depend on `safe`, so we keep JSON field name as
+    /// `safe`.
+    #[serde(rename = "safeTimestamp")]
+    pub cross_safe_timestamp: u64,
     /// Timestamp of highest finalized block.
     pub finalized_timestamp: u64,
     /// Map of all tracked chains and their individual [`SupervisorChainSyncStatus`].
@@ -38,7 +42,7 @@ pub struct SupervisorChainSyncStatus {
     /// Highest [`Unsafe`] head of chain.
     ///
     /// [`Unsafe`]: op_alloy_consensus::interop::SafetyLevel::Unsafe
-    pub r#unsafe: BlockInfo,
+    pub local_unsafe: BlockInfo,
     /// Highest [`CrossUnsafe`] head of chain.
     ///
     /// [`CrossUnsafe`]: op_alloy_consensus::interop::SafetyLevel::CrossUnsafe
@@ -49,8 +53,12 @@ pub struct SupervisorChainSyncStatus {
     pub local_safe: BlockNumHash,
     /// Highest [`Safe`] head of chain [`BlockNumHash`].
     ///
+    /// NOTE: Some fault-proof releases may already depend on `safe`, so we keep JSON field name as
+    /// `safe`.
+    ///
     /// [`Safe`]: op_alloy_consensus::interop::SafetyLevel::Safe
-    pub safe: BlockNumHash,
+    #[serde(rename = "safe")]
+    pub cross_safe: BlockNumHash,
     /// Highest [`Finalized`] head of chain [`BlockNumHash`].
     ///
     /// [`Finalized`]: op_alloy_consensus::interop::SafetyLevel::Finalized
@@ -59,13 +67,14 @@ pub struct SupervisorChainSyncStatus {
 
 impl From<SuperHead> for SupervisorChainSyncStatus {
     fn from(super_head: SuperHead) -> Self {
-        let SuperHead { r#unsafe, cross_unsafe, local_safe, safe, finalized, .. } = super_head;
+        let SuperHead { local_unsafe, cross_unsafe, local_safe, cross_safe, finalized, .. } =
+            super_head;
 
         Self {
-            r#unsafe,
+            local_unsafe,
             local_safe: BlockNumHash::new(local_safe.number, local_safe.hash),
             cross_unsafe: BlockNumHash::new(cross_unsafe.number, cross_unsafe.hash),
-            safe: BlockNumHash::new(safe.number, safe.hash),
+            cross_safe: BlockNumHash::new(cross_safe.number, cross_safe.hash),
             finalized: BlockNumHash::new(finalized.number, finalized.hash),
         }
     }
@@ -81,7 +90,7 @@ mod test {
     fn test_serialize_supervisor_chain_sync_status() {
         const STATUS: &str = r#"
             {
-                "unsafe": {
+                "localUnsafe": {
                     "number": 100,
                     "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
                     "timestamp": 40044440000,
@@ -108,7 +117,7 @@ mod test {
         assert_eq!(
             serde_json::from_str::<SupervisorChainSyncStatus>(STATUS).expect("should deserialize"),
             SupervisorChainSyncStatus {
-                r#unsafe: BlockInfo {
+                local_unsafe: BlockInfo {
                     number: 100,
                     hash: b256!(
                         "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
@@ -126,7 +135,7 @@ mod test {
                     80,
                     b256!("0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef13")
                 ),
-                safe: BlockNumHash::new(
+                cross_safe: BlockNumHash::new(
                     70,
                     b256!("0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234")
                 ),
