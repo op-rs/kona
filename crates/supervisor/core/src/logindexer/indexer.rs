@@ -1,18 +1,18 @@
 use crate::{
     logindexer::{log_to_log_hash, payload_hash_to_log_hash},
-    syncnode::ManagedNodeError,
+    syncnode::{ManagedNodeError, ReceiptProvider},
 };
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{LogStorageWriter, StorageError};
-use kona_supervisor_types::{ExecutingMessage, Log, ReceiptProvider};
+use kona_supervisor_types::{ExecutingMessage, Log};
 use std::sync::Arc;
 use thiserror::Error;
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
 #[derive(Debug)]
-pub struct LogIndexer<P: ReceiptProvider<Error = ReceiptFetchError>, W: LogStorageWriter> {
+pub struct LogIndexer<P, W> {
     /// Component that provides receipts for a given block hash.
     pub receipt_provider: Arc<P>,
     /// Component that persists parsed log entries to storage.
@@ -21,7 +21,7 @@ pub struct LogIndexer<P: ReceiptProvider<Error = ReceiptFetchError>, W: LogStora
 
 impl<P, W> LogIndexer<P, W>
 where
-    P: ReceiptProvider<Error = ReceiptFetchError>,
+    P: ReceiptProvider,
     W: LogStorageWriter,
 {
     /// Creates a new [`LogIndexer`] with the given receipt provider and state manager.
@@ -88,16 +88,8 @@ pub enum LogIndexerError {
     StateWrite(#[from] StorageError),
 
     /// Failed to fetch logs for a block from the state manager.   
-    #[error("receipt fetch failed: {0}")]
-    FetchReceipt(#[from] ReceiptFetchError),
-}
-
-#[derive(Error, Debug)]
-/// Error type for fetching the receipts from the provider.
-pub enum ReceiptFetchError {
-    /// Failed to fetch receipts from the [`ManagedNode`](crate::syncnode::ManagedNode) provider.
     #[error(transparent)]
-    Managed(#[from] ManagedNodeError),
+    FetchReceipt(#[from] ManagedNodeError),
 }
 
 #[cfg(test)]
@@ -133,13 +125,9 @@ mod tests {
 
     #[async_trait]
     impl ReceiptProvider for MockReceiptProvider {
-        type Error = ReceiptFetchError;
-
-        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, Self::Error> {
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
             if self.should_error {
-                Err(ReceiptFetchError::Managed(ManagedNodeError::Client(ClientError::Custom(
-                    "forced error".to_string(),
-                ))))
+                Err(ManagedNodeError::Client(ClientError::Custom("forced error".to_string())))
             } else {
                 Ok(self.receipts.clone())
             }

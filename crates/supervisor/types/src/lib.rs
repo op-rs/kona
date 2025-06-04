@@ -9,7 +9,7 @@ mod message;
 pub use message::ExecutingMessage;
 
 mod receipt;
-pub use receipt::{ReceiptProvider, Receipts};
+pub use receipt::Receipts;
 
 mod types;
 pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0};

@@ -8,7 +8,7 @@ use jsonrpsee::{
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_types::{ManagedEvent, ReceiptProvider, Receipts};
+use kona_supervisor_types::{ManagedEvent, Receipts};
 use std::sync::{Arc, OnceLock};
 use tokio::{
     sync::{Mutex, mpsc},
@@ -17,7 +17,10 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
-use super::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
+use super::{
+    AuthenticationError, ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider,
+    SubscriptionError,
+};
 use crate::syncnode::task::ManagedEventTask;
 
 /// [`ManagedNodeConfig`] sets the configuration for the managed node.
@@ -72,7 +75,7 @@ pub struct ManagedNode {
     // Cancellation token to stop the processor
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
-    task_handle: Option<JoinHandle<()>>,
+    task_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl ManagedNode {
@@ -83,7 +86,7 @@ impl ManagedNode {
             chain_id: OnceLock::new(),
             ws_client: Mutex::new(None),
             cancel_token,
-            task_handle: None,
+            task_handle: Mutex::new(None),
         }
     }
 
@@ -124,15 +127,41 @@ impl ManagedNode {
         Ok(chain_id)
     }
 
+    /// Creates authentication headers using JWT secret.
+    fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
+        let Some(jwt_secret) = self.config.jwt_secret() else {
+            error!(target: "managed_node", "JWT secret not found or invalid");
+            return Err(AuthenticationError::InvalidJwt.into())
+        };
+
+        let mut headers = HeaderMap::new();
+        let auth_header =
+            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
+
+        headers.insert(
+            "Authorization",
+            HeaderValue::from_str(&auth_header).map_err(|err| {
+                error!(target: "managed_node", %err, "Invalid authorization header");
+                AuthenticationError::InvalidHeader
+            })?,
+        );
+
+        Ok(headers)
+    }
+}
+
+#[async_trait]
+impl NodeSubscriber for ManagedNode {
     /// Starts a subscription to the managed node.
     ///
     /// Establishes a WebSocket connection and subscribes to node events.
     /// Spawns a background task to process incoming events.
-    pub async fn start_subscription(
-        &mut self,
+    async fn start_subscription(
+        &self,
         event_tx: mpsc::Sender<NodeEvent>,
     ) -> Result<(), ManagedNodeError> {
-        if self.task_handle.is_some() {
+        let mut task_handle_guard = self.task_handle.lock().await;
+        if task_handle_guard.is_some() {
             Err(SubscriptionError::AlreadyActive)?
         }
 
@@ -202,32 +231,10 @@ impl ManagedNode {
             info!(target: "managed_node", "Subscription task finished");
         });
 
-        self.task_handle = Some(handle);
+        *task_handle_guard = Some(handle);
 
         info!(target: "managed_node", "Subscription started successfully");
         Ok(())
-    }
-
-    /// Creates authentication headers using JWT secret.
-    fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
-        let Some(jwt_secret) = self.config.jwt_secret() else {
-            error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(AuthenticationError::InvalidJwt.into())
-        };
-
-        let mut headers = HeaderMap::new();
-        let auth_header =
-            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
-
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_str(&auth_header).map_err(|err| {
-                error!(target: "managed_node", %err, "Invalid authorization header");
-                AuthenticationError::InvalidHeader
-            })?,
-        );
-
-        Ok(headers)
     }
 }
 
@@ -238,9 +245,7 @@ impl ManagedNode {
 /// [`ManagedModeApiClient`] interface, using only the receipt-fetching capability
 #[async_trait]
 impl ReceiptProvider for ManagedNode {
-    type Error = ManagedNodeError;
-
-    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, Self::Error> {
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         let client = self.get_ws_client().await?;
         let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
         Ok(receipts)
@@ -462,10 +467,10 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let mut subscriber = ManagedNode::new(config, CancellationToken::new());
+        let subscriber = ManagedNode::new(config, CancellationToken::new());
 
         // Test that we can create the subscriber instance
-        assert!(subscriber.task_handle.is_none());
+        assert!(subscriber.task_handle.lock().await.is_none());
 
         // Create a channel for events
         let (event_tx, _event_rx) = mpsc::channel(100);
@@ -475,7 +480,7 @@ mod tests {
         assert!(start_result.is_err(), "Subscription to invalid server should fail");
 
         // Verify state remains consistent after failure
-        assert!(subscriber.task_handle.is_none());
+        assert!(subscriber.task_handle.lock().await.is_none());
     }
 
     #[tokio::test]

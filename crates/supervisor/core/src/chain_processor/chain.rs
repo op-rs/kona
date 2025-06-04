@@ -1,32 +1,49 @@
-use super::{ChainProcessorError, task::ChainProcessorTask};
-use crate::syncnode::{ManagedNode, NodeEvent};
+use super::task::ChainProcessorTask;
+use crate::syncnode::{ManagedNodeProvider, NodeEvent};
 use alloy_primitives::ChainId;
-use tokio::{sync::mpsc, task::JoinHandle};
+use kona_supervisor_storage::LogStorageWriter;
+use std::sync::Arc;
+use tokio::{
+    sync::{Mutex, mpsc},
+    task::JoinHandle,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-/// Responsible for managing [`ManagedNode`] and processing
+/// Responsible for managing [`ManagedNodeProvider`] and processing
 /// [`NodeEvent`]. It listens for events emitted by the managed node
 /// and handles them accordingly.
 #[derive(Debug)]
-pub struct ChainProcessor {
+pub struct ChainProcessor<P, W> {
     // The chainId that this processor is associated with
     chain_id: ChainId,
 
     // The managed node that this processor will handle
-    managed_node: Option<ManagedNode>,
+    managed_node: Arc<P>,
+
+    // State manager to update and view state
+    state_manager: Arc<W>,
 
     // Cancellation token to stop the processor
     cancel_token: CancellationToken,
 
     // Handle for the task running the processor
-    task_handle: Option<JoinHandle<()>>,
+    task_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl ChainProcessor {
+impl<P, W> ChainProcessor<P, W>
+where
+    P: ManagedNodeProvider + 'static,
+    W: LogStorageWriter + 'static,
+{
     /// Creates a new instance of [`ChainProcessor`].
-    pub const fn new(chain_id: ChainId, cancel_token: CancellationToken) -> Self {
-        Self { chain_id, managed_node: None, cancel_token, task_handle: None }
+    pub fn new(
+        chain_id: ChainId,
+        managed_node: Arc<P>,
+        state_manager: Arc<W>,
+        cancel_token: CancellationToken,
+    ) -> Self {
+        Self { chain_id, managed_node, state_manager, cancel_token, task_handle: Mutex::new(None) }
     }
 
     /// Returns the [`ChainId`] associated with this processor.
@@ -34,45 +51,107 @@ impl ChainProcessor {
         self.chain_id
     }
 
-    /// Adds a managed node to the processor.
-    // added the method to allow the processor to manage multiple managed nodes in the future
-    pub async fn add_managed_node(
-        &mut self,
-        managed_node: ManagedNode,
-    ) -> Result<(), ChainProcessorError> {
-        // check if chain_id matches
-        let m_chain_id = managed_node.chain_id().await?;
-        if m_chain_id != self.chain_id {
-            warn!(target: "chain_processor",
-                managed_node_chain_id = m_chain_id,
-                processor_chain_id = self.chain_id,
-                "ManagedNode chain_id does not match ChainProcessor chain_id",
-            );
-            return Err(ChainProcessorError::InvalidChainId);
-        }
-
-        self.managed_node = Some(managed_node);
-        Ok(())
-    }
-
     /// Starts the chain processor, which begins listening for events from the managed node.
-    pub async fn start(&mut self) {
-        if self.task_handle.is_some() {
+    pub async fn start(&self) {
+        let mut handle_guard = self.task_handle.lock().await;
+        if handle_guard.is_some() {
             warn!(target: "chain_processor", "ChainProcessor is already running");
             return;
         }
 
         // todo: figure out value for buffer size
         let (event_tx, event_rx) = mpsc::channel::<NodeEvent>(100);
-        if let Some(managed_node) = &mut self.managed_node {
-            managed_node.start_subscription(event_tx).await.unwrap();
-        }
+        self.managed_node.start_subscription(event_tx).await.unwrap();
 
-        let task = ChainProcessorTask::new(self.cancel_token.clone(), event_rx);
+        let task = ChainProcessorTask::new(
+            self.managed_node.clone(),
+            self.state_manager.clone(),
+            self.cancel_token.clone(),
+            event_rx,
+        );
         let handle = tokio::spawn(async move {
             task.run().await;
         });
 
-        self.task_handle = Some(handle);
+        *handle_guard = Some(handle);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
+    use alloy_primitives::B256;
+    use async_trait::async_trait;
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_storage::{LogStorageWriter, StorageError};
+    use kona_supervisor_types::{Log, Receipts};
+    use std::{
+        sync::atomic::{AtomicBool, Ordering},
+        time::Duration,
+    };
+    use tokio::time::sleep;
+
+    #[derive(Debug)]
+    struct MockNode {
+        subscribed: Arc<AtomicBool>,
+    }
+
+    impl MockNode {
+        fn new() -> Self {
+            Self { subscribed: Arc::new(AtomicBool::new(false)) }
+        }
+    }
+
+    #[async_trait]
+    impl NodeSubscriber for MockNode {
+        async fn start_subscription(
+            &self,
+            _tx: mpsc::Sender<NodeEvent>,
+        ) -> Result<(), ManagedNodeError> {
+            self.subscribed.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl ReceiptProvider for MockNode {
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
+            Ok(vec![]) // dummy
+        }
+    }
+
+    #[derive(Debug)]
+    struct MockStorage;
+
+    impl LogStorageWriter for MockStorage {
+        fn store_block_logs(
+            &self,
+            _block: &BlockInfo,
+            _logs: Vec<Log>,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_chain_processor_start_sets_task_and_calls_subscription() {
+        let mock_node = Arc::new(MockNode::new());
+        let storage = Arc::new(MockStorage);
+        let cancel_token = CancellationToken::new();
+
+        let processor =
+            ChainProcessor::new(1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
+
+        processor.start().await;
+
+        // Wait a moment for task to spawn and subscription to run
+        sleep(Duration::from_millis(50)).await;
+
+        // Ensure start_subscription was called
+        assert!(mock_node.subscribed.load(Ordering::SeqCst));
+
+        let handle_guard = processor.task_handle.lock().await;
+        assert!(handle_guard.is_some());
     }
 }

@@ -11,4 +11,7 @@ mod error;
 pub use error::{AuthenticationError, ManagedEventTaskError, ManagedNodeError, SubscriptionError};
 
 mod task;
+mod traits;
+pub use traits::{ManagedNodeProvider, NodeSubscriber, ReceiptProvider};
+
 pub use task::ManagedEventTask;
