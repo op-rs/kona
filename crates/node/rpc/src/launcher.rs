@@ -28,13 +28,15 @@ impl PartialEq for RpcLauncherError {
 #[derive(Debug, Clone, Default)]
 pub struct RpcLauncher {
     disabled: bool,
+    /// If `true`, the RPC server will not attempt to restart if it stops.
+    pub no_restart: bool,
     socket: Option<SocketAddr>,
     module: Option<RpcModule<()>>,
 }
 
 impl From<SocketAddr> for RpcLauncher {
     fn from(socket: SocketAddr) -> Self {
-        Self { disabled: false, socket: Some(socket), module: None }
+        Self { disabled: false, no_restart: false, socket: Some(socket), module: None }
     }
 }
 

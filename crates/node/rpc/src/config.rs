@@ -11,6 +11,8 @@ use std::{
 pub struct RpcConfig {
     /// If the RPC is enabled.
     pub enabled: bool,
+    /// Prevent the rpc server from being restarted.
+    pub no_restart: bool,
     /// The RPC listening address.
     pub listen_addr: IpAddr,
     /// The RPC listening port.
@@ -29,6 +31,7 @@ impl RpcConfig {
         if !self.enabled {
             launcher.disable();
         }
+        launcher.no_restart = self.no_restart;
         launcher
     }
 }
