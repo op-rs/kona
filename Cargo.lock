@@ -4967,6 +4967,7 @@ dependencies = [
  "kona-rpc",
  "kona-supervisor-core",
  "kona-supervisor-rpc",
+ "kona-supervisor-storage",
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",

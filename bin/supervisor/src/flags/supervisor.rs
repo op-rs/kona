@@ -3,10 +3,11 @@ use alloy_provider::{Provider, RootProvider};
 use anyhow::{Context as _, Ok, Result};
 use clap::Args;
 use glob::glob;
-use kona_supervisor_core::config::RollupConfigSet;
-
+use kona_supervisor_core::config::{Config,RollupConfigSet};
+use kona_supervisor_core::syncnode::ManagedNodeConfig;
 use kona_interop::DependencySet;
-use std::{net::IpAddr, path::PathBuf};
+use serde_json::de;
+use std::{net::{IpAddr,SocketAddr}, path::PathBuf};
 use tokio::{fs::File, io::AsyncReadExt};
 
 /// Supervisor configuration arguments.
@@ -30,7 +31,7 @@ pub struct SupervisorArgs {
 
     /// Directory to store supervisor data.
     #[arg(long, env = "DATADIR")]
-    pub datadir: String,
+    pub datadir: PathBuf,
 
     /// Optional endpoint to sync data from another supervisor.
     #[arg(long = "datadir.sync-endpoint", env = "DATADIR_SYNC_ENDPOINT")]
@@ -136,6 +137,38 @@ impl SupervisorArgs {
 
         Ok(rollup_config_set)
     }
+
+    /// initialise and return the managed nodes configuration.
+    pub fn init_managed_nodes_config(&self) -> Vec<ManagedNodeConfig> {
+        let mut managed_nodes = Vec::new();
+        let default_secret = self.l2_consensus_jwt_secret.get(0).unwrap();
+        for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
+            let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
+
+            managed_nodes.push(ManagedNodeConfig {
+                url: rpc_url.clone(),
+                jwt_path: secret.clone(),
+            });
+        }
+        managed_nodes
+    }
+
+    /// initialise and return the Supervisor [`Config`].
+    pub async fn init_config(&self) -> Result<Config> {
+        let dependency_set = self.init_dependency_set().await?;
+        let rollup_config_set = self.init_rollup_config_set().await?;
+
+        let rpc_addr = SocketAddr::new(self.rpc_address, self.rpc_port);
+
+        Ok(Config {
+            l1_rpc: self.l1_rpc.clone(),
+            l2_consensus_nodes_config: self.init_managed_nodes_config(),
+            datadir: self.datadir.clone(),
+            rpc_addr,
+            dependency_set,
+            rollup_config_set,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -181,7 +214,7 @@ mod tests {
             cli.supervisor.l2_consensus_jwt_secret,
             vec!["secret1".to_string(), "secret2".to_string()]
         );
-        assert_eq!(cli.supervisor.datadir, "/tmp/supervisor_data");
+        assert_eq!(cli.supervisor.datadir, PathBuf::from("/tmp/supervisor_data"));
         assert_eq!(cli.supervisor.datadir_sync_endpoint, None);
         assert_eq!(cli.supervisor.dependency_set, PathBuf::from("/path/to/deps.json"));
         assert_eq!(cli.supervisor.rollup_config_paths, PathBuf::from("/configs/rollup-*.json"));
@@ -216,7 +249,7 @@ mod tests {
         assert_eq!(cli.supervisor.l1_rpc, "http://l1.example.com");
         assert_eq!(cli.supervisor.l2_consensus_nodes, vec!["http://consensus1".to_string()]);
         assert_eq!(cli.supervisor.l2_consensus_jwt_secret, vec!["jwt_secret_value".to_string()]);
-        assert_eq!(cli.supervisor.datadir, "/data");
+        assert_eq!(cli.supervisor.datadir, PathBuf::from("/data"));
         assert_eq!(
             cli.supervisor.datadir_sync_endpoint,
             Some("http://sync.example.com".to_string())
@@ -253,7 +286,7 @@ mod tests {
             l1_rpc: "dummy".to_string(),
             l2_consensus_nodes: vec![],
             l2_consensus_jwt_secret: vec![],
-            datadir: "dummy".to_string(),
+            datadir: PathBuf::from("dummy"),
             datadir_sync_endpoint: None,
             dependency_set: temp_file.path().to_path_buf(),
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
@@ -298,7 +331,7 @@ mod tests {
             l1_rpc: "dummy".to_string(),
             l2_consensus_nodes: vec![],
             l2_consensus_jwt_secret: vec![],
-            datadir: "dummy".to_string(),
+            datadir: PathBuf::from("dummy"),
             datadir_sync_endpoint: None,
             dependency_set: PathBuf::from("/path/to/non_existent_file.json"),
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
@@ -323,7 +356,7 @@ mod tests {
             l1_rpc: "dummy".to_string(),
             l2_consensus_nodes: vec![],
             l2_consensus_jwt_secret: vec![],
-            datadir: "dummy".to_string(),
+            datadir: PathBuf::from("dummy"),
             datadir_sync_endpoint: None,
             dependency_set: temp_file.path().to_path_buf(),
             rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),

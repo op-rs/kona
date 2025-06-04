@@ -20,7 +20,7 @@ use tracing::{debug, error, info, warn};
 use super::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
 
 /// Configuration for the managed node.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ManagedNodeConfig {
     /// The URL + port of the managed node
     pub url: String,

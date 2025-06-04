@@ -4,15 +4,15 @@ use thiserror::Error;
 /// Errors that may occur while interacting with supervisor log storage.
 ///
 /// This enum is used across all implementations of the Storge traits.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum StorageError {
     /// Represents a database error that occurred while interacting with storage.
     #[error(transparent)]
     Database(#[from] DatabaseError),
 
     /// Represents an error that occurred while initializing the database.
-    #[error(transparent)]
-    DatabaseInit(#[from] eyre::Report),
+    #[error("database init error: {0}")]
+    DatabaseInit(String),
 
     /// The expected entry was not found in the database.
     #[error("entry not found: {0}")]

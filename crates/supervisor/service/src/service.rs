@@ -2,26 +2,13 @@
 
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use kona_interop::DependencySet;
+use kona_supervisor_core::config::Config;
 use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService};
+use kona_supervisor_storage::ChainDbFactory;
 use kona_supervisor_rpc::SupervisorApiServer;
-use std::{net::SocketAddr, sync::Arc};
+use tokio_util::sync::CancellationToken;
+use std::sync::Arc;
 use tracing::{info, warn};
-
-/// Configuration for the Supervisor service.
-#[derive(Debug, Clone)]
-pub struct Config {
-    /// The socket address for the RPC server to listen on.
-    // TODO:: refactoring required. RPC config should be managed in it's domain
-    pub rpc_addr: SocketAddr,
-
-    /// The loaded dependency set configuration.
-    pub dependency_set: DependencySet,
-
-    /// The rollup configuration set.
-    pub rollup_config_set: kona_supervisor_core::config::RollupConfigSet,
-    // Add other configuration fields as needed (e.g., connection details for L1/L2 nodes)
-}
 
 /// The main service structure for the Kona [`SupervisorService`]. Orchestrates the various
 /// components of the supervisor.
@@ -40,9 +27,13 @@ impl Service {
         // Initialize the core Supervisor logic
         // In the future, this might take configuration or client connections
         // This creates an Arc<Supervisor>
+
+        let database_factory = Arc::new(ChainDbFactory::new(config.datadir.clone()));
+
         let supervisor = Arc::new(Supervisor::new(
-            config.dependency_set.clone(),
-            config.rollup_config_set.clone(),
+            config.clone(),
+            database_factory,
+            CancellationToken::new(),
         ));
 
         // Create the RPC implementation, sharing the core logic

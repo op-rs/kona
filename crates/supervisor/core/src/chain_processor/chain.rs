@@ -56,16 +56,16 @@ impl ChainProcessor {
     }
 
     /// Starts the chain processor, which begins listening for events from the managed node.
-    pub async fn start(&mut self) {
+    pub async fn start(&mut self) -> Result<(), ChainProcessorError> {
         if self.task_handle.is_some() {
             warn!(target: "chain_processor", "ChainProcessor is already running");
-            return;
+            return Ok(())
         }
 
         // todo: figure out value for buffer size
         let (event_tx, event_rx) = mpsc::channel::<NodeEvent>(100);
         if let Some(managed_node) = &mut self.managed_node {
-            managed_node.start_subscription(event_tx).await.unwrap();
+            managed_node.start_subscription(event_tx).await?;
         }
 
         let task = ChainProcessorTask::new(self.cancel_token.clone(), event_rx);
@@ -74,5 +74,6 @@ impl ChainProcessor {
         });
 
         self.task_handle = Some(handle);
+        Ok(())
     }
 }
