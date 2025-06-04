@@ -65,7 +65,7 @@ impl<F: ChainProvider> L1Traversal<F> {
     fn update_origin(&mut self, block: BlockInfo) {
         self.done = false;
         self.block = Some(block);
-        kona_macros::inc!(gauge, crate::metrics::Metrics::PIPELINE_ORIGIN);
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_ORIGIN, block.number as f64);
     }
 }
 
