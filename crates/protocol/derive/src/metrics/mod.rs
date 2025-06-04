@@ -13,6 +13,7 @@ impl Metrics {
 
     /// Identifier for the histogram that tracks when the system config is updated.
     pub const SYSTEM_CONFIG_UPDATE: &str = "kona_derive_system_config_update";
+<<<<<<< HEAD
 
     /// Identifier for the number of frames in the frame queue pipeline stage.
     pub const PIPELINE_FRAME_QUEUE_BUFFER: &str = "kona_derive_frame_queue_buffer";
