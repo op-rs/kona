@@ -3,6 +3,7 @@ use alloy_provider::{Provider, RootProvider};
 use anyhow::{Context as _, Ok, Result};
 use clap::Args;
 use glob::glob;
+use kona_genesis::RollupConfig;
 use kona_supervisor_core::config::RollupConfigSet;
 
 use kona_interop::DependencySet;
@@ -42,7 +43,7 @@ pub struct SupervisorArgs {
 
     /// Path pattern to op-node rollup.json configs to load as a rollup config set.
     /// The pattern should use the glob sytax, e.g. '/configs/rollup-*.json'
-    /// When using this flag, the L1 timestamps are loaded from the provided L1 RPC",
+    /// When using this flag, the L1 timestamps are loaded from the provided L1 RPC.
     #[arg(long = "rollup-config-paths", env = "ROLLUP_CONFIG_PATHS")]
     pub rollup_config_paths: PathBuf,
 
@@ -79,7 +80,7 @@ impl SupervisorArgs {
         Ok(dependency_set)
     }
 
-    async fn get_rollup_configs(&self) -> Result<Vec<kona_genesis::RollupConfig>> {
+    async fn get_rollup_configs(&self) -> Result<Vec<RollupConfig>> {
         let pattern = self.rollup_config_paths.to_string_lossy();
         if pattern.is_empty() {
             return Err(anyhow::anyhow!("rollup_config_paths pattern is empty"));
@@ -96,8 +97,8 @@ impl SupervisorArgs {
                 format!("Failed to read rollup config file '{}'", path.display())
             })?;
 
-            let rollup_config: kona_genesis::RollupConfig = serde_json::from_str(&contents)
-                .with_context(|| {
+            let rollup_config: RollupConfig =
+                serde_json::from_str(&contents).with_context(|| {
                     format!("Failed to parse JSON from rollup config file '{}'", path.display())
                 })?;
 
@@ -106,7 +107,7 @@ impl SupervisorArgs {
         Ok(rollup_configs)
     }
 
-    /// initialise and return the rollup config set.
+    /// Initialise and return the rollup config set.
     pub async fn init_rollup_config_set(&self) -> Result<RollupConfigSet> {
         let l1_url = self
             .l1_rpc
