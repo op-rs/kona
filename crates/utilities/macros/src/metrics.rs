@@ -40,6 +40,10 @@ macro_rules! inc {
         #[cfg(feature = "metrics")]
         metrics::$instrument!($metric $(, $label_key $(=> $label_value)?)*).increment(1);
     };
+    ($instrument:ident, $metric:path, $value:expr $(, $label_key:expr $(=> $label_value:expr)?)*$(,)?) => {
+        #[cfg(feature = "metrics")]
+        metrics::$instrument!($metric $(, $label_key $(=> $label_value)?)*).increment($value);
+    };
 }
 
 /// Records a value, optionally with a specified label.
