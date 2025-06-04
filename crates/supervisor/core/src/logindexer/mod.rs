@@ -11,7 +11,7 @@
 //! - [`LogIndexerError`] — error type for failures in fetching or storing logs.
 //! - `util` — helper functions for computing payload and log hashes.
 mod indexer;
-pub use indexer::{LogIndexer, LogIndexerError, ReceiptFetchError};
+pub use indexer::{LogIndexer, LogIndexerError};
 
 mod util;
 pub use util::{log_to_log_hash, log_to_message_payload, payload_hash_to_log_hash};

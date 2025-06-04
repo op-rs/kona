@@ -167,18 +167,23 @@ impl GossipDriverBuilder {
         let mut behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])?;
 
         // If peer scoring is configured, set it on the behaviour.
-        if let Some(scoring) = self.scoring {
-            use crate::gossip::handler::Handler;
-            let block_time = self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
-            let params = scoring
-                .to_params(handler.topics(), self.topic_scoring, block_time)
-                .unwrap_or_default();
-            match behaviour.gossipsub.with_peer_score(params, PeerScoreLevel::thresholds()) {
-                Ok(_) => debug!(target: "scoring", "Peer scoring enabled successfully"),
-                Err(e) => warn!(target: "scoring", "Peer scoring failed: {}", e),
+        match self.scoring {
+            None => info!(target: "scoring", "Peer scoring not enabled"),
+            Some(PeerScoreLevel::Off) => {
+                info!(target: "scoring", level = ?PeerScoreLevel::Off, "Peer scoring explicitly disabled")
             }
-        } else {
-            info!(target: "scoring", "Peer scoring not enabled");
+            Some(level) => {
+                use crate::gossip::handler::Handler;
+                let block_time =
+                    self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
+                let params = level
+                    .to_params(handler.topics(), self.topic_scoring, block_time)
+                    .unwrap_or_default();
+                match behaviour.gossipsub.with_peer_score(params, PeerScoreLevel::thresholds()) {
+                    Ok(_) => debug!(target: "scoring", "Peer scoring enabled successfully"),
+                    Err(e) => warn!(target: "scoring", "Peer scoring failed: {}", e),
+                }
+            }
         }
 
         // Build the swarm.

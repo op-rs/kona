@@ -5,12 +5,11 @@ use async_trait::async_trait;
 use jsonrpsee::types::ErrorObjectOwned;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_supervisor_rpc::SupervisorApiServer;
-use kona_supervisor_storage::{ChainDbFactory, StorageError};
+use kona_supervisor_storage::{ChainDb, ChainDbFactory, StorageError};
 use op_alloy_rpc_types::InvalidInboxEntry;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
 
 use crate::{
     chain_processor::{ChainProcessor, ChainProcessorError},
@@ -29,6 +28,10 @@ pub enum SupervisorError {
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
     InvalidInboxEntry(#[from] InvalidInboxEntry),
+
+    /// Indicates that the supervisor was unable to initialise due to an error.
+    #[error("unable to initialize the supervisor: {0}")]
+    Initialise(String),
 
     /// Indicates that error occurred while interacting with the storage layer.
     #[error(transparent)]
@@ -71,7 +74,11 @@ pub trait SupervisorService: Debug + Send + Sync {
 pub struct Supervisor {
     config: Config,
     database_factory: Arc<ChainDbFactory>,
-    chain_processors: HashMap<ChainId, ChainProcessor>,
+
+    // As of now supervisor only supports a single managed node per chain.
+    // This is a limitation of the current implementation, but it can be extended in the future.
+    managed_nodes: HashMap<ChainId, Arc<ManagedNode>>,
+    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode, ChainDb>>,
 
     cancel_token: CancellationToken,
 }
@@ -84,24 +91,22 @@ impl Supervisor {
         database_factory: Arc<ChainDbFactory>,
         cancel_token: CancellationToken,
     ) -> Self {
-        Self { config, database_factory, chain_processors: HashMap::new(), cancel_token }
+        Self {
+            config,
+            database_factory,
+            managed_nodes: HashMap::new(),
+            chain_processors: HashMap::new(),
+            cancel_token,
+        }
     }
 
     /// Initialises the Supervisor service.
     pub async fn initialise(&mut self) -> Result<(), SupervisorError> {
-        self.init_chain_processor()?;
-        self.init_manged_nodes().await?;
-
-        // Start the chain processors.
-        // This will start the chain processors for each chain in the rollup config.
-        // Each chain processor will start its own managed nodes and begin processing messages.
-        for processor in self.chain_processors.values_mut() {
-            processor.start().await?;
-        }
-        Ok(())
+        self.init_managed_nodes().await?;
+        self.init_chain_processor().await
     }
 
-    fn init_chain_processor(&mut self) -> Result<(), SupervisorError> {
+    async fn init_chain_processor(&mut self) -> Result<(), SupervisorError> {
         // Initialise the service components, such as database connections or other resources.
 
         for (chain_id, config) in self.config.rollup_config_set.rollups.iter() {
@@ -109,27 +114,31 @@ impl Supervisor {
             let db = self.database_factory.get_or_create_db(*chain_id)?;
             db.initialise(config.genesis.get_anchor())?;
 
+            let managed_node =
+                self.managed_nodes.get(chain_id).ok_or(SupervisorError::Initialise(format!(
+                    "no managed node found for chain {}",
+                    chain_id
+                )))?;
+
             // initialise chain processor for the chain.
-            let processor = ChainProcessor::new(*chain_id, self.cancel_token.clone());
+            let processor =
+                ChainProcessor::new(*chain_id, managed_node.clone(), db, self.cancel_token.clone());
+
+            // Start the chain processors.
+            // Each chain processor will start its own managed nodes and begin processing messages.
+            processor.start().await?;
             self.chain_processors.insert(*chain_id, processor);
         }
         Ok(())
     }
 
-    async fn init_manged_nodes(&mut self) -> Result<(), SupervisorError> {
+    async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
             let managed_node =
                 ManagedNode::new(Arc::new(config.clone()), self.cancel_token.clone());
 
             let chain_id = managed_node.chain_id().await?;
-            if let Some(processor) = self.chain_processors.get_mut(&chain_id) {
-                processor.add_managed_node(managed_node).await?;
-            } else {
-                warn!(target: "supervisor",
-                    chain_id = chain_id,
-                    "No ChainProcessor found for ManagedNode with chain_id"
-                );
-            }
+            self.managed_nodes.insert(chain_id, Arc::new(managed_node));
         }
         Ok(())
     }

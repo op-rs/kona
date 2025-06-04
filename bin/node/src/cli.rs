@@ -66,6 +66,11 @@ impl Cli {
             Commands::Info(ref info) => info.init_logs(&self.global)?,
         }
 
+        // If metrics are enabled, initialize the global cli metrics.
+        if self.metrics.enabled {
+            self.global.init_cli_metrics();
+        }
+
         // Allow subcommands to initialize cli metrics.
         match self.subcommand {
             Commands::Node(ref node) => node.init_cli_metrics(&self.metrics)?,
