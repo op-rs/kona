@@ -3,11 +3,15 @@ use alloy_provider::{Provider, RootProvider};
 use anyhow::{Context as _, Ok, Result};
 use clap::Args;
 use glob::glob;
-use kona_supervisor_core::config::{Config,RollupConfigSet};
-use kona_supervisor_core::syncnode::ManagedNodeConfig;
 use kona_interop::DependencySet;
-use serde_json::de;
-use std::{net::{IpAddr,SocketAddr}, path::PathBuf};
+use kona_supervisor_core::{
+    config::{Config, RollupConfigSet},
+    syncnode::ManagedNodeConfig,
+};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::PathBuf,
+};
 use tokio::{fs::File, io::AsyncReadExt};
 
 /// Supervisor configuration arguments.
@@ -141,14 +145,12 @@ impl SupervisorArgs {
     /// initialise and return the managed nodes configuration.
     pub fn init_managed_nodes_config(&self) -> Vec<ManagedNodeConfig> {
         let mut managed_nodes = Vec::new();
-        let default_secret = self.l2_consensus_jwt_secret.get(0).unwrap();
+        let default_secret = self.l2_consensus_jwt_secret.first().unwrap();
         for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
             let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
 
-            managed_nodes.push(ManagedNodeConfig {
-                url: rpc_url.clone(),
-                jwt_path: secret.clone(),
-            });
+            managed_nodes
+                .push(ManagedNodeConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
         }
         managed_nodes
     }

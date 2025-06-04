@@ -1,7 +1,6 @@
-use kona_interop::DependencySet;
-use std::net::SocketAddr;
-use std::path::PathBuf;
 use crate::syncnode::ManagedNodeConfig;
+use kona_interop::DependencySet;
+use std::{net::SocketAddr, path::PathBuf};
 
 use super::RollupConfigSet;
 

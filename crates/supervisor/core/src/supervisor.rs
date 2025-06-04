@@ -1,23 +1,22 @@
 use core::fmt::Debug;
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use alloy_primitives::B256;
+use alloy_primitives::{B256, ChainId};
 use async_trait::async_trait;
 use jsonrpsee::types::ErrorObjectOwned;
-use alloy_primitives::ChainId;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_supervisor_rpc::SupervisorApiServer;
-use kona_supervisor_storage::ChainDbFactory;
-use kona_supervisor_storage::StorageError;
+use kona_supervisor_storage::{ChainDbFactory, StorageError};
 use op_alloy_rpc_types::InvalidInboxEntry;
+use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::chain_processor::{ChainProcessor, ChainProcessorError};
-use crate::config::Config;
-use crate::syncnode::{ManagedNode, ManagedNodeError};
+use crate::{
+    chain_processor::{ChainProcessor, ChainProcessorError},
+    config::Config,
+    syncnode::{ManagedNode, ManagedNodeError},
+};
 
 /// Custom error type for the Supervisor core logic.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -73,27 +72,26 @@ pub struct Supervisor {
     config: Config,
     database_factory: Arc<ChainDbFactory>,
     chain_processors: HashMap<ChainId, ChainProcessor>,
-    
+
     cancel_token: CancellationToken,
 }
 
 impl Supervisor {
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new(config: Config, database_factory: Arc<ChainDbFactory>, cancel_token: CancellationToken) -> Self {
-        Self { 
-            config,
-            database_factory,
-            chain_processors: HashMap::new(),
-            cancel_token,
-        }
+    pub fn new(
+        config: Config,
+        database_factory: Arc<ChainDbFactory>,
+        cancel_token: CancellationToken,
+    ) -> Self {
+        Self { config, database_factory, chain_processors: HashMap::new(), cancel_token }
     }
 
     /// Initialises the Supervisor service.
     pub async fn initialise(&mut self) -> Result<(), SupervisorError> {
         self.init_chain_processor()?;
         self.init_manged_nodes().await?;
-        
+
         // Start the chain processors.
         // This will start the chain processors for each chain in the rollup config.
         // Each chain processor will start its own managed nodes and begin processing messages.
@@ -105,17 +103,14 @@ impl Supervisor {
 
     fn init_chain_processor(&mut self) -> Result<(), SupervisorError> {
         // Initialise the service components, such as database connections or other resources.
-        
+
         for (chain_id, config) in self.config.rollup_config_set.rollups.iter() {
             // initialise the chain database for each chain.
             let db = self.database_factory.get_or_create_db(*chain_id)?;
             db.initialise(config.genesis.get_anchor())?;
 
             // initialise chain processor for the chain.
-            let processor = ChainProcessor::new(
-                *chain_id,
-                self.cancel_token.clone(),
-            );
+            let processor = ChainProcessor::new(*chain_id, self.cancel_token.clone());
             self.chain_processors.insert(*chain_id, processor);
         }
         Ok(())
@@ -123,8 +118,9 @@ impl Supervisor {
 
     async fn init_manged_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
-            let managed_node = ManagedNode::new(Arc::new(config.clone()), self.cancel_token.clone());
-            
+            let managed_node =
+                ManagedNode::new(Arc::new(config.clone()), self.cancel_token.clone());
+
             let chain_id = managed_node.chain_id().await?;
             if let Some(processor) = self.chain_processors.get_mut(&chain_id) {
                 processor.add_managed_node(managed_node).await?;

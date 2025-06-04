@@ -2,12 +2,11 @@
 
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use kona_supervisor_core::config::Config;
-use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService};
-use kona_supervisor_storage::ChainDbFactory;
+use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService, config::Config};
 use kona_supervisor_rpc::SupervisorApiServer;
-use tokio_util::sync::CancellationToken;
+use kona_supervisor_storage::ChainDbFactory;
 use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 /// The main service structure for the Kona [`SupervisorService`]. Orchestrates the various
@@ -30,11 +29,8 @@ impl Service {
 
         let database_factory = Arc::new(ChainDbFactory::new(config.datadir.clone()));
 
-        let supervisor = Arc::new(Supervisor::new(
-            config.clone(),
-            database_factory,
-            CancellationToken::new(),
-        ));
+        let supervisor =
+            Arc::new(Supervisor::new(config.clone(), database_factory, CancellationToken::new()));
 
         // Create the RPC implementation, sharing the core logic
         // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>
