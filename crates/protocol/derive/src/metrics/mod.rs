@@ -26,6 +26,12 @@ impl Metrics {
 
     /// Identifier for the channel buffer memory overhead gauge.
     pub const PIPELINE_CHANNEL_MEM: &str = "kona_derive_channel_mem";
+
+    /// Identifier for a gauge that tracks the number of blocks until the next channel times out.
+    pub const PIPELINE_CHANNEL_TIMEOUT: &str = "kona_derive_channel_timeout";
+
+    /// Identifier for the gauge that tracks the maximum rlp byte size per channel.
+    pub const PIPELINE_MAX_RLP_BYTES: &str = "kona_derive_max_rlp_bytes";
 }
 
 impl Metrics {
@@ -71,10 +77,24 @@ impl Metrics {
             Self::PIPELINE_CHANNEL_MEM,
             "The memory size of channels held in the channel assembler stage"
         );
+        metrics::describe_gauge!(
+            Self::PIPELINE_CHANNEL_TIMEOUT,
+            "The number of blocks until the next channel times out"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_MAX_RLP_BYTES,
+            "The maximum rlp byte size of a channel"
+        );
     }
 
     /// Initializes metrics to 0 so they can be queried immediately.
-    #[allow(clippy::missing_const_for_fn)]
     #[cfg(feature = "metrics")]
-    pub fn zero() {}
+    pub fn zero() {
+        kona_macros::set!(gauge, Self::PIPELINE_FRAME_QUEUE_BUFFER, 0);
+        kona_macros::set!(gauge, Self::PIPELINE_FRAME_QUEUE_MEM, 0);
+        kona_macros::set!(gauge, Self::PIPELINE_CHANNEL_BUFFER, 0);
+        kona_macros::set!(gauge, Self::PIPELINE_CHANNEL_MEM, 0);
+        kona_macros::set!(gauge, Self::PIPELINE_CHANNEL_TIMEOUT, 0);
+        kona_macros::set!(gauge, Self::PIPELINE_MAX_RLP_BYTES, 0);
+    }
 }
