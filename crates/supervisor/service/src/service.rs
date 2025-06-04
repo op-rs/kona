@@ -3,7 +3,7 @@
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
 use kona_interop::DependencySet;
-use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService};
+use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService, config::RollupConfigSet};
 use kona_supervisor_rpc::SupervisorApiServer;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{info, warn};
@@ -17,6 +17,9 @@ pub struct Config {
 
     /// The loaded dependency set configuration.
     pub dependency_set: DependencySet,
+
+    /// The rollup configuration set.
+    pub rollup_config_set: RollupConfigSet,
     // Add other configuration fields as needed (e.g., connection details for L1/L2 nodes)
 }
 
@@ -37,7 +40,10 @@ impl Service {
         // Initialize the core Supervisor logic
         // In the future, this might take configuration or client connections
         // This creates an Arc<Supervisor>
-        let supervisor = Arc::new(Supervisor::new(config.dependency_set.clone()));
+        let supervisor = Arc::new(Supervisor::new(
+            config.dependency_set.clone(),
+            config.rollup_config_set.clone(),
+        ));
 
         // Create the RPC implementation, sharing the core logic
         // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>

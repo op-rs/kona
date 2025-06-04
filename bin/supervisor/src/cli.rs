@@ -33,9 +33,11 @@ impl Cli {
 
         Self::run_until_ctrl_c(async move {
             let dependency_set = self.supervisor.init_dependency_set().await?;
+            let rollup_config_set = self.supervisor.init_rollup_config_set().await?;
             let config = Config {
                 rpc_addr: SocketAddr::new(self.supervisor.rpc_address, self.supervisor.rpc_port),
                 dependency_set,
+                rollup_config_set,
             };
             let mut service = Service::new(config.clone())?;
             service.run().await?; // run() now returns Result<()> and populates the handle internally

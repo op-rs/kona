@@ -122,6 +122,24 @@ impl NodeCommand {
                     CliMetrics::P2P_PEER_REDIALING,
                     self.p2p_flags.peer_redial.unwrap_or(0).to_string()
                 ),
+                (CliMetrics::P2P_FLOOD_PUBLISH, self.p2p_flags.gossip_flood_publish.to_string()),
+                (CliMetrics::P2P_DISCOVERY_INTERVAL, self.p2p_flags.discovery_interval.to_string()),
+                (
+                    CliMetrics::P2P_ADVERTISE_IP,
+                    self.p2p_flags
+                        .advertise_ip
+                        .map(|ip| ip.to_string())
+                        .unwrap_or(String::from("0.0.0.0"))
+                ),
+                (CliMetrics::P2P_ADVERTISE_TCP_PORT, self.p2p_flags.advertise_tcp_port.to_string()),
+                (CliMetrics::P2P_ADVERTISE_UDP_PORT, self.p2p_flags.advertise_udp_port.to_string()),
+                (CliMetrics::P2P_PEERS_LO, self.p2p_flags.peers_lo.to_string()),
+                (CliMetrics::P2P_PEERS_HI, self.p2p_flags.peers_hi.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D, self.p2p_flags.gossip_mesh_d.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D_LO, self.p2p_flags.gossip_mesh_dlo.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D_HI, self.p2p_flags.gossip_mesh_dhi.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D_LAZY, self.p2p_flags.gossip_mesh_dlazy.to_string()),
+                (CliMetrics::P2P_BAN_DURATION, self.p2p_flags.ban_duration.to_string()),
             ]
         )
         .set(1);

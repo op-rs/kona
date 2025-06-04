@@ -35,8 +35,14 @@ impl Metrics {
     /// Identifier for the gauge that tracks the number of peers in the discovery service.
     pub const DISCOVERY_PEER_COUNT: &str = "kona_node_discovery_peer_count";
 
-    /// Indentifier for the gauge that tracks RPC calls.
+    /// Identifier for the gauge that tracks RPC calls.
     pub const RPC_CALLS: &str = "kona_node_rpc_calls";
+
+    /// Identifier for a gauge that tracks the number of banned peers.
+    pub const BANNED_PEERS: &str = "kona_node_banned_peers";
+
+    /// Identifier for a histogram that tracks peer scores.
+    pub const PEER_SCORES: &str = "kona_node_peer_scores";
 
     /// Initializes metrics for the P2P stack.
     ///
@@ -82,6 +88,11 @@ impl Metrics {
         metrics::describe_gauge!(
             Self::GOSSIPSUB_CONNECTION,
             "Connections made to the libp2p Swarm"
+        );
+        metrics::describe_gauge!(Self::BANNED_PEERS, "Number of peers banned by kona's P2P stack");
+        metrics::describe_histogram!(
+            Self::PEER_SCORES,
+            "Observations of peer scores in the gossipsub mesh"
         );
     }
 
@@ -143,5 +154,8 @@ impl Metrics {
         kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "gossipsub_not_supported", 0);
         kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "slow_peer", 0);
         kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "message_received", 0);
+
+        // Banned Peers
+        kona_macros::set!(gauge, Self::BANNED_PEERS, 0);
     }
 }
