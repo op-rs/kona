@@ -90,10 +90,7 @@ impl Metrics {
     #[cfg(feature = "metrics")]
     pub fn zero() {
         kona_macros::set!(gauge, Self::PIPELINE_FRAME_QUEUE_BUFFER, 0);
-        kona_macros::set!(gauge, Self::PIPELINE_FRAME_QUEUE_MEM, 0);
         kona_macros::set!(gauge, Self::PIPELINE_CHANNEL_BUFFER, 0);
-        kona_macros::set!(gauge, Self::PIPELINE_CHANNEL_MEM, 0);
         kona_macros::set!(gauge, Self::PIPELINE_CHANNEL_TIMEOUT, 0);
-        kona_macros::set!(gauge, Self::PIPELINE_MAX_RLP_BYTES, 0);
     }
 }
