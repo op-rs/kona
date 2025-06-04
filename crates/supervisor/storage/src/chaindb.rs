@@ -27,8 +27,7 @@ pub struct ChainDb {
 impl ChainDb {
     /// Creates or opens a database environment at the given path.
     pub fn new(path: &Path) -> Result<Self, StorageError> {
-        let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())
-            .map_err(|err| StorageError::DatabaseInit(err.to_string()))?;
+        let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
         Ok(Self { env })
     }
 
