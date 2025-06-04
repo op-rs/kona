@@ -31,6 +31,12 @@ impl Metrics {
 
     /// Identifier for the gauge that tracks the maximum rlp byte size per channel.
     pub const PIPELINE_MAX_RLP_BYTES: &str = "kona_derive_max_rlp_bytes";
+
+    /// Identifier for the batch stream stage singular batch buffer size.
+    pub const PIPELINE_BATCH_BUFFER: &str = "kona_derive_batch_buffer";
+
+    /// Identifier for the batch stream stage batch memory overhead gauge.
+    pub const PIPELINE_BATCH_MEM: &str = "kona_derive_batch_mem";
 }
 
 impl Metrics {
@@ -83,6 +89,14 @@ impl Metrics {
         metrics::describe_gauge!(
             Self::PIPELINE_MAX_RLP_BYTES,
             "The maximum rlp byte size of a channel"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_BATCH_BUFFER,
+            "The number of batches held in the batch stream stage"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_BATCH_MEM,
+            "The memory size of batches held in the batch stream stage"
         );
     }
 
