@@ -19,7 +19,7 @@ pub struct SuperHead {
     pub local_unsafe: BlockInfo,
     /// [`CrossUnsafe`] head of chain.
     ///
-    /// [`Unsafe`]: op_alloy_consensus::interop::SafetyLevel::CrossUnsafe
+    /// [`CrossUnsafe`]: op_alloy_consensus::interop::SafetyLevel::CrossUnsafe
     pub cross_unsafe: BlockInfo,
     /// [`LocalSafe`] head of chain.
     ///
