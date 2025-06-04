@@ -90,7 +90,7 @@ impl SupervisorArgs {
         }
 
         let mut rollup_configs = Vec::new();
-        for entry in glob(&pattern)? {
+        for entry in glob(pattern)? {
             let path = entry?;
             let mut file = File::open(&path).await.with_context(|| {
                 format!("Failed to open rollup config file '{}'", path.display())
