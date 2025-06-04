@@ -94,6 +94,9 @@ where
             self.channel = Some(Channel::new(next_frame.id, origin));
         }
 
+        let count = if self.channel.is_some() { 1 } else { 0 };
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_BUFFER, count);
+
         if let Some(channel) = self.channel.as_mut() {
             // Add the frame to the channel. If this fails, return NotEnoughData and discard the
             // frame.
@@ -113,6 +116,9 @@ where
                 );
                 return Err(PipelineError::NotEnoughData.temp());
             }
+
+            let size = channel.size() as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_MEM, size);
 
             let max_rlp_bytes_per_channel = if self.cfg.is_fjord_active(origin.timestamp) {
                 MAX_RLP_BYTES_PER_CHANNEL_FJORD
@@ -146,6 +152,8 @@ where
                 return Ok(Some(channel_bytes));
             }
         }
+
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_MEM, 0);
 
         Err(PipelineError::NotEnoughData.temp())
     }

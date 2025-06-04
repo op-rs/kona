@@ -13,6 +13,18 @@ impl Metrics {
 
     /// Identifier for the histogram that tracks when the system config is updated.
     pub const SYSTEM_CONFIG_UPDATE: &str = "kona_derive_system_config_update";
+
+    /// Identifier for the number of frames in the frame queue pipeline stage.
+    pub const PIPELINE_FRAME_QUEUE_BUFFER: &str = "kona_derive_frame_queue_buffer";
+
+    /// Identifier for the frame queue buffer memory overhead gauage.
+    pub const PIPELINE_FRAME_QUEUE_MEM: &str = "kona_derive_frame_queue_mem";
+
+    /// Identifier for the number of channels held in the pipeline.
+    pub const PIPELINE_CHANNEL_BUFFER: &str = "kona_derive_channel_buffer";
+
+    /// Identifier for the channel buffer memory overhead gauge.
+    pub const PIPELINE_CHANNEL_MEM: &str = "kona_derive_channel_mem";
 }
 
 impl Metrics {
@@ -41,6 +53,22 @@ impl Metrics {
         metrics::describe_histogram!(
             Self::SYSTEM_CONFIG_UPDATE,
             "The time it takes to update the system config"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_FRAME_QUEUE_BUFFER,
+            "The number of frames in the frame queue"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_FRAME_QUEUE_MEM,
+            "The memory size of frames held in the frame queue"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_CHANNEL_BUFFER,
+            "The number of channels in the channel assembler stage"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_CHANNEL_MEM,
+            "The memory size of channels held in the channel assembler stage"
         );
     }
 

@@ -158,6 +158,17 @@ where
 {
     async fn next_frame(&mut self) -> PipelineResult<Frame> {
         self.load_frames().await?;
+        #[cfg(feature = "metrics")]
+        {
+            let queue_len = self.queue.len() as f64;
+            kona_macros::set!(
+                gauge,
+                crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
+                queue_len
+            );
+            let queue_size = std::mem::size_of_val(&self.queue) as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
+        }
 
         // If we did not add more frames but still have more data, retry this function.
         if self.queue.is_empty() {
