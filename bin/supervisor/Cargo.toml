@@ -30,6 +30,7 @@ tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 tracing = { workspace = true }
 serde_json.workspace = true
 glob.workspace = true
+reqwest.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
