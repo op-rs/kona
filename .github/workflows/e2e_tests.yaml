@@ -25,10 +25,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Semantic version range syntax or exact version of Go
-          go-version: '1.24.3'
-      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
-      - name: test with simple-kona devnet
-        run: just build-devnet-and-test-e2e simple-kona node
+          go-version: "1.24.3"
+      - uses: jdx/mise-action@v2 # installs Mise + runs `mise install`
+      - name: test with kurtosis-network-params-node devnet
+        run: just build-devnet-and-test-e2e kurtosis-network-params-node node
   large-e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -47,7 +47,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # Semantic version range syntax or exact version of Go
-          go-version: '1.24.3'
-      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
+          go-version: "1.24.3"
+      - uses: jdx/mise-action@v2 # installs Mise + runs `mise install`
       - name: test with large-kona devnet
         run: just build-devnet-and-test-e2e large-kona node
