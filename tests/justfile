@@ -1,5 +1,5 @@
 SOURCE := source_directory()
-DEFAULT_DEVNET_PATH := source_directory() + "/devnets/simple-kona.yaml"
+DEFAULT_DEVNET_PATH := source_directory() + "/devnets/kurtosis-network-params-node.yaml"
 DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package"
 
 build-devnet BINARY:
