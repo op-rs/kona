@@ -14,10 +14,7 @@ use tracing::warn;
 /// [`NodeEvent`]. It listens for events emitted by the managed node
 /// and handles them accordingly.
 #[derive(Debug)]
-pub struct ChainProcessor<
-    P: ManagedNodeProvider,
-    W: LogStorageWriter, // TODO: replace with more wider traits to cover others
-> {
+pub struct ChainProcessor<P, W> {
     // The chainId that this processor is associated with
     chain_id: ChainId,
 
@@ -67,8 +64,8 @@ where
         self.managed_node.start_subscription(event_tx).await.unwrap();
 
         let task = ChainProcessorTask::new(
-            Arc::clone(&self.managed_node),
-            Arc::clone(&self.state_manager),
+            self.managed_node.clone(),
+            self.state_manager.clone(),
             self.cancel_token.clone(),
             event_rx,
         );

@@ -14,10 +14,7 @@ use tracing::{error, info};
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
-pub struct ChainProcessorTask<
-    P: ManagedNodeProvider,
-    W: LogStorageWriter, // TODO: replace with more wider traits to cover others
-> {
+pub struct ChainProcessorTask<P, W> {
     log_indexer: Arc<LogIndexer<P, W>>,
 
     cancel_token: CancellationToken,

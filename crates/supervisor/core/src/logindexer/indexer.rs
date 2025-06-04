@@ -12,7 +12,7 @@ use thiserror::Error;
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
 #[derive(Debug)]
-pub struct LogIndexer<P: ReceiptProvider, W: LogStorageWriter> {
+pub struct LogIndexer<P, W> {
     /// Component that provides receipts for a given block hash.
     pub receipt_provider: Arc<P>,
     /// Component that persists parsed log entries to storage.
