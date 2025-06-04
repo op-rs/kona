@@ -146,4 +146,99 @@ mod test {
             }
         )
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serialize_supervisor_sync_status() {
+        const STATUS: &str = r#"
+            {
+                "minSyncedL1": {
+                    "number": 100,
+                    "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+                    "timestamp": 40044440000,
+                    "parentHash": "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
+                },
+                "safeTimestamp": 40044450000,
+                "finalizedTimestamp": 40044460000,
+                "chains" : {
+                    "1": {
+                        "localUnsafe": {
+                            "number": 100,
+                            "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+                            "timestamp": 40044440000,
+                            "parentHash": "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
+                        },
+                        "crossUnsafe": {
+                            "number": 90,
+                            "hash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                        },
+                        "localSafe": {
+                            "number": 80,
+                            "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef13"
+                        },
+                        "safe": {
+                            "number": 70,
+                            "hash": "0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234"
+                        },
+                        "finalized": {
+                            "number": 60,
+                            "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+                        }
+                    }
+                }
+            }"#;
+
+        let mut chains = HashMap::new();
+
+        chains.insert(
+            1,
+            SupervisorChainSyncStatus {
+                local_unsafe: BlockInfo {
+                    number: 100,
+                    hash: b256!(
+                        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+                    ),
+                    timestamp: 40044440000,
+                    parent_hash: b256!(
+                        "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
+                    ),
+                },
+                cross_unsafe: BlockNumHash::new(
+                    90,
+                    b256!("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"),
+                ),
+                local_safe: BlockNumHash::new(
+                    80,
+                    b256!("0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef13"),
+                ),
+                cross_safe: BlockNumHash::new(
+                    70,
+                    b256!("0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234"),
+                ),
+                finalized: BlockNumHash::new(
+                    60,
+                    b256!("0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"),
+                ),
+            },
+        );
+
+        assert_eq!(
+            serde_json::from_str::<SupervisorSyncStatus>(STATUS).expect("should deserialize"),
+            SupervisorSyncStatus {
+                min_synced_l1: BlockInfo {
+                    number: 100,
+                    hash: b256!(
+                        "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+                    ),
+                    timestamp: 40044440000,
+                    parent_hash: b256!(
+                        "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
+                    ),
+                },
+                cross_safe_timestamp: 40044450000,
+                finalized_timestamp: 40044460000,
+                chains,
+            }
+        )
+    }
 }
