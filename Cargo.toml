@@ -73,8 +73,8 @@ codegen-units = 1
 
 [workspace.dependencies]
 # Binaries
-kona-host = { path = "bin/host", version = "1.0.1", default-features = false }
-kona-client = { path = "bin/client", version = "1.0.1", default-features = false }
+kona-host = { path = "bin/host", version = "1.0.2", default-features = false }
+kona-client = { path = "bin/client", version = "1.0.2", default-features = false }
 
 # Protocol
 kona-comp = { path = "crates/protocol/comp", version = "0.3.0", default-features = false }

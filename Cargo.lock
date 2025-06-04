@@ -4184,7 +4184,7 @@ dependencies = [
 
 [[package]]
 name = "kona-client"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4416,7 +4416,7 @@ dependencies = [
 
 [[package]]
 name = "kona-host"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
