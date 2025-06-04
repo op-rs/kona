@@ -35,8 +35,11 @@ impl Metrics {
     /// Identifier for the gauge that tracks the number of peers in the discovery service.
     pub const DISCOVERY_PEER_COUNT: &str = "kona_node_discovery_peer_count";
 
-    /// Indentifier for the gauge that tracks RPC calls.
+    /// Identifier for the gauge that tracks RPC calls.
     pub const RPC_CALLS: &str = "kona_node_rpc_calls";
+
+    /// Identifier for a gauge that tracks the number of banned peers.
+    pub const BANNED_PEERS: &str = "kona_node_banned_peers";
 
     /// Initializes metrics for the P2P stack.
     ///
@@ -83,6 +86,7 @@ impl Metrics {
             Self::GOSSIPSUB_CONNECTION,
             "Connections made to the libp2p Swarm"
         );
+        metrics::describe_gauge!(Self::BANNED_PEERS, "Number of peers banned by kona's P2P stack");
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
@@ -143,5 +147,8 @@ impl Metrics {
         kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "gossipsub_not_supported", 0);
         kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "slow_peer", 0);
         kona_macros::set!(gauge, Self::GOSSIPSUB_EVENT, "type", "message_received", 0);
+
+        // Banned Peers
+        kona_macros::set!(gauge, Self::BANNED_PEERS, 0);
     }
 }
