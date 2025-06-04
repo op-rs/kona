@@ -45,8 +45,7 @@ impl Metrics {
     }
 
     /// Initializes metrics to 0 so they can be queried immediately.
+    #[allow(clippy::missing_const_for_fn)]
     #[cfg(feature = "metrics")]
-    pub fn zero() {
-        kona_macros::set!(gauge, Self::PIPELINE_ORIGIN, 0);
-    }
+    pub fn zero() {}
 }
