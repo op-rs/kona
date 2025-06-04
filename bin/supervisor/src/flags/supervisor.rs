@@ -81,7 +81,10 @@ impl SupervisorArgs {
     }
 
     async fn get_rollup_configs(&self) -> Result<Vec<RollupConfig>> {
-        let pattern = self.rollup_config_paths.to_string_lossy();
+        let pattern = self
+            .rollup_config_paths
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("rollup_config_paths contains invalid UTF-8"))?;
         if pattern.is_empty() {
             return Err(anyhow::anyhow!("rollup_config_paths pattern is empty"));
         }
