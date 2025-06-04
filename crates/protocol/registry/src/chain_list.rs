@@ -62,7 +62,7 @@ pub struct Chain {
     pub explorers: Vec<String>,
     /// The Superchain Level.
     pub superchain_level: u64,
-    /// The data avilability type.
+    /// The data availability type.
     pub data_availability_type: String,
     /// The Superchain Parent.
     #[cfg_attr(feature = "tabled", tabled(skip))]

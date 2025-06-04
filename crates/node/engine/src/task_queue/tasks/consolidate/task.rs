@@ -7,7 +7,7 @@ use crate::{
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 /// The [`ConsolidateTask`] attempts to consolidate the engine state
 /// using the specified payload attributes and the oldest unsafe head.
@@ -59,8 +59,11 @@ impl ConsolidateTask {
 
     /// Attempts consolidation on the engine state.
     pub async fn consolidate(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+        let global_start = Instant::now();
+
         // Fetch the unsafe l2 block after the attributes parent.
         let block_num = self.attributes.block_number();
+        let fetch_start = Instant::now();
         let block = match self.client.l2_block_by_label(block_num.into()).await {
             Ok(Some(block)) => block,
             Ok(None) => {
@@ -72,6 +75,7 @@ impl ConsolidateTask {
                 return Err(ConsolidateTaskError::FailedToFetchUnsafeL2Block.into());
             }
         };
+        let block_fetch_duration = fetch_start.elapsed();
 
         // Attempt to consolidate the unsafe head.
         // If this is successful, the forkchoice change synchronizes.
@@ -84,28 +88,43 @@ impl ConsolidateTask {
                 block_hash = %block_hash,
                 "Consolidating engine state",
             );
+
             match L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &self.cfg.genesis) {
                 Ok(block_info) => {
                     state.set_local_safe_head(block_info);
                     state.set_safe_head(block_info);
 
-                    debug!(target: "engine", ?block_info, "Promoted safe head");
-
                     // Only issue a forkchoice update if the attributes are the last in the span
                     // batch. This is an optimization to avoid sending a FCU
                     // call for every block in the span batch.
-                    if self.attributes.is_last_in_span {
+                    let fcu_duration = if self.attributes.is_last_in_span {
+                        let fcu_start = Instant::now();
                         if let Err(e) = self.execute_forkchoice_task(state).await {
                             warn!(target: "engine", ?e, "Consolidation failed");
                             return Err(e);
                         }
-                    }
+                        Some(fcu_start.elapsed())
+                    } else {
+                        None
+                    };
+
+                    let total_duration = global_start.elapsed();
 
                     // Update metrics.
                     kona_macros::inc!(
                         counter,
                         Metrics::ENGINE_TASK_COUNT,
                         Metrics::CONSOLIDATE_TASK_LABEL
+                    );
+
+                    info!(
+                        target: "engine",
+                        hash = %block_info.block_info.hash,
+                        number = block_info.block_info.number,
+                        total_duration = ?total_duration,
+                        block_fetch_duration = ?block_fetch_duration,
+                        fcu_duration = fcu_duration.map(|d| format!("{d:?}")).unwrap_or("N/A".to_string()),
+                        "Updated safe head via L1 consolidation"
                     );
 
                     return Ok(());
@@ -118,11 +137,11 @@ impl ConsolidateTask {
         }
 
         // Otherwise, the attributes need to be processed.
-        trace!(
+        debug!(
             target: "engine",
             attributes = ?self.attributes,
             block_hash = %block_hash,
-            "No consolidation needed executing build task",
+            "Attributes mismatch! Executing build task to initiate reorg",
         );
         self.execute_build_task(state).await
     }

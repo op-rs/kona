@@ -60,7 +60,7 @@ pub struct Discovery {
     port: u16,
     /// Tuples of time since unix and the peer count at that timestamp.
     peers: Vec<(f64, f64)>,
-    /// The list of timstamps.
+    /// The list of timestamps.
     peer_window: [f64; 2],
     /// The valid peer count.
     valid_peers: Vec<(f64, f64)>,

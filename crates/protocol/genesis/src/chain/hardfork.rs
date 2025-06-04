@@ -77,20 +77,29 @@ impl Display for HardForkConfig {
         }
 
         writeln!(f, "🍴 Scheduled Hardforks:")?;
-        writeln!(f, "-> Regolith Activation Time: {}", fmt_time(self.regolith_time))?;
-        writeln!(f, "-> Canyon Activation Time: {}", fmt_time(self.canyon_time))?;
-        writeln!(f, "-> Delta Activation Time: {}", fmt_time(self.delta_time))?;
-        writeln!(f, "-> Ecotone Activation Time: {}", fmt_time(self.ecotone_time))?;
-        writeln!(f, "-> Fjord Activation Time: {}", fmt_time(self.fjord_time))?;
-        writeln!(f, "-> Granite Activation Time: {}", fmt_time(self.granite_time))?;
-        writeln!(f, "-> Holocene Activation Time: {}", fmt_time(self.holocene_time))?;
-        writeln!(
-            f,
-            "-> Pectra Blob Schedule Activation Time (Sepolia Superchain Only): {}",
-            fmt_time(self.pectra_blob_schedule_time)
-        )?;
-        writeln!(f, "-> Isthmus Activation Time: {}", fmt_time(self.isthmus_time))?;
-        writeln!(f, "-> Interop Activation Time: {}", fmt_time(self.interop_time))
+        for (name, time) in self.iter() {
+            writeln!(f, "-> {} Activation Time: {}", name, fmt_time(time))?;
+        }
+        Ok(())
+    }
+}
+
+impl HardForkConfig {
+    /// Returns an iterator of hardfork names -> their activation times (if scheduled.)
+    pub fn iter(&self) -> impl Iterator<Item = (&'static str, Option<u64>)> {
+        [
+            ("Regolith", self.regolith_time),
+            ("Canyon", self.canyon_time),
+            ("Delta", self.delta_time),
+            ("Ecotone", self.ecotone_time),
+            ("Fjord", self.fjord_time),
+            ("Granite", self.granite_time),
+            ("Holocene", self.holocene_time),
+            ("Pectra Blob Schedule", self.pectra_blob_schedule_time),
+            ("Isthmus", self.isthmus_time),
+            ("Interop", self.interop_time),
+        ]
+        .into_iter()
     }
 }
 
@@ -187,5 +196,34 @@ mod tests {
         new_field_time = 1732633200 # Tue Nov 26 15:00:00 UTC 2024
         "#;
         toml::from_str::<HardForkConfig>(raw).unwrap_err();
+    }
+
+    #[test]
+    fn test_hardforks_iter() {
+        let hardforks = HardForkConfig {
+            regolith_time: Some(1),
+            canyon_time: Some(2),
+            delta_time: Some(3),
+            ecotone_time: Some(4),
+            fjord_time: Some(5),
+            granite_time: Some(6),
+            holocene_time: Some(7),
+            pectra_blob_schedule_time: Some(8),
+            isthmus_time: Some(9),
+            interop_time: Some(10),
+        };
+
+        let mut iter = hardforks.iter();
+        assert_eq!(iter.next(), Some(("Regolith", Some(1))));
+        assert_eq!(iter.next(), Some(("Canyon", Some(2))));
+        assert_eq!(iter.next(), Some(("Delta", Some(3))));
+        assert_eq!(iter.next(), Some(("Ecotone", Some(4))));
+        assert_eq!(iter.next(), Some(("Fjord", Some(5))));
+        assert_eq!(iter.next(), Some(("Granite", Some(6))));
+        assert_eq!(iter.next(), Some(("Holocene", Some(7))));
+        assert_eq!(iter.next(), Some(("Pectra Blob Schedule", Some(8))));
+        assert_eq!(iter.next(), Some(("Isthmus", Some(9))));
+        assert_eq!(iter.next(), Some(("Interop", Some(10))));
+        assert_eq!(iter.next(), None);
     }
 }
