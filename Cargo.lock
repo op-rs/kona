@@ -1504,7 +1504,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "regex",
@@ -2723,7 +2723,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cea14ef9355e3beab063703aa9dab15afd25f0667c341310c1e5274bb1d0da18"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3853,7 +3853,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4995,7 +4995,7 @@ dependencies = [
  "kona-supervisor-types",
  "modular-bitfield",
  "op-alloy-consensus",
- "reth-codecs",
+ "reth-codecs 1.4.8",
  "reth-db",
  "reth-db-api",
  "serde",
@@ -5059,7 +5059,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.53.0",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -6928,7 +6928,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -7229,8 +7229,26 @@ dependencies = [
  "bytes",
  "modular-bitfield",
  "op-alloy-consensus",
- "reth-codecs-derive",
- "reth-zstd-compressors",
+ "reth-codecs-derive 1.4.7",
+ "reth-zstd-compressors 1.4.7",
+ "serde",
+]
+
+[[package]]
+name = "reth-codecs"
+version = "1.4.8"
+source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.8#127595e23079de2c494048d0821ea1f1107eb624"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-genesis",
+ "alloy-primitives",
+ "alloy-trie",
+ "bytes",
+ "modular-bitfield",
+ "op-alloy-consensus",
+ "reth-codecs-derive 1.4.8",
+ "reth-zstd-compressors 1.4.8",
  "serde",
 ]
 
@@ -7238,6 +7256,17 @@ dependencies = [
 name = "reth-codecs-derive"
 version = "1.4.7"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.7#dc7cb6e6670b0da294a0e5010e02855f5aaf6b49"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "reth-codecs-derive"
+version = "1.4.8"
+source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.8#127595e23079de2c494048d0821ea1f1107eb624"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -7282,7 +7311,7 @@ dependencies = [
  "metrics",
  "modular-bitfield",
  "parity-scale-codec",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "reth-db-models",
  "reth-ethereum-primitives",
  "reth-primitives-traits",
@@ -7303,7 +7332,7 @@ dependencies = [
  "alloy-primitives",
  "bytes",
  "modular-bitfield",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "reth-primitives-traits",
  "serde",
 ]
@@ -7318,9 +7347,9 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "modular-bitfield",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "reth-primitives-traits",
- "reth-zstd-compressors",
+ "reth-zstd-compressors 1.4.7",
  "serde",
  "serde_with",
 ]
@@ -7405,7 +7434,7 @@ dependencies = [
  "modular-bitfield",
  "once_cell",
  "op-alloy-consensus",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "revm-bytecode",
  "revm-primitives",
  "revm-state",
@@ -7423,7 +7452,7 @@ dependencies = [
  "alloy-primitives",
  "derive_more",
  "modular-bitfield",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "serde",
  "thiserror 2.0.12",
 ]
@@ -7436,7 +7465,7 @@ dependencies = [
  "alloy-primitives",
  "bytes",
  "modular-bitfield",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "reth-trie-common",
  "serde",
 ]
@@ -7497,7 +7526,7 @@ dependencies = [
  "derive_more",
  "itertools 0.14.0",
  "nybbles",
- "reth-codecs",
+ "reth-codecs 1.4.7",
  "reth-primitives-traits",
  "revm-database",
  "serde",
@@ -7507,6 +7536,14 @@ dependencies = [
 name = "reth-zstd-compressors"
 version = "1.4.7"
 source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.7#dc7cb6e6670b0da294a0e5010e02855f5aaf6b49"
+dependencies = [
+ "zstd",
+]
+
+[[package]]
+name = "reth-zstd-compressors"
+version = "1.4.8"
+source = "git+https://github.com/paradigmxyz/reth?tag=v1.4.8#127595e23079de2c494048d0821ea1f1107eb624"
 dependencies = [
  "zstd",
 ]
@@ -7959,7 +7996,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8017,7 +8054,7 @@ dependencies = [
  "security-framework 3.2.0",
  "security-framework-sys",
  "webpki-root-certs 0.26.11",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -8779,7 +8816,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -9723,7 +9760,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
