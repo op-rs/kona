@@ -1,5 +1,7 @@
 //! Network Behaviour Module.
 
+use std::time::Duration;
+
 use derive_more::Debug;
 use libp2p::{
     gossipsub::{Config, IdentTopic, MessageAuthenticity},
@@ -49,9 +51,13 @@ impl Behaviour {
         let mut gossipsub = libp2p::gossipsub::Behaviour::new(MessageAuthenticity::Anonymous, cfg)
             .map_err(|_| BehaviourError::GossipsubCreationFailed)?;
 
+        const VERSION: &str = env!("CARGO_PKG_VERSION");
+
         let identify = libp2p::identify::Behaviour::new(
-            libp2p::identify::Config::new("/ipfs/id/1.0.0".to_string(), public_key)
-                .with_agent_version("optimism".to_string()),
+            libp2p::identify::Config::new(format!("kona-node-v.{}", VERSION), public_key)
+                .with_agent_version("optimism".to_string())
+                .with_interval(Duration::from_secs(30))
+                .with_push_listen_addr_updates(true),
         );
 
         let subscriptions = handlers

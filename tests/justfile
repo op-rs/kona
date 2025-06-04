@@ -33,7 +33,7 @@ devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
     export OP_PACKAGE_PATH="{{DEFAULT_OP_PACKAGE_PATH}}"
   # if the OP_PACKAGE_PATH is a local path, use mise to install it
   elif [ -d "{{OP_PACKAGE_PATH}}" ]; then
-    cd $OP_PACKAGE_PATH && mise install
+    cd $OP_PACKAGE_PATH && mise trust && mise install
   fi
 
   # Run the kurtosis test

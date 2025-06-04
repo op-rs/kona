@@ -81,14 +81,14 @@ pub fn default_config_builder() -> ConfigBuilder {
         .mesh_n_high(DEFAULT_MESH_DHI)
         .gossip_lazy(DEFAULT_MESH_DLAZY)
         .heartbeat_interval(*GOSSIP_HEARTBEAT)
-        .fanout_ttl(Duration::from_secs(60))
+        .fanout_ttl(Duration::from_secs(24))
         .history_length(12)
         .history_gossip(3)
         .flood_publish(false)
         .support_floodsub()
         .max_transmit_size(MAX_GOSSIP_SIZE)
         .duplicate_cache_time(Duration::from_secs(120))
-        .validation_mode(libp2p::gossipsub::ValidationMode::None)
+        .validation_mode(libp2p::gossipsub::ValidationMode::Anonymous)
         .validate_messages()
         .message_id_fn(compute_message_id);
 
