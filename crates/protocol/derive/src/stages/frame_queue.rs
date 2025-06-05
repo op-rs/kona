@@ -109,19 +109,14 @@ where
 
     /// Loads more frames into the [FrameQueue].
     pub async fn load_frames(&mut self) -> PipelineResult<()> {
-        // Update metrics both before and after loading frames to ensure
-        // the gauge is _decremented_ if the queue is empty.
-        #[cfg(feature = "metrics")]
-        {
-            let queue_len = self.queue.len() as f64;
-            kona_macros::set!(
-                gauge,
-                crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
-                queue_len
-            );
-            let queue_size = self.queue.iter().map(Frame::size).sum::<usize>() as f64;
-            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
-        }
+        kona_macros::set!(
+            gauge,
+            crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
+            self.queue.len() as f64
+        );
+
+        let queue_size = self.queue.iter().map(|f| f.size()).sum::<usize>() as f64;
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
 
         // Skip loading frames if the queue is not empty.
         if !self.queue.is_empty() {
@@ -147,17 +142,13 @@ where
         // Optimistically extend the queue with the new frames.
         self.queue.extend(frames);
 
-        #[cfg(feature = "metrics")]
-        {
-            let queue_len = self.queue.len() as f64;
-            kona_macros::set!(
-                gauge,
-                crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
-                queue_len
-            );
-            let queue_size = self.queue.iter().map(Frame::size).sum::<usize>() as f64;
-            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
-        }
+        kona_macros::set!(
+            gauge,
+            crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
+            self.queue.len() as f64
+        );
+        let queue_size = self.queue.iter().map(|f| f.size()).sum::<usize>() as f64;
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
 
         // Prune frames if Holocene is active.
         let origin = self.origin().ok_or(PipelineError::MissingOrigin.crit())?;
