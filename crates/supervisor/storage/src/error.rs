@@ -3,7 +3,7 @@ use thiserror::Error;
 
 /// Errors that may occur while interacting with supervisor log storage.
 ///
-/// This enum is used across all implementations of the Storge traits.
+/// This enum is used across all implementations of the Storage traits.
 #[derive(Debug, Error)]
 pub enum StorageError {
     /// Represents a database error that occurred while interacting with storage.
@@ -29,4 +29,8 @@ pub enum StorageError {
     /// Represents a conflict occurred while attempting to write to the database.
     #[error("conflict error: {0}")]
     ConflictError(String),
+
+    /// The latest stored derived block is not the parent of the incoming derived block.
+    #[error("latest stored derived block is not parent of the incoming derived block")]
+    DerivedBlockOutOfOrder,
 }

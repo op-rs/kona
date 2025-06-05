@@ -122,14 +122,17 @@ impl Network {
                         // We collect a list of peers to remove
                         let peers_to_remove = self.gossip.swarm.connected_peers().filter_map(
                             |peer_id| {
-                                 // If the score is not available, we use a default value of 0.
-                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
+                                // If the score is not available, we use a default value of 0.
+                                let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
 
-                                 if score < ban_peers.ban_threshold {
-                                    return Some(*peer_id);
-                                 }
+                                // Record the peer score in the metrics.
+                                kona_macros::record!(histogram, crate::Metrics::PEER_SCORES, score);
 
-                                 None
+                                if score < ban_peers.ban_threshold {
+                                   return Some(*peer_id);
+                                }
+
+                                None
                             }
                         ).collect::<Vec<_>>();
 
@@ -144,6 +147,8 @@ impl Network {
 
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
                                 self.gossip.dialed_peers.remove(&addr);
+                                let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
+                                kona_macros::inc!(gauge, crate::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
                                 return Some(addr);
                             }
 
@@ -160,7 +165,7 @@ impl Network {
                             error!(target: "node::p2p", "The rpc receiver channel has closed");
                             return;
                         };
-                        req.handle(&self.gossip, &handler);
+                        req.handle(&mut self.gossip, &handler);
                     },
                 }
             }

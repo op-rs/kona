@@ -3,7 +3,7 @@
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
 use kona_interop::DependencySet;
-use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService};
+use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService, config::RollupConfigSet};
 use kona_supervisor_rpc::SupervisorApiServer;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{info, warn};
@@ -19,7 +19,7 @@ pub struct Config {
     pub dependency_set: DependencySet,
 
     /// The rollup configuration set.
-    pub rollup_config_set: kona_supervisor_core::config::RollupConfigSet,
+    pub rollup_config_set: RollupConfigSet,
     // Add other configuration fields as needed (e.g., connection details for L1/L2 nodes)
 }
 

@@ -60,6 +60,13 @@ impl<F: ChainProvider> L1Traversal<F> {
             rollup_config: cfg,
         }
     }
+
+    /// Update the origin block in the traversal stage.
+    fn update_origin(&mut self, block: BlockInfo) {
+        self.done = false;
+        self.block = Some(block);
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_ORIGIN, block.number as f64);
+    }
 }
 
 #[async_trait]
@@ -68,6 +75,10 @@ impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
     /// This function fetches the next L1 [BlockInfo] from the data source and updates the
     /// [SystemConfig] with the receipts from the block.
     async fn advance_origin(&mut self) -> PipelineResult<()> {
+        // Advance start time for metrics.
+        #[cfg(feature = "metrics")]
+        let start_time = std::time::Instant::now();
+
         // Pull the next block or return EOF.
         // PipelineError::EOF has special handling further up the pipeline.
         let block = match self.block {
@@ -101,8 +112,18 @@ impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
         let next_block_holocene = self.rollup_config.is_holocene_active(next_l1_origin.timestamp);
 
         // Update the block origin regardless of if a holocene activation is required.
-        self.block = Some(next_l1_origin);
-        self.done = false;
+        self.update_origin(next_l1_origin);
+
+        // Record the origin as advanced.
+        #[cfg(feature = "metrics")]
+        {
+            let duration = start_time.elapsed();
+            kona_macros::record!(
+                histogram,
+                crate::metrics::Metrics::PIPELINE_ORIGIN_ADVANCE,
+                duration.as_secs_f64()
+            );
+        }
 
         // If the prev block is not holocene, but the next is, we need to flag this
         // so the pipeline driver will reset the pipeline for holocene activation.
@@ -126,8 +147,7 @@ impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
         match signal {
             Signal::Reset(ResetSignal { l1_origin, system_config, .. }) |
             Signal::Activation(ActivationSignal { l1_origin, system_config, .. }) => {
-                self.block = Some(l1_origin);
-                self.done = false;
+                self.update_origin(l1_origin);
                 self.system_config = system_config.expect("System config must be provided.");
             }
             _ => {}

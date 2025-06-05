@@ -180,7 +180,7 @@ pub trait ValidatorNodeService {
         launcher = launcher.merge(Some(subscriptions_rpc.into_rpc())).map_err(Self::Error::from)?;
 
         let handle = launcher.launch().await?;
-        let rpc = handle.map(|h| RpcActor::new(h, cancellation.clone()));
+        let rpc = handle.map(|h| RpcActor::new(launcher, h, cancellation.clone()));
 
         spawn_and_wait!(
             cancellation,

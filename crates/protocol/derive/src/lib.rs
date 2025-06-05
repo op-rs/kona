@@ -5,7 +5,7 @@
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![no_std]
+#![cfg_attr(not(feature = "metrics"), no_std)]
 
 extern crate alloc;
 
@@ -21,6 +21,7 @@ pub mod prelude {
 
 pub mod attributes;
 pub mod errors;
+pub mod metrics;
 pub mod pipeline;
 pub mod sources;
 pub mod stages;

@@ -2,7 +2,7 @@
 //!
 //! Specifies the available flags for prometheus metric configuration inside CLI
 
-use crate::metrics::{CliMetrics, VersionInfo};
+use crate::metrics::VersionInfo;
 use kona_cli::metrics_args::MetricsArgs;
 
 /// Initializes metrics for a Kona application, including Prometheus and node-specific metrics.
@@ -15,8 +15,8 @@ pub fn init_unified_metrics(args: &MetricsArgs) -> anyhow::Result<()> {
         kona_p2p::Metrics::init();
         kona_engine::Metrics::init();
         kona_node_service::Metrics::init();
+        kona_derive::metrics::Metrics::init();
         VersionInfo::from_build().register_version_metrics();
-        CliMetrics::init();
     }
     Ok(())
 }
