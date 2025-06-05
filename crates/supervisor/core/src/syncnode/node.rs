@@ -4,7 +4,7 @@ use alloy_primitives::{B256, ChainId};
 use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
-use kona_supervisor_rpc::ManagedModeApiClient;
+use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
 use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
 use tokio::{
@@ -176,7 +176,7 @@ impl NodeSubscriber for ManagedNode {
         let client = self.get_ws_client().await?;
 
         let mut subscription =
-            client.subscribe_events("events".to_string()).await.inspect_err(|err| {
+            client.subscribe_events(SubscriptionTopic::Events).await.inspect_err(|err| {
                 error!(
                     target: "managed_node",
                     %err,

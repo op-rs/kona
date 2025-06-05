@@ -31,6 +31,9 @@ kona-supervisor-types.workspace = true
 # jsonrpsee
 jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"] }
 
+# General
+serde.workspace = true
+
 # Alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }

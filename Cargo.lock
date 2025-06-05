@@ -4954,6 +4954,7 @@ dependencies = [
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-types",
+ "serde",
 ]
 
 [[package]]

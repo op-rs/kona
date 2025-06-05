@@ -13,6 +13,7 @@ use kona_interop::{
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
+use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
 ///
@@ -49,6 +50,14 @@ pub trait SupervisorApi {
     ) -> RpcResult<()>;
 }
 
+/// Represents the topics for subscriptions in the Managed Mode API.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SubscriptionTopic {
+    /// The topic for events from the managed node.
+    Events,
+}
+
 /// ManagedModeApi to send control signals to a managed node from supervisor
 /// And get info for syncing the state with the given L2.
 ///
@@ -59,10 +68,11 @@ pub trait SupervisorApi {
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "interop"))]
 pub trait ManagedModeApi {
     /// Subscribe to the events from the managed node.
-    // the topic `events` need to be passed in the subscription request
-    // todo: find a better way to not require the topic to be passed in the subscription request
+    // Currently, the `events` topic must be explicitly passed as a parameter to the subscription
+    // request, even though this function is specifically intended to subscribe to the `events`
+    // topic. todo: Find a way to eliminate the need to pass the topic explicitly.
     #[subscription(name = "subscribe", item = Option<ManagedEvent>, unsubscribe = "unsubscribe")]
-    async fn subscribe_events(&self, topic: String) -> SubscriptionResult;
+    async fn subscribe_events(&self, topic: SubscriptionTopic) -> SubscriptionResult;
 
     /// Pull an event from the managed node.
     #[method(name = "pullEvent")]
