@@ -110,6 +110,7 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
+        #[derive(Default)]
         struct PeerMetadata {
             protocols: Option<Vec<String>>,
             addresses: Vec<String>,
@@ -192,15 +193,7 @@ impl P2pRpcRequest {
 
                     node_to_peer_id.get(id).map(|peer_id| {
                         let PeerMetadata { protocols, addresses, user_agent, protocol_version } =
-                            peer_metadata.remove(peer_id).unwrap_or_else(|| {
-                                warn!(target: "p2p::rpc", "Failed to get peer metadata for peer {}. This can happen if the peer is connected but hasn't been identified yet. Make sure the peer supports the identify protocol.", peer_id);
-                                PeerMetadata {
-                                    protocols: None,
-                                    addresses: vec![],
-                                    user_agent: String::new(),
-                                    protocol_version: String::new(),
-                                }
-                            });
+                            peer_metadata.remove(peer_id).unwrap_or_default();
 
                         let node_id = format!("{:?}", &enr.node_id());
                         (
