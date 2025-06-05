@@ -33,7 +33,10 @@ impl ChainDb {
 
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
-        self.env.update(|tx| DerivationProvider::new(tx).initialise(anchor))?
+        self.env.update(|tx| {
+            DerivationProvider::new(tx).initialise(anchor.clone())?;
+            LogProvider::new(tx).initialise(anchor.derived)
+        })?
     }
 }
 
@@ -118,8 +121,29 @@ mod tests {
         let db_path = tmp_dir.path().join("chaindb_logs");
         let db = ChainDb::new(&db_path).expect("create db");
 
-        // Create dummy block and logs
-        let block = BlockInfo::default();
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        db.initialise(anchor.clone()).expect("initialise db");
+
+        let block = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
         let log1 = Log { index: 0, hash: B256::from([0u8; 32]), executing_message: None };
         let log2 = Log { index: 1, hash: B256::from([1u8; 32]), executing_message: None };
         let logs = vec![log1, log2];

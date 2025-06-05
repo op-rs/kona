@@ -110,24 +110,31 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
-        // Build a map of peer ids to their supported protocols.
-        let mut protocols: HashMap<PeerId, Vec<String>> =
-            gossip.swarm.behaviour().gossipsub.peer_protocol().fold(
-                HashMap::new(),
-                |mut protocols, (id, protocol)| {
-                    protocols.entry(*id).or_default().push(protocol.to_string());
-                    protocols
-                },
-            );
+        struct ProtocolsAndAddresses {
+            protocols: Option<Vec<String>>,
+            addresses: Vec<String>,
+        }
 
-        // Build a map of peer ids to their known addresses.
-        let mut addresses: HashMap<PeerId, Vec<String>> =
-        peer_ids.iter().filter_map(|id| {
-            gossip.peerstore.get(id).or_else(|| {
-                warn!(target: "p2p::rpc", "Failed to get peer address. The peerstore is not in sync with the gossip swarm.");
-                None
-            }).map(|addr| (*id, vec![addr.to_string()]))
-        }).collect();
+        // Build a map of peer ids to their supported protocols and addresses.
+        let mut protocols_and_addresses: HashMap<PeerId, ProtocolsAndAddresses> = gossip
+            .peer_infos
+            .iter()
+            .map(|(id, info)| {
+                let protocols = if info.protocols.is_empty() {
+                    None
+                } else {
+                    Some(
+                        info.protocols
+                            .iter()
+                            .map(|protocol| protocol.to_string())
+                            .collect::<Vec<String>>(),
+                    )
+                };
+                let addresses =
+                    info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
+                (*id, ProtocolsAndAddresses { protocols, addresses })
+            })
+            .collect();
 
         let disc_table_infos = disc.table_infos();
 
@@ -172,6 +179,15 @@ impl P2pRpcRequest {
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
+                        let ProtocolsAndAddresses { protocols, addresses } =
+                            protocols_and_addresses.remove(peer_id).unwrap_or_else(|| {
+                                warn!(target: "p2p::rpc", "Failed to get protocols and addresses for peer {}. This can happen if the peer is connected but hasn't been identified yet. Make sure the peer supports the identify protocol.", peer_id);
+                                ProtocolsAndAddresses {
+                                    protocols: None,
+                                    addresses: vec![],
+                                }
+                            });
+
                         let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
@@ -183,8 +199,8 @@ impl P2pRpcRequest {
                                 // TODO(@theochap): support these fields
                                 protocol_version: String::new(),
                                 enr: enr.to_string(),
-                                addresses: addresses.remove(peer_id).unwrap_or_default(),
-                                protocols: protocols.remove(peer_id),
+                                addresses,
+                                protocols,
                                 connectedness,
                                 direction,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields

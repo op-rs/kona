@@ -14,6 +14,7 @@ use kona_interop::{
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
+use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
 ///
@@ -56,18 +57,29 @@ pub trait SupervisorApi {
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus>;
 }
 
+/// Represents the topics for subscriptions in the Managed Mode API.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SubscriptionTopic {
+    /// The topic for events from the managed node.
+    Events,
+}
+
 /// ManagedModeApi to send control signals to a managed node from supervisor
 /// And get info for syncing the state with the given L2.
 ///
 /// See spec <https://specs.optimism.io/interop/managed-mode.html>
 /// Using the proc_macro to generate the client and server code.
 /// Default namespace separator is `_`.
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "interop"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "interop"))]
 pub trait ManagedModeApi {
     /// Subscribe to the events from the managed node.
-    #[subscription(name = "events", item = Option<ManagedEvent>, unsubscribe = "unsubscribeEvents")]
-    async fn subscribe_events(&self) -> SubscriptionResult;
+    // Currently, the `events` topic must be explicitly passed as a parameter to the subscription
+    // request, even though this function is specifically intended to subscribe to the `events`
+    // topic. todo: Find a way to eliminate the need to pass the topic explicitly.
+    #[subscription(name = "subscribe", item = Option<ManagedEvent>, unsubscribe = "unsubscribe")]
+    async fn subscribe_events(&self, topic: SubscriptionTopic) -> SubscriptionResult;
 
     /// Pull an event from the managed node.
     #[method(name = "pullEvent")]
@@ -120,7 +132,7 @@ pub trait ManagedModeApi {
 
     /// Get the chain id
     #[method(name = "chainID")]
-    async fn chain_id(&self) -> RpcResult<ChainId>;
+    async fn chain_id(&self) -> RpcResult<String>;
 
     /// Get the state_root, message_parser_storage_root, and block_hash at a given timestamp
     #[method(name = "outputV0AtTimestamp")]

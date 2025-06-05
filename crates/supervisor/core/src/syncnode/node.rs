@@ -1,14 +1,11 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
 use alloy_primitives::{B256, ChainId};
-use alloy_rpc_types_engine::JwtSecret;
+use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
-use jsonrpsee::{
-    core::client::Subscription,
-    ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
-};
-use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_types::{ManagedEvent, Receipts};
+use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
+use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
+use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
 use tokio::{
     sync::{Mutex, mpsc},
@@ -24,7 +21,7 @@ use super::{
 use crate::syncnode::task::ManagedEventTask;
 
 /// [`ManagedNodeConfig`] sets the configuration for the managed node.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ManagedNodeConfig {
     /// The URL + port of the managed node
     pub url: String,
@@ -119,8 +116,12 @@ impl ManagedNode {
 
         // Fetch chain ID from the managed node
         let client = self.get_ws_client().await?;
-        let chain_id = client.chain_id().await.inspect_err(|err| {
+        let chain_id_str = client.chain_id().await.inspect_err(|err| {
             error!(target: "managed_node", %err, "Failed to get chain ID");
+        })?;
+
+        let chain_id = chain_id_str.parse::<u64>().inspect_err(|err| {
+            error!(target: "managed_node", %err, "Failed to parse chain ID");
         })?;
 
         let _ = self.chain_id.set(chain_id);
@@ -134,9 +135,16 @@ impl ManagedNode {
             return Err(AuthenticationError::InvalidJwt.into())
         };
 
+        // Create JWT claims with current time
+        let claims = Claims::with_current_timestamp();
+        let token = jwt_secret.encode(&claims).map_err(|err| {
+            error!(target: "managed_node", %err, "Failed to encode JWT claims");
+            AuthenticationError::InvalidJwt
+        })?;
+
+        info!(target: "managed_node", token, "JWT token created successfully");
         let mut headers = HeaderMap::new();
-        let auth_header =
-            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
+        let auth_header = format!("Bearer {}", token);
 
         headers.insert(
             "Authorization",
@@ -167,8 +175,8 @@ impl NodeSubscriber for ManagedNode {
 
         let client = self.get_ws_client().await?;
 
-        let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedModeApiClient::subscribe_events(client.as_ref()).await.inspect_err(|err| {
+        let mut subscription =
+            client.subscribe_events(SubscriptionTopic::Events).await.inspect_err(|err| {
                 error!(
                     target: "managed_node",
                     %err,
@@ -255,6 +263,7 @@ impl ReceiptProvider for ManagedNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kona_supervisor_types::ManagedEvent;
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::sync::mpsc;
