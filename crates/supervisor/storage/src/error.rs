@@ -30,7 +30,28 @@ pub enum StorageError {
     #[error("conflict error: {0}")]
     ConflictError(String),
 
-    /// The latest stored derived block is not the parent of the incoming derived block.
+    /// Represents an error that occurred while writing to log database.
+    #[error("latest stored block is not parent of the incoming block")]
+    BlockOutOfOrder,
+
+    /// Represents an error that occurred while writing to derived block database.
     #[error("latest stored derived block is not parent of the incoming derived block")]
     DerivedBlockOutOfOrder,
 }
+
+impl PartialEq for StorageError {
+    fn eq(&self, other: &Self) -> bool {
+        use StorageError::*;
+        match (self, other) {
+            (Database(a), Database(b)) => a == b,
+            (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
+            (EntryNotFound(a), EntryNotFound(b)) => a == b,
+            (InvalidAnchor, InvalidAnchor) => true,
+            (DatabaseNotInitialised, DatabaseNotInitialised) => true,
+            (ConflictError(a), ConflictError(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for StorageError {}

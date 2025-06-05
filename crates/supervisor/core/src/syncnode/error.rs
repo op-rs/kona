@@ -8,6 +8,10 @@ pub enum ManagedNodeError {
     #[error(transparent)]
     Client(#[from] jsonrpsee::core::ClientError),
 
+    /// Represents an error that occurred while parsing a chain ID from a string.
+    #[error(transparent)]
+    ChainIdParseError(#[from] std::num::ParseIntError),
+
     /// Represents an error that occurred while subscribing to the managed node.
     #[error("subscription error: {0}")]
     Subscription(#[from] SubscriptionError),
@@ -17,8 +21,23 @@ pub enum ManagedNodeError {
     Authentication(#[from] AuthenticationError),
 }
 
+impl PartialEq for ManagedNodeError {
+    fn eq(&self, other: &Self) -> bool {
+        use ManagedNodeError::*;
+        match (self, other) {
+            (Client(a), Client(b)) => a.to_string() == b.to_string(),
+            (ChainIdParseError(a), ChainIdParseError(b)) => a == b,
+            (Subscription(a), Subscription(b)) => a == b,
+            (Authentication(a), Authentication(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ManagedNodeError {}
+
 /// Error establishing authenticated connection to managed node.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum AuthenticationError {
     /// Missing valid JWT secret for authentication header.
     #[error("jwt secret not found or invalid")]
@@ -29,7 +48,7 @@ pub enum AuthenticationError {
 }
 
 /// Error subscribing to managed node.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum SubscriptionError {
     /// Subscription is already exists.
     #[error("subscription already active")]
