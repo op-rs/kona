@@ -110,13 +110,15 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
-        struct ProtocolsAndAddresses {
+        struct PeerMetadata {
             protocols: Option<Vec<String>>,
             addresses: Vec<String>,
+            user_agent: String,
+            protocol_version: String,
         }
 
         // Build a map of peer ids to their supported protocols and addresses.
-        let mut protocols_and_addresses: HashMap<PeerId, ProtocolsAndAddresses> = gossip
+        let mut peer_metadata: HashMap<PeerId, PeerMetadata> = gossip
             .peer_infos
             .iter()
             .map(|(id, info)| {
@@ -132,7 +134,15 @@ impl P2pRpcRequest {
                 };
                 let addresses =
                     info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
-                (*id, ProtocolsAndAddresses { protocols, addresses })
+                (
+                    *id,
+                    PeerMetadata {
+                        protocols,
+                        addresses,
+                        user_agent: info.agent_version.clone(),
+                        protocol_version: info.protocol_version.clone(),
+                    },
+                )
             })
             .collect();
 
@@ -181,12 +191,14 @@ impl P2pRpcRequest {
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
-                        let ProtocolsAndAddresses { protocols, addresses } =
-                            protocols_and_addresses.remove(peer_id).unwrap_or_else(|| {
-                                warn!(target: "p2p::rpc", "Failed to get protocols and addresses for peer {}. This can happen if the peer is connected but hasn't been identified yet. Make sure the peer supports the identify protocol.", peer_id);
-                                ProtocolsAndAddresses {
+                        let PeerMetadata { protocols, addresses, user_agent, protocol_version } =
+                            peer_metadata.remove(peer_id).unwrap_or_else(|| {
+                                warn!(target: "p2p::rpc", "Failed to get peer metadata for peer {}. This can happen if the peer is connected but hasn't been identified yet. Make sure the peer supports the identify protocol.", peer_id);
+                                PeerMetadata {
                                     protocols: None,
                                     addresses: vec![],
+                                    user_agent: String::new(),
+                                    protocol_version: String::new(),
                                 }
                             });
 
@@ -196,10 +208,8 @@ impl P2pRpcRequest {
                             PeerInfo {
                                 peer_id: peer_id.to_string(),
                                 node_id,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                user_agent: String::new(),
-                                // TODO(@theochap): support these fields
-                                protocol_version: String::new(),
+                                user_agent,
+                                protocol_version,
                                 enr: enr.to_string(),
                                 addresses,
                                 protocols,
