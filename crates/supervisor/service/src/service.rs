@@ -44,7 +44,10 @@ impl Service {
             Supervisor::new(self.config.clone(), database_factory, CancellationToken::new());
 
         supervisor.initialise().await.map_err(|e| {
-            warn!(target: "supervisor_service", "Failed to initialise Supervisor: {}", e);
+            warn!(target: "supervisor_service",
+                %err
+                "Failed to initialise Supervisor"
+            );
             anyhow::anyhow!("failed to initialise Supervisor: {}", e)
         })?;
 
