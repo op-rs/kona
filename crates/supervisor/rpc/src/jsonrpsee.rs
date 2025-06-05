@@ -59,7 +59,7 @@ pub trait SupervisorApi {
 
 /// Represents the topics for subscriptions in the Managed Mode API.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum SubscriptionTopic {
     /// The topic for events from the managed node.
     Events,
