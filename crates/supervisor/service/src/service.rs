@@ -2,55 +2,30 @@
 
 use anyhow::Result;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use kona_supervisor_core::{Supervisor, SupervisorRpc, SupervisorService, config::Config};
+use kona_supervisor_core::{Supervisor, SupervisorRpc, config::Config};
 use kona_supervisor_rpc::SupervisorApiServer;
 use kona_supervisor_storage::ChainDbFactory;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-/// The main service structure for the Kona [`SupervisorService`]. Orchestrates the various
+/// The main service structure for the Kona
+/// [`SupervisorService`](`kona_supervisor_core::SupervisorService`). Orchestrates the various
 /// components of the supervisor.
 #[derive(Debug)]
 pub struct Service<T = Supervisor> {
     config: Config,
-    _supervisor: Arc<T>,
-    rpc_impl: SupervisorRpc<T>,
+    supervisor: Option<Arc<T>>,
     rpc_server_handle: Option<ServerHandle>,
     // TODO:: add other actors
 }
 
 impl Service {
     /// Creates a new Supervisor service instance.
-    pub async fn new(config: Config) -> Result<Self> {
-        // Initialize the core Supervisor logic
-        // In the future, this might take configuration or client connections
-        // This creates an Arc<Supervisor>
-
-        let database_factory = Arc::new(ChainDbFactory::new(config.datadir.clone()));
-
-        let mut supervisor =
-            Supervisor::new(config.clone(), database_factory, CancellationToken::new());
-
-        supervisor.initialise().await.map_err(|e| {
-            warn!(target: "supervisor_service", "Failed to initialise Supervisor: {}", e);
-            anyhow::anyhow!("failed to initialise Supervisor: {}", e)
-        })?;
-
-        let supervisor = Arc::new(supervisor);
-
-        // Create the RPC implementation, sharing the core logic
-        // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>
-        let rpc_impl = SupervisorRpc::new(supervisor.clone());
-
-        Ok(Self { config, _supervisor: supervisor, rpc_impl, rpc_server_handle: None })
+    pub fn new(config: Config) -> Self {
+        Self { config, supervisor: None, rpc_server_handle: None }
     }
-}
 
-impl<T> Service<T>
-where
-    T: SupervisorService + 'static,
-{
     /// Runs the Supervisor service.
     /// This function will typically run indefinitely until interrupted.
     pub async fn run(&mut self) -> Result<()> {
@@ -59,9 +34,28 @@ where
             "Attempting to start Supervisor RPC server on address"
         );
 
-        let server = ServerBuilder::default().build(self.config.rpc_addr).await?;
+        // Initialize the core Supervisor logic
+        // In the future, this might take configuration or client connections
+        // This creates an Arc<Supervisor>
 
-        self.rpc_server_handle = Some(server.start(self.rpc_impl.clone().into_rpc()));
+        let database_factory = Arc::new(ChainDbFactory::new(self.config.datadir.clone()));
+
+        let mut supervisor =
+            Supervisor::new(self.config.clone(), database_factory, CancellationToken::new());
+
+        supervisor.initialise().await.map_err(|e| {
+            warn!(target: "supervisor_service", "Failed to initialise Supervisor: {}", e);
+            anyhow::anyhow!("failed to initialise Supervisor: {}", e)
+        })?;
+
+        let supervisor = Arc::new(supervisor);
+        self.supervisor = Some(supervisor.clone());
+
+        // Create the RPC implementation, sharing the core logic
+        // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>
+        let rpc_impl = SupervisorRpc::new(supervisor.clone());
+        let server = ServerBuilder::default().build(self.config.rpc_addr).await?;
+        self.rpc_server_handle = Some(server.start(rpc_impl.clone().into_rpc()));
 
         info!(target: "supervisor_service",
             addr=%self.config.rpc_addr,

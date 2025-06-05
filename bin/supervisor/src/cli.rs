@@ -32,7 +32,7 @@ impl Cli {
 
         Self::run_until_ctrl_c(async move {
             let config = self.supervisor.init_config().await?;
-            let mut service = Service::new(config).await?;
+            let mut service = Service::new(config);
             service.run().await?; // run() now returns Result<()> and populates the handle internally
 
             tokio::signal::ctrl_c().await?;
