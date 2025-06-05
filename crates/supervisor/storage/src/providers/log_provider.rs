@@ -75,9 +75,7 @@ where
                 incoming_block = %block,
                 "Incoming block does not follow latest stored block"
             );
-            return Err(StorageError::ConflictError(
-                "incoming block does not follow latest stored block".into(),
-            ));
+            return Err(StorageError::BlockOutOfOrder);
         }
 
         self.store_block_logs_internal(block, logs)
@@ -467,7 +465,7 @@ mod tests {
         assert!(insert_block_logs(&db, &block1, logs1).is_ok());
 
         let result = insert_block_logs(&db, &block2, logs2);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
     }
 
     #[test]
