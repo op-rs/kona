@@ -137,8 +137,8 @@ mod tests {
         };
 
         db.initialise(anchor.clone()).expect("initialise db");
-        
-        let block = BlockInfo{
+
+        let block = BlockInfo {
             hash: B256::from([4u8; 32]),
             number: 1,
             parent_hash: anchor.derived.hash,
