@@ -43,12 +43,12 @@ impl Service {
         let mut supervisor =
             Supervisor::new(self.config.clone(), database_factory, CancellationToken::new());
 
-        supervisor.initialise().await.map_err(|e| {
+        supervisor.initialise().await.map_err(|err| {
             warn!(target: "supervisor_service",
-                %err
+                %err,
                 "Failed to initialise Supervisor"
             );
-            anyhow::anyhow!("failed to initialise Supervisor: {}", e)
+            anyhow::anyhow!("failed to initialise Supervisor: {}", err)
         })?;
 
         let supervisor = Arc::new(supervisor);
