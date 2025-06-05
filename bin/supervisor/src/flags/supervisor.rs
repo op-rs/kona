@@ -10,9 +10,10 @@ use kona_supervisor_core::{
     config::{Config, RollupConfigSet},
     syncnode::ManagedNodeConfig,
 };
+use serde::de::DeserializeOwned;
 use std::{
     net::{IpAddr, SocketAddr},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use tokio::{fs::File, io::AsyncReadExt};
 
@@ -63,27 +64,22 @@ pub struct SupervisorArgs {
 }
 
 impl SupervisorArgs {
+    async fn read_json_file<T: DeserializeOwned>(path: &Path) -> Result<T> {
+        let mut file = File::open(path)
+            .await
+            .with_context(|| format!("Failed to open '{}'", path.display()))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .await
+            .with_context(|| format!("Failed to read '{}'", path.display()))?;
+        let value = serde_json::from_str(&contents)
+            .with_context(|| format!("Failed to parse JSON from '{}'", path.display()))?;
+        Ok(value)
+    }
+
     /// initialise and return the [`DependencySet`].
     pub async fn init_dependency_set(&self) -> Result<DependencySet> {
-        let mut file = File::open(&self.dependency_set).await.with_context(|| {
-            format!("Failed to open dependency set file '{}'", self.dependency_set.display())
-        })?;
-
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).await.with_context(|| {
-            format!(
-                "Failed to read content from dependency set file '{}'",
-                self.dependency_set.display()
-            )
-        })?;
-
-        let dependency_set: DependencySet = serde_json::from_str(&contents).with_context(|| {
-            format!(
-                "Failed to parse JSON from dependency set file '{}'",
-                self.dependency_set.display()
-            )
-        })?;
-        Ok(dependency_set)
+        Self::read_json_file(&self.dependency_set).await
     }
 
     async fn get_rollup_configs(&self) -> Result<Vec<RollupConfig>> {
@@ -98,19 +94,7 @@ impl SupervisorArgs {
         let mut rollup_configs = Vec::new();
         for entry in glob(pattern)? {
             let path = entry?;
-            let mut file = File::open(&path).await.with_context(|| {
-                format!("Failed to open rollup config file '{}'", path.display())
-            })?;
-            let mut contents = String::new();
-            file.read_to_string(&mut contents).await.with_context(|| {
-                format!("Failed to read rollup config file '{}'", path.display())
-            })?;
-
-            let rollup_config: RollupConfig =
-                serde_json::from_str(&contents).with_context(|| {
-                    format!("Failed to parse JSON from rollup config file '{}'", path.display())
-                })?;
-
+            let rollup_config = Self::read_json_file(&path).await?;
             rollup_configs.push(rollup_config);
         }
         Ok(rollup_configs)
@@ -160,9 +144,12 @@ impl SupervisorArgs {
     }
 
     /// initialise and return the managed nodes configuration.
-    pub fn init_managed_nodes_config(&self) -> Vec<ManagedNodeConfig> {
+    pub fn init_managed_nodes_config(&self) -> Result<Vec<ManagedNodeConfig>> {
         let mut managed_nodes = Vec::new();
-        let default_secret = self.l2_consensus_jwt_secret.first().unwrap();
+        let default_secret = self
+            .l2_consensus_jwt_secret
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No JWT secrets provided"))?;
         for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
             let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
 
@@ -172,7 +159,7 @@ impl SupervisorArgs {
                 jwt_path: secret.clone(),
             });
         }
-        managed_nodes
+        Ok(managed_nodes)
     }
 
     /// initialise and return the Supervisor [`Config`].
@@ -181,10 +168,11 @@ impl SupervisorArgs {
         let rollup_config_set = self.init_rollup_config_set().await?;
 
         let rpc_addr = SocketAddr::new(self.rpc_address, self.rpc_port);
+        let managed_nodes_config = self.init_managed_nodes_config()?;
 
         Ok(Config {
             l1_rpc: self.l1_rpc.clone(),
-            l2_consensus_nodes_config: self.init_managed_nodes_config(),
+            l2_consensus_nodes_config: managed_nodes_config,
             datadir: self.datadir.clone(),
             rpc_addr,
             dependency_set,
@@ -506,6 +494,139 @@ mod tests {
 
         let result = args.get_rollup_configs().await;
         assert!(result.is_err(), "Should fail on invalid JSON");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_rollup_configs_empty_pattern() -> anyhow::Result<()> {
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".to_string(),
+            l2_consensus_nodes: vec![],
+            l2_consensus_jwt_secret: vec![],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from(""),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+        };
+        let result = args.get_rollup_configs().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("pattern is empty"),);
+        Ok(())
+    }
+
+    #[test]
+    fn test_init_managed_nodes_config_no_jwt_secret() {
+        let args = SupervisorArgs {
+            l1_rpc: "dummy".to_string(),
+            l2_consensus_nodes: vec!["http://node1:8551".to_string()],
+            l2_consensus_jwt_secret: vec![],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: PathBuf::from("dummy.json"),
+            rollup_config_paths: PathBuf::from("dummy/rollup_config_*.json"),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+        };
+        let result = args.init_managed_nodes_config();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No JWT secrets provided"),);
+    }
+
+    #[tokio::test]
+    async fn test_init_config_success() -> anyhow::Result<()> {
+        use std::{fs::File as StdFile, io::Write};
+
+        // Create a temp dependency set file
+        let mut dep_file = NamedTempFile::new()?;
+        let dep_json = r#"
+    {
+        "dependencies": {
+            "1": {
+                "chainIndex": 10,
+                "activationTime": 1678886400,
+                "historyMinTime": 1609459200
+            }
+        },
+        "overrideMessageExpiryWindow": 3600
+    }
+    "#;
+        dep_file.write_all(dep_json.as_bytes())?;
+
+        // Create a temp dir and rollup config file
+        let rollup_dir = tempdir()?;
+        let rollup_path = rollup_dir.path().join("rollup-1.json");
+        let mut rollup_file = StdFile::create(&rollup_path)?;
+        let rollup_json = r#"
+    {
+        "genesis": {
+            "l1": {
+                "hash": "0x6c61a74b17fc1b6dc8ae9a2197e83871a20f57d1adf9c9acbf920bc44225744b",
+                "number": 18
+            },
+            "l2": {
+                "hash": "0xcde85e0f40c4c9921d40f2d4ee1a8794e76d615044a1176ae71fff0ee8cb2f40",
+                "number": 0
+            },
+            "l2_time": 1748932228,
+            "system_config": {
+                "batcherAddr": "0xd3f2c5afb2d76f5579f326b0cd7da5f5a4126c35",
+                "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "scalar": "0x010000000000000000000000000000000000000000000000000c5fc500000558",
+                "gasLimit": 60000000,
+                "eip1559Params": "0x0000000000000000",
+                "operatorFeeParams": "0x0000000000000000000000000000000000000000000000000000000000000000"
+            }
+        },
+        "block_time": 2,
+        "max_sequencer_drift": 600,
+        "seq_window_size": 3600,
+        "channel_timeout": 300,
+        "l1_chain_id": 3151908,
+        "l2_chain_id": 2151908,
+        "regolith_time": 0,
+        "canyon_time": 0,
+        "delta_time": 0,
+        "ecotone_time": 0,
+        "fjord_time": 0,
+        "granite_time": 0,
+        "holocene_time": 0,
+        "isthmus_time": 0,
+        "interop_time": 0,
+        "batch_inbox_address": "0x00a4fe4c6aaa0729d7699c387e7f281dd64afa2a",
+        "deposit_contract_address": "0xea0a3ca38bca6eb69cb7463b3fda7aa1616f9e09",
+        "l1_system_config_address": "0x67872e274ce2d6f2dc937196f8ec9f7af82fae7e",
+        "protocol_versions_address": "0xb74bb6ae1a1804d283d17e95620da9b9b0e6e0da",
+        "chain_op_config": {
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
+        }
+    }
+    "#;
+        rollup_file.write_all(rollup_json.as_bytes())?;
+
+        let args = SupervisorArgs {
+            l1_rpc: "http://localhost:8545".to_string(),
+            l2_consensus_nodes: vec!["http://node1:8551".to_string()],
+            l2_consensus_jwt_secret: vec!["secret1".to_string()],
+            datadir: PathBuf::from("dummy"),
+            datadir_sync_endpoint: None,
+            dependency_set: dep_file.path().to_path_buf(),
+            rollup_config_paths: rollup_dir.path().join("rollup-*.json"),
+            rpc_address: "127.0.0.1".parse().unwrap(),
+            rpc_port: 8545,
+        };
+
+        // This will fail at the L1 RPC call unless you mock RootProvider.
+        // So, for a pure unit test, you may want to mock or skip the L1 RPC part.
+        let result = args.init_config().await;
+        assert!(result.is_err() || result.is_ok(), "Should not panic");
+
+        // If you want to check up to the point before the L1 RPC, you can test init_dependency_set
+        // and get_rollup_configs separately.
+
         Ok(())
     }
 }

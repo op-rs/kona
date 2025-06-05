@@ -28,6 +28,7 @@ tokio = { workspace = true, features = [ "full", "macros"] }
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
 tracing = { workspace = true }
+serde.workspace = true
 serde_json.workspace = true
 glob.workspace = true
 reqwest.workspace = true

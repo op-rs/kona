@@ -4905,6 +4905,7 @@ dependencies = [
  "kona-supervisor-core",
  "kona-supervisor-service",
  "reqwest",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",

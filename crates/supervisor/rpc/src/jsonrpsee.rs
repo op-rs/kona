@@ -55,12 +55,14 @@ pub trait SupervisorApi {
 /// See spec <https://specs.optimism.io/interop/managed-mode.html>
 /// Using the proc_macro to generate the client and server code.
 /// Default namespace separator is `_`.
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "interop"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "interop"))]
 pub trait ManagedModeApi {
     /// Subscribe to the events from the managed node.
-    #[subscription(name = "events", item = Option<ManagedEvent>, unsubscribe = "unsubscribeEvents")]
-    async fn subscribe_events(&self) -> SubscriptionResult;
+    // the topic `events` need to be passed in the subscription request
+    // todo: find a better way to not require the topic to be passed in the subscription request
+    #[subscription(name = "subscribe", item = Option<ManagedEvent>, unsubscribe = "unsubscribe")]
+    async fn subscribe_events(&self, topic: String) -> SubscriptionResult;
 
     /// Pull an event from the managed node.
     #[method(name = "pullEvent")]
@@ -113,7 +115,7 @@ pub trait ManagedModeApi {
 
     /// Get the chain id
     #[method(name = "chainID")]
-    async fn chain_id(&self) -> RpcResult<ChainId>;
+    async fn chain_id(&self) -> RpcResult<String>;
 
     /// Get the state_root, message_parser_storage_root, and block_hash at a given timestamp
     #[method(name = "outputV0AtTimestamp")]

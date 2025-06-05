@@ -22,15 +22,22 @@ pub struct Service<T = Supervisor> {
 
 impl Service {
     /// Creates a new Supervisor service instance.
-    pub fn new(config: Config) -> Result<Self> {
+    pub async fn new(config: Config) -> Result<Self> {
         // Initialize the core Supervisor logic
         // In the future, this might take configuration or client connections
         // This creates an Arc<Supervisor>
 
         let database_factory = Arc::new(ChainDbFactory::new(config.datadir.clone()));
 
-        let supervisor =
-            Arc::new(Supervisor::new(config.clone(), database_factory, CancellationToken::new()));
+        let mut supervisor =
+            Supervisor::new(config.clone(), database_factory, CancellationToken::new());
+
+        supervisor.initialise().await.map_err(|e| {
+            warn!(target: "supervisor_service", "Failed to initialise Supervisor: {}", e);
+            anyhow::anyhow!("failed to initialise Supervisor: {}", e)
+        })?;
+
+        let supervisor = Arc::new(supervisor);
 
         // Create the RPC implementation, sharing the core logic
         // SupervisorRpc::new expects Arc<dyn kona_supervisor_core::SupervisorService + ...>

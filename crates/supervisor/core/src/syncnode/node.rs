@@ -1,14 +1,13 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
 use alloy_primitives::{B256, ChainId};
-use alloy_rpc_types_engine::JwtSecret;
+use alloy_rpc_types_engine::{JwtSecret, Claims};
 use async_trait::async_trait;
 use jsonrpsee::{
-    core::client::Subscription,
     ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
 };
 use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_types::{ManagedEvent, Receipts};
+use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
 use tokio::{
     sync::{Mutex, mpsc},
@@ -119,8 +118,12 @@ impl ManagedNode {
 
         // Fetch chain ID from the managed node
         let client = self.get_ws_client().await?;
-        let chain_id = client.chain_id().await.inspect_err(|err| {
+        let chain_id_str = client.chain_id().await.inspect_err(|err| {
             error!(target: "managed_node", %err, "Failed to get chain ID");
+        })?;
+
+        let chain_id = chain_id_str.parse::<u64>().inspect_err(|err| {
+            error!(target: "managed_node", %err, "Failed to parse chain ID");
         })?;
 
         let _ = self.chain_id.set(chain_id);
@@ -130,23 +133,30 @@ impl ManagedNode {
     /// Creates authentication headers using JWT secret.
     fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
-            error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(AuthenticationError::InvalidJwt.into())
-        };
+        error!(target: "managed_node", "JWT secret not found or invalid");
+        return Err(AuthenticationError::InvalidJwt.into())
+    };
 
-        let mut headers = HeaderMap::new();
-        let auth_header =
-            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
+    // Create JWT claims with current time
+    let claims = Claims::with_current_timestamp();
+    let token = jwt_secret.encode(&claims).map_err(|err| {
+        error!(target: "managed_node", %err, "Failed to encode JWT claims");
+        AuthenticationError::InvalidJwt
+    })?;
 
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_str(&auth_header).map_err(|err| {
-                error!(target: "managed_node", %err, "Invalid authorization header");
-                AuthenticationError::InvalidHeader
-            })?,
-        );
+    info!(target: "managed_node", token, "JWT token created successfully");
+    let mut headers = HeaderMap::new();
+    let auth_header = format!("Bearer {}", token);
 
-        Ok(headers)
+    headers.insert(
+        "Authorization",
+        HeaderValue::from_str(&auth_header).map_err(|err| {
+            error!(target: "managed_node", %err, "Invalid authorization header");
+            AuthenticationError::InvalidHeader
+        })?,
+    );
+
+    Ok(headers)
     }
 }
 
@@ -167,8 +177,8 @@ impl NodeSubscriber for ManagedNode {
 
         let client = self.get_ws_client().await?;
 
-        let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedModeApiClient::subscribe_events(client.as_ref()).await.inspect_err(|err| {
+        let mut subscription =
+            client.subscribe_events("events".to_string()).await.inspect_err(|err| {
                 error!(
                     target: "managed_node",
                     %err,
@@ -258,6 +268,7 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::sync::mpsc;
+    use kona_supervisor_types::ManagedEvent;
 
     fn create_mock_jwt_file() -> NamedTempFile {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
