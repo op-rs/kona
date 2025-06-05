@@ -1,11 +1,9 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
 use alloy_primitives::{B256, ChainId};
-use alloy_rpc_types_engine::{JwtSecret, Claims};
+use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
-use jsonrpsee::{
-    ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
-};
+use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
@@ -133,30 +131,30 @@ impl ManagedNode {
     /// Creates authentication headers using JWT secret.
     fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
-        error!(target: "managed_node", "JWT secret not found or invalid");
-        return Err(AuthenticationError::InvalidJwt.into())
-    };
+            error!(target: "managed_node", "JWT secret not found or invalid");
+            return Err(AuthenticationError::InvalidJwt.into())
+        };
 
-    // Create JWT claims with current time
-    let claims = Claims::with_current_timestamp();
-    let token = jwt_secret.encode(&claims).map_err(|err| {
-        error!(target: "managed_node", %err, "Failed to encode JWT claims");
-        AuthenticationError::InvalidJwt
-    })?;
+        // Create JWT claims with current time
+        let claims = Claims::with_current_timestamp();
+        let token = jwt_secret.encode(&claims).map_err(|err| {
+            error!(target: "managed_node", %err, "Failed to encode JWT claims");
+            AuthenticationError::InvalidJwt
+        })?;
 
-    info!(target: "managed_node", token, "JWT token created successfully");
-    let mut headers = HeaderMap::new();
-    let auth_header = format!("Bearer {}", token);
+        info!(target: "managed_node", token, "JWT token created successfully");
+        let mut headers = HeaderMap::new();
+        let auth_header = format!("Bearer {}", token);
 
-    headers.insert(
-        "Authorization",
-        HeaderValue::from_str(&auth_header).map_err(|err| {
-            error!(target: "managed_node", %err, "Invalid authorization header");
-            AuthenticationError::InvalidHeader
-        })?,
-    );
+        headers.insert(
+            "Authorization",
+            HeaderValue::from_str(&auth_header).map_err(|err| {
+                error!(target: "managed_node", %err, "Invalid authorization header");
+                AuthenticationError::InvalidHeader
+            })?,
+        );
 
-    Ok(headers)
+        Ok(headers)
     }
 }
 
@@ -265,10 +263,10 @@ impl ReceiptProvider for ManagedNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kona_supervisor_types::ManagedEvent;
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::sync::mpsc;
-    use kona_supervisor_types::ManagedEvent;
 
     fn create_mock_jwt_file() -> NamedTempFile {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
