@@ -154,7 +154,7 @@ op-revm = { version = "5.0.1", default-features = false }
 alloy-evm = { version = "0.10.0", default-features = false }
 alloy-op-evm = { version = "0.10.0", default-features = false }
 
-# Reth (pinned to v1.3.12 for kona-supervisor-storage)
+# Reth (pinned to v1.4.8 for kona-supervisor-storage)
 reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
 reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
