@@ -167,7 +167,7 @@ impl Supervisor {
             }
             self.managed_nodes.insert(chain_id, Arc::new(managed_node));
             info!(target: "supervisor_service",
-                "Managed node for chain {chain_id} initialized successfully"
+                "Managed node for chain {chain_id} initialized successfully",
             );
         }
         Ok(())
