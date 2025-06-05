@@ -218,10 +218,7 @@ where
               incoming_derived_block_pair = %incoming_pair,
               "Latest stored derived block is not parent of the incoming derived block"
             );
-            return Err(StorageError::ConflictError(
-                "latest stored derived block is not parent of the incoming derived block"
-                    .to_string(),
-            ));
+            return Err(StorageError::InvalidDerivedBlockParent);
         }
         // todo: analyze if we should check if the incoming derived block is the first block
         // or let service handle it
