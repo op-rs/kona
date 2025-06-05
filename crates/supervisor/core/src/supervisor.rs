@@ -137,7 +137,6 @@ impl Supervisor {
             let db = self.database_factory.get_or_create_db(*chain_id)?;
             db.initialise(config.genesis.get_anchor())?;
 
-            
             let managed_node =
                 self.managed_nodes.get(chain_id).ok_or(SupervisorError::Initialise(format!(
                     "no managed node found for chain {}",
