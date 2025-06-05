@@ -95,6 +95,13 @@ where
                 })?,
             );
         }
+        #[cfg(feature = "metrics")]
+        {
+            let batch_count = self.buffer.len() as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_BUFFER, batch_count);
+            let batch_size = std::mem::size_of_val(&self.buffer) as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_MEM, batch_size);
+        }
         Ok(())
     }
 }
@@ -126,12 +133,8 @@ where
         {
             let batch_count = self.buffer.len() as f64;
             kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_BUFFER, batch_count);
-            let batch_size = std::mem::size_of_val(&self.buffer);
-            kona_macros::set!(
-                gauge,
-                crate::metrics::Metrics::PIPELINE_BATCH_MEM,
-                batch_size as f64
-            );
+            let batch_size = std::mem::size_of_val(&self.buffer) as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_MEM, batch_size);
         }
 
         // If the stage is not active, "pass" the next batch
