@@ -35,9 +35,9 @@ pub use gossip::{
 mod peers;
 pub use peers::{
     AnyNode, BootNode, BootNodes, BootStore, DialOptsError, EnrValidation, NodeRecord,
-    NodeRecordParseError, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OpStackEnr, PeerId,
-    PeerIdConversionError, PeerMonitoring, PeerScoreLevel, enr_to_multiaddr, local_id_to_p2p_id,
-    peer_id_to_secp256k1_pubkey,
+    NodeRecordParseError, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OpStackEnr, OpStackEnrError,
+    PeerId, PeerIdConversionError, PeerMonitoring, PeerScoreLevel, enr_to_multiaddr,
+    local_id_to_p2p_id, peer_id_to_secp256k1_pubkey,
 };
 
 mod discv5;

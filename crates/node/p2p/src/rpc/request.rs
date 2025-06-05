@@ -5,7 +5,7 @@ use std::{
     num::TryFromIntError,
 };
 
-use crate::{Discv5Handler, GossipDriver};
+use crate::{Discv5Handler, GossipDriver, OpStackEnr};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
@@ -160,6 +160,8 @@ impl P2pRpcRequest {
             let infos: HashMap<String, PeerInfo, RandomState> = table_infos
                 .iter()
                 .filter_map(|(id, enr, status)| {
+                    let opstack_enr = OpStackEnr::try_from(enr).ok();
+
                     // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): improve the connectedness information to include the other
                     // variants.
                     let connectedness = if status.is_connected() {
@@ -187,10 +189,11 @@ impl P2pRpcRequest {
                                 protocols: protocols.remove(peer_id),
                                 connectedness,
                                 direction,
+                                // Note: we use the chain id from the ENR if it exists, otherwise we
+                                // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
+                                chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 protected: false,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                chain_id: 0,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 latency: 0,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
