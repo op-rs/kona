@@ -10,7 +10,7 @@ use op_alloy_rpc_types::InvalidInboxEntry;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::{
     chain_processor::{ChainProcessor, ChainProcessorError},
@@ -137,6 +137,7 @@ impl Supervisor {
             let db = self.database_factory.get_or_create_db(*chain_id)?;
             db.initialise(config.genesis.get_anchor())?;
 
+            
             let managed_node =
                 self.managed_nodes.get(chain_id).ok_or(SupervisorError::Initialise(format!(
                     "no managed node found for chain {}",
@@ -161,11 +162,14 @@ impl Supervisor {
                 ManagedNode::new(Arc::new(config.clone()), self.cancel_token.clone());
 
             let chain_id = managed_node.chain_id().await?;
-            if !self.managed_nodes.contains_key(&chain_id) {
+            if self.managed_nodes.contains_key(&chain_id) {
                 warn!(target: "supervisor_service", "Managed node for chain {chain_id} already exists, skipping initialization");
                 continue;
             }
             self.managed_nodes.insert(chain_id, Arc::new(managed_node));
+            info!(target: "supervisor_service",
+                "Managed node for chain {chain_id} initialized successfully"
+            );
         }
         Ok(())
     }
