@@ -109,6 +109,20 @@ where
 
     /// Loads more frames into the [FrameQueue].
     pub async fn load_frames(&mut self) -> PipelineResult<()> {
+        // Update metrics both before and after loading frames to ensure
+        // the gauge is _decremented_ if the queue is empty.
+        #[cfg(feature = "metrics")]
+        {
+            let queue_len = self.queue.len() as f64;
+            kona_macros::set!(
+                gauge,
+                crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
+                queue_len
+            );
+            let queue_size = self.queue.iter().map(Frame::size).sum::<usize>() as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
+        }
+
         // Skip loading frames if the queue is not empty.
         if !self.queue.is_empty() {
             return Ok(());
@@ -132,6 +146,18 @@ where
 
         // Optimistically extend the queue with the new frames.
         self.queue.extend(frames);
+
+        #[cfg(feature = "metrics")]
+        {
+            let queue_len = self.queue.len() as f64;
+            kona_macros::set!(
+                gauge,
+                crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
+                queue_len
+            );
+            let queue_size = self.queue.iter().map(Frame::size).sum::<usize>() as f64;
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
+        }
 
         // Prune frames if Holocene is active.
         let origin = self.origin().ok_or(PipelineError::MissingOrigin.crit())?;
@@ -158,17 +184,6 @@ where
 {
     async fn next_frame(&mut self) -> PipelineResult<Frame> {
         self.load_frames().await?;
-        #[cfg(feature = "metrics")]
-        {
-            let queue_len = self.queue.len() as f64;
-            kona_macros::set!(
-                gauge,
-                crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
-                queue_len
-            );
-            let queue_size = std::mem::size_of_val(&self.queue) as f64;
-            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
-        }
 
         // If we did not add more frames but still have more data, retry this function.
         if self.queue.is_empty() {
