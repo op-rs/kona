@@ -1,11 +1,13 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
+use alloy_primitives::map::HashSet;
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
     gossipsub::{IdentTopic, MessageId},
+    multiaddr::Protocol,
     swarm::SwarmEvent,
 };
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
@@ -33,6 +35,8 @@ pub struct GossipDriver {
     ///
     /// A peer cannot be redialed more than [`GossipDriverBuilder.peer_redialing`] times.
     pub dialed_peers: HashMap<Multiaddr, u64>,
+    /// A set of [`PeerId`]s that are currently being dialed.
+    pub current_dials: HashSet<PeerId>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
     pub peerstore: HashMap<PeerId, Multiaddr>,
     /// A mapping from [`PeerId`] to [`libp2p::identify::Info`].
@@ -63,6 +67,7 @@ impl GossipDriver {
             swarm,
             addr,
             handler,
+            current_dials: Default::default(),
             dialed_peers: Default::default(),
             peerstore: Default::default(),
             peer_infos: Default::default(),
@@ -177,10 +182,30 @@ impl GossipDriver {
 
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
-        if self.dial_threshold_reached(&addr) {
-            event!(tracing::Level::TRACE, peer=%addr, "Dial threshold reached, not dialing");
+        let Some(peer_id) = addr
+            .iter()
+            .find_map(|p| if let Protocol::P2p(peer_id) = p { Some(peer_id) } else { None })
+        else {
+            warn!(target: "gossip", peer=?addr, "Failed to extract peer id from multiaddr");
+            return;
+        };
+
+        if self.swarm.connected_peers().any(|p| p == &peer_id) {
+            debug!(target: "gossip", peer=?addr, "Already connected to peer, not dialing");
             return;
         }
+
+        if self.current_dials.contains(&peer_id) {
+            debug!(target: "gossip", peer=?addr, "Already dialing peer, not dialing");
+            return;
+        }
+
+        if self.dial_threshold_reached(&addr) {
+            debug!(target: "gossip", peer=?addr, "Dial threshold reached, not dialing");
+            return;
+        }
+
+        self.current_dials.insert(peer_id);
 
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
@@ -191,14 +216,6 @@ impl GossipDriver {
             Err(e) => {
                 error!(target: "gossip", "Failed to connect to peer: {:?}", e);
             }
-        }
-    }
-
-    /// Redials the given [`PeerId`] using the peerstore.
-    pub fn redial(&mut self, peer_id: PeerId) {
-        if let Some(addr) = self.peerstore.get(&peer_id) {
-            trace!(target: "gossip", "Redialing peer with id: {:?}", peer_id);
-            self.dial_multiaddr(addr.clone());
         }
     }
 
@@ -283,7 +300,7 @@ impl GossipDriver {
             }
             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
-                debug!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
+                info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -291,22 +308,26 @@ impl GossipDriver {
                     "peer" => peer_id.to_string(),
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
+
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                debug!(target: "gossip", "Outgoing connection error: {:?}", error);
+                error!(target: "gossip", "Outgoing connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
                     "type" => "outgoing_error",
                     "peer" => peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
-                if let Some(id) = peer_id {
-                    self.redial(id);
+
+                // If the connection was initiated by us, remove the peer from the current dials
+                // set.
+                if let Some(peer_id) = peer_id {
+                    self.current_dials.remove(&peer_id);
                 }
             }
             SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
-                trace!(target: "gossip", "Incoming connection error: {:?}", error);
+                error!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -316,7 +337,7 @@ impl GossipDriver {
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
-                debug!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
+                warn!(target: "gossip", ?peer_id, ?cause, peer_count, "Connection closed");
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -324,10 +345,19 @@ impl GossipDriver {
                     "peer" => peer_id.to_string()
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
-                self.redial(peer_id);
+
+                // If the connection was initiated by us, remove the peer from the current dials
+                // set so that we can dial it again.
+                self.current_dials.remove(&peer_id);
             }
             SwarmEvent::NewListenAddr { listener_id, address } => {
                 debug!(target: "gossip", reporter_id = ?listener_id, new_address = ?address, "New listen address");
+            }
+            SwarmEvent::Dialing { peer_id, connection_id } => {
+                debug!(target: "gossip", ?peer_id, ?connection_id, "Dialing peer");
+            }
+            SwarmEvent::NewExternalAddrOfPeer { peer_id, address } => {
+                debug!(target: "gossip", ?peer_id, ?address, "New external address of peer");
             }
             _ => {
                 debug!(target: "gossip", ?event, "Ignoring non-behaviour in event handler");
