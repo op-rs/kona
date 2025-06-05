@@ -2,10 +2,10 @@ use core::fmt::Debug;
 
 use alloy_primitives::{B256, ChainId};
 use async_trait::async_trait;
-use jsonrpsee::types::ErrorObjectOwned;
+use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
-use kona_supervisor_rpc::SupervisorApiServer;
 use kona_supervisor_storage::{ChainDb, ChainDbFactory, StorageError};
+use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::InvalidInboxEntry;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
@@ -23,6 +23,9 @@ pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
     Unimplemented,
+    /// No chains are configured for supervision.
+    #[error("empty dependency set")]
+    EmptyDependencySet,
     /// Data availability errors.
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
@@ -46,18 +49,37 @@ pub enum SupervisorError {
     ChainProcessorError(#[from] ChainProcessorError),
 }
 
-impl From<ErrorObjectOwned> for SupervisorError {
-    fn from(err: ErrorObjectOwned) -> Self {
-        let Ok(err) = (err.code() as i64).try_into() else {
-            return Self::Unimplemented;
-        };
-        Self::InvalidInboxEntry(err)
+impl From<SupervisorError> for ErrorObjectOwned {
+    fn from(err: SupervisorError) -> Self {
+        match err {
+            // todo: handle these errors more gracefully
+            SupervisorError::Unimplemented |
+            SupervisorError::EmptyDependencySet |
+            SupervisorError::Initialise(_) |
+            SupervisorError::StorageError(_) |
+            SupervisorError::ManagedNodeError(_) |
+            SupervisorError::ChainProcessorError(_) => {
+                ErrorObjectOwned::from(ErrorCode::InternalError)
+            }
+            SupervisorError::InvalidInboxEntry(err) => ErrorObjectOwned::owned(
+                (err as i64).try_into().expect("should fit i32"),
+                err.to_string(),
+                None::<()>,
+            ),
+        }
     }
 }
 
 /// Defines the service for the Supervisor core logic.
 #[async_trait]
+#[auto_impl::auto_impl(&, &mut, Arc, Box)]
 pub trait SupervisorService: Debug + Send + Sync {
+    /// Returns list of supervised [`ChainId`]s.
+    fn chain_ids(&self) -> impl Iterator<Item = ChainId>;
+
+    /// Returns [`SuperHead`] of given supervised chain.
+    fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError>;
+
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
         &self,
@@ -146,6 +168,14 @@ impl Supervisor {
 
 #[async_trait]
 impl SupervisorService for Supervisor {
+    fn chain_ids(&self) -> impl Iterator<Item = ChainId> {
+        self.config.dependency_set.dependencies.keys().copied()
+    }
+
+    fn super_head(&self, _chain: ChainId) -> Result<SuperHead, SupervisorError> {
+        todo!("implement call to ChainDbFactory")
+    }
+
     async fn check_access_list(
         &self,
         _inbox_entries: Vec<B256>,
@@ -156,36 +186,15 @@ impl SupervisorService for Supervisor {
     }
 }
 
-#[async_trait]
-impl<T> SupervisorService for T
-where
-    T: SupervisorApiServer + Debug,
-{
-    async fn check_access_list(
-        &self,
-        inbox_entries: Vec<B256>,
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> Result<(), SupervisorError> {
-        // codecov:ignore-start
-        Ok(T::check_access_list(self, inbox_entries, min_safety, executing_descriptor).await?)
-        // codecov:ignore-end
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn test_rpc_error_conversion() {
-        let err_code = InvalidInboxEntry::UnknownChain;
-        let err = ErrorObjectOwned::owned(err_code as i32, "", None::<()>);
+        let err = InvalidInboxEntry::UnknownChain;
+        let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(SupervisorError::InvalidInboxEntry(err_code), err.into());
-
-        let err = ErrorObjectOwned::owned(i32::MAX, "", None::<()>);
-
-        assert_eq!(SupervisorError::Unimplemented, err.into())
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
     }
 }

@@ -2,6 +2,10 @@
 //!
 //! This crate defines the fundamental data structures used within the
 //! Optimism supervisor.
+
+pub mod head;
+pub use head::SuperHead;
+
 mod log;
 pub use log::Log;
 

@@ -9,3 +9,8 @@ pub use jsonrpsee::SupervisorApiServer;
 
 #[cfg(all(feature = "jsonrpsee", feature = "client"))]
 pub use jsonrpsee::ManagedModeApiClient;
+
+pub mod response;
+pub use response::{SupervisorChainSyncStatus, SupervisorSyncStatus};
+
+pub use kona_protocol::BlockInfo;
