@@ -17,7 +17,7 @@ impl Metrics {
     /// Identifier for the number of frames in the frame queue pipeline stage.
     pub const PIPELINE_FRAME_QUEUE_BUFFER: &str = "kona_derive_frame_queue_buffer";
 
-    /// Identifier for the frame queue buffer memory overhead gauage.
+    /// Identifier for the frame queue buffer memory overhead gauge.
     pub const PIPELINE_FRAME_QUEUE_MEM: &str = "kona_derive_frame_queue_mem";
 
     /// Identifier for the number of channels held in the pipeline.
