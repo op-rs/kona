@@ -17,16 +17,16 @@ workspace = true
 [dependencies]
 # workspace
 kona-rpc.workspace = true
-kona-derive.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 
 kona-cli = { workspace = true, features = ["secrets"] }
-kona-engine = { workspace = true, features = ["metrics"] }
 kona-p2p = { workspace = true, features = ["metrics"] }
+kona-derive = { workspace = true, features = ["metrics"] }
+kona-engine = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }
-kona-node-service = { workspace = true, features = ["metrics"] }
 kona-sources = { workspace = true, features = ["metrics"] }
+kona-node-service = { workspace = true, features = ["metrics"] }
 
 # alloy
 alloy-provider.workspace = true
