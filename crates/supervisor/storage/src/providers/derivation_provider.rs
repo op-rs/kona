@@ -419,7 +419,7 @@ mod tests {
         let derived2 = block_info(2, wrong_parent_hash, 300);
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::InvalidDerivedBlockParent)));
     }
 
     #[test]
@@ -434,7 +434,7 @@ mod tests {
         let derived2 = block_info(4, derived1.hash, 400); // should be 2, not 4
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::InvalidDerivedBlockParent)));
     }
 
     #[test]
@@ -448,7 +448,7 @@ mod tests {
 
         // Try to insert the same derived block again
         let result = insert_pair(&db, &pair1);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::InvalidDerivedBlockParent)));
     }
 
     #[test]
@@ -468,7 +468,7 @@ mod tests {
         let derived_non_monotonic = block_info(1, derived2.hash, 400);
         let pair_non_monotonic = derived_pair(source1, derived_non_monotonic);
         let result = insert_pair(&db, &pair_non_monotonic);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::InvalidDerivedBlockParent)));
     }
 
     #[test]
