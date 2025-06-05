@@ -85,11 +85,44 @@ mod test {
     use super::*;
     use alloy_primitives::b256;
 
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serialize_supervisor_chain_sync_status() {
-        const STATUS: &str = r#"
-            {
+    const CHAIN_STATUS: &str = r#"
+    {
+        "localUnsafe": {
+            "number": 100,
+            "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+            "timestamp": 40044440000,
+            "parentHash": "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
+        },
+        "crossUnsafe": {
+            "number": 90,
+            "hash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+        },
+        "localSafe": {
+            "number": 80,
+            "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef13"
+        },
+        "safe": {
+            "number": 70,
+            "hash": "0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234"
+        },
+        "finalized": {
+            "number": 60,
+            "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
+        }
+    }"#;
+
+    const STATUS: &str = r#"
+    {
+        "minSyncedL1": {
+            "number": 100,
+            "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+            "timestamp": 40044440000,
+            "parentHash": "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
+        },
+        "safeTimestamp": 40044450000,
+        "finalizedTimestamp": 40044460000,
+        "chains" : {
+            "1": {
                 "localUnsafe": {
                     "number": 100,
                     "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
@@ -112,10 +145,16 @@ mod test {
                     "number": 60,
                     "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
                 }
-            }"#;
+            }
+        }
+    }"#;
 
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serialize_supervisor_chain_sync_status() {
         assert_eq!(
-            serde_json::from_str::<SupervisorChainSyncStatus>(STATUS).expect("should deserialize"),
+            serde_json::from_str::<SupervisorChainSyncStatus>(CHAIN_STATUS)
+                .expect("should deserialize"),
             SupervisorChainSyncStatus {
                 local_unsafe: BlockInfo {
                     number: 100,
@@ -150,44 +189,6 @@ mod test {
     #[cfg(feature = "serde")]
     #[test]
     fn test_serialize_supervisor_sync_status() {
-        const STATUS: &str = r#"
-            {
-                "minSyncedL1": {
-                    "number": 100,
-                    "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-                    "timestamp": 40044440000,
-                    "parentHash": "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
-                },
-                "safeTimestamp": 40044450000,
-                "finalizedTimestamp": 40044460000,
-                "chains" : {
-                    "1": {
-                        "localUnsafe": {
-                            "number": 100,
-                            "hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-                            "timestamp": 40044440000,
-                            "parentHash": "0x111def1234567890abcdef1234567890abcdef1234500000abcdef123456aaaa"
-                        },
-                        "crossUnsafe": {
-                            "number": 90,
-                            "hash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-                        },
-                        "localSafe": {
-                            "number": 80,
-                            "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef13"
-                        },
-                        "safe": {
-                            "number": 70,
-                            "hash": "0x567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234"
-                        },
-                        "finalized": {
-                            "number": 60,
-                            "hash": "0x34567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12"
-                        }
-                    }
-                }
-            }"#;
-
         let mut chains = HashMap::default();
 
         chains.insert(
