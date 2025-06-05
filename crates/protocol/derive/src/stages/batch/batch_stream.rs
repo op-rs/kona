@@ -147,6 +147,8 @@ where
             match batch_with_inclusion.batch {
                 Batch::Single(b) => return Ok(Batch::Single(b)),
                 Batch::Span(b) => {
+                    #[cfg(feature = "metrics")]
+                    let start = std::time::Instant::now();
                     let (validity, _) = b
                         .check_batch_prefix(
                             self.config.as_ref(),
@@ -156,6 +158,17 @@ where
                             &mut self.fetcher,
                         )
                         .await;
+                    kona_macros::record!(
+                        histogram,
+                        crate::metrics::Metrics::PIPELINE_CHECK_BATCH_PREFIX,
+                        start.elapsed().as_secs_f64()
+                    );
+
+                    kona_macros::inc!(
+                        gauge,
+                        crate::metrics::Metrics::PIPELINE_BATCH_VALIDITY,
+                        "validity" => validity.to_string(),
+                    );
 
                     match validity {
                         BatchValidity::Accept => self.span = Some(b),

@@ -71,6 +71,13 @@ impl Metrics {
     /// Identifier for the data availability provider data.
     pub const PIPELINE_DATA_AVAILABILITY_PROVIDER: &str = "kona_derive_dap_sources";
 
+    /// Identifier for a gauge that tracks batch validity.
+    pub const PIPELINE_BATCH_VALIDITY: &str = "kona_derive_batch_validity";
+
+    /// Identifier for the histogram that tracks the amount of time it takes to validate a
+    /// span batch.
+    pub const PIPELINE_CHECK_BATCH_PREFIX: &str = "kona_derive_check_batch_prefix_duration";
+
     /// Identifier for the histogram that tracks the amount of time it takes to build payload
     /// attributes.
     pub const PIPELINE_ATTRIBUTES_BUILD_DURATION: &str = "kona_derive_attributes_build_duration";
@@ -100,6 +107,10 @@ impl Metrics {
             "The block height of the pipeline l1 origin"
         );
         metrics::describe_gauge!(
+            Self::PIPELINE_BATCH_VALIDITY,
+            "The validity of the batch being processed",
+        );
+        metrics::describe_gauge!(
             Self::PIPELINE_DATA_AVAILABILITY_PROVIDER,
             "The source of pipeline data"
         );
@@ -118,6 +129,10 @@ impl Metrics {
         metrics::describe_gauge!(
             Self::PIPELINE_STEP_BLOCK,
             "The latest L2 block height that the pipeline stepped on"
+        );
+        metrics::describe_histogram!(
+            Self::PIPELINE_CHECK_BATCH_PREFIX,
+            "The time it takes to validate a span batch"
         );
         metrics::describe_histogram!(
             Self::PIPELINE_ORIGIN_ADVANCE,
