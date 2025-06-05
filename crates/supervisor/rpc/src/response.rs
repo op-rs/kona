@@ -188,7 +188,7 @@ mod test {
                 }
             }"#;
 
-        let mut chains = HashMap::new();
+        let mut chains = HashMap::default();
 
         chains.insert(
             1,
