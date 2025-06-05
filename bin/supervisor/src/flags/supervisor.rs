@@ -4,7 +4,6 @@ use anyhow::{Context as _, Ok, Result};
 use clap::Args;
 use glob::glob;
 use kona_genesis::RollupConfig;
-
 use kona_interop::DependencySet;
 use kona_supervisor_core::{
     config::{Config, RollupConfigSet},

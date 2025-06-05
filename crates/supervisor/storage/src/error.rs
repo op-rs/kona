@@ -30,7 +30,11 @@ pub enum StorageError {
     #[error("conflict error: {0}")]
     ConflictError(String),
 
-    /// The latest stored derived block is not the parent of the incoming derived block.
+    /// Represents an error that occurred while writing to log database.
+    #[error("latest stored block is not parent of the incoming block")]
+    BlockOutOfOrder,
+
+    /// Represents an error that occurred while writing to derived block database.
     #[error("latest stored derived block is not parent of the incoming derived block")]
     DerivedBlockOutOfOrder,
 }
