@@ -109,15 +109,6 @@ where
 
     /// Loads more frames into the [FrameQueue].
     pub async fn load_frames(&mut self) -> PipelineResult<()> {
-        kona_macros::set!(
-            gauge,
-            crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
-            self.queue.len() as f64
-        );
-
-        let queue_size = self.queue.iter().map(|f| f.size()).sum::<usize>() as f64;
-        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
-
         // Skip loading frames if the queue is not empty.
         if !self.queue.is_empty() {
             return Ok(());
@@ -142,6 +133,7 @@ where
         // Optimistically extend the queue with the new frames.
         self.queue.extend(frames);
 
+        // Update metrics with last frame count
         kona_macros::set!(
             gauge,
             crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
