@@ -57,6 +57,27 @@ impl DerivationStorageReader for ChainDb {
 impl DerivationStorageWriter for ChainDb {
     // Todo: better name save_derived_block_pair
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
+        let derived_block = incoming_pair.derived;
+        // Validate the block against existing data
+        let result = self.env.view(|tx| {
+            let block =
+                LogProvider::new(tx).get_block(derived_block.number).map_err(|err| match err {
+                    StorageError::EntryNotFound(_) => StorageError::ConflictError(
+                        "conflict between unsafe block and derived block".to_string(),
+                    ),
+                    other => other, // propagate other errors as-is
+                })?;
+
+            if block != derived_block {
+                return Err(StorageError::ConflictError(
+                    "conflict between unsafe block and derived block".to_string(),
+                ));
+            }
+
+            Ok(())
+        })?;
+        result?;
+
         self.env.update(|ctx| {
             DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
             SafetyHeadRefProvider::new(ctx)
@@ -164,6 +185,21 @@ mod tests {
                 timestamp: 0,
             },
         };
+
+        // Save derived block pair - should error conflict
+        let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
+        assert!(matches!(err, StorageError::ConflictError(_)));
+
+        db.store_block_logs(
+            &BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 1,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+            vec![],
+        )
+        .expect("storing logs failed");
 
         // Save derived block pair
         db.save_derived_block_pair(derived_pair.clone()).expect("save derived pair");
