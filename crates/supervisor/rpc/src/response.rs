@@ -21,7 +21,7 @@ pub struct SupervisorSyncStatus {
     ///
     /// NOTE: Some fault-proof releases may already depend on `safe`, so we keep JSON field name as
     /// `safe`.
-    #[serde(rename = "safeTimestamp")]
+    #[cfg_attr(feature = "serde", serde(rename = "safeTimestamp"))]
     pub cross_safe_timestamp: u64,
     /// Timestamp of highest finalized block.
     pub finalized_timestamp: u64,
@@ -57,7 +57,7 @@ pub struct SupervisorChainSyncStatus {
     /// `safe`.
     ///
     /// [`Safe`]: op_alloy_consensus::interop::SafetyLevel::Safe
-    #[serde(rename = "safe")]
+    #[cfg_attr(feature = "serde", serde(rename = "safe"))]
     pub cross_safe: BlockNumHash,
     /// Highest [`Finalized`] head of chain [`BlockNumHash`].
     ///
