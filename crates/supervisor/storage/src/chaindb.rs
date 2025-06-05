@@ -3,7 +3,10 @@
 use crate::{
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
-    traits::{DerivationStorage, LogStorageReader, LogStorageWriter, SafetyHeadRefStorage},
+    traits::{
+        DerivationStorageReader, DerivationStorageWriter, LogStorageReader, LogStorageWriter,
+        SafetyHeadRefStorage,
+    },
 };
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
@@ -32,7 +35,7 @@ impl ChainDb {
     }
 }
 
-impl DerivationStorage for ChainDb {
+impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| DerivationProvider::new(tx).derived_to_source(derived_block_id))?
     }
@@ -49,10 +52,16 @@ impl DerivationStorage for ChainDb {
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
         self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())?
     }
+}
 
+impl DerivationStorageWriter for ChainDb {
+    // Todo: better name save_derived_block_pair
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        self.env
-            .update(|ctx| DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair))?
+        self.env.update(|ctx| {
+            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
+            SafetyHeadRefProvider::new(ctx)
+                .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
+        })?
     }
 }
 

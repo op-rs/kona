@@ -1,7 +1,7 @@
 use super::task::ChainProcessorTask;
 use crate::syncnode::{ManagedNodeProvider, NodeEvent};
 use alloy_primitives::ChainId;
-use kona_supervisor_storage::LogStorageWriter;
+use kona_supervisor_storage::{DerivationStorageWriter, LogStorageWriter};
 use std::sync::Arc;
 use tokio::{
     sync::{Mutex, mpsc},
@@ -34,7 +34,7 @@ pub struct ChainProcessor<P, W> {
 impl<P, W> ChainProcessor<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter + 'static,
+    W: LogStorageWriter + DerivationStorageWriter + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].
     pub fn new(
@@ -83,6 +83,7 @@ mod tests {
     use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
     use alloy_primitives::B256;
     use async_trait::async_trait;
+    use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{LogStorageWriter, StorageError};
     use kona_supervisor_types::{Log, Receipts};
@@ -129,6 +130,14 @@ mod tests {
             &self,
             _block: &BlockInfo,
             _logs: Vec<Log>,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+    }
+    impl DerivationStorageWriter for MockStorage {
+        fn save_derived_block_pair(
+            &self,
+            _incoming_pair: DerivedRefPair,
         ) -> Result<(), StorageError> {
             Ok(())
         }
