@@ -100,8 +100,7 @@ where
         if let Some(channel) = self.channel.as_mut() {
             // Track the number of blocks until the channel times out.
             let timeout = channel.open_block_number() + self.cfg.channel_timeout(origin.timestamp);
-            let margin =
-                if timeout < origin.number { 0_f64 } else { (timeout - origin.number) as f64 };
+            let margin = timeout.saturating_sub(origin.number) as f64;
             kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_CHANNEL_TIMEOUT, margin);
 
             // Add the frame to the channel. If this fails, return NotEnoughData and discard the

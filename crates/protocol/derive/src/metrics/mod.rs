@@ -13,7 +13,6 @@ impl Metrics {
 
     /// Identifier for the histogram that tracks when the system config is updated.
     pub const SYSTEM_CONFIG_UPDATE: &str = "kona_derive_system_config_update";
-<<<<<<< HEAD
 
     /// Identifier for the number of frames in the frame queue pipeline stage.
     pub const PIPELINE_FRAME_QUEUE_BUFFER: &str = "kona_derive_frame_queue_buffer";
@@ -28,7 +27,7 @@ impl Metrics {
     pub const PIPELINE_CHANNEL_MEM: &str = "kona_derive_channel_mem";
 
     /// Identifier for a gauge that tracks the number of blocks until the next channel times out.
-    pub const PIPELINE_CHANNEL_TIMEOUT: &str = "kona_derive_channel_timeout";
+    pub const PIPELINE_CHANNEL_TIMEOUT: &str = "kona_derive_blocks_until_channel_timeout";
 
     /// Identifier for the gauge that tracks the maximum rlp byte size per channel.
     pub const PIPELINE_MAX_RLP_BYTES: &str = "kona_derive_max_rlp_bytes";
