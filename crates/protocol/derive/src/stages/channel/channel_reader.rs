@@ -72,6 +72,7 @@ where
 
             self.next_batch =
                 Some(BatchReader::new(&channel[..], max_rlp_bytes_per_channel as usize));
+            kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_READER_SET, 1);
         }
         Ok(())
     }
@@ -80,6 +81,7 @@ where
     /// decoding / decompression state to a fresh start.
     pub fn next_channel(&mut self) {
         self.next_batch = None;
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_READER_SET, 0);
     }
 }
 
@@ -122,7 +124,14 @@ where
             .next_batch(self.cfg.as_ref())
             .ok_or(PipelineError::NotEnoughData.temp())
         {
-            Ok(batch) => Ok(batch),
+            Ok(batch) => {
+                kona_macros::inc!(
+                    gauge,
+                    crate::metrics::Metrics::PIPELINE_READ_BATCHES,
+                    "type" => batch.to_string(),
+                );
+                Ok(batch)
+            }
             Err(e) => {
                 self.next_channel();
                 Err(e)
@@ -151,6 +160,7 @@ where
                 // Drop the current in-progress channel.
                 warn!(target: "channel_reader", "Flushed channel");
                 self.next_batch = None;
+                kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_BATCH_READER_SET, 0);
             }
             s => {
                 self.prev.signal(s).await?;

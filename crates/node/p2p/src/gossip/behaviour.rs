@@ -50,7 +50,7 @@ impl Behaviour {
             .map_err(|_| BehaviourError::GossipsubCreationFailed)?;
 
         let identify = libp2p::identify::Behaviour::new(
-            libp2p::identify::Config::new("/ipfs/id/1.0.0".to_string(), public_key)
+            libp2p::identify::Config::new("".to_string(), public_key)
                 .with_agent_version("optimism".to_string()),
         );
 

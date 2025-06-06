@@ -161,10 +161,7 @@ pub struct P2PArgs {
     /// Peer Redialing threshold is the maximum amount of times to attempt to redial a peer that
     /// disconnects. By default, peers are *not* redialed. If set to 0, the peer will be
     /// redialed indefinitely.
-    ///
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/1854>`): we are temporarily setting this to 0 to redial all peers indefinitely.
-    /// We will change this default to `None` once we have a more robust p2p stack.
-    #[arg(long = "p2p.redial", env = "KONA_NODE_P2P_REDIAL", default_value = "0")]
+    #[arg(long = "p2p.redial", env = "KONA_NODE_P2P_REDIAL", default_value = "5")]
     pub peer_redial: Option<u64>,
 
     /// An optional list of bootnode ENRs to start the node with.

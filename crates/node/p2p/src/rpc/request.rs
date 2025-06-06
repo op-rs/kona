@@ -5,7 +5,7 @@ use std::{
     num::TryFromIntError,
 };
 
-use crate::{Discv5Handler, GossipDriver};
+use crate::{Discv5Handler, GossipDriver, OpStackEnr};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
@@ -110,24 +110,66 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
-        // Build a map of peer ids to their supported protocols.
-        let mut protocols: HashMap<PeerId, Vec<String>> =
-            gossip.swarm.behaviour().gossipsub.peer_protocol().fold(
-                HashMap::new(),
-                |mut protocols, (id, protocol)| {
-                    protocols.entry(*id).or_default().push(protocol.to_string());
-                    protocols
-                },
-            );
+        #[derive(Default)]
+        struct PeerMetadata {
+            protocols: Option<Vec<String>>,
+            addresses: Vec<String>,
+            user_agent: String,
+            protocol_version: String,
+        }
 
-        // Build a map of peer ids to their known addresses.
-        let mut addresses: HashMap<PeerId, Vec<String>> =
-        peer_ids.iter().filter_map(|id| {
-            gossip.peerstore.get(id).or_else(|| {
-                warn!(target: "p2p::rpc", "Failed to get peer address. The peerstore is not in sync with the gossip swarm.");
-                None
-            }).map(|addr| (*id, vec![addr.to_string()]))
-        }).collect();
+        // Build a map of peer ids to their supported protocols and addresses.
+        let mut peer_metadata: HashMap<PeerId, PeerMetadata> = gossip
+            .peer_infos
+            .iter()
+            .map(|(id, info)| {
+                let protocols = if info.protocols.is_empty() {
+                    None
+                } else {
+                    Some(
+                        info.protocols
+                            .iter()
+                            .map(|protocol| protocol.to_string())
+                            .collect::<Vec<String>>(),
+                    )
+                };
+                let addresses =
+                    info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
+                (
+                    *id,
+                    PeerMetadata {
+                        protocols,
+                        addresses,
+                        user_agent: info.agent_version.clone(),
+                        protocol_version: info.protocol_version.clone(),
+                    },
+                )
+            })
+            .collect();
+
+        // We consider that kona-nodes are gossiping blocks if their peers are subscribed to any of
+        // the blocks topics.
+        // This is the same heuristic as the one used in the op-node (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-node/p2p/rpc_server.go#L179-L183>`).
+        let peer_gossip_info = gossip
+            .swarm
+            .behaviour()
+            .gossipsub
+            .all_peers()
+            .filter_map(|(peer_id, topics)| {
+                let supported_topics = HashSet::from([
+                    gossip.handler.blocks_v1_topic.hash(),
+                    gossip.handler.blocks_v2_topic.hash(),
+                    gossip.handler.blocks_v3_topic.hash(),
+                    gossip.handler.blocks_v4_topic.hash(),
+                ]);
+
+                if topics.iter().any(|topic| supported_topics.contains(topic)) {
+                    Some(*peer_id)
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<_>>();
 
         let disc_table_infos = disc.table_infos();
 
@@ -160,6 +202,8 @@ impl P2pRpcRequest {
             let infos: HashMap<String, PeerInfo, RandomState> = table_infos
                 .iter()
                 .filter_map(|(id, enr, status)| {
+                    let opstack_enr = OpStackEnr::try_from(enr).ok();
+
                     // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): improve the connectedness information to include the other
                     // variants.
                     let connectedness = if status.is_connected() {
@@ -172,29 +216,30 @@ impl P2pRpcRequest {
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
+                        let PeerMetadata { protocols, addresses, user_agent, protocol_version } =
+                            peer_metadata.remove(peer_id).unwrap_or_default();
+
                         let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
                             PeerInfo {
                                 peer_id: peer_id.to_string(),
                                 node_id,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                user_agent: String::new(),
-                                // TODO(@theochap): support these fields
-                                protocol_version: String::new(),
+                                user_agent,
+                                protocol_version,
                                 enr: enr.to_string(),
-                                addresses: addresses.remove(peer_id).unwrap_or_default(),
-                                protocols: protocols.remove(peer_id),
+                                addresses,
+                                protocols,
                                 connectedness,
                                 direction,
+                                // Note: we use the chain id from the ENR if it exists, otherwise we
+                                // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
+                                chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
+                                gossip_blocks: peer_gossip_info.contains(peer_id),
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 protected: false,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                chain_id: 0,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 latency: 0,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                gossip_blocks: false,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 peer_scores: PeerScores::default(),
                             },

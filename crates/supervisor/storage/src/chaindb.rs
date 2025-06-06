@@ -33,6 +33,14 @@ impl ChainDb {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
         Ok(Self { env })
     }
+
+    /// initialises the database with a given anchor derived block pair.
+    pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
+        self.env.update(|tx| {
+            DerivationProvider::new(tx).initialise(anchor.clone())?;
+            LogProvider::new(tx).initialise(anchor.derived)
+        })?
+    }
 }
 
 impl DerivationStorageReader for ChainDb {
@@ -136,8 +144,29 @@ mod tests {
         let db_path = tmp_dir.path().join("chaindb_logs");
         let db = ChainDb::new(&db_path).expect("create db");
 
-        // Create dummy block and logs
-        let block = BlockInfo::default();
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        db.initialise(anchor.clone()).expect("initialise db");
+
+        let block = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
         let log1 = Log { index: 0, hash: B256::from([0u8; 32]), executing_message: None };
         let log2 = Log { index: 1, hash: B256::from([1u8; 32]), executing_message: None };
         let logs = vec![log1, log2];
@@ -163,8 +192,7 @@ mod tests {
         let db_path = tmp_dir.path().join("chaindb_derivation");
         let db = ChainDb::new(&db_path).expect("create db");
 
-        // Create dummy derived block pair
-        let derived_pair = DerivedRefPair {
+        let anchor = DerivedRefPair {
             source: BlockInfo {
                 hash: B256::from([0u8; 32]),
                 number: 100,
@@ -173,11 +201,30 @@ mod tests {
             },
             derived: BlockInfo {
                 hash: B256::from([2u8; 32]),
-                number: 1,
+                number: 0,
                 parent_hash: B256::from([3u8; 32]),
                 timestamp: 0,
             },
         };
+
+        // Create dummy derived block pair
+        let derived_pair = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([4u8; 32]),
+                number: 101,
+                parent_hash: B256::from([5u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([6u8; 32]),
+                number: 1,
+                parent_hash: anchor.derived.hash,
+                timestamp: 0,
+            },
+        };
+
+        // Initialise the database with the anchor derived block pair
+        db.initialise(anchor.clone()).expect("initialise db with anchor");
 
         // Save derived block pair - should error conflict
         let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
@@ -185,9 +232,9 @@ mod tests {
 
         db.store_block_logs(
             &BlockInfo {
-                hash: B256::from([2u8; 32]),
+                hash: B256::from([6u8; 32]),
                 number: 1,
-                parent_hash: B256::from([3u8; 32]),
+                parent_hash: anchor.derived.hash,
                 timestamp: 0,
             },
             vec![],
