@@ -18,7 +18,7 @@ use std::{sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::{
     select,
-    sync::mpsc::{UnboundedSender, error::SendError},
+    sync::mpsc::{self, error::SendError},
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
@@ -35,11 +35,11 @@ pub struct L1WatcherRpc {
     /// order to get the state from the external watcher.
     latest_head: tokio::sync::watch::Sender<Option<BlockInfo>>,
     /// The outbound L1 head block sender.
-    head_sender: UnboundedSender<BlockInfo>,
+    head_sender: mpsc::Sender<BlockInfo>,
     /// The outbound L1 finalized block sender.
-    finalized_sender: UnboundedSender<BlockInfo>,
+    finalized_sender: mpsc::Sender<BlockInfo>,
     /// The block signer sender.
-    block_signer_sender: UnboundedSender<Address>,
+    block_signer_sender: mpsc::Sender<Address>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
     /// Inbound queries to the L1 watcher.
@@ -51,9 +51,9 @@ impl L1WatcherRpc {
     pub fn new(
         config: Arc<RollupConfig>,
         l1_provider: RootProvider,
-        head_sender: UnboundedSender<BlockInfo>,
-        finalized_sender: UnboundedSender<BlockInfo>,
-        block_signer_sender: UnboundedSender<Address>,
+        head_sender: mpsc::Sender<BlockInfo>,
+        finalized_sender: mpsc::Sender<BlockInfo>,
+        block_signer_sender: mpsc::Sender<Address>,
         cancellation: CancellationToken,
         // Can be None if we disable communication with the L1 watcher.
         inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -183,7 +183,7 @@ impl NodeActor for L1WatcherRpc {
                     }
                     Some(head_block_info) => {
                         // Send the head update event to all consumers.
-                        self.head_sender.send(head_block_info)?;
+                        self.head_sender.send(head_block_info).await?;
                         self.latest_head.send_replace(Some(head_block_info));
 
                         // For each log, attempt to construct a `SystemConfigLog`.
@@ -203,7 +203,7 @@ impl NodeActor for L1WatcherRpc {
                                     target: "l1_watcher",
                                     "Unsafe block signer update: {unsafe_block_signer}"
                                 );
-                                if let Err(e) = self.block_signer_sender.send(unsafe_block_signer) {
+                                if let Err(e) = self.block_signer_sender.send(unsafe_block_signer).await {
                                     error!(
                                         target: "l1_watcher",
                                         "Error sending unsafe block signer update: {e}"
@@ -218,7 +218,7 @@ impl NodeActor for L1WatcherRpc {
                         return Err(L1WatcherRpcError::StreamEnded);
                     }
                     Some(finalized_block_info) => {
-                        self.finalized_sender.send(finalized_block_info)?;
+                        self.finalized_sender.send(finalized_block_info).await?;
                     }
                 }
             }

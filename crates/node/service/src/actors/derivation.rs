@@ -12,7 +12,7 @@ use thiserror::Error;
 use tokio::{
     select,
     sync::{
-        mpsc::{UnboundedReceiver, UnboundedSender},
+        mpsc::{self, UnboundedReceiver, UnboundedSender},
         oneshot::Receiver as OneshotReceiver,
         watch::Receiver as WatchReceiver,
     },
@@ -56,7 +56,7 @@ where
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: UnboundedReceiver<Signal>,
     /// The receiver for L1 head update notifications.
-    l1_head_updates: UnboundedReceiver<BlockInfo>,
+    l1_head_updates: mpsc::Receiver<BlockInfo>,
 
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
     attributes_out: UnboundedSender<OpAttributesWithParent>,
@@ -88,7 +88,7 @@ where
         engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
         sync_complete_rx: OneshotReceiver<()>,
         derivation_signal_rx: UnboundedReceiver<Signal>,
-        l1_head_updates: UnboundedReceiver<BlockInfo>,
+        l1_head_updates: mpsc::Receiver<BlockInfo>,
         attributes_out: UnboundedSender<OpAttributesWithParent>,
         reset_request_tx: UnboundedSender<()>,
         cancellation: CancellationToken,

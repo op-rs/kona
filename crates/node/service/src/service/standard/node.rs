@@ -9,7 +9,7 @@ use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use kona_genesis::RollupConfig;
@@ -83,9 +83,9 @@ impl ValidatorNodeService for RollupNode {
 
     fn new_da_watcher(
         &self,
-        new_data_tx: UnboundedSender<BlockInfo>,
-        new_finalized_tx: UnboundedSender<BlockInfo>,
-        block_signer_tx: UnboundedSender<Address>,
+        new_data_tx: mpsc::Sender<BlockInfo>,
+        new_finalized_tx: mpsc::Sender<BlockInfo>,
+        block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self::DataAvailabilityWatcher {

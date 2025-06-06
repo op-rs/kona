@@ -15,10 +15,7 @@ use kona_rpc::{
     RpcLauncherError, WsRPC, WsServer,
 };
 use std::fmt::Display;
-use tokio::sync::{
-    mpsc::{self, UnboundedSender},
-    oneshot,
-};
+use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 /// The [`ValidatorNodeService`] trait defines the common interface for running a validator node
@@ -61,9 +58,9 @@ pub trait ValidatorNodeService {
     /// token is used to gracefully shut down the actor.
     fn new_da_watcher(
         &self,
-        new_data_tx: UnboundedSender<BlockInfo>,
-        new_finalized_tx: UnboundedSender<BlockInfo>,
-        block_signer_tx: UnboundedSender<Address>,
+        new_data_tx: mpsc::Sender<BlockInfo>,
+        new_finalized_tx: mpsc::Sender<BlockInfo>,
+        block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self::DataAvailabilityWatcher;
@@ -90,8 +87,8 @@ pub trait ValidatorNodeService {
         let cancellation = CancellationToken::new();
 
         // Create channels for communication between actors.
-        let (new_head_tx, new_head_rx) = mpsc::unbounded_channel();
-        let (new_finalized_tx, new_finalized_rx) = mpsc::unbounded_channel();
+        let (new_head_tx, new_head_rx) = mpsc::channel(16);
+        let (new_finalized_tx, new_finalized_rx) = mpsc::channel(16);
         let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
@@ -99,7 +96,7 @@ pub trait ValidatorNodeService {
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
         let (reset_request_tx, reset_request_rx) = mpsc::unbounded_channel();
 
-        let (block_signer_tx, block_signer_rx) = mpsc::unbounded_channel();
+        let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
         let da_watcher = Some(self.new_da_watcher(
             new_head_tx,

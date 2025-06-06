@@ -10,7 +10,7 @@ use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use thiserror::Error;
 use tokio::{
     select,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender},
+    sync::mpsc::{self, UnboundedSender},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -48,7 +48,7 @@ pub struct NetworkActor {
     /// The sender for [OpNetworkPayloadEnvelope]s received via p2p gossip.
     blocks: UnboundedSender<OpNetworkPayloadEnvelope>,
     /// The receiver for unsafe block signer updates.
-    signer: UnboundedReceiver<Address>,
+    signer: mpsc::Receiver<Address>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
@@ -58,7 +58,7 @@ impl NetworkActor {
     pub const fn new(
         driver: Network,
         blocks: UnboundedSender<OpNetworkPayloadEnvelope>,
-        signer: UnboundedReceiver<Address>,
+        signer: mpsc::Receiver<Address>,
         cancellation: CancellationToken,
     ) -> Self {
         Self { driver, blocks, signer, cancellation }

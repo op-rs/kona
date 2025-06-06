@@ -16,7 +16,7 @@ use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
     sync::{
-        mpsc::{Receiver as MpscReceiver, UnboundedReceiver, UnboundedSender},
+        mpsc::{self, Receiver as MpscReceiver, UnboundedReceiver, UnboundedSender},
         oneshot::Sender as OneshotSender,
         watch::Sender as WatchSender,
     },
@@ -79,7 +79,7 @@ impl EngineActor {
         attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
         unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
         reset_request_rx: UnboundedReceiver<()>,
-        finalized_block_rx: UnboundedReceiver<BlockInfo>,
+        finalized_block_rx: mpsc::Receiver<BlockInfo>,
         inbound_queries: Option<MpscReceiver<EngineQueries>>,
         cancellation: CancellationToken,
     ) -> Self {
