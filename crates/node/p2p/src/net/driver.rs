@@ -145,6 +145,16 @@ impl Network {
                                 warn!(peer = ?peer_to_remove, "Trying to disconnect a non-existing peer from the gossip driver.");
                             }
 
+                            // Record the duration of the peer connection.
+                            if let Some(start_time) = self.gossip.peer_connection_start.remove(&peer_to_remove) {
+                                let peer_duration = start_time.elapsed();
+                                kona_macros::record!(
+                                    histogram,
+                                    crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                                    peer_duration.as_secs_f64()
+                                );
+                            }
+
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
                                 self.gossip.dialed_peers.remove(&addr);
                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
