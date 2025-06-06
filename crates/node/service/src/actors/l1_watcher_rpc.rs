@@ -193,6 +193,10 @@ impl NodeActor for L1WatcherRpc {
                         let logs = self.fetch_logs(head_block_info.hash).await?;
                         let ecotone_active = self.config.is_ecotone_active(head_block_info.timestamp);
                         for log in logs {
+                            if log.address() != self.config.l1_system_config_address {
+                                continue; // Skip logs not related to the system config.
+                            }
+
                             let sys_cfg_log = SystemConfigLog::new(log.into(), ecotone_active);
                             if let Ok(SystemConfigUpdate::UnsafeBlockSigner(UnsafeBlockSignerUpdate { unsafe_block_signer })) = sys_cfg_log.build() {
                                 info!(
