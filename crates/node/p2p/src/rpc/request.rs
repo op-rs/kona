@@ -40,6 +40,12 @@ pub enum P2pRpcRequest {
         /// Whether to only return connected peers.
         connected: bool,
     },
+
+    /// Request to connect the specified peer.
+    ConnectPeer {
+        /// The peer id to connect.
+        peer_id: PeerId,
+    },
     /// Request to disconnect the specified peer.
     DisconnectPeer {
         /// The peer id to disconnect.
@@ -63,6 +69,7 @@ impl P2pRpcRequest {
             Self::PeerInfo(s) => Self::handle_peer_info(s, gossip, disc),
             Self::Peers { out, connected } => Self::handle_peers(out, connected, gossip, disc),
             Self::DisconnectPeer { peer_id } => Self::disconnect_peer(peer_id, gossip),
+            Self::ConnectPeer { peer_id } => Self::connect_peer(peer_id, gossip),
             Self::PeerStats(s) => Self::handle_peer_stats(s, gossip, disc),
         }
     }
@@ -72,6 +79,14 @@ impl P2pRpcRequest {
             warn!(target: "p2p::rpc", "Failed to disconnect peer {}: {:?}", peer_id, e);
         } else {
             info!(target: "p2p::rpc", "Disconnected peer {}", peer_id);
+        }
+    }
+    
+    fn connect_peer(peer_id: PeerId, gossip: &mut GossipDriver) {
+        if let Err(e) = gossip.swarm.dial(peer_id) {
+            warn!(target: "p2p::rpc", "Failed to connect to peer {}: {:?}", peer_id, e);
+        } else {
+            info!(target: "p2p::rpc", "Connected peer {}", peer_id);
         }
     }
 
