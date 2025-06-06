@@ -312,7 +312,7 @@ impl GossipDriver {
                 self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-                error!(target: "gossip", "Outgoing connection error: {:?}", error);
+                debug!(target: "gossip", "Outgoing connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -327,7 +327,7 @@ impl GossipDriver {
                 }
             }
             SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
-                error!(target: "gossip", "Incoming connection error: {:?}", error);
+                debug!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
