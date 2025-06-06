@@ -52,7 +52,7 @@ impl BatchReader {
     /// ZLIB Reserved Compression Info.
     pub const ZLIB_RESERVED_COMPRESSION_METHOD: u8 = 15;
 
-    /// Brotili Compression Channel Version.
+    /// Brotli Compression Channel Version.
     pub const CHANNEL_VERSION_BROTLI: u8 = 1;
 
     /// Creates a new [BatchReader] from the given data and max decompressed RLP bytes per channel.
