@@ -2,9 +2,8 @@
 
 use super::NextBatchProvider;
 use crate::{
-    errors::ResetError,
-    prelude::{OriginProvider, PipelineError, PipelineErrorKind},
-    traits::{AttributesProvider, OriginAdvancer, SignalReceiver},
+    errors::{PipelineError, PipelineErrorKind, ResetError},
+    traits::{AttributesProvider, OriginAdvancer, OriginProvider, SignalReceiver},
     types::{PipelineResult, ResetSignal, Signal},
 };
 use alloc::{boxed::Box, sync::Arc, vec::Vec};

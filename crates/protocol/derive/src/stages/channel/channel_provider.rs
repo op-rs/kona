@@ -156,10 +156,10 @@ where
 mod test {
     use super::ChannelProvider;
     use crate::{
-        prelude::{OriginProvider, PipelineError},
+        errors::PipelineError,
         stages::ChannelReaderProvider,
         test_utils::TestNextFrameProvider,
-        traits::SignalReceiver,
+        traits::{OriginProvider, SignalReceiver},
         types::ResetSignal,
     };
     use alloc::{sync::Arc, vec};

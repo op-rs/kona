@@ -2,8 +2,8 @@
 
 use super::{ChannelReaderProvider, NextFrameProvider};
 use crate::{
-    prelude::{OriginProvider, PipelineError},
-    traits::{OriginAdvancer, SignalReceiver},
+    errors::PipelineError,
+    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
     types::{PipelineResult, Signal},
 };
 use alloc::{boxed::Box, sync::Arc};
@@ -204,7 +204,7 @@ where
 mod test {
     use super::ChannelAssembler;
     use crate::{
-        prelude::PipelineError,
+        errors::PipelineError,
         stages::ChannelReaderProvider,
         test_utils::{CollectingLayer, TestNextFrameProvider, TraceStorage},
     };
