@@ -72,6 +72,15 @@ impl P2pRpcRequest {
             warn!(target: "p2p::rpc", "Failed to disconnect peer {}: {:?}", peer_id, e);
         } else {
             info!(target: "p2p::rpc", "Disconnected peer {}", peer_id);
+            // Record the duration of the peer connection.
+            if let Some(start_time) = gossip.peer_connection_start.remove(&peer_id) {
+                let peer_duration = start_time.elapsed();
+                kona_macros::record!(
+                    histogram,
+                    crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                    peer_duration.as_secs_f64()
+                );
+            }
         }
     }
 
