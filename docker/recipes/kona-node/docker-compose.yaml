@@ -84,10 +84,10 @@ services:
       --l2 http://op-reth:8551
       --l2-provider-rpc http://op-reth:8545
       --l2-engine-jwt-secret /root/jwt/jwt.hex
+      --rpc.port 5060
       --p2p.listen.tcp 9223
       --p2p.listen.udp 9223
       --p2p.scoring off
-      --p2p.redial 0
       --p2p.bootstore /db
 
 volumes:
