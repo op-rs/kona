@@ -108,7 +108,7 @@ impl OutputV0 {
 }
 
 /// Represents the events structure sent by the node to the supervisor.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionEvent {
     /// represents the event data sent by the node
     pub data: Option<ManagedEvent>,

@@ -78,7 +78,8 @@ pub enum SubscriptionTopic {
 pub trait ManagedModeApi {
     /// Subscribe to the events from the managed node.
     /// Op-node provides the `interop-subscribe` method for subscribing to the events topic.
-    /// Subscription notifications are then sent via the `interop-subscription` method as [`SubscriptionEvent`]s.
+    /// Subscription notifications are then sent via the `interop-subscription` method as
+    /// [`SubscriptionEvent`]s.
     // Currently, the `events` topic must be explicitly passed as a parameter to the subscription
     // request, even though this function is specifically intended to subscribe to the `events`
     // topic. todo: Find a way to eliminate the need to pass the topic explicitly.
