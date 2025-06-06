@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use alloy_primitives::Bytes;
 use alloy_rlp::Decodable;
 use kona_genesis::RollupConfig;
-use miniz_oxide::inflate::{DecompressError, decompress_to_vec_zlib};
+use miniz_oxide::inflate::decompress_to_vec_zlib;
 
 /// Error type for decompression failures.
 #[derive(Debug, thiserror::Error)]
@@ -20,8 +20,8 @@ pub enum DecompressionError {
     #[error("brotli decompression error: {0}")]
     BrotliError(#[from] BrotliDecompressionError),
     /// A zlib decompression error.
-    #[error("zlib decompression error: {0}")]
-    ZlibError(#[from] DecompressError),
+    #[error("zlib decompression error")]
+    ZlibError,
     /// The RLP data is too large for the configured maximum.
     #[error("the RLP data is too large: {0} bytes, maximum allowed: {1} bytes")]
     RlpTooLarge(usize, usize),
@@ -81,7 +81,8 @@ impl BatchReader {
             if (compression_type & 0x0F) == Self::ZLIB_DEFLATE_COMPRESSION_METHOD ||
                 (compression_type & 0x0F) == Self::ZLIB_RESERVED_COMPRESSION_METHOD
             {
-                self.decompressed = decompress_to_vec_zlib(&data)?;
+                self.decompressed =
+                    decompress_to_vec_zlib(&data).map_err(|_| DecompressionError::ZlibError)?;
 
                 // Check the size of the decompressed channel RLP.
                 if self.decompressed.len() > self.max_rlp_bytes_per_channel {
