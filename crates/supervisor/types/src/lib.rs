@@ -16,4 +16,4 @@ mod receipt;
 pub use receipt::Receipts;
 
 mod types;
-pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0};
+pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, SubscriptionEvent, OutputV0};

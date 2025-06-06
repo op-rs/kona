@@ -6,14 +6,14 @@ pub use jsonrpsee::{
 };
 
 use crate::SupervisorSyncStatus;
-use alloy_eips::{BlockId, BlockNumHash};
+use alloy_eips::{BlockNumHash};
 use alloy_primitives::{B256, BlockHash, ChainId};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
+use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, SubscriptionEvent, OutputV0, Receipts};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -78,7 +78,7 @@ pub trait ManagedModeApi {
     // Currently, the `events` topic must be explicitly passed as a parameter to the subscription
     // request, even though this function is specifically intended to subscribe to the `events`
     // topic. todo: Find a way to eliminate the need to pass the topic explicitly.
-    #[subscription(name = "subscribe", item = Option<ManagedEvent>, unsubscribe = "unsubscribe")]
+    #[subscription(name = "subscribe" => "subscription", item = SubscriptionEvent, unsubscribe = "unsubscribe")]
     async fn subscribe_events(&self, topic: SubscriptionTopic) -> SubscriptionResult;
 
     /// Pull an event from the managed node.
@@ -88,15 +88,15 @@ pub trait ManagedModeApi {
     /// Control signals sent to the managed node from supervisor
     /// Update the cross unsafe block head
     #[method(name = "updateCrossUnsafe")]
-    async fn update_cross_unsafe(&self, id: BlockId) -> RpcResult<()>;
+    async fn update_cross_unsafe(&self, id: BlockNumHash) -> RpcResult<()>;
 
     /// Update the cross safe block head
     #[method(name = "updateCrossSafe")]
-    async fn update_cross_safe(&self, derived: BlockId, source: BlockId) -> RpcResult<()>;
+    async fn update_cross_safe(&self, derived: BlockNumHash, source: BlockNumHash) -> RpcResult<()>;
 
     /// Update the finalized block head
     #[method(name = "updateFinalized")]
-    async fn update_finalized(&self, id: BlockId) -> RpcResult<()>;
+    async fn update_finalized(&self, id: BlockNumHash) -> RpcResult<()>;
 
     /// Invalidate a block
     #[method(name = "invalidateBlock")]
@@ -114,11 +114,11 @@ pub trait ManagedModeApi {
     #[method(name = "reset")]
     async fn reset(
         &self,
-        local_unsafe: BlockId,
-        cross_unsafe: BlockId,
-        local_safe: BlockId,
-        cross_safe: BlockId,
-        finalized: BlockId,
+        local_unsafe: BlockNumHash,
+        cross_unsafe: BlockNumHash,
+        local_safe: BlockNumHash,
+        cross_safe: BlockNumHash,
+        finalized: BlockNumHash,
     ) -> RpcResult<()>;
 
     /// Sync methods that supervisor uses to sync with the managed node
