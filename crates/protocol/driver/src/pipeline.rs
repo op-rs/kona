@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 
 use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind, ResetError},
+    PipelineError, PipelineErrorKind, ResetError,
     traits::{Pipeline, SignalReceiver},
     types::{ActivationSignal, ResetSignal, StepResult},
 };

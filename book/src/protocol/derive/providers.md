@@ -69,7 +69,7 @@ use async_trait::async_trait;
 use alloy_primitives::Bytes;
 use kona_protocol::BlockInfo;
 use kona_derive::traits::DataAvailabilityProvider;
-use kona_derive::errors::PipelineResult;
+use kona_derive::PipelineResult;
 
 /// ExampleAvail
 ///

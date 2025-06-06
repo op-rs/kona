@@ -4,8 +4,7 @@ use crate::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, Online
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    attributes::StatefulAttributesBuilder,
-    errors::PipelineErrorKind,
+    PipelineErrorKind, StatefulAttributesBuilder,
     pipeline::{AttributesQueueStage, DerivationPipeline, PipelineBuilder},
     sources::EthereumDataSource,
     traits::{L2ChainProvider, OriginProvider, Pipeline, SignalReceiver},

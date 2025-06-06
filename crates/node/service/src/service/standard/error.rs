@@ -1,7 +1,7 @@
 //! Contains the error type for the [`crate::RollupNode`].
 
 use jsonrpsee::server::RegisterMethodError;
-use kona_derive::errors::PipelineErrorKind;
+use kona_derive::PipelineErrorKind;
 use kona_p2p::NetworkBuilderError;
 use kona_providers_alloy::AlloyChainProviderError;
 use kona_rpc::RpcLauncherError;

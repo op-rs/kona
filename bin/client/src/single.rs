@@ -5,7 +5,7 @@ use alloc::sync::Arc;
 use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::{errors::PipelineErrorKind, sources::EthereumDataSource};
+use kona_derive::{PipelineErrorKind, sources::EthereumDataSource};
 use kona_driver::{Driver, DriverError};
 use kona_executor::{ExecutorError, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};

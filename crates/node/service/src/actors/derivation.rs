@@ -3,7 +3,7 @@
 use crate::{Metrics, NodeActor};
 use async_trait::async_trait;
 use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind, ResetError},
+    PipelineError, PipelineErrorKind, ResetError,
     traits::{Pipeline, SignalReceiver},
     types::{ActivationSignal, ResetSignal, Signal, StepResult},
 };

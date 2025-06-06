@@ -12,8 +12,15 @@ extern crate alloc;
 #[macro_use]
 extern crate tracing;
 
-pub mod attributes;
-pub mod errors;
+mod attributes;
+pub use attributes::StatefulAttributesBuilder;
+
+mod errors;
+pub use errors::{
+    BatchDecompressionError, BlobDecodingError, BlobProviderError, BuilderError,
+    PipelineEncodingError, PipelineError, PipelineErrorKind, ResetError,
+};
+
 pub mod pipeline;
 pub mod sources;
 pub mod stages;

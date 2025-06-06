@@ -1,6 +1,6 @@
 //! Contains driver-related error types.
 
-use kona_derive::errors::PipelineErrorKind;
+use kona_derive::PipelineErrorKind;
 use kona_protocol::FromBlockError;
 use thiserror::Error;
 
