@@ -57,11 +57,10 @@ impl DerivationStorageReader for ChainDb {
 impl DerivationStorageWriter for ChainDb {
     // Todo: better name save_derived_block_pair
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        let derived_block = incoming_pair.derived;
-        // Validate the block against existing data
-        let result = self.env.view(|tx| {
+        self.env.update(|ctx| {
+            let derived_block = incoming_pair.derived;
             let block =
-                LogProvider::new(tx).get_block(derived_block.number).map_err(|err| match err {
+                LogProvider::new(ctx).get_block(derived_block.number).map_err(|err| match err {
                     StorageError::EntryNotFound(_) => StorageError::ConflictError(
                         "conflict between unsafe block and derived block".to_string(),
                     ),
@@ -73,12 +72,6 @@ impl DerivationStorageWriter for ChainDb {
                     "conflict between unsafe block and derived block".to_string(),
                 ));
             }
-
-            Ok(())
-        })?;
-        result?;
-
-        self.env.update(|ctx| {
             DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
             SafetyHeadRefProvider::new(ctx)
                 .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
