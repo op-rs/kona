@@ -143,9 +143,14 @@ impl OpP2PApiServer for NetworkRpc {
     }
 
     async fn opp2p_connect_peer(&self, _peer: String) -> RpcResult<()> {
+        use std::str::FromStr;
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_connectPeer");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let ma = libp2p::Multiaddr::from_str(&_peer)
+            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
+        self.sender
+            .send(P2pRpcRequest::ConnectPeer { address: ma })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_disconnect_peer(&self, peer_id: String) -> RpcResult<()> {
@@ -161,5 +166,21 @@ impl OpP2PApiServer for NetworkRpc {
             .send(P2pRpcRequest::DisconnectPeer { peer_id })
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_parse_multiaddr_string() {
+        use std::str::FromStr;
+        let ma = "/ip4/127.0.0.1/udt";
+        let multiaddr = libp2p::Multiaddr::from_str(ma).unwrap();
+        let components = multiaddr.iter().collect::<Vec<_>>();
+        assert_eq!(
+            components[0],
+            libp2p::multiaddr::Protocol::Ip4(std::net::Ipv4Addr::new(127, 0, 0, 1))
+        );
+        assert_eq!(components[1], libp2p::multiaddr::Protocol::Udt);
     }
 }
