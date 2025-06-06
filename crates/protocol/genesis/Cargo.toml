@@ -15,9 +15,6 @@ exclude.workspace = true
 workspace = true
 
 [dependencies]
-# Kona
-kona-macros.workspace = true
-
 # Alloy
 alloy-sol-types.workspace = true
 alloy-primitives.workspace = true

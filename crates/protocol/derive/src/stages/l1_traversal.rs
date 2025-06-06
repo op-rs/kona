@@ -103,12 +103,12 @@ impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
         let addr = self.rollup_config.l1_system_config_address;
         let active = self.rollup_config.is_ecotone_active(next_l1_origin.timestamp);
         match self.system_config.update_with_receipts(&receipts[..], addr, active) {
-            Ok(Some(())) => {
+            Ok(true) => {
                 let next = next_l1_origin.number as f64;
                 kona_macros::set!(gauge, crate::Metrics::PIPELINE_LATEST_SYS_CONFIG_UPDATE, next);
                 info!(target: "l1_traversal", "System config updated at block {next}.");
             }
-            Ok(None) => { /* Ignore, no update applied */ }
+            Ok(false) => { /* Ignore, no update applied */ }
             Err(err) => {
                 error!(target: "l1_traversal", ?err, "Failed to update system config at block {}", next_l1_origin.number);
                 kona_macros::set!(
