@@ -1,6 +1,6 @@
 //! Driver for network services.
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, hex};
 use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use libp2p::TransportError;
 use libp2p_stream::IncomingStreams;
@@ -90,15 +90,15 @@ impl Network {
                 // We return: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
                 // Response format: <response> = <res><version><payload>
                 // No payload is returned.
-                let output = b"10";
+                const OUTPUT: [u8; 2] = hex!("0100");
 
                 // We only write that we're not supporting the sync request.
-                if let Err(e) = inbound_stream.write_all(output).await {
+                if let Err(e) = inbound_stream.write_all(&OUTPUT).await {
                     error!(target: "node::p2p::sync", err = ?e, "Failed to write the sync response to {peer_id}");
                     return;
                 };
 
-                debug!(target: "node::p2p::sync", bytes_sent = output.len(), peer_id = ?peer_id, "Sent outbound sync response");
+                debug!(target: "node::p2p::sync", bytes_sent = OUTPUT.len(), peer_id = ?peer_id, "Sent outbound sync response");
             });
         }
     }
