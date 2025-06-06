@@ -6,14 +6,16 @@ pub use jsonrpsee::{
 };
 
 use crate::SupervisorSyncStatus;
-use alloy_eips::{BlockNumHash};
+use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, BlockHash, ChainId};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, SubscriptionEvent, OutputV0, Receipts};
+use kona_supervisor_types::{
+    BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts, SubscriptionEvent,
+};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -92,7 +94,8 @@ pub trait ManagedModeApi {
 
     /// Update the cross safe block head
     #[method(name = "updateCrossSafe")]
-    async fn update_cross_safe(&self, derived: BlockNumHash, source: BlockNumHash) -> RpcResult<()>;
+    async fn update_cross_safe(&self, derived: BlockNumHash, source: BlockNumHash)
+    -> RpcResult<()>;
 
     /// Update the finalized block head
     #[method(name = "updateFinalized")]

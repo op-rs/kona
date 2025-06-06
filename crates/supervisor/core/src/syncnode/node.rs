@@ -203,19 +203,16 @@ impl NodeSubscriber for ManagedNode {
                     // Listen for events from subscription
                     incoming_event = subscription.next() => {
                         match incoming_event {
-                            Some(event) => {
-                                match event {
-                                    Ok(managed_event) => {
-                                        task.handle_managed_event(managed_event).await;
-                                    },
-                                    Err(err) => {
-                                        error!(
-                                            target: "managed_node",
-                                            %err,
-                                            "Error in event deserialization");
-                                        // Continue processing next events despite this error
-                                    }
-                                }
+                            Some(Ok(subscription_event)) => {
+                                task.handle_managed_event(subscription_event.data).await;
+                            }
+                            Some(Err(err)) => {
+                                error!(
+                                    target: "managed_node",
+                                    %err,
+                                    "Error in event deserialization"
+                                );
+                        // Continue processing next events despite this error
                             }
                             None => {
                                 // Subscription closed by the server
