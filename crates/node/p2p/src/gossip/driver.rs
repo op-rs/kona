@@ -10,6 +10,7 @@ use libp2p::{
     multiaddr::Protocol,
     swarm::SwarmEvent,
 };
+use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{collections::HashMap, time::Instant};
 
@@ -31,6 +32,13 @@ pub struct GossipDriver {
     pub addr: Multiaddr,
     /// The [`BlockHandler`].
     pub handler: BlockHandler,
+    /// A [`libp2p_stream::Control`] instance. Can be used to control the sync request/response
+    #[debug(skip)]
+    pub sync_handler: libp2p_stream::Control,
+    /// The inbound streams for the sync request/response protocol.
+    /// Set to `None` if the sync request/response protocol is not enabled.
+    #[debug(skip)]
+    pub sync_protocol: Option<IncomingStreams>,
     /// A mapping from [`Multiaddr`] to the number of times it has been dialed.
     ///
     /// A peer cannot be redialed more than [`GossipDriverBuilder.peer_redialing`] times.
@@ -64,6 +72,8 @@ impl GossipDriver {
         addr: Multiaddr,
         redialing: Option<u64>,
         handler: BlockHandler,
+        sync_handler: libp2p_stream::Control,
+        sync_protocol: IncomingStreams,
     ) -> Self {
         Self {
             swarm,
@@ -76,6 +86,9 @@ impl GossipDriver {
             peer_monitoring: None,
             peer_redialing: redialing,
             peer_connection_start: Default::default(),
+            sync_handler,
+            // TODO(@theochap): make this field truly optional (through CLI args).
+            sync_protocol: Some(sync_protocol),
         }
     }
 
@@ -237,6 +250,10 @@ impl GossipDriver {
                 }
             }
             Event::Identify(e) => self.handle_identify_event(e),
+            // Don't do anything with stream events as this should be unreachable code.
+            Event::Stream => {
+                error!(target: "gossip", "Stream events should not be emitted!");
+            }
         };
 
         None

@@ -9,9 +9,6 @@ optimism_package:
       # So we use op-geth for now.
       - el_type: op-geth
         cl_type: op-node
-        cl_extra_env_vars: {
-          "OP_NODE_P2P_SYNC_REQ_RESP": "false"
-        }
         cl_log_level: "debug"
         count: 1
       - el_type: op-reth

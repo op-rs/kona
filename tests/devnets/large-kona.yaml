@@ -7,9 +7,6 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
-        cl_extra_env_vars: {
-          "OP_NODE_P2P_SYNC_REQ_RESP": "false"
-        }
         count: 2
       - el_type: op-reth
         cl_type: kona-node
