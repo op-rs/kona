@@ -93,6 +93,14 @@ impl Metrics {
     /// Identifier for a gauge that tracks the block height at which a system config update errored.
     pub const PIPELINE_SYS_CONFIG_UPDATE_ERROR: &'static str =
         "kona_genesis_sys_config_update_error";
+
+    /// Gauge that tracks the latest decompressed batch size.
+    pub const PIPELINE_LATEST_DECOMPRESSED_BATCH_SIZE: &str =
+        "kona_derive_latest_decompressed_batch_size";
+
+    /// Gauge that tracks the latest decompressed batch type.
+    pub const PIPELINE_LATEST_DECOMPRESSED_BATCH_TYPE: &str =
+        "kona_derive_latest_decompressed_batch_type";
 }
 
 impl Metrics {
@@ -117,6 +125,14 @@ impl Metrics {
         metrics::describe_gauge!(
             Self::PIPELINE_LATEST_SYS_CONFIG_UPDATE,
             "The latest block number for a system config update"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_LATEST_DECOMPRESSED_BATCH_SIZE,
+            "The latest decompressed batch size"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_LATEST_DECOMPRESSED_BATCH_TYPE,
+            "The latest decompressed batch type"
         );
         metrics::describe_gauge!(
             Self::PIPELINE_ORIGIN,

@@ -4,7 +4,7 @@ mod r#type;
 pub use r#type::*;
 
 mod reader;
-pub use reader::BatchReader;
+pub use reader::{BatchReader, DecompressionError};
 
 mod tx;
 pub use tx::BatchTransaction;

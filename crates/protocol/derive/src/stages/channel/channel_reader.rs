@@ -117,13 +117,38 @@ where
             self.next_channel();
             return Err(e);
         }
-        match self
-            .next_batch
-            .as_mut()
-            .expect("Cannot be None")
-            .next_batch(self.cfg.as_ref())
-            .ok_or(PipelineError::NotEnoughData.temp())
-        {
+
+        // SAFETY: The batch reader must be set above.
+        let next_batch = self.next_batch.as_mut().expect("Batch reader must be set");
+        match next_batch.decompress() {
+            Ok(()) => {
+                // Record the decompressed size and type.
+                let size = next_batch.decompressed.len() as f64;
+                let ty = if next_batch.brotli_used {
+                    BatchReader::CHANNEL_VERSION_BROTLI
+                } else {
+                    BatchReader::ZLIB_DEFLATE_COMPRESSION_METHOD
+                };
+                kona_macros::set!(
+                    gauge,
+                    crate::metrics::Metrics::PIPELINE_LATEST_DECOMPRESSED_BATCH_SIZE,
+                    size
+                );
+                kona_macros::set!(
+                    gauge,
+                    crate::metrics::Metrics::PIPELINE_LATEST_DECOMPRESSED_BATCH_TYPE,
+                    ty as f64
+                );
+            }
+            Err(err) => {
+                debug!(target: "channel_reader", ?err, "Failed to decompress batch");
+                self.next_channel();
+                return Err(PipelineError::NotEnoughData.temp());
+            }
+        }
+
+        // Read the next batch from the reader's decompressed data
+        match next_batch.next_batch(self.cfg.as_ref()).ok_or(PipelineError::NotEnoughData.temp()) {
             Ok(batch) => {
                 kona_macros::inc!(
                     gauge,
