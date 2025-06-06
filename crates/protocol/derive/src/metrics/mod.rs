@@ -85,6 +85,14 @@ impl Metrics {
     /// Identifier for the gauge that tracks the number of payload attributes buffered in the
     /// pipeline.
     pub const PIPELINE_PAYLOAD_ATTRIBUTES_BUFFER: &str = "kona_derive_payload_attributes_buffer";
+
+    /// Identifier for a gauge that tracks the latest block number for a system config update.
+    pub const PIPELINE_LATEST_SYS_CONFIG_UPDATE: &'static str =
+        "kona_genesis_latest_system_config_update";
+
+    /// Identifier for a gauge that tracks the block height at which a system config update errored.
+    pub const PIPELINE_SYS_CONFIG_UPDATE_ERROR: &'static str =
+        "kona_genesis_sys_config_update_error";
 }
 
 impl Metrics {
@@ -102,6 +110,14 @@ impl Metrics {
     /// Describes metrics.
     #[cfg(feature = "metrics")]
     pub fn describe() {
+        metrics::describe_gauge!(
+            Self::PIPELINE_SYS_CONFIG_UPDATE_ERROR,
+            "The block height at which a system config update errored"
+        );
+        metrics::describe_gauge!(
+            Self::PIPELINE_LATEST_SYS_CONFIG_UPDATE,
+            "The latest block number for a system config update"
+        );
         metrics::describe_gauge!(
             Self::PIPELINE_ORIGIN,
             "The block height of the pipeline l1 origin"
@@ -211,6 +227,10 @@ impl Metrics {
             "calldata",
             0
         );
+
+        // Manually translate a value of `0` for sys config update as no update yet.
+        kona_macros::set!(gauge, Self::PIPELINE_LATEST_SYS_CONFIG_UPDATE, 0);
+        kona_macros::set!(gauge, Self::PIPELINE_SYS_CONFIG_UPDATE_ERROR, 0);
 
         // Pipeline signals start at zero.
         kona_macros::set!(gauge, Self::PIPELINE_SIGNALS, "type", "reset", 0);
