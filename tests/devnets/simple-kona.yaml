@@ -9,11 +9,16 @@ optimism_package:
       # So we use op-geth for now.
       - el_type: op-geth
         cl_type: op-node
+        cl_extra_env_vars: {
+          "OP_NODE_P2P_SYNC_REQ_RESP": "false"
+        }
+        cl_log_level: "debug"
         count: 1
       - el_type: op-reth
         cl_type: kona-node
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
+        cl_log_level: "debug"
         count: 1
       network_params:
         network: "kurtosis"
