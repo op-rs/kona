@@ -36,6 +36,7 @@ alloy-eips = { workspace = true, features = ["serde", "std"] }
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "std"] }
 
 # Misc
+libp2p.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 derive_more = { workspace = true, default-features = false, features = [

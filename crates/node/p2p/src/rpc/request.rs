@@ -14,7 +14,7 @@ use discv5::{
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
-use libp2p::gossipsub::TopicHash;
+use libp2p::{Multiaddr, gossipsub::TopicHash};
 
 use super::{
     PeerDump, PeerStats,
@@ -40,6 +40,11 @@ pub enum P2pRpcRequest {
         /// Whether to only return connected peers.
         connected: bool,
     },
+    /// Request to connect to a given peer.
+    ConnectPeer {
+        /// The [`Multiaddr`] of the peer to connect to.
+        address: Multiaddr,
+    },
     /// Request to disconnect the specified peer.
     DisconnectPeer {
         /// The peer id to disconnect.
@@ -64,6 +69,15 @@ impl P2pRpcRequest {
             Self::Peers { out, connected } => Self::handle_peers(out, connected, gossip, disc),
             Self::DisconnectPeer { peer_id } => Self::disconnect_peer(peer_id, gossip),
             Self::PeerStats(s) => Self::handle_peer_stats(s, gossip, disc),
+            Self::ConnectPeer { address } => Self::connect_peer(address, gossip),
+        }
+    }
+
+    fn connect_peer(address: Multiaddr, gossip: &mut GossipDriver) {
+        if let Err(e) = gossip.swarm.dial(address.clone()) {
+            warn!(target: "p2p::rpc", "Failed to connect to peer at {}: {:?}", address, e);
+        } else {
+            info!(target: "p2p::rpc", "Dialed peer at {}", address);
         }
     }
 

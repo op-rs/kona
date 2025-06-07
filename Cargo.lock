@@ -4821,6 +4821,7 @@ dependencies = [
  "kona-p2p",
  "kona-protocol",
  "kona-supervisor-rpc",
+ "libp2p",
  "metrics",
  "op-alloy-consensus",
  "op-alloy-rpc-jsonrpsee",
