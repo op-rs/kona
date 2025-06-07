@@ -348,7 +348,7 @@ mod tests {
             replace_block: None,
             derivation_origin_update: None,
         };
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
 
         let db = Arc::new(MockDb::new());
         let task = ManagedEventTask::new_for_testing(provider, db, tx);
