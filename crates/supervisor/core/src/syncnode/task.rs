@@ -213,7 +213,7 @@ mod tests {
             replace_block: None,
             derivation_origin_update: None,
         };
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
 
         let task = ManagedEventTask::new_for_testing(provider, tx);
 
@@ -255,7 +255,7 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
         let task = ManagedEventTask::new_for_testing(provider, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
@@ -293,7 +293,7 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
 
         let task = ManagedEventTask::new_for_testing(provider, tx);
         task.handle_managed_event(Some(managed_event)).await;
@@ -356,7 +356,7 @@ mod tests {
             "parentBeaconBlockRoot": "0x95c4dbd5b19f6fe3cbc3183be85ff4e85ebe75c5b4fc911f1c91e5b7a554a685"
         }"#;
 
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
+        let provider = RootProvider::<Ethereum>::new_http("test.server".parse().unwrap());
         let task = ManagedEventTask::new_for_testing(provider, tx);
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
