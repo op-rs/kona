@@ -4542,6 +4542,7 @@ dependencies = [
  "libp2p",
  "metrics",
  "op-alloy-provider",
+ "op-alloy-rpc-types-engine",
  "rstest",
  "serde_json",
  "tabled",

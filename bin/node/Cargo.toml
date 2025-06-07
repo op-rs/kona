@@ -36,6 +36,7 @@ alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde"] }
 
 # op-alloy
 op-alloy-provider.workspace = true
+op-alloy-rpc-types-engine = { workspace = true, features = ["serde"] }
 
 # general
 url.workspace = true
