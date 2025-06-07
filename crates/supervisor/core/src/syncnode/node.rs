@@ -1,6 +1,8 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
@@ -73,6 +75,8 @@ pub struct ManagedNode {
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
     task_handle: Mutex<Option<JoinHandle<()>>>,
+    /// Shared L1 provider for fetching receipts
+    l1_provider: OnceLock<RootProvider<Ethereum>>,
 }
 
 impl ManagedNode {
@@ -84,6 +88,7 @@ impl ManagedNode {
             ws_client: Mutex::new(None),
             cancel_token,
             task_handle: Mutex::new(None),
+            l1_provider: OnceLock::new(),
         }
     }
 
@@ -187,7 +192,7 @@ impl NodeSubscriber for ManagedNode {
         let cancel_token = self.cancel_token.clone();
 
         // Creates a task instance to sort and process the events from the subscription
-        let task = ManagedEventTask::new(self.config.l1_rpc_url.clone(), event_tx, client);
+        let task = ManagedEventTask::new(self.l1_provider.get().unwrap().clone(), event_tx, client);
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
