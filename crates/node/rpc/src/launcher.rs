@@ -30,11 +30,12 @@ pub struct RpcLauncher {
     disabled: bool,
     socket: Option<SocketAddr>,
     module: Option<RpcModule<()>>,
+    ws_enabled: bool,
 }
 
 impl From<SocketAddr> for RpcLauncher {
     fn from(socket: SocketAddr) -> Self {
-        Self { disabled: false, socket: Some(socket), module: None }
+        Self { disabled: false, socket: Some(socket), module: None, ws_enabled: false }
     }
 }
 
@@ -47,6 +48,17 @@ impl RpcLauncher {
     /// Disable the RPC server, preventing the launcher from starting the RPC server.
     pub fn disable(&mut self) {
         self.disabled = true;
+    }
+
+    /// Set whether WebSocket RPC endpoint should be enabled
+    pub fn with_ws_enabled(mut self, enabled: bool) -> Self {
+        self.ws_enabled = enabled;
+        self
+    }
+
+    /// Get whether WebSocket RPC endpoint is enabled
+    pub fn ws_enabled(&self) -> bool {
+        self.ws_enabled
     }
 
     /// Merges a given [`RpcModule`] into the [`RpcLauncher`].

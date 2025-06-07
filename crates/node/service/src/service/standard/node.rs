@@ -48,6 +48,8 @@ pub struct RollupNode {
     pub(crate) network_disabled: bool,
     /// The [`RuntimeLauncher`] for the runtime loading service.
     pub(crate) runtime_launcher: RuntimeLauncher,
+    /// Whether WebSocket support is enabled.
+    pub(crate) ws_enabled: bool,
 }
 
 impl RollupNode {
@@ -109,7 +111,7 @@ impl ValidatorNodeService for RollupNode {
     }
 
     fn rpc(&self) -> RpcLauncher {
-        self.rpc_launcher.clone()
+        self.rpc_launcher.clone().with_ws_enabled(self.ws_enabled)
     }
 
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error> {

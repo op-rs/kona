@@ -45,6 +45,8 @@ pub struct RollupNodeBuilder {
     mode: NodeMode,
     /// If p2p networking is entirely disabled.
     network_disabled: bool,
+    /// If websocket networking is enabled.
+    ws_enabled: bool,
 }
 
 impl RollupNodeBuilder {
@@ -101,6 +103,11 @@ impl RollupNodeBuilder {
     /// Appends whether p2p networking is entirely disabled to the builder.
     pub fn with_network_disabled(self, network_disabled: bool) -> Self {
         Self { network_disabled, ..self }
+    }
+
+    /// Appends whether websocket networking is enabled to the builder.
+    pub fn with_ws_enabled(self, ws_enabled: bool) -> Self {
+        Self { ws_enabled, ..self }
     }
 
     /// Assembles the [`RollupNode`] service.
@@ -160,6 +167,7 @@ impl RollupNodeBuilder {
             p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,
             runtime_launcher,
+            ws_enabled: self.ws_enabled,
         }
     }
 }

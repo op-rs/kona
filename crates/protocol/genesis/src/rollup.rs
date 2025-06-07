@@ -30,11 +30,6 @@ const fn default_interop_message_expiry_window() -> u64 {
     DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW
 }
 
-#[cfg(feature = "serde")]
-const fn default_ws_enabled() -> bool {
-    false
-}
-
 /// The Rollup configuration.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -98,9 +93,6 @@ pub struct RollupConfig {
     /// `chain_op_config` is the chain-specific EIP1559 config for the rollup.
     #[cfg_attr(feature = "serde", serde(default = "BaseFeeConfig::optimism"))]
     pub chain_op_config: BaseFeeConfig,
-    /// `ws_enabled` is the flag to enable the websocket RPC endpoint
-    #[cfg_attr(feature = "serde", serde(default = "default_ws_enabled"))]
-    pub ws_enabled: bool,
 }
 
 #[cfg(feature = "arbitrary")]
@@ -135,7 +127,6 @@ impl<'a> arbitrary::Arbitrary<'a> for RollupConfig {
             interop_message_expiry_window: u.arbitrary()?,
             chain_op_config,
             alt_da_config: Option::<AltDAConfig>::arbitrary(u)?,
-            ws_enabled: u.arbitrary()?,
         })
     }
 }
@@ -163,7 +154,6 @@ impl Default for RollupConfig {
             interop_message_expiry_window: DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
             alt_da_config: None,
             chain_op_config: OP_MAINNET_BASE_FEE_CONFIG,
-            ws_enabled: false,
         }
     }
 }
@@ -831,7 +821,6 @@ mod tests {
             interop_message_expiry_window: DEFAULT_INTEROP_MESSAGE_EXPIRY_WINDOW,
             chain_op_config: OP_MAINNET_BASE_FEE_CONFIG,
             alt_da_config: None,
-            ws_enabled: false,
         };
 
         let deserialized: RollupConfig = serde_json::from_str(raw).unwrap();
