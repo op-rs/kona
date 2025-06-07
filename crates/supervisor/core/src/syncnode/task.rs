@@ -16,7 +16,7 @@ use tracing::{debug, error, info, warn};
 #[derive(Debug)]
 pub struct ManagedEventTask {
     /// The URL of the L1 RPC endpoint to use for fetching L1 data
-    l1_rpc_url: String,
+    l1_provider: RootProvider<Ethereum>,
     /// The channel to send the events to which require further processing e.g. db updates
     event_tx: mpsc::Sender<NodeEvent>,
     /// The WebSocket client to use for connecting to managed node (optional for testing)
@@ -26,11 +26,11 @@ pub struct ManagedEventTask {
 impl ManagedEventTask {
     /// Creates a new [`ManagedEventTask`] instance.
     pub const fn new(
-        l1_rpc_url: String,
+        l1_provider: RootProvider<Ethereum>,
         event_tx: mpsc::Sender<NodeEvent>,
         client: Arc<WsClient>,
     ) -> Self {
-        Self { l1_rpc_url, event_tx, client: Some(client) }
+        Self { l1_provider, event_tx, client: Some(client) }
     }
 
     /// Processes a managed event received from the subscription.
@@ -77,10 +77,7 @@ impl ManagedEventTask {
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(target: "managed_event_task", ?derived_ref_pair, "L1 exhausted event received");
 
-                    let provider =
-                        RootProvider::<Ethereum>::new_http(self.l1_rpc_url.parse().unwrap());
-
-                    if let Err(err) = self.handle_exhaust_l1(provider, derived_ref_pair).await {
+                    if let Err(err) = self.handle_exhaust_l1(derived_ref_pair).await {
                         error!(target: "managed_event_task", %err, "Failed to fetch next L1 block");
                     }
                 }
@@ -128,10 +125,10 @@ impl ManagedEventTask {
     /// node.
     async fn handle_exhaust_l1(
         &self,
-        provider: RootProvider,
         derived_ref_pair: &DerivedRefPair,
     ) -> Result<(), ManagedEventTaskError> {
-        let next_block = provider
+        let next_block = self
+            .l1_provider
             .get_block_by_number(BlockNumberOrTag::Number(derived_ref_pair.source.number + 1))
             .await;
         match next_block {
@@ -179,8 +176,11 @@ impl ManagedEventTask {
 
     /// Creates a new [`ManagedEventTask`] instance for testing without a WebSocket client.
     #[cfg(test)]
-    const fn new_for_testing(l1_rpc_url: String, event_tx: mpsc::Sender<NodeEvent>) -> Self {
-        Self { l1_rpc_url, event_tx, client: None }
+    const fn new_for_testing(
+        l1_provider: RootProvider<Ethereum>,
+        event_tx: mpsc::Sender<NodeEvent>,
+    ) -> Self {
+        Self { l1_provider, event_tx, client: None }
     }
 }
 
@@ -213,8 +213,9 @@ mod tests {
             replace_block: None,
             derivation_origin_update: None,
         };
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
 
-        let task = ManagedEventTask::new_for_testing("".to_string(), tx);
+        let task = ManagedEventTask::new_for_testing(provider, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -254,7 +255,8 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let task = ManagedEventTask::new_for_testing("".to_string(), tx);
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
+        let task = ManagedEventTask::new_for_testing(provider, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -291,7 +293,9 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let task = ManagedEventTask::new_for_testing("".to_string(), tx);
+        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
+
+        let task = ManagedEventTask::new_for_testing(provider, tx);
         task.handle_managed_event(Some(managed_event)).await;
 
         let event = rx.recv().await.expect("Should receive event");
@@ -352,15 +356,15 @@ mod tests {
             "parentBeaconBlockRoot": "0x95c4dbd5b19f6fe3cbc3183be85ff4e85ebe75c5b4fc911f1c91e5b7a554a685"
         }"#;
 
-        let task = ManagedEventTask::new_for_testing("test.server".to_string(), tx);
+        let provider = RootProvider::<Ethereum>::new_http("test.server".parse().unwrap());
+        let task = ManagedEventTask::new_for_testing(provider, tx);
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
-        let provider = RootProvider::<Ethereum>::builder().connect_mocked_client(asserter.clone());
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
 
-        let result = task.handle_exhaust_l1(provider, &derived_ref_pair).await;
+        let result = task.handle_exhaust_l1(&derived_ref_pair).await;
 
         assert!(result.is_err(), "Expected error");
         assert_eq!(
