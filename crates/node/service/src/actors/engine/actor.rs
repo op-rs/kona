@@ -16,7 +16,7 @@ use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
     sync::{
-        mpsc::{self, Receiver as MpscReceiver, UnboundedReceiver, UnboundedSender},
+        mpsc::{self, Receiver as MpscReceiver},
         oneshot::Sender as OneshotSender,
         watch::Sender as WatchSender,
     },
@@ -49,18 +49,18 @@ pub struct EngineActor {
     /// re-triggered can occur, but we will not block derivation on it.
     sync_complete_tx: Option<OneshotSender<()>>,
     /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
-    derivation_signal_tx: UnboundedSender<Signal>,
+    derivation_signal_tx: mpsc::Sender<Signal>,
 
     /// Handler for inbound queries to the engine.
     inbound_queries: Option<MpscReceiver<EngineQueries>>,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
-    runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
+    runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
-    attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
+    attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
     /// A channel to receive [`OpNetworkPayloadEnvelope`] from the network actor.
-    unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
+    unsafe_block_rx: mpsc::Receiver<OpNetworkPayloadEnvelope>,
     /// A channel to receive reset requests.
-    reset_request_rx: UnboundedReceiver<()>,
+    reset_request_rx: mpsc::Receiver<()>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
@@ -74,11 +74,11 @@ impl EngineActor {
         engine: Engine,
         engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
         sync_complete_tx: OneshotSender<()>,
-        derivation_signal_tx: UnboundedSender<Signal>,
-        runtime_config_rx: UnboundedReceiver<RuntimeConfig>,
-        attributes_rx: UnboundedReceiver<OpAttributesWithParent>,
-        unsafe_block_rx: UnboundedReceiver<OpNetworkPayloadEnvelope>,
-        reset_request_rx: UnboundedReceiver<()>,
+        derivation_signal_tx: mpsc::Sender<Signal>,
+        runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
+        attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
+        unsafe_block_rx: mpsc::Receiver<OpNetworkPayloadEnvelope>,
+        reset_request_rx: mpsc::Receiver<()>,
         finalized_block_rx: mpsc::Receiver<BlockInfo>,
         inbound_queries: Option<MpscReceiver<EngineQueries>>,
         cancellation: CancellationToken,
@@ -109,7 +109,7 @@ impl EngineActor {
 
         // Signal the derivation actor to reset.
         let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
-        match self.derivation_signal_tx.send(signal.signal()) {
+        match self.derivation_signal_tx.send(signal.signal()).await {
             Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
             Err(err) => {
                 error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
@@ -143,7 +143,7 @@ impl EngineActor {
                 // a "deposits-only" block and re-executed. At the same time,
                 // the channel and any remaining buffered batches are flushed.
                 warn!(target: "engine", ?err, "Invalid payload, Flushing derivation pipeline.");
-                match self.derivation_signal_tx.send(Signal::FlushChannel) {
+                match self.derivation_signal_tx.send(Signal::FlushChannel).await {
                     Ok(_) => {
                         debug!(target: "engine", "Sent flush signal to derivation actor")
                     }

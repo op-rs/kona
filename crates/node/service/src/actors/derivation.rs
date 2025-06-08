@@ -11,11 +11,7 @@ use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
 use tokio::{
     select,
-    sync::{
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
-        oneshot::Receiver as OneshotReceiver,
-        watch::Receiver as WatchReceiver,
-    },
+    sync::{mpsc, oneshot::Receiver as OneshotReceiver, watch::Receiver as WatchReceiver},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -54,15 +50,15 @@ where
     /// occurs.
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
-    derivation_signal_rx: UnboundedReceiver<Signal>,
+    derivation_signal_rx: mpsc::Receiver<Signal>,
     /// The receiver for L1 head update notifications.
     l1_head_updates: mpsc::Receiver<BlockInfo>,
 
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
-    attributes_out: UnboundedSender<OpAttributesWithParent>,
+    attributes_out: mpsc::Sender<OpAttributesWithParent>,
     /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
     /// them to the engine.
-    reset_request_tx: UnboundedSender<()>,
+    reset_request_tx: mpsc::Sender<()>,
 
     /// A flag indicating whether the derivation pipeline is ready to start.
     engine_ready: bool,
@@ -87,10 +83,10 @@ where
         pipeline: P,
         engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
         sync_complete_rx: OneshotReceiver<()>,
-        derivation_signal_rx: UnboundedReceiver<Signal>,
+        derivation_signal_rx: mpsc::Receiver<Signal>,
         l1_head_updates: mpsc::Receiver<BlockInfo>,
-        attributes_out: UnboundedSender<OpAttributesWithParent>,
-        reset_request_tx: UnboundedSender<()>,
+        attributes_out: mpsc::Sender<OpAttributesWithParent>,
+        reset_request_tx: mpsc::Sender<()>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
@@ -187,7 +183,7 @@ where
                                     kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
 
-                                self.reset_request_tx.send(()).map_err(|e| {
+                                self.reset_request_tx.send(()).await.map_err(|e| {
                                     error!(target: "derivation", ?e, "Failed to send reset request");
                                     DerivationError::Sender(Box::new(e))
                                 })?;
@@ -338,6 +334,7 @@ where
         // Send payload attributes out for processing.
         self.attributes_out
             .send(payload_attrs)
+            .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
         Ok(())

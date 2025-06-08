@@ -89,12 +89,12 @@ pub trait ValidatorNodeService {
         // Create channels for communication between actors.
         let (new_head_tx, new_head_rx) = mpsc::channel(16);
         let (new_finalized_tx, new_finalized_rx) = mpsc::channel(16);
-        let (derived_payload_tx, derived_payload_rx) = mpsc::unbounded_channel();
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::unbounded_channel();
+        let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
+        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(16);
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
-        let (runtime_config_tx, runtime_config_rx) = mpsc::unbounded_channel();
-        let (derivation_signal_tx, derivation_signal_rx) = mpsc::unbounded_channel();
-        let (reset_request_tx, reset_request_rx) = mpsc::unbounded_channel();
+        let (runtime_config_tx, runtime_config_rx) = mpsc::channel(16);
+        let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
+        let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
 
         let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
