@@ -1,6 +1,5 @@
 use crate::{
     LogIndexer,
-    chain_processor::chain,
     syncnode::{ManagedNodeProvider, NodeEvent},
 };
 use kona_interop::DerivedRefPair;
