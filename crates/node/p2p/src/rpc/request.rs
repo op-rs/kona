@@ -41,6 +41,18 @@ pub enum P2pRpcRequest {
         /// Whether to only return connected peers.
         connected: bool,
     },
+    /// Request to block a peer by its [`PeerId`].
+    BlockPeer {
+        /// The [`PeerId`] of the peer to block.
+        id: PeerId,
+    },
+    /// Request to unblock a peer by its [`PeerId`].
+    UnblockPeer {
+        /// The [`PeerId`] of the peer to unblock.
+        id: PeerId,
+    },
+    /// Request to list all blocked peers.
+    ListBlockedPeers(Sender<Vec<PeerId>>),
     /// Request to connect to a given peer.
     ConnectPeer {
         /// The [`Multiaddr`] of the peer to connect to.
@@ -71,6 +83,24 @@ impl P2pRpcRequest {
             Self::DisconnectPeer { peer_id } => Self::disconnect_peer(peer_id, gossip),
             Self::PeerStats(s) => Self::handle_peer_stats(s, gossip, disc),
             Self::ConnectPeer { address } => Self::connect_peer(address, gossip),
+            Self::BlockPeer { id } => Self::block_peer(id, gossip),
+            Self::UnblockPeer { id } => Self::unblock_peer(id, gossip),
+            Self::ListBlockedPeers(s) => Self::list_blocked_peers(s, gossip),
+        }
+    }
+
+    fn block_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.block_peer(&id);
+    }
+
+    fn unblock_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unblock_peer(&id);
+    }
+
+    fn list_blocked_peers<G: ConnectionGate>(s: Sender<Vec<PeerId>>, gossip: &GossipDriver<G>) {
+        let blocked_peers = gossip.connection_gate.list_blocked_peers();
+        if let Err(e) = s.send(blocked_peers) {
+            warn!(target: "p2p::rpc", "Failed to send blocked peers through response channel: {:?}", e);
         }
     }
 

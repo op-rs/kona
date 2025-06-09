@@ -26,6 +26,15 @@ pub trait ConnectionGate {
     /// checks if the peer is protected or not.
     fn can_disconnect(&self, peer_id: &Multiaddr) -> bool;
 
+    /// Blocks a given peer id.
+    fn block_peer(&mut self, peer_id: &PeerId);
+
+    /// Unblocks a given peer id.
+    fn unblock_peer(&mut self, peer_id: &PeerId);
+
+    /// Lists the blocked peers.
+    fn list_blocked_peers(&self) -> Vec<PeerId>;
+
     /// Blocks a given peer from connecting to the gossip swarm.
     fn block_addr(&mut self, peer_id: &Multiaddr);
 

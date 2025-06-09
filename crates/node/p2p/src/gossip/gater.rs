@@ -23,6 +23,8 @@ pub struct ConnectionGater {
     ///
     /// Protecting a peer prevents the peer from any redial thresholds or peer scoring.
     pub protected_peers: HashSet<Multiaddr>,
+    /// A set of blocked peer ids.
+    pub blocked_peers: HashSet<PeerId>,
     /// A set of blocked addresses that cannot be dialed.
     pub blocked_addrs: HashSet<Multiaddr>,
 }
@@ -35,6 +37,7 @@ impl ConnectionGater {
             current_dials: HashSet::new(),
             dialed_peers: HashMap::new(),
             protected_peers: HashSet::new(),
+            blocked_peers: HashSet::new(),
             blocked_addrs: HashSet::new(),
         }
     }
@@ -94,6 +97,18 @@ impl ConnectionGate for ConnectionGater {
             return false;
         }
 
+        // If the peer is blocked, do not dial.
+        if self.blocked_peers.contains(&peer_id) {
+            debug!(target: "gossip", peer=?addr, "Peer is blocked, not dialing");
+            return false;
+        }
+
+        // If the address is blocked, do not dial.
+        if self.blocked_addrs.contains(addr) {
+            debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
+            return false;
+        }
+
         true
     }
 
@@ -122,6 +137,20 @@ impl ConnectionGate for ConnectionGater {
             return false;
         }
         true
+    }
+
+    fn block_peer(&mut self, peer_id: &PeerId) {
+        self.blocked_peers.insert(*peer_id);
+        debug!(target: "gossip", peer=?peer_id, "Blocked peer");
+    }
+
+    fn unblock_peer(&mut self, peer_id: &PeerId) {
+        self.blocked_peers.remove(peer_id);
+        debug!(target: "gossip", peer=?peer_id, "Unblocked peer");
+    }
+
+    fn list_blocked_peers(&self) -> Vec<PeerId> {
+        self.blocked_peers.iter().cloned().collect()
     }
 
     fn block_addr(&mut self, peer_id: &Multiaddr) {
