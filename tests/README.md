@@ -68,7 +68,7 @@ just build
 
 If you don't have `forge` installed, you'll need to install it first using [Foundry](https://getfoundry.sh/introduction/installation/).
 
-Once built, either create a symlink or copy the entire `packages/contracts-bedrock/*` and `op-e2e/config/*` into kona's repo `tests/packages/contracts-bedrock/*` and `tests/op-e2e/config/*`, respectively.
+Once built, either create a symlink or copy the entire `packages/contracts-bedrock/artifacts/*`, `packages/contracts-bedrock/forge-artifacts/*` and `op-e2e/config/*` into kona's repo `tests/packages/contracts-bedrock/artifacts/*`, `tests/packages/contracts-bedrock/forge-artifacts/*` and `tests/op-e2e/config/*`, respectively.
 
 Set the environment variable to tell `op-devstack` to use devnet descriptor based backend e.g. local kurtosis network:
 
