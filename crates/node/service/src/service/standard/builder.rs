@@ -140,7 +140,11 @@ impl RollupNodeBuilder {
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
-        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
+        let rpc_launcher = self
+            .rpc_config
+            .map(|c| c.as_launcher())
+            .unwrap_or_default()
+            .with_ws_enabled(self.ws_enabled);
 
         let config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {
@@ -167,7 +171,6 @@ impl RollupNodeBuilder {
             p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,
             runtime_launcher,
-            ws_enabled: self.ws_enabled,
         }
     }
 }

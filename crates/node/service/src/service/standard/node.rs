@@ -48,8 +48,6 @@ pub struct RollupNode {
     pub(crate) network_disabled: bool,
     /// The [`RuntimeLauncher`] for the runtime loading service.
     pub(crate) runtime_launcher: RuntimeLauncher,
-    /// Whether WebSocket support is enabled.
-    pub(crate) ws_enabled: bool,
 }
 
 impl RollupNode {
