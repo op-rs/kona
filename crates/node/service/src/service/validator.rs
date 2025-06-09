@@ -90,7 +90,7 @@ pub trait ValidatorNodeService {
         let (new_head_tx, new_head_rx) = mpsc::channel(16);
         let (new_finalized_tx, new_finalized_rx) = mpsc::channel(16);
         let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(16);
+        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
         let (runtime_config_tx, runtime_config_rx) = mpsc::channel(16);
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);

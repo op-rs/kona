@@ -192,7 +192,7 @@ impl SupervisorActor for L1WatcherRpc {
                     };
                     // Send the head update event to all consumers.
                     let head_block_info = self.block_info_by_hash(new_head).await?;
-                    self.head_sender.send(head_block_info).await.unwrap();
+                    self.head_sender.send(head_block_info).await?;
                     self.latest_head.send_replace(Some(head_block_info));
                 }
             }
