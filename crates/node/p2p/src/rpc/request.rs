@@ -76,6 +76,16 @@ pub enum P2pRpcRequest {
         /// The peer id to disconnect.
         peer_id: PeerId,
     },
+    /// Protects a given peer from disconnection.
+    ProtectPeer {
+        /// The id of the peer.
+        peer_id: PeerId,
+    },
+    /// Unprotects a given peer.
+    UnprotectPeer {
+        /// The id of the peer.
+        peer_id: PeerId,
+    },
     /// Returns the current peer stats for both the
     /// - Discovery Service ([`crate::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
@@ -102,7 +112,17 @@ impl P2pRpcRequest {
             Self::BlockAddr { address } => Self::block_addr(address, gossip),
             Self::UnblockAddr { address } => Self::unblock_addr(address, gossip),
             Self::ListBlockedAddrs(s) => Self::list_blocked_addrs(s, gossip),
+            Self::ProtectPeer { peer_id } => Self::protect_peer(peer_id, gossip),
+            Self::UnprotectPeer { peer_id } => Self::unprotect_peer(peer_id, gossip),
         }
+    }
+
+    fn protect_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.protect_peer(id);
+    }
+
+    fn unprotect_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unprotect_peer(id);
     }
 
     fn block_addr<G: ConnectionGate>(address: IpAddr, gossip: &mut GossipDriver<G>) {

@@ -25,7 +25,7 @@ pub struct ConnectionGater {
     /// A set of protected peers that cannot be disconnected.
     ///
     /// Protecting a peer prevents the peer from any redial thresholds or peer scoring.
-    pub protected_peers: HashSet<Multiaddr>,
+    pub protected_peers: HashSet<PeerId>,
     /// A set of blocked peer ids.
     pub blocked_peers: HashSet<PeerId>,
     /// A set of blocked ip addresses that cannot be dialed.
@@ -100,7 +100,7 @@ impl ConnectionGate for ConnectionGater {
         }
 
         // If the peer is protected, do not apply thresholds.
-        let protected = self.protected_peers.contains(addr);
+        let protected = self.protected_peers.contains(&peer_id);
 
         // If the peer is not protected, and its dial threshold is reached, do not dial.
         if !protected && self.dial_threshold_reached(addr) {
@@ -150,13 +150,18 @@ impl ConnectionGate for ConnectionGater {
         self.current_dials.remove(peer_id);
     }
 
-    fn can_disconnect(&self, peer_id: &Multiaddr) -> bool {
+    fn can_disconnect(&self, addr: &Multiaddr) -> bool {
+        let Some(peer_id) = Self::peer_id_from_addr(addr) else {
+            warn!(target: "p2p", peer=?addr, "Failed to extract PeerId from Multiaddr when checking disconnect");
+            // If we cannot extract the PeerId, disconnection is allowed.
+            return true;
+        };
         // If the peer is protected, do not disconnect.
-        if self.protected_peers.contains(peer_id) {
-            debug!(target: "gossip", peer=?peer_id, "Peer is protected, cannot disconnect");
-            return false;
+        if !self.protected_peers.contains(&peer_id) {
+            return true;
         }
-        true
+        // Peer is protected, cannot disconnect.
+        false
     }
 
     fn block_peer(&mut self, peer_id: &PeerId) {
@@ -200,13 +205,13 @@ impl ConnectionGate for ConnectionGater {
         vec![]
     }
 
-    fn protect_peer(&mut self, peer_id: &Multiaddr) {
-        self.protected_peers.insert(peer_id.clone());
+    fn protect_peer(&mut self, peer_id: PeerId) {
+        self.protected_peers.insert(peer_id);
         debug!(target: "gossip", peer=?peer_id, "Protected peer");
     }
 
-    fn unprotect_peer(&mut self, peer_id: &Multiaddr) {
-        self.protected_peers.remove(peer_id);
+    fn unprotect_peer(&mut self, peer_id: PeerId) {
+        self.protected_peers.remove(&peer_id);
         debug!(target: "gossip", peer=?peer_id, "Unprotected peer");
     }
 }

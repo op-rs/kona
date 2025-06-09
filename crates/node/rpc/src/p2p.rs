@@ -160,16 +160,24 @@ impl OpP2PApiServer for NetworkRpc {
         Err(ErrorObject::from(ErrorCode::MethodNotFound))
     }
 
-    async fn opp2p_protect_peer(&self, _peer: String) -> RpcResult<()> {
+    async fn opp2p_protect_peer(&self, id: String) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_protectPeer");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let peer_id = libp2p::PeerId::from_str(&id)
+            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
+        self.sender
+            .send(P2pRpcRequest::ProtectPeer { peer_id })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_unprotect_peer(&self, _peer: String) -> RpcResult<()> {
+    async fn opp2p_unprotect_peer(&self, id: String) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unprotectPeer");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let peer_id = libp2p::PeerId::from_str(&id)
+            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
+        self.sender
+            .send(P2pRpcRequest::UnprotectPeer { peer_id })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_connect_peer(&self, _peer: String) -> RpcResult<()> {
