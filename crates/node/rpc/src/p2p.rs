@@ -111,22 +111,31 @@ impl OpP2PApiServer for NetworkRpc {
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_block_addr(&self, _ip: IpAddr) -> RpcResult<()> {
+    async fn opp2p_block_addr(&self, address: IpAddr) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockAddr");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        self.sender
+            .send(P2pRpcRequest::BlockAddr { address })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_unblock_addr(&self, _ip: IpAddr) -> RpcResult<()> {
+    async fn opp2p_unblock_addr(&self, address: IpAddr) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockAddr");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        self.sender
+            .send(P2pRpcRequest::UnblockAddr { address })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_list_blocked_addrs(&self) -> RpcResult<Vec<IpAddr>> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedAddrs");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(P2pRpcRequest::ListBlockedAddrs(tx))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_block_subnet(&self, _subnet: String) -> RpcResult<()> {

@@ -2,7 +2,10 @@
 
 use crate::ConnectionGate;
 use libp2p::{Multiaddr, PeerId};
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    net::IpAddr,
+};
 
 /// Connection Gater
 ///
@@ -25,8 +28,8 @@ pub struct ConnectionGater {
     pub protected_peers: HashSet<Multiaddr>,
     /// A set of blocked peer ids.
     pub blocked_peers: HashSet<PeerId>,
-    /// A set of blocked addresses that cannot be dialed.
-    pub blocked_addrs: HashSet<Multiaddr>,
+    /// A set of blocked ip addresses that cannot be dialed.
+    pub blocked_addrs: HashSet<IpAddr>,
 }
 
 impl ConnectionGater {
@@ -69,6 +72,15 @@ impl ConnectionGater {
             _ => None,
         })
     }
+
+    /// Constructs the [`IpAddr`] from the given [`Multiaddr`].
+    pub fn ip_from_addr(addr: &Multiaddr) -> Option<IpAddr> {
+        addr.iter().find_map(|component| match component {
+            libp2p::multiaddr::Protocol::Ip4(ip) => Some(IpAddr::V4(ip)),
+            libp2p::multiaddr::Protocol::Ip6(ip) => Some(IpAddr::V6(ip)),
+            _ => None,
+        })
+    }
 }
 
 impl ConnectionGate for ConnectionGater {
@@ -104,8 +116,14 @@ impl ConnectionGate for ConnectionGater {
             return false;
         }
 
+        // There must be a reachable IP Address in the Multiaddr protocol stack.
+        let Some(ip_addr) = Self::ip_from_addr(addr) else {
+            warn!(target: "p2p", peer=?addr, "Failed to extract IpAddr from Multiaddr");
+            return false;
+        };
+
         // If the address is blocked, do not dial.
-        if self.blocked_addrs.contains(addr) {
+        if self.blocked_addrs.contains(&ip_addr) {
             debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_address", "peer" => peer_id.to_string());
             return false;
@@ -155,17 +173,17 @@ impl ConnectionGate for ConnectionGater {
         self.blocked_peers.iter().cloned().collect()
     }
 
-    fn block_addr(&mut self, peer_id: &Multiaddr) {
-        self.blocked_addrs.insert(peer_id.clone());
-        debug!(target: "gossip", peer=?peer_id, "Blocked address");
+    fn block_addr(&mut self, ip: IpAddr) {
+        self.blocked_addrs.insert(ip);
+        debug!(target: "gossip", ?ip, "Blocked ip address");
     }
 
-    fn unblock_addr(&mut self, peer_id: &Multiaddr) {
-        self.blocked_addrs.remove(peer_id);
-        debug!(target: "gossip", peer=?peer_id, "Unblocked address");
+    fn unblock_addr(&mut self, ip: IpAddr) {
+        self.blocked_addrs.remove(&ip);
+        debug!(target: "gossip", ?ip, "Unblocked ip address");
     }
 
-    fn list_blocked_addrs(&self) -> Vec<Multiaddr> {
+    fn list_blocked_addrs(&self) -> Vec<IpAddr> {
         self.blocked_addrs.iter().cloned().collect()
     }
 
