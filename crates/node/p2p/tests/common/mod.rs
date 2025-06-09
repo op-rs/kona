@@ -2,12 +2,12 @@
 
 use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
-use kona_p2p::{Behaviour, BlockHandler, GossipDriver};
+use kona_p2p::{Behaviour, BlockHandler, ConnectionGater, GossipDriver};
 use libp2p::{Multiaddr, StreamProtocol, SwarmBuilder, identity::Keypair, multiaddr::Protocol};
 use std::net::Ipv4Addr;
 
 /// Helper function to create a new gossip driver instance.
-pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
+pub(crate) fn gossip_driver(port: u16) -> GossipDriver<ConnectionGater> {
     let timeout = std::time::Duration::from_secs(60);
     let mut addr = Multiaddr::empty();
     addr.push(Protocol::Ip4(Ipv4Addr::UNSPECIFIED));
@@ -51,5 +51,6 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
         .with_swarm_config(|c| c.with_idle_connection_timeout(timeout))
         .build();
 
-    GossipDriver::new(swarm, addr, Some(2), handler, sync_handler, sync_protocol)
+    let gate = ConnectionGater::new(Some(2)); // Allow redialing peers twice.
+    GossipDriver::new(swarm, addr, handler, sync_handler, sync_protocol, gate)
 }

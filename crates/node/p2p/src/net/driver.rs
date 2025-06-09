@@ -35,7 +35,7 @@ pub struct Network {
     // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
     // pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
     /// The swarm instance.
-    pub gossip: GossipDriver,
+    pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
     pub discovery: Discv5Driver,
 }
@@ -206,7 +206,8 @@ impl Network {
                             }
 
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
-                                self.gossip.dialed_peers.remove(&addr);
+                                use crate::ConnectionGate;
+                                self.gossip.connection_gate.remove_dial(&peer_to_remove);
                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
                                 kona_macros::inc!(gauge, crate::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
                                 return Some(addr);

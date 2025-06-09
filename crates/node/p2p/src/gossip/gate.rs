@@ -1,0 +1,52 @@
+//! Connection Gate for the libp2p Gossip Swarm.
+
+use libp2p::{Multiaddr, PeerId};
+
+/// Connection Gate
+///
+/// The connection gate is used to isolate and abstract the
+/// logic for which peers are allowed to connect to the
+/// gossip swarm.
+pub trait ConnectionGate {
+    /// Checks if a peer is allowed to connect to the gossip swarm.
+    fn can_dial(&self, peer_id: &Multiaddr) -> bool;
+
+    /// Marks an address as currently being dialed.
+    fn dialing(&mut self, addr: &Multiaddr);
+
+    /// Marks an address as dialed.
+    fn dialed(&mut self, addr: &Multiaddr);
+
+    /// Removes a peer id from the current dials set.
+    fn remove_dial(&mut self, peer: &PeerId);
+
+    /// Checks if a peer can be removed from the gossip swarm.
+    ///
+    /// Since peers can be protected from disconnection, this method
+    /// checks if the peer is protected or not.
+    fn can_disconnect(&self, peer_id: &Multiaddr) -> bool;
+
+    /// Blocks a given peer from connecting to the gossip swarm.
+    fn block_addr(&mut self, peer_id: &Multiaddr);
+
+    /// Unblocks a given peer, allowing it to connect to the gossip swarm.
+    fn unblock_addr(&mut self, peer_id: &Multiaddr);
+
+    /// Lists all blocked addresses.
+    fn list_blocked_addrs(&self) -> Vec<Multiaddr>;
+
+    /// Blocks a subnet from connecting to the gossip swarm.
+    fn block_subnet(&mut self, subnet: &str);
+
+    /// Unblocks a subnet, allowing it to connect to the gossip swarm.
+    fn unblock_subnet(&mut self, subnet: &str);
+
+    /// Lists all blocked subnets.
+    fn list_blocked_subnets(&self) -> Vec<String>;
+
+    /// Protects a peer from being disconnected.
+    fn protect_peer(&mut self, peer_id: &Multiaddr);
+
+    /// Unprotects a peer, allowing it to be disconnected.
+    fn unprotect_peer(&mut self, peer_id: &Multiaddr);
+}
