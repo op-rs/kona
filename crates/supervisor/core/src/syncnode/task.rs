@@ -232,7 +232,7 @@ where
             Err(err) => {
                 if matches!(err, StorageError::EntryNotFound(_)) {
                     // todo: remove this once finalised head ref logic is implemented
-                    local_safe_ref.clone()
+                    local_safe_ref
                 } else {
                     error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
                     return;
@@ -285,7 +285,6 @@ where
             .await
         {
             error!(target: "managed_event_task", %err, "Failed to reset managed node");
-            return;
         }
     }
 
