@@ -5013,7 +5013,6 @@ dependencies = [
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-types",
- "mockall",
  "modular-bitfield",
  "op-alloy-consensus",
  "reth-codecs",
