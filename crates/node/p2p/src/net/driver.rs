@@ -229,7 +229,16 @@ impl Network {
                             error!(target: "node::p2p", "The rpc receiver channel has closed");
                             return;
                         };
-                        req.handle(&mut self.gossip, &handler);
+                        let payload = match req {
+                            P2pRpcRequest::PostUnsafePayload { payload } => payload,
+                            req @ _ => {
+                                req.handle(&mut self.gossip, &handler);
+                                continue;
+                            }
+                        };
+                        debug!(target: "node::p2p", "Broadcasting unsafe payload from admin api");
+                        broadcast.push(payload);
+                        broadcast.broadcast();
                     },
                 }
             }
