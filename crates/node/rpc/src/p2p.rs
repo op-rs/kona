@@ -11,7 +11,7 @@ use jsonrpsee::{
     types::{ErrorCode, ErrorObject},
 };
 use kona_p2p::{P2pRpcRequest, PeerCount, PeerDump, PeerInfo, PeerStats};
-use std::net::IpAddr;
+use std::{net::IpAddr, str::FromStr};
 
 use crate::{OpP2PApiServer, net::NetworkRpc};
 
@@ -78,16 +78,37 @@ impl OpP2PApiServer for NetworkRpc {
         rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_block_peer(&self, _peer: String) -> RpcResult<()> {
+    async fn opp2p_block_peer(&self, peer_id: String) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockPeer");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let id = libp2p::PeerId::from_str(&peer_id)
+            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
+        self.sender
+            .send(P2pRpcRequest::BlockPeer { id })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+    }
+
+    async fn opp2p_unblock_peer(&self, peer_id: String) -> RpcResult<()> {
+        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockPeer");
+        let id = libp2p::PeerId::from_str(&peer_id)
+            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
+        self.sender
+            .send(P2pRpcRequest::UnblockPeer { id })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_list_blocked_peers(&self) -> RpcResult<Vec<String>> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_listBlockedPeers");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(P2pRpcRequest::ListBlockedPeers(tx))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        rx.await
+            .map(|peers| peers.iter().map(|p| p.to_string()).collect())
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_block_addr(&self, _ip: IpAddr) -> RpcResult<()> {
