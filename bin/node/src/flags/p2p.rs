@@ -138,14 +138,18 @@ pub struct P2PArgs {
     pub ban_enabled: bool,
 
     /// The threshold used to ban peers.
-    /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
-    #[arg(long = "p2p.ban.threshold", default_value = "0", env = "KONA_NODE_P2P_BAN_THRESHOLD")]
-    pub ban_threshold: i32,
+    ///
+    /// For peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
+    /// By default, peers are banned if their score is below -100. This follows the `op-node` default `<https://github.com/ethereum-optimism/optimism/blob/09a8351a72e43647c8a96f98c16bb60e7b25dc6e/op-node/flags/p2p_flags.go#L123-L130>`.
+    #[arg(long = "p2p.ban.threshold", default_value = "-100", env = "KONA_NODE_P2P_BAN_THRESHOLD")]
+    pub ban_threshold: i64,
 
-    /// The duration in seconds to ban a peer for.
-    /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
-    #[arg(long = "p2p.ban.duration", default_value = "30", env = "KONA_NODE_P2P_BAN_DURATION")]
-    pub ban_duration: u32,
+    /// The duration in minutes to ban a peer for.
+    ///
+    /// For peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
+    /// By default peers are banned for 1 hour. This follows the `op-node` default `<https://github.com/ethereum-optimism/optimism/blob/09a8351a72e43647c8a96f98c16bb60e7b25dc6e/op-node/flags/p2p_flags.go#L131-L138>`.
+    #[arg(long = "p2p.ban.duration", default_value = "60", env = "KONA_NODE_P2P_BAN_DURATION")]
+    pub ban_duration: u64,
 
     /// The interval in seconds to find peers using the discovery service.
     /// Defaults to 5 seconds.
@@ -268,8 +272,6 @@ impl P2PArgs {
         // will be overridden by the discovery service builder.
         let mut builder = discv5::ConfigBuilder::new(listen_config);
 
-        builder.ban_duration(Some(Duration::from_secs(self.ban_duration as u64)));
-
         if static_ip {
             builder.disable_enr_update();
 
@@ -358,7 +360,7 @@ impl P2PArgs {
 
         let monitor_peers = if self.ban_enabled {
             Some(PeerMonitoring {
-                ban_duration: Duration::from_secs(self.ban_duration.into()),
+                ban_duration: Duration::from_secs(60 * self.ban_duration),
                 ban_threshold: self.ban_threshold as f64,
             })
         } else {
