@@ -240,7 +240,14 @@ where
             }
         };
 
-        let client = self.client.as_ref().unwrap().clone();
+        let client = match self.client.as_ref() {
+            Some(client) => client.clone(),
+            None => {
+                error!(target: "managed_event_task", "Client is not initialized");
+                return;
+            }
+        };
+
         let node_safe_ref = match client.block_ref_by_number(local_safe_ref.number).await {
             Ok(block) => block,
             Err(err) => {
