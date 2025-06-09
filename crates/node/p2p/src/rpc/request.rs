@@ -74,11 +74,7 @@ impl P2pRpcRequest {
     }
 
     fn connect_peer(address: Multiaddr, gossip: &mut GossipDriver) {
-        if let Err(e) = gossip.swarm.dial(address.clone()) {
-            warn!(target: "p2p::rpc", "Failed to connect to peer at {}: {:?}", address, e);
-        } else {
-            info!(target: "p2p::rpc", "Dialed peer at {}", address);
-        }
+        gossip.dial_multiaddr(address)
     }
 
     fn disconnect_peer(peer_id: PeerId, gossip: &mut GossipDriver) {
