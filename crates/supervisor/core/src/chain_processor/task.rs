@@ -1,6 +1,5 @@
 use crate::{
-    LogIndexer,
-    syncnode::{ManagedNodeProvider, NodeEvent},
+    chain_processor::chain, syncnode::{ManagedNodeProvider, NodeEvent}, LogIndexer
 };
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
@@ -15,6 +14,8 @@ use tracing::{error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
+    chain_id: u64,
+
     state_manager: Arc<W>,
 
     log_indexer: Arc<LogIndexer<P, W>>,
@@ -32,12 +33,14 @@ where
 {
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
+        chain_id: u64,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<NodeEvent>,
     ) -> Self {
         Self {
+            chain_id,
             cancel_token,
             event_rx,
             state_manager: state_manager.clone(),
@@ -79,15 +82,17 @@ where
     async fn handle_safe_event(&self, derived_ref_pair: DerivedRefPair) {
         info!(
             target: "chain_processor",
+            chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
         if let Err(err) = self.state_manager.save_derived_block_pair(derived_ref_pair.clone()) {
             error!(
                 target: "chain_processor",
+                chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 %err,
-                "Failed to process unsafe block"
+                "Failed to process safe block"
             );
             // TODO: take next action based on the error
         }
@@ -96,12 +101,14 @@ where
     async fn handle_unsafe_event(&self, block_info: BlockInfo) {
         info!(
             target: "chain_processor",
+            chain_id = self.chain_id,
             block_number = block_info.number,
             "Processing unsafe block"
         );
         if let Err(err) = self.log_indexer.process_and_store_logs(&block_info).await {
             error!(
                 target: "chain_processor",
+                chain_id = self.chain_id,
                 block_number = block_info.number,
                 %err,
                 "Failed to process unsafe block"
@@ -178,7 +185,7 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(node, writer, cancel_token.clone(), rx);
+        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
 
         // Send unsafe block event
         let block =
@@ -208,7 +215,7 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(node, writer, cancel_token.clone(), rx);
+        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
 
         // Send unsafe block event
         let block_pair = DerivedRefPair {

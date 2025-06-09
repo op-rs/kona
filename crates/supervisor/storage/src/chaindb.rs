@@ -5,7 +5,7 @@ use crate::{
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
     traits::{
         DerivationStorageReader, DerivationStorageWriter, LogStorageReader, LogStorageWriter,
-        SafetyHeadRefStorage,
+        SafetyHeadRefStorageReader, SafetyHeadRefStorageWriter,
     },
 };
 use alloy_eips::eip1898::BlockNumHash;
@@ -38,7 +38,14 @@ impl ChainDb {
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         self.env.update(|tx| {
             DerivationProvider::new(tx).initialise(anchor.clone())?;
-            LogProvider::new(tx).initialise(anchor.derived)
+            LogProvider::new(tx).initialise(anchor.derived)?;
+
+            let sp = SafetyHeadRefProvider::new(tx);
+            // todo: cross check if we can consider following safety head ref update
+            sp.update_safety_head_ref(SafetyLevel::Unsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
         })?
     }
 }
@@ -107,11 +114,13 @@ impl LogStorageWriter for ChainDb {
     }
 }
 
-impl SafetyHeadRefStorage for ChainDb {
+impl SafetyHeadRefStorageReader for ChainDb {
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
     }
+}
 
+impl SafetyHeadRefStorageWriter for ChainDb {
     fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,

@@ -53,6 +53,7 @@ serde_json.workspace = true
 tempfile.workspace = true
 alloy-transport.workspace = true
 kona-interop = {workspace = true, features = ["std", "test-utils"]}
+mockall.workspace = true
 
 [lints]
 workspace = true
