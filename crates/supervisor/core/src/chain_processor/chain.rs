@@ -1,7 +1,7 @@
-use super::task::ChainProcessorTask;
+use super::{ChainProcessorError, ChainProcessorTask};
 use crate::syncnode::{ManagedNodeProvider, NodeEvent};
 use alloy_primitives::ChainId;
-use kona_supervisor_storage::LogStorageWriter;
+use kona_supervisor_storage::{DerivationStorageWriter, LogStorageWriter};
 use std::sync::Arc;
 use tokio::{
     sync::{Mutex, mpsc},
@@ -13,6 +13,7 @@ use tracing::warn;
 /// Responsible for managing [`ManagedNodeProvider`] and processing
 /// [`NodeEvent`]. It listens for events emitted by the managed node
 /// and handles them accordingly.
+// chain processor will support multiple managed nodes in the future.
 #[derive(Debug)]
 pub struct ChainProcessor<P, W> {
     // The chainId that this processor is associated with
@@ -34,7 +35,7 @@ pub struct ChainProcessor<P, W> {
 impl<P, W> ChainProcessor<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter + 'static,
+    W: LogStorageWriter + DerivationStorageWriter + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].
     pub fn new(
@@ -52,16 +53,16 @@ where
     }
 
     /// Starts the chain processor, which begins listening for events from the managed node.
-    pub async fn start(&self) {
+    pub async fn start(&self) -> Result<(), ChainProcessorError> {
         let mut handle_guard = self.task_handle.lock().await;
         if handle_guard.is_some() {
             warn!(target: "chain_processor", "ChainProcessor is already running");
-            return;
+            return Ok(())
         }
 
         // todo: figure out value for buffer size
         let (event_tx, event_rx) = mpsc::channel::<NodeEvent>(100);
-        self.managed_node.start_subscription(event_tx).await.unwrap();
+        self.managed_node.start_subscription(event_tx).await?;
 
         let task = ChainProcessorTask::new(
             self.managed_node.clone(),
@@ -74,6 +75,7 @@ where
         });
 
         *handle_guard = Some(handle);
+        Ok(())
     }
 }
 
@@ -83,6 +85,7 @@ mod tests {
     use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
     use alloy_primitives::B256;
     use async_trait::async_trait;
+    use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{LogStorageWriter, StorageError};
     use kona_supervisor_types::{Log, Receipts};
@@ -133,6 +136,14 @@ mod tests {
             Ok(())
         }
     }
+    impl DerivationStorageWriter for MockStorage {
+        fn save_derived_block_pair(
+            &self,
+            _incoming_pair: DerivedRefPair,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+    }
 
     #[tokio::test]
     async fn test_chain_processor_start_sets_task_and_calls_subscription() {
@@ -143,7 +154,7 @@ mod tests {
         let processor =
             ChainProcessor::new(1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
 
-        processor.start().await;
+        assert!(processor.start().await.is_ok());
 
         // Wait a moment for task to spawn and subscription to run
         sleep(Duration::from_millis(50)).await;

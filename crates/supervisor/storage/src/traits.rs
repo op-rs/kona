@@ -8,11 +8,11 @@ use std::fmt::Debug;
 
 /// Provides an interface for supervisor storage to manage source and derived blocks.
 ///
-/// Defines methods to retrieve and persist derived block information,
+/// Defines methods to retrieve derived block information,
 /// enabling the supervisor to track the derivation progress.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
-pub trait DerivationStorage {
+pub trait DerivationStorageReader {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
     /// # Arguments
@@ -44,7 +44,15 @@ pub trait DerivationStorage {
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+}
 
+/// Provides an interface for supervisor storage to write source and derived blocks.
+///
+/// Defines methods to persist derived block information,
+/// enabling the supervisor to track the derivation progress.
+///
+/// Implementations are expected to provide persistent and thread-safe access to block data.
+pub trait DerivationStorageWriter {
     /// Saves a [`DerivedRefPair`] to the storage.
     /// This method is append only and does not overwrite existing pairs.
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.

@@ -1,7 +1,7 @@
 //! Error types for the proof program.
 
 use alloc::string::{String, ToString};
-use kona_derive::errors::{PipelineError, PipelineErrorKind};
+use kona_derive::{PipelineError, PipelineErrorKind};
 use kona_mpt::{OrderedListWalkerError, TrieNodeError};
 use kona_preimage::errors::PreimageOracleError;
 use kona_protocol::{FromBlockError, OpBlockConversionError};

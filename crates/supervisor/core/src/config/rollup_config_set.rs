@@ -1,5 +1,7 @@
-use alloy_primitives::U64;
+use alloy_primitives::{B256, U64};
 use kona_genesis::ChainGenesis;
+use kona_interop::DerivedRefPair;
+use kona_protocol::BlockInfo;
 use kona_supervisor_types::BlockSeal;
 use std::collections::HashMap;
 
@@ -27,6 +29,24 @@ impl Genesis {
                 U64::from(genesis.l2.number),
                 U64::from(genesis.l2_time),
             ),
+        }
+    }
+
+    /// Returns the genesis anchor as a [`DerivedRefPair`].
+    pub fn get_anchor(&self) -> DerivedRefPair {
+        DerivedRefPair {
+            derived: BlockInfo {
+                hash: self.l2.hash,
+                number: self.l2.number.try_into().unwrap(),
+                parent_hash: B256::ZERO,
+                timestamp: self.l2.timestamp.try_into().unwrap(),
+            },
+            source: BlockInfo {
+                hash: self.l1.hash,
+                number: self.l1.number.try_into().unwrap(),
+                parent_hash: B256::ZERO, // check if we need to set this properly
+                timestamp: self.l1.timestamp.try_into().unwrap(),
+            },
         }
     }
 }

@@ -6,10 +6,7 @@ use alloy_primitives::B256;
 use alloy_provider::{Provider, RootProvider};
 use alloy_transport::{RpcError, TransportErrorKind};
 use async_trait::async_trait;
-use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind},
-    traits::ChainProvider,
-};
+use kona_derive::{PipelineError, PipelineErrorKind, traits::ChainProvider};
 use kona_protocol::BlockInfo;
 use lru::LruCache;
 use std::{boxed::Box, num::NonZeroUsize, vec::Vec};

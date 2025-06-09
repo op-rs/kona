@@ -12,6 +12,8 @@ pub enum Event {
     Gossipsub(gossipsub::Event),
     /// Represents a [identify::Event]
     Identify(identify::Event),
+    /// Stream event
+    Stream,
 }
 
 impl From<ping::Event> for Event {
@@ -32,6 +34,13 @@ impl From<identify::Event> for Event {
     /// Converts [identify::Event] to [Event]
     fn from(value: identify::Event) -> Self {
         Self::Identify(value)
+    }
+}
+
+impl From<()> for Event {
+    /// Converts () to [Event]
+    fn from(_value: ()) -> Self {
+        Self::Stream
     }
 }
 

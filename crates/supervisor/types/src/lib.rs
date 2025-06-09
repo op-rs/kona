@@ -2,6 +2,10 @@
 //!
 //! This crate defines the fundamental data structures used within the
 //! Optimism supervisor.
+
+pub mod head;
+pub use head::SuperHead;
+
 mod log;
 pub use log::Log;
 
@@ -12,4 +16,6 @@ mod receipt;
 pub use receipt::Receipts;
 
 mod types;
-pub use types::{BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0};
+pub use types::{
+    BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, SubscriptionEvent,
+};

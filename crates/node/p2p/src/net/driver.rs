@@ -1,7 +1,9 @@
 //! Driver for network services.
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, hex};
+use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use libp2p::TransportError;
+use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::collections::HashSet;
 use tokio::{
@@ -57,6 +59,50 @@ impl Network {
         self.unsafe_block_signer_sender.take()
     }
 
+    /// Handles the sync request/response protocol.
+    ///
+    /// This is a mock handler that supports the `payload_by_number` protocol.
+    /// It always returns: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
+    ///
+    /// ## Note
+    ///
+    /// This is used to ensure op-nodes are not penalizing kona-nodes for not supporting it.
+    /// This feature is being deprecated by the op-node team. Once it is fully removed from the
+    /// op-node's implementation we will remove this handler.
+    async fn sync_protocol_handler(mut sync_protocol: IncomingStreams) {
+        loop {
+            let Some((peer_id, mut inbound_stream)) = sync_protocol.next().await else {
+                warn!(target: "node::p2p::sync", "The sync protocol stream has ended");
+                return;
+            };
+
+            info!(target: "node::p2p::sync", "Received a sync request from {peer_id}, spawning a new task to handle it");
+
+            tokio::spawn(async move {
+                let mut buffer = Vec::new();
+                let Ok(bytes_received) = inbound_stream.read_to_end(&mut buffer).await else {
+                    error!(target: "node::p2p::sync", "Failed to read the sync request from {peer_id}");
+                    return;
+                };
+
+                debug!(target: "node::p2p::sync", bytes_received = bytes_received, peer_id = ?peer_id, payload = ?buffer, "Received inbound sync request");
+
+                // We return: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
+                // Response format: <response> = <res><version><payload>
+                // No payload is returned.
+                const OUTPUT: [u8; 2] = hex!("0100");
+
+                // We only write that we're not supporting the sync request.
+                if let Err(e) = inbound_stream.write_all(&OUTPUT).await {
+                    error!(target: "node::p2p::sync", err = ?e, "Failed to write the sync response to {peer_id}");
+                    return;
+                };
+
+                debug!(target: "node::p2p::sync", bytes_sent = OUTPUT.len(), peer_id = ?peer_id, "Sent outbound sync response");
+            });
+        }
+    }
+
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
     pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
@@ -72,6 +118,11 @@ impl Network {
 
         // Start the libp2p Swarm
         self.gossip.listen().await?;
+
+        // Start the sync request/response protocol handler.
+        if let Some(sync_protocol) = self.gossip.sync_protocol.take() {
+            tokio::spawn(Self::sync_protocol_handler(sync_protocol));
+        }
 
         // Spawn the network handler
         tokio::spawn(async move {
@@ -143,6 +194,16 @@ impl Network {
                             // 2. We ban the peer from the discv5 service.
                             if self.gossip.swarm.disconnect_peer_id(peer_to_remove).is_err() {
                                 warn!(peer = ?peer_to_remove, "Trying to disconnect a non-existing peer from the gossip driver.");
+                            }
+
+                            // Record the duration of the peer connection.
+                            if let Some(start_time) = self.gossip.peer_connection_start.remove(&peer_to_remove) {
+                                let peer_duration = start_time.elapsed();
+                                kona_macros::record!(
+                                    histogram,
+                                    crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                                    peer_duration.as_secs_f64()
+                                );
                             }
 
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){

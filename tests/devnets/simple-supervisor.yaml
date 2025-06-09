@@ -8,6 +8,7 @@ optimism_package:
         cl_type: op-node
         cl_image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
         cl_log_level: debug
+        count: 1
       network_params:
         network_id: "2151908"
         name: "op-kurtosis-1"
@@ -44,7 +45,7 @@ optimism_package:
         game_type: 1
         proposal_interval: 10m
   superchains: 
-    superchain: # empty config creates default including all L2 networks
+    superchain:
       enabled: true
   supervisors:
     supervisor: # default op-supervisor
@@ -91,4 +92,3 @@ ethereum_package:
           "nonce": "1"
         }
       }'
-

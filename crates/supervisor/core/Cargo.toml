@@ -42,6 +42,7 @@ tracing.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "macros"] }
 tokio-util.workspace = true
+auto_impl.workspace = true
 reqwest = { workspace = true }
 
 # `metrics` feature

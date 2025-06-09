@@ -32,4 +32,3 @@ op-alloy-consensus.workspace = true
 serde.workspace = true
 derive_more = { workspace = true, default-features = false, features = ["constructor"] }
 async-trait = "0.1.88"
-

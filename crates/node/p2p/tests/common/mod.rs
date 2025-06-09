@@ -3,7 +3,7 @@
 use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
 use kona_p2p::{Behaviour, BlockHandler, GossipDriver};
-use libp2p::{Multiaddr, SwarmBuilder, identity::Keypair, multiaddr::Protocol};
+use libp2p::{Multiaddr, StreamProtocol, SwarmBuilder, identity::Keypair, multiaddr::Protocol};
 use std::net::Ipv4Addr;
 
 /// Helper function to create a new gossip driver instance.
@@ -28,6 +28,16 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
     let behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])
         .expect("creates behaviour");
 
+    // Create a sync request/response protocol handler.
+    // We are accepting inbound sync requests to the `payload_by_number` protocol.
+    // Since this is only a mock sync protocol, we are not supporting outbound sync requests.
+    let mut sync_handler = behaviour.sync_req_resp.new_control();
+    let protocol = format!("/opstack/req/payload_by_number/{}/0/", 10);
+    let sync_protocol_name =
+        StreamProtocol::try_from_owned(protocol).expect("error creating sync protocol");
+    let sync_protocol =
+        sync_handler.accept(sync_protocol_name).expect("error accepting sync protocol");
+
     let swarm = SwarmBuilder::with_existing_identity(keypair)
         .with_tokio()
         .with_tcp(
@@ -41,5 +51,5 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver {
         .with_swarm_config(|c| c.with_idle_connection_timeout(timeout))
         .build();
 
-    GossipDriver::new(swarm, addr, Some(2), handler)
+    GossipDriver::new(swarm, addr, Some(2), handler, sync_handler, sync_protocol)
 }

@@ -7,10 +7,7 @@ use alloy_consensus::Sealed;
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind},
-    sources::EthereumDataSource,
-};
+use kona_derive::{PipelineError, PipelineErrorKind, sources::EthereumDataSource};
 use kona_driver::{Driver, DriverError};
 use kona_executor::TrieDBProvider;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};

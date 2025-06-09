@@ -18,7 +18,7 @@ use alloy_rpc_types::Block;
 use anyhow::{Result, anyhow, ensure};
 use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
-use kona_derive::prelude::EthereumDataSource;
+use kona_derive::sources::EthereumDataSource;
 use kona_driver::Driver;
 use kona_executor::TrieDBProvider;
 use kona_preimage::{

@@ -2,9 +2,8 @@
 
 use super::NextBatchProvider;
 use crate::{
-    errors::ResetError,
-    prelude::{OriginProvider, PipelineError, PipelineErrorKind},
-    traits::{AttributesProvider, OriginAdvancer, SignalReceiver},
+    errors::{PipelineError, PipelineErrorKind, ResetError},
+    traits::{AttributesProvider, OriginAdvancer, OriginProvider, SignalReceiver},
     types::{PipelineResult, ResetSignal, Signal},
 };
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
@@ -110,6 +109,23 @@ where
                 }
             }
             // If the origin of the parent block is not included, we must advance the origin.
+        }
+
+        #[cfg(feature = "metrics")]
+        {
+            if let Some(origin) = self.l1_blocks.first() {
+                kona_macros::set!(
+                    gauge,
+                    crate::metrics::Metrics::PIPELINE_L1_BLOCKS_START,
+                    origin.number as f64
+                );
+                let last = self.l1_blocks.last().unwrap_or(origin);
+                kona_macros::set!(
+                    gauge,
+                    crate::metrics::Metrics::PIPELINE_L1_BLOCKS_END,
+                    last.number as f64
+                );
+            }
         }
 
         Ok(())

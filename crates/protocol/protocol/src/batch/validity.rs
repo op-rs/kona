@@ -17,6 +17,18 @@ pub enum BatchValidity {
     Past,
 }
 
+impl core::fmt::Display for BatchValidity {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Drop => write!(f, "Drop"),
+            Self::Accept => write!(f, "Accept"),
+            Self::Undecided => write!(f, "Undecided"),
+            Self::Future => write!(f, "Future"),
+            Self::Past => write!(f, "Past"),
+        }
+    }
+}
+
 impl BatchValidity {
     /// Returns whether the batch is accepted.
     pub const fn is_accept(&self) -> bool {

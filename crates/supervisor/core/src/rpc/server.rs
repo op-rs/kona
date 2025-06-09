@@ -1,15 +1,17 @@
 //! Server-side implementation of the Supervisor RPC API.
 
-use crate::supervisor::SupervisorService;
+use crate::{SupervisorError, SupervisorService};
 use alloy_eips::eip1898::BlockNumHash;
-use alloy_primitives::{B256, ChainId};
+use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
 use jsonrpsee::{
     core::RpcResult,
     types::{ErrorObject, error::ErrorCode},
 };
 use kona_interop::{DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse};
-use kona_supervisor_rpc::SupervisorApiServer;
+use kona_protocol::BlockInfo;
+use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
+use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -106,6 +108,58 @@ where
                     ErrorObject::from(ErrorCode::InternalError)
                 })
         }.await)
+    }
+
+    async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus> {
+        trace!(target: "supervisor_rpc", "Received sync_status request");
+
+        let mut chains = self
+            .supervisor
+            .chain_ids()
+            .map(|id| (id, Default::default()))
+            .collect::<HashMap<_, SupervisorChainSyncStatus>>();
+
+        if chains.is_empty() {
+            // return error if no chains configured
+            //
+            // <https://github.com/ethereum-optimism/optimism/blob/fac40575a8bcefd325c50a52e12b0e93254ac3f8/op-supervisor/supervisor/backend/status/status.go#L100-L104>
+            //
+            // todo: add to spec
+            Err(SupervisorError::EmptyDependencySet)?;
+        }
+
+        let mut min_synced_l1 = BlockInfo { number: u64::MAX, ..Default::default() };
+        let mut cross_safe_timestamp = u64::MAX;
+        let mut finalized_timestamp = u64::MAX;
+
+        for (id, status) in chains.iter_mut() {
+            let head = self.supervisor.super_head(*id)?;
+
+            // uses lowest safe and finalized timestamps, as well as l1 block, of all l2s
+            //
+            // <https://github.com/ethereum-optimism/optimism/blob/fac40575a8bcefd325c50a52e12b0e93254ac3f8/op-supervisor/supervisor/backend/status/status.go#L117-L131>
+            //
+            // todo: add to spec
+            let SuperHead { l1_source, cross_safe, finalized, .. } = &head;
+            if l1_source.number < min_synced_l1.number {
+                min_synced_l1 = *l1_source;
+            }
+            if cross_safe.timestamp < cross_safe_timestamp {
+                cross_safe_timestamp = cross_safe.timestamp;
+            }
+            if finalized.timestamp < finalized_timestamp {
+                finalized_timestamp = finalized.timestamp;
+            }
+
+            *status = head.into()
+        }
+
+        Ok(SupervisorSyncStatus {
+            min_synced_l1,
+            cross_safe_timestamp,
+            finalized_timestamp,
+            chains,
+        })
     }
 }
 

@@ -3,7 +3,7 @@
 use kona_engine::{Engine, EngineClient, EngineTask, FinalizeTask};
 use kona_protocol::{BlockInfo, OpAttributesWithParent};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc;
 
 /// An internal type alias for L1 block numbers.
 type L1BlockNumber = u64;
@@ -17,7 +17,7 @@ type L2BlockNumber = u64;
 #[derive(Debug)]
 pub struct L2Finalizer {
     /// A channel that receives new finalized L1 blocks intermittently.
-    finalized_l1_block_rx: UnboundedReceiver<BlockInfo>,
+    finalized_l1_block_rx: mpsc::Receiver<BlockInfo>,
     /// An [`EngineClient`], used to create [`FinalizeTask`]s.
     client: Arc<EngineClient>,
     /// A map of `L1 block number -> highest derived L2 block number` within the L1 epoch, used to
@@ -30,7 +30,7 @@ pub struct L2Finalizer {
 impl L2Finalizer {
     /// Creates a new [`L2Finalizer`] with the given channel receiver for finalized L1 blocks.
     pub const fn new(
-        finalized_l1_block_rx: UnboundedReceiver<BlockInfo>,
+        finalized_l1_block_rx: mpsc::Receiver<BlockInfo>,
         client: Arc<EngineClient>,
     ) -> Self {
         Self { finalized_l1_block_rx, client, awaiting_finalization: BTreeMap::new() }

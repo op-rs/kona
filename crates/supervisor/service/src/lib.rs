@@ -3,7 +3,7 @@
 
 mod service;
 
-pub use service::{Config, Service};
+pub use service::Service;
 
 mod actors;
 pub use actors::{L1WatcherRpc, L1WatcherRpcError, SupervisorActor};
