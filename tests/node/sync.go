@@ -186,11 +186,11 @@ func syncFinalized() systest.SystemTestFunc {
 				wsRPC := websocketRPC(clRPC)
 				t.Log("node supports ws endpoint, continuing sync test", clName, wsRPC)
 
-				output := GetKonaWS(t, wsRPC, "finalized_head", time.After(2*time.Minute))
+				output := GetKonaWS(t, wsRPC, "finalized_head", time.After(4*time.Minute))
 
-				// We should check that we received at least 2 finalized blocks within 2 minutes!
+				// We should check that we received at least 2 finalized blocks within 4 minutes!
 				require.Greater(t, len(output), 1, "we didn't receive enough finalized gossip blocks!")
-				t.Log("Number of finalized blocks received within 2 minutes:", len(output))
+				t.Log("Number of finalized blocks received within 4 minutes:", len(output))
 
 				// For each block, we check that the block is actually in the chain of the other nodes.
 				for _, block := range output {

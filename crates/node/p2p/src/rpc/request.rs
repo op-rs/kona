@@ -340,7 +340,18 @@ impl P2pRpcRequest {
 
         let topics = topics
             .into_iter()
-            .map(|hash| (hash.clone(), gossip.swarm.behaviour().gossipsub.mesh_peers(hash).count()))
+            .map(|hash| {
+                (
+                    hash.clone(),
+                    gossip
+                        .swarm
+                        .behaviour()
+                        .gossipsub
+                        .all_peers()
+                        .filter(|(_, topics)| topics.contains(&hash))
+                        .count(),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         let v1_topic_hash = gossip.handler.blocks_v1_topic.hash();
