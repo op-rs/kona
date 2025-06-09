@@ -1,5 +1,7 @@
 use crate::{
-    chain_processor::chain, syncnode::{ManagedNodeProvider, NodeEvent}, LogIndexer
+    LogIndexer,
+    chain_processor::chain,
+    syncnode::{ManagedNodeProvider, NodeEvent},
 };
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;

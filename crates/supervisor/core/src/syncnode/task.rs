@@ -4,10 +4,12 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
 use jsonrpsee::ws_client::WsClient;
-use kona_interop::{DerivedRefPair,SafetyLevel};
+use kona_interop::{DerivedRefPair, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_storage::{DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader, StorageError};
+use kona_supervisor_storage::{
+    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader, StorageError,
+};
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -28,7 +30,12 @@ pub struct ManagedEventTask<DB> {
 
 impl<DB> ManagedEventTask<DB>
 where
-    DB: LogStorageReader + DerivationStorageReader + SafetyHeadRefStorageReader + Send + Sync + 'static,
+    DB: LogStorageReader
+        + DerivationStorageReader
+        + SafetyHeadRefStorageReader
+        + Send
+        + Sync
+        + 'static,
 {
     /// Creates a new [`ManagedEventTask`] instance.
     pub const fn new(
@@ -237,6 +244,8 @@ where
         let node_safe_ref = match client.block_ref_by_number(local_safe_ref.number).await {
             Ok(block) => block,
             Err(err) => {
+                // todo: it's possible that supervisor is ahead of the op-node
+                // in this case we should handle the error gracefully
                 error!(target: "managed_event_task", %err, "Failed to get block by number");
                 return;
             }
@@ -258,13 +267,16 @@ where
             "Resetting managed node with latest information",
         );
 
-        if let Err(err) = client.reset(
-            unsafe_ref.id(),
-            cross_unsafe_ref.id(),
-            local_safe_ref.id(), 
-            safe_ref.id(), 
-            finalised_ref.id()
-        ).await {
+        if let Err(err) = client
+            .reset(
+                unsafe_ref.id(),
+                cross_unsafe_ref.id(),
+                local_safe_ref.id(),
+                safe_ref.id(),
+                finalised_ref.id(),
+            )
+            .await
+        {
             error!(target: "managed_event_task", %err, "Failed to reset managed node");
             return;
         }
@@ -284,8 +296,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::B256;
     use alloy_eips::BlockNumHash;
+    use alloy_primitives::B256;
     use alloy_transport::mock::*;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
