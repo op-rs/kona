@@ -52,6 +52,36 @@ just isolate_test devnets/specs/simple-kona-devnet.json
 
 - `just clone-kurtosis-devnet`: Clones the [optimism monorepo](https://github.com/ethereum-optimism/optimism) repository and installs the dependencies.
 
+## Using `op-devstack` for testing
+
+For using the new `op-devstack` framework for e2e testing in kona, first fetch the [optimism](https://github.com/ethereum-optimism/optimism/) repo locally. Checkout the tag `v1.13.3`. 
+
+```bash
+git checkout -b <branch_name> tags/v1.13.3
+```
+
+From within the `packages/contracts-bedrock`, run:
+
+```bash
+just build
+```
+
+If you don't have `forge` installed, you'll need to install it first using [Foundry](https://getfoundry.sh/introduction/installation/).
+
+Once built, either create a symlink or copy the entire `packages/contracts-bedrock/*` and `op-e2e/config/*` into kona's repo `tests/packages/contracts-bedrock/*` and `tests/op-e2e/config/*`, respectively.
+
+Set the environment variable to tell `op-devstack` to use devnet descriptor based backend e.g. local kurtosis network:
+
+```bash
+DEVSTACK_ORCHESTRATOR=sysext
+```
+
+Then, you can run tests:
+
+```bash
+build-devnet-and-test-e2e DEVNET BINARY
+```
+
 ## Contributing
 
 We welcome contributions to this repository.
