@@ -100,12 +100,14 @@ impl ConnectionGate for ConnectionGater {
         // If the peer is blocked, do not dial.
         if self.blocked_peers.contains(&peer_id) {
             debug!(target: "gossip", peer=?addr, "Peer is blocked, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_peer", "peer" => peer_id.to_string());
             return false;
         }
 
         // If the address is blocked, do not dial.
         if self.blocked_addrs.contains(addr) {
             debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_address", "peer" => peer_id.to_string());
             return false;
         }
 
