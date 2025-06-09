@@ -191,6 +191,7 @@ impl GossipDriver {
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
             debug!(target: "gossip", "Failed to extract tcp socket from enr: {:?}", enr);
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "invalid_enr");
             return;
         };
         self.dial_multiaddr(multiaddr);
@@ -203,21 +204,25 @@ impl GossipDriver {
             .find_map(|p| if let Protocol::P2p(peer_id) = p { Some(peer_id) } else { None })
         else {
             warn!(target: "gossip", peer=?addr, "Failed to extract peer id from multiaddr");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "invalid_multiaddr");
             return;
         };
 
         if self.swarm.connected_peers().any(|p| p == &peer_id) {
             debug!(target: "gossip", peer=?addr, "Already connected to peer, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "already_connected", "peer" => peer_id.to_string());
             return;
         }
 
         if self.current_dials.contains(&peer_id) {
             debug!(target: "gossip", peer=?addr, "Already dialing peer, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "already_dialing", "peer" => peer_id.to_string());
             return;
         }
 
         if self.dial_threshold_reached(&addr) {
             debug!(target: "gossip", peer=?addr, "Dial threshold reached, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "threshold_reached", "peer" => peer_id.to_string());
             return;
         }
 
@@ -228,9 +233,11 @@ impl GossipDriver {
                 trace!(target: "gossip", peer=?addr, "Dialed peer");
                 let count = self.dialed_peers.entry(addr.clone()).or_insert(0);
                 *count += 1;
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER, "peer" => peer_id.to_string());
             }
             Err(e) => {
                 error!(target: "gossip", "Failed to connect to peer: {:?}", e);
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "connection_error", "error" => e.to_string(), "peer" => peer_id.to_string());
             }
         }
     }

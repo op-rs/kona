@@ -160,7 +160,6 @@ impl Network {
                             return;
                         };
                         self.gossip.dial(enr);
-                        kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER);
                     },
 
                     _ = peer_score_inspector.tick(), if self.gossip.peer_monitoring.as_ref().is_some() => {

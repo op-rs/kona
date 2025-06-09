@@ -23,6 +23,9 @@ impl Metrics {
     /// Identifier for the gauge that tracks the number of dialed peers.
     pub const DIAL_PEER: &str = "kona_node_dial_peer";
 
+    /// Identifier for the gauge that tracks the number of errors when dialing peers.
+    pub const DIAL_PEER_ERROR: &str = "kona_node_dial_peer_error";
+
     /// Identifier for discv5 events.
     pub const DISCOVERY_EVENT: &str = "kona_node_discovery_events";
 
@@ -136,6 +139,7 @@ impl Metrics {
 
         // Peer dials
         kona_macros::set!(gauge, Self::DIAL_PEER, 0);
+        kona_macros::set!(gauge, Self::DIAL_PEER_ERROR, 0);
 
         // Unsafe Blocks
         kona_macros::set!(gauge, Self::UNSAFE_BLOCK_PUBLISHED, 0);
