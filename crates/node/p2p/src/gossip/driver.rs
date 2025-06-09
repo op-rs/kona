@@ -174,7 +174,7 @@ where
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         // Check if we're allowed to dial the address.
         if !self.connection_gate.can_dial(&addr) {
-            warn!(target: "gossip", "[GATE] unable to dial peer");
+            warn!(target: "gossip", "unable to dial peer");
             return;
         }
 
