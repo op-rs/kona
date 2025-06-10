@@ -181,7 +181,9 @@ impl OpP2PApiServer for NetworkRpc {
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
-        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+        rx.await
+            .map(|s| s.iter().map(|s| s.to_string()).collect::<Vec<String>>())
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_protect_peer(&self, id: String) -> RpcResult<()> {

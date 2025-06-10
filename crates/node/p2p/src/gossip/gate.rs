@@ -57,7 +57,7 @@ pub trait ConnectionGate {
     fn unblock_subnet(&mut self, subnet: IpNet);
 
     /// Lists all blocked subnets.
-    fn list_blocked_subnets(&self) -> Vec<String>;
+    fn list_blocked_subnets(&self) -> Vec<IpNet>;
 
     /// Protects a peer from being disconnected.
     fn protect_peer(&mut self, peer_id: PeerId);
