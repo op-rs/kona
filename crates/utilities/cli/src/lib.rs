@@ -15,6 +15,8 @@ pub use secrets::{KeypairError, ParseKeyError, SecretKeyLoader};
 
 pub mod backtrace;
 
+pub mod log;
+
 mod tracing;
 pub use tracing::{init_test_tracing, init_tracing_subscriber};
 

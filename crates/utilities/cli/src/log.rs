@@ -1,10 +1,13 @@
+//! Arguments for logging.
+
 use clap::{ArgAction, Args};
-use kona_cli::init_tracing_subscriber;
 use tracing_subscriber::EnvFilter;
 
+use crate::init_tracing_subscriber;
+
 /// Global configuration arguments.
-#[derive(Args, Debug)]
-pub struct GlobalArgs {
+#[derive(Args, Debug, Default, Clone)]
+pub struct LogArgs {
     /// Verbosity level (0-5).
     /// If set to 0, no logs are printed.
     /// By default, the verbosity level is set to 3 (info level).
@@ -18,7 +21,7 @@ pub struct GlobalArgs {
     pub v: u8,
 }
 
-impl GlobalArgs {
+impl LogArgs {
     /// Initializes the telemetry stack.
     pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
         Ok(init_tracing_subscriber(self.v, filter)?)
@@ -34,7 +37,7 @@ mod tests {
     #[derive(Parser, Debug)]
     struct TestCli {
         #[command(flatten)]
-        global: GlobalArgs,
+        global: LogArgs,
     }
 
     #[test]
