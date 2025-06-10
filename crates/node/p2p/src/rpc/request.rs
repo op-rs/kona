@@ -215,6 +215,7 @@ impl P2pRpcRequest {
         let banned_subnets = gossip.connection_gate.list_blocked_subnets();
         let banned_ips = gossip.connection_gate.list_blocked_addrs();
         let banned_peers = gossip.connection_gate.list_blocked_peers();
+        let protected_peers = gossip.connection_gate.list_protected_peers();
 
         #[derive(Default)]
         struct PeerMetadata {
@@ -342,8 +343,7 @@ impl P2pRpcRequest {
                                 // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
                                 chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
                                 gossip_blocks: peer_gossip_info.contains(peer_id),
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                protected: false,
+                                protected: protected_peers.contains(peer_id),
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 latency: 0,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
@@ -384,6 +384,7 @@ impl P2pRpcRequest {
                 addr.to_string()
             })
             .collect::<Vec<String>>();
+
         tokio::spawn(async move {
             let enr = match local_enr.await {
                 Ok(enr) => enr,

@@ -165,6 +165,10 @@ impl ConnectionGate for ConnectionGater {
         true
     }
 
+    fn list_protected_peers(&self) -> Vec<PeerId> {
+        self.protected_peers.iter().copied().collect()
+    }
+
     fn dialing(&mut self, addr: &Multiaddr) {
         if let Some(peer_id) = Self::peer_id_from_addr(addr) {
             self.current_dials.insert(peer_id);

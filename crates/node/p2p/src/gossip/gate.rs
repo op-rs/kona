@@ -59,4 +59,7 @@ pub trait ConnectionGate {
 
     /// Unprotects a peer, allowing it to be disconnected.
     fn unprotect_peer(&mut self, peer_id: PeerId);
+
+    /// Lists all protected peers.
+    fn list_protected_peers(&self) -> Vec<PeerId>;
 }
