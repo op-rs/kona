@@ -4,9 +4,12 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
 use jsonrpsee::ws_client::WsClient;
-use kona_interop::DerivedRefPair;
+use kona_interop::{DerivedRefPair, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
+use kona_supervisor_storage::{
+    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader, StorageError,
+};
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -14,23 +17,34 @@ use tracing::{debug, error, info, warn};
 
 /// [`ManagedEventTask`] sorts and processes individual events coming from a subscription.
 #[derive(Debug)]
-pub struct ManagedEventTask {
+pub struct ManagedEventTask<DB> {
     /// The URL of the L1 RPC endpoint to use for fetching L1 data
     l1_rpc_url: String,
+    /// The database provider for fetching information
+    db_provider: Arc<DB>,
     /// The channel to send the events to which require further processing e.g. db updates
     event_tx: mpsc::Sender<NodeEvent>,
     /// The WebSocket client to use for connecting to managed node (optional for testing)
     client: Option<Arc<WsClient>>,
 }
 
-impl ManagedEventTask {
+impl<DB> ManagedEventTask<DB>
+where
+    DB: LogStorageReader
+        + DerivationStorageReader
+        + SafetyHeadRefStorageReader
+        + Send
+        + Sync
+        + 'static,
+{
     /// Creates a new [`ManagedEventTask`] instance.
     pub const fn new(
         l1_rpc_url: String,
+        db_provider: Arc<DB>,
         event_tx: mpsc::Sender<NodeEvent>,
         client: Arc<WsClient>,
     ) -> Self {
-        Self { l1_rpc_url, event_tx, client: Some(client) }
+        Self { l1_rpc_url, db_provider, event_tx, client: Some(client) }
     }
 
     /// Processes a managed event received from the subscription.
@@ -44,8 +58,7 @@ impl ManagedEventTask {
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target: "managed_event_task", %reset_id, "Reset event received");
-                    // TODO: Handle reset action
+                    self.handle_reset(reset_id).await;
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
@@ -177,21 +190,146 @@ impl ManagedEventTask {
         }
     }
 
+    // todo: refactor
+    async fn handle_reset(&self, reset_id: &str) {
+        info!(target: "managed_event_task", %reset_id, "Reset event received");
+
+        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Unsafe) {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get unsafe head ref");
+                return;
+            }
+        };
+
+        let cross_unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossUnsafe)
+        {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get cross unsafe head ref");
+                return;
+            }
+        };
+
+        let local_safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalSafe) {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get local safe head ref");
+                return;
+            }
+        };
+
+        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Safe) {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get safe head ref");
+                return;
+            }
+        };
+
+        let finalised_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Finalized) {
+            Ok(val) => val,
+            Err(err) => {
+                if matches!(err, StorageError::EntryNotFound(_)) {
+                    // todo: remove this once finalised head ref logic is implemented
+                    local_safe_ref
+                } else {
+                    error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
+                    return;
+                }
+            }
+        };
+
+        let client = match self.client.as_ref() {
+            Some(client) => client.clone(),
+            None => {
+                error!(target: "managed_event_task", "Client is not initialized");
+                return;
+            }
+        };
+
+        let node_safe_ref = match client.block_ref_by_number(local_safe_ref.number).await {
+            Ok(block) => block,
+            Err(err) => {
+                // todo: it's possible that supervisor is ahead of the op-node
+                // in this case we should handle the error gracefully
+                error!(target: "managed_event_task", %err, "Failed to get block by number");
+                return;
+            }
+        };
+
+        // check with consistency with the op-node
+        if node_safe_ref.hash != local_safe_ref.hash {
+            // todo: handle this case
+            error!(target: "managed_event_task", "Local safe ref hash does not match node safe ref hash");
+            return;
+        }
+
+        info!(target: "managed_event_task",
+            %unsafe_ref,
+            %cross_unsafe_ref,
+            %local_safe_ref,
+            %safe_ref,
+            %finalised_ref,
+            "Resetting managed node with latest information",
+        );
+
+        if let Err(err) = client
+            .reset(
+                unsafe_ref.id(),
+                cross_unsafe_ref.id(),
+                local_safe_ref.id(),
+                safe_ref.id(),
+                finalised_ref.id(),
+            )
+            .await
+        {
+            error!(target: "managed_event_task", %err, "Failed to reset managed node");
+        }
+    }
+
     /// Creates a new [`ManagedEventTask`] instance for testing without a WebSocket client.
     #[cfg(test)]
-    const fn new_for_testing(l1_rpc_url: String, event_tx: mpsc::Sender<NodeEvent>) -> Self {
-        Self { l1_rpc_url, event_tx, client: None }
+    const fn new_for_testing(
+        l1_rpc_url: String,
+        db_provider: Arc<DB>,
+        event_tx: mpsc::Sender<NodeEvent>,
+    ) -> Self {
+        Self { l1_rpc_url, db_provider, event_tx, client: None }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_eips::BlockNumHash;
     use alloy_primitives::B256;
     use alloy_transport::mock::*;
-    use kona_interop::DerivedRefPair;
+    use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
-    use kona_supervisor_types::BlockReplacement;
+    use kona_supervisor_storage::{DerivationStorageReader, LogStorageReader, StorageError};
+    use kona_supervisor_types::{BlockReplacement, Log};
+    use mockall::mock;
+
+    mock! {
+        #[derive(Debug)]
+        pub Db {}
+        impl LogStorageReader for Db {
+            fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
+            fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+            fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, _source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl SafetyHeadRefStorageReader for Db {
+            fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+        }
+    }
 
     #[tokio::test]
     async fn test_handle_managed_event_sends_unsafe_block() {
@@ -214,7 +352,8 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let task = ManagedEventTask::new_for_testing("".to_string(), tx);
+        let db = Arc::new(MockDb::new());
+        let task = ManagedEventTask::new_for_testing("".to_string(), db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -254,7 +393,8 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let task = ManagedEventTask::new_for_testing("".to_string(), tx);
+        let db = Arc::new(MockDb::new());
+        let task = ManagedEventTask::new_for_testing("".to_string(), db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -291,7 +431,8 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let task = ManagedEventTask::new_for_testing("".to_string(), tx);
+        let db = Arc::new(MockDb::new());
+        let task = ManagedEventTask::new_for_testing("".to_string(), db, tx);
         task.handle_managed_event(Some(managed_event)).await;
 
         let event = rx.recv().await.expect("Should receive event");
@@ -328,10 +469,10 @@ mod tests {
             "nonce": "0x378da40ff335b070",
             "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
             "logsBloom": "0x00000000000000100000004080000000000500000000000000020000100000000800001000000004000001000000000000000800040010000020100000000400000010000000000000000040000000000000040000000000000000000000000000000400002400000000000000000000000000000004000004000000000000840000000800000080010004000000001000000800000000000000000000000000000000000800000000000040000000020000000000000000000800000400000000000000000000000600000400000000002000000000000000000000004000000000000000100000000000000000000000000000000000040000900010000000",
-            "transactionsRoot": "0x4d0c8e91e16bdff538c03211c5c73632ed054d00a7e210c0eb25146c20048126",
+            "transactionsRoot":"0x4d0c8e91e16bdff538c03211c5c73632ed054d00a7e210c0eb25146c20048126",
             "stateRoot": "0x91309efa7e42c1f137f31fe9edbe88ae087e6620d0d59031324da3e2f4f93233",
             "receiptsRoot": "0x68461ab700003503a305083630a8fb8d14927238f0bc8b6b3d246c0c64f21f4a",
-            "miner": "0xb42b6c4a95406c78ff892d270ad20b22642e102d",
+            "miner":"0xb42b6c4a95406c78ff892d270ad20b22642e102d",
             "difficulty": "0x66e619a",
             "totalDifficulty": "0x1e875d746ae",
             "extraData": "0xd583010502846765746885676f312e37856c696e7578",
@@ -352,7 +493,8 @@ mod tests {
             "parentBeaconBlockRoot": "0x95c4dbd5b19f6fe3cbc3183be85ff4e85ebe75c5b4fc911f1c91e5b7a554a685"
         }"#;
 
-        let task = ManagedEventTask::new_for_testing("test.server".to_string(), tx);
+        let db = Arc::new(MockDb::new());
+        let task = ManagedEventTask::new_for_testing("test.server".to_string(), db, tx);
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
         let provider = RootProvider::<Ethereum>::builder().connect_mocked_client(asserter.clone());

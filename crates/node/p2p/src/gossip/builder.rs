@@ -133,7 +133,9 @@ impl GossipDriverBuilder {
     }
 
     /// Builds the [`GossipDriver`].
-    pub fn build(mut self) -> Result<GossipDriver, GossipDriverBuilderError> {
+    pub fn build(
+        mut self,
+    ) -> Result<GossipDriver<crate::ConnectionGater>, GossipDriverBuilderError> {
         // Extract builder arguments
         let timeout = self.timeout.take().unwrap_or(Duration::from_secs(60));
         let keypair = self.keypair.take().ok_or(GossipDriverBuilderError::MissingKeyPair)?;
@@ -217,6 +219,7 @@ impl GossipDriverBuilder {
 
         let redialing = self.peer_redial;
 
-        Ok(GossipDriver::new(swarm, addr, redialing, handler, sync_handler, sync_protocol))
+        let gate = crate::ConnectionGater::new(redialing);
+        Ok(GossipDriver::new(swarm, addr, handler, sync_handler, sync_protocol, gate))
     }
 }

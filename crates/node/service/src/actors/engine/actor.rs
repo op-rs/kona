@@ -15,11 +15,7 @@ use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
-    sync::{
-        mpsc::{self, Receiver as MpscReceiver},
-        oneshot::Sender as OneshotSender,
-        watch::Sender as WatchSender,
-    },
+    sync::{mpsc, oneshot, watch},
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
@@ -42,17 +38,17 @@ pub struct EngineActor {
     finalizer: L2Finalizer,
 
     /// The channel to send the l2 safe head to the derivation actor.
-    engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
+    engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
     /// start. Because the EL sync state machine within [`EngineState`] can only complete once,
     /// this channel is consumed after the first successful send. Future cases where EL sync is
     /// re-triggered can occur, but we will not block derivation on it.
-    sync_complete_tx: Option<OneshotSender<()>>,
+    sync_complete_tx: Option<oneshot::Sender<()>>,
     /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
     derivation_signal_tx: mpsc::Sender<Signal>,
 
     /// Handler for inbound queries to the engine.
-    inbound_queries: Option<MpscReceiver<EngineQueries>>,
+    inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
@@ -72,15 +68,15 @@ impl EngineActor {
         config: Arc<RollupConfig>,
         client: EngineClient,
         engine: Engine,
-        engine_l2_safe_head_tx: WatchSender<L2BlockInfo>,
-        sync_complete_tx: OneshotSender<()>,
+        engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
+        sync_complete_tx: oneshot::Sender<()>,
         derivation_signal_tx: mpsc::Sender<Signal>,
         runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
         attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
         unsafe_block_rx: mpsc::Receiver<OpNetworkPayloadEnvelope>,
         reset_request_rx: mpsc::Receiver<()>,
-        finalized_block_rx: mpsc::Receiver<BlockInfo>,
-        inbound_queries: Option<MpscReceiver<EngineQueries>>,
+        finalized_block_rx: watch::Receiver<Option<BlockInfo>>,
+        inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
         cancellation: CancellationToken,
     ) -> Self {
         let client = Arc::new(client);
@@ -282,13 +278,13 @@ impl NodeActor for EngineActor {
                     };
                     self.process(InboundEngineMessage::RuntimeConfigUpdate(config.into())).await?;
                 }
-                res = self.finalizer.recv() => {
-                    let Some(res) = res else {
-                        error!(target: "engine", "L1 finalized block receiver closed unexpectedly");
+                msg = self.finalizer.new_finalized_block() => {
+                    if let Err(err) = msg {
+                        error!(target: "engine", ?err, "L1 finalized block receiver closed unexpectedly");
                         self.cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
-                    };
-                    self.process(InboundEngineMessage::NewFinalizedL1Block(res)).await?;
+                    }
+                    self.process(InboundEngineMessage::NewFinalizedL1Block).await?;
                 }
             }
         }
@@ -335,10 +331,10 @@ impl NodeActor for EngineActor {
                     }
                 });
             }
-            InboundEngineMessage::NewFinalizedL1Block(block_info) => {
+            InboundEngineMessage::NewFinalizedL1Block => {
                 // Attempt to finalize any L2 blocks that are contained within the finalized L1
                 // chain.
-                self.finalizer.try_finalize_next(block_info, &mut self.engine).await;
+                self.finalizer.try_finalize_next(&mut self.engine).await;
             }
         }
 
@@ -358,7 +354,7 @@ pub enum InboundEngineMessage {
     /// Received an update to the runtime configuration.
     RuntimeConfigUpdate(Box<RuntimeConfig>),
     /// Received a new finalized L1 block
-    NewFinalizedL1Block(BlockInfo),
+    NewFinalizedL1Block,
 }
 
 /// Configuration for the Engine Actor.

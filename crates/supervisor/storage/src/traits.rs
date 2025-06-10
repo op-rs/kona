@@ -12,7 +12,7 @@ use std::fmt::Debug;
 /// enabling the supervisor to track the derivation progress.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
-pub trait DerivationStorageReader {
+pub trait DerivationStorageReader: Debug {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
     /// # Arguments
@@ -52,7 +52,7 @@ pub trait DerivationStorageReader {
 /// enabling the supervisor to track the derivation progress.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
-pub trait DerivationStorageWriter {
+pub trait DerivationStorageWriter: Debug {
     /// Saves a [`DerivedRefPair`] to the storage.
     /// This method is append only and does not overwrite existing pairs.
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
@@ -65,6 +65,14 @@ pub trait DerivationStorageWriter {
     /// * `Err(StorageError)` if there is an issue saving the pair.
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 }
+
+/// Combines both reading and writing capabilities for derivation storage.
+///
+/// Any type that implements both [`DerivationStorageReader`] and [`DerivationStorageWriter`]
+/// automatically implements this trait.
+pub trait DerivationStorage: DerivationStorageReader + DerivationStorageWriter {}
+
+impl<T: DerivationStorageReader + DerivationStorageWriter> DerivationStorage for T {}
 
 /// Provides an interface for retrieving logs associated with blocks.
 ///
@@ -131,14 +139,14 @@ pub trait LogStorage: LogStorageReader + LogStorageWriter {}
 
 impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
 
-/// Provides an interface for storing and retrieving safety head references.
+/// Provides an interface for retrieving safety head references.
 ///
 /// This trait defines methods to manage safety head references for different safety levels.
 /// Each safety level maintains a reference to a block.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
-pub trait SafetyHeadRefStorage {
+pub trait SafetyHeadRefStorageReader: Debug {
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -148,7 +156,16 @@ pub trait SafetyHeadRefStorage {
     /// * `Ok(BlockInfo)` containing the current safety head reference.
     /// * `Err(StorageError)` if there is an issue retrieving the reference.
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+}
 
+/// Provides an interface for storing safety head references.
+///
+/// This trait defines methods to manage safety head references for different safety levels.
+/// Each safety level maintains a reference to a block.
+///
+/// Implementations are expected to provide persistent and thread-safe access to safety head
+/// references.
+pub trait SafetyHeadRefStorageWriter: Debug {
     /// Updates the safety head reference for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -164,3 +181,11 @@ pub trait SafetyHeadRefStorage {
         block: &BlockInfo,
     ) -> Result<(), StorageError>;
 }
+
+/// Combines both reading and writing capabilities for safety head ref storage.
+///
+/// Any type that implements both [`SafetyHeadRefStorageReader`] and [`SafetyHeadRefStorageWriter`]
+/// automatically implements this trait.
+pub trait SafetyHeadRefStorage: SafetyHeadRefStorageReader + SafetyHeadRefStorageWriter {}
+
+impl<T: SafetyHeadRefStorageReader + SafetyHeadRefStorageWriter> SafetyHeadRefStorage for T {}

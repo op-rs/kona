@@ -45,6 +45,8 @@ pub struct RollupNodeBuilder {
     mode: NodeMode,
     /// If p2p networking is entirely disabled.
     network_disabled: bool,
+    /// If websocket networking is enabled.
+    ws_enabled: bool,
 }
 
 impl RollupNodeBuilder {
@@ -103,6 +105,11 @@ impl RollupNodeBuilder {
         Self { network_disabled, ..self }
     }
 
+    /// Appends whether websocket networking is enabled to the builder.
+    pub fn with_ws_enabled(self, ws_enabled: bool) -> Self {
+        Self { ws_enabled, ..self }
+    }
+
     /// Assembles the [`RollupNode`] service.
     ///
     /// ## Panics
@@ -132,7 +139,11 @@ impl RollupNodeBuilder {
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
-        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
+        let rpc_launcher = self
+            .rpc_config
+            .map(|c| c.as_launcher())
+            .unwrap_or_default()
+            .with_ws_enabled(self.ws_enabled);
 
         let config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {

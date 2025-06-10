@@ -18,7 +18,10 @@ use std::{sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::{
     select,
-    sync::mpsc::{self, error::SendError},
+    sync::{
+        mpsc::{self, error::SendError},
+        watch,
+    },
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
@@ -31,13 +34,11 @@ pub struct L1WatcherRpc {
     config: Arc<RollupConfig>,
     /// The L1 provider.
     l1_provider: RootProvider,
-    /// The latest L1 head sent to the derivation pipeline and watcher. Can be subscribed to, in
-    /// order to get the state from the external watcher.
-    latest_head: tokio::sync::watch::Sender<Option<BlockInfo>>,
-    /// The outbound L1 head block sender.
-    head_sender: mpsc::Sender<BlockInfo>,
-    /// The outbound L1 finalized block sender.
-    finalized_sender: mpsc::Sender<BlockInfo>,
+    /// The latest L1 head block.
+    latest_head: watch::Sender<Option<BlockInfo>>,
+    /// The latest L1 finalized block.
+    latest_finalized: watch::Sender<Option<BlockInfo>>,
+    /// The latest
     /// The block signer sender.
     block_signer_sender: mpsc::Sender<Address>,
     /// The cancellation token, shared between all tasks.
@@ -48,23 +49,21 @@ pub struct L1WatcherRpc {
 
 impl L1WatcherRpc {
     /// Creates a new [`L1WatcherRpc`] instance.
-    pub fn new(
+    pub const fn new(
         config: Arc<RollupConfig>,
         l1_provider: RootProvider,
-        head_sender: mpsc::Sender<BlockInfo>,
-        finalized_sender: mpsc::Sender<BlockInfo>,
+        head_updates: watch::Sender<Option<BlockInfo>>,
+        finalized_updates: watch::Sender<Option<BlockInfo>>,
         block_signer_sender: mpsc::Sender<Address>,
         cancellation: CancellationToken,
         // Can be None if we disable communication with the L1 watcher.
         inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self {
-        let (head_updates, _) = tokio::sync::watch::channel(None);
         Self {
             config,
             l1_provider,
-            head_sender,
-            finalized_sender,
             latest_head: head_updates,
+            latest_finalized: finalized_updates,
             block_signer_sender,
             cancellation,
             inbound_queries,
@@ -183,7 +182,6 @@ impl NodeActor for L1WatcherRpc {
                     }
                     Some(head_block_info) => {
                         // Send the head update event to all consumers.
-                        self.head_sender.send(head_block_info).await?;
                         self.latest_head.send_replace(Some(head_block_info));
 
                         // For each log, attempt to construct a `SystemConfigLog`.
@@ -218,7 +216,7 @@ impl NodeActor for L1WatcherRpc {
                         return Err(L1WatcherRpcError::StreamEnded);
                     }
                     Some(finalized_block_info) => {
-                        self.finalized_sender.send(finalized_block_info).await?;
+                        self.latest_finalized.send_replace(Some(finalized_block_info));
                     }
                 }
             }

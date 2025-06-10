@@ -24,11 +24,10 @@ func TestSystemNodeP2p(t *testing.T) {
 	)
 }
 
-// TODO(@theochap): for now this test is disabled because it is very flaky.
-// Once we have better p2p performance, we should re-enable this test.
+// Check that the node has at least 5 peers that are connected to its topics when there is more than 6 peers in the network initially.
 func TestSystemNodeP2pLargeNetwork(t *testing.T) {
-	// Check that the node has at least 4 peers that are connected to its topics when there is more than 9 peers in the network initially.
-	// We put a lower bound on the number of connected peers to account for network instability.
+	t.Parallel()
+
 	systest.SystemTest(t,
 		peerCount(5, 5),
 		validators.HasSufficientL2Nodes(0, 6),

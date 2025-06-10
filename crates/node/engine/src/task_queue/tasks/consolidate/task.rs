@@ -121,9 +121,9 @@ impl ConsolidateTask {
                         target: "engine",
                         hash = %block_info.block_info.hash,
                         number = block_info.block_info.number,
-                        total_duration = ?total_duration,
-                        block_fetch_duration = ?block_fetch_duration,
-                        fcu_duration = fcu_duration.map(|d| format!("{d:?}")).unwrap_or("N/A".to_string()),
+                        ?total_duration,
+                        ?block_fetch_duration,
+                        fcu_duration = %fcu_duration.map(|d| format!("{d:?}")).unwrap_or("N/A".to_string()),
                         "Updated safe head via L1 consolidation"
                     );
 

@@ -65,6 +65,7 @@ where
         self.managed_node.start_subscription(event_tx).await?;
 
         let task = ChainProcessorTask::new(
+            self.chain_id,
             self.managed_node.clone(),
             self.state_manager.clone(),
             self.cancel_token.clone(),

@@ -3,7 +3,7 @@
 use kona_engine::{Engine, EngineClient, EngineTask, FinalizeTask};
 use kona_protocol::{BlockInfo, OpAttributesWithParent};
 use std::{collections::BTreeMap, sync::Arc};
-use tokio::sync::mpsc;
+use tokio::sync::watch;
 
 /// An internal type alias for L1 block numbers.
 type L1BlockNumber = u64;
@@ -17,7 +17,7 @@ type L2BlockNumber = u64;
 #[derive(Debug)]
 pub struct L2Finalizer {
     /// A channel that receives new finalized L1 blocks intermittently.
-    finalized_l1_block_rx: mpsc::Receiver<BlockInfo>,
+    finalized_l1_block_rx: watch::Receiver<Option<BlockInfo>>,
     /// An [`EngineClient`], used to create [`FinalizeTask`]s.
     client: Arc<EngineClient>,
     /// A map of `L1 block number -> highest derived L2 block number` within the L1 epoch, used to
@@ -30,7 +30,7 @@ pub struct L2Finalizer {
 impl L2Finalizer {
     /// Creates a new [`L2Finalizer`] with the given channel receiver for finalized L1 blocks.
     pub const fn new(
-        finalized_l1_block_rx: mpsc::Receiver<BlockInfo>,
+        finalized_l1_block_rx: watch::Receiver<Option<BlockInfo>>,
         client: Arc<EngineClient>,
     ) -> Self {
         Self { finalized_l1_block_rx, client, awaiting_finalization: BTreeMap::new() }
@@ -52,13 +52,18 @@ impl L2Finalizer {
     }
 
     /// Receives a new finalized L1 block from the channel.
-    pub async fn recv(&mut self) -> Option<BlockInfo> {
-        self.finalized_l1_block_rx.recv().await
+    pub async fn new_finalized_block(&mut self) -> Result<(), watch::error::RecvError> {
+        self.finalized_l1_block_rx.changed().await
     }
 
     /// Attempts to finalize any L2 blocks that the finalizer knows about and are contained within
     /// the new finalized L1 chain.
-    pub async fn try_finalize_next(&mut self, new_finalized_l1: BlockInfo, engine: &mut Engine) {
+    pub async fn try_finalize_next(&mut self, engine: &mut Engine) {
+        // If there is no finalized L1 block available in the watch channel, do nothing.
+        let Some(new_finalized_l1) = *self.finalized_l1_block_rx.borrow() else {
+            return;
+        };
+
         // Find the highest safe L2 block that is contained within the finalized chain,
         // that the finalizer is aware of.
         let highest_safe = self.awaiting_finalization.range(..=new_finalized_l1.number).next_back();

@@ -11,6 +11,12 @@ pub use config::{
     default_config, default_config_builder,
 };
 
+mod gate;
+pub use gate::ConnectionGate; // trait
+
+mod gater;
+pub use gater::ConnectionGater; // implementation
+
 mod builder;
 pub use builder::GossipDriverBuilder;
 
