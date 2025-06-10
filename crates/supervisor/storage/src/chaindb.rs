@@ -4,8 +4,8 @@ use crate::{
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
     traits::{
-        DerivationStorageReader, DerivationStorageWriter, LogStorageReader, LogStorageWriter,
-        HeadRefStorageReader, HeadRefStorageWriter,
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageReader,
+        HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
     },
 };
 use alloy_eips::eip1898::BlockNumHash;
@@ -18,7 +18,8 @@ use reth_db::{
     mdbx::{DatabaseArguments, init_db_for},
 };
 use reth_db_api::database::Database;
-use std::path::Path;
+use std::{path::Path, sync::RwLock};
+use tracing::error;
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -27,14 +28,14 @@ pub struct ChainDb {
     env: DatabaseEnv,
     /// Current L1 block reference, used for tracking the latest L1 block processed.
     /// In-memory only, not persisted.
-    current_l1: Option<BlockInfo>,
+    current_l1: RwLock<Option<BlockInfo>>,
 }
 
 impl ChainDb {
     /// Creates or opens a database environment at the given path.
     pub fn new(path: &Path) -> Result<Self, StorageError> {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
-        Ok(Self { env, current_l1: None })
+        Ok(Self { env, current_l1: RwLock::new(None) })
     }
 
     /// initialises the database with a given anchor derived block pair.
@@ -118,14 +119,26 @@ impl LogStorageWriter for ChainDb {
 }
 
 impl HeadRefStorageReader for ChainDb {
+    fn get_current_l1(&self) -> Result<BlockInfo, StorageError> {
+        let guard = self.current_l1.read().unwrap();
+        guard.as_ref().cloned().ok_or(StorageError::FutureData)
+    }
+
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
     }
 }
 
 impl HeadRefStorageWriter for ChainDb {
-    fn update_current_l1(&mut self, block: BlockInfo) -> Result<(), StorageError> {
-        self.current_l1 = Some(block);
+    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
+        let mut guard = self
+            .current_l1
+            .write()
+            .map_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to acquire write lock on current_l1" );
+                StorageError::LockPoisoned
+            })?;
+        *guard = Some(block);
         Ok(())
     }
 

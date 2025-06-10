@@ -19,6 +19,13 @@ pub enum NodeEvent {
         /// The [`DerivedRefPair`] containing the derived block and its source block.
         derived_ref_pair: DerivedRefPair,
     },
+
+    /// A derivation origin update event, indicating that the origin for derived blocks has changed.
+    DerivationOriginUpdate {
+        /// The [`BlockInfo`] of the block that is the new derivation origin.
+        origin: BlockInfo,
+    },
+
     /// A block replacement event, indicating that a block has been replaced with a new one.
     BlockReplaced {
         /// The [`BlockReplacement`] containing the replacement block and the invalidated block

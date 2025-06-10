@@ -14,9 +14,17 @@ pub enum StorageError {
     #[error(transparent)]
     DatabaseInit(#[from] eyre::Report),
 
+    /// Represents an error that occurred while writing to the database.
+    #[error("lock poisoned")]
+    LockPoisoned,
+
     /// The expected entry was not found in the database.
     #[error("entry not found: {0}")]
     EntryNotFound(String),
+
+    /// Represents an error that occurred while getting data that is not yet available.
+    #[error("data not yet available")]
+    FutureData,
 
     /// Represents an error that occurred while initializing the database with an anchor.
     #[error("invalid anchor")]

@@ -1,7 +1,7 @@
 use super::{ChainProcessorError, ChainProcessorTask};
 use crate::syncnode::{ManagedNodeProvider, NodeEvent};
 use alloy_primitives::ChainId;
-use kona_supervisor_storage::{DerivationStorageWriter, LogStorageWriter};
+use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use std::sync::Arc;
 use tokio::{
     sync::{Mutex, mpsc},
@@ -35,7 +35,7 @@ pub struct ChainProcessor<P, W> {
 impl<P, W> ChainProcessor<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter + DerivationStorageWriter + 'static,
+    W: LogStorageWriter + DerivationStorageWriter + HeadRefStorageWriter + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].
     pub fn new(
@@ -86,10 +86,13 @@ mod tests {
     use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
     use alloy_primitives::B256;
     use async_trait::async_trait;
-    use kona_interop::DerivedRefPair;
+    use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
-    use kona_supervisor_storage::{LogStorageWriter, StorageError};
+    use kona_supervisor_storage::{
+        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
+    };
     use kona_supervisor_types::{Log, Receipts};
+    use mockall::mock;
     use std::{
         sync::atomic::{AtomicBool, Ordering},
         time::Duration,
@@ -125,31 +128,43 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
-    struct MockStorage;
+    mock!(
+        #[derive(Debug)]
+        pub Db {}
 
-    impl LogStorageWriter for MockStorage {
-        fn store_block_logs(
-            &self,
-            _block: &BlockInfo,
-            _logs: Vec<Log>,
-        ) -> Result<(), StorageError> {
-            Ok(())
+        impl LogStorageWriter for Db {
+            fn store_block_logs(
+                &self,
+                block: &BlockInfo,
+                logs: Vec<Log>,
+            ) -> Result<(), StorageError>;
         }
-    }
-    impl DerivationStorageWriter for MockStorage {
-        fn save_derived_block_pair(
-            &self,
-            _incoming_pair: DerivedRefPair,
-        ) -> Result<(), StorageError> {
-            Ok(())
+
+        impl DerivationStorageWriter for Db {
+            fn save_derived_block_pair(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
         }
-    }
+
+        impl HeadRefStorageWriter for Db {
+            fn update_current_l1(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn update_safety_head_ref(
+                &self,
+                safety_level: SafetyLevel,
+                block_info: &BlockInfo,
+            ) -> Result<(), StorageError>;
+        }
+    );
 
     #[tokio::test]
     async fn test_chain_processor_start_sets_task_and_calls_subscription() {
         let mock_node = Arc::new(MockNode::new());
-        let storage = Arc::new(MockStorage);
+        let storage = Arc::new(MockDb::new());
         let cancel_token = CancellationToken::new();
 
         let processor =
