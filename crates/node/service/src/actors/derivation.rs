@@ -52,7 +52,7 @@ where
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
     derivation_signal_rx: mpsc::Receiver<Signal>,
     /// The receiver for L1 head update notifications.
-    l1_head_updates: mpsc::Receiver<BlockInfo>,
+    l1_head_updates: watch::Receiver<Option<BlockInfo>>,
 
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
     attributes_out: mpsc::Sender<OpAttributesWithParent>,
@@ -82,7 +82,7 @@ where
         engine_l2_safe_head: watch::Receiver<L2BlockInfo>,
         el_sync_complete_rx: oneshot::Receiver<()>,
         derivation_signal_rx: mpsc::Receiver<Signal>,
-        l1_head_updates: mpsc::Receiver<BlockInfo>,
+        l1_head_updates: watch::Receiver<Option<BlockInfo>>,
         attributes_out: mpsc::Sender<OpAttributesWithParent>,
         reset_request_tx: mpsc::Sender<()>,
         cancellation: CancellationToken,
@@ -238,10 +238,11 @@ where
                     self.signal(signal).await;
                     self.waiting_for_signal = false;
                 }
-                msg = self.l1_head_updates.recv() => {
-                    if msg.is_none() {
+                msg = self.l1_head_updates.changed() => {
+                    if let Err(err) = msg {
                         error!(
                             target: "derivation",
+                            ?err,
                             "L1 head update stream closed without cancellation. Exiting derivation task."
                         );
                         return Ok(());

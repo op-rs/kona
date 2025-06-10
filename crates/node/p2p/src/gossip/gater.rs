@@ -175,7 +175,7 @@ impl ConnectionGate for ConnectionGater {
     }
 
     fn list_blocked_peers(&self) -> Vec<PeerId> {
-        self.blocked_peers.iter().cloned().collect()
+        self.blocked_peers.iter().copied().collect()
     }
 
     fn block_addr(&mut self, ip: IpAddr) {

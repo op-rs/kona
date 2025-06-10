@@ -15,7 +15,7 @@ use kona_rpc::{
     RpcLauncherError, WsRPC, WsServer,
 };
 use std::fmt::Display;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 use tokio_util::sync::CancellationToken;
 
 /// The [`ValidatorNodeService`] trait defines the common interface for running a validator node
@@ -52,14 +52,11 @@ pub trait ValidatorNodeService {
     fn config(&self) -> &RollupConfig;
 
     /// Creates a new [`NodeActor`] instance that watches the data availability layer. The
-    /// `new_data_tx` channel is used to send updates on the data availability layer to the
-    /// derivation pipeline. The `new_finalized_tx` is used to send updates on the data
-    /// availability layer to the engine for finalizing derived blocks. The `cancellation`
-    /// token is used to gracefully shut down the actor.
+    /// `cancellation` token is used to gracefully shut down the actor.
     fn new_da_watcher(
         &self,
-        new_data_tx: mpsc::Sender<BlockInfo>,
-        new_finalized_tx: mpsc::Sender<BlockInfo>,
+        head_updates: watch::Sender<Option<BlockInfo>>,
+        finalized_updates: watch::Sender<Option<BlockInfo>>,
         block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -87,8 +84,6 @@ pub trait ValidatorNodeService {
         let cancellation = CancellationToken::new();
 
         // Create channels for communication between actors.
-        let (new_head_tx, new_head_rx) = mpsc::channel(16);
-        let (new_finalized_tx, new_finalized_rx) = mpsc::channel(16);
         let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
@@ -97,10 +92,12 @@ pub trait ValidatorNodeService {
         let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
 
         let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
+        let (head_updates_tx, head_updates_rx) = watch::channel(None);
+        let (finalized_updates_tx, finalized_updates_rx) = watch::channel(None);
         let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
         let da_watcher = Some(self.new_da_watcher(
-            new_head_tx,
-            new_finalized_tx,
+            head_updates_tx,
+            finalized_updates_tx,
             block_signer_tx,
             cancellation.clone(),
             Some(l1_watcher_queries_recv),
@@ -114,7 +111,7 @@ pub trait ValidatorNodeService {
             engine_l2_safe_rx,
             sync_complete_rx,
             derivation_signal_rx,
-            new_head_rx,
+            head_updates_rx,
             derived_payload_tx,
             reset_request_tx,
             cancellation.clone(),
@@ -148,7 +145,7 @@ pub trait ValidatorNodeService {
             derived_payload_rx,
             unsafe_block_rx,
             reset_request_rx,
-            new_finalized_rx,
+            finalized_updates_rx,
             Some(engine_query_recv),
             cancellation.clone(),
         );
