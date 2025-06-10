@@ -161,6 +161,28 @@ where
             chains,
         })
     }
+
+    async fn all_safe_derived_at(
+        &self,
+        derived_from: BlockNumHash,
+    ) -> RpcResult<HashMap<ChainId, BlockNumHash>> {
+        trace!(target: "supervisor_rpc",
+            ?derived_from,
+            "Received all_safe_derived_at request"
+        );
+
+        let mut chains = self
+            .supervisor
+            .chain_ids()
+            .map(|id| (id, Default::default()))
+            .collect::<HashMap<_, BlockNumHash>>();
+
+        for (id, block) in chains.iter_mut() {
+            *block = self.supervisor.latest_block_from(derived_from, *id)?.id();
+        }
+
+        Ok(chains)
+    }
 }
 
 impl<T> Clone for SupervisorRpc<T> {
