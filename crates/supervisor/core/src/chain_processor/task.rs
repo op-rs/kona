@@ -5,7 +5,7 @@ use crate::{
 use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{DerivationStorageWriter, LogStorageWriter};
+use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use kona_supervisor_types::BlockReplacement;
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
@@ -31,7 +31,7 @@ pub struct ChainProcessorTask<P, W> {
 impl<P, W> ChainProcessorTask<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter + DerivationStorageWriter + 'static,
+    W: LogStorageWriter + DerivationStorageWriter + HeadRefStorageWriter + 'static,
 {
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
@@ -71,6 +71,9 @@ where
             NodeEvent::DerivedBlock { derived_ref_pair } => {
                 self.handle_safe_event(derived_ref_pair).await
             }
+            NodeEvent::DerivationOriginUpdate { origin } => {
+                self.handle_derivation_origin_update(origin)
+            }
             NodeEvent::BlockReplaced { replacement } => {
                 self.handle_block_replacement(replacement).await
             }
@@ -79,6 +82,24 @@ where
 
     async fn handle_block_replacement(&self, _replacement: BlockReplacement) {
         // Logic to handle block replacement
+    }
+
+    fn handle_derivation_origin_update(&self, origin: BlockInfo) {
+        info!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = origin.number,
+            "Processing derivation origin update"
+        );
+        if let Err(err) = self.state_manager.update_current_l1(origin) {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = origin.number,
+                %err,
+                "Failed to update current L1 block"
+            );
+        }
     }
 
     async fn handle_safe_event(&self, derived_ref_pair: DerivedRefPair) {
@@ -119,18 +140,21 @@ where
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
     use alloy_primitives::B256;
     use async_trait::async_trait;
-    use kona_supervisor_storage::{LogStorageWriter, StorageError};
-    use kona_supervisor_types::{Log, Receipts};
-    use std::{
-        sync::atomic::{AtomicBool, Ordering},
-        time::Duration,
+    use kona_interop::{DerivedRefPair, SafetyLevel};
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_storage::{
+        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
+    use kona_supervisor_types::{Log, Receipts};
+    use mockall::mock;
+    use std::time::Duration;
     use tokio::sync::mpsc;
 
     #[derive(Debug)]
@@ -152,37 +176,47 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
-    struct MockStorage {
-        called: Arc<AtomicBool>,
-    }
+    mock!(
+        #[derive(Debug)]
+        pub Db {}
 
-    impl LogStorageWriter for MockStorage {
-        fn store_block_logs(
-            &self,
-            _block: &BlockInfo,
-            _logs: Vec<Log>,
-        ) -> Result<(), StorageError> {
-            self.called.store(true, Ordering::SeqCst);
-            Ok(())
+        impl LogStorageWriter for Db {
+            fn store_block_logs(
+                &self,
+                block: &BlockInfo,
+                logs: Vec<Log>,
+            ) -> Result<(), StorageError>;
         }
-    }
-    impl DerivationStorageWriter for MockStorage {
-        fn save_derived_block_pair(
-            &self,
-            _incoming_pair: DerivedRefPair,
-        ) -> Result<(), StorageError> {
-            self.called.store(true, Ordering::SeqCst);
-            Ok(())
+
+        impl DerivationStorageWriter for Db {
+            fn save_derived_block_pair(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
         }
-    }
+
+        impl HeadRefStorageWriter for Db {
+            fn update_current_l1(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn update_safety_head_ref(
+                &self,
+                safety_level: SafetyLevel,
+                block_info: &BlockInfo,
+            ) -> Result<(), StorageError>;
+        }
+    );
 
     #[tokio::test]
     async fn test_handle_unsafe_event_triggers() {
-        let called = Arc::new(AtomicBool::new(false));
-
         let node = Arc::new(MockNode);
-        let writer = Arc::new(MockStorage { called: Arc::clone(&called) });
+        let mut mockdb = MockDb::new();
+
+        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
+
+        let writer = Arc::new(mockdb);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
@@ -203,23 +237,10 @@ mod tests {
         // Stop the task
         cancel_token.cancel();
         task_handle.await.unwrap();
-
-        assert!(called.load(Ordering::SeqCst));
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_triggers() {
-        let called = Arc::new(AtomicBool::new(false));
-
-        let node = Arc::new(MockNode);
-        let writer = Arc::new(MockStorage { called: Arc::clone(&called) });
-
-        let cancel_token = CancellationToken::new();
-        let (tx, rx) = mpsc::channel(10);
-
-        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
-
-        // Send unsafe block event
         let block_pair = DerivedRefPair {
             source: BlockInfo {
                 number: 123,
@@ -235,6 +256,22 @@ mod tests {
             },
         };
 
+        let node = Arc::new(MockNode);
+        let mut mockdb = MockDb::new();
+        let block_pair_clone = block_pair.clone();
+        mockdb.expect_save_derived_block_pair().returning(move |_pair: DerivedRefPair| {
+            assert_eq!(_pair, block_pair_clone);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
+
+        // Send unsafe block event
         tx.send(NodeEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
 
         let task_handle = tokio::spawn(task.run());
@@ -245,7 +282,38 @@ mod tests {
         // Stop the task
         cancel_token.cancel();
         task_handle.await.unwrap();
+    }
 
-        assert!(called.load(Ordering::SeqCst));
+    #[tokio::test]
+    async fn test_handle_derivation_origin_update_triggers() {
+        let origin =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+
+        let node = Arc::new(MockNode);
+        let mut mockdb = MockDb::new();
+        let origin_clone = origin;
+        mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
+            assert_eq!(block_info, origin_clone);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
+
+        // Send derivation origin update event
+        tx.send(NodeEvent::DerivationOriginUpdate { origin }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
     }
 }

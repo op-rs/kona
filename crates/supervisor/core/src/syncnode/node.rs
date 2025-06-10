@@ -5,9 +5,7 @@ use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
 use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
-use kona_supervisor_storage::{
-    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader,
-};
+use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
 use tokio::{
@@ -175,12 +173,7 @@ where
 #[async_trait]
 impl<DB> NodeSubscriber for ManagedNode<DB>
 where
-    DB: LogStorageReader
-        + DerivationStorageReader
-        + SafetyHeadRefStorageReader
-        + Send
-        + Sync
-        + 'static,
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
 {
     /// Starts a subscription to the managed node.
     ///
@@ -280,12 +273,7 @@ where
 #[async_trait]
 impl<DB> ReceiptProvider for ManagedNode<DB>
 where
-    DB: LogStorageReader
-        + DerivationStorageReader
-        + SafetyHeadRefStorageReader
-        + Send
-        + Sync
-        + 'static,
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
 {
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         let client = self.get_ws_client().await?;
@@ -323,7 +311,8 @@ mod tests {
             fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
-        impl SafetyHeadRefStorageReader for Db {
+        impl HeadRefStorageReader for Db {
+            fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }
