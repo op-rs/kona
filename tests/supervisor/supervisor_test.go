@@ -38,6 +38,6 @@ func TestSupervisorProgress(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
-	out.Supervisor.AdvancedUnsafeHead(out.L2CLA.ChainID(), 3)
-	out.Supervisor.AdvancedSafeHead(out.L2ChainA.ChainID(), 1, 5)
+	out.Supervisor.WaitForUnsafeHeadToAdvance(out.L2ChainA.ChainID(), 1)
+	out.Supervisor.AdvancedSafeHead(out.L2ChainA.ChainID(), 3, 5)
 }
