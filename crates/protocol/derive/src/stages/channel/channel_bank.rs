@@ -1,11 +1,8 @@
 //! This module contains the `ChannelBank` struct.
 
-use super::NextFrameProvider;
 use crate::{
-    errors::{PipelineError, PipelineErrorKind},
-    stages::ChannelReaderProvider,
-    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    ChannelReaderProvider, NextFrameProvider, OriginAdvancer, OriginProvider, PipelineError,
+    PipelineErrorKind, PipelineResult, Signal, SignalReceiver,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::{Bytes, hex, map::HashMap};

@@ -2,9 +2,8 @@
 //! [DataAvailabilityProvider] trait for the Ethereum protocol.
 
 use crate::{
-    sources::{BlobSource, CalldataSource},
-    traits::{BlobProvider, ChainProvider, DataAvailabilityProvider},
-    types::PipelineResult,
+    BlobProvider, BlobSource, CalldataSource, ChainProvider, DataAvailabilityProvider,
+    PipelineResult,
 };
 use alloc::{boxed::Box, fmt::Debug};
 use alloy_primitives::{Address, Bytes};
@@ -83,7 +82,7 @@ where
 mod tests {
     use super::*;
     use crate::{
-        sources::BlobData,
+        BlobData,
         test_utils::{TestBlobProvider, TestChainProvider},
     };
     use alloc::vec;

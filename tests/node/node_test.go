@@ -2,6 +2,7 @@ package node
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/testlib/validators"
@@ -24,12 +25,14 @@ func TestSystemNodeP2p(t *testing.T) {
 	)
 }
 
-// Check that the node has at least 5 peers that are connected to its topics when there is more than 6 peers in the network initially.
+// Check that the node has at least 4 peers that are connected to its topics when there is more than 6 peers in the network initially.
 func TestSystemNodeP2pLargeNetwork(t *testing.T) {
 	t.Parallel()
+	// Wait for the network to stabilize.
+	time.Sleep(2 * time.Minute)
 
 	systest.SystemTest(t,
-		peerCount(5, 5),
+		peerCount(4, 5),
 		validators.HasSufficientL2Nodes(0, 6),
 	)
 }

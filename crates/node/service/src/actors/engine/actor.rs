@@ -3,7 +3,7 @@
 use super::{EngineError, L2Finalizer};
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
-use kona_derive::types::{ResetSignal, Signal};
+use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     ConsolidateTask, Engine, EngineClient, EngineQueries, EngineState, EngineTask, EngineTaskError,
     InsertUnsafeTask,

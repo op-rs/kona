@@ -202,6 +202,7 @@ where
             }
             Err(e) => {
                 error!(target: "gossip", "Failed to connect to peer: {:?}", e);
+                self.connection_gate.remove_dial(&peer_id);
                 kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "connection_error", "error" => e.to_string(), "peer" => peer_id.to_string());
             }
         }
@@ -320,12 +321,6 @@ where
                     "type" => "outgoing_error",
                     "peer" => peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
-
-                // If the connection was initiated by us, remove the peer from the current dials
-                // set.
-                if let Some(peer_id) = peer_id {
-                    self.connection_gate.remove_dial(&peer_id);
-                }
             }
             SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
                 debug!(target: "gossip", "Incoming connection error: {:?}", error);

@@ -326,11 +326,9 @@ where
 #[cfg(test)]
 mod test {
     use crate::{
-        errors::{PipelineError, PipelineErrorKind, ResetError},
-        stages::{BatchValidator, NextBatchProvider},
+        AttributesProvider, BatchValidator, NextBatchProvider, OriginAdvancer, PipelineError,
+        PipelineErrorKind, PipelineResult, ResetError, ResetSignal, Signal, SignalReceiver,
         test_utils::{CollectingLayer, TestNextBatchProvider, TraceStorage},
-        traits::{AttributesProvider, OriginAdvancer, SignalReceiver},
-        types::{PipelineResult, ResetSignal, Signal},
     };
     use alloc::{sync::Arc, vec, vec::Vec};
     use alloy_eips::{BlockNumHash, NumHash};

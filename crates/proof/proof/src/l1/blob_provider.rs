@@ -9,7 +9,7 @@ use ark_bls12_381::Fr;
 use ark_ff::{AdditiveGroup, BigInteger, BigInteger256, Field, PrimeField};
 use async_trait::async_trait;
 use core::str::FromStr;
-use kona_derive::traits::BlobProvider;
+use kona_derive::BlobProvider;
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use kona_protocol::BlockInfo;
 use spin::Lazy;

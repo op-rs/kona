@@ -136,9 +136,8 @@ pub struct PeerDump {
     /// A list of banned ip addresses.
     #[serde(rename = "bannedIPS")]
     pub banned_ips: Vec<IpAddr>,
-    // TODO: should be IPNet
     /// The banned subnets
-    pub banned_subnets: Vec<IpAddr>,
+    pub banned_subnets: Vec<String>,
 }
 
 /// Peer stats.

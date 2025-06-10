@@ -1,8 +1,9 @@
 //! Contains the forkchoice state for the L2.
 
 use crate::SyncStartError;
-use alloy_eips::BlockNumberOrTag;
-use alloy_provider::{Provider, RootProvider};
+use alloy_eips::{BlockId, BlockNumberOrTag};
+use alloy_provider::{Network, Provider, RootProvider};
+use alloy_transport::TransportResult;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use op_alloy_network::Optimism;
@@ -46,23 +47,23 @@ impl L2ForkchoiceState {
         cfg: &RollupConfig,
         l2_provider: &RootProvider<Optimism>,
     ) -> Result<Self, SyncStartError> {
-        let finalized =
+        let finalized = {
+            let rpc_block = match get_block_compat(l2_provider, BlockNumberOrTag::Finalized.into())
+                .await
             {
-                let rpc_block =
-                    match l2_provider.get_block(BlockNumberOrTag::Finalized.into()).full().await {
-                        Ok(Some(block)) => block,
-                        Ok(None) => l2_provider
-                            .get_block(cfg.genesis.l2.number.into())
-                            .full()
-                            .await?
-                            .ok_or(SyncStartError::BlockNotFound(cfg.genesis.l2.number.into()))?,
-                        Err(e) => return Err(e.into()),
-                    }
-                    .into_consensus();
+                Ok(Some(block)) => block,
+                Ok(None) => l2_provider
+                    .get_block(cfg.genesis.l2.number.into())
+                    .full()
+                    .await?
+                    .ok_or(SyncStartError::BlockNotFound(cfg.genesis.l2.number.into()))?,
+                Err(e) => return Err(e.into()),
+            }
+            .into_consensus();
 
-                L2BlockInfo::from_block_and_genesis(&rpc_block, &cfg.genesis)?
-            };
-        let safe = match l2_provider.get_block(BlockNumberOrTag::Safe.into()).full().await {
+            L2BlockInfo::from_block_and_genesis(&rpc_block, &cfg.genesis)?
+        };
+        let safe = match get_block_compat(l2_provider, BlockNumberOrTag::Safe.into()).await {
             Ok(Some(block)) => {
                 L2BlockInfo::from_block_and_genesis(&block.into_consensus(), &cfg.genesis)?
             }
@@ -70,14 +71,34 @@ impl L2ForkchoiceState {
             Err(e) => return Err(e.into()),
         };
         let un_safe = {
-            let rpc_block = l2_provider
-                .get_block(BlockNumberOrTag::Latest.into())
-                .full()
-                .await?
-                .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Latest.into()))?;
+            let rpc_block =
+                get_block_compat(l2_provider, BlockNumberOrTag::Latest.into())
+                    .await?
+                    .ok_or(SyncStartError::BlockNotFound(BlockNumberOrTag::Latest.into()))?;
             L2BlockInfo::from_block_and_genesis(&rpc_block.into_consensus(), &cfg.genesis)?
         };
 
         Ok(Self { un_safe, safe, finalized })
+    }
+}
+
+/// Wrapper function around [`Provider::get_block`] to handle compatibility issues with geth and
+/// erigon. When serving a block-by-number request, these clients will return non-standard errors
+/// for the safe and finalized heads when the chain has just started and nothing is marked as safe
+/// or finalized yet.
+async fn get_block_compat<P: Provider<Optimism>>(
+    provider: &P,
+    block_id: BlockId,
+) -> TransportResult<Option<<Optimism as Network>::BlockResponse>> {
+    match provider.get_block(block_id).full().await {
+        Err(e) => {
+            let err_str = e.to_string();
+            if err_str.contains("block not found") || err_str.contains("Unknown block") {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        }
+        r => r,
     }
 }

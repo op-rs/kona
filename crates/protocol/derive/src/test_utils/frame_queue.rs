@@ -1,10 +1,8 @@
 //! Mock types for the [FrameQueue] stage.
 
 use crate::{
-    errors::PipelineError,
-    stages::FrameQueueProvider,
-    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    FrameQueueProvider, OriginAdvancer, OriginProvider, PipelineError, PipelineResult, Signal,
+    SignalReceiver,
 };
 use alloc::{boxed::Box, vec::Vec};
 use alloy_primitives::Bytes;
