@@ -4,8 +4,8 @@ use crate::ConnectionGate;
 use libp2p::{Multiaddr, PeerId};
 use std::{
     collections::{HashMap, HashSet},
-    time::Duration,
     net::IpAddr,
+    time::Duration,
 };
 use tokio::time::Instant;
 
