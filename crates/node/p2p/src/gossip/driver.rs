@@ -1,13 +1,11 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
-use alloy_primitives::map::HashSet;
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
     gossipsub::{IdentTopic, MessageId},
-    multiaddr::Protocol,
     swarm::SwarmEvent,
 };
 use libp2p_stream::IncomingStreams;
@@ -15,8 +13,8 @@ use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{collections::HashMap, time::Instant};
 
 use crate::{
-    Behaviour, BlockHandler, EnrValidation, Event, GossipDriverBuilder, Handler, PublishError,
-    enr_to_multiaddr, peers::PeerMonitoring,
+    Behaviour, BlockHandler, ConnectionGate, EnrValidation, Event, GossipDriverBuilder, Handler,
+    PublishError, enr_to_multiaddr, peers::PeerMonitoring,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -24,7 +22,7 @@ use crate::{
 /// Connects the swarm to the given [`Multiaddr`]
 /// and handles events using the [`BlockHandler`].
 #[derive(Debug)]
-pub struct GossipDriver {
+pub struct GossipDriver<G: ConnectionGate> {
     /// The [`Swarm`] instance.
     #[debug(skip)]
     pub swarm: Swarm<Behaviour>,
@@ -39,12 +37,6 @@ pub struct GossipDriver {
     /// Set to `None` if the sync request/response protocol is not enabled.
     #[debug(skip)]
     pub sync_protocol: Option<IncomingStreams>,
-    /// A mapping from [`Multiaddr`] to the number of times it has been dialed.
-    ///
-    /// A peer cannot be redialed more than [`GossipDriverBuilder.peer_redialing`] times.
-    pub dialed_peers: HashMap<Multiaddr, u64>,
-    /// A set of [`PeerId`]s that are currently being dialed.
-    pub current_dials: HashSet<PeerId>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
     pub peerstore: HashMap<PeerId, Multiaddr>,
     /// A mapping from [`PeerId`] to [`libp2p::identify::Info`].
@@ -54,13 +46,16 @@ pub struct GossipDriver {
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     pub peer_monitoring: Option<PeerMonitoring>,
-    /// The number of times to redial a peer.
-    pub peer_redialing: Option<u64>,
     /// Tracks connection start time for peers
     pub peer_connection_start: HashMap<PeerId, Instant>,
+    /// The connection gate.
+    pub connection_gate: G,
 }
 
-impl GossipDriver {
+impl<G> GossipDriver<G>
+where
+    G: ConnectionGate,
+{
     /// Returns the [`GossipDriverBuilder`] that can be used to construct the [`GossipDriver`].
     pub const fn builder() -> GossipDriverBuilder {
         GossipDriverBuilder::new()
@@ -70,25 +65,23 @@ impl GossipDriver {
     pub fn new(
         swarm: Swarm<Behaviour>,
         addr: Multiaddr,
-        redialing: Option<u64>,
         handler: BlockHandler,
         sync_handler: libp2p_stream::Control,
         sync_protocol: IncomingStreams,
+        gate: G,
     ) -> Self {
         Self {
             swarm,
             addr,
             handler,
-            current_dials: Default::default(),
-            dialed_peers: Default::default(),
             peerstore: Default::default(),
             peer_infos: Default::default(),
             peer_monitoring: None,
-            peer_redialing: redialing,
             peer_connection_start: Default::default(),
             sync_handler,
             // TODO(@theochap): make this field truly optional (through CLI args).
             sync_protocol: Some(sync_protocol),
+            connection_gate: gate,
         }
     }
 
@@ -157,26 +150,6 @@ impl GossipDriver {
         self.swarm.next().await
     }
 
-    /// Returns if the given [`Multiaddr`] has been dialed the maximum number of times.
-    pub fn dial_threshold_reached(&mut self, addr: &Multiaddr) -> bool {
-        // If the peer has not been dialed yet, the threshold is not reached.
-        let Some(dialed) = self.dialed_peers.get(addr) else {
-            return false;
-        };
-        // If the peer has been dialed and the threshold is not set, the threshold is reached.
-        let Some(redialing) = self.peer_redialing else {
-            return true;
-        };
-        // If the threshold is set to `0`, redial indefinitely.
-        if redialing == 0 {
-            return false;
-        }
-        if *dialed >= redialing {
-            return true;
-        }
-        false
-    }
-
     /// Returns the number of connected peers.
     pub fn connected_peers(&self) -> usize {
         self.swarm.connected_peers().count()
@@ -191,6 +164,7 @@ impl GossipDriver {
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
             debug!(target: "gossip", "Failed to extract tcp socket from enr: {:?}", enr);
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "invalid_enr");
             return;
         };
         self.dial_multiaddr(multiaddr);
@@ -198,39 +172,37 @@ impl GossipDriver {
 
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
-        let Some(peer_id) = addr
-            .iter()
-            .find_map(|p| if let Protocol::P2p(peer_id) = p { Some(peer_id) } else { None })
-        else {
-            warn!(target: "gossip", peer=?addr, "Failed to extract peer id from multiaddr");
+        // Check if we're allowed to dial the address.
+        if !self.connection_gate.can_dial(&addr) {
+            warn!(target: "gossip", "unable to dial peer");
+            return;
+        }
+
+        // Extract the peer ID from the address.
+        let Some(peer_id) = crate::ConnectionGater::peer_id_from_addr(&addr) else {
+            warn!(target: "gossip", peer=?addr, "Failed to extract PeerId from Multiaddr");
             return;
         };
 
         if self.swarm.connected_peers().any(|p| p == &peer_id) {
             debug!(target: "gossip", peer=?addr, "Already connected to peer, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "already_connected", "peer" => peer_id.to_string());
             return;
         }
 
-        if self.current_dials.contains(&peer_id) {
-            debug!(target: "gossip", peer=?addr, "Already dialing peer, not dialing");
-            return;
-        }
+        // Let the gate know we are dialing the address.
+        self.connection_gate.dialing(&addr);
 
-        if self.dial_threshold_reached(&addr) {
-            debug!(target: "gossip", peer=?addr, "Dial threshold reached, not dialing");
-            return;
-        }
-
-        self.current_dials.insert(peer_id);
-
+        // Dial
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
                 trace!(target: "gossip", peer=?addr, "Dialed peer");
-                let count = self.dialed_peers.entry(addr.clone()).or_insert(0);
-                *count += 1;
+                self.connection_gate.dialed(&addr);
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER, "peer" => peer_id.to_string());
             }
             Err(e) => {
                 error!(target: "gossip", "Failed to connect to peer: {:?}", e);
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "connection_error", "error" => e.to_string(), "peer" => peer_id.to_string());
             }
         }
     }
@@ -352,7 +324,7 @@ impl GossipDriver {
                 // If the connection was initiated by us, remove the peer from the current dials
                 // set.
                 if let Some(peer_id) = peer_id {
-                    self.current_dials.remove(&peer_id);
+                    self.connection_gate.remove_dial(&peer_id);
                 }
             }
             SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
@@ -386,7 +358,7 @@ impl GossipDriver {
 
                 // If the connection was initiated by us, remove the peer from the current dials
                 // set so that we can dial it again.
-                self.current_dials.remove(&peer_id);
+                self.connection_gate.remove_dial(&peer_id);
             }
             SwarmEvent::NewListenAddr { listener_id, address } => {
                 debug!(target: "gossip", reporter_id = ?listener_id, new_address = ?address, "New listen address");

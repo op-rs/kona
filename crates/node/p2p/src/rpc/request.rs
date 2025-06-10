@@ -14,12 +14,13 @@ use discv5::{
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
-use libp2p::gossipsub::TopicHash;
+use libp2p::{Multiaddr, gossipsub::TopicHash};
 
 use super::{
     PeerDump, PeerStats,
     types::{Connectedness, Direction, PeerInfo, PeerScores},
 };
+use crate::ConnectionGate;
 
 /// A p2p RPC Request.
 #[derive(Debug)]
@@ -40,6 +41,23 @@ pub enum P2pRpcRequest {
         /// Whether to only return connected peers.
         connected: bool,
     },
+    /// Request to block a peer by its [`PeerId`].
+    BlockPeer {
+        /// The [`PeerId`] of the peer to block.
+        id: PeerId,
+    },
+    /// Request to unblock a peer by its [`PeerId`].
+    UnblockPeer {
+        /// The [`PeerId`] of the peer to unblock.
+        id: PeerId,
+    },
+    /// Request to list all blocked peers.
+    ListBlockedPeers(Sender<Vec<PeerId>>),
+    /// Request to connect to a given peer.
+    ConnectPeer {
+        /// The [`Multiaddr`] of the peer to connect to.
+        address: Multiaddr,
+    },
     /// Request to disconnect the specified peer.
     DisconnectPeer {
         /// The peer id to disconnect.
@@ -56,7 +74,7 @@ pub enum P2pRpcRequest {
 
 impl P2pRpcRequest {
     /// Handles the peer count request.
-    pub fn handle(self, gossip: &mut GossipDriver, disc: &Discv5Handler) {
+    pub fn handle<G: ConnectionGate>(self, gossip: &mut GossipDriver<G>, disc: &Discv5Handler) {
         match self {
             Self::PeerCount(s) => Self::handle_peer_count(s, gossip, disc),
             Self::DiscoveryTable(s) => Self::handle_discovery_table(s, disc),
@@ -64,10 +82,33 @@ impl P2pRpcRequest {
             Self::Peers { out, connected } => Self::handle_peers(out, connected, gossip, disc),
             Self::DisconnectPeer { peer_id } => Self::disconnect_peer(peer_id, gossip),
             Self::PeerStats(s) => Self::handle_peer_stats(s, gossip, disc),
+            Self::ConnectPeer { address } => Self::connect_peer(address, gossip),
+            Self::BlockPeer { id } => Self::block_peer(id, gossip),
+            Self::UnblockPeer { id } => Self::unblock_peer(id, gossip),
+            Self::ListBlockedPeers(s) => Self::list_blocked_peers(s, gossip),
         }
     }
 
-    fn disconnect_peer(peer_id: PeerId, gossip: &mut GossipDriver) {
+    fn block_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.block_peer(&id);
+    }
+
+    fn unblock_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unblock_peer(&id);
+    }
+
+    fn list_blocked_peers<G: ConnectionGate>(s: Sender<Vec<PeerId>>, gossip: &GossipDriver<G>) {
+        let blocked_peers = gossip.connection_gate.list_blocked_peers();
+        if let Err(e) = s.send(blocked_peers) {
+            warn!(target: "p2p::rpc", "Failed to send blocked peers through response channel: {:?}", e);
+        }
+    }
+
+    fn connect_peer<G: ConnectionGate>(address: Multiaddr, gossip: &mut GossipDriver<G>) {
+        gossip.dial_multiaddr(address)
+    }
+
+    fn disconnect_peer<G: ConnectionGate>(peer_id: PeerId, gossip: &mut GossipDriver<G>) {
         if let Err(e) = gossip.swarm.disconnect_peer_id(peer_id) {
             warn!(target: "p2p::rpc", "Failed to disconnect peer {}: {:?}", peer_id, e);
         } else {
@@ -102,10 +143,10 @@ impl P2pRpcRequest {
         });
     }
 
-    fn handle_peers(
+    fn handle_peers<G: ConnectionGate>(
         sender: Sender<PeerDump>,
         connected: bool,
-        gossip: &GossipDriver,
+        gossip: &GossipDriver<G>,
         disc: &Discv5Handler,
     ) {
         let Ok(total_connected) = gossip.swarm.network_info().num_peers().try_into() else {
@@ -272,7 +313,11 @@ impl P2pRpcRequest {
     }
 
     /// Handles a peer info request by spawning a task.
-    fn handle_peer_info(sender: Sender<PeerInfo>, gossip: &GossipDriver, disc: &Discv5Handler) {
+    fn handle_peer_info<G: ConnectionGate>(
+        sender: Sender<PeerInfo>,
+        gossip: &GossipDriver<G>,
+        disc: &Discv5Handler,
+    ) {
         let peer_id = *gossip.local_peer_id();
         let chain_id = disc.chain_id;
         let local_enr = disc.local_enr();
@@ -321,7 +366,11 @@ impl P2pRpcRequest {
         });
     }
 
-    fn handle_peer_stats(sender: Sender<PeerStats>, gossip: &GossipDriver, disc: &Discv5Handler) {
+    fn handle_peer_stats<G: ConnectionGate>(
+        sender: Sender<PeerStats>,
+        gossip: &GossipDriver<G>,
+        disc: &Discv5Handler,
+    ) {
         let peers_known = gossip.peerstore.len();
         let gossip_network_info = gossip.swarm.network_info();
         let table_info = disc.peer_count();
@@ -330,7 +379,18 @@ impl P2pRpcRequest {
 
         let topics = topics
             .into_iter()
-            .map(|hash| (hash.clone(), gossip.swarm.behaviour().gossipsub.mesh_peers(hash).count()))
+            .map(|hash| {
+                (
+                    hash.clone(),
+                    gossip
+                        .swarm
+                        .behaviour()
+                        .gossipsub
+                        .all_peers()
+                        .filter(|(_, topics)| topics.contains(&hash))
+                        .count(),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         let v1_topic_hash = gossip.handler.blocks_v1_topic.hash();
@@ -405,9 +465,9 @@ impl P2pRpcRequest {
     }
 
     /// Handles a peer count request by spawning a task.
-    fn handle_peer_count(
+    fn handle_peer_count<G: ConnectionGate>(
         sender: Sender<(Option<usize>, usize)>,
-        gossip: &GossipDriver,
+        gossip: &GossipDriver<G>,
         disc: &Discv5Handler,
     ) {
         let pc_req = disc.peer_count();
