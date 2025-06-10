@@ -299,6 +299,7 @@ mod tests {
     use super::*;
     use alloy_eips::BlockNumHash;
     use alloy_primitives::B256;
+    use alloy_rpc_client::RpcClient;
     use alloy_transport::mock::*;
     use kona_interop::{BlockReplacement, DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
@@ -348,7 +349,7 @@ mod tests {
             replace_block: None,
             derivation_origin_update: None,
         };
-        let provider = RootProvider::<Ethereum>::new_http("".parse().unwrap());
+        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8551".parse().unwrap());
 
         let db = Arc::new(MockDb::new());
         let task = ManagedEventTask::new_for_testing(provider, db, tx);
@@ -495,13 +496,15 @@ mod tests {
         }"#;
 
         let db = Arc::new(MockDb::new());
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
-        let task = ManagedEventTask::new_for_testing(provider, db, tx);
+
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
+        let task = ManagedEventTask::new_for_testing(provider, db, tx);
 
         // push the value that we expect on next call
-        asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
+        asserter.clone().push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
 
         let result = task.handle_exhaust_l1(&derived_ref_pair).await;
 
