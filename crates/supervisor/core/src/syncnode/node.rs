@@ -1,6 +1,8 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
@@ -76,6 +78,8 @@ pub struct ManagedNode<DB> {
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
     task_handle: Mutex<Option<JoinHandle<()>>>,
+    /// Shared L1 provider for fetching receipts
+    l1_provider: OnceLock<RootProvider<Ethereum>>,
 }
 
 impl<DB> ManagedNode<DB>
@@ -91,6 +95,7 @@ where
             ws_client: Mutex::new(None),
             cancel_token,
             task_handle: Mutex::new(None),
+            l1_provider: OnceLock::new(),
         }
     }
 
@@ -205,7 +210,7 @@ where
             self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
         let task = ManagedEventTask::new(
-            self.config.l1_rpc_url.clone(),
+            self.l1_provider.get().unwrap().clone(),
             db_provider.clone(),
             event_tx,
             client,
