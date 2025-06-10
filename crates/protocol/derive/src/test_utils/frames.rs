@@ -1,10 +1,8 @@
 //! Frames
 
 use crate::{
-    errors::{PipelineError, PipelineErrorKind},
-    stages::{FrameQueue, NextFrameProvider},
+    FrameQueue, NextFrameProvider, OriginProvider, PipelineError, PipelineErrorKind,
     test_utils::TestFrameQueueProvider,
-    traits::OriginProvider,
 };
 use alloc::{sync::Arc, vec, vec::Vec};
 use alloy_primitives::Bytes;

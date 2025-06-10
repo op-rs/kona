@@ -1,9 +1,9 @@
 //! Data source
 
 use crate::{
-    sources::{BlobSource, CalldataSource},
-    traits::{AsyncIterator, BlobProvider, ChainProvider},
-    types::PipelineResult,
+    BlobSource, CalldataSource,
+    AsyncIterator, BlobProvider, ChainProvider,
+    PipelineResult,
 };
 use alloc::boxed::Box;
 use alloy_primitives::Bytes;
@@ -45,7 +45,7 @@ mod tests {
     use kona_protocol::BlockInfo;
 
     use crate::{
-        sources::{BlobData, EthereumDataSourceVariant},
+        BlobData, EthereumDataSourceVariant,
         test_utils::TestBlobProvider,
     };
 

@@ -4,7 +4,7 @@ use crate::BeaconClient;
 use alloy_eips::eip4844::{Blob, BlobTransactionSidecarItem, IndexedBlobHash};
 use alloy_rpc_types_beacon::sidecar::BlobData;
 use async_trait::async_trait;
-use kona_derive::{BlobProviderError, traits::BlobProvider};
+use kona_derive::{BlobProvider, BlobProviderError};
 use kona_protocol::BlockInfo;
 use std::{boxed::Box, string::ToString, vec::Vec};
 

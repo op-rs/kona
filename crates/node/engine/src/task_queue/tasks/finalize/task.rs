@@ -7,7 +7,7 @@ use crate::{
 use alloy_provider::Provider;
 use async_trait::async_trait;
 use kona_protocol::L2BlockInfo;
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 /// The [`FinalizeTask`] fetches the [`L2BlockInfo`] at `block_number`, updates the [`EngineState`],
 /// and dispatches a forkchoice update to finalize the block.
@@ -34,6 +34,7 @@ impl EngineTaskExt for FinalizeTask {
             return Err(FinalizeTaskError::BlockNotSafe.into());
         }
 
+        let block_fetch_start = Instant::now();
         let block = self
             .client
             .l2_provider()
@@ -45,15 +46,27 @@ impl EngineTaskExt for FinalizeTask {
             .into_consensus();
         let block_info = L2BlockInfo::from_block_and_genesis(&block, &self.client.cfg().genesis)
             .map_err(FinalizeTaskError::FromBlock)?;
+        let block_fetch_duration = block_fetch_start.elapsed();
 
         // Update the finalized block in the engine state.
         state.set_finalized_head(block_info);
 
         // Dispatch a forkchoice update.
+        let fcu_start = Instant::now();
         ForkchoiceTask::new(self.client.clone()).execute(state).await?;
+        let fcu_duration = fcu_start.elapsed();
 
         // Update metrics.
         kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FINALIZE_TASK_LABEL);
+
+        info!(
+            target: "engine",
+            hash = %block_info.block_info.hash,
+            number = block_info.block_info.number,
+            ?block_fetch_duration,
+            ?fcu_duration,
+            "Updated finalized head"
+        );
 
         Ok(())
     }

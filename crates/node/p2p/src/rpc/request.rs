@@ -2,6 +2,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    net::IpAddr,
     num::TryFromIntError,
 };
 
@@ -53,6 +54,18 @@ pub enum P2pRpcRequest {
     },
     /// Request to list all blocked peers.
     ListBlockedPeers(Sender<Vec<PeerId>>),
+    /// Request to block a given IP Address.
+    BlockAddr {
+        /// The IP address to block.
+        address: IpAddr,
+    },
+    /// Request to unblock a given IP Address.
+    UnblockAddr {
+        /// The IP address to unblock.
+        address: IpAddr,
+    },
+    /// Request to list all blocked IP Addresses.
+    ListBlockedAddrs(Sender<Vec<IpAddr>>),
     /// Request to connect to a given peer.
     ConnectPeer {
         /// The [`Multiaddr`] of the peer to connect to.
@@ -61,6 +74,16 @@ pub enum P2pRpcRequest {
     /// Request to disconnect the specified peer.
     DisconnectPeer {
         /// The peer id to disconnect.
+        peer_id: PeerId,
+    },
+    /// Protects a given peer from disconnection.
+    ProtectPeer {
+        /// The id of the peer.
+        peer_id: PeerId,
+    },
+    /// Unprotects a given peer.
+    UnprotectPeer {
+        /// The id of the peer.
         peer_id: PeerId,
     },
     /// Returns the current peer stats for both the
@@ -86,6 +109,34 @@ impl P2pRpcRequest {
             Self::BlockPeer { id } => Self::block_peer(id, gossip),
             Self::UnblockPeer { id } => Self::unblock_peer(id, gossip),
             Self::ListBlockedPeers(s) => Self::list_blocked_peers(s, gossip),
+            Self::BlockAddr { address } => Self::block_addr(address, gossip),
+            Self::UnblockAddr { address } => Self::unblock_addr(address, gossip),
+            Self::ListBlockedAddrs(s) => Self::list_blocked_addrs(s, gossip),
+            Self::ProtectPeer { peer_id } => Self::protect_peer(peer_id, gossip),
+            Self::UnprotectPeer { peer_id } => Self::unprotect_peer(peer_id, gossip),
+        }
+    }
+
+    fn protect_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.protect_peer(id);
+    }
+
+    fn unprotect_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unprotect_peer(id);
+    }
+
+    fn block_addr<G: ConnectionGate>(address: IpAddr, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.block_addr(address);
+    }
+
+    fn unblock_addr<G: ConnectionGate>(address: IpAddr, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unblock_addr(address);
+    }
+
+    fn list_blocked_addrs<G: ConnectionGate>(s: Sender<Vec<IpAddr>>, gossip: &GossipDriver<G>) {
+        let blocked_addrs = gossip.connection_gate.list_blocked_addrs();
+        if let Err(e) = s.send(blocked_addrs) {
+            warn!(target: "p2p::rpc", "Failed to send blocked addresses through response channel: {:?}", e);
         }
     }
 
