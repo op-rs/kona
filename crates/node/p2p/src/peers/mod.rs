@@ -49,7 +49,7 @@ mod score;
 pub use score::PeerScoreLevel;
 
 mod enr;
-pub use enr::{EnrValidation, OpStackEnr};
+pub use enr::{EnrValidation, OpStackEnr, OpStackEnrError};
 
 mod any;
 pub use any::{AnyNode, DialOptsError};

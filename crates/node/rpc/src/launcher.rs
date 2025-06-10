@@ -28,6 +28,8 @@ impl PartialEq for RpcLauncherError {
 #[derive(Debug, Clone, Default)]
 pub struct RpcLauncher {
     disabled: bool,
+    /// If `true`, the RPC server will not attempt to restart if it stops.
+    pub no_restart: bool,
     socket: Option<SocketAddr>,
     module: Option<RpcModule<()>>,
     ws_enabled: bool,
@@ -35,7 +37,7 @@ pub struct RpcLauncher {
 
 impl From<SocketAddr> for RpcLauncher {
     fn from(socket: SocketAddr) -> Self {
-        Self { disabled: false, socket: Some(socket), module: None, ws_enabled: false }
+        Self { disabled: false, no_restart: false, socket: Some(socket), module: None, ws_enabled: false }
     }
 }
 
@@ -46,7 +48,7 @@ impl RpcLauncher {
     }
 
     /// Disable the RPC server, preventing the launcher from starting the RPC server.
-    pub fn disable(&mut self) {
+    pub const fn disable(&mut self) {
         self.disabled = true;
     }
 

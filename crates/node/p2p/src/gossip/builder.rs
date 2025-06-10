@@ -3,8 +3,8 @@
 use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
 use libp2p::{
-    Multiaddr, SwarmBuilder, gossipsub::Config, identity::Keypair, noise::Config as NoiseConfig,
-    tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
+    Multiaddr, StreamProtocol, SwarmBuilder, gossipsub::Config, identity::Keypair,
+    noise::Config as NoiseConfig, tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
 };
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
@@ -133,7 +133,9 @@ impl GossipDriverBuilder {
     }
 
     /// Builds the [`GossipDriver`].
-    pub fn build(mut self) -> Result<GossipDriver, GossipDriverBuilderError> {
+    pub fn build(
+        mut self,
+    ) -> Result<GossipDriver<crate::ConnectionGater>, GossipDriverBuilderError> {
         // Extract builder arguments
         let timeout = self.timeout.take().unwrap_or(Duration::from_secs(60));
         let keypair = self.keypair.take().ok_or(GossipDriverBuilderError::MissingKeyPair)?;
@@ -141,6 +143,7 @@ impl GossipDriverBuilder {
         let signer_recv = self.signer.ok_or(GossipDriverBuilderError::MissingUnsafeBlockSigner)?;
         let rollup_config =
             self.rollup_config.take().ok_or(GossipDriverBuilderError::MissingRollupConfig)?;
+        let l2_chain_id = rollup_config.l2_chain_id;
 
         // Block Handler setup
         let handler = BlockHandler::new(rollup_config, signer_recv);
@@ -167,19 +170,34 @@ impl GossipDriverBuilder {
         let mut behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])?;
 
         // If peer scoring is configured, set it on the behaviour.
-        if let Some(scoring) = self.scoring {
-            use crate::gossip::handler::Handler;
-            let block_time = self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
-            let params = scoring
-                .to_params(handler.topics(), self.topic_scoring, block_time)
-                .unwrap_or_default();
-            match behaviour.gossipsub.with_peer_score(params, PeerScoreLevel::thresholds()) {
-                Ok(_) => debug!(target: "scoring", "Peer scoring enabled successfully"),
-                Err(e) => warn!(target: "scoring", "Peer scoring failed: {}", e),
+        match self.scoring {
+            None => info!(target: "scoring", "Peer scoring not enabled"),
+            Some(PeerScoreLevel::Off) => {
+                info!(target: "scoring", level = ?PeerScoreLevel::Off, "Peer scoring explicitly disabled")
             }
-        } else {
-            info!(target: "scoring", "Peer scoring not enabled");
+            Some(level) => {
+                use crate::gossip::handler::Handler;
+                let block_time =
+                    self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
+                let params = level
+                    .to_params(handler.topics(), self.topic_scoring, block_time)
+                    .unwrap_or_default();
+                match behaviour.gossipsub.with_peer_score(params, PeerScoreLevel::thresholds()) {
+                    Ok(_) => debug!(target: "scoring", "Peer scoring enabled successfully"),
+                    Err(e) => warn!(target: "scoring", "Peer scoring failed: {}", e),
+                }
+            }
         }
+
+        // Let's setup the sync request/response protocol stream.
+        let mut sync_handler = behaviour.sync_req_resp.new_control();
+
+        let protocol = format!("/opstack/req/payload_by_number/{}/0/", l2_chain_id);
+        let sync_protocol_name = StreamProtocol::try_from_owned(protocol)
+            .map_err(|_| GossipDriverBuilderError::SetupSyncReqRespError)?;
+        let sync_protocol = sync_handler
+            .accept(sync_protocol_name)
+            .map_err(|_| GossipDriverBuilderError::SyncReqRespAlreadyAccepted)?;
 
         // Build the swarm.
         debug!(target: "gossip", "Building Swarm with Peer ID: {}", keypair.public().to_peer_id());
@@ -201,6 +219,7 @@ impl GossipDriverBuilder {
 
         let redialing = self.peer_redial;
 
-        Ok(GossipDriver::new(swarm, addr, redialing, handler))
+        let gate = crate::ConnectionGater::new(redialing);
+        Ok(GossipDriver::new(swarm, addr, handler, sync_handler, sync_protocol, gate))
     }
 }

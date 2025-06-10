@@ -6,7 +6,7 @@ use crate::{
     types::PipelineResult,
 };
 use alloc::{boxed::Box, collections::VecDeque};
-use alloy_consensus::{Transaction, TxEnvelope};
+use alloy_consensus::{Transaction, TxEnvelope, transaction::SignerRecoverable};
 use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
@@ -66,6 +66,13 @@ impl<CP: ChainProvider + Send> CalldataSource<CP> {
                 Some(data.to_vec().into())
             })
             .collect::<VecDeque<_>>();
+
+        #[cfg(feature = "metrics")]
+        metrics::gauge!(
+            crate::metrics::Metrics::PIPELINE_DATA_AVAILABILITY_PROVIDER,
+            "source" => "calldata",
+        )
+        .increment(self.calldata.len() as f64);
 
         self.open = true;
 

@@ -5,27 +5,30 @@
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![no_std]
+#![cfg_attr(not(feature = "metrics"), no_std)]
 
 extern crate alloc;
 
 #[macro_use]
 extern crate tracing;
 
-/// Required types and traits for kona's derivation pipeline.
-pub mod prelude {
-    pub use crate::{
-        attributes::*, errors::*, pipeline::*, sources::*, stages::*, traits::*, types::*,
-    };
-}
+mod attributes;
+pub use attributes::StatefulAttributesBuilder;
 
-pub mod attributes;
-pub mod errors;
+mod errors;
+pub use errors::{
+    BatchDecompressionError, BlobDecodingError, BlobProviderError, BuilderError,
+    PipelineEncodingError, PipelineError, PipelineErrorKind, ResetError,
+};
+
 pub mod pipeline;
 pub mod sources;
 pub mod stages;
 pub mod traits;
 pub mod types;
+
+pub mod metrics;
+pub use metrics::Metrics;
 
 #[cfg(feature = "test-utils")]
 pub mod test_utils;

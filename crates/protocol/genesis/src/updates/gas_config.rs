@@ -17,7 +17,7 @@ pub struct GasConfigUpdate {
 
 impl GasConfigUpdate {
     /// Applies the update to the [`SystemConfig`].
-    pub fn apply(&self, config: &mut SystemConfig) {
+    pub const fn apply(&self, config: &mut SystemConfig) {
         if let Some(scalar) = self.scalar {
             config.scalar = scalar;
         }

@@ -3,7 +3,7 @@
 use crate::{Metrics, NodeActor};
 use async_trait::async_trait;
 use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind, ResetError},
+    PipelineError, PipelineErrorKind, ResetError,
     traits::{Pipeline, SignalReceiver},
     types::{ActivationSignal, ResetSignal, Signal, StepResult},
 };
@@ -11,11 +11,7 @@ use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;
 use tokio::{
     select,
-    sync::{
-        mpsc::{UnboundedReceiver, UnboundedSender},
-        oneshot::Receiver as OneshotReceiver,
-        watch::Receiver as WatchReceiver,
-    },
+    sync::{mpsc, oneshot, watch},
 };
 use tokio_util::sync::CancellationToken;
 
@@ -33,9 +29,9 @@ where
     pipeline: P,
 
     /// The l2 safe head from the engine.
-    engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
+    engine_l2_safe_head: watch::Receiver<L2BlockInfo>,
     /// A receiver that tells derivation to begin. Completing EL sync consumes the instance.
-    sync_complete_rx: OneshotReceiver<()>,
+    el_sync_complete_rx: oneshot::Receiver<()>,
     /// A receiver that sends a [`Signal`] to the derivation pipeline.
     ///
     /// The derivation actor steps over the derivation pipeline to generate
@@ -54,18 +50,16 @@ where
     /// occurs.
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
-    derivation_signal_rx: UnboundedReceiver<Signal>,
+    derivation_signal_rx: mpsc::Receiver<Signal>,
     /// The receiver for L1 head update notifications.
-    l1_head_updates: UnboundedReceiver<BlockInfo>,
+    l1_head_updates: watch::Receiver<Option<BlockInfo>>,
 
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
-    attributes_out: UnboundedSender<OpAttributesWithParent>,
+    attributes_out: mpsc::Sender<OpAttributesWithParent>,
     /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
     /// them to the engine.
-    reset_request_tx: UnboundedSender<()>,
+    reset_request_tx: mpsc::Sender<()>,
 
-    /// A flag indicating whether the derivation pipeline is ready to start.
-    engine_ready: bool,
     /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
     /// has yielded to wait for more data on the DAL.
     derivation_idle: bool,
@@ -85,23 +79,22 @@ where
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pipeline: P,
-        engine_l2_safe_head: WatchReceiver<L2BlockInfo>,
-        sync_complete_rx: OneshotReceiver<()>,
-        derivation_signal_rx: UnboundedReceiver<Signal>,
-        l1_head_updates: UnboundedReceiver<BlockInfo>,
-        attributes_out: UnboundedSender<OpAttributesWithParent>,
-        reset_request_tx: UnboundedSender<()>,
+        engine_l2_safe_head: watch::Receiver<L2BlockInfo>,
+        el_sync_complete_rx: oneshot::Receiver<()>,
+        derivation_signal_rx: mpsc::Receiver<Signal>,
+        l1_head_updates: watch::Receiver<Option<BlockInfo>>,
+        attributes_out: mpsc::Sender<OpAttributesWithParent>,
+        reset_request_tx: mpsc::Sender<()>,
         cancellation: CancellationToken,
     ) -> Self {
         Self {
             pipeline,
             engine_l2_safe_head,
-            sync_complete_rx,
+            el_sync_complete_rx,
             derivation_signal_rx,
             l1_head_updates,
             attributes_out,
             reset_request_tx,
-            engine_ready: false,
             derivation_idle: true,
             waiting_for_signal: false,
             cancellation,
@@ -187,7 +180,7 @@ where
                                     kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
 
-                                self.reset_request_tx.send(()).map_err(|e| {
+                                self.reset_request_tx.send(()).await.map_err(|e| {
                                     error!(target: "derivation", ?e, "Failed to send reset request");
                                     DerivationError::Sender(Box::new(e))
                                 })?;
@@ -197,6 +190,7 @@ where
                         }
                         PipelineErrorKind::Critical(_) => {
                             error!(target: "derivation", "Critical derivation error: {e}");
+                            kona_macros::inc!(counter, Metrics::DERIVATION_CRITICAL_ERROR);
                             return Err(e.into());
                         }
                     }
@@ -244,10 +238,11 @@ where
                     self.signal(signal).await;
                     self.waiting_for_signal = false;
                 }
-                msg = self.l1_head_updates.recv() => {
-                    if msg.is_none() {
+                msg = self.l1_head_updates.changed() => {
+                    if let Err(err) = msg {
                         error!(
                             target: "derivation",
+                            ?err,
                             "L1 head update stream closed without cancellation. Exiting derivation task."
                         );
                         return Ok(());
@@ -258,9 +253,8 @@ where
                 _ = self.engine_l2_safe_head.changed() => {
                     self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
                 }
-                _ = &mut self.sync_complete_rx, if !self.engine_ready => {
+                _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
-                    self.engine_ready = true;
                     // Optimistically process the first message.
                     self.process(InboundDerivationMessage::NewDataAvailable).await?;
                 }
@@ -282,7 +276,7 @@ where
     /// zero hash, the pipeline is not stepped on.
     async fn process(&mut self, msg: Self::InboundEvent) -> Result<(), Self::Error> {
         // Only attempt derivation once the engine finishes syncing.
-        if !self.engine_ready {
+        if !self.el_sync_complete_rx.is_terminated() {
             trace!(target: "derivation", "Engine not ready, skipping derivation");
             return Ok(());
         } else if self.waiting_for_signal {
@@ -337,6 +331,7 @@ where
         // Send payload attributes out for processing.
         self.attributes_out
             .send(payload_attrs)
+            .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
         Ok(())

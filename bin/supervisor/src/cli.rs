@@ -1,12 +1,10 @@
 //! Contains the supervisor CLI.
 
-use crate::flags::{GlobalArgs, MetricsArgs, SupervisorArgs};
-use clap::Parser;
-
+use crate::flags::SupervisorArgs;
 use anyhow::Result;
-use kona_cli::cli_styles;
-use kona_supervisor_service::{Config, Service};
-use std::net::SocketAddr;
+use clap::Parser;
+use kona_cli::{cli_styles, log::LogArgs, metrics_args::MetricsArgs};
+use kona_supervisor_service::Service;
 use tracing::info;
 
 /// CLI for the Rust implementation of the OP Supervisor.
@@ -15,7 +13,7 @@ use tracing::info;
 pub struct Cli {
     /// Global args
     #[command(flatten)]
-    pub global: GlobalArgs,
+    pub global: LogArgs,
 
     /// Prometheus metrics args
     #[command(flatten)]
@@ -29,15 +27,12 @@ pub struct Cli {
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
-        self.init_telemetry(&self.global, &self.metrics)?;
+        self.metrics.init_metrics()?;
+        self.init_logs(&self.global)?;
 
         Self::run_until_ctrl_c(async move {
-            let dependency_set = self.supervisor.init_dependency_set().await?;
-            let config = Config {
-                rpc_addr: SocketAddr::new(self.supervisor.rpc_address, self.supervisor.rpc_port),
-                dependency_set,
-            };
-            let mut service = Service::new(config.clone())?;
+            let config = self.supervisor.init_config().await?;
+            let mut service = Service::new(config);
             service.run().await?; // run() now returns Result<()> and populates the handle internally
 
             tokio::signal::ctrl_c().await?;
@@ -66,11 +61,11 @@ impl Cli {
     }
 
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+    pub fn init_logs(&self, args: &LogArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env();
 
         args.init_tracing(Some(filter))?;
-        metrics.init_metrics()
+        Ok(())
     }
 }

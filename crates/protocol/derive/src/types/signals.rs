@@ -19,6 +19,16 @@ pub enum Signal {
     FlushChannel,
 }
 
+impl core::fmt::Display for Signal {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Reset(_) => write!(f, "reset"),
+            Self::Activation(_) => write!(f, "activation"),
+            Self::FlushChannel => write!(f, "flush_channel"),
+        }
+    }
+}
+
 impl Signal {
     /// Sets the [SystemConfig] for the signal.
     pub const fn with_system_config(self, system_config: SystemConfig) -> Self {

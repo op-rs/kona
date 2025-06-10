@@ -4,14 +4,15 @@ use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use op_alloy_consensus::interop::SafetyLevel;
+use std::fmt::Debug;
 
 /// Provides an interface for supervisor storage to manage source and derived blocks.
 ///
-/// Defines methods to retrieve and persist derived block information,
+/// Defines methods to retrieve derived block information,
 /// enabling the supervisor to track the derivation progress.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
-pub trait DerivationStorage {
+pub trait DerivationStorageReader: Debug {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
     /// # Arguments
@@ -43,7 +44,15 @@ pub trait DerivationStorage {
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+}
 
+/// Provides an interface for supervisor storage to write source and derived blocks.
+///
+/// Defines methods to persist derived block information,
+/// enabling the supervisor to track the derivation progress.
+///
+/// Implementations are expected to provide persistent and thread-safe access to block data.
+pub trait DerivationStorageWriter: Debug {
     /// Saves a [`DerivedRefPair`] to the storage.
     /// This method is append only and does not overwrite existing pairs.
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
@@ -57,13 +66,21 @@ pub trait DerivationStorage {
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 }
 
-/// Provides an interface for storing and retrieving logs associated with blocks.
+/// Combines both reading and writing capabilities for derivation storage.
 ///
-/// This trait defines methods to store logs for a specific block, retrieve the latest block,
+/// Any type that implements both [`DerivationStorageReader`] and [`DerivationStorageWriter`]
+/// automatically implements this trait.
+pub trait DerivationStorage: DerivationStorageReader + DerivationStorageWriter {}
+
+impl<T: DerivationStorageReader + DerivationStorageWriter> DerivationStorage for T {}
+
+/// Provides an interface for retrieving logs associated with blocks.
+///
+/// This trait defines methods to retrieve the latest block,
 /// find a block by a specific log, and retrieve logs for a given block number.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
-pub trait LogStorage {
+pub trait LogStorageReader: Debug {
     /// Retrieves the latest [`BlockInfo`] from the storage.
     ///
     /// # Returns
@@ -94,7 +111,12 @@ pub trait LogStorage {
     /// * `Ok(Vec<Log>)` containing the logs associated with the block number.
     /// * `Err(StorageError)` if there is an issue retrieving the logs or if no logs are found.
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+}
 
+/// Provides an interface for storing blocks and  logs associated with blocks.
+///
+/// Implementations are expected to provide persistent and thread-safe access to block logs.
+pub trait LogStorageWriter: Send + Sync + Debug {
     /// Stores [`BlockInfo`] and [`Log`]s in the storage.
     /// This method is append-only and does not overwrite existing logs.
     /// Ensures that the latest stored block is the parent of the incoming block before saving.
@@ -109,14 +131,22 @@ pub trait LogStorage {
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError>;
 }
 
-/// Provides an interface for storing and retrieving safety head references.
+/// Combines both reading and writing capabilities for log storage.
+///
+/// Any type that implements both [`LogStorageReader`] and [`LogStorageWriter`]
+/// automatically implements this trait.
+pub trait LogStorage: LogStorageReader + LogStorageWriter {}
+
+impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
+
+/// Provides an interface for retrieving safety head references.
 ///
 /// This trait defines methods to manage safety head references for different safety levels.
 /// Each safety level maintains a reference to a block.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
-pub trait SafetyHeadRefStorage {
+pub trait SafetyHeadRefStorageReader: Debug {
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -126,7 +156,16 @@ pub trait SafetyHeadRefStorage {
     /// * `Ok(BlockInfo)` containing the current safety head reference.
     /// * `Err(StorageError)` if there is an issue retrieving the reference.
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+}
 
+/// Provides an interface for storing safety head references.
+///
+/// This trait defines methods to manage safety head references for different safety levels.
+/// Each safety level maintains a reference to a block.
+///
+/// Implementations are expected to provide persistent and thread-safe access to safety head
+/// references.
+pub trait SafetyHeadRefStorageWriter: Debug {
     /// Updates the safety head reference for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -142,3 +181,11 @@ pub trait SafetyHeadRefStorage {
         block: &BlockInfo,
     ) -> Result<(), StorageError>;
 }
+
+/// Combines both reading and writing capabilities for safety head ref storage.
+///
+/// Any type that implements both [`SafetyHeadRefStorageReader`] and [`SafetyHeadRefStorageWriter`]
+/// automatically implements this trait.
+pub trait SafetyHeadRefStorage: SafetyHeadRefStorageReader + SafetyHeadRefStorageWriter {}
+
+impl<T: SafetyHeadRefStorageReader + SafetyHeadRefStorageWriter> SafetyHeadRefStorage for T {}

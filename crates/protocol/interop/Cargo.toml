@@ -70,3 +70,5 @@ serde = [
   "alloy-primitives/serde",
   "kona-protocol/serde",
 ]
+test-utils = ["std"]
+

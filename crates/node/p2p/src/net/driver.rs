@@ -1,7 +1,9 @@
 //! Driver for network services.
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, hex};
+use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use libp2p::TransportError;
+use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::collections::HashSet;
 use tokio::{
@@ -33,7 +35,7 @@ pub struct Network {
     // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
     // pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
     /// The swarm instance.
-    pub gossip: GossipDriver,
+    pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
     pub discovery: Discv5Driver,
 }
@@ -53,8 +55,52 @@ impl Network {
     }
 
     /// Take the unsafe block signer sender.
-    pub fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
+    pub const fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
         self.unsafe_block_signer_sender.take()
+    }
+
+    /// Handles the sync request/response protocol.
+    ///
+    /// This is a mock handler that supports the `payload_by_number` protocol.
+    /// It always returns: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
+    ///
+    /// ## Note
+    ///
+    /// This is used to ensure op-nodes are not penalizing kona-nodes for not supporting it.
+    /// This feature is being deprecated by the op-node team. Once it is fully removed from the
+    /// op-node's implementation we will remove this handler.
+    async fn sync_protocol_handler(mut sync_protocol: IncomingStreams) {
+        loop {
+            let Some((peer_id, mut inbound_stream)) = sync_protocol.next().await else {
+                warn!(target: "node::p2p::sync", "The sync protocol stream has ended");
+                return;
+            };
+
+            info!(target: "node::p2p::sync", "Received a sync request from {peer_id}, spawning a new task to handle it");
+
+            tokio::spawn(async move {
+                let mut buffer = Vec::new();
+                let Ok(bytes_received) = inbound_stream.read_to_end(&mut buffer).await else {
+                    error!(target: "node::p2p::sync", "Failed to read the sync request from {peer_id}");
+                    return;
+                };
+
+                debug!(target: "node::p2p::sync", bytes_received = bytes_received, peer_id = ?peer_id, payload = ?buffer, "Received inbound sync request");
+
+                // We return: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
+                // Response format: <response> = <res><version><payload>
+                // No payload is returned.
+                const OUTPUT: [u8; 2] = hex!("0100");
+
+                // We only write that we're not supporting the sync request.
+                if let Err(e) = inbound_stream.write_all(&OUTPUT).await {
+                    error!(target: "node::p2p::sync", err = ?e, "Failed to write the sync response to {peer_id}");
+                    return;
+                };
+
+                debug!(target: "node::p2p::sync", bytes_sent = OUTPUT.len(), peer_id = ?peer_id, "Sent outbound sync response");
+            });
+        }
     }
 
     /// Starts the Discv5 peer discovery & libp2p services
@@ -72,6 +118,11 @@ impl Network {
 
         // Start the libp2p Swarm
         self.gossip.listen().await?;
+
+        // Start the sync request/response protocol handler.
+        if let Some(sync_protocol) = self.gossip.sync_protocol.take() {
+            tokio::spawn(Self::sync_protocol_handler(sync_protocol));
+        }
 
         // Spawn the network handler
         tokio::spawn(async move {
@@ -98,7 +149,6 @@ impl Network {
                             return;
                         };
 
-                        kona_macros::inc!(gauge, crate::Metrics::GOSSIP_EVENT, "total", "total");
                         if let Some(payload) = self.gossip.handle_event(event) {
                             broadcast.push(payload);
                             broadcast.broadcast();
@@ -110,7 +160,6 @@ impl Network {
                             return;
                         };
                         self.gossip.dial(enr);
-                        kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER);
                     },
 
                     _ = peer_score_inspector.tick(), if self.gossip.peer_monitoring.as_ref().is_some() => {
@@ -123,14 +172,17 @@ impl Network {
                         // We collect a list of peers to remove
                         let peers_to_remove = self.gossip.swarm.connected_peers().filter_map(
                             |peer_id| {
-                                 // If the score is not available, we use a default value of 0.
-                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
+                                // If the score is not available, we use a default value of 0.
+                                let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
 
-                                 if score < ban_peers.ban_threshold {
-                                    return Some(*peer_id);
-                                 }
+                                // Record the peer score in the metrics.
+                                kona_macros::record!(histogram, crate::Metrics::PEER_SCORES, score);
 
-                                 None
+                                if score < ban_peers.ban_threshold {
+                                   return Some(*peer_id);
+                                }
+
+                                None
                             }
                         ).collect::<Vec<_>>();
 
@@ -143,8 +195,21 @@ impl Network {
                                 warn!(peer = ?peer_to_remove, "Trying to disconnect a non-existing peer from the gossip driver.");
                             }
 
+                            // Record the duration of the peer connection.
+                            if let Some(start_time) = self.gossip.peer_connection_start.remove(&peer_to_remove) {
+                                let peer_duration = start_time.elapsed();
+                                kona_macros::record!(
+                                    histogram,
+                                    crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                                    peer_duration.as_secs_f64()
+                                );
+                            }
+
                             if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
-                                self.gossip.dialed_peers.remove(&addr);
+                                use crate::ConnectionGate;
+                                self.gossip.connection_gate.remove_dial(&peer_to_remove);
+                                let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
+                                kona_macros::inc!(gauge, crate::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
                                 return Some(addr);
                             }
 
@@ -161,7 +226,7 @@ impl Network {
                             error!(target: "node::p2p", "The rpc receiver channel has closed");
                             return;
                         };
-                        req.handle(&self.gossip, &handler);
+                        req.handle(&mut self.gossip, &handler);
                     },
                 }
             }

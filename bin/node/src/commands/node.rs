@@ -1,9 +1,14 @@
 //! Node Subcommand.
 
+use crate::{
+    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    metrics::CliMetrics,
+};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::{ArgAction, Parser};
+use kona_cli::metrics_args::MetricsArgs;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
@@ -12,8 +17,6 @@ use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
 use tracing::{debug, error};
 use url::Url;
-
-use crate::flags::{GlobalArgs, MetricsArgs, P2PArgs, RpcArgs, SequencerArgs};
 
 /// The Node subcommand.
 ///
@@ -97,14 +100,54 @@ impl Default for NodeCommand {
 }
 
 impl NodeCommand {
-    /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_telemetry(&self, args: &GlobalArgs, metrics: &MetricsArgs) -> anyhow::Result<()> {
+    /// Initializes the logging system based on global arguments.
+    pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?);
 
         args.init_tracing(Some(filter))?;
-        metrics.init_metrics()
+        Ok(())
+    }
+
+    /// Initializes CLI metrics for the Node subcommand.
+    pub fn init_cli_metrics(&self, args: &MetricsArgs) -> anyhow::Result<()> {
+        if !args.enabled {
+            debug!("CLI metrics are disabled");
+            return Ok(());
+        }
+        metrics::gauge!(
+            CliMetrics::IDENTIFIER,
+            &[
+                (CliMetrics::P2P_PEER_SCORING_LEVEL, self.p2p_flags.scoring.to_string()),
+                (CliMetrics::P2P_TOPIC_SCORING_ENABLED, self.p2p_flags.topic_scoring.to_string()),
+                (CliMetrics::P2P_BANNING_ENABLED, self.p2p_flags.ban_enabled.to_string()),
+                (
+                    CliMetrics::P2P_PEER_REDIALING,
+                    self.p2p_flags.peer_redial.unwrap_or(0).to_string()
+                ),
+                (CliMetrics::P2P_FLOOD_PUBLISH, self.p2p_flags.gossip_flood_publish.to_string()),
+                (CliMetrics::P2P_DISCOVERY_INTERVAL, self.p2p_flags.discovery_interval.to_string()),
+                (
+                    CliMetrics::P2P_ADVERTISE_IP,
+                    self.p2p_flags
+                        .advertise_ip
+                        .map(|ip| ip.to_string())
+                        .unwrap_or(String::from("0.0.0.0"))
+                ),
+                (CliMetrics::P2P_ADVERTISE_TCP_PORT, self.p2p_flags.advertise_tcp_port.to_string()),
+                (CliMetrics::P2P_ADVERTISE_UDP_PORT, self.p2p_flags.advertise_udp_port.to_string()),
+                (CliMetrics::P2P_PEERS_LO, self.p2p_flags.peers_lo.to_string()),
+                (CliMetrics::P2P_PEERS_HI, self.p2p_flags.peers_hi.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D, self.p2p_flags.gossip_mesh_d.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D_LO, self.p2p_flags.gossip_mesh_dlo.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D_HI, self.p2p_flags.gossip_mesh_dhi.to_string()),
+                (CliMetrics::P2P_GOSSIP_MESH_D_LAZY, self.p2p_flags.gossip_mesh_dlazy.to_string()),
+                (CliMetrics::P2P_BAN_DURATION, self.p2p_flags.ban_duration.to_string()),
+            ]
+        )
+        .set(1);
+        Ok(())
     }
 
     /// Validate the jwt secret if specified by exchanging capabilities with the engine.

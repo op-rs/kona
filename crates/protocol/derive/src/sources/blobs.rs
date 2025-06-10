@@ -7,7 +7,9 @@ use crate::{
     types::PipelineResult,
 };
 use alloc::{boxed::Box, string::ToString, vec::Vec};
-use alloy_consensus::{Transaction, TxEip4844Variant, TxEnvelope, TxType};
+use alloy_consensus::{
+    Transaction, TxEip4844Variant, TxEnvelope, TxType, transaction::SignerRecoverable,
+};
 use alloy_eips::eip4844::IndexedBlobHash;
 use alloy_primitives::{Address, Bytes};
 use async_trait::async_trait;
@@ -103,6 +105,12 @@ where
                 index += 1;
             }
         }
+        #[cfg(feature = "metrics")]
+        metrics::gauge!(
+            crate::metrics::Metrics::PIPELINE_DATA_AVAILABILITY_PROVIDER,
+            "source" => "blobs",
+        )
+        .increment(data.len() as f64);
         (data, hashes)
     }
 

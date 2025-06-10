@@ -80,6 +80,10 @@ pub trait OpP2PApi {
     #[method(name = "blockPeer")]
     async fn opp2p_block_peer(&self, peer: String) -> RpcResult<()>;
 
+    /// Unblocks the given peer
+    #[method(name = "unblockPeer")]
+    async fn opp2p_unblock_peer(&self, peer: String) -> RpcResult<()>;
+
     /// Lists blocked peers
     #[method(name = "listBlockedPeers")]
     async fn opp2p_list_blocked_peers(&self) -> RpcResult<Vec<String>>;

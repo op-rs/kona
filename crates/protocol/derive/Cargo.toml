@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 # Protocol
+kona-macros.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 kona-hardforks.workspace = true
@@ -38,6 +39,9 @@ serde = { workspace = true, optional = true }
 spin = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
 
+# `metrics` feature
+metrics = { workspace = true, optional = true }
+
 [dev-dependencies]
 kona-derive = { workspace = true, features = ["test-utils"] }
 spin.workspace = true
@@ -52,6 +56,7 @@ op-alloy-consensus = { workspace = true, features = ["k256"] }
 
 [features]
 default = []
+metrics = ["dep:metrics"]
 serde = [
   "dep:serde",
   "kona-protocol/serde",

@@ -7,14 +7,14 @@ use crate::{
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use kona_protocol::BlockInfo;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 use kona_genesis::RollupConfig;
 use kona_p2p::{Config, Network, NetworkBuilder};
-use kona_protocol::BlockInfo;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
     OnlinePipeline,
@@ -83,17 +83,17 @@ impl ValidatorNodeService for RollupNode {
 
     fn new_da_watcher(
         &self,
-        new_data_tx: UnboundedSender<BlockInfo>,
-        new_finalized_tx: UnboundedSender<BlockInfo>,
-        block_signer_tx: UnboundedSender<Address>,
+        head_updates: watch::Sender<Option<BlockInfo>>,
+        finalized_updates: watch::Sender<Option<BlockInfo>>,
+        block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
         l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self::DataAvailabilityWatcher {
         L1WatcherRpc::new(
             self.config.clone(),
             self.l1_provider.clone(),
-            new_data_tx,
-            new_finalized_tx,
+            head_updates,
+            finalized_updates,
             block_signer_tx,
             cancellation,
             l1_watcher_inbound_queries,

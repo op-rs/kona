@@ -3,7 +3,10 @@
 use crate::{
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
-    traits::{DerivationStorage, LogStorage, SafetyHeadRefStorage},
+    traits::{
+        DerivationStorageReader, DerivationStorageWriter, LogStorageReader, LogStorageWriter,
+        SafetyHeadRefStorageReader, SafetyHeadRefStorageWriter,
+    },
 };
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
@@ -30,9 +33,24 @@ impl ChainDb {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
         Ok(Self { env })
     }
+
+    /// initialises the database with a given anchor derived block pair.
+    pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
+        self.env.update(|tx| {
+            DerivationProvider::new(tx).initialise(anchor.clone())?;
+            LogProvider::new(tx).initialise(anchor.derived)?;
+
+            let sp = SafetyHeadRefProvider::new(tx);
+            // todo: cross check if we can consider following safety head ref update
+            sp.update_safety_head_ref(SafetyLevel::Unsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
+        })?
+    }
 }
 
-impl DerivationStorage for ChainDb {
+impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| DerivationProvider::new(tx).derived_to_source(derived_block_id))?
     }
@@ -49,14 +67,34 @@ impl DerivationStorage for ChainDb {
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
         self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())?
     }
+}
 
+impl DerivationStorageWriter for ChainDb {
+    // Todo: better name save_derived_block_pair
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        self.env
-            .update(|ctx| DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair))?
+        self.env.update(|ctx| {
+            let derived_block = incoming_pair.derived;
+            let block =
+                LogProvider::new(ctx).get_block(derived_block.number).map_err(|err| match err {
+                    StorageError::EntryNotFound(_) => StorageError::ConflictError(
+                        "conflict between unsafe block and derived block".to_string(),
+                    ),
+                    other => other, // propagate other errors as-is
+                })?;
+
+            if block != derived_block {
+                return Err(StorageError::ConflictError(
+                    "conflict between unsafe block and derived block".to_string(),
+                ));
+            }
+            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
+            SafetyHeadRefProvider::new(ctx)
+                .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
+        })?
     }
 }
 
-impl LogStorage for ChainDb {
+impl LogStorageReader for ChainDb {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| LogProvider::new(tx).get_latest_block())?
     }
@@ -68,17 +106,21 @@ impl LogStorage for ChainDb {
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
         self.env.view(|tx| LogProvider::new(tx).get_logs(block_number))?
     }
+}
 
+impl LogStorageWriter for ChainDb {
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
         self.env.update(|ctx| LogProvider::new(ctx).store_block_logs(block, logs))?
     }
 }
 
-impl SafetyHeadRefStorage for ChainDb {
+impl SafetyHeadRefStorageReader for ChainDb {
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
     }
+}
 
+impl SafetyHeadRefStorageWriter for ChainDb {
     fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,
@@ -111,8 +153,29 @@ mod tests {
         let db_path = tmp_dir.path().join("chaindb_logs");
         let db = ChainDb::new(&db_path).expect("create db");
 
-        // Create dummy block and logs
-        let block = BlockInfo::default();
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        db.initialise(anchor.clone()).expect("initialise db");
+
+        let block = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
         let log1 = Log { index: 0, hash: B256::from([0u8; 32]), executing_message: None };
         let log2 = Log { index: 1, hash: B256::from([1u8; 32]), executing_message: None };
         let logs = vec![log1, log2];
@@ -138,8 +201,7 @@ mod tests {
         let db_path = tmp_dir.path().join("chaindb_derivation");
         let db = ChainDb::new(&db_path).expect("create db");
 
-        // Create dummy derived block pair
-        let derived_pair = DerivedRefPair {
+        let anchor = DerivedRefPair {
             source: BlockInfo {
                 hash: B256::from([0u8; 32]),
                 number: 100,
@@ -148,11 +210,45 @@ mod tests {
             },
             derived: BlockInfo {
                 hash: B256::from([2u8; 32]),
-                number: 1,
+                number: 0,
                 parent_hash: B256::from([3u8; 32]),
                 timestamp: 0,
             },
         };
+
+        // Create dummy derived block pair
+        let derived_pair = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([4u8; 32]),
+                number: 101,
+                parent_hash: B256::from([5u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([6u8; 32]),
+                number: 1,
+                parent_hash: anchor.derived.hash,
+                timestamp: 0,
+            },
+        };
+
+        // Initialise the database with the anchor derived block pair
+        db.initialise(anchor.clone()).expect("initialise db with anchor");
+
+        // Save derived block pair - should error conflict
+        let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
+        assert!(matches!(err, StorageError::ConflictError(_)));
+
+        db.store_block_logs(
+            &BlockInfo {
+                hash: B256::from([6u8; 32]),
+                number: 1,
+                parent_hash: anchor.derived.hash,
+                timestamp: 0,
+            },
+            vec![],
+        )
+        .expect("storing logs failed");
 
         // Save derived block pair
         db.save_derived_block_pair(derived_pair.clone()).expect("save derived pair");

@@ -7,7 +7,7 @@ use alloy_primitives::{B256, Bytes};
 use alloy_rlp::Decodable;
 use core::fmt::Debug;
 use kona_derive::{
-    errors::{PipelineError, PipelineErrorKind},
+    PipelineError, PipelineErrorKind,
     traits::{Pipeline, SignalReceiver},
     types::Signal,
 };

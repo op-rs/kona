@@ -115,7 +115,7 @@ where
     }
 
     /// Closes the channel if not already closed.
-    pub fn close(&mut self) {
+    pub const fn close(&mut self) {
         self.closed = true;
     }
 

@@ -1,28 +1,37 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
-use alloy_rpc_types_engine::JwtSecret;
-use jsonrpsee::{
-    core::client::Subscription,
-    ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder},
+use alloy_primitives::{B256, ChainId};
+use alloy_rpc_types_engine::{Claims, JwtSecret};
+use async_trait::async_trait;
+use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
+use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
+use kona_supervisor_storage::{
+    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader,
 };
-use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_types::ManagedEvent;
-use std::sync::Arc;
+use kona_supervisor_types::Receipts;
+use std::sync::{Arc, OnceLock};
 use tokio::{
-    sync::{Mutex, mpsc, watch},
+    sync::{Mutex, mpsc},
     task::JoinHandle,
 };
-use tracing::{debug, error, info, warn};
+use tokio_util::sync::CancellationToken;
+use tracing::{error, info, warn};
 
-use crate::{AuthenticationError, ManagedNodeError, NodeEvent, SubscriptionError};
+use super::{
+    AuthenticationError, ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider,
+    SubscriptionError,
+};
+use crate::syncnode::task::ManagedEventTask;
 
-/// Configuration for the managed node.
-#[derive(Debug)]
+/// [`ManagedNodeConfig`] sets the configuration for the managed node.
+#[derive(Debug, Clone)]
 pub struct ManagedNodeConfig {
     /// The URL + port of the managed node
     pub url: String,
     /// The path to the JWT token for the managed node
     pub jwt_path: String,
+    /// The URL of the L1 RPC endpoint
+    pub l1_rpc_url: String,
 }
 
 impl ManagedNodeConfig {
@@ -56,21 +65,40 @@ impl ManagedNodeConfig {
 ///
 /// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
-pub struct ManagedNode {
+pub struct ManagedNode<DB> {
     /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
+    /// Chain ID of the managed node
+    chain_id: OnceLock<ChainId>,
+    /// The database provider for fetching information
+    db_provider: Option<Arc<DB>>,
     /// The attached web socket client
     ws_client: Mutex<Option<Arc<WsClient>>>,
-    /// Channel for signaling the subscription task to stop
-    stop_tx: Option<watch::Sender<bool>>,
+    // Cancellation token to stop the processor
+    cancel_token: CancellationToken,
     /// Handle to the async subscription task
-    task_handle: Option<JoinHandle<()>>,
+    task_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl ManagedNode {
+impl<DB> ManagedNode<DB>
+where
+    DB: LogStorageReader + DerivationStorageReader + Send + Sync + 'static,
+{
     /// Creates a new [`ManagedNode`] with the specified configuration.
-    pub fn new(config: Arc<ManagedNodeConfig>) -> Self {
-        Self { config, ws_client: Mutex::new(None), stop_tx: None, task_handle: None }
+    pub fn new(config: Arc<ManagedNodeConfig>, cancel_token: CancellationToken) -> Self {
+        Self {
+            config,
+            chain_id: OnceLock::new(),
+            db_provider: None,
+            ws_client: Mutex::new(None),
+            cancel_token,
+            task_handle: Mutex::new(None),
+        }
+    }
+
+    /// Sets the database provider for the managed node.
+    pub fn set_db_provider(&mut self, db_provider: Arc<DB>) {
+        self.db_provider = Some(db_provider);
     }
 
     /// Returns a reference to the WebSocket client, creating it if it doesn't exist.
@@ -92,22 +120,85 @@ impl ManagedNode {
         Ok(ws_client_guard.clone().unwrap())
     }
 
+    /// Returns the [`ChainId`] of the [`ManagedNode`].
+    /// If the chain ID is already cached, it returns that.
+    /// If not, it fetches the chain ID from the managed node.
+    pub async fn chain_id(&self) -> Result<ChainId, ManagedNodeError> {
+        if let Some(chain_id) = self.chain_id.get() {
+            return Ok(*chain_id);
+        }
+
+        // Fetch chain ID from the managed node
+        let client = self.get_ws_client().await?;
+        let chain_id_str = client.chain_id().await.inspect_err(|err| {
+            error!(target: "managed_node", %err, "Failed to get chain ID");
+        })?;
+
+        let chain_id = chain_id_str.parse::<u64>().inspect_err(|err| {
+            error!(target: "managed_node", %err, "Failed to parse chain ID");
+        })?;
+
+        let _ = self.chain_id.set(chain_id);
+        Ok(chain_id)
+    }
+
+    /// Creates authentication headers using JWT secret.
+    fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
+        let Some(jwt_secret) = self.config.jwt_secret() else {
+            error!(target: "managed_node", "JWT secret not found or invalid");
+            return Err(AuthenticationError::InvalidJwt.into())
+        };
+
+        // Create JWT claims with current time
+        let claims = Claims::with_current_timestamp();
+        let token = jwt_secret.encode(&claims).map_err(|err| {
+            error!(target: "managed_node", %err, "Failed to encode JWT claims");
+            AuthenticationError::InvalidJwt
+        })?;
+
+        info!(target: "managed_node", token, "JWT token created successfully");
+        let mut headers = HeaderMap::new();
+        let auth_header = format!("Bearer {}", token);
+
+        headers.insert(
+            "Authorization",
+            HeaderValue::from_str(&auth_header).map_err(|err| {
+                error!(target: "managed_node", %err, "Invalid authorization header");
+                AuthenticationError::InvalidHeader
+            })?,
+        );
+
+        Ok(headers)
+    }
+}
+
+#[async_trait]
+impl<DB> NodeSubscriber for ManagedNode<DB>
+where
+    DB: LogStorageReader
+        + DerivationStorageReader
+        + SafetyHeadRefStorageReader
+        + Send
+        + Sync
+        + 'static,
+{
     /// Starts a subscription to the managed node.
     ///
     /// Establishes a WebSocket connection and subscribes to node events.
     /// Spawns a background task to process incoming events.
-    pub async fn start_subscription(
-        &mut self,
+    async fn start_subscription(
+        &self,
         event_tx: mpsc::Sender<NodeEvent>,
     ) -> Result<(), ManagedNodeError> {
-        if self.task_handle.is_some() {
+        let mut task_handle_guard = self.task_handle.lock().await;
+        if task_handle_guard.is_some() {
             Err(SubscriptionError::AlreadyActive)?
         }
 
         let client = self.get_ws_client().await?;
 
-        let mut subscription: Subscription<Option<ManagedEvent>> =
-            ManagedModeApiClient::subscribe_events(client.as_ref()).await.inspect_err(|err| {
+        let mut subscription =
+            client.subscribe_events(SubscriptionTopic::Events).await.inspect_err(|err| {
                 error!(
                     target: "managed_node",
                     %err,
@@ -115,9 +206,17 @@ impl ManagedNode {
                 );
             })?;
 
-        // Create stop channel for graceful shutdown
-        let (stop_tx, mut stop_rx) = watch::channel(false);
-        self.stop_tx = Some(stop_tx);
+        let cancel_token = self.cancel_token.clone();
+
+        let db_provider =
+            self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
+        // Creates a task instance to sort and process the events from the subscription
+        let task = ManagedEventTask::new(
+            self.config.l1_rpc_url.clone(),
+            db_provider.clone(),
+            event_tx,
+            client,
+        );
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
@@ -125,28 +224,24 @@ impl ManagedNode {
             loop {
                 tokio::select! {
                     // Listen for stop signal
-                    _ = stop_rx.changed() => {
-                        if *stop_rx.borrow() {
-                            info!(target: "managed_node", "Stop signal received, shutting down subscription");
-                            break;
-                        }
+                    _ = cancel_token.cancelled() => {
+                        info!(target: "managed_node", "Cancellation token triggered, shutting down subscription");
+                        break;
                     }
+
                     // Listen for events from subscription
-                    event = subscription.next() => {
-                        match event {
-                            Some(event_result) => {
-                                match event_result {
-                                    Ok(managed_event) => {
-                                        Self::handle_managed_event(&event_tx, managed_event).await;
-                                    },
-                                    Err(err) => {
-                                        error!(
-                                            target: "managed_node",
-                                            %err,
-                                            "Error in event deserialization");
-                                        // Continue processing next events despite this error
-                                    }
-                                }
+                    incoming_event = subscription.next() => {
+                        match incoming_event {
+                            Some(Ok(subscription_event)) => {
+                                task.handle_managed_event(subscription_event.data).await;
+                            }
+                            Some(Err(err)) => {
+                                error!(
+                                    target: "managed_node",
+                                    %err,
+                                    "Error in event deserialization"
+                                );
+                        // Continue processing next events despite this error
                             }
                             None => {
                                 // Subscription closed by the server
@@ -170,175 +265,68 @@ impl ManagedNode {
             info!(target: "managed_node", "Subscription task finished");
         });
 
-        self.task_handle = Some(handle);
+        *task_handle_guard = Some(handle);
+
         info!(target: "managed_node", "Subscription started successfully");
         Ok(())
     }
+}
 
-    /// Stops the subscription to the managed node.
-    ///
-    /// Sends a stop signal to the background task and waits for it to complete.
-    pub async fn stop_subscription(&mut self) -> Result<(), ManagedNodeError> {
-        if let Some(stop_tx) = self.stop_tx.take() {
-            debug!(target: "managed_node", action = "send_stop_signal", "Sending stop signal to subscription task");
-            stop_tx.send(true).map_err(|err| {
-                error!(
-                    target: "managed_node",
-                    %err,
-                    "Failed to send stop signal"
-                );
-                SubscriptionError::SendStopSignalFailed
-            })?;
-        } else {
-            Err(SubscriptionError::MissingStopChannel)?;
-        }
-
-        // Wait for task to complete
-        if let Some(handle) = self.task_handle.take() {
-            debug!(target: "managed_node", "Waiting for subscription task to complete");
-            handle.await.map_err(|err| {
-                error!(
-                    target: "managed_node",
-                    %err,
-                    "Failed to join task"
-                );
-                SubscriptionError::ShutdownDaemonFailed
-            })?;
-            info!(target: "managed_node", "Subscription stopped and task joined");
-        } else {
-            Err(SubscriptionError::SubscriptionNotFound)?;
-        }
-
-        Ok(())
-    }
-
-    /// Creates authentication headers using JWT secret.
-    fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
-        let Some(jwt_secret) = self.config.jwt_secret() else {
-            error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(AuthenticationError::InvalidJwt.into())
-        };
-
-        let mut headers = HeaderMap::new();
-        let auth_header =
-            format!("Bearer {}", alloy_primitives::hex::encode(jwt_secret.as_bytes()));
-
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_str(&auth_header).map_err(|err| {
-                error!(target: "managed_node", %err, "Invalid authorization header");
-                AuthenticationError::InvalidHeader
-            })?,
-        );
-
-        Ok(headers)
-    }
-
-    /// Processes a managed event received from the subscription.
-    ///
-    /// Analyzes the event content and takes appropriate actions based on the
-    /// event fields.
-    async fn handle_managed_event(
-        event_tx: &mpsc::Sender<NodeEvent>,
-        event_result: Option<ManagedEvent>,
-    ) {
-        match event_result {
-            Some(event) => {
-                debug!(target: "managed_node", %event, "Handling ManagedEvent");
-
-                // Process each field of the event if it's present
-                if let Some(reset_id) = &event.reset {
-                    info!(target: "managed_node", %reset_id, "Reset event received");
-                    // Handle reset action
-                }
-
-                if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target: "managed_node", %unsafe_block, "Unsafe block event received");
-
-                    // todo: check any pre processing needed
-                    if let Err(err) =
-                        event_tx.send(NodeEvent::UnsafeBlock { block: *unsafe_block }).await
-                    {
-                        warn!(target: "managed_node", %err, "Failed to send unsafe block event, channel closed or receiver dropped");
-                    }
-                }
-
-                if let Some(derived_ref_pair) = &event.derivation_update {
-                    info!(target: "managed_node", %derived_ref_pair, "Derivation update received");
-
-                    // todo: check any pre processing needed
-                    if let Err(err) = event_tx
-                        .send(NodeEvent::DerivedBlock {
-                            derived_ref_pair: derived_ref_pair.clone(),
-                        })
-                        .await
-                    {
-                        warn!(target: "managed_node", %err, "Failed to derivation update event, channel closed or receiver dropped");
-                    }
-                }
-
-                if let Some(derived_ref_pair) = &event.exhaust_l1 {
-                    info!(
-                        target: "managed_node",
-                        %derived_ref_pair,
-                        "L1 exhausted event received"
-                    );
-
-                    // todo: check if the last derived_ref_pair derived from l1 is sent as part of
-                    // this event if yes, then we can send it to the event_tx
-                    // otherwise, we can ignore this event
-
-                    // Handle L1 exhaustion
-                }
-
-                if let Some(replacement) = &event.replace_block {
-                    info!(target: "managed_node", %replacement, "Block replacement received");
-
-                    // todo: check any pre processing needed
-                    if let Err(err) = event_tx
-                        .send(NodeEvent::BlockReplaced { replacement: replacement.clone() })
-                        .await
-                    {
-                        warn!(target: "managed_node", %err, "Failed to send block replacement event, channel closed or receiver dropped");
-                    }
-                }
-
-                if let Some(origin) = &event.derivation_origin_update {
-                    info!(target: "managed_node", %origin, "Derivation origin update received");
-
-                    // todo: check if we need to send this to the event_tx
-                }
-
-                // Check if this was an empty event (all fields None)
-                if event.reset.is_none() &&
-                    event.unsafe_block.is_none() &&
-                    event.derivation_update.is_none() &&
-                    event.exhaust_l1.is_none() &&
-                    event.replace_block.is_none() &&
-                    event.derivation_origin_update.is_none()
-                {
-                    debug!(target: "managed_node", "Received empty event with all fields None");
-                }
-            }
-            None => {
-                warn!(
-                    target: "managed_node",
-                    "Received None event, possibly an empty notification or an issue with deserialization."
-                );
-            }
-        }
+/// Implements [`ReceiptProvider`] for [`ManagedNode`] by delegating to the underlying WebSocket
+/// client.
+///
+/// This allows `LogIndexer` and similar components to remain decoupled from the full
+/// [`ManagedModeApiClient`] interface, using only the receipt-fetching capability
+#[async_trait]
+impl<DB> ReceiptProvider for ManagedNode<DB>
+where
+    DB: LogStorageReader
+        + DerivationStorageReader
+        + SafetyHeadRefStorageReader
+        + Send
+        + Sync
+        + 'static,
+{
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
+        Ok(receipts)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_primitives::B256;
-    use kona_interop::DerivedRefPair;
+    use alloy_eips::BlockNumHash;
+    use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
-    use kona_supervisor_types::BlockReplacement;
+    use kona_supervisor_storage::StorageError;
+    use kona_supervisor_types::{Log, ManagedEvent};
+    use mockall::mock;
+
     use std::io::Write;
     use tempfile::NamedTempFile;
+    use tokio::sync::mpsc;
+
+    mock! {
+        #[derive(Debug)]
+        pub Db {}
+        impl LogStorageReader for Db {
+            fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
+            fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+            fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, _source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl SafetyHeadRefStorageReader for Db {
+            fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+        }
+    }
 
     fn create_mock_jwt_file() -> NamedTempFile {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
@@ -478,6 +466,7 @@ mod tests {
         let config = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret = config.jwt_secret();
@@ -487,6 +476,7 @@ mod tests {
         let config_invalid = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: "/nonexistent/path/jwt.hex".to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret_fallback = config_invalid.jwt_secret();
@@ -517,6 +507,7 @@ mod tests {
         let config = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret = config.jwt_secret().expect("Should have JWT secret");
@@ -542,126 +533,23 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "invalid.server:8545".to_string(), // Intentionally invalid to test error handling
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let mut subscriber = ManagedNode::new(config);
+        let subscriber = ManagedNode::<MockDb>::new(config, CancellationToken::new());
 
         // Test that we can create the subscriber instance
-        assert!(subscriber.task_handle.is_none());
-        assert!(subscriber.stop_tx.is_none());
+        assert!(subscriber.task_handle.lock().await.is_none());
 
         // Create a channel for events
-        let (event_tx, _event_rx) = tokio::sync::mpsc::channel(100);
+        let (event_tx, _event_rx) = mpsc::channel(100);
 
         // Test starting subscription to invalid server (should fail)
         let start_result = subscriber.start_subscription(event_tx).await;
         assert!(start_result.is_err(), "Subscription to invalid server should fail");
 
         // Verify state remains consistent after failure
-        assert!(subscriber.task_handle.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_handle_managed_event_sends_unsafe_block() {
-        // 1. Set up channel
-        let (tx, mut rx) = mpsc::channel(1);
-
-        // 2. Create a ManagedEvent with an unsafe_block
-        let block_info = BlockInfo {
-            hash: B256::from([0u8; 32]),
-            number: 1,
-            parent_hash: B256::from([1u8; 32]),
-            timestamp: 42,
-        };
-        let managed_event = ManagedEvent {
-            reset: None,
-            unsafe_block: Some(block_info),
-            derivation_update: None,
-            exhaust_l1: None,
-            replace_block: None,
-            derivation_origin_update: None,
-        };
-
-        ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
-
-        let event = rx.recv().await.expect("Should receive event");
-        match event {
-            NodeEvent::UnsafeBlock { block } => assert_eq!(block, block_info),
-            _ => panic!("Expected UnsafeBlock event"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_handle_managed_event_sends_derivation_update() {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-
-        // Create a mock DerivedRefPair (adjust fields as needed)
-        let derived_ref_pair = DerivedRefPair {
-            source: BlockInfo {
-                hash: B256::from([2u8; 32]),
-                number: 2,
-                parent_hash: B256::from([3u8; 32]),
-                timestamp: 100,
-            },
-            derived: BlockInfo {
-                hash: B256::from([4u8; 32]),
-                number: 3,
-                parent_hash: B256::from([5u8; 32]),
-                timestamp: 101,
-            },
-        };
-
-        let managed_event = ManagedEvent {
-            reset: None,
-            unsafe_block: None,
-            derivation_update: Some(derived_ref_pair.clone()),
-            exhaust_l1: None,
-            replace_block: None,
-            derivation_origin_update: None,
-        };
-
-        ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
-
-        let event = rx.recv().await.expect("Should receive event");
-        match event {
-            NodeEvent::DerivedBlock { derived_ref_pair: pair } => {
-                assert_eq!(pair, derived_ref_pair)
-            }
-            _ => panic!("Expected DerivedBlock event"),
-        }
-    }
-
-    #[tokio::test]
-    async fn test_handle_managed_event_sends_block_replacement() {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-
-        // Create a mock BlockReplacement (adjust fields as needed)
-        let replacement = BlockReplacement {
-            replacement: BlockInfo {
-                hash: B256::from([6u8; 32]),
-                number: 4,
-                parent_hash: B256::from([7u8; 32]),
-                timestamp: 200,
-            },
-            invalidated: B256::from([8u8; 32]),
-        };
-
-        let managed_event = ManagedEvent {
-            reset: None,
-            unsafe_block: None,
-            derivation_update: None,
-            exhaust_l1: None,
-            replace_block: Some(replacement.clone()),
-            derivation_origin_update: None,
-        };
-
-        ManagedNode::handle_managed_event(&tx, Some(managed_event)).await;
-
-        let event = rx.recv().await.expect("Should receive event");
-        match event {
-            NodeEvent::BlockReplaced { replacement: r } => assert_eq!(r, replacement),
-            _ => panic!("Expected BlockReplaced event"),
-        }
+        assert!(subscriber.task_handle.lock().await.is_none());
     }
 
     #[tokio::test]
@@ -673,9 +561,10 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "invalid.server:8545".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node = ManagedNode::new(config);
+        let managed_node = ManagedNode::<MockDb>::new(config, CancellationToken::new());
 
         // Test WebSocket client creation - should fail with invalid server
         let client_result = managed_node.get_ws_client().await;
@@ -688,9 +577,11 @@ mod tests {
         let config_no_jwt = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(),
             jwt_path: "/nonexistent/jwt.hex".to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node_no_jwt = ManagedNode::new(config_no_jwt);
+        let managed_node_no_jwt =
+            ManagedNode::<MockDb>::new(config_no_jwt, CancellationToken::new());
         let client_no_jwt_result = managed_node_no_jwt.get_ws_client().await;
         assert!(client_no_jwt_result.is_err(), "Should fail with missing JWT file");
     }
@@ -705,9 +596,10 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(), // Use localhost to avoid DNS resolution delays
             jwt_path: jwt_path.to_str().unwrap().to_string(),
+            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node = Arc::new(ManagedNode::new(config));
+        let managed_node = Arc::new(ManagedNode::<MockDb>::new(config, CancellationToken::new()));
 
         // Test that the ManagedNode can be shared across threads (Send + Sync)
         let node1 = managed_node.clone();
