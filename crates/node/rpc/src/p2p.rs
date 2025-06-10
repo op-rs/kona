@@ -138,16 +138,20 @@ impl OpP2PApiServer for NetworkRpc {
         rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_block_subnet(&self, _subnet: String) -> RpcResult<()> {
+    async fn opp2p_block_subnet(&self, subnet: String) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockSubnet");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        self.sender
+            .send(P2pRpcRequest::BlockSubnet { address: subnet })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_unblock_subnet(&self, _subnet: String) -> RpcResult<()> {
+    async fn opp2p_unblock_subnet(&self, subnet: String) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockSubnet");
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        self.sender
+            .send(P2pRpcRequest::UnblockSubnet { address: subnet })
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<String>> {
@@ -197,7 +201,7 @@ impl OpP2PApiServer for NetworkRpc {
             Ok(id) => id,
             Err(err) => {
                 warn!(target: "rpc", ?err, ?peer_id, "Failed to parse peer ID");
-                return Err(ErrorObject::from(ErrorCode::InvalidParams))
+                return Err(ErrorObject::from(ErrorCode::InvalidParams));
             }
         };
         self.sender

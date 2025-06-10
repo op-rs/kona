@@ -66,6 +66,17 @@ pub enum P2pRpcRequest {
     },
     /// Request to list all blocked IP Addresses.
     ListBlockedAddrs(Sender<Vec<IpAddr>>),
+    /// Request to block a given Subnet.
+    BlockSubnet {
+        /// The Subnet to block.
+        address: String,
+    },
+    /// Request to unblock a given Subnet.
+    UnblockSubnet {
+        /// The Subnet to unblock.
+        address: String,
+    },
+
     /// Request to connect to a given peer.
     ConnectPeer {
         /// The [`Multiaddr`] of the peer to connect to.
@@ -114,6 +125,8 @@ impl P2pRpcRequest {
             Self::ListBlockedAddrs(s) => Self::list_blocked_addrs(s, gossip),
             Self::ProtectPeer { peer_id } => Self::protect_peer(peer_id, gossip),
             Self::UnprotectPeer { peer_id } => Self::unprotect_peer(peer_id, gossip),
+            Self::BlockSubnet { address } => Self::block_subnet(address, gossip),
+            Self::UnblockSubnet { address } => Self::unblock_subnet(address, gossip),
         }
     }
 
@@ -153,6 +166,14 @@ impl P2pRpcRequest {
         if let Err(e) = s.send(blocked_peers) {
             warn!(target: "p2p::rpc", "Failed to send blocked peers through response channel: {:?}", e);
         }
+    }
+
+    fn block_subnet<G: ConnectionGate>(address: String, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.block_subnet(&address);
+    }
+
+    fn unblock_subnet<G: ConnectionGate>(address: String, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unblock_subnet(&address);
     }
 
     fn connect_peer<G: ConnectionGate>(address: Multiaddr, gossip: &mut GossipDriver<G>) {

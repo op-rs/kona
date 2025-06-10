@@ -30,6 +30,9 @@ pub struct ConnectionGater {
     pub blocked_peers: HashSet<PeerId>,
     /// A set of blocked ip addresses that cannot be dialed.
     pub blocked_addrs: HashSet<IpAddr>,
+
+    /// A set of blocked subnets that cannot be connected to.
+    pub blocked_subnets: HashSet<String>,
 }
 
 impl ConnectionGater {
@@ -42,6 +45,7 @@ impl ConnectionGater {
             protected_peers: HashSet::new(),
             blocked_peers: HashSet::new(),
             blocked_addrs: HashSet::new(),
+            blocked_subnets: HashSet::new(),
         }
     }
 
@@ -192,12 +196,14 @@ impl ConnectionGate for ConnectionGater {
         self.blocked_addrs.iter().cloned().collect()
     }
 
-    fn block_subnet(&mut self, _subnet: &str) {
-        // TODO
+    fn block_subnet(&mut self, subnet: &str) {
+        self.blocked_subnets.insert(subnet.to_owned());
+        debug!(target: "gossip", ?subnet, "Blocked subnet");
     }
 
-    fn unblock_subnet(&mut self, _subnet: &str) {
-        // TODO
+    fn unblock_subnet(&mut self, subnet: &str) {
+        self.blocked_subnets.remove(subnet);
+        debug!(target: "gossip", ?subnet, "Unblocked subnet");
     }
 
     fn list_blocked_subnets(&self) -> Vec<String> {
