@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use derive_more::Debug;
 use kona_p2p::Network;
 use libp2p::TransportError;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
 use tokio::{select, sync::mpsc};
 use tokio_util::sync::CancellationToken;
@@ -42,8 +42,8 @@ use tokio_util::sync::CancellationToken;
 pub struct NetworkActor {
     /// Network driver
     driver: Network,
-    /// The sender for [OpNetworkPayloadEnvelope]s received via p2p gossip.
-    blocks: mpsc::Sender<OpNetworkPayloadEnvelope>,
+    /// The sender for [`OpExecutionPayloadEnvelope`]s received via p2p gossip.
+    blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// The receiver for unsafe block signer updates.
     signer: mpsc::Receiver<Address>,
     /// The cancellation token, shared between all tasks.
@@ -54,7 +54,7 @@ impl NetworkActor {
     /// Constructs a new [`NetworkActor`] given the [`Network`]
     pub const fn new(
         driver: Network,
-        blocks: mpsc::Sender<OpNetworkPayloadEnvelope>,
+        blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
         signer: mpsc::Receiver<Address>,
         cancellation: CancellationToken,
     ) -> Self {

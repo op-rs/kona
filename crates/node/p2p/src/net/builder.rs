@@ -5,7 +5,7 @@ use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{Multiaddr, identity::Keypair};
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
@@ -28,7 +28,7 @@ pub struct NetworkBuilder {
     /// A receiver for network RPC requests.
     rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
-    payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
+    payload_tx: Option<BroadcastSender<OpExecutionPayloadEnvelope>>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -161,7 +161,7 @@ impl NetworkBuilder {
     /// Sets the unsafe block sender for the [`crate::Network`].
     pub fn with_unsafe_block_sender(
         self,
-        sender: BroadcastSender<OpNetworkPayloadEnvelope>,
+        sender: BroadcastSender<OpExecutionPayloadEnvelope>,
     ) -> Self {
         Self { payload_tx: Some(sender), ..self }
     }

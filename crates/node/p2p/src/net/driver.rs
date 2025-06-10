@@ -4,7 +4,7 @@ use alloy_primitives::{Address, hex};
 use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use libp2p::TransportError;
 use libp2p_stream::IncomingStreams;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
 use std::collections::HashSet;
 use tokio::{
     select,
@@ -32,9 +32,9 @@ pub struct Network {
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
-    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope>,
+    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
-    pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
+    pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// The swarm instance.
     pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
@@ -53,12 +53,12 @@ impl Network {
     /// Creates a new unsafe block mpsc sender.
     pub fn new_unsafe_block_sender(
         &mut self,
-    ) -> tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope> {
+    ) -> tokio::sync::mpsc::Sender<OpExecutionPayloadEnvelope> {
         self.publish_tx.clone()
     }
 
     /// Take the unsafe block receiver.
-    pub fn unsafe_block_recv(&mut self) -> BroadcastReceiver<OpNetworkPayloadEnvelope> {
+    pub fn unsafe_block_recv(&mut self) -> BroadcastReceiver<OpExecutionPayloadEnvelope> {
         self.broadcast.subscribe()
     }
 
@@ -141,7 +141,15 @@ impl Network {
                         let selector = |handler: &crate::BlockHandler| {
                             handler.topic(timestamp)
                         };
-                        match self.gossip.publish(selector, Some(block)) {
+                        // TODO: sign the payload
+                        let payload_hash = op_alloy_rpc_types_engine::PayloadHash(block.payload.block_hash());
+                        let payload = OpNetworkPayloadEnvelope {
+                            payload: block.payload,
+                            signature: alloy_primitives::Signature::new(Default::default(), Default::default(), false),
+                            payload_hash,
+                            parent_beacon_block_root: block.parent_beacon_block_root,
+                        };
+                        match self.gossip.publish(selector, Some(payload)) {
                             Ok(id) => info!("Published unsafe payload | {:?}", id),
                             Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
                         }
@@ -231,7 +239,7 @@ impl Network {
                         };
                         let payload = match req {
                             P2pRpcRequest::PostUnsafePayload { payload } => payload,
-                            req @ _ => {
+                            req => {
                                 req.handle(&mut self.gossip, &handler);
                                 continue;
                             }
