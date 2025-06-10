@@ -8,7 +8,7 @@ use kona_interop::{DerivedRefPair, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_storage::{
-    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader, StorageError,
+    DerivationStorageReader, LogStorageReader, HeadRefStorageReader, StorageError,
 };
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ impl<DB> ManagedEventTask<DB>
 where
     DB: LogStorageReader
         + DerivationStorageReader
-        + SafetyHeadRefStorageReader
+        + HeadRefStorageReader
         + Send
         + Sync
         + 'static,
@@ -326,7 +326,7 @@ mod tests {
             fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
-        impl SafetyHeadRefStorageReader for Db {
+        impl HeadRefStorageReader for Db {
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }

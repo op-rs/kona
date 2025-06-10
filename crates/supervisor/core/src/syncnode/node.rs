@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
 use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
 use kona_supervisor_storage::{
-    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader,
+    DerivationStorageReader, LogStorageReader, HeadRefStorageReader,
 };
 use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
@@ -177,7 +177,7 @@ impl<DB> NodeSubscriber for ManagedNode<DB>
 where
     DB: LogStorageReader
         + DerivationStorageReader
-        + SafetyHeadRefStorageReader
+        + HeadRefStorageReader
         + Send
         + Sync
         + 'static,
@@ -282,7 +282,7 @@ impl<DB> ReceiptProvider for ManagedNode<DB>
 where
     DB: LogStorageReader
         + DerivationStorageReader
-        + SafetyHeadRefStorageReader
+        + HeadRefStorageReader
         + Send
         + Sync
         + 'static,
@@ -323,7 +323,7 @@ mod tests {
             fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
-        impl SafetyHeadRefStorageReader for Db {
+        impl HeadRefStorageReader for Db {
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }
