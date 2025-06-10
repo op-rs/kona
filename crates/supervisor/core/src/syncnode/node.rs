@@ -5,6 +5,9 @@ use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
 use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
+use kona_supervisor_storage::{
+    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader,
+};
 use kona_supervisor_types::Receipts;
 use std::sync::{Arc, OnceLock};
 use tokio::{
@@ -62,11 +65,13 @@ impl ManagedNodeConfig {
 ///
 /// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
-pub struct ManagedNode {
+pub struct ManagedNode<DB> {
     /// Configuration for connecting to the managed node
     config: Arc<ManagedNodeConfig>,
     /// Chain ID of the managed node
     chain_id: OnceLock<ChainId>,
+    /// The database provider for fetching information
+    db_provider: Option<Arc<DB>>,
     /// The attached web socket client
     ws_client: Mutex<Option<Arc<WsClient>>>,
     // Cancellation token to stop the processor
@@ -75,16 +80,25 @@ pub struct ManagedNode {
     task_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl ManagedNode {
+impl<DB> ManagedNode<DB>
+where
+    DB: LogStorageReader + DerivationStorageReader + Send + Sync + 'static,
+{
     /// Creates a new [`ManagedNode`] with the specified configuration.
     pub fn new(config: Arc<ManagedNodeConfig>, cancel_token: CancellationToken) -> Self {
         Self {
             config,
             chain_id: OnceLock::new(),
+            db_provider: None,
             ws_client: Mutex::new(None),
             cancel_token,
             task_handle: Mutex::new(None),
         }
+    }
+
+    /// Sets the database provider for the managed node.
+    pub fn set_db_provider(&mut self, db_provider: Arc<DB>) {
+        self.db_provider = Some(db_provider);
     }
 
     /// Returns a reference to the WebSocket client, creating it if it doesn't exist.
@@ -159,7 +173,15 @@ impl ManagedNode {
 }
 
 #[async_trait]
-impl NodeSubscriber for ManagedNode {
+impl<DB> NodeSubscriber for ManagedNode<DB>
+where
+    DB: LogStorageReader
+        + DerivationStorageReader
+        + SafetyHeadRefStorageReader
+        + Send
+        + Sync
+        + 'static,
+{
     /// Starts a subscription to the managed node.
     ///
     /// Establishes a WebSocket connection and subscribes to node events.
@@ -186,8 +208,15 @@ impl NodeSubscriber for ManagedNode {
 
         let cancel_token = self.cancel_token.clone();
 
+        let db_provider =
+            self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
-        let task = ManagedEventTask::new(self.config.l1_rpc_url.clone(), event_tx, client);
+        let task = ManagedEventTask::new(
+            self.config.l1_rpc_url.clone(),
+            db_provider.clone(),
+            event_tx,
+            client,
+        );
 
         // Start background task to handle events
         let handle = tokio::spawn(async move {
@@ -249,7 +278,15 @@ impl NodeSubscriber for ManagedNode {
 /// This allows `LogIndexer` and similar components to remain decoupled from the full
 /// [`ManagedModeApiClient`] interface, using only the receipt-fetching capability
 #[async_trait]
-impl ReceiptProvider for ManagedNode {
+impl<DB> ReceiptProvider for ManagedNode<DB>
+where
+    DB: LogStorageReader
+        + DerivationStorageReader
+        + SafetyHeadRefStorageReader
+        + Send
+        + Sync
+        + 'static,
+{
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         let client = self.get_ws_client().await?;
         let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
@@ -260,10 +297,36 @@ impl ReceiptProvider for ManagedNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kona_supervisor_types::ManagedEvent;
+    use alloy_eips::BlockNumHash;
+    use kona_interop::{DerivedRefPair, SafetyLevel};
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_storage::StorageError;
+    use kona_supervisor_types::{Log, ManagedEvent};
+    use mockall::mock;
+
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::sync::mpsc;
+
+    mock! {
+        #[derive(Debug)]
+        pub Db {}
+        impl LogStorageReader for Db {
+            fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
+            fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+            fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, _source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl SafetyHeadRefStorageReader for Db {
+            fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+        }
+    }
 
     fn create_mock_jwt_file() -> NamedTempFile {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
@@ -473,7 +536,7 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let subscriber = ManagedNode::new(config, CancellationToken::new());
+        let subscriber = ManagedNode::<MockDb>::new(config, CancellationToken::new());
 
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.lock().await.is_none());
@@ -501,7 +564,7 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node = ManagedNode::new(config, CancellationToken::new());
+        let managed_node = ManagedNode::<MockDb>::new(config, CancellationToken::new());
 
         // Test WebSocket client creation - should fail with invalid server
         let client_result = managed_node.get_ws_client().await;
@@ -517,7 +580,8 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node_no_jwt = ManagedNode::new(config_no_jwt, CancellationToken::new());
+        let managed_node_no_jwt =
+            ManagedNode::<MockDb>::new(config_no_jwt, CancellationToken::new());
         let client_no_jwt_result = managed_node_no_jwt.get_ws_client().await;
         assert!(client_no_jwt_result.is_err(), "Should fail with missing JWT file");
     }
@@ -535,7 +599,7 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node = Arc::new(ManagedNode::new(config, CancellationToken::new()));
+        let managed_node = Arc::new(ManagedNode::<MockDb>::new(config, CancellationToken::new()));
 
         // Test that the ManagedNode can be shared across threads (Send + Sync)
         let node1 = managed_node.clone();
