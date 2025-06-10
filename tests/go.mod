@@ -3,7 +3,7 @@ module github.com/op-rs/kona
 go 1.24.3
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devnet-sdk` package.
-require github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
+require github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
 
 require github.com/stretchr/testify v1.10.0
 
@@ -168,9 +168,9 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6
+replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
 
 // Patched version of the Optimism repo that includes the latest changes of the `devnet-sdk` package to enable testing for the CL clients.
-replace github.com/ethereum-optimism/optimism v1.13.3-0.20250520004549-7962d43f57e6 => github.com/theochap/optimism v0.0.0-20250610140030-064d66dca47f
+replace github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0 => github.com/theochap/optimism v0.0.0-20250610154333-f7c3ea378f73
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-0.20250523133920-e3f85bf38455
+replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-dev.1.0.20250603002020-3e5073a7b5a4
