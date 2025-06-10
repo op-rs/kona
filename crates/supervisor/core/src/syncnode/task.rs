@@ -8,7 +8,7 @@ use kona_interop::{DerivedRefPair, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_storage::{
-    DerivationStorageReader, LogStorageReader, SafetyHeadRefStorageReader, StorageError,
+    DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageError,
 };
 use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
@@ -30,12 +30,7 @@ pub struct ManagedEventTask<DB> {
 
 impl<DB> ManagedEventTask<DB>
 where
-    DB: LogStorageReader
-        + DerivationStorageReader
-        + SafetyHeadRefStorageReader
-        + Send
-        + Sync
-        + 'static,
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedEventTask`] instance.
     pub const fn new(
@@ -114,7 +109,13 @@ where
                 if let Some(origin) = &event.derivation_origin_update {
                     info!(target: "managed_event_task", %origin, "Derivation origin update received");
 
-                    // todo: check if we need to send this to the event_tx
+                    if let Err(err) = self
+                        .event_tx
+                        .send(NodeEvent::DerivationOriginUpdate { origin: *origin })
+                        .await
+                    {
+                        warn!(target: "managed_event_task", %err, "Failed to send derivation origin update event, channel closed or receiver dropped");
+                    }
                 }
 
                 // Check if this was an empty event (all fields None)
@@ -326,7 +327,8 @@ mod tests {
             fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
-        impl SafetyHeadRefStorageReader for Db {
+        impl HeadRefStorageReader for Db {
+            fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }
