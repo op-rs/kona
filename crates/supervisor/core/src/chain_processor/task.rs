@@ -91,7 +91,7 @@ where
             block_number = origin.number,
             "Processing derivation origin update"
         );
-        if let Err(err) = self.state_manager.update_current_l1(origin.clone()) {
+        if let Err(err) = self.state_manager.update_current_l1(origin) {
             error!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
@@ -291,7 +291,7 @@ mod tests {
 
         let node = Arc::new(MockNode);
         let mut mockdb = MockDb::new();
-        let origin_clone = origin.clone();
+        let origin_clone = origin;
         mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);
             Ok(())
