@@ -120,7 +120,10 @@ impl LogStorageWriter for ChainDb {
 
 impl HeadRefStorageReader for ChainDb {
     fn get_current_l1(&self) -> Result<BlockInfo, StorageError> {
-        let guard = self.current_l1.read().unwrap();
+        let guard = self.current_l1.read().map_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on current_l1");
+            StorageError::LockPoisoned
+        })?;
         guard.as_ref().cloned().ok_or(StorageError::FutureData)
     }
 
