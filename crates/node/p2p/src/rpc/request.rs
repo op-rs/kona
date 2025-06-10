@@ -16,7 +16,7 @@ use discv5::{
 use ipnet::IpNet;
 use kona_peers::OpStackEnr;
 use libp2p::{Multiaddr, PeerId, gossipsub::TopicHash};
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use tokio::sync::oneshot::Sender;
 
 use super::{
@@ -31,7 +31,7 @@ pub enum P2pRpcRequest {
     /// An admin rpc request to post an unsafe payload.
     PostUnsafePayload {
         /// The payload to post.
-        payload: OpNetworkPayloadEnvelope,
+        payload: OpExecutionPayloadEnvelope,
     },
     /// Returns [`PeerInfo`] for the [`crate::Network`].
     PeerInfo(Sender<PeerInfo>),

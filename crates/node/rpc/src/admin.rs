@@ -7,11 +7,14 @@ use jsonrpsee::{
     types::{ErrorCode, ErrorObject},
 };
 use kona_p2p::P2pRpcRequest;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 
 #[async_trait]
 impl AdminApiServer for NetworkRpc {
-    async fn admin_post_unsafe_payload(&self, payload: OpNetworkPayloadEnvelope) -> RpcResult<()> {
+    async fn admin_post_unsafe_payload(
+        &self,
+        payload: OpExecutionPayloadEnvelope,
+    ) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "admin_postUnsafePayload");
         self.sender
             .send(P2pRpcRequest::PostUnsafePayload { payload })

@@ -71,6 +71,14 @@ inherits = "release"
 lto = "fat"
 codegen-units = 1
 
+[patch.crates-io]
+op-alloy-network = { git = "https://github.com/alloy-rs/op-alloy", branch = "main", default-features = false }
+op-alloy-provider = { git = "https://github.com/alloy-rs/op-alloy", branch = "main", default-features = false }
+op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "main", default-features = false }
+op-alloy-rpc-types = { git = "https://github.com/alloy-rs/op-alloy", branch = "main", default-features = false }
+op-alloy-rpc-jsonrpsee = { git = "https://github.com/alloy-rs/op-alloy", branch = "main", default-features = false }
+op-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/op-alloy", branch = "main", default-features = false }
+
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "1.0.2", default-features = false }
