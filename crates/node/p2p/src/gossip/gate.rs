@@ -55,8 +55,8 @@ pub trait ConnectionGate {
     fn list_blocked_subnets(&self) -> Vec<String>;
 
     /// Protects a peer from being disconnected.
-    fn protect_peer(&mut self, peer_id: &Multiaddr);
+    fn protect_peer(&mut self, peer_id: PeerId);
 
     /// Unprotects a peer, allowing it to be disconnected.
-    fn unprotect_peer(&mut self, peer_id: &Multiaddr);
+    fn unprotect_peer(&mut self, peer_id: PeerId);
 }
