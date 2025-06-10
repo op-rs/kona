@@ -3,10 +3,8 @@
 //! [ChannelReader]: crate::stages::ChannelReader
 
 use crate::{
-    errors::PipelineError,
-    stages::ChannelReaderProvider,
-    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    ChannelReaderProvider, OriginAdvancer, OriginProvider, PipelineError, PipelineResult, Signal,
+    SignalReceiver,
 };
 use alloc::{boxed::Box, vec::Vec};
 use alloy_primitives::Bytes;

@@ -2,10 +2,8 @@
 
 use super::NextBatchProvider;
 use crate::{
-    errors::PipelineError,
-    stages::{BatchQueue, BatchValidator},
-    traits::{AttributesProvider, L2ChainProvider, OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    AttributesProvider, BatchQueue, BatchValidator, L2ChainProvider, OriginAdvancer,
+    OriginProvider, PipelineError, PipelineResult, Signal, SignalReceiver,
 };
 use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;

@@ -1,10 +1,8 @@
 //! This module contains the `BatchStream` stage.
 
 use crate::{
-    errors::{PipelineEncodingError, PipelineError},
-    stages::NextBatchProvider,
-    traits::{L2ChainProvider, OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    L2ChainProvider, NextBatchProvider, OriginAdvancer, OriginProvider, PipelineEncodingError,
+    PipelineError, PipelineResult, Signal, SignalReceiver,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use async_trait::async_trait;

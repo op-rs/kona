@@ -16,9 +16,9 @@ The intended way of working with `kona-derive` is to use the [`DerivationPipelin
 ```rust,ignore
 use std::sync::Arc;
 use kona_genesis::RollupConfig;
-use kona_derive::sources::EthereumDataSource;
-use kona_derive::pipeline::PipelineBuilder;
-use kona_derive::attributes::StatefulAttributesBuilder;
+use kona_derive::EthereumDataSource;
+use kona_derive::PipelineBuilder;
+use kona_derive::StatefulAttributesBuilder;
 
 let chain_provider = todo!();
 let l2_chain_provider = todo!();

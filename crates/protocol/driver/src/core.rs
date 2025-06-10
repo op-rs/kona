@@ -6,11 +6,7 @@ use alloy_consensus::BlockBody;
 use alloy_primitives::{B256, Bytes};
 use alloy_rlp::Decodable;
 use core::fmt::Debug;
-use kona_derive::{
-    PipelineError, PipelineErrorKind,
-    traits::{Pipeline, SignalReceiver},
-    types::Signal,
-};
+use kona_derive::{Pipeline, PipelineError, PipelineErrorKind, Signal, SignalReceiver};
 use kona_executor::BlockBuildingOutcome;
 use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;

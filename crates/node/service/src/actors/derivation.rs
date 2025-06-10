@@ -3,9 +3,8 @@
 use crate::{Metrics, NodeActor};
 use async_trait::async_trait;
 use kona_derive::{
-    PipelineError, PipelineErrorKind, ResetError,
-    traits::{Pipeline, SignalReceiver},
-    types::{ActivationSignal, ResetSignal, Signal, StepResult},
+    ActivationSignal, Pipeline, PipelineError, PipelineErrorKind, ResetError, ResetSignal, Signal,
+    SignalReceiver, StepResult,
 };
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use thiserror::Error;

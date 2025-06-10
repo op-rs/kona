@@ -1,10 +1,8 @@
 //! This module contains the `ChannelReader` struct.
 
 use crate::{
-    errors::PipelineError,
-    stages::BatchStreamProvider,
-    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    BatchStreamProvider, OriginAdvancer, OriginProvider, PipelineError, PipelineResult, Signal,
+    SignalReceiver,
 };
 use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::Bytes;

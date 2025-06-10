@@ -204,8 +204,7 @@ where
 mod test {
     use super::ChannelAssembler;
     use crate::{
-        errors::PipelineError,
-        stages::ChannelReaderProvider,
+        ChannelReaderProvider, PipelineError,
         test_utils::{CollectingLayer, TestNextFrameProvider, TraceStorage},
     };
     use alloc::{sync::Arc, vec};

@@ -3,7 +3,7 @@
 use crate::{RuntimeConfig, RuntimeLoaderError};
 use alloy_primitives::{Address, B256, b256};
 use alloy_provider::Provider;
-use kona_derive::traits::ChainProvider;
+use kona_derive::ChainProvider;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 use kona_providers_alloy::AlloyChainProvider;

@@ -21,11 +21,33 @@ pub use errors::{
     PipelineEncodingError, PipelineError, PipelineErrorKind, ResetError,
 };
 
-pub mod pipeline;
-pub mod sources;
-pub mod stages;
-pub mod traits;
-pub mod types;
+mod pipeline;
+pub use pipeline::{
+    AttributesQueueStage, BatchProviderStage, BatchStreamStage, ChannelProviderStage,
+    ChannelReaderStage, DerivationPipeline, FrameQueueStage, L1RetrievalStage, L1TraversalStage,
+    PipelineBuilder,
+};
+
+mod sources;
+pub use sources::{BlobData, BlobSource, CalldataSource, EthereumDataSource};
+
+mod stages;
+pub use stages::{
+    AttributesQueue, BatchProvider, BatchQueue, BatchStream, BatchStreamProvider, BatchValidator,
+    ChannelAssembler, ChannelBank, ChannelProvider, ChannelReader, ChannelReaderProvider,
+    FrameQueue, FrameQueueProvider, L1Retrieval, L1RetrievalProvider, L1Traversal,
+    NextBatchProvider, NextFrameProvider,
+};
+
+mod traits;
+pub use traits::{
+    AttributesBuilder, AttributesProvider, BatchValidationProviderDerive, BlobProvider,
+    ChainProvider, DataAvailabilityProvider, L2ChainProvider, NextAttributes, OriginAdvancer,
+    OriginProvider, Pipeline, ResetProvider, SignalReceiver,
+};
+
+mod types;
+pub use types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult};
 
 pub mod metrics;
 pub use metrics::Metrics;
