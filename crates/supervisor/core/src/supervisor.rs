@@ -8,7 +8,7 @@ use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageReader, StorageError};
 use kona_supervisor_types::SuperHead;
-use op_alloy_rpc_types::InvalidInboxEntry;
+use op_alloy_rpc_types::SuperchainDAError;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
@@ -33,7 +33,7 @@ pub enum SupervisorError {
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
-    InvalidInboxEntry(#[from] InvalidInboxEntry),
+    InvalidInboxEntry(#[from] SuperchainDAError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
