@@ -25,7 +25,7 @@ pub struct GlobalArgs {
 impl GlobalArgs {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
     pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
-        Ok(self.v.init_tracing(filter)?)
+        self.v.init_tracing(filter)
     }
 
     /// Initializes cli metrics for global argument values.
