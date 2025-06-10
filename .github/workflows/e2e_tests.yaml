@@ -7,10 +7,13 @@ on:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  simple-e2e-tests:
+  node-e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: simple-e2e-tests
+    name: ${{ matrix.devnet-config }}-tests
+    strategy:
+      matrix:
+        devnet-config: ["simple-kona", "simple-kona-geth", "large-kona"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -27,27 +30,5 @@ jobs:
           # Semantic version range syntax or exact version of Go
           go-version: '1.24.3'
       - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
-      - name: test with simple-kona devnet
-        run: just build-devnet-and-test-e2e simple-kona node
-  large-e2e-tests:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    name: large-e2e-tests
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          large-packages: false
-      - uses: taiki-e/install-action@just
-      - name: Setup Go 1.24.3
-        uses: actions/setup-go@v5
-        with:
-          # Semantic version range syntax or exact version of Go
-          go-version: '1.24.3'
-      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
-      - name: test with large-kona devnet
-        run: just build-devnet-and-test-e2e large-kona node
+      - name: test with ${{ matrix.devnet-config }} devnet
+        run: just build-devnet-and-test-e2e "${{ matrix.devnet-config }}" node
