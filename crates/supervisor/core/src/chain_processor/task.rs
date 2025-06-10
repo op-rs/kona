@@ -2,6 +2,7 @@ use crate::{
     LogIndexer,
     syncnode::{ManagedNodeProvider, NodeEvent},
 };
+use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, LogStorageWriter};
@@ -15,7 +16,7 @@ use tracing::{error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
-    chain_id: u64,
+    chain_id: ChainId,
 
     state_manager: Arc<W>,
 
