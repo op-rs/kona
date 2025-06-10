@@ -1,6 +1,7 @@
 //! An implementation of the [`ConnectionGate`] trait.
 
 use crate::ConnectionGate;
+use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::{
     collections::{HashMap, HashSet},
@@ -85,6 +86,27 @@ impl ConnectionGater {
             _ => None,
         })
     }
+
+    /// Checks if a given [`IpAddr`] is within any of the `blocked_subnets`.
+    pub fn check_ip_in_blocked_subnets(&self, ip_addr: &IpAddr) -> bool {
+        for subnet_str in &self.blocked_subnets {
+            match subnet_str.parse::<IpNet>() {
+                Ok(network) => {
+                    if network.contains(ip_addr) {
+                        return true;
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Warning: Invalid subnet string in blocked_subnets: {} - {}",
+                        subnet_str, e
+                    );
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
 
 impl ConnectionGate for ConnectionGater {
@@ -130,6 +152,13 @@ impl ConnectionGate for ConnectionGater {
         if self.blocked_addrs.contains(&ip_addr) {
             debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_address", "peer" => peer_id.to_string());
+            return false;
+        }
+
+        // If address lies in any blocked subnets, do not dial.
+        if self.check_ip_in_blocked_subnets(&ip_addr) {
+            debug!(target: "gossip", ip=?ip_addr, "IP address is in a blocked subnet, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_subnet", "peer" => peer_id.to_string());
             return false;
         }
 
@@ -220,4 +249,24 @@ impl ConnectionGate for ConnectionGater {
         self.protected_peers.remove(&peer_id);
         debug!(target: "gossip", peer=?peer_id, "Unprotected peer");
     }
+}
+
+#[test]
+fn test_check_ip_in_blocked_subnets_ipv4() {
+    use std::str::FromStr;
+
+    let mut gater = ConnectionGater::new(None);
+    gater.blocked_subnets.insert("192.168.1.0/24".to_string());
+    gater.blocked_subnets.insert("10.0.0.0/8".to_string());
+    gater.blocked_subnets.insert("172.16.0.0/16".to_string());
+
+    // IP in blocked subnet
+    assert!(gater.check_ip_in_blocked_subnets(&IpAddr::from_str("192.168.1.100").unwrap()));
+    assert!(gater.check_ip_in_blocked_subnets(&IpAddr::from_str("10.0.0.5").unwrap()));
+    assert!(gater.check_ip_in_blocked_subnets(&IpAddr::from_str("172.16.255.255").unwrap()));
+
+    // IP not in any blocked subnet
+    assert!(!gater.check_ip_in_blocked_subnets(&IpAddr::from_str("192.168.2.1").unwrap()));
+    assert!(!gater.check_ip_in_blocked_subnets(&IpAddr::from_str("172.17.0.1").unwrap()));
+    assert!(!gater.check_ip_in_blocked_subnets(&IpAddr::from_str("8.8.8.8").unwrap()));
 }

@@ -219,6 +219,7 @@ libp2p = "0.55.0"
 libp2p-stream = "0.3.0-alpha"
 libp2p-identity = "0.2.11"
 openssl = "0.10.73"
+ipnet = "2.11.0"
 
 # Tracing
 tracing-loki = "0.2.6"
