@@ -211,6 +211,11 @@ impl P2pRpcRequest {
             gossip.peerstore.keys().cloned().collect()
         };
 
+        // Get connection gate information.
+        let banned_subnets = gossip.connection_gate.list_blocked_subnets();
+        let banned_ips = gossip.connection_gate.list_blocked_addrs();
+        let banned_peers = gossip.connection_gate.list_blocked_peers();
+
         #[derive(Default)]
         struct PeerMetadata {
             protocols: Option<Vec<String>>,
@@ -352,11 +357,9 @@ impl P2pRpcRequest {
             if let Err(e) = sender.send(PeerDump {
                 total_connected,
                 peers: infos,
-
-                // TODO(@theochap): support these fields
-                banned_peers: vec![],
-                banned_ips: vec![],
-                banned_subnets: vec![],
+                banned_peers: banned_peers.into_iter().map(|p| p.to_string()).collect(),
+                banned_ips,
+                banned_subnets,
             }) {
                 warn!(target: "p2p::rpc", "Failed to send peer info through response channel: {:?}", e);
             }
