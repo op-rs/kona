@@ -109,7 +109,7 @@ impl ValidatorNodeService for RollupNode {
     }
 
     fn rpc(&self) -> RpcLauncher {
-        self.rpc_launcher.clone().with_ws_enabled(self.ws_enabled)
+        self.rpc_launcher.clone()
     }
 
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error> {

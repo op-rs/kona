@@ -37,7 +37,13 @@ pub struct RpcLauncher {
 
 impl From<SocketAddr> for RpcLauncher {
     fn from(socket: SocketAddr) -> Self {
-        Self { disabled: false, no_restart: false, socket: Some(socket), module: None, ws_enabled: false }
+        Self {
+            disabled: false,
+            no_restart: false,
+            socket: Some(socket),
+            module: None,
+            ws_enabled: false,
+        }
     }
 }
 
@@ -53,13 +59,13 @@ impl RpcLauncher {
     }
 
     /// Set whether WebSocket RPC endpoint should be enabled
-    pub fn with_ws_enabled(mut self, enabled: bool) -> Self {
+    pub const fn with_ws_enabled(mut self, enabled: bool) -> Self {
         self.ws_enabled = enabled;
         self
     }
 
-    /// Get whether WebSocket RPC endpoint is enabled
-    pub fn ws_enabled(&self) -> bool {
+    /// Returns whether WebSocket RPC endpoint is enabled
+    pub const fn ws_enabled(&self) -> bool {
         self.ws_enabled
     }
 
