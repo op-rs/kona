@@ -56,7 +56,6 @@ derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
-arbtest.workspace = true
 tempfile.workspace = true
 kona-cli.workspace = true
 multihash.workspace = true
