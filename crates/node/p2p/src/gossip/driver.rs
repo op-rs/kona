@@ -11,7 +11,12 @@ use libp2p::{
 };
 use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::sync::Mutex;
 
 use crate::{
     Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
@@ -50,6 +55,8 @@ pub struct GossipDriver<G: ConnectionGate> {
     pub peer_connection_start: HashMap<PeerId, Instant>,
     /// The connection gate.
     pub connection_gate: G,
+    /// Tracks ping times for peers.
+    pub ping: Arc<Mutex<HashMap<PeerId, Duration>>>,
 }
 
 impl<G> GossipDriver<G>
@@ -82,6 +89,7 @@ where
             // TODO(@theochap): make this field truly optional (through CLI args).
             sync_protocol: Some(sync_protocol),
             connection_gate: gate,
+            ping: Arc::new(Mutex::new(Default::default())),
         }
     }
 
@@ -221,6 +229,12 @@ where
                         ping_duration.as_secs_f64()
                     );
                 }
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    if let Ok(time) = result {
+                        pings.lock().await.insert(peer, time);
+                    }
+                });
             }
             Event::Identify(e) => self.handle_identify_event(e),
             // Don't do anything with stream events as this should be unreachable code.
@@ -350,6 +364,11 @@ where
                         peer_duration.as_secs_f64()
                     );
                 }
+
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    pings.lock().await.remove(&peer_id);
+                });
 
                 // If the connection was initiated by us, remove the peer from the current dials
                 // set so that we can dial it again.

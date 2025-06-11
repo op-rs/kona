@@ -4,6 +4,7 @@ use std::{
     collections::{HashMap, HashSet},
     net::IpAddr,
     num::TryFromIntError,
+    sync::Arc,
 };
 
 use crate::{Discv5Handler, GossipDriver};
@@ -227,6 +228,9 @@ impl P2pRpcRequest {
             .map(|id| (id, gossip.connection_gate.connectedness(&id)))
             .collect::<HashMap<PeerId, Connectedness>>();
 
+        // Clone the ping map
+        let pings = Arc::clone(&gossip.ping);
+
         #[derive(Default)]
         struct PeerMetadata {
             protocols: Option<Vec<String>>,
@@ -296,6 +300,8 @@ impl P2pRpcRequest {
                 return;
             };
 
+            let pings = { pings.lock().await.clone() };
+
             let node_to_peer_id: HashMap<NodeId, PeerId> = peer_ids.into_iter().filter_map(|id|
             {
                 let Ok(pubkey) = libp2p_identity::PublicKey::try_decode_protobuf(&id.to_bytes()[2..]) else {
@@ -332,6 +338,9 @@ impl P2pRpcRequest {
                             .get(peer_id)
                             .copied()
                             .unwrap_or(Connectedness::NotConnected);
+
+                        let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
+
                         let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
@@ -350,8 +359,7 @@ impl P2pRpcRequest {
                                 chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
                                 gossip_blocks: peer_gossip_info.contains(peer_id),
                                 protected: protected_peers.contains(peer_id),
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                latency: 0,
+                                latency,
                                 // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
                                 peer_scores: PeerScores::default(),
                             },
