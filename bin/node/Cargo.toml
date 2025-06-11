@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 # workspace
 kona-rpc.workspace = true
+kona-peers.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 

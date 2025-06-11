@@ -3,6 +3,7 @@
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{Multiaddr, identity::Keypair};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{path::PathBuf, time::Duration};
@@ -10,7 +11,7 @@ use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Broadcast, Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError,
-    P2pRpcRequest, PeerMonitoring, PeerScoreLevel, discv5::LocalNode,
+    P2pRpcRequest, discv5::LocalNode,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.

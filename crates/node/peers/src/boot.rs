@@ -56,7 +56,7 @@ mod tests {
         handler::NodeContact,
     };
 
-    use crate::peers::utils::peer_id_to_secp256k1_pubkey;
+    use crate::utils::peer_id_to_secp256k1_pubkey;
 
     use super::*;
     use std::{net::Ipv4Addr, str::FromStr};

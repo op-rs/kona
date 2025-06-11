@@ -3,6 +3,7 @@
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
+use kona_peers::{EnrValidation, PeerMonitoring, enr_to_multiaddr};
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
     gossipsub::{IdentTopic, MessageId},
@@ -13,8 +14,7 @@ use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{collections::HashMap, time::Instant};
 
 use crate::{
-    Behaviour, BlockHandler, ConnectionGate, EnrValidation, Event, GossipDriverBuilder, Handler,
-    PublishError, enr_to_multiaddr, peers::PeerMonitoring,
+    Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
 };
 
 /// A driver for a [`Swarm`] instance.

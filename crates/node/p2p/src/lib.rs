@@ -32,14 +32,6 @@ pub use gossip::{
     SEEN_MESSAGES_TTL, default_config, default_config_builder,
 };
 
-mod peers;
-pub use peers::{
-    AnyNode, BootNode, BootNodes, BootStore, DialOptsError, EnrValidation, NodeRecord,
-    NodeRecordParseError, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES, OpStackEnr, OpStackEnrError,
-    PeerId, PeerIdConversionError, PeerMonitoring, PeerScoreLevel, enr_to_multiaddr,
-    local_id_to_p2p_id, peer_id_to_secp256k1_pubkey,
-};
-
 mod discv5;
 pub use discv5::{
     Discv5Builder, Discv5BuilderError, Discv5Driver, Discv5Handler, HandlerRequest, LocalNode,

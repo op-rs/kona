@@ -6,12 +6,13 @@ use std::{
     num::TryFromIntError,
 };
 
-use crate::{Discv5Handler, GossipDriver, OpStackEnr};
+use crate::{Discv5Handler, GossipDriver};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
     multiaddr::Protocol,
 };
+use kona_peers::OpStackEnr;
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
