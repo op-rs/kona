@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 40
     name: ${{ matrix.devnet-config }}-tests
     strategy:
+      fail-fast: false
       matrix:
         devnet-config: ["simple-kona", "simple-kona-geth", "large-kona"]
     steps:
