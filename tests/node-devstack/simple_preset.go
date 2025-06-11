@@ -57,6 +57,7 @@ func NewSimpleKona(t devtest.T) *SimpleKona {
 	orch.Hydrate(system)
 
 	t.Gate().Equal(len(system.TestSequencers()), 1, "expected exactly one test sequencer")
+	t.Gate().Equal(len(system.L2Network(match.Assume(t, match.L2ChainA)).L2CLNodes()), 2, "expected exactly two L2CL nodes")
 
 	l1Net := system.L1Network(match.FirstL1Network)
 	l2 := system.L2Network(match.Assume(t, match.L2ChainA))
