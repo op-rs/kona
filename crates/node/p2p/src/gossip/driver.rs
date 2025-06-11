@@ -13,9 +13,10 @@ use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::{Duration, Instant},
 };
+use tokio::sync::Mutex;
 
 use crate::{
     Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
@@ -228,11 +229,12 @@ where
                         ping_duration.as_secs_f64()
                     );
                 }
-                if let Ok(mut pings) = self.ping.lock() {
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
                     if let Ok(time) = result {
-                        pings.insert(peer, time);
+                        pings.lock().await.insert(peer, time);
                     }
-                }
+                });
             }
             Event::Identify(e) => self.handle_identify_event(e),
             // Don't do anything with stream events as this should be unreachable code.
@@ -363,9 +365,10 @@ where
                     );
                 }
 
-                if let Ok(mut pings) = self.ping.lock() {
-                    pings.remove(&peer_id);
-                }
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    pings.lock().await.remove(&peer_id);
+                });
 
                 // If the connection was initiated by us, remove the peer from the current dials
                 // set so that we can dial it again.

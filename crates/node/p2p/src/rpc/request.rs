@@ -300,6 +300,8 @@ impl P2pRpcRequest {
                 return;
             };
 
+            let pings = { pings.lock().await.clone() };
+
             let node_to_peer_id: HashMap<NodeId, PeerId> = peer_ids.into_iter().filter_map(|id|
             {
                 let Ok(pubkey) = libp2p_identity::PublicKey::try_decode_protobuf(&id.to_bytes()[2..]) else {
@@ -337,13 +339,7 @@ impl P2pRpcRequest {
                             .copied()
                             .unwrap_or(Connectedness::NotConnected);
 
-                        let latency = match pings.lock() {
-                            Ok(pings) => pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0),
-                            Err(e) => {
-                                warn!(target: "p2p::rpc", "Failed to acquire ping lock: {:?}", e);
-                                0
-                            }
-                        };
+                        let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
 
                         let node_id = format!("{:?}", &enr.node_id());
                         (
