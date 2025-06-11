@@ -39,7 +39,7 @@ tracing.workspace = true
 thiserror.workspace = true
 lazy_static.workspace = true
 unsigned-varint.workspace = true
-serde_json = { workspace = true, features = ["alloc"] }
+serde_json = { workspace = true, features = ["std"] }
 derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 
 # `arbitrary` feature dependencies
