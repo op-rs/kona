@@ -12,6 +12,9 @@ pub enum RpcLauncherError {
     /// An error occurred while starting the [`Server`].
     #[error("failed to start server: {0}")]
     ServerStart(#[from] std::io::Error),
+    /// Failed to register a method on the [`RpcModule`].
+    #[error("failed to register method: {0}")]
+    RegisterMethod(#[from] RegisterMethodError),
 }
 
 impl PartialEq for RpcLauncherError {
@@ -22,6 +25,13 @@ impl PartialEq for RpcLauncherError {
             _ => false,
         }
     }
+}
+
+/// A healthcheck response for the RPC server.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HealthzResponse {
+    /// The application version.
+    version: String,
 }
 
 /// Launches a [`Server`] using a set of [`RpcModule`]s.
@@ -86,6 +96,8 @@ impl RpcLauncher {
     ///
     /// If the RPC server is disabled, this will return `Ok(None)`.
     ///
+    /// The `/healthz` endpoint is automatically merged into the RPC module.
+    ///
     /// ## Errors
     ///
     /// - [`RpcLauncherError::MissingSocket`] if the socket address is missing.
@@ -96,7 +108,11 @@ impl RpcLauncher {
         }
         let socket = self.socket.take().ok_or(RpcLauncherError::MissingSocket)?;
         let server = Server::builder().build(socket).await?;
-        let module = self.module.take().unwrap_or_else(|| RpcModule::new(()));
+        let mut module = self.module.take().unwrap_or_else(|| RpcModule::new(()));
+        module.register_method("healthz", |_, _, _| {
+            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
+            jsonrpsee::core::RpcResult::Ok(response)
+        })?;
         Ok(Some(server.start(module)))
     }
 }

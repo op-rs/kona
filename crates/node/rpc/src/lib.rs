@@ -13,7 +13,7 @@ mod config;
 pub use config::RpcConfig;
 
 mod launcher;
-pub use launcher::{RpcLauncher, RpcLauncherError};
+pub use launcher::{HealthzResponse, RpcLauncher, RpcLauncherError};
 
 mod net;
 pub use net::NetworkRpc;
