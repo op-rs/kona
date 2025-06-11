@@ -11,7 +11,10 @@ use libp2p::{
 };
 use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use crate::{
     Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
@@ -50,6 +53,8 @@ pub struct GossipDriver<G: ConnectionGate> {
     pub peer_connection_start: HashMap<PeerId, Instant>,
     /// The connection gate.
     pub connection_gate: G,
+    /// Tracks ping times for peers.
+    pub ping: HashMap<PeerId, Duration>,
 }
 
 impl<G> GossipDriver<G>
@@ -82,6 +87,7 @@ where
             // TODO(@theochap): make this field truly optional (through CLI args).
             sync_protocol: Some(sync_protocol),
             connection_gate: gate,
+            ping: Default::default(),
         }
     }
 
@@ -220,6 +226,9 @@ where
                         crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
                         ping_duration.as_secs_f64()
                     );
+                }
+                if let Ok(time) = result {
+                    self.ping.insert(peer, time);
                 }
             }
             Event::Identify(e) => self.handle_identify_event(e),
