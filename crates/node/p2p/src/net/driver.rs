@@ -32,7 +32,9 @@ pub struct Network {
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
-    pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
+    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope>,
+    /// A channel to receive unsafe blocks and send them through the gossip layer.
+    pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
     /// The swarm instance.
     pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
@@ -46,6 +48,13 @@ impl Network {
     /// Returns the [`NetworkBuilder`] that can be used to construct the [`Network`].
     pub const fn builder() -> NetworkBuilder {
         NetworkBuilder::new()
+    }
+
+    /// Creates a new unsafe block mpsc sender.
+    pub fn new_unsafe_block_sender(
+        &mut self,
+    ) -> tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope> {
+        self.publish_tx.clone()
     }
 
     /// Take the unsafe block receiver.
@@ -106,7 +115,6 @@ impl Network {
     /// and continually listens for new peers and messages to handle
     pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
-        let mut publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
         let (handler, mut enr_receiver) = self.discovery.start();
         let mut broadcast = self.broadcast;
 
@@ -125,7 +133,7 @@ impl Network {
         tokio::spawn(async move {
             loop {
                 select! {
-                    block = publish.recv() => {
+                    block = self.publish_rx.recv() => {
                         let Some(block) = block else {
                             continue;
                         };

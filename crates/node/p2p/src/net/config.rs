@@ -5,12 +5,8 @@ use alloy_primitives::Address;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
 use libp2p::identity::Keypair;
-use std::{
-    path::PathBuf,
-    sync::Arc
-};
+use std::path::PathBuf;
 use tokio::time::Duration;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 
 /// Configuration for kona's P2P stack.
 #[derive(Debug, Clone)]
@@ -48,6 +44,4 @@ pub struct Config {
     pub bootnodes: Vec<Enr>,
     /// The [`RollupConfig`].
     pub rollup_config: RollupConfig,
-    /// Publish channel for unsafe payloads.
-    pub publish_rx: Arc<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
 }

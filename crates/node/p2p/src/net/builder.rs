@@ -5,7 +5,7 @@ use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
 use libp2p::{Multiaddr, identity::Keypair};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::{path::PathBuf, time::Duration, sync::Arc};
+use std::{path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
@@ -28,8 +28,6 @@ pub struct NetworkBuilder {
     rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
     payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
-    // A receiver for unsafe blocks to publish.
-    publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -49,7 +47,6 @@ impl From<Config> for NetworkBuilder {
             .with_keypair(config.keypair)
             .with_topic_scoring(config.topic_scoring)
             .with_peer_redial(config.redial)
-            .with_publish_receiver(Arc::try_unwrap(config.publish_rx).unwrap())
     }
 }
 
@@ -62,7 +59,6 @@ impl NetworkBuilder {
             signer: None,
             rpc_recv: None,
             payload_tx: None,
-            publish_rx: None,
             cfg: None,
         }
     }
@@ -125,14 +121,6 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_config(config), ..self }
     }
 
-    /// Sets the publish receiver for the [`crate::Network`].
-    pub fn with_publish_receiver(
-        self,
-        publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
-    ) -> Self {
-        Self { publish_rx: Some(publish_rx), ..self }
-    }
-
     /// Sets the [`RollupConfig`] for the [`crate::Network`].
     pub fn with_rollup_config(self, cfg: RollupConfig) -> Self {
         Self { cfg: Some(cfg), ..self }
@@ -192,7 +180,7 @@ impl NetworkBuilder {
         let discovery = self.discovery.with_chain_id(chain_id).build()?;
         let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
-        let publish_rx = self.publish_rx.take();
+        let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
 
         Ok(Network {
             gossip,
@@ -200,6 +188,7 @@ impl NetworkBuilder {
             unsafe_block_signer_sender,
             rpc,
             broadcast: Broadcast::new(payload_tx),
+            publish_tx,
             publish_rx,
         })
     }
