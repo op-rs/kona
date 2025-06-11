@@ -509,7 +509,7 @@ impl P2pRpcRequest {
                 blocks_topic_v2: block_topics[1],
                 blocks_topic_v3: block_topics[2],
                 blocks_topic_v4: block_topics[3],
-                banned: banned_peers,
+                banned: banned_peers as u32,
                 known,
             };
 
