@@ -66,8 +66,8 @@ pub trait SupervisorApi {
     #[method(name = "syncStatus")]
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus>;
 
-    /// Returns the last derived block, aka the [`LocalSafe`] block, for each chain, from the given
-    /// L1 block.
+    /// Returns the last derived block, for each chain, from the given L1 block. This block is at
+    /// least [`LocalSafe`].
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_allsafederivedat>
     ///
