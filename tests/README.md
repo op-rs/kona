@@ -54,15 +54,13 @@ just isolate_test devnets/specs/simple-kona-devnet.json
 
 ## Using `op-devstack` for testing
 
-Set the environment variable to tell `op-devstack` to use devnet descriptor based backend e.g. local kurtosis network:
+Set the following environment variables:
 
 - `DEVSTACK_ORCHESTRATOR=sysext`: Environment variable to tell `op-devstack` to use devnet descriptor based backend e.g. local kurtosis network.
 
-- `DEVNET_ENV_URL=devnets/simple-supervisor.yaml`: Used when DEVSTACK_ORCHESTRATOR=sysext to specify the network descriptor URL.
+- `DISABLE_OP_E2E_LEGACY=true`: Environment variable to tell `op-devstack` not to use the `op-e2e` tests that rely on e2e config and contracts-bedrock artifacts.
 
-- `DISABLE_OP_E2E_LEGACY=true`: Environment variable to tell `op-devstack` not to use the `op-e2e` tests that rely on e2e config and contract artifacts.
-
-Then, you can run tests:
+Then, you can run the tests using:
 
 ```bash
 just build-devnet-and-test-e2e DEVNET BINARY
