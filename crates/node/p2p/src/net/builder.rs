@@ -43,6 +43,7 @@ impl From<Config> for NetworkBuilder {
             .with_unsafe_block_signer(config.unsafe_block_signer)
             .with_gossip_config(config.gossip_config)
             .with_peer_scoring(config.scoring)
+            .with_peer_monitoring(config.monitor_peers)
             .with_block_time(config.block_time)
             .with_keypair(config.keypair)
             .with_topic_scoring(config.topic_scoring)

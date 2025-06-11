@@ -358,14 +358,10 @@ impl P2PArgs {
             .build()?;
         let block_time = config.block_time;
 
-        let monitor_peers = if self.ban_enabled {
-            Some(PeerMonitoring {
-                ban_duration: Duration::from_secs(60 * self.ban_duration),
-                ban_threshold: self.ban_threshold as f64,
-            })
-        } else {
-            None
-        };
+        let monitor_peers = self.ban_enabled.then_some(PeerMonitoring {
+            ban_duration: Duration::from_secs(60 * self.ban_duration),
+            ban_threshold: self.ban_threshold as f64,
+        });
 
         let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
         let discovery_config = self.discv5_config(discovery_listening_address.into(), static_ip);
