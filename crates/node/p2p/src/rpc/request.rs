@@ -219,6 +219,13 @@ impl P2pRpcRequest {
         let banned_peers = gossip.connection_gate.list_blocked_peers();
         let protected_peers = gossip.connection_gate.list_protected_peers();
 
+        // For each peer id, get the connectedness using the connection gate.
+        let connectedness = peer_ids
+            .iter()
+            .copied()
+            .map(|id| (id, gossip.connection_gate.connectedness(&id)))
+            .collect::<HashMap<PeerId, Connectedness>>();
+
         #[derive(Default)]
         struct PeerMetadata {
             protocols: Option<Vec<String>>,
@@ -313,14 +320,6 @@ impl P2pRpcRequest {
                 .filter_map(|(id, enr, status)| {
                     let opstack_enr = OpStackEnr::try_from(enr).ok();
 
-                    // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): improve the connectedness information to include the other
-                    // variants.
-                    let connectedness = if status.is_connected() {
-                        Connectedness::Connected
-                    } else {
-                        Connectedness::NotConnected
-                    };
-
                     let direction =
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
@@ -328,6 +327,10 @@ impl P2pRpcRequest {
                         let PeerMetadata { protocols, addresses, user_agent, protocol_version } =
                             peer_metadata.remove(peer_id).unwrap_or_default();
 
+                        let peer_connectedness = connectedness
+                            .get(peer_id)
+                            .copied()
+                            .unwrap_or(Connectedness::NotConnected);
                         let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
@@ -339,7 +342,7 @@ impl P2pRpcRequest {
                                 enr: enr.to_string(),
                                 addresses,
                                 protocols,
-                                connectedness,
+                                connectedness: peer_connectedness,
                                 direction,
                                 // Note: we use the chain id from the ENR if it exists, otherwise we
                                 // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).

@@ -1,5 +1,6 @@
 //! Connection Gate for the libp2p Gossip Swarm.
 
+use crate::Connectedness;
 use libp2p::{Multiaddr, PeerId};
 use std::net::IpAddr;
 
@@ -10,7 +11,10 @@ use std::net::IpAddr;
 /// gossip swarm.
 pub trait ConnectionGate {
     /// Checks if a peer is allowed to connect to the gossip swarm.
-    fn can_dial(&self, peer_id: &Multiaddr) -> bool;
+    fn can_dial(&mut self, peer_id: &Multiaddr) -> bool;
+
+    /// Returns the [`Connectedness`] for a given peer id.
+    fn connectedness(&self, peer_id: &PeerId) -> Connectedness;
 
     /// Marks an address as currently being dialed.
     fn dialing(&mut self, addr: &Multiaddr);
