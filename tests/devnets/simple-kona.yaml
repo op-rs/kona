@@ -2,6 +2,9 @@
 # Spins up a 2 EL/CL networks. One with op-geth/op-node and one with op-reth/kona-node.
 
 optimism_package:
+  faucet:
+    enabled: true
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
     # Chain with only two nodes
     - participants:

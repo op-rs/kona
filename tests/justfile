@@ -16,16 +16,13 @@ build-devnet BINARY:
 # The CUSTOM_DEVNET_PATH variable can be used to specify a custom devnet path.
 # If not specified, the default devnet path will be used.
 # The ENCLAVE variable can be used to specify a custom enclave name to use for kurtosis.
-devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
+devnet DEVNET OP_PACKAGE_PATH="" CUSTOM_DEVNET_PATH="":
   #!/bin/bash
-  export ENCLAVE=""
-  if ! [ -z "{{ENCLAVE}}" ]; then
-    export ENCLAVE="--enclave {{ENCLAVE}}"
-  fi
+  export DEVNET="--enclave {{DEVNET}}"
 
   export DEVNET_PATH="{{CUSTOM_DEVNET_PATH}}"
   if [ -z "{{CUSTOM_DEVNET_PATH}}" ]; then
-    export DEVNET_PATH="{{DEFAULT_DEVNET_PATH}}"
+    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
   fi
 
   export OP_PACKAGE_PATH="{{OP_PACKAGE_PATH}}"
@@ -37,13 +34,13 @@ devnet CUSTOM_DEVNET_PATH="" ENCLAVE="" OP_PACKAGE_PATH="":
   fi
 
   # Run the kurtosis test
-  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $ENCLAVE
+  kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $DEVNET
 
 # Winds down kurtosis, cleaning up the network
 cleanup-kurtosis:
   kurtosis clean -a
 
-test-e2e DEVNET GO_PKG_NAME="":
+test-e2e DEVNET GO_PKG_NAME="" DEVNET_CUSTOM_PATH="" :
     #!/bin/bash
     if [ -z "{{GO_PKG_NAME}}" ]; then
         export GO_PKG_NAME="..."
@@ -51,23 +48,20 @@ test-e2e DEVNET GO_PKG_NAME="":
         export GO_PKG_NAME="{{GO_PKG_NAME}}"
     fi
 
-    export DEVNET_ENV_URL={{DEVNET}}
+    export DEVNET_CUSTOM_PATH="{{DEVNET_CUSTOM_PATH}}"
+    if [ -z "{{DEVNET_CUSTOM_PATH}}" ]; then
+        export DEVNET_CUSTOM_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+    fi
+
+    export DEVNET_ENV_URL="ktnative://{{DEVNET}}$DEVNET_CUSTOM_PATH"
+    export DISABLE_OP_E2E_LEGACY=true
+    export DEVSTACK_ORCHESTRATOR=sysext
 
     cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
 
-build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
-    #!/bin/bash
-    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-
-    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
+build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (devnet DEVNET OP_PACKAGE_PATH)
   
-deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": 
-    #!/bin/bash
-    export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
-
-    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
-
-    just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
+deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (devnet DEVNET OP_PACKAGE_PATH) (test-e2e DEVNET BINARY)
 
 build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH)
 

@@ -2,6 +2,9 @@
 # Spins up a large EL/CL network.
 
 optimism_package:
+  faucet:
+    enabled: true
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
     # Chain with more nodes
     - participants:
