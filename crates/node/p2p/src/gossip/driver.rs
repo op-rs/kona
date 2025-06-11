@@ -13,6 +13,7 @@ use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{
     collections::HashMap,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -54,7 +55,7 @@ pub struct GossipDriver<G: ConnectionGate> {
     /// The connection gate.
     pub connection_gate: G,
     /// Tracks ping times for peers.
-    pub ping: HashMap<PeerId, Duration>,
+    pub ping: Arc<Mutex<HashMap<PeerId, Duration>>>,
 }
 
 impl<G> GossipDriver<G>
@@ -87,7 +88,7 @@ where
             // TODO(@theochap): make this field truly optional (through CLI args).
             sync_protocol: Some(sync_protocol),
             connection_gate: gate,
-            ping: Default::default(),
+            ping: Arc::new(Mutex::new(Default::default())),
         }
     }
 
@@ -227,8 +228,10 @@ where
                         ping_duration.as_secs_f64()
                     );
                 }
-                if let Ok(time) = result {
-                    self.ping.insert(peer, time);
+                if let Ok(mut pings) = self.ping.lock() {
+                    if let Ok(time) = result {
+                        pings.insert(peer, time);
+                    }
                 }
             }
             Event::Identify(e) => self.handle_identify_event(e),
@@ -358,6 +361,10 @@ where
                         crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
                         peer_duration.as_secs_f64()
                     );
+                }
+
+                if let Ok(mut pings) = self.ping.lock() {
+                    pings.remove(&peer_id);
                 }
 
                 // If the connection was initiated by us, remove the peer from the current dials

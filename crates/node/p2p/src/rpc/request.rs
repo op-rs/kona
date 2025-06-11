@@ -4,6 +4,7 @@ use std::{
     collections::{HashMap, HashSet},
     net::IpAddr,
     num::TryFromIntError,
+    sync::Arc,
 };
 
 use crate::{Discv5Handler, GossipDriver};
@@ -228,7 +229,7 @@ impl P2pRpcRequest {
             .collect::<HashMap<PeerId, Connectedness>>();
 
         // Clone the ping map
-        let pings = gossip.ping.clone();
+        let pings = Arc::clone(&gossip.ping);
 
         #[derive(Default)]
         struct PeerMetadata {
@@ -336,7 +337,13 @@ impl P2pRpcRequest {
                             .copied()
                             .unwrap_or(Connectedness::NotConnected);
 
-                        let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
+                        let latency = match pings.lock() {
+                            Ok(pings) => pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0),
+                            Err(e) => {
+                                warn!(target: "p2p::rpc", "Failed to acquire ping lock: {:?}", e);
+                                0
+                            }
+                        };
 
                         let node_id = format!("{:?}", &enr.node_id());
                         (
