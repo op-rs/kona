@@ -1,10 +1,12 @@
 use core::fmt::Debug;
 
+use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
 use async_trait::async_trait;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
-use kona_supervisor_storage::{ChainDb, ChainDbFactory, StorageError};
+use kona_protocol::BlockInfo;
+use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageReader, StorageError};
 use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::InvalidInboxEntry;
 use std::{collections::HashMap, sync::Arc};
@@ -81,6 +83,22 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns [`SuperHead`] of given supervised chain.
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError>;
 
+    /// Returns latest block derived from given L1 block, for given chain.
+    fn latest_block_from(
+        &self,
+        l1_block: BlockNumHash,
+        chain: ChainId,
+    ) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns the L1 source block that the given L2 derived block was based on, for the specified
+    /// chain.
+    fn derived_to_source_block(
+        &self,
+        chain: ChainId,
+        derived: BlockNumHash,
+    ) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns the
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
         &self,
@@ -194,6 +212,22 @@ impl SupervisorService for Supervisor {
 
     fn super_head(&self, _chain: ChainId) -> Result<SuperHead, SupervisorError> {
         todo!("implement call to ChainDbFactory")
+    }
+
+    fn latest_block_from(
+        &self,
+        l1_block: BlockNumHash,
+        chain: ChainId,
+    ) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.latest_derived_block_at_source(l1_block)?)
+    }
+
+    fn derived_to_source_block(
+        &self,
+        chain: ChainId,
+        derived: BlockNumHash,
+    ) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.derived_to_source(derived)?)
     }
 
     async fn check_access_list(

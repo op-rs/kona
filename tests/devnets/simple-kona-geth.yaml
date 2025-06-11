@@ -1,5 +1,5 @@
 # A simple network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
-# Spins up a 2 EL/CL networks. One with op-geth/op-node and one with op-reth/kona-node.
+# Spins up a 2 EL/CL networks. One with op-geth/op-node and one with op-geth/kona-node.
 
 optimism_package:
   chains:
@@ -11,7 +11,7 @@ optimism_package:
         cl_type: op-node
         cl_log_level: "debug"
         count: 1
-      - el_type: op-reth
+      - el_type: op-geth
         cl_type: kona-node
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"

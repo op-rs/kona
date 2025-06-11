@@ -52,6 +52,20 @@ just isolate_test devnets/specs/simple-kona-devnet.json
 
 - `just clone-kurtosis-devnet`: Clones the [optimism monorepo](https://github.com/ethereum-optimism/optimism) repository and installs the dependencies.
 
+## Using `op-devstack` for testing
+
+Set the following environment variables:
+
+- `DEVSTACK_ORCHESTRATOR=sysext`: Environment variable to tell `op-devstack` to use devnet descriptor based backend e.g. local kurtosis network.
+
+- `DISABLE_OP_E2E_LEGACY=true`: Environment variable to tell `op-devstack` not to use the `op-e2e` tests that rely on e2e config and contracts-bedrock artifacts.
+
+Then, you can run the tests using:
+
+```bash
+just build-devnet-and-test-e2e DEVNET BINARY
+```
+
 ## Contributing
 
 We welcome contributions to this repository.
