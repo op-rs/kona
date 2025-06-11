@@ -60,12 +60,16 @@ build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY)
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
 
     just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
-
-build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH)
+  
+deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": 
     #!/bin/bash
     export DEVNET_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
 
+    just devnet $DEVNET_PATH {{DEVNET}} {{OP_PACKAGE_PATH}}
+
     just test-e2e "ktnative://{{DEVNET}}$DEVNET_PATH" "{{BINARY}}"
+
+build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH)
 
 # Updates the devnet with the latest local changes. This is useful to
 # rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
