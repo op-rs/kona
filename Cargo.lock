@@ -4826,6 +4826,7 @@ dependencies = [
  "async-trait",
  "derive_more",
  "getrandom 0.3.3",
+ "ipnet",
  "jsonrpsee",
  "kona-engine",
  "kona-genesis",

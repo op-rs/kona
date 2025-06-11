@@ -12,6 +12,7 @@ use discv5::{
     enr::{NodeId, k256::ecdsa},
     multiaddr::Protocol,
 };
+use ipnet::IpNet;
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
@@ -69,12 +70,12 @@ pub enum P2pRpcRequest {
     /// Request to block a given Subnet.
     BlockSubnet {
         /// The Subnet to block.
-        address: String,
+        address: IpNet,
     },
     /// Request to unblock a given Subnet.
     UnblockSubnet {
         /// The Subnet to unblock.
-        address: String,
+        address: IpNet,
     },
 
     /// Request to connect to a given peer.
@@ -168,12 +169,12 @@ impl P2pRpcRequest {
         }
     }
 
-    fn block_subnet<G: ConnectionGate>(address: String, gossip: &mut GossipDriver<G>) {
-        gossip.connection_gate.block_subnet(&address);
+    fn block_subnet<G: ConnectionGate>(address: IpNet, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.block_subnet(address);
     }
 
-    fn unblock_subnet<G: ConnectionGate>(address: String, gossip: &mut GossipDriver<G>) {
-        gossip.connection_gate.unblock_subnet(&address);
+    fn unblock_subnet<G: ConnectionGate>(address: IpNet, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unblock_subnet(address);
     }
 
     fn connect_peer<G: ConnectionGate>(address: Multiaddr, gossip: &mut GossipDriver<G>) {

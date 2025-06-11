@@ -47,6 +47,7 @@ derive_more = { workspace = true, default-features = false, features = [
 ] }
 async-trait.workspace = true
 tokio = { workspace = true, features = ["time"] }
+ipnet = { workspace = true }
 
 # `serde`
 serde = { workspace = true, features = ["std"] }

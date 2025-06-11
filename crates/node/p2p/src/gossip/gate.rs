@@ -1,5 +1,6 @@
 //! Connection Gate for the libp2p Gossip Swarm.
 
+use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::net::IpAddr;
 
@@ -46,10 +47,10 @@ pub trait ConnectionGate {
     fn list_blocked_addrs(&self) -> Vec<IpAddr>;
 
     /// Blocks a subnet from connecting to the gossip swarm.
-    fn block_subnet(&mut self, subnet: &str);
+    fn block_subnet(&mut self, subnet: IpNet);
 
     /// Unblocks a subnet, allowing it to connect to the gossip swarm.
-    fn unblock_subnet(&mut self, subnet: &str);
+    fn unblock_subnet(&mut self, subnet: IpNet);
 
     /// Lists all blocked subnets.
     fn list_blocked_subnets(&self) -> Vec<String>;

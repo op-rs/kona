@@ -33,7 +33,7 @@ pub struct ConnectionGater {
     pub blocked_addrs: HashSet<IpAddr>,
 
     /// A set of blocked subnets that cannot be connected to.
-    pub blocked_subnets: HashSet<String>,
+    pub blocked_subnets: HashSet<IpNet>,
 }
 
 impl ConnectionGater {
@@ -89,20 +89,9 @@ impl ConnectionGater {
 
     /// Checks if a given [`IpAddr`] is within any of the `blocked_subnets`.
     pub fn check_ip_in_blocked_subnets(&self, ip_addr: &IpAddr) -> bool {
-        for subnet_str in &self.blocked_subnets {
-            match subnet_str.parse::<IpNet>() {
-                Ok(network) => {
-                    if network.contains(ip_addr) {
-                        return true;
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        "Warning: Invalid subnet string in blocked_subnets: {} - {}",
-                        subnet_str, e
-                    );
-                    return true;
-                }
+        for subnet in &self.blocked_subnets {
+            if subnet.contains(ip_addr) {
+                return true;
             }
         }
         false
@@ -225,13 +214,13 @@ impl ConnectionGate for ConnectionGater {
         self.blocked_addrs.iter().cloned().collect()
     }
 
-    fn block_subnet(&mut self, subnet: &str) {
-        self.blocked_subnets.insert(subnet.to_owned());
+    fn block_subnet(&mut self, subnet: IpNet) {
+        self.blocked_subnets.insert(subnet);
         debug!(target: "gossip", ?subnet, "Blocked subnet");
     }
 
-    fn unblock_subnet(&mut self, subnet: &str) {
-        self.blocked_subnets.remove(subnet);
+    fn unblock_subnet(&mut self, subnet: IpNet) {
+        self.blocked_subnets.remove(&subnet);
         debug!(target: "gossip", ?subnet, "Unblocked subnet");
     }
 
@@ -256,9 +245,9 @@ fn test_check_ip_in_blocked_subnets_ipv4() {
     use std::str::FromStr;
 
     let mut gater = ConnectionGater::new(None);
-    gater.blocked_subnets.insert("192.168.1.0/24".to_string());
-    gater.blocked_subnets.insert("10.0.0.0/8".to_string());
-    gater.blocked_subnets.insert("172.16.0.0/16".to_string());
+    gater.blocked_subnets.insert("192.168.1.0/24".parse::<IpNet>().unwrap());
+    gater.blocked_subnets.insert("10.0.0.0/8".parse::<IpNet>().unwrap());
+    gater.blocked_subnets.insert("172.16.0.0/16".parse::<IpNet>().unwrap());
 
     // IP in blocked subnet
     assert!(gater.check_ip_in_blocked_subnets(&IpAddr::from_str("192.168.1.100").unwrap()));
