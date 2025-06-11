@@ -90,6 +90,14 @@ pub trait SupervisorService: Debug + Send + Sync {
         chain: ChainId,
     ) -> Result<BlockInfo, SupervisorError>;
 
+    /// Returns the L1 source block that the given L2 derived block was based on, for the specified
+    /// chain.
+    fn derived_to_source_block(
+        &self,
+        chain: ChainId,
+        derived: BlockNumHash,
+    ) -> Result<BlockInfo, SupervisorError>;
+
     /// Returns the
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
@@ -212,6 +220,14 @@ impl SupervisorService for Supervisor {
         chain: ChainId,
     ) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.latest_derived_block_at_source(l1_block)?)
+    }
+
+    fn derived_to_source_block(
+        &self,
+        chain: ChainId,
+        derived: BlockNumHash,
+    ) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.derived_to_source(derived)?)
     }
 
     async fn check_access_list(

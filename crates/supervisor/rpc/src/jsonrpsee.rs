@@ -25,6 +25,14 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
 pub trait SupervisorApi {
+    /// Gets the source block for a given derived block
+    #[method(name = "crossDerivedToSource")]
+    async fn cross_derived_to_source(
+        &self,
+        chain_id: ChainId,
+        block_id: BlockNumHash,
+    ) -> RpcResult<BlockInfo>;
+
     /// Gets the localUnsafe BlockId
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;

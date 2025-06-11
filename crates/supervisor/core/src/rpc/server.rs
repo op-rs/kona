@@ -38,6 +38,33 @@ impl<T> SupervisorApiServer for SupervisorRpc<T>
 where
     T: SupervisorService + 'static,
 {
+    async fn cross_derived_to_source(
+        &self,
+        chain_id: ChainId,
+        derived: BlockNumHash,
+    ) -> RpcResult<BlockInfo> {
+        trace!(
+            target: "supervisor_rpc",
+            %chain_id,
+            ?derived,
+            "Received cross_derived_to_source request"
+        );
+
+        let source_block =
+            self.supervisor.derived_to_source_block(chain_id, derived).map_err(|err| {
+                warn!(
+                    target: "supervisor_rpc",
+                    %chain_id,
+                    ?derived,
+                    %err,
+                    "Failed to get source block for derived block"
+                );
+                ErrorObject::from(err)
+            })?;
+
+        Ok(source_block)
+    }
+
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
         trace!(target: "supervisor_rpc",
             %chain_id,
