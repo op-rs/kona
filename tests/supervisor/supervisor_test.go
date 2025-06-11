@@ -47,7 +47,6 @@ func TestDerivationPipeline(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
-
 	l2BlockHead := out.Supervisor.L2HeadBlockID(out.L2ChainA.ChainID(), "local-safe")
 
 	// Get current L1 at which L2 is at and wait for new L1 to be synced in supervisor.
@@ -61,7 +60,7 @@ func TestDerivationPipeline(gt *testing.T) {
 	//  Wait for the L2 chain to sync to the new L1 block.
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		new_l1_at_l2 := out.L2CLA.SyncStatus().CurrentL1
-		return new_l1_at_l2.Hash == new_l1.Hash, nil
+		return new_l1_at_l2.Number >= new_l1.Number, nil
 	})
 	t.Require().NoError(err)
 

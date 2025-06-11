@@ -6,7 +6,6 @@ optimism_package:
     - participants:
       - el_type: op-geth
         cl_type: op-node
-        cl_image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
         cl_log_level: debug
         count: 1
       network_params:
@@ -19,15 +18,13 @@ optimism_package:
         granite_time_offset: 0
         fund_dev_accounts: true
       batcher_params:
-        image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:develop
+        extra_params: []
       proposer_params:
-        image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:develop
         game_type: 1
         proposal_interval: 10m
     - participants:
       - el_type: op-geth
         cl_type: op-node
-        cl_image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
         cl_log_level: debug
       network_params:
         network_id: "2151909"
@@ -39,9 +36,8 @@ optimism_package:
         granite_time_offset: 0
         fund_dev_accounts: true
       batcher_params:
-        image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:develop
+        extra_params: []
       proposer_params:
-        image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:develop
         game_type: 1
         proposal_interval: 10m
   superchains: 
@@ -50,7 +46,6 @@ optimism_package:
   supervisors:
     supervisor: # default op-supervisor
       enabled: true
-      image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-supervisor:develop
       superchain: superchain
   global_log_level: "info"
   global_node_selectors: {}
