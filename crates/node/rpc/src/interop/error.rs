@@ -46,7 +46,7 @@ impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
 
 impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
     fn from(err: jsonrpsee::types::ErrorObjectOwned) -> Self {
-        InvalidInboxEntry::try_from(err.code() as i64)
+        SuperchainDAError::try_from(err.code())
             .map(Self::InvalidInboxEntry)
             .unwrap_or(Self::server_unexpected(err))
     }

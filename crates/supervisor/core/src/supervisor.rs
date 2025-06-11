@@ -246,7 +246,7 @@ mod test {
 
     #[test]
     fn test_rpc_error_conversion() {
-        let err = InvalidInboxEntry::UnknownChain;
+        let err = SuperchainDAError::UnknownChain;
         let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
         assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
