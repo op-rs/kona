@@ -28,20 +28,20 @@ use url::Url;
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
-    #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
+    #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
     /// URL of the L1 beacon API.
-    #[arg(long, visible_alias = "l1.beacon", env = "L1_BEACON")]
+    #[arg(long, visible_alias = "l1.beacon", env = "KONA_NODE_L1_BEACON")]
     pub l1_beacon: Url,
     /// URL of the engine API endpoint of an L2 execution client.
-    #[arg(long, visible_alias = "l2", env = "L2_ENGINE_RPC")]
+    #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
     /// An L2 RPC Url.
-    #[arg(long, visible_alias = "l2.provider", env = "L2_ETH_RPC")]
+    #[arg(long, visible_alias = "l2.provider", env = "KONA_NODE_L2_ETH_RPC")]
     pub l2_provider_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
-    #[arg(long, visible_alias = "l2.jwt-secret", env = "L2_ENGINE_AUTH")]
+    #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
     pub l2_engine_jwt_secret: Option<PathBuf>,
     /// Path to a custom L2 rollup configuration file
     /// (overrides the default rollup configuration from the registry)
@@ -52,7 +52,7 @@ pub struct NodeCommand {
         long,
         visible_alias = "l2.enginekind",
         default_value = "geth",
-        env = "L2_ENGINE_KIND",
+        env = "KONA_NODE_L2_ENGINE_KIND",
         help = "DEPRECATED. The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
     )]
     pub l2_engine_kind: EngineKind,
@@ -63,7 +63,7 @@ pub struct NodeCommand {
         long,
         visible_alias = "l1.runtime-config-reload-interval",
         default_value = "600", // 10 minutes in seconds
-        env = "L1_RUNTIME_CONFIG_RELOAD_INTERVAL",
+        env = "KONA_NODE_L1_RUNTIME_CONFIG_RELOAD_INTERVAL",
     )]
     pub l1_runtime_config_reload_interval: u64,
     /// P2P CLI arguments.
