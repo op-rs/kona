@@ -139,37 +139,24 @@ impl OpP2PApiServer for NetworkRpc {
         rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_block_subnet(&self, subnet: String) -> RpcResult<()> {
+    async fn opp2p_block_subnet(&self, subnet: IpNet) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_blockSubnet");
-
-        let subnet_id = match subnet.parse::<IpNet>() {
-            Ok(net) => net,
-            Err(_) => {
-                return Err(ErrorObject::from(ErrorCode::ParseError));
-            }
-        };
         self.sender
-            .send(P2pRpcRequest::BlockSubnet { address: subnet_id })
+            .send(P2pRpcRequest::BlockSubnet { address: subnet })
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_unblock_subnet(&self, subnet: String) -> RpcResult<()> {
+    async fn opp2p_unblock_subnet(&self, subnet: IpNet) -> RpcResult<()> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_unblockSubnet");
 
-        let subnet_id = match subnet.parse::<IpNet>() {
-            Ok(net) => net,
-            Err(_) => {
-                return Err(ErrorObject::from(ErrorCode::ParseError));
-            }
-        };
         self.sender
-            .send(P2pRpcRequest::UnblockSubnet { address: subnet_id })
+            .send(P2pRpcRequest::UnblockSubnet { address: subnet })
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<String>> {
+    async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<IpNet>> {
         kona_macros::inc!(
             gauge,
             kona_p2p::Metrics::RPC_CALLS,
@@ -181,9 +168,7 @@ impl OpP2PApiServer for NetworkRpc {
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
 
-        rx.await
-            .map(|s| s.iter().map(|s| s.to_string()).collect::<Vec<String>>())
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_protect_peer(&self, id: String) -> RpcResult<()> {
