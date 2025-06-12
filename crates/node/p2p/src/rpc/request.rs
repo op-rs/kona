@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Discv5Handler, GossipDriver, GossipScores, TopicScores};
+use crate::{Discv5Handler, GossipDriver, GossipScores};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
@@ -15,7 +15,7 @@ use discv5::{
 };
 use ipnet::IpNet;
 use kona_peers::OpStackEnr;
-use libp2p::{PeerId, gossipsub::Topic};
+use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
 use libp2p::{Multiaddr, gossipsub::TopicHash};
@@ -322,24 +322,12 @@ impl P2pRpcRequest {
                 ]);
 
                 if topics.iter().any(|topic| supported_topics.contains(topic)) {
-                    // Get the topic params for the given blocks topic.
-                    let topic_params = |topic: &Topic<_>| {
-                        gossip.swarm.behaviour().gossipsub.get_topic_params(topic).cloned()
-                    };
-
-                    let params = vec![
-                        topic_params(&gossip.handler.blocks_v1_topic),
-                        topic_params(&gossip.handler.blocks_v2_topic),
-                        topic_params(&gossip.handler.blocks_v3_topic),
-                        topic_params(&gossip.handler.blocks_v4_topic),
-                    ];
-
-                    Some((*peer_id, params))
+                    Some(*peer_id)
                 } else {
                     None
                 }
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<HashSet<_>>();
 
         let disc_table_infos = disc.table_infos();
 
@@ -395,46 +383,6 @@ impl P2pRpcRequest {
 
                         let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
 
-                        let topic_params = peer_gossip_info
-                            .get(peer_id)
-                            .map(|params| {
-                                // We need to map the topic scores from a multidimensional
-                                // representation to a uni-dimensional one.
-                                // This is done by averaging the topic scores for each topic the
-                                // peer is subscribed to.
-                                let (mut topic_scores, count) = params.iter().fold(
-                                    // Initialize the topic scores with 0, the second element is
-                                    // the number of non None
-                                    // topic params.
-                                    (TopicScores::default(), 0),
-                                    |(mut topic_scores, mut count), topic_params| {
-                                        if let Some(topic_params) = topic_params {
-                                            topic_scores.time_in_mesh +=
-                                                topic_params.time_in_mesh_weight;
-                                            topic_scores.first_message_deliveries +=
-                                                topic_params.first_message_deliveries_weight;
-                                            topic_scores.mesh_message_deliveries +=
-                                                topic_params.mesh_message_deliveries_weight;
-                                            topic_scores.invalid_message_deliveries +=
-                                                topic_params.invalid_message_deliveries_weight;
-
-                                            count += 1;
-                                        }
-                                        (topic_scores, count)
-                                    },
-                                );
-
-                                if count > 0 {
-                                    topic_scores.time_in_mesh /= count as f64;
-                                    topic_scores.first_message_deliveries /= count as f64;
-                                    topic_scores.mesh_message_deliveries /= count as f64;
-                                    topic_scores.invalid_message_deliveries /= count as f64;
-                                }
-
-                                topic_scores
-                            })
-                            .unwrap_or_default();
-
                         let node_id = format!("{:?}", &enr.node_id());
                         (
                             peer_id.to_string(),
@@ -451,18 +399,29 @@ impl P2pRpcRequest {
                                 // Note: we use the chain id from the ENR if it exists, otherwise we
                                 // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
                                 chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
-                                gossip_blocks: peer_gossip_info.contains_key(peer_id),
+                                gossip_blocks: peer_gossip_info.contains(peer_id),
                                 protected: protected_peers.contains(peer_id),
                                 latency,
                                 peer_scores: PeerScores {
                                     gossip: GossipScores {
                                         total: score,
-                                        blocks: topic_params,
-                                        // Note: We can't compute the ip colocation factor because
-                                        // `rust-libp2p` doesn't expose that information
+                                        // Note(@theochap): we don't compute the topic scores
+                                        // because we don't
+                                        // `rust-libp2p` doesn't expose that information to the
+                                        // user-facing API.
+                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                        blocks: Default::default(),
+                                        // Note(@theochap): We can't compute the ip colocation
+                                        // factor because
+                                        // `rust-libp2p` doesn't expose that information to the
+                                        // user-facing API
+                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
                                         ip_colocation_factor: Default::default(),
-                                        // Note: We can't compute the behavioral penalty because
-                                        // `rust-libp2p` doesn't expose that information
+                                        // Note(@theochap): We can't compute the behavioral penalty
+                                        // because
+                                        // `rust-libp2p` doesn't expose that information to the
+                                        // user-facing API
+                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
                                         behavioral_penalty: Default::default(),
                                     },
                                     // We only support a shim implementation for the req/resp
