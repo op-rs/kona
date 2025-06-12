@@ -1,6 +1,8 @@
 //! Driver for network services.
 
 use alloy_primitives::{Address, hex};
+use alloy_signer::SignerSync;
+use alloy_signer_local::PrivateKeySigner;
 use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use libp2p::TransportError;
 use libp2p_stream::IncomingStreams;
@@ -39,6 +41,8 @@ pub struct Network {
     pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
     pub discovery: Discv5Driver,
+    /// The local signer for unsigned payloads.
+    pub local_signer: Option<PrivateKeySigner>,
 }
 
 impl Network {
@@ -141,11 +145,22 @@ impl Network {
                         let selector = |handler: &crate::BlockHandler| {
                             handler.topic(timestamp)
                         };
-                        // TODO: sign the payload
+                        let Some(signer) = self.local_signer.as_ref() else {
+                            warn!(target: "net", "No local signer available to sign the payload");
+                            continue;
+                        };
                         let payload_hash = op_alloy_rpc_types_engine::PayloadHash(block.payload.block_hash());
+                        let Ok(payload_bytes) = bincode::serde::encode_to_vec(&block, bincode::config::standard()) else {
+                            warn!(target: "net", "Failed to serialize the payload to bytes");
+                            continue;
+                        };
+                        let Ok(signature) = signer.sign_message_sync(&payload_bytes) else {
+                            warn!(target: "net", "Failed to sign the payload bytes");
+                            continue;
+                        };
                         let payload = OpNetworkPayloadEnvelope {
                             payload: block.payload,
-                            signature: alloy_primitives::Signature::new(Default::default(), Default::default(), false),
+                            signature,
                             payload_hash,
                             parent_beacon_block_root: block.parent_beacon_block_root,
                         };
