@@ -6,6 +6,8 @@
 
 use crate::flags::GlobalArgs;
 use alloy_primitives::B256;
+use alloy_signer::Signer;
+use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
@@ -18,6 +20,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
+    str::FromStr,
     sync::Arc,
 };
 use tokio::time::Duration;
@@ -287,6 +290,35 @@ impl P2PArgs {
         builder.build()
     }
 
+    /// Returns the private key as specified in the raw cli flag or via file path.
+    pub fn private_key(&self) -> Option<PrivateKeySigner> {
+        if let Some(key) = self.private_key {
+            match PrivateKeySigner::from_bytes(&key) {
+                Ok(signer) => return Some(signer),
+                Err(e) => {
+                    tracing::error!(target: "p2p::flags", "Failed to parse private key: {}", e);
+                    return None;
+                }
+            }
+        }
+
+        if let Some(path) = self.priv_path.as_ref() {
+            if path.exists() {
+                let contents = std::fs::read_to_string(path).ok()?;
+                let decoded = B256::from_str(&contents).ok()?;
+                match PrivateKeySigner::from_bytes(&decoded) {
+                    Ok(signer) => return Some(signer),
+                    Err(e) => {
+                        tracing::error!(target: "p2p::flags", "Failed to parse private key from file: {}", e);
+                        return None;
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     /// Returns the unsafe block signer from the CLI arguments.
     pub async fn unsafe_block_signer(
         &self,
@@ -374,6 +406,9 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
+        let local_signer = self.private_key();
+        let local_signer = local_signer.map(|s| s.with_chain_id(Some(args.l2_chain_id)));
+
         Ok(Config {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
@@ -394,6 +429,7 @@ impl P2PArgs {
             },
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
+            local_signer,
         })
     }
 
