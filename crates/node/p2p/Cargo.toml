@@ -32,7 +32,7 @@ alloy-primitives = { workspace = true, features = ["k256", "getrandom"] }
 
 # Op Alloy
 op-alloy-consensus = { workspace = true, features = ["k256"] }
-op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
+op-alloy-rpc-types-engine = { workspace = true, features = ["std", "serde"] }
 
 # Networking
 snap.workspace = true
