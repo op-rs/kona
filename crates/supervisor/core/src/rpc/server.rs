@@ -38,6 +38,33 @@ impl<T> SupervisorApiServer for SupervisorRpc<T>
 where
     T: SupervisorService + 'static,
 {
+    async fn cross_derived_to_source(
+        &self,
+        chain_id: ChainId,
+        derived: BlockNumHash,
+    ) -> RpcResult<BlockInfo> {
+        trace!(
+            target: "supervisor_rpc",
+            %chain_id,
+            ?derived,
+            "Received cross_derived_to_source request"
+        );
+
+        let source_block =
+            self.supervisor.derived_to_source_block(chain_id, derived).map_err(|err| {
+                warn!(
+                    target: "supervisor_rpc",
+                    %chain_id,
+                    ?derived,
+                    %err,
+                    "Failed to get source block for derived block"
+                );
+                ErrorObject::from(err)
+            })?;
+
+        Ok(source_block)
+    }
+
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
         trace!(target: "supervisor_rpc",
             %chain_id,
@@ -160,6 +187,28 @@ where
             finalized_timestamp,
             chains,
         })
+    }
+
+    async fn all_safe_derived_at(
+        &self,
+        derived_from: BlockNumHash,
+    ) -> RpcResult<HashMap<ChainId, BlockNumHash>> {
+        trace!(target: "supervisor_rpc",
+            ?derived_from,
+            "Received all_safe_derived_at request"
+        );
+
+        let mut chains = self
+            .supervisor
+            .chain_ids()
+            .map(|id| (id, Default::default()))
+            .collect::<HashMap<_, BlockNumHash>>();
+
+        for (id, block) in chains.iter_mut() {
+            *block = self.supervisor.latest_block_from(derived_from, *id)?.id();
+        }
+
+        Ok(chains)
     }
 }
 

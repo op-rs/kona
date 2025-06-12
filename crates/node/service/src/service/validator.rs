@@ -6,7 +6,7 @@ use crate::{
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
-use kona_derive::traits::{Pipeline, SignalReceiver};
+use kona_derive::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_protocol::{BlockInfo, L2BlockInfo};

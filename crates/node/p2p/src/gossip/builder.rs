@@ -2,6 +2,7 @@
 
 use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{
     Multiaddr, StreamProtocol, SwarmBuilder, gossipsub::Config, identity::Keypair,
     noise::Config as NoiseConfig, tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
@@ -9,10 +10,7 @@ use libp2p::{
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
 
-use crate::{
-    Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, PeerScoreLevel,
-    peers::PeerMonitoring,
-};
+use crate::{Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError};
 
 /// A builder for the [`GossipDriver`].
 #[derive(Debug, Default)]

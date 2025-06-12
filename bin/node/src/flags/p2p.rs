@@ -10,7 +10,8 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, LocalNode, PeerMonitoring, PeerScoreLevel};
+use kona_p2p::{Config, LocalNode};
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
@@ -358,14 +359,10 @@ impl P2PArgs {
             .build()?;
         let block_time = config.block_time;
 
-        let monitor_peers = if self.ban_enabled {
-            Some(PeerMonitoring {
-                ban_duration: Duration::from_secs(60 * self.ban_duration),
-                ban_threshold: self.ban_threshold as f64,
-            })
-        } else {
-            None
-        };
+        let monitor_peers = self.ban_enabled.then_some(PeerMonitoring {
+            ban_duration: Duration::from_secs(60 * self.ban_duration),
+            ban_threshold: self.ban_threshold as f64,
+        });
 
         let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
         let discovery_config = self.discv5_config(discovery_listening_address.into(), static_ip);

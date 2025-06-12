@@ -1,9 +1,10 @@
 //! Configuration for the `Network`.
 
-use crate::{PeerScoreLevel, discv5::LocalNode, peers::PeerMonitoring};
+use crate::discv5::LocalNode;
 use alloy_primitives::Address;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::path::PathBuf;
 use tokio::time::Duration;

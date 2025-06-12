@@ -12,6 +12,9 @@ pub enum RpcLauncherError {
     /// An error occurred while starting the [`Server`].
     #[error("failed to start server: {0}")]
     ServerStart(#[from] std::io::Error),
+    /// Failed to register a method on the [`RpcModule`].
+    #[error("failed to register method: {0}")]
+    RegisterMethod(#[from] RegisterMethodError),
 }
 
 impl PartialEq for RpcLauncherError {
@@ -24,6 +27,13 @@ impl PartialEq for RpcLauncherError {
     }
 }
 
+/// A healthcheck response for the RPC server.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HealthzResponse {
+    /// The application version.
+    version: String,
+}
+
 /// Launches a [`Server`] using a set of [`RpcModule`]s.
 #[derive(Debug, Clone, Default)]
 pub struct RpcLauncher {
@@ -32,7 +42,8 @@ pub struct RpcLauncher {
     pub no_restart: bool,
     socket: Option<SocketAddr>,
     module: Option<RpcModule<()>>,
-    ws_enabled: bool,
+    /// Enable the websocket rpc server
+    pub ws_enabled: bool,
 }
 
 impl From<SocketAddr> for RpcLauncher {
@@ -56,12 +67,6 @@ impl RpcLauncher {
     /// Disable the RPC server, preventing the launcher from starting the RPC server.
     pub const fn disable(&mut self) {
         self.disabled = true;
-    }
-
-    /// Set whether WebSocket RPC endpoint should be enabled
-    pub const fn with_ws_enabled(mut self, enabled: bool) -> Self {
-        self.ws_enabled = enabled;
-        self
     }
 
     /// Returns whether WebSocket RPC endpoint is enabled
@@ -91,6 +96,8 @@ impl RpcLauncher {
     ///
     /// If the RPC server is disabled, this will return `Ok(None)`.
     ///
+    /// The `/healthz` endpoint is automatically merged into the RPC module.
+    ///
     /// ## Errors
     ///
     /// - [`RpcLauncherError::MissingSocket`] if the socket address is missing.
@@ -101,7 +108,11 @@ impl RpcLauncher {
         }
         let socket = self.socket.take().ok_or(RpcLauncherError::MissingSocket)?;
         let server = Server::builder().build(socket).await?;
-        let module = self.module.take().unwrap_or_else(|| RpcModule::new(()));
+        let mut module = self.module.take().unwrap_or_else(|| RpcModule::new(()));
+        module.register_method("healthz", |_, _, _| {
+            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
+            jsonrpsee::core::RpcResult::Ok(response)
+        })?;
         Ok(Some(server.start(module)))
     }
 }

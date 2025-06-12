@@ -12,7 +12,7 @@ use alloy_transport_http::{
 };
 use async_trait::async_trait;
 use http_body_util::Full;
-use kona_derive::{PipelineError, PipelineErrorKind, traits::L2ChainProvider};
+use kona_derive::{L2ChainProvider, PipelineError, PipelineErrorKind};
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BatchValidationProvider, L2BlockInfo, to_system_config};
 use lru::LruCache;

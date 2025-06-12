@@ -226,7 +226,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{pipeline::DerivationPipeline, test_utils::*};
+    use crate::{DerivationPipeline, test_utils::*};
     use alloc::{string::ToString, sync::Arc};
     use alloy_rpc_types_engine::PayloadAttributes;
     use kona_genesis::{RollupConfig, SystemConfig};

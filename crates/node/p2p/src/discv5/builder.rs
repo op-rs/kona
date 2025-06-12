@@ -1,10 +1,11 @@
 //! Contains a builder for the discovery service.
 
 use discv5::{Config, Discv5, Enr, enr::k256};
+use kona_peers::OpStackEnr;
 use std::{net::IpAddr, path::PathBuf};
 use tokio::time::Duration;
 
-use crate::{Discv5BuilderError, Discv5Driver, OpStackEnr};
+use crate::{Discv5BuilderError, Discv5Driver};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// The local node information exposed by the discovery service to the network.
@@ -176,9 +177,9 @@ impl Discv5Builder {
 
 #[cfg(test)]
 mod tests {
-    use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
-
     use super::*;
+    use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
+    use kona_peers::EnrValidation;
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
@@ -197,6 +198,6 @@ mod tests {
         );
         let driver = builder.build().unwrap();
         let enr = driver.disc.local_enr();
-        assert!(crate::EnrValidation::validate(&enr, 10).is_valid());
+        assert!(EnrValidation::validate(&enr, 10).is_valid());
     }
 }

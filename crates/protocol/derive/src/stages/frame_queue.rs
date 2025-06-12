@@ -1,10 +1,8 @@
 //! This module contains the [FrameQueue] stage of the derivation pipeline.
 
 use crate::{
-    errors::PipelineError,
-    stages::NextFrameProvider,
-    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    NextFrameProvider, OriginAdvancer, OriginProvider, PipelineError, PipelineResult, Signal,
+    SignalReceiver,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::Bytes;

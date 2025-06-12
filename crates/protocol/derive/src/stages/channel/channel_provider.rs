@@ -154,13 +154,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::ChannelProvider;
     use crate::{
-        errors::PipelineError,
-        stages::ChannelReaderProvider,
-        test_utils::TestNextFrameProvider,
-        traits::{OriginProvider, SignalReceiver},
-        types::ResetSignal,
+        ChannelProvider, ChannelReaderProvider, OriginProvider, PipelineError, ResetSignal,
+        SignalReceiver, test_utils::TestNextFrameProvider,
     };
     use alloc::{sync::Arc, vec};
     use kona_genesis::{HardForkConfig, RollupConfig};

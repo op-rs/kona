@@ -5,7 +5,7 @@ use alloc::sync::Arc;
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::traits::ChainProvider;
+use kona_derive::ChainProvider;
 use kona_driver::{PipelineCursor, TipCursor};
 use kona_protocol::BatchValidationProvider;
 use kona_registry::RollupConfig;

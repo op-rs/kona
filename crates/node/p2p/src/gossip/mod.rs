@@ -15,7 +15,10 @@ mod gate;
 pub use gate::ConnectionGate; // trait
 
 mod gater;
-pub use gater::ConnectionGater; // implementation
+pub use gater::{
+    ConnectionGater, // implementation
+    DialInfo,
+};
 
 mod builder;
 pub use builder::GossipDriverBuilder;

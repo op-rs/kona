@@ -1,10 +1,8 @@
 //! Contains the [L1Retrieval] stage of the derivation pipeline.
 
 use crate::{
-    errors::{PipelineError, PipelineErrorKind},
-    stages::FrameQueueProvider,
-    traits::{DataAvailabilityProvider, OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{ActivationSignal, PipelineResult, ResetSignal, Signal},
+    ActivationSignal, DataAvailabilityProvider, FrameQueueProvider, OriginAdvancer, OriginProvider,
+    PipelineError, PipelineErrorKind, PipelineResult, ResetSignal, Signal, SignalReceiver,
 };
 use alloc::boxed::Box;
 use alloy_primitives::Address;

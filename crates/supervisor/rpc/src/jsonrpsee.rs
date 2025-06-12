@@ -7,7 +7,7 @@ pub use jsonrpsee::{
 
 use crate::SupervisorSyncStatus;
 use alloy_eips::BlockNumHash;
-use alloy_primitives::{B256, BlockHash, ChainId};
+use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
@@ -25,6 +25,14 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
 pub trait SupervisorApi {
+    /// Gets the source block for a given derived block
+    #[method(name = "crossDerivedToSource")]
+    async fn cross_derived_to_source(
+        &self,
+        chain_id: ChainId,
+        block_id: BlockNumHash,
+    ) -> RpcResult<BlockInfo>;
+
     /// Gets the localUnsafe BlockId
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
@@ -57,6 +65,18 @@ pub trait SupervisorApi {
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_syncstatus>
     #[method(name = "syncStatus")]
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus>;
+
+    /// Returns the last derived block, aka the [`LocalSafe`] block, for each chain, from the given
+    /// L1 block.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_allsafederivedat>
+    ///
+    /// [`LocalSafe`]: SafetyLevel::LocalSafe
+    #[method(name = "allSafeDerivedAt")]
+    async fn all_safe_derived_at(
+        &self,
+        derived_from: BlockNumHash,
+    ) -> RpcResult<HashMap<ChainId, BlockNumHash>>;
 }
 
 /// Represents the topics for subscriptions in the Managed Mode API.

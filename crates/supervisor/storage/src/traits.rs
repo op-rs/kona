@@ -139,14 +139,20 @@ pub trait LogStorage: LogStorageReader + LogStorageWriter {}
 
 impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
 
-/// Provides an interface for retrieving safety head references.
+/// Provides an interface for retrieving head references.
 ///
 /// This trait defines methods to manage safety head references for different safety levels.
 /// Each safety level maintains a reference to a block.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
-pub trait SafetyHeadRefStorageReader: Debug {
+pub trait HeadRefStorageReader: Debug {
+    /// Retrieves the current L1 block reference from the storage.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the current L1 block reference.
+    /// * `Err(StorageError)` if there is an issue retrieving the reference.
+    fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -158,14 +164,23 @@ pub trait SafetyHeadRefStorageReader: Debug {
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError>;
 }
 
-/// Provides an interface for storing safety head references.
+/// Provides an interface for storing head references.
 ///
 /// This trait defines methods to manage safety head references for different safety levels.
 /// Each safety level maintains a reference to a block.
 ///
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
-pub trait SafetyHeadRefStorageWriter: Debug {
+pub trait HeadRefStorageWriter: Debug {
+    /// Updates the current L1 block reference in the storage.
+    ///
+    /// # Arguments
+    /// * `block` - The new [`BlockInfo`] to set as the current L1 block reference.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
     /// Updates the safety head reference for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -184,8 +199,8 @@ pub trait SafetyHeadRefStorageWriter: Debug {
 
 /// Combines both reading and writing capabilities for safety head ref storage.
 ///
-/// Any type that implements both [`SafetyHeadRefStorageReader`] and [`SafetyHeadRefStorageWriter`]
+/// Any type that implements both [`HeadRefStorageReader`] and [`HeadRefStorageWriter`]
 /// automatically implements this trait.
-pub trait SafetyHeadRefStorage: SafetyHeadRefStorageReader + SafetyHeadRefStorageWriter {}
+pub trait HeadRefStorage: HeadRefStorageReader + HeadRefStorageWriter {}
 
-impl<T: SafetyHeadRefStorageReader + SafetyHeadRefStorageWriter> SafetyHeadRefStorage for T {}
+impl<T: HeadRefStorageReader + HeadRefStorageWriter> HeadRefStorage for T {}
