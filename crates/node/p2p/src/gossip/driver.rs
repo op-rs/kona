@@ -221,6 +221,8 @@ where
             Event::Gossipsub(e) => return self.handle_gossipsub_event(e),
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!(target: "gossip", ?peer, ?result, "Ping received");
+
+                // If the peer is connected to gossip, record the connection duration.
                 if let Some(start_time) = self.peer_connection_start.get(&peer) {
                     let ping_duration = start_time.elapsed();
                     kona_macros::record!(
@@ -229,6 +231,18 @@ where
                         ping_duration.as_secs_f64()
                     );
                 }
+
+                // Record the peer score in the metrics if available.
+                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer) {
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::PEER_SCORES,
+                        "peer",
+                        peer.to_string(),
+                        peer_score
+                    );
+                }
+
                 let pings = Arc::clone(&self.ping);
                 tokio::spawn(async move {
                     if let Ok(time) = result {
@@ -356,12 +370,24 @@ where
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
 
+                // Record the total connection duration.
                 if let Some(start_time) = self.peer_connection_start.remove(&peer_id) {
                     let peer_duration = start_time.elapsed();
                     kona_macros::record!(
                         histogram,
                         crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
                         peer_duration.as_secs_f64()
+                    );
+                }
+
+                // Record the peer score in the metrics if available.
+                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer_id) {
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::PEER_SCORES,
+                        "peer",
+                        peer_id.to_string(),
+                        peer_score
                     );
                 }
 
