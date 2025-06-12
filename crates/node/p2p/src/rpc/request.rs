@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Discv5Handler, GossipDriver};
+use crate::{Discv5Handler, GossipDriver, GossipScores, TopicScores};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
@@ -15,7 +15,7 @@ use discv5::{
 };
 use ipnet::IpNet;
 use kona_peers::OpStackEnr;
-use libp2p::PeerId;
+use libp2p::{PeerId, gossipsub::Topic};
 use tokio::sync::oneshot::Sender;
 
 use libp2p::{Multiaddr, gossipsub::TopicHash};
@@ -269,6 +269,7 @@ impl P2pRpcRequest {
             addresses: Vec<String>,
             user_agent: String,
             protocol_version: String,
+            score: f64,
         }
 
         // Build a map of peer ids to their supported protocols and addresses.
@@ -288,6 +289,9 @@ impl P2pRpcRequest {
                 };
                 let addresses =
                     info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
+
+                let score = gossip.swarm.behaviour().gossipsub.peer_score(id).unwrap_or_default();
+
                 (
                     *id,
                     PeerMetadata {
@@ -295,6 +299,7 @@ impl P2pRpcRequest {
                         addresses,
                         user_agent: info.agent_version.clone(),
                         protocol_version: info.protocol_version.clone(),
+                        score,
                     },
                 )
             })
@@ -317,12 +322,24 @@ impl P2pRpcRequest {
                 ]);
 
                 if topics.iter().any(|topic| supported_topics.contains(topic)) {
-                    Some(*peer_id)
+                    // Get the topic params for the given blocks topic.
+                    let topic_params = |topic: &Topic<_>| {
+                        gossip.swarm.behaviour().gossipsub.get_topic_params(topic).cloned()
+                    };
+
+                    let params = vec![
+                        topic_params(&gossip.handler.blocks_v1_topic),
+                        topic_params(&gossip.handler.blocks_v2_topic),
+                        topic_params(&gossip.handler.blocks_v3_topic),
+                        topic_params(&gossip.handler.blocks_v4_topic),
+                    ];
+
+                    Some((*peer_id, params))
                 } else {
                     None
                 }
             })
-            .collect::<HashSet<_>>();
+            .collect::<HashMap<_, _>>();
 
         let disc_table_infos = disc.table_infos();
 
@@ -363,8 +380,13 @@ impl P2pRpcRequest {
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
-                        let PeerMetadata { protocols, addresses, user_agent, protocol_version } =
-                            peer_metadata.remove(peer_id).unwrap_or_default();
+                        let PeerMetadata {
+                            protocols,
+                            addresses,
+                            user_agent,
+                            protocol_version,
+                            score,
+                        } = peer_metadata.remove(peer_id).unwrap_or_default();
 
                         let peer_connectedness = connectedness
                             .get(peer_id)
@@ -372,6 +394,46 @@ impl P2pRpcRequest {
                             .unwrap_or(Connectedness::NotConnected);
 
                         let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
+
+                        let topic_params = peer_gossip_info
+                            .get(peer_id)
+                            .map(|params| {
+                                // We need to map the topic scores from a multidimensional
+                                // representation to a uni-dimensional one.
+                                // This is done by averaging the topic scores for each topic the
+                                // peer is subscribed to.
+                                let (mut topic_scores, count) = params.iter().fold(
+                                    // Initialize the topic scores with 0, the second element is
+                                    // the number of non None
+                                    // topic params.
+                                    (TopicScores::default(), 0),
+                                    |(mut topic_scores, mut count), topic_params| {
+                                        if let Some(topic_params) = topic_params {
+                                            topic_scores.time_in_mesh +=
+                                                topic_params.time_in_mesh_weight;
+                                            topic_scores.first_message_deliveries +=
+                                                topic_params.first_message_deliveries_weight;
+                                            topic_scores.mesh_message_deliveries +=
+                                                topic_params.mesh_message_deliveries_weight;
+                                            topic_scores.invalid_message_deliveries +=
+                                                topic_params.invalid_message_deliveries_weight;
+
+                                            count += 1;
+                                        }
+                                        (topic_scores, count)
+                                    },
+                                );
+
+                                if count > 0 {
+                                    topic_scores.time_in_mesh /= count as f64;
+                                    topic_scores.first_message_deliveries /= count as f64;
+                                    topic_scores.mesh_message_deliveries /= count as f64;
+                                    topic_scores.invalid_message_deliveries /= count as f64;
+                                }
+
+                                topic_scores
+                            })
+                            .unwrap_or_default();
 
                         let node_id = format!("{:?}", &enr.node_id());
                         (
@@ -389,11 +451,25 @@ impl P2pRpcRequest {
                                 // Note: we use the chain id from the ENR if it exists, otherwise we
                                 // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
                                 chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
-                                gossip_blocks: peer_gossip_info.contains(peer_id),
+                                gossip_blocks: peer_gossip_info.contains_key(peer_id),
                                 protected: protected_peers.contains(peer_id),
                                 latency,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                peer_scores: PeerScores::default(),
+                                peer_scores: PeerScores {
+                                    gossip: GossipScores {
+                                        total: score,
+                                        blocks: topic_params,
+                                        // Note: We can't compute the ip colocation factor because
+                                        // `rust-libp2p` doesn't expose that information
+                                        ip_colocation_factor: Default::default(),
+                                        // Note: We can't compute the behavioral penalty because
+                                        // `rust-libp2p` doesn't expose that information
+                                        behavioral_penalty: Default::default(),
+                                    },
+                                    // We only support a shim implementation for the req/resp
+                                    // protocol so we're not
+                                    // computing scores for it.
+                                    req_resp: Default::default(),
+                                },
                             },
                         )
                     })
