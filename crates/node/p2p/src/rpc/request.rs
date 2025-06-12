@@ -100,6 +100,8 @@ pub enum P2pRpcRequest {
         /// The id of the peer.
         peer_id: PeerId,
     },
+    /// Request to list all blocked Subnets.
+    ListBlockedSubnets(Sender<Vec<IpNet>>),
     /// Returns the current peer stats for both the
     /// - Discovery Service ([`crate::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
@@ -130,6 +132,7 @@ impl P2pRpcRequest {
             Self::UnprotectPeer { peer_id } => Self::unprotect_peer(peer_id, gossip),
             Self::BlockSubnet { address } => Self::block_subnet(address, gossip),
             Self::UnblockSubnet { address } => Self::unblock_subnet(address, gossip),
+            Self::ListBlockedSubnets(s) => Self::list_blocked_subnets(s, gossip),
         }
     }
 
@@ -199,6 +202,13 @@ impl P2pRpcRequest {
                     peer_duration.as_secs_f64()
                 );
             }
+        }
+    }
+
+    fn list_blocked_subnets<G: ConnectionGate>(s: Sender<Vec<IpNet>>, gossip: &GossipDriver<G>) {
+        let blocked_subnets = gossip.connection_gate.list_blocked_subnets();
+        if let Err(e) = s.send(blocked_subnets) {
+            warn!(target: "p2p::rpc", "Failed to send blocked subnets through response channel: {:?}", e);
         }
     }
 

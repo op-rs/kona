@@ -40,7 +40,7 @@ libp2p-identity = { workspace = true, features = ["secp256k1"] }
 libp2p = { workspace = true, features = ["macros", "tokio", "tcp", "noise", "gossipsub", "ping", "yamux", "identify"] }
 libp2p-stream = { workspace = true }
 openssl = { workspace = true, features = ["vendored"] }
-ipnet = { workspace = true }
+ipnet = { workspace = true, features = ["serde"] }
 
 # Misc
 serde_repr.workspace = true

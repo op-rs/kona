@@ -49,7 +49,6 @@ pub struct ConnectionGater {
     pub blocked_peers: HashSet<PeerId>,
     /// A set of blocked ip addresses that cannot be dialed.
     pub blocked_addrs: HashSet<IpAddr>,
-
     /// A set of blocked subnets that cannot be connected to.
     pub blocked_subnets: HashSet<IpNet>,
 }
@@ -283,9 +282,8 @@ impl ConnectionGate for ConnectionGater {
         debug!(target: "gossip", ?subnet, "Unblocked subnet");
     }
 
-    fn list_blocked_subnets(&self) -> Vec<String> {
-        // TODO
-        vec![]
+    fn list_blocked_subnets(&self) -> Vec<IpNet> {
+        self.blocked_subnets.iter().copied().collect()
     }
 
     fn protect_peer(&mut self, peer_id: PeerId) {

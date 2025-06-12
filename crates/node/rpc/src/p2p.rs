@@ -175,8 +175,15 @@ impl OpP2PApiServer for NetworkRpc {
             kona_p2p::Metrics::RPC_CALLS,
             "method" => "opp2p_listBlockedSubnets"
         );
-        // Method not supported yet.
-        Err(ErrorObject::from(ErrorCode::MethodNotFound))
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sender
+            .send(P2pRpcRequest::ListBlockedSubnets(tx))
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        rx.await
+            .map(|s| s.iter().map(|s| s.to_string()).collect::<Vec<String>>())
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn opp2p_protect_peer(&self, id: String) -> RpcResult<()> {
