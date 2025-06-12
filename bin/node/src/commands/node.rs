@@ -45,7 +45,7 @@ pub struct NodeCommand {
     pub l2_engine_jwt_secret: Option<PathBuf>,
     /// Path to a custom L2 rollup configuration file
     /// (overrides the default rollup configuration from the registry)
-    #[arg(long, visible_alias = "rollup-cfg")]
+    #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
     /// Engine kind.
     #[arg(
