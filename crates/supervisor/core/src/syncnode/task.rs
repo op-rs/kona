@@ -349,9 +349,11 @@ mod tests {
             replace_block: None,
             derivation_origin_update: None,
         };
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8551".parse().unwrap());
 
         let db = Arc::new(MockDb::new());
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let task = ManagedEventTask::new_for_testing(provider, db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
@@ -393,7 +395,9 @@ mod tests {
         };
 
         let db = Arc::new(MockDb::new());
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let task = ManagedEventTask::new_for_testing(provider, db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
@@ -432,9 +436,11 @@ mod tests {
         };
 
         let db = Arc::new(MockDb::new());
-        let provider = RootProvider::<Ethereum>::new_http("http://localhost:8545".parse().unwrap());
-
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let task = ManagedEventTask::new_for_testing(provider, db, tx);
+
         task.handle_managed_event(Some(managed_event)).await;
 
         let event = rx.recv().await.expect("Should receive event");
@@ -504,7 +510,7 @@ mod tests {
         let task = ManagedEventTask::new_for_testing(provider, db, tx);
 
         // push the value that we expect on next call
-        asserter.clone().push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
+        asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
 
         let result = task.handle_exhaust_l1(&derived_ref_pair).await;
 

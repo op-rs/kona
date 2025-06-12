@@ -209,13 +209,13 @@ where
         let db_provider =
             self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
-        let task = ManagedEventTask::new(
-            self.l1_provider.get().unwrap().clone(),
-            db_provider.clone(),
-            event_tx,
-            client,
-        );
-
+        let l1_provider = self
+            .l1_provider
+            .get()
+            .ok_or_else(|| ManagedNodeError::L1ProviderUninitialized)
+            .unwrap()
+            .clone();
+        let task = ManagedEventTask::new(l1_provider, db_provider.clone(), event_tx, client);
         // Start background task to handle events
         let handle = tokio::spawn(async move {
             info!(target: "managed_node", "Subscription task started");
