@@ -1,7 +1,7 @@
 //! An implementation of the [`ConnectionGate`] trait.
 
-use ipnet::IpNet;
 use crate::{Connectedness, ConnectionGate};
+use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::{
     collections::{HashMap, HashSet},
