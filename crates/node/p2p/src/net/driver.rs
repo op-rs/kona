@@ -149,15 +149,13 @@ impl Network {
                             warn!(target: "net", "No local signer available to sign the payload");
                             continue;
                         };
-                        let payload_hash = op_alloy_rpc_types_engine::PayloadHash(block.payload.block_hash());
-                        let Ok(payload_bytes) = bincode::serde::encode_to_vec(&block, bincode::config::standard()) else {
-                            warn!(target: "net", "Failed to serialize the payload to bytes");
-                            continue;
-                        };
-                        let Ok(signature) = signer.sign_message_sync(&payload_bytes) else {
+                        use ssz::Encode;
+                        let ssz_bytes = block.as_ssz_bytes();
+                        let Ok(signature) = signer.sign_message_sync(&ssz_bytes) else {
                             warn!(target: "net", "Failed to sign the payload bytes");
                             continue;
                         };
+                        let payload_hash = block.payload_hash();
                         let payload = OpNetworkPayloadEnvelope {
                             payload: block.payload,
                             signature,

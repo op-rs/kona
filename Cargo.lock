@@ -4642,9 +4642,9 @@ dependencies = [
  "alloy-signer-local",
  "arbitrary",
  "backon",
- "bincode 2.0.1",
  "derive_more",
  "discv5",
+ "ethereum_ssz",
  "futures",
  "ipnet",
  "kona-cli",
@@ -6284,8 +6284,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-consensus"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7328d5123836a88cb3e383d1329745fb07739a167f5e852ac19acbc1bb177ad"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fssz-derive-payloads#dd568d99e9b61f1ffee3e310f918402297c1acb3"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -6301,8 +6300,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-network"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d060a8b34a05b99a0fb6b0dd1febc8b4a1d128a756af71f485f127a039fd166"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fssz-derive-payloads#dd568d99e9b61f1ffee3e310f918402297c1acb3"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
@@ -6317,8 +6315,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-provider"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "571c16aa378236de87c41c2f88af992d7588ca63b2539a802993bf854c459d1b"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fssz-derive-payloads#dd568d99e9b61f1ffee3e310f918402297c1acb3"
 dependencies = [
  "alloy-network",
  "alloy-primitives",
@@ -6332,8 +6329,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-rpc-jsonrpsee"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c56d7d2511f8dc29e223f9a432cc200c2465842af2aedda74e5a569463da778"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fssz-derive-payloads#dd568d99e9b61f1ffee3e310f918402297c1acb3"
 dependencies = [
  "alloy-primitives",
  "jsonrpsee",
@@ -6342,8 +6338,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-rpc-types"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f2d207d54b656e87ee6a9c68f13f7f1db93a961f802b30dc36015aee554c657"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fssz-derive-payloads#dd568d99e9b61f1ffee3e310f918402297c1acb3"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -6363,8 +6358,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-rpc-types-engine"
 version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "592f0e04d042fd98d78f3aea478697b169d0f6d98e0cd6e87c36391b734211c5"
+source = "git+https://github.com/alloy-rs/op-alloy?branch=rf%2Fssz-derive-payloads#dd568d99e9b61f1ffee3e310f918402297c1acb3"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -6374,6 +6368,7 @@ dependencies = [
  "alloy-serde",
  "derive_more",
  "ethereum_ssz",
+ "ethereum_ssz_derive",
  "op-alloy-consensus 0.18.0",
  "serde",
  "snap",

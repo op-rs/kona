@@ -51,8 +51,8 @@ tracing.workspace = true
 thiserror.workspace = true
 serde_repr.workspace = true
 lazy_static.workspace = true
+ethereum_ssz.workspace = true
 rand = { workspace = true, features = ["thread_rng"] }
-bincode = { workspace = true, features = ["std", "derive", "serde"] }
 backon = { workspace = true, features = ["std", "tokio", "tokio-sleep"] }
 derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 

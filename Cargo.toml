@@ -71,6 +71,14 @@ inherits = "release"
 lto = "fat"
 codegen-units = 1
 
+[patch.crates-io]
+op-alloy-network = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
+op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
+op-alloy-provider = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
+op-alloy-rpc-types = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
+op-alloy-rpc-jsonrpsee = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
+op-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
+
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "1.0.2", default-features = false }
@@ -203,7 +211,6 @@ buddy_system_allocator = "0.11.0"
 
 rand = { version = "0.9.1", default-features = false }
 backon = { version = "1.5.1", default-features = false }
-bincode = { version = "2.0.1", default-features = false }
 tabled = { version = "0.19.0", default-features = false }
 anyhow = { version = "1.0.98", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
@@ -245,6 +252,7 @@ mockall = "0.13.1"
 # Serialization
 rkyv = "0.8.10"
 serde_repr = "0.1.20"
+ethereum_ssz = "0.9.0"
 toml = { version = "0.8.22", default-features = false }
 serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
