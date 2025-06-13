@@ -32,3 +32,6 @@ prestate-artifacts-*
 
 # IDE specific
 .idea
+
+# rustc bug report
+rustc-ice-*
