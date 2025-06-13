@@ -47,11 +47,7 @@ pub struct GossipDriver<G: ConnectionGate> {
     #[debug(skip)]
     pub sync_protocol: Option<IncomingStreams>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
-    pub peerstore: HashMap<PeerId, Multiaddr>,
-    /// A mapping from [`PeerId`] to [`libp2p::identify::Info`].
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2015>`): we should probably find a way to merge `peer_infos` and `peerstore` into a
-    /// single map.
-    pub peer_infos: HashMap<PeerId, libp2p::identify::Info>,
+    pub peerstore: HashMap<PeerId, libp2p::identify::Info>,
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     pub peer_monitoring: Option<PeerMonitoring>,
@@ -86,7 +82,6 @@ where
             addr,
             handler,
             peerstore: Default::default(),
-            peer_infos: Default::default(),
             peer_monitoring: None,
             peer_connection_start: Default::default(),
             sync_handler,
@@ -267,7 +262,7 @@ where
         match event {
             libp2p::identify::Event::Received { connection_id, peer_id, info } => {
                 debug!(target: "gossip", ?connection_id, ?peer_id, ?info, "Received identify info from peer");
-                self.peer_infos.insert(peer_id, info);
+                self.peerstore.insert(peer_id, info);
             }
             libp2p::identify::Event::Sent { connection_id, peer_id } => {
                 debug!(target: "gossip", ?connection_id, ?peer_id, "Sent identify info to peer");
@@ -330,7 +325,7 @@ where
             SwarmEvent::Behaviour(behavior_event) => {
                 return self.handle_gossip_event(behavior_event)
             }
-            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
                 kona_macros::inc!(
@@ -341,7 +336,6 @@ where
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
 
-                self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
                 self.peer_connection_start.insert(peer_id, Instant::now());
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {

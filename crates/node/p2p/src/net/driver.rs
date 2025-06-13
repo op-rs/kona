@@ -208,16 +208,16 @@ impl Network {
                                 );
                             }
 
-                            if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
+                            if let Some(info) = self.gossip.peerstore.remove(&peer_to_remove){
                                 use crate::ConnectionGate;
                                 self.gossip.connection_gate.remove_dial(&peer_to_remove);
                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
                                 kona_macros::inc!(gauge, crate::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
-                                return Some(addr);
+                                return Some(info.listen_addrs);
                             }
 
                             None
-                        }).collect::<HashSet<_>>();
+                        }).collect::<Vec<_>>().into_iter().flatten().collect::<HashSet<_>>();
 
                         // We send a request to the discovery handler to ban the set of addresses.
                         if let Err(send_err) = handler.sender.send(HandlerRequest::BanAddrs { addrs_to_ban: addrs_to_ban.into(), ban_duration: ban_peers.ban_duration }).await{

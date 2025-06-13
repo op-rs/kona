@@ -274,7 +274,7 @@ impl P2pRpcRequest {
 
         // Build a map of peer ids to their supported protocols and addresses.
         let mut peer_metadata: HashMap<PeerId, PeerMetadata> = gossip
-            .peer_infos
+            .peerstore
             .iter()
             .map(|(id, info)| {
                 let protocols = if info.protocols.is_empty() {
