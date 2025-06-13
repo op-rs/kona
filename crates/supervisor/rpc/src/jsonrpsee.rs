@@ -37,7 +37,7 @@ pub trait SupervisorApi {
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_localunsafe>
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
@@ -45,7 +45,7 @@ pub trait SupervisorApi {
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_crosssafe>
     ///
-    /// [`CrossSafe`]: SafetyLevel::Safe
+    /// [`CrossSafe`]: SafetyLevel::CrossSafe
     #[method(name = "crossSafe")]
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
 

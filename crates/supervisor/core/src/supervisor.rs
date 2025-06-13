@@ -99,12 +99,12 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns the
     /// Returns [`LocalUnsafe`] block for the given chain.
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`CrossSafe`] block for the given chain.
     ///
-    /// [`CrossSafe`]: SafetyLevel::Safe
+    /// [`CrossSafe`]: SafetyLevel::CrossSafe
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`Finalized`] block for the given chain.
@@ -245,11 +245,11 @@ impl SupervisorService for Supervisor {
     }
 
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Unsafe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe)?)
     }
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Safe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe)?)
     }
 
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {

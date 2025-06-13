@@ -71,14 +71,6 @@ inherits = "release"
 lto = "fat"
 codegen-units = 1
 
-[patch.crates-io]
-op-alloy-network = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
-op-alloy-consensus = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
-op-alloy-provider = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
-op-alloy-rpc-types = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
-op-alloy-rpc-jsonrpsee = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
-op-alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/op-alloy", branch = "rf/ssz-derive-payloads" }
-
 [workspace.dependencies]
 # Binaries
 kona-host = { path = "bin/host", version = "1.0.2", default-features = false }
@@ -151,13 +143,13 @@ alloy-rpc-types-beacon = { version = "1.0.9", default-features = false }
 alloy-network-primitives = { version = "1.0.9", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.18.0", default-features = false }
+op-alloy-network = { version = "0.18.1", default-features = false }
 alloy-op-hardforks = { version = "0.2.7", default-features = false }
-op-alloy-provider = { version = "0.18.0", default-features = false }
-op-alloy-consensus = { version = "0.18.0", default-features = false }
-op-alloy-rpc-types = { version = "0.18.0", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.18.0", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.18.0", default-features = false }
+op-alloy-provider = { version = "0.18.1", default-features = false }
+op-alloy-consensus = { version = "0.18.1", default-features = false }
+op-alloy-rpc-types = { version = "0.18.1", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.18.1", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.18.1", default-features = false }
 
 # Execution
 revm = { version = "24.0.1", default-features = false }

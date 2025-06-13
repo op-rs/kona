@@ -195,7 +195,7 @@ where
     async fn handle_reset(&self, reset_id: &str) {
         info!(target: "managed_event_task", %reset_id, "Reset event received");
 
-        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Unsafe) {
+        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
             Ok(val) => val,
             Err(err) => {
                 error!(target: "managed_event_task", %err, "Failed to get unsafe head ref");
@@ -220,7 +220,7 @@ where
             }
         };
 
-        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Safe) {
+        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossSafe) {
             Ok(val) => val,
             Err(err) => {
                 error!(target: "managed_event_task", %err, "Failed to get safe head ref");
