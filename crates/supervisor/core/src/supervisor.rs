@@ -11,6 +11,7 @@ use kona_supervisor_storage::{
 };
 use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::SuperchainDAError;
+use reqwest::Error;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
@@ -35,7 +36,7 @@ pub enum SupervisorError {
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
-    InvalidInboxEntry(#[from] SuperchainDAError),
+    DataAvailability(#[from] SuperchainDAError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
@@ -66,11 +67,9 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) => {
                 ErrorObjectOwned::from(ErrorCode::InternalError)
             }
-            SupervisorError::InvalidInboxEntry(err) => ErrorObjectOwned::owned(
-                (err as i64).try_into().expect("should fit i32"),
-                err.to_string(),
-                None::<()>,
-            ),
+            SupervisorError::DataAvailability(err) => {
+                err.try_into().unwrap_or(ErrorObjectOwned::from(ErrorCode::InternalError))
+            }
         }
     }
 }

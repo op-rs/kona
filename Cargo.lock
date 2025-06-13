@@ -6332,6 +6332,7 @@ dependencies = [
  "alloy-serde",
  "arbitrary",
  "derive_more",
+ "jsonrpsee",
  "op-alloy-consensus 0.18.0",
  "serde",
  "serde_json",
