@@ -11,7 +11,7 @@ use crate::{
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::Log;
+use kona_supervisor_types::{Log, SuperHead};
 use op_alloy_consensus::interop::SafetyLevel;
 use reth_db::{
     DatabaseEnv,
@@ -50,6 +50,29 @@ impl ChainDb {
             sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
+        })?
+    }
+
+    /// Fetches all safety heads and current L1 state
+    pub fn get_super_head(&self) -> Result<SuperHead, StorageError> {
+        let l1_source = self.get_current_l1()?;
+
+        self.env.view(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
+            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+
+            Ok(SuperHead {
+                l1_source,
+                local_unsafe,
+                cross_unsafe,
+                local_safe,
+                cross_safe,
+                finalized,
+            })
         })?
     }
 }
