@@ -92,8 +92,7 @@ where
             "Received finalized request"
         );
 
-        let block_info = self.supervisor.finalized(chain_id)?;
-        Ok(BlockNumHash::new(block_info.number, block_info.hash))
+        Ok(self.supervisor.finalized(chain_id)?.id())
     }
 
     async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse> {
