@@ -375,4 +375,96 @@ mod tests {
             "Retrieved finalized head should match stored block"
         );
     }
+
+    #[test]
+    fn test_get_super_head() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_super_head");
+        let db = ChainDb::new(&db_path).expect("create db");
+
+        // Create anchor block
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        db.initialise(anchor.clone()).expect("initialise db with anchor");
+
+        // Test blocks for each safety level
+        let l1_block = BlockInfo {
+            hash: B256::from([10u8; 32]),
+            number: 101,
+            parent_hash: anchor.source.hash,
+            timestamp: 0,
+        };
+
+        let local_unsafe_block = BlockInfo {
+            hash: B256::from([20u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
+
+        let cross_unsafe_block = BlockInfo {
+            hash: B256::from([30u8; 32]),
+            number: 2,
+            parent_hash: local_unsafe_block.hash,
+            timestamp: 0,
+        };
+
+        let local_safe_block = BlockInfo {
+            hash: B256::from([40u8; 32]),
+            number: 3,
+            parent_hash: cross_unsafe_block.hash,
+            timestamp: 0,
+        };
+
+        let cross_safe_block = BlockInfo {
+            hash: B256::from([50u8; 32]),
+            number: 4,
+            parent_hash: local_safe_block.hash,
+            timestamp: 0,
+        };
+
+        let finalized_block = BlockInfo {
+            hash: B256::from([60u8; 32]),
+            number: 5,
+            parent_hash: cross_safe_block.hash,
+            timestamp: 0,
+        };
+
+        // Set current L1
+        db.update_current_l1(l1_block.clone()).expect("update current L1");
+
+        // Test safety head refs
+        db.update_safety_head_ref(SafetyLevel::Unsafe, &local_unsafe_block)
+            .expect("update unsafe head");
+        db.update_safety_head_ref(SafetyLevel::LocalSafe, &local_safe_block)
+            .expect("update local safe head");
+        db.update_safety_head_ref(SafetyLevel::Safe, &cross_safe_block).expect("update safe head");
+        db.update_safety_head_ref(SafetyLevel::Finalized, &finalized_block)
+            .expect("update finalized head");
+        db.update_safety_head_ref(SafetyLevel::CrossUnsafe, &cross_unsafe_block)
+            .expect("update cross unsafe head");
+
+        // Retrieve super head
+        let super_head = db.get_super_head().expect("get super head");
+
+        assert_eq!(super_head.l1_source, l1_block, "L1 source should match");
+        assert_eq!(super_head.local_unsafe, local_unsafe_block, "Local unsafe should match");
+        assert_eq!(super_head.cross_unsafe, cross_unsafe_block, "Cross unsafe should match");
+        assert_eq!(super_head.local_safe, local_safe_block, "Local safe should match");
+        assert_eq!(super_head.cross_safe, cross_safe_block, "Cross safe should match");
+        assert_eq!(super_head.finalized, finalized_block, "Finalized should match");
+    }
 }
