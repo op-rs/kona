@@ -111,6 +111,11 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// [`CrossSafe`]: SafetyLevel::Safe
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
+    /// Returns [`Finalized`] block for the given chain.
+    ///
+    /// [`Finalized`]: SafetyLevel::Finalized
+    fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
         &self,
@@ -257,6 +262,10 @@ impl SupervisorService for Supervisor {
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Safe)?)
+    }
+
+    fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized)?)
     }
 
     async fn check_access_list(

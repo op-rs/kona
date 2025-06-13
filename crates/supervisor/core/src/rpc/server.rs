@@ -91,11 +91,9 @@ where
             %chain_id,
             "Received finalized request"
         );
-        // self.supervisor.finalized()
-        // .await
-        // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!(target: "supervisor_rpc", "finalized method not yet implemented");
-        Err(ErrorObject::from(ErrorCode::InternalError))
+        
+        let block_info = self.supervisor.finalized(chain_id)?;
+        Ok(BlockNumHash::new(block_info.number, block_info.hash))
     }
 
     async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse> {

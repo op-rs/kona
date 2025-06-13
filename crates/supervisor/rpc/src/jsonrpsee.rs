@@ -49,7 +49,11 @@ pub trait SupervisorApi {
     #[method(name = "crossSafe")]
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
 
-    /// Gets the finalized BlockId
+    /// Returns the [`Finalized`] block for the given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_finalized>
+    ///
+    /// [`Finalized`]: SafetyLevel::Finalized
     #[method(name = "finalized")]
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
