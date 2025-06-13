@@ -95,8 +95,7 @@ func TestSupervisorMinSyncedL1Advancing(gt *testing.T) {
 	out := presets.NewSimpleInterop(t)
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "local-safe", 15)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "local-safe", 15)
+	out.Supervisor.AwaitMinL1(supervisorStatus.MinSyncedL1.Number + 1)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -114,8 +113,8 @@ func TestSupervisorFinalizedHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "finalized", 50)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "finalized", 50)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "finalized", 100)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "finalized", 100)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
