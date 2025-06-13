@@ -34,6 +34,21 @@ func TestL2UnsafeBlockProgress(gt *testing.T) {
 	t.Require().NoError(err)
 }
 
+func TestL2SafeBlockProgress(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	out := presets.NewSimpleInterop(t)
+	status := out.L2CLA.SyncStatus()
+	block_a := status.SafeL2.Number
+
+	err := wait.For(t.Ctx(), 10*time.Second, func() (bool, error) {
+		status := out.L2CLA.SyncStatus()
+		block_b := status.SafeL2.Number
+		return block_a < block_b, nil
+	})
+	t.Require().NoError(err)
+}
+
 func TestSupervisorProgress(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
