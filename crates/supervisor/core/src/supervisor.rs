@@ -256,6 +256,6 @@ mod test {
         let err = SuperchainDAError::UnknownChain;
         let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
     }
 }
