@@ -15,9 +15,8 @@ use std::fmt::Debug;
 pub trait DerivationStorageReader: Debug {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
-    /// NOTE: [`LocalUnsafe`] block might or might not be part of the derivation storage. There are
-    /// cases where it might not be pushed to the L1 yet. For reading latest L1 block in memory use
-    /// [`HeadRefStorageReader::get_current_l1`].
+    /// NOTE: [`LocalUnsafe`] block is not pushed to L1 yet, hence it cannot be part of derivation
+    /// storage. For reading latest L1 block in memory use [`HeadRefStorageReader::get_current_l1`].
     ///
     /// # Arguments
     /// * `derived_block_id` - The identifier (number and hash) of the derived (L2) block.
