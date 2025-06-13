@@ -57,10 +57,10 @@ impl table::Decode for SafetyHeadRefKey {
 impl From<SafetyHeadRefKey> for SafetyLevel {
     fn from(key: SafetyHeadRefKey) -> Self {
         match key {
-            SafetyHeadRefKey::Unsafe => Self::Unsafe,
+            SafetyHeadRefKey::Unsafe => Self::LocalUnsafe,
             SafetyHeadRefKey::LocalSafe => Self::LocalSafe,
             SafetyHeadRefKey::CrossUnsafe => Self::CrossUnsafe,
-            SafetyHeadRefKey::Safe => Self::Safe,
+            SafetyHeadRefKey::Safe => Self::CrossSafe,
             SafetyHeadRefKey::Finalized => Self::Finalized,
             SafetyHeadRefKey::Invalid => Self::Invalid,
         }
@@ -74,10 +74,10 @@ impl From<SafetyHeadRefKey> for SafetyLevel {
 impl From<SafetyLevel> for SafetyHeadRefKey {
     fn from(key: SafetyLevel) -> Self {
         match key {
-            SafetyLevel::Unsafe => Self::Unsafe,
+            SafetyLevel::LocalUnsafe => Self::Unsafe,
             SafetyLevel::LocalSafe => Self::LocalSafe,
             SafetyLevel::CrossUnsafe => Self::CrossUnsafe,
-            SafetyLevel::Safe => Self::Safe,
+            SafetyLevel::CrossSafe => Self::Safe,
             SafetyLevel::Finalized => Self::Finalized,
             SafetyLevel::Invalid => Self::Invalid,
         }
@@ -112,10 +112,10 @@ mod tests {
     #[test]
     fn test_round_trip_conversion() {
         for level in [
-            SafetyLevel::Unsafe,
+            SafetyLevel::LocalUnsafe,
             SafetyLevel::LocalSafe,
             SafetyLevel::CrossUnsafe,
-            SafetyLevel::Safe,
+            SafetyLevel::CrossSafe,
             SafetyLevel::Finalized,
             SafetyLevel::Invalid,
         ] {
