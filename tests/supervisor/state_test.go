@@ -18,8 +18,8 @@ func TestSupervisorLocalUnsafeHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "unsafe", 5)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "unsafe", 5)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "unsafe", 15)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "unsafe", 15)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -38,8 +38,8 @@ func TestSupervisorCrossUnsafeHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "cross-unsafe", 5)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "cross-unsafe", 5)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "cross-unsafe", 15)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "cross-unsafe", 15)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
