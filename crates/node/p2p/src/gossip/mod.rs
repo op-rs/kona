@@ -18,6 +18,7 @@ mod gater;
 pub use gater::{
     ConnectionGater, // implementation
     DialInfo,
+    GaterConfig,
 };
 
 mod builder;

@@ -10,7 +10,9 @@ use libp2p::{
 use std::time::Duration;
 use tokio::sync::watch::Receiver;
 
-use crate::{Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError};
+use crate::{
+    Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, gossip::gater::GaterConfig,
+};
 
 /// A builder for the [`GossipDriver`].
 #[derive(Debug, Default)]
@@ -32,10 +34,8 @@ pub struct GossipDriverBuilder {
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     peer_monitoring: Option<PeerMonitoring>,
-    /// The number of times to redial a peer.
-    /// If unset, peers will not be redialed.
-    /// If set to `0`, peers will be redialed indefinitely.
-    peer_redial: Option<u64>,
+    /// The configuration for the connection gater.
+    gater_config: Option<GaterConfig>,
     /// The [`RollupConfig`] for the network.
     rollup_config: Option<RollupConfig>,
     /// Topic scoring. Disabled by default.
@@ -54,17 +54,15 @@ impl GossipDriverBuilder {
             config: None,
             block_time: None,
             peer_monitoring: None,
-            peer_redial: None,
+            gater_config: None,
             rollup_config: None,
             topic_scoring: false,
         }
     }
 
-    /// Sets the number of times to redial a peer.
-    /// If unset, peers will not be redialed.
-    /// If set to `0`, peers will be redialed indefinitely.
-    pub const fn with_peer_redial(mut self, peer_redial: Option<u64>) -> Self {
-        self.peer_redial = peer_redial;
+    /// Sets the configuration for the connection gater.
+    pub const fn with_gater_config(mut self, config: GaterConfig) -> Self {
+        self.gater_config = Some(config);
         self
     }
 
@@ -215,9 +213,9 @@ impl GossipDriverBuilder {
             .with_swarm_config(|c| c.with_idle_connection_timeout(timeout))
             .build();
 
-        let redialing = self.peer_redial;
+        let gater_config = self.gater_config.take().unwrap_or_default();
+        let gate = crate::ConnectionGater::new(gater_config);
 
-        let gate = crate::ConnectionGater::new(redialing);
         Ok(GossipDriver::new(swarm, addr, handler, sync_handler, sync_protocol, gate))
     }
 }

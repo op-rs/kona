@@ -11,7 +11,7 @@ use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Broadcast, Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError,
-    P2pRpcRequest, discv5::LocalNode,
+    P2pRpcRequest, discv5::LocalNode, gossip::GaterConfig,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -48,7 +48,7 @@ impl From<Config> for NetworkBuilder {
             .with_block_time(config.block_time)
             .with_keypair(config.keypair)
             .with_topic_scoring(config.topic_scoring)
-            .with_peer_redial(config.redial)
+            .with_gater_config(config.gater_config)
     }
 }
 
@@ -65,9 +65,9 @@ impl NetworkBuilder {
         }
     }
 
-    /// Sets the number of times to redial a peer.
-    pub fn with_peer_redial(self, redial: Option<u64>) -> Self {
-        Self { gossip: self.gossip.with_peer_redial(redial), ..self }
+    /// Sets the configuration for the connection gater.
+    pub fn with_gater_config(self, config: GaterConfig) -> Self {
+        Self { gossip: self.gossip.with_gater_config(config), ..self }
     }
 
     /// Sets the bootstore path for the [`crate::Discv5Driver`].

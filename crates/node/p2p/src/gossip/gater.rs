@@ -26,6 +26,27 @@ impl Default for DialInfo {
     }
 }
 
+/// Configuration for the connection gater.
+#[derive(Debug, Clone)]
+pub struct GaterConfig {
+    /// The number of times to dial a peer.
+    pub peer_redialing: Option<u64>,
+    /// The duration of a dial period.
+    ///
+    /// A peer cannot be dialed more than [`GossipDriverBuilder.peer_redialing`] times during a
+    /// dial period. The dial period is reset once the last time the peer was dialed is longer
+    /// than the dial period. This is to prevent peers from being dialed too often.
+    ///
+    /// By default, the dial period is set to 1 hour.
+    pub dial_period: Duration,
+}
+
+impl Default for GaterConfig {
+    fn default() -> Self {
+        Self { peer_redialing: None, dial_period: Duration::from_secs(60 * 60) }
+    }
+}
+
 /// Connection Gater
 ///
 /// A connection gate that regulates peer connections for the libp2p gossip swarm.
@@ -33,8 +54,8 @@ impl Default for DialInfo {
 /// An implementation of the [`ConnectionGate`] trait.
 #[derive(Default, Debug, Clone)]
 pub struct ConnectionGater {
-    /// The number of times to dial a peer.
-    pub peer_redialing: Option<u64>,
+    /// The configuration for the connection gater.
+    config: GaterConfig,
     /// A set of [`PeerId`]s that are currently being dialed.
     pub current_dials: HashSet<PeerId>,
     /// A mapping from [`Multiaddr`] to the dial info for the peer.
@@ -54,19 +75,10 @@ pub struct ConnectionGater {
 }
 
 impl ConnectionGater {
-    /// The duration of a dial period.
-    ///
-    /// A peer cannot be dialed more than [`GossipDriverBuilder.peer_redialing`] times during a
-    /// dial period. The dial period is reset once the last time the peer was dialed is longer
-    /// than the dial period. This is to prevent peers from being dialed too often.
-    ///
-    /// TODO(@theochap): this should be configurable through CLI.
-    const DIAL_PERIOD: Duration = Duration::from_secs(60 * 60);
-
     /// Creates a new instance of the `ConnectionGater`.
-    pub fn new(peer_redialing: Option<u64>) -> Self {
+    pub fn new(config: GaterConfig) -> Self {
         Self {
-            peer_redialing,
+            config,
             current_dials: HashSet::new(),
             dialed_peers: HashMap::new(),
             connectedness: HashMap::new(),
@@ -84,7 +96,7 @@ impl ConnectionGater {
             return false;
         };
         // If the peer has been dialed and the threshold is not set, the threshold is reached.
-        let Some(redialing) = self.peer_redialing else {
+        let Some(redialing) = self.config.peer_redialing else {
             return true;
         };
         // If the threshold is set to `0`, redial indefinitely.
@@ -101,7 +113,7 @@ impl ConnectionGater {
         let Some(dial_info) = self.dialed_peers.get(addr) else {
             return false;
         };
-        dial_info.last_dial.elapsed() > Self::DIAL_PERIOD
+        dial_info.last_dial.elapsed() > self.config.dial_period
     }
 
     /// Gets the [`PeerId`] from a given [`Multiaddr`].
@@ -215,7 +227,7 @@ impl ConnectionGate for ConnectionGater {
             .or_insert(DialInfo { num_dials: 0, last_dial: Instant::now() });
 
         // If the last dial was longer than the dial period, reset the number of dials.
-        if dial_info.last_dial.elapsed() > Self::DIAL_PERIOD {
+        if dial_info.last_dial.elapsed() > self.config.dial_period {
             dial_info.num_dials = 0;
         }
 
@@ -301,7 +313,10 @@ impl ConnectionGate for ConnectionGater {
 fn test_check_ip_in_blocked_subnets_ipv4() {
     use std::str::FromStr;
 
-    let mut gater = ConnectionGater::new(None);
+    let mut gater = ConnectionGater::new(GaterConfig {
+        peer_redialing: None,
+        dial_period: Duration::from_secs(60 * 60),
+    });
     gater.blocked_subnets.insert("192.168.1.0/24".parse::<IpNet>().unwrap());
     gater.blocked_subnets.insert("10.0.0.0/8".parse::<IpNet>().unwrap());
     gater.blocked_subnets.insert("172.16.0.0/16".parse::<IpNet>().unwrap());

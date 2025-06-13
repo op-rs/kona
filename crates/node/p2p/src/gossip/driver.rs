@@ -39,7 +39,11 @@ pub struct GossipDriver<G: ConnectionGate> {
     #[debug(skip)]
     pub sync_handler: libp2p_stream::Control,
     /// The inbound streams for the sync request/response protocol.
-    /// Set to `None` if the sync request/response protocol is not enabled.
+    ///
+    /// This is an option to allow to take the underlying value when the gossip driver gets
+    /// activated.
+    ///
+    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2141>`): remove the sync-req-resp protocol once the `op-node` phases it out.
     #[debug(skip)]
     pub sync_protocol: Option<IncomingStreams>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
@@ -86,7 +90,6 @@ where
             peer_monitoring: None,
             peer_connection_start: Default::default(),
             sync_handler,
-            // TODO(@theochap): make this field truly optional (through CLI args).
             sync_protocol: Some(sync_protocol),
             connection_gate: gate,
             ping: Arc::new(Mutex::new(Default::default())),

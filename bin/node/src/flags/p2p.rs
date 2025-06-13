@@ -10,7 +10,7 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, LocalNode};
+use kona_p2p::{Config, GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
@@ -126,9 +126,7 @@ pub struct P2PArgs {
     pub gossip_flood_publish: bool,
     /// Sets the peer scoring strategy for the P2P stack.
     /// Can be one of: none or light.
-    ///
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/1855>`): By default, the P2P stack is configured to not score peers.
-    #[arg(long = "p2p.scoring", default_value = "off", env = "KONA_NODE_P2P_SCORING")]
+    #[arg(long = "p2p.scoring", default_value = "light", env = "KONA_NODE_P2P_SCORING")]
     pub scoring: PeerScoreLevel,
 
     /// Allows to ban peers based on their score.
@@ -168,6 +166,12 @@ pub struct P2PArgs {
     /// redialed indefinitely.
     #[arg(long = "p2p.redial", env = "KONA_NODE_P2P_REDIAL", default_value = "500")]
     pub peer_redial: Option<u64>,
+
+    /// The duration in minutes of the peer dial period.
+    /// When the last time a peer was dialed is longer than the dial period, the number of peer
+    /// dials is reset to 0, allowing the peer to be dialed again.
+    #[arg(long = "p2p.redial.period", env = "KONA_NODE_P2P_REDIAL_PERIOD", default_value = "60")]
+    pub redial_period: u64,
 
     /// An optional list of bootnode ENRs to start the node with.
     #[arg(long = "p2p.bootnodes", value_delimiter = ',', env = "KONA_NODE_P2P_BOOTNODES")]
@@ -384,7 +388,10 @@ impl P2PArgs {
             monitor_peers,
             bootstore: self.bootstore,
             topic_scoring: self.topic_scoring,
-            redial: self.peer_redial,
+            gater_config: GaterConfig {
+                peer_redialing: self.peer_redial,
+                dial_period: Duration::from_secs(60 * self.redial_period),
+            },
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
         })

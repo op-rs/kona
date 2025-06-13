@@ -26,7 +26,7 @@ mod gossip;
 pub use gossip::{
     Behaviour, BehaviourError, BlockHandler, BlockInvalidError, ConnectionGate, ConnectionGater,
     DEFAULT_MESH_D, DEFAULT_MESH_DHI, DEFAULT_MESH_DLAZY, DEFAULT_MESH_DLO, DialInfo, Event,
-    GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GossipDriver, GossipDriverBuilder,
+    GLOBAL_VALIDATE_THROTTLE, GOSSIP_HEARTBEAT, GaterConfig, GossipDriver, GossipDriverBuilder,
     GossipDriverBuilderError, Handler, HandlerEncodeError, MAX_GOSSIP_SIZE, MAX_OUTBOUND_QUEUE,
     MAX_VALIDATE_QUEUE, MIN_GOSSIP_SIZE, PEER_SCORE_INSPECT_FREQUENCY, PublishError,
     SEEN_MESSAGES_TTL, default_config, default_config_builder,
