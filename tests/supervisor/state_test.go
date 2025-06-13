@@ -9,6 +9,23 @@ import (
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/wait"
 )
 
+const (
+	// UnSafeHeadAdvanceRetries is the number of retries for unsafe head advancement
+	UnSafeHeadAdvanceRetries = 15
+
+	// CrossUnsafeHeadAdvanceRetries is the number of retries for cross-unsafe head advancement
+	CrossUnsafeHeadAdvanceRetries = 15
+
+	// LocalSafeHeadAdvanceRetries is the number of retries for safe head advancement
+	LocalSafeHeadAdvanceRetries = 15
+
+	// SafeHeadAdvanceRetries is the number of retries for safe head advancement
+	SafeHeadAdvanceRetries = 25
+
+	// FinalizedHeadAdvanceRetries is the number of retries for finalized head advancement
+	FinalizedHeadAdvanceRetries = 100
+)
+
 func TestSupervisorLocalUnsafeHeadAdvancing(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
@@ -18,8 +35,8 @@ func TestSupervisorLocalUnsafeHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "unsafe", 15)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "unsafe", 15)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "unsafe", UnSafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "unsafe", UnSafeHeadAdvanceRetries)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -38,8 +55,8 @@ func TestSupervisorCrossUnsafeHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "cross-unsafe", 15)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "cross-unsafe", 15)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "cross-unsafe", CrossUnsafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "cross-unsafe", CrossUnsafeHeadAdvanceRetries)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -58,8 +75,8 @@ func TestSupervisorLocalSafeHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "local-safe", 15)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "local-safe", 15)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "local-safe", LocalSafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "local-safe", LocalSafeHeadAdvanceRetries)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -78,8 +95,8 @@ func TestSupervisorSafeHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "safe", 25)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "safe", 25)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "safe", SafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "safe", SafeHeadAdvanceRetries)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -113,8 +130,8 @@ func TestSupervisorFinalizedHeadAdvancing(gt *testing.T) {
 
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "finalized", 100)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "finalized", 100)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "finalized", FinalizedHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "finalized", FinalizedHeadAdvanceRetries)
 
 	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
 		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()

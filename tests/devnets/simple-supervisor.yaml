@@ -46,6 +46,7 @@ optimism_package:
   supervisors:
     supervisor: # default op-supervisor
       enabled: true
+      image: kona-supervisor:local
       superchain: superchain
   global_log_level: "info"
   global_node_selectors: {}
