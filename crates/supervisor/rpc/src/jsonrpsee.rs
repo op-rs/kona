@@ -37,7 +37,11 @@ pub trait SupervisorApi {
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
-    /// Gets the crossSafe DerivedIdPair
+    /// Returns the [`CrossSafe`] block for given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_crosssafe>
+    ///
+    /// [`CrossSafe`]: SafetyLevel::Safe
     #[method(name = "crossSafe")]
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
 

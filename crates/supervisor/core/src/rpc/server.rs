@@ -82,11 +82,11 @@ where
             %chain_id,
             "Received cross_safe request"
         );
-        // self.supervisor.cross_safe()
-        // .await
-        // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!(target: "supervisor_rpc", "cross_safe method not yet implemented");
-        Err(ErrorObject::from(ErrorCode::InternalError))
+
+        let derived = self.supervisor.cross_safe(chain_id)?.id();
+        let source = self.supervisor.derived_to_source_block(chain_id, derived)?.id();
+
+        Ok(DerivedIdPair { source, derived })
     }
 
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
