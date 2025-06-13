@@ -11,25 +11,25 @@ import (
 func TestL2SafeSync(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := NewSimpleKona(t)
+	out := NewMixedOpKona(t)
 
-	opNode := out.L2CLOpNode
-	konaNode := out.L2CLKona
+	opNode := out.L2CLOpNodes[0]
+	konaNode := out.L2CLKonaNodes[0]
 
 	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalSafe, 20, 40), opNode.ReachedFn(types.LocalSafe, 20, 40))
 
-	dsl.CheckAll(t, konaNode.MatchedFn(opNode, types.LocalSafe, 40))
+	dsl.CheckAll(t, konaNode.MatchedFn(&opNode, types.LocalSafe, 40))
 }
 
 func TestL2UnsafeSync(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := NewSimpleKona(t)
+	out := NewMixedOpKona(t)
 
-	opNode := out.L2CLOpNode
-	konaNode := out.L2CLKona
+	opNode := out.L2CLOpNodes[0]
+	konaNode := out.L2CLKonaNodes[0]
 
 	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalUnsafe, 40, 40), opNode.ReachedFn(types.LocalUnsafe, 40, 40))
 
-	dsl.CheckAll(t, konaNode.MatchedFn(opNode, types.LocalUnsafe, 40))
+	dsl.CheckAll(t, konaNode.MatchedFn(&opNode, types.LocalUnsafe, 40))
 }
