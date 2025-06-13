@@ -6,7 +6,9 @@ use async_trait::async_trait;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageReader, StorageError};
+use kona_supervisor_storage::{
+    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader, StorageError,
+};
 use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::InvalidInboxEntry;
 use std::{collections::HashMap, sync::Arc};
@@ -210,8 +212,17 @@ impl SupervisorService for Supervisor {
         self.config.dependency_set.dependencies.keys().copied()
     }
 
-    fn super_head(&self, _chain: ChainId) -> Result<SuperHead, SupervisorError> {
-        todo!("implement call to ChainDbFactory")
+    fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
+        let db = self.database_factory.get_db(chain)?;
+
+        let l1_source = db.get_current_l1()?;
+        let local_unsafe = db.get_safety_head_ref(SafetyLevel::Unsafe)?;
+        let cross_unsafe = db.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+        let local_safe = db.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+        let cross_safe = db.get_safety_head_ref(SafetyLevel::Safe)?;
+        let finalized = db.get_safety_head_ref(SafetyLevel::Finalized)?;
+
+        Ok(SuperHead { l1_source, local_unsafe, cross_unsafe, local_safe, cross_safe, finalized })
     }
 
     fn latest_block_from(
