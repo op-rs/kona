@@ -91,7 +91,7 @@ where
             %chain_id,
             "Received finalized request"
         );
-        
+
         let block_info = self.supervisor.finalized(chain_id)?;
         Ok(BlockNumHash::new(block_info.number, block_info.hash))
     }
