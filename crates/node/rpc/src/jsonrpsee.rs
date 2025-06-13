@@ -14,6 +14,7 @@ use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
 use op_alloy_consensus::interop::SafetyLevel;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
 use getrandom as _; // required for compiling wasm32-unknown-unknown
@@ -160,4 +161,14 @@ pub trait SupervisorApi {
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
+}
+
+/// The admin namespace for the consensus node.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
+pub trait AdminApi {
+    /// Posts the unsafe payload.
+    #[method(name = "postUnsafePayload")]
+    async fn admin_post_unsafe_payload(&self, payload: OpExecutionPayloadEnvelope)
+    -> RpcResult<()>;
 }

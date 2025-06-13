@@ -1,11 +1,12 @@
 //! Network Builder Module.
 
 use alloy_primitives::Address;
+use alloy_signer_local::PrivateKeySigner;
 use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{Multiaddr, identity::Keypair};
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{path::PathBuf, time::Duration};
 use tokio::sync::broadcast::Sender as BroadcastSender;
 
@@ -28,7 +29,9 @@ pub struct NetworkBuilder {
     /// A receiver for network RPC requests.
     rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
-    payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
+    payload_tx: Option<BroadcastSender<OpExecutionPayloadEnvelope>>,
+    /// A local signer for payloads.
+    local_signer: Option<PrivateKeySigner>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -49,6 +52,7 @@ impl From<Config> for NetworkBuilder {
             .with_keypair(config.keypair)
             .with_topic_scoring(config.topic_scoring)
             .with_gater_config(config.gater_config)
+            .with_local_signer(config.local_signer)
     }
 }
 
@@ -62,12 +66,18 @@ impl NetworkBuilder {
             rpc_recv: None,
             payload_tx: None,
             cfg: None,
+            local_signer: None,
         }
     }
 
     /// Sets the configuration for the connection gater.
     pub fn with_gater_config(self, config: GaterConfig) -> Self {
         Self { gossip: self.gossip.with_gater_config(config), ..self }
+    }
+
+    /// Sets the local signer for the [`Network`].
+    pub fn with_local_signer(self, local_signer: Option<PrivateKeySigner>) -> Self {
+        Self { local_signer, ..self }
     }
 
     /// Sets the bootstore path for the [`crate::Discv5Driver`].
@@ -161,7 +171,7 @@ impl NetworkBuilder {
     /// Sets the unsafe block sender for the [`crate::Network`].
     pub fn with_unsafe_block_sender(
         self,
-        sender: BroadcastSender<OpNetworkPayloadEnvelope>,
+        sender: BroadcastSender<OpExecutionPayloadEnvelope>,
     ) -> Self {
         Self { payload_tx: Some(sender), ..self }
     }
@@ -192,6 +202,7 @@ impl NetworkBuilder {
             broadcast: Broadcast::new(payload_tx),
             publish_tx,
             publish_rx,
+            local_signer: self.local_signer,
         })
     }
 }

@@ -41,7 +41,7 @@ pub struct SupervisorSyncStatus {
 pub struct SupervisorChainSyncStatus {
     /// Highest [`Unsafe`] head of chain.
     ///
-    /// [`Unsafe`]: op_alloy_consensus::interop::SafetyLevel::Unsafe
+    /// [`Unsafe`]: op_alloy_consensus::interop::SafetyLevel::LocalUnsafe
     pub local_unsafe: BlockInfo,
     /// Highest [`CrossUnsafe`] head of chain.
     ///
@@ -56,7 +56,7 @@ pub struct SupervisorChainSyncStatus {
     /// NOTE: Some fault-proof releases may already depend on `safe`, so we keep JSON field name as
     /// `safe`.
     ///
-    /// [`Safe`]: op_alloy_consensus::interop::SafetyLevel::Safe
+    /// [`Safe`]: op_alloy_consensus::interop::SafetyLevel::CrossSafe
     #[cfg_attr(feature = "serde", serde(rename = "safe"))]
     pub cross_safe: BlockNumHash,
     /// Highest [`Finalized`] head of chain [`BlockNumHash`].

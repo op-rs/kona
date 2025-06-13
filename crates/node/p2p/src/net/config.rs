@@ -2,6 +2,7 @@
 
 use crate::{discv5::LocalNode, gossip::GaterConfig};
 use alloy_primitives::Address;
+use alloy_signer_local::PrivateKeySigner;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
@@ -45,4 +46,6 @@ pub struct Config {
     pub bootnodes: Vec<Enr>,
     /// The [`RollupConfig`].
     pub rollup_config: RollupConfig,
+    /// A local signer for payloads.
+    pub local_signer: Option<PrivateKeySigner>,
 }

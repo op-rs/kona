@@ -82,7 +82,7 @@ impl NetCommand {
             tokio::select! {
                 payload = recv.recv() => {
                     match payload {
-                        Ok(payload) => info!(target: "net", "Received unsafe payload: {:?}", payload.payload_hash),
+                        Ok(payload) => info!(target: "net", "Received unsafe payload: {:?}", payload.payload.block_hash()),
                         Err(e) => debug!(target: "net", "Failed to receive unsafe payload: {:?}", e),
                     }
                 }

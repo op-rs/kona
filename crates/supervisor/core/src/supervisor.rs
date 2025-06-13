@@ -103,12 +103,12 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns the
     /// Returns [`LocalUnsafe`] block for the given chain.
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`CrossSafe`] block for the given chain.
     ///
-    /// [`CrossSafe`]: SafetyLevel::Safe
+    /// [`CrossSafe`]: SafetyLevel::CrossSafe
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`Finalized`] block for the given chain.
@@ -231,10 +231,10 @@ impl SupervisorService for Supervisor {
         let db = self.database_factory.get_db(chain)?;
 
         let l1_source = db.get_current_l1()?;
-        let local_unsafe = db.get_safety_head_ref(SafetyLevel::Unsafe)?;
+        let local_unsafe = db.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
         let cross_unsafe = db.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
         let local_safe = db.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-        let cross_safe = db.get_safety_head_ref(SafetyLevel::Safe)?;
+        let cross_safe = db.get_safety_head_ref(SafetyLevel::CrossSafe)?;
         let finalized = db.get_safety_head_ref(SafetyLevel::Finalized)?;
 
         Ok(SuperHead { l1_source, local_unsafe, cross_unsafe, local_safe, cross_safe, finalized })
@@ -257,11 +257,11 @@ impl SupervisorService for Supervisor {
     }
 
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Unsafe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe)?)
     }
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Safe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe)?)
     }
 
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
