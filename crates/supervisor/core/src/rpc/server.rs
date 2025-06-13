@@ -70,11 +70,8 @@ where
             %chain_id,
             "Received local_unsafe request"
         );
-        // self.supervisor.local_unsafe()
-        // .await
-        // .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
-        warn!(target: "supervisor_rpc", "local_unsafe method not yet implemented");
-        Err(ErrorObject::from(ErrorCode::InternalError))
+
+        Ok(self.supervisor.local_unsafe(chain_id)?.id())
     }
 
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair> {

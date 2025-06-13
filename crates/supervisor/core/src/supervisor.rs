@@ -100,12 +100,17 @@ pub trait SupervisorService: Debug + Send + Sync {
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError>;
 
+    /// Returns the
+    /// Returns [`LocalUnsafe`] block for the given chain.
+    ///
+    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
     /// Returns [`CrossSafe`] block for the given chain.
     ///
     /// [`CrossSafe`]: SafetyLevel::Safe
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
-    /// Returns the
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
         &self,
@@ -244,6 +249,10 @@ impl SupervisorService for Supervisor {
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.derived_to_source(derived)?)
+    }
+
+    fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Unsafe)?)
     }
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
