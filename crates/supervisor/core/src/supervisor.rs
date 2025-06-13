@@ -11,7 +11,6 @@ use kona_supervisor_storage::{
 };
 use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::SuperchainDAError;
-use reqwest::Error;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
@@ -67,9 +66,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) => {
                 ErrorObjectOwned::from(ErrorCode::InternalError)
             }
-            SupervisorError::DataAvailability(err) => {
-                err.try_into().unwrap_or(ErrorObjectOwned::from(ErrorCode::InternalError))
-            }
+            SupervisorError::DataAvailability(err) => err.into(),
         }
     }
 }
