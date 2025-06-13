@@ -301,6 +301,10 @@ mod tests {
         fn cross_safe(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
             unimplemented!()
         }
+
+        fn finalized(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+            unimplemented!()
+        }
     }
 
     #[tokio::test]
