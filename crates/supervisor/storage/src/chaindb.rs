@@ -444,7 +444,7 @@ mod tests {
         };
 
         // Set current L1
-        db.update_current_l1(l1_block.clone()).expect("update current L1");
+        db.update_current_l1(l1_block).expect("update current L1");
 
         // Test safety head refs
         db.update_safety_head_ref(SafetyLevel::Unsafe, &local_unsafe_block)
