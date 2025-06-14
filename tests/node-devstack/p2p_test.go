@@ -23,21 +23,21 @@ func checkProtocols(t devtest.T, peer *apis.PeerInfo, nodeName string) {
 }
 
 func checkPeerStats(t devtest.T, peerStats *apis.PeerStats, nodeName string) {
-	require.Equal(t, peerStats.Connected, uint(1), fmt.Sprintf("%s has no connected peers", nodeName))
+	require.GreaterOrEqual(t, peerStats.Connected, uint(1), fmt.Sprintf("%s has no connected peers", nodeName))
 	require.Greater(t, peerStats.Table, uint(0), fmt.Sprintf("%s has no peers in the discovery table", nodeName))
-	require.Equal(t, peerStats.BlocksTopic, uint(1), fmt.Sprintf("%s has no peers in the blocks topic", nodeName))
-	require.Equal(t, peerStats.BlocksTopicV2, uint(1), fmt.Sprintf("%s has no peers in the blocks topic v2", nodeName))
-	require.Equal(t, peerStats.BlocksTopicV3, uint(1), fmt.Sprintf("%s has no peers in the blocks topic v3", nodeName))
-	require.Equal(t, peerStats.BlocksTopicV4, uint(1), fmt.Sprintf("%s has no peers in the blocks topic v4", nodeName))
+	require.GreaterOrEqual(t, peerStats.BlocksTopic, uint(1), fmt.Sprintf("%s has no peers in the blocks topic", nodeName))
+	require.GreaterOrEqual(t, peerStats.BlocksTopicV2, uint(1), fmt.Sprintf("%s has no peers in the blocks topic v2", nodeName))
+	require.GreaterOrEqual(t, peerStats.BlocksTopicV3, uint(1), fmt.Sprintf("%s has no peers in the blocks topic v3", nodeName))
+	require.GreaterOrEqual(t, peerStats.BlocksTopicV4, uint(1), fmt.Sprintf("%s has no peers in the blocks topic v4", nodeName))
 }
 
 func TestP2P(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := NewSimpleKona(t)
+	out := NewMixedOpKona(t)
 
-	opNode := out.L2CLOpNode
-	konaNode := out.L2CLKona
+	opNode := out.L2CLOpNodes[0]
+	konaNode := out.L2CLKonaNodes[0]
 
 	// Wait for a few blocks to be produced.
 	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalUnsafe, 40, 40), opNode.ReachedFn(types.LocalUnsafe, 40, 40))

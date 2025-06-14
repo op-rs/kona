@@ -11,6 +11,8 @@ require github.com/gorilla/websocket v1.5.3
 
 require github.com/ethereum/go-ethereum v1.15.11
 
+require github.com/libp2p/go-libp2p v0.36.2 
+
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
@@ -128,7 +130,6 @@ require (
 	github.com/kurtosis-tech/stacktrace v0.0.0-20211028211901-1c67a77b5409 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
-	github.com/libp2p/go-libp2p v0.36.2 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.4.1 // indirect
 	github.com/libp2p/go-libp2p-mplex v0.9.0 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.12.0 // indirect
