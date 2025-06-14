@@ -3,7 +3,7 @@ use crate::{
     syncnode::{ManagedNodeProvider, NodeEvent},
 };
 use alloy_primitives::ChainId;
-use kona_interop::DerivedRefPair;
+use kona_interop::{DerivedRefPair, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use kona_supervisor_types::BlockReplacement;
@@ -135,6 +135,18 @@ where
                 block_number = block_info.number,
                 %err,
                 "Failed to process unsafe block"
+            );
+            // TODO: take next action based on the error
+        }
+        if let Err(err) =
+            self.state_manager.update_safety_head_ref(SafetyLevel::Unsafe, &block_info)
+        {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block_info.number,
+                %err,
+                "Failed to store block reference"
             );
             // TODO: take next action based on the error
         }
