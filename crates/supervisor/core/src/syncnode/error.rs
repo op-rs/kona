@@ -19,6 +19,10 @@ pub enum ManagedNodeError {
     /// Represents an error that occurred while authenticating to the managed node.
     #[error("failed to authenticate: {0}")]
     Authentication(#[from] AuthenticationError),
+
+    /// Represents an error that occured when L1 provider is uninitialized.
+    #[error("L1 provider is not initialized")]
+    L1ProviderUninitialized,
 }
 
 impl PartialEq for ManagedNodeError {

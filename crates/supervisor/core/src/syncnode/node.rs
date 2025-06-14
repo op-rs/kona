@@ -1,6 +1,8 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
+use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
@@ -28,7 +30,7 @@ pub struct ManagedNodeConfig {
     pub url: String,
     /// The path to the JWT token for the managed node
     pub jwt_path: String,
-    /// The URL of the L1 RPC endpoint
+    /// The L1 RPC URL for the managed node
     pub l1_rpc_url: String,
 }
 
@@ -76,6 +78,8 @@ pub struct ManagedNode<DB> {
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
     task_handle: Mutex<Option<JoinHandle<()>>>,
+    /// Shared L1 provider for fetching receipts
+    l1_provider: OnceLock<RootProvider<Ethereum>>,
 }
 
 impl<DB> ManagedNode<DB>
@@ -83,7 +87,13 @@ where
     DB: LogStorageReader + DerivationStorageReader + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedNode`] with the specified configuration.
-    pub fn new(config: Arc<ManagedNodeConfig>, cancel_token: CancellationToken) -> Self {
+    pub fn new(
+        config: Arc<ManagedNodeConfig>,
+        cancel_token: CancellationToken,
+        l1_provider: RootProvider<Ethereum>,
+    ) -> Self {
+        let l1_provider_lock = OnceLock::new();
+        l1_provider_lock.set(l1_provider).expect("L1 provider should be set only once");
         Self {
             config,
             chain_id: OnceLock::new(),
@@ -91,6 +101,7 @@ where
             ws_client: Mutex::new(None),
             cancel_token,
             task_handle: Mutex::new(None),
+            l1_provider: OnceLock::new(),
         }
     }
 
@@ -204,13 +215,13 @@ where
         let db_provider =
             self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
-        let task = ManagedEventTask::new(
-            self.config.l1_rpc_url.clone(),
-            db_provider.clone(),
-            event_tx,
-            client,
-        );
-
+        let l1_provider = self
+            .l1_provider
+            .get()
+            .ok_or_else(|| ManagedNodeError::L1ProviderUninitialized)
+            .unwrap()
+            .clone();
+        let task = ManagedEventTask::new(l1_provider, db_provider.clone(), event_tx, client);
         // Start background task to handle events
         let handle = tokio::spawn(async move {
             info!(target: "managed_node", "Subscription task started");
@@ -286,12 +297,13 @@ where
 mod tests {
     use super::*;
     use alloy_eips::BlockNumHash;
+    use alloy_provider::mock::{Asserter, MockTransport};
+    use alloy_rpc_client::RpcClient;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
     use kona_supervisor_types::{Log, ManagedEvent};
     use mockall::mock;
-
     use std::io::Write;
     use tempfile::NamedTempFile;
     use tokio::sync::mpsc;
@@ -525,7 +537,10 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let subscriber = ManagedNode::<MockDb>::new(config, CancellationToken::new());
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let l1_provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
+        let subscriber = ManagedNode::<MockDb>::new(config, CancellationToken::new(), l1_provider);
 
         // Test that we can create the subscriber instance
         assert!(subscriber.task_handle.lock().await.is_none());
@@ -553,7 +568,12 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node = ManagedNode::<MockDb>::new(config, CancellationToken::new());
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let l1_provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
+
+        let managed_node =
+            ManagedNode::<MockDb>::new(config, CancellationToken::new(), l1_provider);
 
         // Test WebSocket client creation - should fail with invalid server
         let client_result = managed_node.get_ws_client().await;
@@ -569,8 +589,12 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let l1_provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
+
         let managed_node_no_jwt =
-            ManagedNode::<MockDb>::new(config_no_jwt, CancellationToken::new());
+            ManagedNode::<MockDb>::new(config_no_jwt, CancellationToken::new(), l1_provider);
         let client_no_jwt_result = managed_node_no_jwt.get_ws_client().await;
         assert!(client_no_jwt_result.is_err(), "Should fail with missing JWT file");
     }
@@ -588,7 +612,12 @@ mod tests {
             l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
-        let managed_node = Arc::new(ManagedNode::<MockDb>::new(config, CancellationToken::new()));
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let l1_provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
+
+        let managed_node =
+            Arc::new(ManagedNode::<MockDb>::new(config, CancellationToken::new(), l1_provider));
 
         // Test that the ManagedNode can be shared across threads (Send + Sync)
         let node1 = managed_node.clone();
