@@ -3,7 +3,7 @@ use crate::{
     syncnode::{ManagedNodeProvider, NodeEvent},
 };
 use alloy_primitives::ChainId;
-use kona_interop::DerivedRefPair;
+use kona_interop::{DerivedRefPair, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use kona_supervisor_types::BlockReplacement;
@@ -138,6 +138,18 @@ where
             );
             // TODO: take next action based on the error
         }
+        if let Err(err) =
+            self.state_manager.update_safety_head_ref(SafetyLevel::Unsafe, &block_info)
+        {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block_info.number,
+                %err,
+                "Failed to store block reference"
+            );
+            // TODO: take next action based on the error
+        }
     }
 }
 
@@ -216,16 +228,25 @@ mod tests {
 
         mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
 
+        // Send unsafe block event
+        let block =
+            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
+
+        let unsafe_block_clone = block.clone();
+        mockdb.expect_update_safety_head_ref().returning(
+            move |_safety_level: SafetyLevel, _pair: &BlockInfo| {
+                assert_eq!(_safety_level, SafetyLevel::Unsafe);
+                assert_eq!(*_pair, unsafe_block_clone);
+                Ok(())
+            },
+        );
+
         let writer = Arc::new(mockdb);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
         let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
-
-        // Send unsafe block event
-        let block =
-            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
 
         tx.send(NodeEvent::UnsafeBlock { block }).await.unwrap();
 
