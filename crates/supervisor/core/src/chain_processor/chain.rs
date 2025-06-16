@@ -44,6 +44,7 @@ where
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
     ) -> Self {
+        // todo: validate chain_id against managed_node
         Self { chain_id, managed_node, state_manager, cancel_token, task_handle: Mutex::new(None) }
     }
 

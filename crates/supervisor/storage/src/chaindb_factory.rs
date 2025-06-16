@@ -170,11 +170,11 @@ mod tests {
         let block2 = BlockInfo { number: 200, ..Default::default() };
 
         // Set first finalized block
-        factory.update_finalized_l1(block1.clone()).unwrap();
+        factory.update_finalized_l1(block1).unwrap();
         assert_eq!(factory.get_finalized_l1().unwrap(), block1);
 
         // Update with higher block number
-        factory.update_finalized_l1(block2.clone()).unwrap();
+        factory.update_finalized_l1(block2).unwrap();
         assert_eq!(factory.get_finalized_l1().unwrap(), block2);
     }
 
@@ -184,7 +184,7 @@ mod tests {
         let block1 = BlockInfo { number: 100, ..Default::default() };
         let block2 = BlockInfo { number: 50, ..Default::default() };
 
-        factory.update_finalized_l1(block1.clone()).unwrap();
+        factory.update_finalized_l1(block1).unwrap();
         let err = factory.update_finalized_l1(block2).unwrap_err();
         assert!(matches!(err, StorageError::BlockOutOfOrder));
     }
@@ -195,7 +195,7 @@ mod tests {
         let block1 = BlockInfo { number: 100, ..Default::default() };
         let block2 = BlockInfo { number: 100, ..Default::default() };
 
-        factory.update_finalized_l1(block1.clone()).unwrap();
+        factory.update_finalized_l1(block1).unwrap();
         let err = factory.update_finalized_l1(block2).unwrap_err();
         assert!(matches!(err, StorageError::BlockOutOfOrder));
     }

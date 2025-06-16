@@ -213,7 +213,7 @@ pub trait HeadRefStorage: HeadRefStorageReader + HeadRefStorageWriter {}
 impl<T: HeadRefStorageReader + HeadRefStorageWriter> HeadRefStorage for T {}
 
 /// Provides an interface for managing the finalized L1 block reference in the storage.
-/// 
+///
 /// This trait defines methods to update and retrieve the finalized L1 block reference.
 pub trait FinalizedL1Storage {
     /// Updates the finalized L1 block reference in the storage.
