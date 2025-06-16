@@ -386,7 +386,8 @@ mod tests {
         let log_hash = keccak256([1u8; 32]);
 
         let lookup = make_lookup_entry(block_number, timestamp, log_index, chain_id_low);
-        let fake_checksum = B256::from([9u8; 32]);
+        let fake_checksum =
+            b256!("0x03ca886771056d8ea647bb809b888ba14986f57daaf28954d40408321717716a");
         let list = vec![lookup, fake_checksum];
 
         let parsed = parse_access_list(list).unwrap();
