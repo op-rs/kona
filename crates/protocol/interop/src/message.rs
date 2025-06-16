@@ -78,11 +78,11 @@ impl From<executeMessageCall> for ExecutingMessage {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExecutingDescriptor {
     /// The timestamp used to enforce timestamp [invariant](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/derivation.md#invariants)
-    timestamp: u64,
+    pub timestamp: u64,
     /// The timeout that requests verification to still hold at `timestamp+timeout`
     /// (message expiry may drop previously valid messages).
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    timeout: Option<u64>,
+    pub timeout: Option<u64>,
 }
 
 impl ExecutingDescriptor {

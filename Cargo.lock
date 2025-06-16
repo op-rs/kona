@@ -5032,12 +5032,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
- "async-trait",
  "derive_more",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus",
  "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

@@ -119,22 +119,22 @@ where
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()> {
-        // TODO:: refcator, maybe build proc macro to record metrics
-        crate::observe_rpc_call!("check_access_list", async {
-            trace!(target: "supervisor_rpc", 
-                num_inbox_entries = inbox_entries.len(),
-                ?min_safety,
-                ?executing_descriptor,
-                "Received check_access_list request",
-            );
-            self.supervisor
-                .check_access_list(inbox_entries, min_safety, executing_descriptor)
-                .await
-                .map_err(|e| {
-                    warn!(target: "supervisor_rpc", "Error from core supervisor check_access_list: {:?}", e);
-                    ErrorObject::from(ErrorCode::InternalError)
-                })
-        }.await)
+        trace!(target: "supervisor_rpc",
+            num_inbox_entries = inbox_entries.len(),
+            %min_safety,
+            ?executing_descriptor,
+            "Received check_access_list request",
+        );
+        self.supervisor.check_access_list(inbox_entries, min_safety, executing_descriptor).map_err(
+            |err| {
+                warn!(
+                    target: "supervisor_rpc",
+                    %err,
+                    "Failed to process check access list"
+                );
+                ErrorObject::from(err)
+            },
+        )
     }
 
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus> {

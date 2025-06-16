@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use op_alloy_rpc_types::InvalidInboxEntry;
 
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
@@ -6,9 +7,11 @@ use async_trait::async_trait;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageReader, StorageError};
-use kona_supervisor_types::SuperHead;
-use op_alloy_rpc_types::InvalidInboxEntry;
+use kona_supervisor_storage::{
+    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader, LogStorageReader,
+    StorageError,
+};
+use kona_supervisor_types::{AccessListError, SuperHead, parse_access_list};
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
@@ -50,6 +53,10 @@ pub enum SupervisorError {
     /// Indicates the error occured while processing the chain.
     #[error(transparent)]
     ChainProcessorError(#[from] ChainProcessorError),
+
+    /// Indicates the error occurred while parsing the access_list
+    #[error(transparent)]
+    AccessListError(#[from] AccessListError),
 }
 
 impl From<SupervisorError> for ErrorObjectOwned {
@@ -61,6 +68,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::Initialise(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::ManagedNodeError(_) |
+            SupervisorError::AccessListError(_) |
             SupervisorError::ChainProcessorError(_) => {
                 ErrorObjectOwned::from(ErrorCode::InternalError)
             }
@@ -100,7 +108,7 @@ pub trait SupervisorService: Debug + Send + Sync {
 
     /// Returns the
     /// Verifies if an access-list references only valid messages
-    async fn check_access_list(
+    fn check_access_list(
         &self,
         _inbox_entries: Vec<B256>,
         _min_safety: SafetyLevel,
@@ -202,6 +210,38 @@ impl Supervisor {
         }
         Ok(())
     }
+
+    fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
+        self.config
+            .rollup_config_set
+            .get(chain_id)
+            .map(|cfg| cfg.is_post_interop(timestamp))
+            .unwrap_or(false) // if config not found, return false
+    }
+
+    fn verify_safety_level(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+        safety: SafetyLevel,
+    ) -> Result<(), SupervisorError> {
+        let derived = self
+            .database_factory
+            .get_db(chain_id)?
+            .derived_to_source(BlockNumHash { number: block.number, hash: block.hash })?;
+
+        if derived.hash != block.hash {
+            return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData));
+        }
+
+        let head_ref = self.database_factory.get_db(chain_id)?.get_safety_head_ref(safety)?;
+
+        if head_ref.number < block.number {
+            return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData));
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -230,13 +270,68 @@ impl SupervisorService for Supervisor {
         Ok(self.database_factory.get_db(chain)?.derived_to_source(derived)?)
     }
 
-    async fn check_access_list(
+    fn check_access_list(
         &self,
-        _inbox_entries: Vec<B256>,
-        _min_safety: SafetyLevel,
-        _executing_descriptor: ExecutingDescriptor,
+        inbox_entries: Vec<B256>,
+        min_safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
     ) -> Result<(), SupervisorError> {
-        Err(SupervisorError::Unimplemented)
+        let access_list = parse_access_list(inbox_entries)?;
+        let message_expiry_window = self.config.dependency_set.get_message_expiry_window();
+        let timeout = executing_descriptor.timeout.unwrap_or(0);
+        let executing_ts_with_duration = executing_descriptor.timestamp.saturating_add(timeout);
+
+        for access in &access_list {
+            // Check all the invariants for each message
+            // Ref: https://github.com/ethereum-optimism/specs/blob/main/specs/interop/derivation.md#invariants
+
+            // TODO: support 32 bytes chain id and convert to u64 via dependency set to be usable
+            // across services
+            let initiating_chain_id =
+                u64::from_be_bytes(access.chain_id[24..32].try_into().unwrap());
+
+            // TODO: Extend the `ExecutingDescriptor` to accept chain_id.
+            // And set executing_chain_id as initiating_chain_id only for backward compat.
+            let executing_chain_id = initiating_chain_id;
+
+            // Message must be valid at the time of execution.
+            access.validate_message_lifetime(
+                executing_descriptor.timestamp,
+                executing_ts_with_duration,
+                message_expiry_window,
+            )?;
+
+            // The interop fork must be active for both the executing and
+            // initiating chains at the respective timestamps.
+            if !self.is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
+                !self.is_interop_enabled(executing_chain_id, access.timestamp)
+            {
+                return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData));
+            }
+
+            // Verify the initiating message exists and valid for corresponding executing message.
+            let block = self
+                .database_factory
+                .get_db(initiating_chain_id)?
+                .get_block(access.block_number)?;
+            if block.timestamp != access.timestamp {
+                return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData))
+            }
+            let log = self
+                .database_factory
+                .get_db(initiating_chain_id)?
+                .get_log(access.block_number, access.log_index)?;
+            access.verify_checksum(&log.hash)?;
+
+            // The message must be included in a block that is at least as safe as required
+            // by the `min_safety` level
+            if min_safety != SafetyLevel::Unsafe {
+                // The block is already unsafe as it is found in log db
+                self.verify_safety_level(initiating_chain_id, &block, min_safety)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
