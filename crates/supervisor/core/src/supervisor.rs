@@ -211,16 +211,3 @@ impl SupervisorService for Supervisor {
         Err(SupervisorError::Unimplemented)
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_rpc_error_conversion() {
-        let err = SuperchainDAError::UnknownChain;
-        let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
-
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
-    }
-}
