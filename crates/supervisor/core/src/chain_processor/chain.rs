@@ -156,11 +156,6 @@ mod tests {
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;
 
-            fn update_finalized_l1(
-                &self,
-                block_info: BlockInfo,
-            ) -> Result<(), StorageError>;
-
             fn update_safety_head_ref(
                 &self,
                 safety_level: SafetyLevel,

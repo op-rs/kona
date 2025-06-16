@@ -329,7 +329,6 @@ mod tests {
 
         impl HeadRefStorageReader for Db {
             fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
-            fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }

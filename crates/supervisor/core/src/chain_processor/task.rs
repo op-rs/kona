@@ -74,30 +74,11 @@ where
             ChainEvent::BlockReplaced { replacement } => {
                 self.handle_block_replacement(replacement).await
             }
-            ChainEvent::L1Finalized { block } => self.handle_l1_finalized(block).await,
         }
     }
 
     async fn handle_block_replacement(&self, _replacement: BlockReplacement) {
         // Logic to handle block replacement
-    }
-
-    async fn handle_l1_finalized(&self, block: BlockInfo) {
-        debug!(
-            target: "chain_processor",
-            chain_id = self.chain_id,
-            block_number = block.number,
-            "Processing finalized L1 block"
-        );
-        if let Err(err) = self.state_manager.update_finalized_l1(block) {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block.number,
-                %err,
-                "Failed to update finalized L1 block"
-            );
-        }
     }
 
     fn handle_derivation_origin_update(&self, origin: BlockInfo) {
@@ -216,11 +197,6 @@ mod tests {
 
         impl HeadRefStorageWriter for Db {
             fn update_current_l1(
-                &self,
-                block_info: BlockInfo,
-            ) -> Result<(), StorageError>;
-
-            fn update_finalized_l1(
                 &self,
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;
