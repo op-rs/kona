@@ -59,10 +59,10 @@ impl ChainDb {
 
         self.env.view(|tx| {
             let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
             let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
             let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
             let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
 
             Ok(SuperHead {
@@ -448,11 +448,12 @@ mod tests {
         db.update_current_l1(l1_block).expect("update current L1");
 
         // Test safety head refs
-        db.update_safety_head_ref(SafetyLevel::Unsafe, &local_unsafe_block)
+        db.update_safety_head_ref(SafetyLevel::LocalUnsafe, &local_unsafe_block)
             .expect("update unsafe head");
         db.update_safety_head_ref(SafetyLevel::LocalSafe, &local_safe_block)
             .expect("update local safe head");
-        db.update_safety_head_ref(SafetyLevel::Safe, &cross_safe_block).expect("update safe head");
+        db.update_safety_head_ref(SafetyLevel::CrossSafe, &cross_safe_block)
+            .expect("update safe head");
         db.update_safety_head_ref(SafetyLevel::Finalized, &finalized_block)
             .expect("update finalized head");
         db.update_safety_head_ref(SafetyLevel::CrossUnsafe, &cross_unsafe_block)
