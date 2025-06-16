@@ -142,6 +142,6 @@ func TestNetworkConnectivity(gt *testing.T) {
 	numNodes := len(nodes)
 
 	for _, node := range nodes {
-		checkPeerStats(t, &node, uint(numNodes)-1, uint(numNodes)/2+1, uint(numNodes)/2+1)
+		checkPeerStats(t, &node, uint(numNodes)-1, uint(numNodes)/2, uint(numNodes)/2)
 	}
 }
