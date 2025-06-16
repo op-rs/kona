@@ -234,14 +234,10 @@ impl Supervisor {
         block: &BlockInfo,
         safety: SafetyLevel,
     ) -> Result<(), SupervisorError> {
-        let derived = self
-            .database_factory
+        // check block exists on the derivation storage
+        self.database_factory
             .get_db(chain_id)?
             .derived_to_source(BlockNumHash { number: block.number, hash: block.hash })?;
-
-        if derived.hash != block.hash {
-            return Err(SupervisorError::from(SuperchainDAError::ConflictingData));
-        }
 
         let head_ref = self.database_factory.get_db(chain_id)?.get_safety_head_ref(safety)?;
 
@@ -328,7 +324,7 @@ impl SupervisorService for Supervisor {
             if !self.is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
                 !self.is_interop_enabled(executing_chain_id, access.timestamp)
             {
-                return Err(SupervisorError::from(SuperchainDAError::ConflictingData));
+                return Err(SupervisorError::from(SuperchainDAError::ConflictingData)); // todo: replace with better error
             }
 
             // Verify the initiating message exists and valid for corresponding executing message.

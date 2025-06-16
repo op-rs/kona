@@ -16,9 +16,9 @@ mod receipt;
 pub use receipt::Receipts;
 
 mod access_list;
-mod types;
 pub use access_list::{Access, AccessListError, parse_access_list};
 
+mod types;
 pub use types::{
     BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, SubscriptionEvent,
 };
