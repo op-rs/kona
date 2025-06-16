@@ -79,19 +79,35 @@ func TestP2PMinimal(gt *testing.T) {
 }
 
 // Check that, for every node in the network, all the peers are connected to the expected protocols and the same chainID.
-func TestP2PProtocolsChainID(gt *testing.T) {
+func TestP2PProtocols(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
 	out := NewMixedOpKona(t)
-
-	chainID := out.L2CLOpNodes[0].Escape().ID().ChainID()
 
 	nodes := out.L2CLNodes()
 
 	for _, node := range nodes {
 		for _, peer := range node.Peers().Peers {
 			checkProtocols(t, peer)
-			require.Equal(t, peer.ChainID, chainID, fmt.Sprintf("%s has a peer with a different chainID", node.Escape().ID()))
+		}
+	}
+}
+
+func TestP2PChainID(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	out := NewMixedOpKona(t)
+
+	nodes := out.L2CLKonaNodes
+	chainID := nodes[0].PeerInfo().ChainID
+
+	for _, node := range nodes {
+		nodeChainID, ok := node.Escape().ID().ChainID().Uint64()
+		require.True(t, ok, "chainID is too large for a uint64")
+		require.Equal(t, chainID, nodeChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
+
+		for _, peer := range node.Peers().Peers {
+			require.Equal(t, chainID, peer.ChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
 		}
 	}
 }
@@ -104,14 +120,14 @@ func TestP2PPeersInNetwork(gt *testing.T) {
 
 	nodes := out.L2CLNodes()
 
-	nodeIds := make([]peer.ID, 0, len(nodes))
+	nodeIds := make([]string, 0, len(nodes))
 	for _, node := range nodes {
-		nodeIds = append(nodeIds, node.PeerInfo().PeerID)
+		nodeIds = append(nodeIds, node.PeerInfo().PeerID.String())
 	}
 
 	for _, node := range nodes {
 		for _, peer := range node.Peers().Peers {
-			require.Contains(t, nodeIds, peer.PeerID, fmt.Sprintf("%s has a peer that is not in the network: %s", node.Escape().ID(), peer.PeerID))
+			require.Contains(t, nodeIds, peer.PeerID.String(), fmt.Sprintf("%s has a peer that is not in the network: %s", node.Escape().ID(), peer.PeerID))
 		}
 	}
 }

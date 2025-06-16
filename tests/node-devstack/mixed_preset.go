@@ -56,6 +56,11 @@ func (m *MixedOpKonaPreset) L2CLNodes() []dsl.L2CLNode {
 	return append(m.L2CLOpNodes, m.L2CLKonaNodes...)
 }
 
+// L2CLNodes returns all the L2CL nodes in the network (op-nodes and kona-nodes).
+func (m *MixedOpKonaPreset) L2ELNodes() []dsl.L2ELNode {
+	return append(m.L2ELOpNodes, m.L2ELKonaNodes...)
+}
+
 func L2NodeMatcher[
 	I interface {
 		comparable
