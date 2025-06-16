@@ -3,6 +3,7 @@
 use crate::NodeActor;
 use async_trait::async_trait;
 use futures::{Stream, StreamExt};
+use kona_interop::{ControlEvent, ManagedEvent};
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -14,10 +15,10 @@ pub trait SupervisorExt {
     type Error: std::error::Error + Send + Sync;
 
     /// Send a `ManagedEvent` to the supervisor.
-    async fn send_event(&self, event: ()) -> Result<(), Self::Error>;
+    async fn send_event(&self, event: ManagedEvent) -> Result<(), Self::Error>;
 
     /// Subscribe to a stream of `ControlEvent`s from the supervisor.
-    fn subscribe_control_events(&self) -> impl Stream<Item = ()> + Send;
+    fn subscribe_control_events(&self) -> impl Stream<Item = ControlEvent> + Send;
 }
 
 /// The supervisor actor.
@@ -30,9 +31,9 @@ pub trait SupervisorExt {
 #[derive(Debug)]
 pub struct SupervisorActor<E: SupervisorExt> {
     /// A channel to receive `ManagedEvent`s from the kona node.
-    node_events: mpsc::Receiver<()>,
+    node_events: mpsc::Receiver<ManagedEvent>,
     /// A channel to communicate with the engine.
-    engine_control: mpsc::Sender<()>,
+    engine_control: mpsc::Sender<ControlEvent>,
     /// The module to communicate with the supervisor.
     supervisor_ext: E,
     /// The cancellation token, shared between all tasks.
@@ -45,8 +46,8 @@ where
 {
     /// Creates a new instance of the supervisor actor.
     pub const fn new(
-        node_events: mpsc::Receiver<()>,
-        engine_control: mpsc::Sender<()>,
+        node_events: mpsc::Receiver<ManagedEvent>,
+        engine_control: mpsc::Sender<ControlEvent>,
         supervisor_ext: E,
         cancellation: CancellationToken,
     ) -> Self {
@@ -66,14 +67,11 @@ where
         let mut control_events = Box::pin(self.supervisor_ext.subscribe_control_events());
         loop {
             tokio::select! {
-                // Check if the cancellation token has been cancelled.
                 _ = self.cancellation.cancelled() => {
                     warn!(target: "supervisor", "Supervisor actor cancelled");
                     return Ok(());
                 },
-                // Wait for an event from the kona node.
                 Some(event) = self.node_events.recv() => {
-                    // Process the event and send it to the supervisor.
                     if let Err(err) = self.supervisor_ext.send_event(event).await {
                         error!(target: "supervisor", ?err, "Failed to send event to supervisor");
                     }
