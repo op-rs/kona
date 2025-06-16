@@ -90,7 +90,7 @@ where
 
     async fn dependency_set(&self) -> RpcResult<DependencySet> {
         crate::observe_rpc_call!(
-            "local_unsafe",
+            "dependency_set",
             async {
                 trace!(target: "supervisor_rpc",
                     "Received the dependency set"
