@@ -146,7 +146,7 @@ where
                 chain_id = self.chain_id,
                 block_number = block_info.number,
                 %err,
-                "Failed to store block reference"
+                "Failed to update safety head reference"
             );
             // TODO: take next action based on the error
         }
@@ -232,11 +232,10 @@ mod tests {
         let block =
             BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
 
-        let unsafe_block_clone = block.clone();
         mockdb.expect_update_safety_head_ref().returning(
             move |_safety_level: SafetyLevel, _pair: &BlockInfo| {
                 assert_eq!(_safety_level, SafetyLevel::Unsafe);
-                assert_eq!(*_pair, unsafe_block_clone);
+                assert_eq!(*_pair, block);
                 Ok(())
             },
         );
