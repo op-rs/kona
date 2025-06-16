@@ -1,9 +1,9 @@
 //! Contains the supervisor CLI.
 
-use crate::flags::{GlobalArgs, SupervisorArgs};
+use crate::flags::SupervisorArgs;
 use anyhow::Result;
 use clap::Parser;
-use kona_cli::{cli_styles, metrics_args::MetricsArgs};
+use kona_cli::{cli_styles, log::LogArgs, metrics_args::MetricsArgs};
 use kona_supervisor_service::Service;
 use tracing::info;
 
@@ -13,7 +13,7 @@ use tracing::info;
 pub struct Cli {
     /// Global args
     #[command(flatten)]
-    pub global: GlobalArgs,
+    pub global: LogArgs,
 
     /// Prometheus metrics args
     #[command(flatten)]
@@ -61,7 +61,7 @@ impl Cli {
     }
 
     /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
+    pub fn init_logs(&self, args: &LogArgs) -> anyhow::Result<()> {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env();
 

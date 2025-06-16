@@ -3,17 +3,23 @@
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
+use kona_peers::{EnrValidation, PeerMonitoring, enr_to_multiaddr};
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
     gossipsub::{IdentTopic, MessageId},
     swarm::SwarmEvent,
 };
+use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::sync::Mutex;
 
 use crate::{
-    Behaviour, BlockHandler, EnrValidation, Event, GossipDriverBuilder, Handler, PublishError,
-    enr_to_multiaddr, peers::PeerMonitoring,
+    Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -21,7 +27,7 @@ use crate::{
 /// Connects the swarm to the given [`Multiaddr`]
 /// and handles events using the [`BlockHandler`].
 #[derive(Debug)]
-pub struct GossipDriver {
+pub struct GossipDriver<G: ConnectionGate> {
     /// The [`Swarm`] instance.
     #[debug(skip)]
     pub swarm: Swarm<Behaviour>,
@@ -29,24 +35,34 @@ pub struct GossipDriver {
     pub addr: Multiaddr,
     /// The [`BlockHandler`].
     pub handler: BlockHandler,
-    /// A mapping from [`Multiaddr`] to the number of times it has been dialed.
+    /// A [`libp2p_stream::Control`] instance. Can be used to control the sync request/response
+    #[debug(skip)]
+    pub sync_handler: libp2p_stream::Control,
+    /// The inbound streams for the sync request/response protocol.
     ///
-    /// A peer cannot be redialed more than [`GossipDriverBuilder.peer_redialing`] times.
-    pub dialed_peers: HashMap<Multiaddr, u64>,
+    /// This is an option to allow to take the underlying value when the gossip driver gets
+    /// activated.
+    ///
+    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2141>`): remove the sync-req-resp protocol once the `op-node` phases it out.
+    #[debug(skip)]
+    pub sync_protocol: Option<IncomingStreams>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
-    pub peerstore: HashMap<PeerId, Multiaddr>,
-    /// A mapping from [`PeerId`] to [`libp2p::identify::Info`].
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2015>`): we should probably find a way to merge `peer_infos` and `peerstore` into a
-    /// single map.
-    pub peer_infos: HashMap<PeerId, libp2p::identify::Info>,
+    pub peerstore: HashMap<PeerId, libp2p::identify::Info>,
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     pub peer_monitoring: Option<PeerMonitoring>,
-    /// The number of times to redial a peer.
-    pub peer_redialing: Option<u64>,
+    /// Tracks connection start time for peers
+    pub peer_connection_start: HashMap<PeerId, Instant>,
+    /// The connection gate.
+    pub connection_gate: G,
+    /// Tracks ping times for peers.
+    pub ping: Arc<Mutex<HashMap<PeerId, Duration>>>,
 }
 
-impl GossipDriver {
+impl<G> GossipDriver<G>
+where
+    G: ConnectionGate,
+{
     /// Returns the [`GossipDriverBuilder`] that can be used to construct the [`GossipDriver`].
     pub const fn builder() -> GossipDriverBuilder {
         GossipDriverBuilder::new()
@@ -56,18 +72,22 @@ impl GossipDriver {
     pub fn new(
         swarm: Swarm<Behaviour>,
         addr: Multiaddr,
-        redialing: Option<u64>,
         handler: BlockHandler,
+        sync_handler: libp2p_stream::Control,
+        sync_protocol: IncomingStreams,
+        gate: G,
     ) -> Self {
         Self {
             swarm,
             addr,
             handler,
-            dialed_peers: Default::default(),
             peerstore: Default::default(),
-            peer_infos: Default::default(),
             peer_monitoring: None,
-            peer_redialing: redialing,
+            peer_connection_start: Default::default(),
+            sync_handler,
+            sync_protocol: Some(sync_protocol),
+            connection_gate: gate,
+            ping: Arc::new(Mutex::new(Default::default())),
         }
     }
 
@@ -136,26 +156,6 @@ impl GossipDriver {
         self.swarm.next().await
     }
 
-    /// Returns if the given [`Multiaddr`] has been dialed the maximum number of times.
-    pub fn dial_threshold_reached(&mut self, addr: &Multiaddr) -> bool {
-        // If the peer has not been dialed yet, the threshold is not reached.
-        let Some(dialed) = self.dialed_peers.get(addr) else {
-            return false;
-        };
-        // If the peer has been dialed and the threshold is not set, the threshold is reached.
-        let Some(redialing) = self.peer_redialing else {
-            return true;
-        };
-        // If the threshold is set to `0`, redial indefinitely.
-        if redialing == 0 {
-            return false;
-        }
-        if *dialed >= redialing {
-            return true;
-        }
-        false
-    }
-
     /// Returns the number of connected peers.
     pub fn connected_peers(&self) -> usize {
         self.swarm.connected_peers().count()
@@ -170,6 +170,7 @@ impl GossipDriver {
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
             debug!(target: "gossip", "Failed to extract tcp socket from enr: {:?}", enr);
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "invalid_enr");
             return;
         };
         self.dial_multiaddr(multiaddr);
@@ -177,28 +178,39 @@ impl GossipDriver {
 
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
-        if self.dial_threshold_reached(&addr) {
-            event!(tracing::Level::TRACE, peer=%addr, "Dial threshold reached, not dialing");
+        // Check if we're allowed to dial the address.
+        if !self.connection_gate.can_dial(&addr) {
+            warn!(target: "gossip", "unable to dial peer");
             return;
         }
 
+        // Extract the peer ID from the address.
+        let Some(peer_id) = crate::ConnectionGater::peer_id_from_addr(&addr) else {
+            warn!(target: "gossip", peer=?addr, "Failed to extract PeerId from Multiaddr");
+            return;
+        };
+
+        if self.swarm.connected_peers().any(|p| p == &peer_id) {
+            debug!(target: "gossip", peer=?addr, "Already connected to peer, not dialing");
+            kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "already_connected", "peer" => peer_id.to_string());
+            return;
+        }
+
+        // Let the gate know we are dialing the address.
+        self.connection_gate.dialing(&addr);
+
+        // Dial
         match self.swarm.dial(addr.clone()) {
             Ok(_) => {
                 trace!(target: "gossip", peer=?addr, "Dialed peer");
-                let count = self.dialed_peers.entry(addr.clone()).or_insert(0);
-                *count += 1;
+                self.connection_gate.dialed(&addr);
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER, "peer" => peer_id.to_string());
             }
             Err(e) => {
                 error!(target: "gossip", "Failed to connect to peer: {:?}", e);
+                self.connection_gate.remove_dial(&peer_id);
+                kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "connection_error", "error" => e.to_string(), "peer" => peer_id.to_string());
             }
-        }
-    }
-
-    /// Redials the given [`PeerId`] using the peerstore.
-    pub fn redial(&mut self, peer_id: PeerId) {
-        if let Some(addr) = self.peerstore.get(&peer_id) {
-            trace!(target: "gossip", "Redialing peer with id: {:?}", peer_id);
-            self.dial_multiaddr(addr.clone());
         }
     }
 
@@ -207,8 +219,40 @@ impl GossipDriver {
             Event::Gossipsub(e) => return self.handle_gossipsub_event(e),
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!(target: "gossip", ?peer, ?result, "Ping received");
+
+                // If the peer is connected to gossip, record the connection duration.
+                if let Some(start_time) = self.peer_connection_start.get(&peer) {
+                    let ping_duration = start_time.elapsed();
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                        ping_duration.as_secs_f64()
+                    );
+                }
+
+                // Record the peer score in the metrics if available.
+                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer) {
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::PEER_SCORES,
+                        "peer",
+                        peer.to_string(),
+                        peer_score
+                    );
+                }
+
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    if let Ok(time) = result {
+                        pings.lock().await.insert(peer, time);
+                    }
+                });
             }
             Event::Identify(e) => self.handle_identify_event(e),
+            // Don't do anything with stream events as this should be unreachable code.
+            Event::Stream => {
+                error!(target: "gossip", "Stream events should not be emitted!");
+            }
         };
 
         None
@@ -218,7 +262,7 @@ impl GossipDriver {
         match event {
             libp2p::identify::Event::Received { connection_id, peer_id, info } => {
                 debug!(target: "gossip", ?connection_id, ?peer_id, ?info, "Received identify info from peer");
-                self.peer_infos.insert(peer_id, info);
+                self.peerstore.insert(peer_id, info);
             }
             libp2p::identify::Event::Sent { connection_id, peer_id } => {
                 debug!(target: "gossip", ?connection_id, ?peer_id, "Sent identify info to peer");
@@ -281,9 +325,9 @@ impl GossipDriver {
             SwarmEvent::Behaviour(behavior_event) => {
                 return self.handle_gossip_event(behavior_event)
             }
-            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
-                debug!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
+                info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -291,7 +335,8 @@ impl GossipDriver {
                     "peer" => peer_id.to_string(),
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
-                self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
+
+                self.peer_connection_start.insert(peer_id, Instant::now());
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 debug!(target: "gossip", "Outgoing connection error: {:?}", error);
@@ -301,12 +346,9 @@ impl GossipDriver {
                     "type" => "outgoing_error",
                     "peer" => peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
-                if let Some(id) = peer_id {
-                    self.redial(id);
-                }
             }
             SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
-                trace!(target: "gossip", "Incoming connection error: {:?}", error);
+                debug!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -316,7 +358,7 @@ impl GossipDriver {
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
-                debug!(target: "gossip", "Connection closed, redialing peer: {:?} | {:?} | Peer Count: {}", peer_id, cause, peer_count);
+                warn!(target: "gossip", ?peer_id, ?cause, peer_count, "Connection closed");
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
@@ -324,10 +366,45 @@ impl GossipDriver {
                     "peer" => peer_id.to_string()
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
-                self.redial(peer_id);
+
+                // Record the total connection duration.
+                if let Some(start_time) = self.peer_connection_start.remove(&peer_id) {
+                    let peer_duration = start_time.elapsed();
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                        peer_duration.as_secs_f64()
+                    );
+                }
+
+                // Record the peer score in the metrics if available.
+                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer_id) {
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::PEER_SCORES,
+                        "peer",
+                        peer_id.to_string(),
+                        peer_score
+                    );
+                }
+
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    pings.lock().await.remove(&peer_id);
+                });
+
+                // If the connection was initiated by us, remove the peer from the current dials
+                // set so that we can dial it again.
+                self.connection_gate.remove_dial(&peer_id);
             }
             SwarmEvent::NewListenAddr { listener_id, address } => {
                 debug!(target: "gossip", reporter_id = ?listener_id, new_address = ?address, "New listen address");
+            }
+            SwarmEvent::Dialing { peer_id, connection_id } => {
+                debug!(target: "gossip", ?peer_id, ?connection_id, "Dialing peer");
+            }
+            SwarmEvent::NewExternalAddrOfPeer { peer_id, address } => {
+                debug!(target: "gossip", ?peer_id, ?address, "New external address of peer");
             }
             _ => {
                 debug!(target: "gossip", ?event, "Ignoring non-behaviour in event handler");

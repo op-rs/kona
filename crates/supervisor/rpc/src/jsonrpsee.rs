@@ -6,14 +6,16 @@ pub use jsonrpsee::{
 };
 
 use crate::SupervisorSyncStatus;
-use alloy_eips::{BlockId, BlockNumHash};
-use alloy_primitives::{B256, BlockHash, ChainId};
+use alloy_eips::BlockNumHash;
+use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts};
+use kona_supervisor_types::{
+    BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts, SubscriptionEvent,
+};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -23,15 +25,35 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
 pub trait SupervisorApi {
-    /// Gets the localUnsafe BlockId
+    /// Gets the source block for a given derived block
+    #[method(name = "crossDerivedToSource")]
+    async fn cross_derived_to_source(
+        &self,
+        chain_id: ChainId,
+        block_id: BlockNumHash,
+    ) -> RpcResult<BlockInfo>;
+
+    /// Returns the [`LocalUnsafe`] block for given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_localunsafe>
+    ///
+    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
-    /// Gets the crossSafe DerivedIdPair
+    /// Returns the [`CrossSafe`] block for given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_crosssafe>
+    ///
+    /// [`CrossSafe`]: SafetyLevel::Safe
     #[method(name = "crossSafe")]
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
 
-    /// Gets the finalized BlockId
+    /// Returns the [`Finalized`] block for the given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_finalized>
+    ///
+    /// [`Finalized`]: SafetyLevel::Finalized
     #[method(name = "finalized")]
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
@@ -55,6 +77,18 @@ pub trait SupervisorApi {
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_syncstatus>
     #[method(name = "syncStatus")]
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus>;
+
+    /// Returns the last derived block, for each chain, from the given L1 block. This block is at
+    /// least [`LocalSafe`].
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_allsafederivedat>
+    ///
+    /// [`LocalSafe`]: SafetyLevel::LocalSafe
+    #[method(name = "allSafeDerivedAt")]
+    async fn all_safe_derived_at(
+        &self,
+        derived_from: BlockNumHash,
+    ) -> RpcResult<HashMap<ChainId, BlockNumHash>>;
 }
 
 /// Represents the topics for subscriptions in the Managed Mode API.
@@ -75,10 +109,13 @@ pub enum SubscriptionTopic {
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "interop"))]
 pub trait ManagedModeApi {
     /// Subscribe to the events from the managed node.
+    /// Op-node provides the `interop-subscribe` method for subscribing to the events topic.
+    /// Subscription notifications are then sent via the `interop-subscription` method as
+    /// [`SubscriptionEvent`]s.
     // Currently, the `events` topic must be explicitly passed as a parameter to the subscription
     // request, even though this function is specifically intended to subscribe to the `events`
     // topic. todo: Find a way to eliminate the need to pass the topic explicitly.
-    #[subscription(name = "subscribe", item = Option<ManagedEvent>, unsubscribe = "unsubscribe")]
+    #[subscription(name = "subscribe" => "subscription", item = SubscriptionEvent, unsubscribe = "unsubscribe")]
     async fn subscribe_events(&self, topic: SubscriptionTopic) -> SubscriptionResult;
 
     /// Pull an event from the managed node.
@@ -88,15 +125,16 @@ pub trait ManagedModeApi {
     /// Control signals sent to the managed node from supervisor
     /// Update the cross unsafe block head
     #[method(name = "updateCrossUnsafe")]
-    async fn update_cross_unsafe(&self, id: BlockId) -> RpcResult<()>;
+    async fn update_cross_unsafe(&self, id: BlockNumHash) -> RpcResult<()>;
 
     /// Update the cross safe block head
     #[method(name = "updateCrossSafe")]
-    async fn update_cross_safe(&self, derived: BlockId, source: BlockId) -> RpcResult<()>;
+    async fn update_cross_safe(&self, derived: BlockNumHash, source: BlockNumHash)
+    -> RpcResult<()>;
 
     /// Update the finalized block head
     #[method(name = "updateFinalized")]
-    async fn update_finalized(&self, id: BlockId) -> RpcResult<()>;
+    async fn update_finalized(&self, id: BlockNumHash) -> RpcResult<()>;
 
     /// Invalidate a block
     #[method(name = "invalidateBlock")]
@@ -114,11 +152,11 @@ pub trait ManagedModeApi {
     #[method(name = "reset")]
     async fn reset(
         &self,
-        local_unsafe: BlockId,
-        cross_unsafe: BlockId,
-        local_safe: BlockId,
-        cross_safe: BlockId,
-        finalized: BlockId,
+        local_unsafe: BlockNumHash,
+        cross_unsafe: BlockNumHash,
+        local_safe: BlockNumHash,
+        cross_safe: BlockNumHash,
+        finalized: BlockNumHash,
     ) -> RpcResult<()>;
 
     /// Sync methods that supervisor uses to sync with the managed node

@@ -1,10 +1,8 @@
 //! Blob Data Source
 
 use crate::{
-    errors::{BlobProviderError, PipelineError},
-    sources::BlobData,
-    traits::{BlobProvider, ChainProvider, DataAvailabilityProvider},
-    types::PipelineResult,
+    BlobData, BlobProvider, BlobProviderError, ChainProvider, DataAvailabilityProvider,
+    PipelineError, PipelineResult,
 };
 use alloc::{boxed::Box, string::ToString, vec::Vec};
 use alloy_consensus::{
@@ -105,6 +103,12 @@ where
                 index += 1;
             }
         }
+        #[cfg(feature = "metrics")]
+        metrics::gauge!(
+            crate::metrics::Metrics::PIPELINE_DATA_AVAILABILITY_PROVIDER,
+            "source" => "blobs",
+        )
+        .increment(data.len() as f64);
         (data, hashes)
     }
 

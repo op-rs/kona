@@ -1,10 +1,8 @@
 //! This module contains the [FrameQueue] stage of the derivation pipeline.
 
 use crate::{
-    errors::PipelineError,
-    stages::NextFrameProvider,
-    traits::{OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{PipelineResult, Signal},
+    NextFrameProvider, OriginAdvancer, OriginProvider, PipelineError, PipelineResult, Signal,
+    SignalReceiver,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use alloy_primitives::Bytes;
@@ -132,6 +130,15 @@ where
 
         // Optimistically extend the queue with the new frames.
         self.queue.extend(frames);
+
+        // Update metrics with last frame count
+        kona_macros::set!(
+            gauge,
+            crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_BUFFER,
+            self.queue.len() as f64
+        );
+        let queue_size = self.queue.iter().map(|f| f.size()).sum::<usize>() as f64;
+        kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_FRAME_QUEUE_MEM, queue_size);
 
         // Prune frames if Holocene is active.
         let origin = self.origin().ok_or(PipelineError::MissingOrigin.crit())?;

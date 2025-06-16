@@ -2,6 +2,9 @@
 # Spins up a 2 EL/CL networks. One with op-geth/op-node and one with op-reth/kona-node.
 
 optimism_package:
+  faucet:
+    enabled: true
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
     # Chain with only two nodes
     - participants:
@@ -9,11 +12,15 @@ optimism_package:
       # So we use op-geth for now.
       - el_type: op-geth
         cl_type: op-node
+        cl_log_level: "debug"
         count: 1
       - el_type: op-reth
         cl_type: kona-node
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
+        cl_extra_env_vars:
+          KONA_NODE_RPC_WS_ENABLED: "true"
+        cl_log_level: "debug"
         count: 1
       network_params:
         network: "kurtosis"

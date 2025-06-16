@@ -2,7 +2,7 @@
 
 use crate::flags::GlobalArgs;
 use clap::Parser;
-use kona_p2p::BootStore;
+use kona_peers::BootStore;
 use std::path::PathBuf;
 
 /// The `bootstore` Subcommand

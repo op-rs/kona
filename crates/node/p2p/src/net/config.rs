@@ -1,9 +1,10 @@
 //! Configuration for the `Network`.
 
-use crate::{PeerScoreLevel, discv5::LocalNode, peers::PeerMonitoring};
+use crate::{discv5::LocalNode, gossip::GaterConfig};
 use alloy_primitives::Address;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::identity::Keypair;
 use std::path::PathBuf;
 use tokio::time::Duration;
@@ -38,8 +39,8 @@ pub struct Config {
     pub block_time: u64,
     /// An optional path to the bootstore.
     pub bootstore: Option<PathBuf>,
-    /// The optional number of times to redial a peer.
-    pub redial: Option<u64>,
+    /// The configuration for the connection gater.
+    pub gater_config: GaterConfig,
     /// An optional list of bootnode ENRs to start the node with.
     pub bootnodes: Vec<Enr>,
     /// The [`RollupConfig`].

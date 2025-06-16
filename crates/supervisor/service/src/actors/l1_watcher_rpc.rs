@@ -15,7 +15,7 @@ use thiserror::Error;
 use tokio::{
     select,
     sync::{
-        mpsc::{UnboundedSender, error::SendError},
+        mpsc::{self, error::SendError},
         watch,
     },
     task::JoinHandle,
@@ -36,7 +36,7 @@ pub struct L1WatcherRpc {
     /// order to get the state from the external watcher.
     latest_head: watch::Sender<Option<BlockInfo>>,
     /// The outbound event sender.
-    head_sender: UnboundedSender<BlockInfo>,
+    head_sender: mpsc::Sender<BlockInfo>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
     /// Inbound queries to the L1 watcher.
@@ -48,7 +48,7 @@ impl L1WatcherRpc {
     pub fn new(
         config: Arc<RollupConfig>,
         l1_provider: RootProvider,
-        head_sender: UnboundedSender<BlockInfo>,
+        head_sender: mpsc::Sender<BlockInfo>,
         cancellation: CancellationToken,
         // Can be None if we disable communication with the L1 watcher.
         inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
@@ -192,7 +192,7 @@ impl SupervisorActor for L1WatcherRpc {
                     };
                     // Send the head update event to all consumers.
                     let head_block_info = self.block_info_by_hash(new_head).await?;
-                    self.head_sender.send(head_block_info)?;
+                    self.head_sender.send(head_block_info).await?;
                     self.latest_head.send_replace(Some(head_block_info));
                 }
             }
@@ -229,7 +229,7 @@ mod tests {
     async fn test_l1_watcher_creation() {
         let config = Arc::new(RollupConfig::default());
         let provider = RootProvider::new(RpcClient::mocked(Asserter::new()));
-        let (head_sender, _) = mpsc::unbounded_channel();
+        let (head_sender, _) = mpsc::channel(16);
         let cancellation = CancellationToken::new();
         let (_query_sender, query_receiver) = mpsc::channel(1);
 
@@ -243,7 +243,7 @@ mod tests {
     async fn test_query_processor_config() {
         let config = Arc::new(RollupConfig::default());
         let provider = RootProvider::new(RpcClient::mocked(Asserter::new()));
-        let (head_sender, _) = mpsc::unbounded_channel();
+        let (head_sender, _) = mpsc::channel(16);
         let cancellation = CancellationToken::new();
         let (query_sender, query_receiver) = mpsc::channel(1);
 
@@ -265,7 +265,7 @@ mod tests {
     async fn test_l1_state_query() {
         let config = Arc::new(RollupConfig::default());
         let provider = RootProvider::new(RpcClient::mocked(Asserter::new()));
-        let (head_sender, _) = mpsc::unbounded_channel();
+        let (head_sender, _) = mpsc::channel(16);
         let cancellation = CancellationToken::new();
         let (query_sender, query_receiver) = mpsc::channel(1);
 

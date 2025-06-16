@@ -89,6 +89,7 @@ kona-hardforks = { path = "crates/protocol/hardforks", version = "0.3.0", defaul
 # Node
 kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
 kona-rpc = { path = "crates/node/rpc", version = "0.2.0", default-features = false }
+kona-peers = { path = "crates/node/peers", version = "0.1.0", default-features = false }
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
 kona-sources = { path = "crates/node/sources", version = "0.1.0", default-features = false }
 kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
@@ -122,16 +123,16 @@ alloy-rlp = { version = "0.3.12", default-features = false }
 alloy-trie = { version = "0.8.1", default-features = false }
 alloy-eips = { version = "1.0.9", default-features = false }
 alloy-serde = { version = "1.0.9", default-features = false }
-alloy-chains = { version = "0.2.3", default-features = false }
+alloy-chains = { version = "0.2.4", default-features = false }
 alloy-network = { version = "1.0.9", default-features = false }
 alloy-provider = { version = "1.0.9", default-features = false }
-alloy-hardforks = { version = "0.2.6", default-features = false }
-alloy-sol-types = { version = "1.1.2", default-features = false }
+alloy-hardforks = { version = "0.2.7", default-features = false }
+alloy-sol-types = { version = "1.2.0", default-features = false }
 alloy-consensus = { version = "1.0.9", default-features = false }
 alloy-transport = { version = "1.0.9", default-features = false }
 alloy-rpc-types = { version = "1.0.9", default-features = false }
 alloy-rpc-client = { version = "1.0.9", default-features = false }
-alloy-primitives = { version = "1.1.2", default-features = false }
+alloy-primitives = { version = "1.2.0", default-features = false }
 alloy-node-bindings = { version = "1.0.9", default-features = false }
 alloy-rpc-types-eth = { version = "1.0.9", default-features = false }
 alloy-transport-http = { version = "1.0.9", default-features = false }
@@ -140,19 +141,19 @@ alloy-rpc-types-beacon = { version = "1.0.9", default-features = false }
 alloy-network-primitives = { version = "1.0.9", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.17.2", default-features = false }
-alloy-op-hardforks = { version = "0.2.6", default-features = false }
-op-alloy-provider = { version = "0.17.2", default-features = false }
-op-alloy-consensus = { version = "0.17.2", default-features = false }
-op-alloy-rpc-types = { version = "0.17.2", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.17.2", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.17.2", default-features = false }
+op-alloy-network = { version = "0.18.0", default-features = false }
+alloy-op-hardforks = { version = "0.2.7", default-features = false }
+op-alloy-provider = { version = "0.18.0", default-features = false }
+op-alloy-consensus = { version = "0.18.0", default-features = false }
+op-alloy-rpc-types = { version = "0.18.0", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.18.0", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.18.0", default-features = false }
 
 # Execution
 revm = { version = "24.0.1", default-features = false }
 op-revm = { version = "5.0.1", default-features = false }
-alloy-evm = { version = "0.10.0", default-features = false }
-alloy-op-evm = { version = "0.10.0", default-features = false }
+alloy-evm = { version = "0.11.0", default-features = false }
+alloy-op-evm = { version = "0.11.0", default-features = false }
 
 # Reth (pinned to v1.4.8 for kona-supervisor-storage)
 reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
@@ -216,8 +217,10 @@ brotli = { version = "8.0.1", default-features = false }
 snap = "1.1.1"
 discv5 = "0.9.1"
 libp2p = "0.55.0"
+libp2p-stream = "0.3.0-alpha"
 libp2p-identity = "0.2.11"
 openssl = "0.10.73"
+ipnet = "2.11.0"
 
 # Tracing
 tracing-loki = "0.2.6"
@@ -234,6 +237,7 @@ pprof = "0.15.0"
 arbtest = "0.3.2"
 proptest = "1.6.0"
 criterion = "0.5.1"
+mockall = "0.13.1"
 
 # Serialization
 rkyv = "0.8.10"

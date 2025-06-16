@@ -22,6 +22,8 @@ pub struct RpcConfig {
     /// File path used to persist state changes made via the admin API so they persist across
     /// restarts.
     pub admin_persistence: Option<PathBuf>,
+    /// Enable the websocket rpc server
+    pub ws_enabled: bool,
 }
 
 impl RpcConfig {
@@ -32,6 +34,7 @@ impl RpcConfig {
             launcher.disable();
         }
         launcher.no_restart = self.no_restart;
+        launcher.ws_enabled = self.ws_enabled;
         launcher
     }
 }

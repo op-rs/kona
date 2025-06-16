@@ -4,7 +4,7 @@ use alloc::sync::Arc;
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
 use core::{cmp::Ordering, fmt::Debug};
-use kona_derive::errors::PipelineErrorKind;
+use kona_derive::PipelineErrorKind;
 use kona_driver::DriverError;
 use kona_executor::ExecutorError;
 use kona_preimage::{HintWriterClient, PreimageOracleClient};

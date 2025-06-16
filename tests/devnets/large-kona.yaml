@@ -2,6 +2,9 @@
 # Spins up a large EL/CL network.
 
 optimism_package:
+  faucet:
+    enabled: true
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
     # Chain with more nodes
     - participants:
@@ -13,6 +16,8 @@ optimism_package:
         # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
         cl_image: "kona-node:local"
         count: 4
+        cl_extra_env_vars:
+          KONA_NODE_RPC_WS_ENABLED: "true"
       network_params:
         network: "kurtosis"
         network_id: "2151908"

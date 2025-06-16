@@ -17,6 +17,15 @@ pub enum Batch {
     Span(SpanBatch),
 }
 
+impl core::fmt::Display for Batch {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Single(_) => write!(f, "single"),
+            Self::Span(_) => write!(f, "span"),
+        }
+    }
+}
+
 impl Batch {
     /// Returns the timestamp for the batch.
     pub fn timestamp(&self) -> u64 {

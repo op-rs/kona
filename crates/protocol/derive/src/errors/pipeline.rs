@@ -1,6 +1,6 @@
 //! This module contains derivation errors thrown within the pipeline.
 
-use crate::errors::BuilderError;
+use crate::BuilderError;
 use alloc::string::String;
 use alloy_primitives::B256;
 use kona_genesis::SystemConfigUpdateError;

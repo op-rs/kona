@@ -12,21 +12,45 @@ extern crate alloc;
 #[macro_use]
 extern crate tracing;
 
-/// Required types and traits for kona's derivation pipeline.
-pub mod prelude {
-    pub use crate::{
-        attributes::*, errors::*, pipeline::*, sources::*, stages::*, traits::*, types::*,
-    };
-}
+mod attributes;
+pub use attributes::StatefulAttributesBuilder;
 
-pub mod attributes;
-pub mod errors;
+mod errors;
+pub use errors::{
+    BatchDecompressionError, BlobDecodingError, BlobProviderError, BuilderError,
+    PipelineEncodingError, PipelineError, PipelineErrorKind, ResetError,
+};
+
+mod pipeline;
+pub use pipeline::{
+    AttributesQueueStage, BatchProviderStage, BatchStreamStage, ChannelProviderStage,
+    ChannelReaderStage, DerivationPipeline, FrameQueueStage, L1RetrievalStage, L1TraversalStage,
+    PipelineBuilder,
+};
+
+mod sources;
+pub use sources::{BlobData, BlobSource, CalldataSource, EthereumDataSource};
+
+mod stages;
+pub use stages::{
+    AttributesQueue, BatchProvider, BatchQueue, BatchStream, BatchStreamProvider, BatchValidator,
+    ChannelAssembler, ChannelBank, ChannelProvider, ChannelReader, ChannelReaderProvider,
+    FrameQueue, FrameQueueProvider, L1Retrieval, L1RetrievalProvider, L1Traversal,
+    NextBatchProvider, NextFrameProvider,
+};
+
+mod traits;
+pub use traits::{
+    AttributesBuilder, AttributesProvider, BatchValidationProviderDerive, BlobProvider,
+    ChainProvider, DataAvailabilityProvider, L2ChainProvider, NextAttributes, OriginAdvancer,
+    OriginProvider, Pipeline, ResetProvider, SignalReceiver,
+};
+
+mod types;
+pub use types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult};
+
 pub mod metrics;
-pub mod pipeline;
-pub mod sources;
-pub mod stages;
-pub mod traits;
-pub mod types;
+pub use metrics::Metrics;
 
 #[cfg(feature = "test-utils")]
 pub mod test_utils;

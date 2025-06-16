@@ -2,8 +2,8 @@
 
 use crate::metrics::CliMetrics;
 use alloy_primitives::Address;
-use clap::{ArgAction, Parser};
-use kona_cli::init_tracing_subscriber;
+use clap::Parser;
+use kona_cli::log::LogArgs;
 use kona_genesis::RollupConfig;
 use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 use tracing_subscriber::EnvFilter;
@@ -11,13 +11,18 @@ use tracing_subscriber::EnvFilter;
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
 pub struct GlobalArgs {
-    /// Verbosity level (0-5).
-    /// If set to 0, no logs are printed.
-    /// By default, the verbosity level is set to 3 (info level).
-    #[arg(long, short, global = true, default_value = "3", action = ArgAction::Count)]
-    pub v: u8,
+    /// Logging arguments.
+    #[command(flatten)]
+    pub v: LogArgs,
     /// The L2 chain ID to use.
-    #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]
+    #[arg(
+        long,
+        short = 'c',
+        global = true,
+        default_value = "10",
+        env = "KONA_NODE_L2_CHAIN_ID",
+        help = "The L2 chain ID to use"
+    )]
     pub l2_chain_id: u64,
     /// Embed the override flags globally to provide override values adjacent to the configs.
     #[command(flatten)]
@@ -27,7 +32,7 @@ pub struct GlobalArgs {
 impl GlobalArgs {
     /// Initializes the telemetry stack and Prometheus metrics recorder.
     pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
-        Ok(init_tracing_subscriber(self.v, filter)?)
+        self.v.init_tracing(filter)
     }
 
     /// Initializes cli metrics for global argument values.

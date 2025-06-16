@@ -10,7 +10,8 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, LocalNode, PeerMonitoring, PeerScoreLevel};
+use kona_p2p::{Config, GaterConfig, LocalNode};
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
@@ -125,9 +126,7 @@ pub struct P2PArgs {
     pub gossip_flood_publish: bool,
     /// Sets the peer scoring strategy for the P2P stack.
     /// Can be one of: none or light.
-    ///
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/1855>`): By default, the P2P stack is configured to not score peers.
-    #[arg(long = "p2p.scoring", default_value = "off", env = "KONA_NODE_P2P_SCORING")]
+    #[arg(long = "p2p.scoring", default_value = "light", env = "KONA_NODE_P2P_SCORING")]
     pub scoring: PeerScoreLevel,
 
     /// Allows to ban peers based on their score.
@@ -138,14 +137,18 @@ pub struct P2PArgs {
     pub ban_enabled: bool,
 
     /// The threshold used to ban peers.
-    /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
-    #[arg(long = "p2p.ban.threshold", default_value = "0", env = "KONA_NODE_P2P_BAN_THRESHOLD")]
-    pub ban_threshold: i32,
+    ///
+    /// For peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
+    /// By default, peers are banned if their score is below -100. This follows the `op-node` default `<https://github.com/ethereum-optimism/optimism/blob/09a8351a72e43647c8a96f98c16bb60e7b25dc6e/op-node/flags/p2p_flags.go#L123-L130>`.
+    #[arg(long = "p2p.ban.threshold", default_value = "-100", env = "KONA_NODE_P2P_BAN_THRESHOLD")]
+    pub ban_threshold: i64,
 
-    /// The duration in seconds to ban a peer for.
-    /// Note that for peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
-    #[arg(long = "p2p.ban.duration", default_value = "30", env = "KONA_NODE_P2P_BAN_DURATION")]
-    pub ban_duration: u32,
+    /// The duration in minutes to ban a peer for.
+    ///
+    /// For peers to be banned, the `p2p.ban.peers` flag must be set to `true`.
+    /// By default peers are banned for 1 hour. This follows the `op-node` default `<https://github.com/ethereum-optimism/optimism/blob/09a8351a72e43647c8a96f98c16bb60e7b25dc6e/op-node/flags/p2p_flags.go#L131-L138>`.
+    #[arg(long = "p2p.ban.duration", default_value = "60", env = "KONA_NODE_P2P_BAN_DURATION")]
+    pub ban_duration: u64,
 
     /// The interval in seconds to find peers using the discovery service.
     /// Defaults to 5 seconds.
@@ -161,11 +164,14 @@ pub struct P2PArgs {
     /// Peer Redialing threshold is the maximum amount of times to attempt to redial a peer that
     /// disconnects. By default, peers are *not* redialed. If set to 0, the peer will be
     /// redialed indefinitely.
-    ///
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/1854>`): we are temporarily setting this to 0 to redial all peers indefinitely.
-    /// We will change this default to `None` once we have a more robust p2p stack.
-    #[arg(long = "p2p.redial", env = "KONA_NODE_P2P_REDIAL", default_value = "0")]
+    #[arg(long = "p2p.redial", env = "KONA_NODE_P2P_REDIAL", default_value = "500")]
     pub peer_redial: Option<u64>,
+
+    /// The duration in minutes of the peer dial period.
+    /// When the last time a peer was dialed is longer than the dial period, the number of peer
+    /// dials is reset to 0, allowing the peer to be dialed again.
+    #[arg(long = "p2p.redial.period", env = "KONA_NODE_P2P_REDIAL_PERIOD", default_value = "60")]
+    pub redial_period: u64,
 
     /// An optional list of bootnode ENRs to start the node with.
     #[arg(long = "p2p.bootnodes", value_delimiter = ',', env = "KONA_NODE_P2P_BOOTNODES")]
@@ -271,8 +277,6 @@ impl P2PArgs {
         // will be overridden by the discovery service builder.
         let mut builder = discv5::ConfigBuilder::new(listen_config);
 
-        builder.ban_duration(Some(Duration::from_secs(self.ban_duration as u64)));
-
         if static_ip {
             builder.disable_enr_update();
 
@@ -359,14 +363,10 @@ impl P2PArgs {
             .build()?;
         let block_time = config.block_time;
 
-        let monitor_peers = if self.ban_enabled {
-            Some(PeerMonitoring {
-                ban_duration: Duration::from_secs(self.ban_duration.into()),
-                ban_threshold: self.ban_threshold as f64,
-            })
-        } else {
-            None
-        };
+        let monitor_peers = self.ban_enabled.then_some(PeerMonitoring {
+            ban_duration: Duration::from_secs(60 * self.ban_duration),
+            ban_threshold: self.ban_threshold as f64,
+        });
 
         let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
         let discovery_config = self.discv5_config(discovery_listening_address.into(), static_ip);
@@ -388,7 +388,10 @@ impl P2PArgs {
             monitor_peers,
             bootstore: self.bootstore,
             topic_scoring: self.topic_scoring,
-            redial: self.peer_redial,
+            gater_config: GaterConfig {
+                peer_redialing: self.peer_redial,
+                dial_period: Duration::from_secs(60 * self.redial_period),
+            },
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
         })

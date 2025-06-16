@@ -23,6 +23,9 @@ impl Metrics {
     /// Identifier for the gauge that tracks the number of dialed peers.
     pub const DIAL_PEER: &str = "kona_node_dial_peer";
 
+    /// Identifier for the gauge that tracks the number of errors when dialing peers.
+    pub const DIAL_PEER_ERROR: &str = "kona_node_dial_peer_error";
+
     /// Identifier for discv5 events.
     pub const DISCOVERY_EVENT: &str = "kona_node_discovery_events";
 
@@ -43,6 +46,10 @@ impl Metrics {
 
     /// Identifier for a histogram that tracks peer scores.
     pub const PEER_SCORES: &str = "kona_node_peer_scores";
+
+    /// Identifier for the gauge that tracks the duration of peer connections in seconds.
+    pub const GOSSIP_PEER_CONNECTION_DURATION_SECONDS: &str =
+        "kona_node_gossip_peer_connection_duration_seconds";
 
     /// Initializes metrics for the P2P stack.
     ///
@@ -94,6 +101,10 @@ impl Metrics {
             Self::PEER_SCORES,
             "Observations of peer scores in the gossipsub mesh"
         );
+        metrics::describe_histogram!(
+            Self::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+            "Duration of peer connections in seconds"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
@@ -128,6 +139,7 @@ impl Metrics {
 
         // Peer dials
         kona_macros::set!(gauge, Self::DIAL_PEER, 0);
+        kona_macros::set!(gauge, Self::DIAL_PEER_ERROR, 0);
 
         // Unsafe Blocks
         kona_macros::set!(gauge, Self::UNSAFE_BLOCK_PUBLISHED, 0);

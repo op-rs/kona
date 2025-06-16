@@ -103,12 +103,15 @@ impl<'a> serde::Deserialize<'a> for SystemConfig {
 
 impl SystemConfig {
     /// Filters all L1 receipts to find config updates and applies the config updates.
+    ///
+    /// Returns `true` if any config updates were applied, `false` otherwise.
     pub fn update_with_receipts(
         &mut self,
         receipts: &[Receipt],
         l1_system_config_address: Address,
         ecotone_active: bool,
-    ) -> Result<(), SystemConfigUpdateError> {
+    ) -> Result<bool, SystemConfigUpdateError> {
+        let mut updated = false;
         for receipt in receipts {
             if Eip658Value::Eip658(false) == receipt.status {
                 continue;
@@ -122,11 +125,12 @@ impl SystemConfig {
                 {
                     // Safety: Error is bubbled up by the trailing `?`
                     self.process_config_update_log(log, ecotone_active)?;
+                    updated = true;
                 }
                 Ok::<(), SystemConfigUpdateError>(())
             })?;
         }
-        Ok(())
+        Ok(updated)
     }
 
     /// Returns the eip1559 parameters from a [SystemConfig] encoded as a [B64].
@@ -336,9 +340,10 @@ mod test {
         let l1_system_config_address = Address::ZERO;
         let ecotone_active = false;
 
-        system_config
+        let updated = system_config
             .update_with_receipts(&receipts, l1_system_config_address, ecotone_active)
             .unwrap();
+        assert!(!updated);
 
         assert_eq!(system_config, SystemConfig::default());
     }
@@ -369,9 +374,10 @@ mod test {
             cumulative_gas_used: 0,
         };
 
-        system_config
+        let updated = system_config
             .update_with_receipts(&[receipt], l1_system_config_address, ecotone_active)
             .unwrap();
+        assert!(updated);
 
         assert_eq!(
             system_config.batcher_address,

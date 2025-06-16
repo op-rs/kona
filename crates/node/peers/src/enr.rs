@@ -7,18 +7,12 @@ use unsigned_varint::{decode, encode};
 /// Validates the [`Enr`] for the OP Stack.
 #[derive(Debug, derive_more::Display, Clone, Default, PartialEq, Eq)]
 pub enum EnrValidation {
-    /// Missing OP Stack ENR key ("opstack").
-    #[display("Missing OP Stack ENR key: {_0}")]
-    MissingKey(String),
-    /// Failed to decode the OP Stack ENR Value into an [`OpStackEnr`].
-    #[display("Failed to decode the OP Stack ENR Value: {_0}")]
-    DecodeError(String),
+    /// Conversion error.
+    #[display("Conversion error: {_0}")]
+    ConversionError(OpStackEnrError),
     /// Invalid Chain ID.
     #[display("Invalid Chain ID: {_0}")]
     InvalidChainId(u64),
-    /// Invalid Version.
-    #[display("Invalid Version: {_0}")]
-    InvalidVersion(u64),
     /// Valid ENR.
     #[default]
     #[display("Valid ENR")]
@@ -28,23 +22,13 @@ pub enum EnrValidation {
 impl EnrValidation {
     /// Validates the [`Enr`] for the OP Stack.
     pub fn validate(enr: &Enr, chain_id: u64) -> Self {
-        let Some(mut opstack) = enr.get_raw_rlp(OpStackEnr::OP_CL_KEY) else {
-            return Self::MissingKey(OpStackEnr::OP_CL_KEY.to_string());
-        };
-
-        let opstack_enr = match OpStackEnr::decode(&mut opstack) {
-            Ok(val) => val,
-            Err(e) => {
-                return Self::DecodeError(format!("Failed to decode: {e}"));
-            }
+        let opstack_enr = match OpStackEnr::try_from(enr) {
+            Ok(opstack_enr) => opstack_enr,
+            Err(e) => return Self::ConversionError(e),
         };
 
         if opstack_enr.chain_id != chain_id {
             return Self::InvalidChainId(opstack_enr.chain_id);
-        }
-
-        if opstack_enr.version != 0 {
-            return Self::InvalidVersion(opstack_enr.version);
         }
 
         Self::Valid
@@ -69,6 +53,37 @@ pub struct OpStackEnr {
     pub chain_id: u64,
     /// The version. Always set to 0.
     pub version: u64,
+}
+
+/// The error type that can be returned when trying to convert an [`Enr`] to an [`OpStackEnr`].
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum OpStackEnrError {
+    /// Missing OP Stack ENR key.
+    #[error("Missing OP Stack ENR key")]
+    MissingKey,
+    /// Failed to decode the OP Stack ENR Value.
+    #[error("Failed to decode the OP Stack ENR Value: {0}")]
+    DecodeError(String),
+    /// Invalid version.
+    #[error("Invalid version: {0}")]
+    InvalidVersion(u64),
+}
+
+impl TryFrom<&Enr> for OpStackEnr {
+    type Error = OpStackEnrError;
+    fn try_from(enr: &Enr) -> Result<Self, Self::Error> {
+        let Some(mut opstack) = enr.get_raw_rlp(Self::OP_CL_KEY) else {
+            return Err(OpStackEnrError::MissingKey);
+        };
+        let opstack_enr =
+            Self::decode(&mut opstack).map_err(|e| OpStackEnrError::DecodeError(e.to_string()))?;
+
+        if opstack_enr.version != 0 {
+            return Err(OpStackEnrError::InvalidVersion(opstack_enr.version));
+        }
+
+        Ok(opstack_enr)
+    }
 }
 
 impl OpStackEnr {

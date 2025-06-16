@@ -65,6 +65,9 @@ pub enum SubscriptionError {
     /// Subscription has already been stopped or wasn't active.
     #[error("subscription not active or already stopped")]
     SubscriptionNotFound,
+    /// Database provider is missing for managed node which is required for subscription startup.
+    #[error("database provider missing for managed node")]
+    DatabaseProviderNotFound,
 }
 
 /// Error handling managed event task.

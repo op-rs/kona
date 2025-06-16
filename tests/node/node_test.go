@@ -2,6 +2,7 @@ package node
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/testlib/validators"
@@ -11,7 +12,6 @@ import (
 // This assumes there is at least two L2 chains. The second chain is used to test a larger network.
 func TestSystemNodeP2p(t *testing.T) {
 	t.Parallel()
-	t.Skip("TODO(@theochap): for now this test is disabled because it is very flaky. Once we have better p2p performance, we should re-enable this test.")
 
 	systest.SystemTest(t,
 		allPeersInNetwork(),
@@ -25,12 +25,12 @@ func TestSystemNodeP2p(t *testing.T) {
 	)
 }
 
-// TODO(@theochap): for now this test is disabled because it is very flaky.
-// Once we have better p2p performance, we should re-enable this test.
+// Check that the node has at least 3 peers that are connected to its topics when there is more than 6 peers in the network initially.
 func TestSystemNodeP2pLargeNetwork(t *testing.T) {
-	t.Skip("TODO(@theochap): for now this test is disabled because it is very flaky. Once we have better p2p performance, we should re-enable this test.")
-	// Check that the node has at least 4 peers that are connected to its topics when there is more than 9 peers in the network initially.
-	// We put a lower bound on the number of connected peers to account for network instability.
+	t.Parallel()
+	// Wait for the network to stabilize.
+	time.Sleep(2 * time.Minute)
+
 	systest.SystemTest(t,
 		peerCount(5, 3),
 		validators.HasSufficientL2Nodes(0, 6),

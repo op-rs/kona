@@ -2,23 +2,29 @@
 
 use discv5::Enr;
 use std::{
+    collections::VecDeque,
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
 };
 
+/// The maximum number of peers that can be stored in the bootstore.
+const MAX_PEERS: usize = 2048;
+
 /// On-disk storage for [`Enr`]s.
 ///
-/// The [`BootStore`] is a simple JSON file that holds
-/// the list of [`Enr`]s that have been successfully
-/// peered.
+/// The [`BootStore`] is a simple JSON file that holds the list of [`Enr`]s that have been
+/// successfully peered.
+///
+/// When the number of peers within the [`BootStore`] exceeds `MAX_PEERS`, the oldest peers are
+/// removed to make room for new ones.
 #[derive(Debug, serde::Serialize)]
 pub struct BootStore {
     /// The file path for the [`BootStore`].
     #[serde(skip)]
     pub path: PathBuf,
     /// [`Enr`]s for peers.
-    pub peers: Vec<Enr>,
+    pub peers: VecDeque<Enr>,
 }
 
 // This custom implementation of `Deserialize` allows us to ignore
@@ -26,11 +32,11 @@ pub struct BootStore {
 impl<'de> serde::Deserialize<'de> for BootStore {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let peers: Vec<serde_json::Value> = serde::Deserialize::deserialize(deserializer)?;
-        let mut store = Self { path: PathBuf::new(), peers: Vec::new() };
+        let mut store = Self { path: PathBuf::new(), peers: VecDeque::new() };
         for peer in peers {
             match serde_json::from_value::<Enr>(peer) {
                 Ok(enr) => {
-                    store.peers.push(enr);
+                    store.peers.push_back(enr);
                 }
                 Err(e) => {
                     warn!("Failed to deserialize ENR: {:?}", e);
@@ -44,16 +50,11 @@ impl<'de> serde::Deserialize<'de> for BootStore {
 impl BootStore {
     /// Adds an [`Enr`] to the store.
     ///
-    /// This method will **note** panic on failure to write to disk.
-    /// Instead, it is the responsibility of the caller to ensure the
-    /// store is written to disk by calling [`BootStore::sync`] prior
-    /// to dropping the store.
+    /// This method will **note** panic on failure to write to disk. Instead, it is the
+    /// responsibility of the caller to ensure the store is written to disk by calling
+    /// [`BootStore::sync`] prior to dropping the store.
     pub fn add_enr(&mut self, enr: Enr) {
-        if self.peers.contains(&enr) {
-            return;
-        }
-        debug!(target: "bootstore", "Adding enr to the boot store: {}", enr);
-        self.peers.push(enr);
+        self.add_rotate(enr);
         if let Err(e) = self.write_to_file() {
             warn!(target: "bootstore", "Failed to write boot store to disk: {:?}", e);
         }
@@ -91,19 +92,15 @@ impl BootStore {
     /// Returns the list of peer [`Enr`]s.
     ///
     /// This method will **note** panic on failure to read from disk.
-    pub fn peers(&mut self) -> &Vec<Enr> {
+    pub fn peers(&mut self) -> &VecDeque<Enr> {
         let store = Self::from_file(&self.path);
         self.merge(store.peers);
         &self.peers
     }
 
     /// Merges the given list of [`Enr`]s with the current list of peers.
-    pub fn merge(&mut self, peers: Vec<Enr>) {
-        for peer in peers {
-            if !self.peers.contains(&peer) {
-                self.peers.push(peer);
-            }
-        }
+    pub fn merge(&mut self, peers: impl IntoIterator<Item = Enr>) {
+        peers.into_iter().for_each(|peer| self.add_rotate(peer));
     }
 
     /// Syncs the [`BootStore`] with the contents on disk.
@@ -181,11 +178,27 @@ impl BootStore {
                     Ok(peers) => peers,
                     Err(e) => {
                         warn!(target: "bootstore", "Failed to read boot store from disk: {:?}", e);
-                        Vec::new()
+                        VecDeque::new()
                     }
                 }
             })
             .unwrap_or_default();
         Self { path: p, peers }
+    }
+
+    /// Adds an [`Enr`] to the store, rotating the oldest peer out if necessary.
+    fn add_rotate(&mut self, enr: Enr) {
+        if self.peers.contains(&enr) {
+            return;
+        }
+
+        debug!(target: "bootstore", "Adding enr to the boot store: {}", enr);
+        self.peers.push_back(enr);
+
+        // Prune the oldest peer if we exceed the maximum number of peers.
+        if self.peers.len() > MAX_PEERS {
+            debug!(target: "bootstore", "Boot store exceeded maximum peers, removing oldest peer");
+            self.peers.pop_front();
+        }
     }
 }

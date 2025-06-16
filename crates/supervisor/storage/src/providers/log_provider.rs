@@ -112,7 +112,7 @@ impl<TX> LogProvider<'_, TX>
 where
     TX: DbTx,
 {
-    fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
+    pub(crate) fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
         debug!(target: "supervisor_storage", block_number, "Fetching block");
 
         let block_option = self.tx.get::<BlockRefs>(block_number).inspect_err(|err| {

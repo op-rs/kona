@@ -1,10 +1,8 @@
 //! Contains the [L1Traversal] stage of the derivation pipeline.
 
 use crate::{
-    errors::{PipelineError, ResetError},
-    stages::L1RetrievalProvider,
-    traits::{ChainProvider, OriginAdvancer, OriginProvider, SignalReceiver},
-    types::{ActivationSignal, PipelineResult, ResetSignal, Signal},
+    ActivationSignal, ChainProvider, L1RetrievalProvider, OriginAdvancer, OriginProvider,
+    PipelineError, PipelineResult, ResetError, ResetSignal, Signal, SignalReceiver,
 };
 use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::Address;
@@ -100,12 +98,24 @@ impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
         let receipts =
             self.data_source.receipts_by_hash(next_l1_origin.hash).await.map_err(Into::into)?;
 
-        if let Err(e) = self.system_config.update_with_receipts(
-            receipts.as_slice(),
-            self.rollup_config.l1_system_config_address,
-            self.rollup_config.is_ecotone_active(next_l1_origin.timestamp),
-        ) {
-            return Err(PipelineError::SystemConfigUpdate(e).crit());
+        let addr = self.rollup_config.l1_system_config_address;
+        let active = self.rollup_config.is_ecotone_active(next_l1_origin.timestamp);
+        match self.system_config.update_with_receipts(&receipts[..], addr, active) {
+            Ok(true) => {
+                let next = next_l1_origin.number as f64;
+                kona_macros::set!(gauge, crate::Metrics::PIPELINE_LATEST_SYS_CONFIG_UPDATE, next);
+                info!(target: "l1_traversal", "System config updated at block {next}.");
+            }
+            Ok(false) => { /* Ignore, no update applied */ }
+            Err(err) => {
+                error!(target: "l1_traversal", ?err, "Failed to update system config at block {}", next_l1_origin.number);
+                kona_macros::set!(
+                    gauge,
+                    crate::Metrics::PIPELINE_SYS_CONFIG_UPDATE_ERROR,
+                    next_l1_origin.number as f64
+                );
+                return Err(PipelineError::SystemConfigUpdate(err).crit());
+            }
         }
 
         let prev_block_holocene = self.rollup_config.is_holocene_active(block.timestamp);

@@ -3,44 +3,81 @@
 use crate::{
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
-    traits::{DerivationStorage, LogStorageReader, LogStorageWriter, SafetyHeadRefStorage},
+    traits::{
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageReader,
+        HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
+    },
 };
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::Log;
+use kona_supervisor_types::{Log, SuperHead};
 use op_alloy_consensus::interop::SafetyLevel;
 use reth_db::{
     DatabaseEnv,
     mdbx::{DatabaseArguments, init_db_for},
 };
 use reth_db_api::database::Database;
-use std::path::Path;
+use std::{path::Path, sync::RwLock};
+use tracing::error;
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
 #[derive(Debug)]
 pub struct ChainDb {
     env: DatabaseEnv,
+    /// Current L1 block reference, used for tracking the latest L1 block processed.
+    /// In-memory only, not persisted.
+    current_l1: RwLock<Option<BlockInfo>>,
 }
 
 impl ChainDb {
     /// Creates or opens a database environment at the given path.
     pub fn new(path: &Path) -> Result<Self, StorageError> {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
-        Ok(Self { env })
+        Ok(Self { env, current_l1: RwLock::new(None) })
     }
 
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         self.env.update(|tx| {
             DerivationProvider::new(tx).initialise(anchor.clone())?;
-            LogProvider::new(tx).initialise(anchor.derived)
+            LogProvider::new(tx).initialise(anchor.derived)?;
+
+            let sp = SafetyHeadRefProvider::new(tx);
+            // todo: cross check if we can consider following safety head ref update
+            sp.update_safety_head_ref(SafetyLevel::Unsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
+        })?
+    }
+
+    /// Fetches all safety heads and current L1 state
+    pub fn get_super_head(&self) -> Result<SuperHead, StorageError> {
+        let l1_source = self.get_current_l1()?;
+
+        self.env.view(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
+            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+
+            Ok(SuperHead {
+                l1_source,
+                local_unsafe,
+                cross_unsafe,
+                local_safe,
+                cross_safe,
+                finalized,
+            })
         })?
     }
 }
 
-impl DerivationStorage for ChainDb {
+impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| DerivationProvider::new(tx).derived_to_source(derived_block_id))?
     }
@@ -57,10 +94,30 @@ impl DerivationStorage for ChainDb {
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
         self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())?
     }
+}
 
+impl DerivationStorageWriter for ChainDb {
+    // Todo: better name save_derived_block_pair
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        self.env
-            .update(|ctx| DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair))?
+        self.env.update(|ctx| {
+            let derived_block = incoming_pair.derived;
+            let block =
+                LogProvider::new(ctx).get_block(derived_block.number).map_err(|err| match err {
+                    StorageError::EntryNotFound(_) => StorageError::ConflictError(
+                        "conflict between unsafe block and derived block".to_string(),
+                    ),
+                    other => other, // propagate other errors as-is
+                })?;
+
+            if block != derived_block {
+                return Err(StorageError::ConflictError(
+                    "conflict between unsafe block and derived block".to_string(),
+                ));
+            }
+            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
+            SafetyHeadRefProvider::new(ctx)
+                .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
+        })?
     }
 }
 
@@ -84,9 +141,31 @@ impl LogStorageWriter for ChainDb {
     }
 }
 
-impl SafetyHeadRefStorage for ChainDb {
+impl HeadRefStorageReader for ChainDb {
+    fn get_current_l1(&self) -> Result<BlockInfo, StorageError> {
+        let guard = self.current_l1.read().map_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on current_l1");
+            StorageError::LockPoisoned
+        })?;
+        guard.as_ref().cloned().ok_or(StorageError::FutureData)
+    }
+
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
+    }
+}
+
+impl HeadRefStorageWriter for ChainDb {
+    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
+        let mut guard = self
+            .current_l1
+            .write()
+            .map_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to acquire write lock on current_l1" );
+                StorageError::LockPoisoned
+            })?;
+        *guard = Some(block);
+        Ok(())
     }
 
     fn update_safety_head_ref(
@@ -201,7 +280,22 @@ mod tests {
         };
 
         // Initialise the database with the anchor derived block pair
-        db.initialise(anchor).expect("initialise db with anchor");
+        db.initialise(anchor.clone()).expect("initialise db with anchor");
+
+        // Save derived block pair - should error conflict
+        let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
+        assert!(matches!(err, StorageError::ConflictError(_)));
+
+        db.store_block_logs(
+            &BlockInfo {
+                hash: B256::from([6u8; 32]),
+                number: 1,
+                parent_hash: anchor.derived.hash,
+                timestamp: 0,
+            },
+            vec![],
+        )
+        .expect("storing logs failed");
 
         // Save derived block pair
         db.save_derived_block_pair(derived_pair.clone()).expect("save derived pair");
@@ -280,5 +374,97 @@ mod tests {
             retrieved_finalized, finalized_block,
             "Retrieved finalized head should match stored block"
         );
+    }
+
+    #[test]
+    fn test_get_super_head() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_super_head");
+        let db = ChainDb::new(&db_path).expect("create db");
+
+        // Create anchor block
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        db.initialise(anchor.clone()).expect("initialise db with anchor");
+
+        // Test blocks for each safety level
+        let l1_block = BlockInfo {
+            hash: B256::from([10u8; 32]),
+            number: 101,
+            parent_hash: anchor.source.hash,
+            timestamp: 0,
+        };
+
+        let local_unsafe_block = BlockInfo {
+            hash: B256::from([20u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
+
+        let cross_unsafe_block = BlockInfo {
+            hash: B256::from([30u8; 32]),
+            number: 2,
+            parent_hash: local_unsafe_block.hash,
+            timestamp: 0,
+        };
+
+        let local_safe_block = BlockInfo {
+            hash: B256::from([40u8; 32]),
+            number: 3,
+            parent_hash: cross_unsafe_block.hash,
+            timestamp: 0,
+        };
+
+        let cross_safe_block = BlockInfo {
+            hash: B256::from([50u8; 32]),
+            number: 4,
+            parent_hash: local_safe_block.hash,
+            timestamp: 0,
+        };
+
+        let finalized_block = BlockInfo {
+            hash: B256::from([60u8; 32]),
+            number: 5,
+            parent_hash: cross_safe_block.hash,
+            timestamp: 0,
+        };
+
+        // Set current L1
+        db.update_current_l1(l1_block).expect("update current L1");
+
+        // Test safety head refs
+        db.update_safety_head_ref(SafetyLevel::Unsafe, &local_unsafe_block)
+            .expect("update unsafe head");
+        db.update_safety_head_ref(SafetyLevel::LocalSafe, &local_safe_block)
+            .expect("update local safe head");
+        db.update_safety_head_ref(SafetyLevel::Safe, &cross_safe_block).expect("update safe head");
+        db.update_safety_head_ref(SafetyLevel::Finalized, &finalized_block)
+            .expect("update finalized head");
+        db.update_safety_head_ref(SafetyLevel::CrossUnsafe, &cross_unsafe_block)
+            .expect("update cross unsafe head");
+
+        // Retrieve super head
+        let super_head = db.get_super_head().expect("get super head");
+
+        assert_eq!(super_head.l1_source, l1_block, "L1 source should match");
+        assert_eq!(super_head.local_unsafe, local_unsafe_block, "Local unsafe should match");
+        assert_eq!(super_head.cross_unsafe, cross_unsafe_block, "Cross unsafe should match");
+        assert_eq!(super_head.local_safe, local_safe_block, "Local safe should match");
+        assert_eq!(super_head.cross_safe, cross_safe_block, "Cross safe should match");
+        assert_eq!(super_head.finalized, finalized_block, "Finalized should match");
     }
 }

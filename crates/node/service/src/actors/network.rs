@@ -8,10 +8,7 @@ use kona_p2p::Network;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use thiserror::Error;
-use tokio::{
-    select,
-    sync::mpsc::{UnboundedReceiver, UnboundedSender},
-};
+use tokio::{select, sync::mpsc};
 use tokio_util::sync::CancellationToken;
 
 /// The network actor handles two core networking components of the rollup node:
@@ -46,9 +43,9 @@ pub struct NetworkActor {
     /// Network driver
     driver: Network,
     /// The sender for [OpNetworkPayloadEnvelope]s received via p2p gossip.
-    blocks: UnboundedSender<OpNetworkPayloadEnvelope>,
+    blocks: mpsc::Sender<OpNetworkPayloadEnvelope>,
     /// The receiver for unsafe block signer updates.
-    signer: UnboundedReceiver<Address>,
+    signer: mpsc::Receiver<Address>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
 }
@@ -57,8 +54,8 @@ impl NetworkActor {
     /// Constructs a new [`NetworkActor`] given the [`Network`]
     pub const fn new(
         driver: Network,
-        blocks: UnboundedSender<OpNetworkPayloadEnvelope>,
-        signer: UnboundedReceiver<Address>,
+        blocks: mpsc::Sender<OpNetworkPayloadEnvelope>,
+        signer: mpsc::Receiver<Address>,
         cancellation: CancellationToken,
     ) -> Self {
         Self { driver, blocks, signer, cancellation }
@@ -94,7 +91,7 @@ impl NodeActor for NetworkActor {
                 block = unsafe_block_receiver.recv() => {
                     match block {
                         Ok(block) => {
-                            match self.blocks.send(block) {
+                            match self.blocks.send(block).await {
                                 Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
                                 Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
                             }

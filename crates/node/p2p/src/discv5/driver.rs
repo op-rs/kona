@@ -3,6 +3,7 @@
 use backon::{ExponentialBuilder, RetryableWithContext};
 use derive_more::Debug;
 use discv5::{Discv5, Enr, enr::NodeId};
+use kona_peers::{BootNode, BootNodes, BootStore, EnrValidation, enr_to_multiaddr};
 use libp2p::Multiaddr;
 use std::path::PathBuf;
 use tokio::{
@@ -10,10 +11,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 
-use crate::{
-    BootNode, BootNodes, BootStore, Discv5Builder, Discv5Handler, EnrValidation, HandlerRequest,
-    enr_to_multiaddr,
-};
+use crate::{Discv5Builder, Discv5Handler, HandlerRequest};
 
 /// The [`Discv5Driver`] drives the discovery service.
 ///
@@ -450,7 +448,8 @@ impl Discv5Driver {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BootNodes, discv5::builder::LocalNode};
+    use super::*;
+    use crate::LocalNode;
     use discv5::{
         ConfigBuilder,
         enr::{CombinedKey, CombinedPublicKey},
@@ -458,7 +457,6 @@ mod tests {
     };
     use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
 
-    use super::*;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[tokio::test]

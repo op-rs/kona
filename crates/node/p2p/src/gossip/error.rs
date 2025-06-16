@@ -53,4 +53,10 @@ pub enum GossipDriverBuilderError {
     /// Missing the rollup config.
     #[error("missing rollup config")]
     MissingRollupConfig,
+    /// An error when setting up the sync request/response protocol.
+    #[error("error setting up sync request/response protocol")]
+    SetupSyncReqRespError,
+    /// The sync request/response protocol has already been accepted.
+    #[error("sync request/response protocol already accepted")]
+    SyncReqRespAlreadyAccepted,
 }

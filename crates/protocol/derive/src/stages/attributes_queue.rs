@@ -79,6 +79,8 @@ where
         };
 
         // Construct the payload attributes from the loaded batch.
+        #[cfg(feature = "metrics")]
+        let start = std::time::Instant::now();
         let attributes = match self.create_next_attributes(batch, parent).await {
             Ok(attributes) => attributes,
             Err(e) => {
@@ -88,6 +90,11 @@ where
         let origin = self.origin().ok_or(PipelineError::MissingOrigin.crit())?;
         let populated_attributes =
             OpAttributesWithParent::new(attributes, parent, origin, self.is_last_in_span);
+        kona_macros::record!(
+            histogram,
+            crate::metrics::Metrics::PIPELINE_ATTRIBUTES_BUILD_DURATION,
+            start.elapsed().as_secs_f64()
+        );
 
         // Clear out the local state once payload attributes are prepared.
         self.batch = None;

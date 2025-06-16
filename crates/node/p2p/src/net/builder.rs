@@ -3,6 +3,7 @@
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
+use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{Multiaddr, identity::Keypair};
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{path::PathBuf, time::Duration};
@@ -10,7 +11,7 @@ use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Broadcast, Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError,
-    P2pRpcRequest, PeerMonitoring, PeerScoreLevel, discv5::LocalNode,
+    P2pRpcRequest, discv5::LocalNode, gossip::GaterConfig,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -28,9 +29,6 @@ pub struct NetworkBuilder {
     rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
     payload_tx: Option<BroadcastSender<OpNetworkPayloadEnvelope>>,
-    // A receiver for unsafe blocks to publish.
-    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-    // publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
 }
 
 impl From<Config> for NetworkBuilder {
@@ -46,10 +44,11 @@ impl From<Config> for NetworkBuilder {
             .with_unsafe_block_signer(config.unsafe_block_signer)
             .with_gossip_config(config.gossip_config)
             .with_peer_scoring(config.scoring)
+            .with_peer_monitoring(config.monitor_peers)
             .with_block_time(config.block_time)
             .with_keypair(config.keypair)
             .with_topic_scoring(config.topic_scoring)
-            .with_peer_redial(config.redial)
+            .with_gater_config(config.gater_config)
     }
 }
 
@@ -62,15 +61,13 @@ impl NetworkBuilder {
             signer: None,
             rpc_recv: None,
             payload_tx: None,
-            // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-            // publish_rx: None,
             cfg: None,
         }
     }
 
-    /// Sets the number of times to redial a peer.
-    pub fn with_peer_redial(self, redial: Option<u64>) -> Self {
-        Self { gossip: self.gossip.with_peer_redial(redial), ..self }
+    /// Sets the configuration for the connection gater.
+    pub fn with_gater_config(self, config: GaterConfig) -> Self {
+        Self { gossip: self.gossip.with_gater_config(config), ..self }
     }
 
     /// Sets the bootstore path for the [`crate::Discv5Driver`].
@@ -125,15 +122,6 @@ impl NetworkBuilder {
     pub fn with_gossip_config(self, config: libp2p::gossipsub::Config) -> Self {
         Self { gossip: self.gossip.with_config(config), ..self }
     }
-
-    // Sets the publish receiver for the [`crate::Network`].
-    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-    // pub fn with_publish_receiver(
-    //     self,
-    //     publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
-    // ) -> Self {
-    //     Self { publish_rx: Some(publish_rx), ..self }
-    // }
 
     /// Sets the [`RollupConfig`] for the [`crate::Network`].
     pub fn with_rollup_config(self, cfg: RollupConfig) -> Self {
@@ -194,8 +182,7 @@ impl NetworkBuilder {
         let discovery = self.discovery.with_chain_id(chain_id).build()?;
         let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
-        // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-        // let publish_rx = self.publish_rx.take();
+        let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
 
         Ok(Network {
             gossip,
@@ -203,8 +190,8 @@ impl NetworkBuilder {
             unsafe_block_signer_sender,
             rpc,
             broadcast: Broadcast::new(payload_tx),
-            // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-            // publish_rx,
+            publish_tx,
+            publish_rx,
         })
     }
 }

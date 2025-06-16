@@ -107,6 +107,13 @@ impl OutputV0 {
     }
 }
 
+/// Represents the events structure sent by the node to the supervisor.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubscriptionEvent {
+    /// represents the event data sent by the node
+    pub data: Option<ManagedEvent>,
+}
+
 /// Event sent by the node to the supervisor to share updates.
 ///
 /// This struct is used to communicate various events that occur within the node.
