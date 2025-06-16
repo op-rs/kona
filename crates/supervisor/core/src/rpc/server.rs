@@ -289,7 +289,7 @@ mod tests {
         }
 
         fn dependency_set(&self) -> DependencySet {
-            unimplemented!()
+            self.dependency_set.clone()
         }
 
         fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
