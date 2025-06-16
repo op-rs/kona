@@ -1,5 +1,5 @@
 use super::{ChainProcessorError, ChainProcessorTask};
-use crate::syncnode::{ManagedNodeProvider, NodeEvent};
+use crate::{event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use std::sync::Arc;
@@ -61,7 +61,7 @@ where
         }
 
         // todo: figure out value for buffer size
-        let (event_tx, event_rx) = mpsc::channel::<NodeEvent>(100);
+        let (event_tx, event_rx) = mpsc::channel::<ChainEvent>(100);
         self.managed_node.start_subscription(event_tx).await?;
 
         let task = ChainProcessorTask::new(
@@ -83,7 +83,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
+    use crate::{
+        event::ChainEvent,
+        syncnode::{ManagedNodeError, NodeSubscriber, ReceiptProvider},
+    };
     use alloy_primitives::B256;
     use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
@@ -114,7 +117,7 @@ mod tests {
     impl NodeSubscriber for MockNode {
         async fn start_subscription(
             &self,
-            _tx: mpsc::Sender<NodeEvent>,
+            _tx: mpsc::Sender<ChainEvent>,
         ) -> Result<(), ManagedNodeError> {
             self.subscribed.store(true, Ordering::SeqCst);
             Ok(())
@@ -149,6 +152,11 @@ mod tests {
 
         impl HeadRefStorageWriter for Db {
             fn update_current_l1(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn update_finalized_l1(
                 &self,
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;

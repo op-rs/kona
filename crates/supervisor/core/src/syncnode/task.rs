@@ -1,5 +1,5 @@
 use super::ManagedEventTaskError;
-use crate::syncnode::NodeEvent;
+use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
@@ -23,7 +23,7 @@ pub struct ManagedEventTask<DB> {
     /// The database provider for fetching information
     db_provider: Arc<DB>,
     /// The channel to send the events to which require further processing e.g. db updates
-    event_tx: mpsc::Sender<NodeEvent>,
+    event_tx: mpsc::Sender<ChainEvent>,
     /// The WebSocket client to use for connecting to managed node (optional for testing)
     client: Option<Arc<WsClient>>,
 }
@@ -36,7 +36,7 @@ where
     pub const fn new(
         l1_rpc_url: String,
         db_provider: Arc<DB>,
-        event_tx: mpsc::Sender<NodeEvent>,
+        event_tx: mpsc::Sender<ChainEvent>,
         client: Arc<WsClient>,
     ) -> Self {
         Self { l1_rpc_url, db_provider, event_tx, client: Some(client) }
@@ -61,7 +61,7 @@ where
 
                     // todo: check any pre processing needed
                     if let Err(err) =
-                        self.event_tx.send(NodeEvent::UnsafeBlock { block: *unsafe_block }).await
+                        self.event_tx.send(ChainEvent::UnsafeBlock { block: *unsafe_block }).await
                     {
                         warn!(target: "managed_event_task", %err, "Failed to send unsafe block event, channel closed or receiver dropped");
                     }
@@ -73,7 +73,7 @@ where
                     // todo: check any pre processing needed
                     if let Err(err) = self
                         .event_tx
-                        .send(NodeEvent::DerivedBlock {
+                        .send(ChainEvent::DerivedBlock {
                             derived_ref_pair: derived_ref_pair.clone(),
                         })
                         .await
@@ -99,7 +99,7 @@ where
                     // todo: check any pre processing needed
                     if let Err(err) = self
                         .event_tx
-                        .send(NodeEvent::BlockReplaced { replacement: replacement.clone() })
+                        .send(ChainEvent::BlockReplaced { replacement: replacement.clone() })
                         .await
                     {
                         warn!(target: "managed_event_task", %err, "Failed to send block replacement event, channel closed or receiver dropped");
@@ -111,7 +111,7 @@ where
 
                     if let Err(err) = self
                         .event_tx
-                        .send(NodeEvent::DerivationOriginUpdate { origin: *origin })
+                        .send(ChainEvent::DerivationOriginUpdate { origin: *origin })
                         .await
                     {
                         warn!(target: "managed_event_task", %err, "Failed to send derivation origin update event, channel closed or receiver dropped");
@@ -294,7 +294,7 @@ where
     const fn new_for_testing(
         l1_rpc_url: String,
         db_provider: Arc<DB>,
-        event_tx: mpsc::Sender<NodeEvent>,
+        event_tx: mpsc::Sender<ChainEvent>,
     ) -> Self {
         Self { l1_rpc_url, db_provider, event_tx, client: None }
     }
@@ -329,6 +329,7 @@ mod tests {
 
         impl HeadRefStorageReader for Db {
             fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
+            fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }
@@ -361,7 +362,7 @@ mod tests {
 
         let event = rx.recv().await.expect("Should receive event");
         match event {
-            NodeEvent::UnsafeBlock { block } => assert_eq!(block, block_info),
+            ChainEvent::UnsafeBlock { block } => assert_eq!(block, block_info),
             _ => panic!("Expected UnsafeBlock event"),
         }
     }
@@ -402,7 +403,7 @@ mod tests {
 
         let event = rx.recv().await.expect("Should receive event");
         match event {
-            NodeEvent::DerivedBlock { derived_ref_pair: pair } => {
+            ChainEvent::DerivedBlock { derived_ref_pair: pair } => {
                 assert_eq!(pair, derived_ref_pair)
             }
             _ => panic!("Expected DerivedBlock event"),
@@ -439,7 +440,7 @@ mod tests {
 
         let event = rx.recv().await.expect("Should receive event");
         match event {
-            NodeEvent::BlockReplaced { replacement: r } => assert_eq!(r, replacement),
+            ChainEvent::BlockReplaced { replacement: r } => assert_eq!(r, replacement),
             _ => panic!("Expected BlockReplaced event"),
         }
     }

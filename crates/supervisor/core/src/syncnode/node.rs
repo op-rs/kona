@@ -16,10 +16,10 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    AuthenticationError, ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider,
+    AuthenticationError, ManagedEventTask, ManagedNodeError, NodeSubscriber, ReceiptProvider,
     SubscriptionError,
 };
-use crate::syncnode::task::ManagedEventTask;
+use crate::event::ChainEvent;
 
 /// [`ManagedNodeConfig`] sets the configuration for the managed node.
 #[derive(Debug, Clone)]
@@ -181,7 +181,7 @@ where
     /// Spawns a background task to process incoming events.
     async fn start_subscription(
         &self,
-        event_tx: mpsc::Sender<NodeEvent>,
+        event_tx: mpsc::Sender<ChainEvent>,
     ) -> Result<(), ManagedNodeError> {
         let mut task_handle_guard = self.task_handle.lock().await;
         if task_handle_guard.is_some() {
@@ -313,6 +313,7 @@ mod tests {
 
         impl HeadRefStorageReader for Db {
             fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
+            fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
         }
     }

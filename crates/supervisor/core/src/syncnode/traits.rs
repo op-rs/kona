@@ -1,4 +1,5 @@
-use crate::syncnode::{ManagedNodeError, NodeEvent};
+use super::ManagedNodeError;
+use crate::event::ChainEvent;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use kona_supervisor_types::Receipts;
@@ -14,14 +15,14 @@ pub trait NodeSubscriber: Send + Sync {
     /// Starts a subscription to the node's event stream.
     ///
     /// # Arguments
-    /// * `event_tx` - A Tokio MPSC sender through which [`NodeEvent`]s will be emitted.
+    /// * `event_tx` - A Tokio MPSC sender through which [`ChainEvent`]s will be emitted.
     ///
     /// # Returns
     /// * `Ok(())` on successful subscription
     /// * `Err(ManagedNodeError)` if subscription setup fails
     async fn start_subscription(
         &self,
-        event_tx: mpsc::Sender<NodeEvent>,
+        event_tx: mpsc::Sender<ChainEvent>,
     ) -> Result<(), ManagedNodeError>;
 }
 

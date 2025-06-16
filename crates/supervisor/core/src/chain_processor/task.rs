@@ -1,7 +1,4 @@
-use crate::{
-    LogIndexer,
-    syncnode::{ManagedNodeProvider, NodeEvent},
-};
+use crate::{LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
@@ -25,7 +22,7 @@ pub struct ChainProcessorTask<P, W> {
     cancel_token: CancellationToken,
 
     /// The channel for receiving node events.
-    event_rx: mpsc::Receiver<NodeEvent>,
+    event_rx: mpsc::Receiver<ChainEvent>,
 }
 
 impl<P, W> ChainProcessorTask<P, W>
@@ -39,7 +36,7 @@ where
         managed_node: Arc<P>,
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
-        event_rx: mpsc::Receiver<NodeEvent>,
+        event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
         Self {
             chain_id,
@@ -65,23 +62,28 @@ where
         }
     }
 
-    async fn handle_event(&self, event: NodeEvent) {
+    async fn handle_event(&self, event: ChainEvent) {
         match event {
-            NodeEvent::UnsafeBlock { block } => self.handle_unsafe_event(block).await,
-            NodeEvent::DerivedBlock { derived_ref_pair } => {
+            ChainEvent::UnsafeBlock { block } => self.handle_unsafe_event(block).await,
+            ChainEvent::DerivedBlock { derived_ref_pair } => {
                 self.handle_safe_event(derived_ref_pair).await
             }
-            NodeEvent::DerivationOriginUpdate { origin } => {
+            ChainEvent::DerivationOriginUpdate { origin } => {
                 self.handle_derivation_origin_update(origin)
             }
-            NodeEvent::BlockReplaced { replacement } => {
+            ChainEvent::BlockReplaced { replacement } => {
                 self.handle_block_replacement(replacement).await
             }
+            ChainEvent::L1Finalized { block } => self.handle_l1_finalized(block).await,
         }
     }
 
     async fn handle_block_replacement(&self, _replacement: BlockReplacement) {
         // Logic to handle block replacement
+    }
+
+    async fn handle_l1_finalized(&self, _block: BlockInfo) {
+        // Logic to handle L1 finalization
     }
 
     fn handle_derivation_origin_update(&self, origin: BlockInfo) {
@@ -144,7 +146,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
+    use crate::{
+        event::ChainEvent,
+        syncnode::{ManagedNodeError, NodeSubscriber, ReceiptProvider},
+    };
     use alloy_primitives::B256;
     use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
@@ -164,7 +169,7 @@ mod tests {
     impl NodeSubscriber for MockNode {
         async fn start_subscription(
             &self,
-            _event_tx: mpsc::Sender<NodeEvent>,
+            _event_tx: mpsc::Sender<ChainEvent>,
         ) -> Result<(), ManagedNodeError> {
             Ok(())
         }
@@ -201,6 +206,11 @@ mod tests {
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;
 
+            fn update_finalized_l1(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<(), StorageError>;
+
             fn update_safety_head_ref(
                 &self,
                 safety_level: SafetyLevel,
@@ -227,7 +237,7 @@ mod tests {
         let block =
             BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
 
-        tx.send(NodeEvent::UnsafeBlock { block }).await.unwrap();
+        tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 
         let task_handle = tokio::spawn(task.run());
 
@@ -272,7 +282,7 @@ mod tests {
         let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
 
         // Send unsafe block event
-        tx.send(NodeEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
 
         let task_handle = tokio::spawn(task.run());
 
@@ -305,7 +315,7 @@ mod tests {
         let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
 
         // Send derivation origin update event
-        tx.send(NodeEvent::DerivationOriginUpdate { origin }).await.unwrap();
+        tx.send(ChainEvent::DerivationOriginUpdate { origin }).await.unwrap();
 
         let task_handle = tokio::spawn(task.run());
 

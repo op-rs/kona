@@ -14,4 +14,5 @@ pub use rpc::SupervisorRpc;
 
 pub mod chain_processor;
 pub mod config;
+pub mod event;
 pub mod syncnode;
