@@ -309,7 +309,7 @@ mod tests {
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{DerivationStorageReader, LogStorageReader, StorageError};
-    use kona_supervisor_types::{BlockReplacement, Log};
+    use kona_supervisor_types::{BlockReplacement, Log, SuperHead};
     use mockall::mock;
 
     mock! {
@@ -330,6 +330,7 @@ mod tests {
         impl HeadRefStorageReader for Db {
             fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+            fn get_super_head(&self) -> Result<SuperHead, StorageError>;
         }
     }
 
