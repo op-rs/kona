@@ -7,7 +7,7 @@ use kona_supervisor_types::BlockReplacement;
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{debug, error};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -82,12 +82,26 @@ where
         // Logic to handle block replacement
     }
 
-    async fn handle_l1_finalized(&self, _block: BlockInfo) {
-        // Logic to handle L1 finalization
+    async fn handle_l1_finalized(&self, block: BlockInfo) {
+        debug!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = block.number,
+            "Processing finalized L1 block"
+        );
+        if let Err(err) = self.state_manager.update_finalized_l1(block) {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                %err,
+                "Failed to update finalized L1 block"
+            );
+        }
     }
 
     fn handle_derivation_origin_update(&self, origin: BlockInfo) {
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             block_number = origin.number,
@@ -105,7 +119,7 @@ where
     }
 
     async fn handle_safe_event(&self, derived_ref_pair: DerivedRefPair) {
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
@@ -124,7 +138,7 @@ where
     }
 
     async fn handle_unsafe_event(&self, block_info: BlockInfo) {
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             block_number = block_info.number,

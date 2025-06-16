@@ -34,6 +34,7 @@ pub enum ChainEvent {
         replacement: BlockReplacement,
     },
 
+    /// A L1 finalized event, indicating that a new L1 block has been finalized.
     L1Finalized {
         /// The [`BlockInfo`] of the finalized L1 block.
         block: BlockInfo,

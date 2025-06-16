@@ -164,8 +164,6 @@ impl SupervisorActor for L1WatcherRpc {
             .into_stream()
             .flat_map(futures::stream::iter);
 
-        let mut a = self.l1_provider.watch_blocks().await.unwrap();
-
         let inbound_queries = mem::take(&mut self.inbound_queries);
         let inbound_query_processor =
             inbound_queries.map(|queries| self.start_query_processor(queries));

@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 /// Responsible for managing [`ManagedNodeProvider`] and processing
-/// [`NodeEvent`]. It listens for events emitted by the managed node
+/// [`ChainEvent`]. It listens for events emitted by the managed node
 /// and handles them accordingly.
 // chain processor will support multiple managed nodes in the future.
 #[derive(Debug)]

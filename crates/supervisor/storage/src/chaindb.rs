@@ -212,6 +212,9 @@ impl HeadRefStorageWriter for ChainDb {
             }
         }
         *guard = Some(block);
+
+        // todo: update safety head ref for finalized level
+
         Ok(())
     }
 
@@ -529,12 +532,12 @@ mod tests {
         assert!(matches!(err, StorageError::FutureData));
 
         // Update current_l1 with block1
-        db.update_current_l1(block1.clone()).unwrap();
+        db.update_current_l1(block1).unwrap();
         let got = db.get_current_l1().unwrap();
         assert_eq!(got, block1);
 
         // Update with a higher block number
-        db.update_current_l1(block2.clone()).unwrap();
+        db.update_current_l1(block2).unwrap();
         let got = db.get_current_l1().unwrap();
         assert_eq!(got, block2);
 
@@ -558,12 +561,12 @@ mod tests {
         assert!(matches!(err, StorageError::FutureData));
 
         // Update finalized_l1 with block1
-        db.update_finalized_l1(block1.clone()).unwrap();
+        db.update_finalized_l1(block1).unwrap();
         let got = db.get_finalized_l1().unwrap();
         assert_eq!(got, block1);
 
         // Update with a higher block number
-        db.update_finalized_l1(block2.clone()).unwrap();
+        db.update_finalized_l1(block2).unwrap();
         let got = db.get_finalized_l1().unwrap();
         assert_eq!(got, block2);
 
