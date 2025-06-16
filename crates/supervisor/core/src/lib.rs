@@ -1,8 +1,14 @@
 //! This crate contains the core logic for the Optimism Supervisor component.
 
+pub mod chain_processor;
+pub use chain_processor::{ChainProcessor, ChainProcessorError};
+
+pub mod error;
+pub use error::SupervisorError;
+
 /// Contains the main Supervisor struct and its implementation.
 mod supervisor;
-pub use supervisor::{Supervisor, SupervisorError, SupervisorService};
+pub use supervisor::{Supervisor, SupervisorService};
 
 mod logindexer;
 pub use logindexer::{
@@ -12,6 +18,5 @@ pub use logindexer::{
 mod rpc;
 pub use rpc::SupervisorRpc;
 
-pub mod chain_processor;
 pub mod config;
 pub mod syncnode;

@@ -3,73 +3,19 @@ use core::fmt::Debug;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
 use async_trait::async_trait;
-use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader, StorageError,
+    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader,
 };
 use kona_supervisor_types::SuperHead;
-use op_alloy_rpc_types::SuperchainDAError;
 use std::{collections::HashMap, sync::Arc};
-use thiserror::Error;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::{
-    chain_processor::{ChainProcessor, ChainProcessorError},
-    config::Config,
-    syncnode::{ManagedNode, ManagedNodeError},
+    SupervisorError, chain_processor::ChainProcessor, config::Config, syncnode::ManagedNode,
 };
-
-/// Custom error type for the Supervisor core logic.
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum SupervisorError {
-    /// Indicates that a feature or method is not yet implemented.
-    #[error("functionality not implemented")]
-    Unimplemented,
-    /// No chains are configured for supervision.
-    #[error("empty dependency set")]
-    EmptyDependencySet,
-    /// Data availability errors.
-    ///
-    /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
-    #[error(transparent)]
-    DataAvailability(#[from] SuperchainDAError),
-
-    /// Indicates that the supervisor was unable to initialise due to an error.
-    #[error("unable to initialize the supervisor: {0}")]
-    Initialise(String),
-
-    /// Indicates that error occurred while interacting with the storage layer.
-    #[error(transparent)]
-    StorageError(#[from] StorageError),
-
-    /// Indicates the error occured while interacting with the managed node.
-    #[error(transparent)]
-    ManagedNodeError(#[from] ManagedNodeError),
-
-    /// Indicates the error occured while processing the chain.
-    #[error(transparent)]
-    ChainProcessorError(#[from] ChainProcessorError),
-}
-
-impl From<SupervisorError> for ErrorObjectOwned {
-    fn from(err: SupervisorError) -> Self {
-        match err {
-            // todo: handle these errors more gracefully
-            SupervisorError::Unimplemented |
-            SupervisorError::EmptyDependencySet |
-            SupervisorError::Initialise(_) |
-            SupervisorError::StorageError(_) |
-            SupervisorError::ManagedNodeError(_) |
-            SupervisorError::ChainProcessorError(_) => {
-                ErrorObjectOwned::from(ErrorCode::InternalError)
-            }
-            SupervisorError::DataAvailability(err) => err.into(),
-        }
-    }
-}
 
 /// Defines the service for the Supervisor core logic.
 #[async_trait]
