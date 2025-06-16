@@ -35,7 +35,7 @@ pub enum SupervisorError {
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
-    InvalidInboxEntry(#[from] SuperchainDAError),
+    DataAvailability(#[from] SuperchainDAError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
@@ -66,11 +66,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) => {
                 ErrorObjectOwned::from(ErrorCode::InternalError)
             }
-            SupervisorError::InvalidInboxEntry(err) => ErrorObjectOwned::owned(
-                (err as i64).try_into().expect("should fit i32"),
-                err.to_string(),
-                None::<()>,
-            ),
+            SupervisorError::DataAvailability(err) => err.into(),
         }
     }
 }
@@ -279,6 +275,6 @@ mod test {
         let err = SuperchainDAError::UnknownChain;
         let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
     }
 }
