@@ -304,6 +304,15 @@ mod tests {
         fn finalized(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
             unimplemented!()
         }
+
+        fn check_access_list(
+            &self,
+            _inbox_entries: Vec<B256>,
+            _min_safety: SafetyLevel,
+            _executing_descriptor: ExecutingDescriptor,
+        ) -> Result<(), SupervisorError> {
+            unimplemented!()
+        }
     }
 
     #[tokio::test]

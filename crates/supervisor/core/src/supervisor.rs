@@ -121,12 +121,10 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Verifies if an access-list references only valid messages
     fn check_access_list(
         &self,
-        _inbox_entries: Vec<B256>,
-        _min_safety: SafetyLevel,
-        _executing_descriptor: ExecutingDescriptor,
-    ) -> Result<(), SupervisorError> {
-        Err(SupervisorError::Unimplemented)
-    }
+        inbox_entries: Vec<B256>,
+        min_safety: SafetyLevel,
+        executing_descriptor: ExecutingDescriptor,
+    ) -> Result<(), SupervisorError>;
 }
 
 /// The core Supervisor component responsible for monitoring and coordinating chain states.
