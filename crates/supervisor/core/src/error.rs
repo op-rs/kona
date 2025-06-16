@@ -29,11 +29,11 @@ pub enum SupervisorError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    /// Indicates the error occured while interacting with the managed node.
+    /// Indicates the error occurred while interacting with the managed node.
     #[error(transparent)]
     ManagedNodeError(#[from] ManagedNodeError),
 
-    /// Indicates the error occured while processing the chain.
+    /// Indicates the error occurred while processing the chain.
     #[error(transparent)]
     ChainProcessorError(#[from] ChainProcessorError),
 }
