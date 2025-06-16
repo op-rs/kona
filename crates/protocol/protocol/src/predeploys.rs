@@ -41,6 +41,7 @@ impl Predeploys {
 
     /// The LegacyMessagePasser contract stores commitments to withdrawal transactions before the
     /// Bedrock upgrade.
+    /// https://specs.optimism.io/protocol/predeploys.html#legacymessagepasser
     pub const LEGACY_MESSAGE_PASSER: Address =
         address!("0x4200000000000000000000000000000000000000");
 
@@ -84,6 +85,7 @@ impl Predeploys {
     pub const GAS_PRICE_ORACLE: Address = address!("0x420000000000000000000000000000000000000F");
 
     /// The governance token proxy address.
+    /// https://specs.optimism.io/protocol/predeploys.html
     pub const GOVERNANCE_TOKEN: Address = address!("0x4200000000000000000000000000000000000042");
 
     /// The L1 block information proxy address.
@@ -96,6 +98,7 @@ impl Predeploys {
         address!("0x4200000000000000000000000000000000000016");
 
     /// The L2 ERC721 bridge proxy address.
+    /// https://specs.optimism.io/protocol/predeploys.html
     pub const L2_ERC721_BRIDGE: Address = address!("0x4200000000000000000000000000000000000014");
 
     /// The Optimism mintable ERC721 proxy address.
