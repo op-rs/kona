@@ -110,7 +110,8 @@ impl RpcLauncher {
         let server = Server::builder().build(socket).await?;
         let mut module = self.module.take().unwrap_or_else(|| RpcModule::new(()));
         module.register_method("healthz", |_, _, _| {
-            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
+            let response =
+                HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
             jsonrpsee::core::RpcResult::Ok(response)
         })?;
         Ok(Some(server.start(module)))

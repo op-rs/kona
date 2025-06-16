@@ -17,6 +17,9 @@ pub use config::RpcConfig;
 mod launcher;
 pub use launcher::{HealthzResponse, RpcLauncher, RpcLauncherError};
 
+mod supervisor;
+pub use supervisor::SupervisorRpcServer;
+
 mod net;
 pub use net::NetworkRpc;
 
@@ -34,7 +37,7 @@ pub use output::OutputResponse;
 mod jsonrpsee;
 pub use jsonrpsee::{
     AdminApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
-    WsServer,
+    SupervisorEventsServer, WsServer,
 };
 
 #[cfg(feature = "reqwest")]
