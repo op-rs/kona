@@ -4,6 +4,7 @@ use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::B256;
 use core::net::IpAddr;
+use ipnet::IpNet;
 use jsonrpsee::{
     core::{RpcResult, SubscriptionResult},
     proc_macros::rpc,
@@ -100,20 +101,17 @@ pub trait OpP2PApi {
     #[method(name = "listBlockedAddrs")]
     async fn opp2p_list_blocked_addrs(&self) -> RpcResult<Vec<IpAddr>>;
 
-    // TODO: should be IPNet?
     /// Blocks the given subnet
     #[method(name = "blockSubnet")]
-    async fn opp2p_block_subnet(&self, subnet: String) -> RpcResult<()>;
+    async fn opp2p_block_subnet(&self, subnet: IpNet) -> RpcResult<()>;
 
-    // TODO: should be IPNet?
     /// Unblocks the given subnet
     #[method(name = "unblockSubnet")]
-    async fn opp2p_unblock_subnet(&self, subnet: String) -> RpcResult<()>;
+    async fn opp2p_unblock_subnet(&self, subnet: IpNet) -> RpcResult<()>;
 
-    // TODO: should be IPNet?
     /// Lists blocked subnets
     #[method(name = "listBlockedSubnets")]
-    async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<String>>;
+    async fn opp2p_list_blocked_subnets(&self) -> RpcResult<Vec<IpNet>>;
 
     /// Protects the given peer
     #[method(name = "protectPeer")]

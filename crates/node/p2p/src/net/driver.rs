@@ -32,8 +32,9 @@ pub struct Network {
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
-    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-    // pub(crate) publish_rx: Option<tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>>,
+    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope>,
+    /// A channel to receive unsafe blocks and send them through the gossip layer.
+    pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
     /// The swarm instance.
     pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
@@ -47,6 +48,13 @@ impl Network {
     /// Returns the [`NetworkBuilder`] that can be used to construct the [`Network`].
     pub const fn builder() -> NetworkBuilder {
         NetworkBuilder::new()
+    }
+
+    /// Creates a new unsafe block mpsc sender.
+    pub fn new_unsafe_block_sender(
+        &mut self,
+    ) -> tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope> {
+        self.publish_tx.clone()
     }
 
     /// Take the unsafe block receiver.
@@ -107,9 +115,6 @@ impl Network {
     /// and continually listens for new peers and messages to handle
     pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
         let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
-        // TODO(@theochap): we should fix that channel handler.
-        // We are currently using a mpsc channel without senders which causes it to drop.
-        // let publish = self.publish_rx.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
         let (handler, mut enr_receiver) = self.discovery.start();
         let mut broadcast = self.broadcast;
 
@@ -128,21 +133,19 @@ impl Network {
         tokio::spawn(async move {
             loop {
                 select! {
-                    // TODO(@theochap, <`https://github.com/op-rs/kona/issues/1849`>): we should fix that channel handler.
-                    // We are currently using a mpsc channel without senders which causes it to drop.
-                    // block = publish.recv() => {
-                    //     let Some(block) = block else {
-                    //         continue;
-                    //     };
-                    //     let timestamp = block.payload.timestamp();
-                    //     let selector = |handler: &crate::BlockHandler| {
-                    //         handler.topic(timestamp)
-                    //     };
-                    //     match self.gossip.publish(selector, Some(block)) {
-                    //         Ok(id) => info!("Published unsafe payload | {:?}", id),
-                    //         Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
-                    //     }
-                    // }
+                    block = self.publish_rx.recv() => {
+                        let Some(block) = block else {
+                            continue;
+                        };
+                        let timestamp = block.payload.timestamp();
+                        let selector = |handler: &crate::BlockHandler| {
+                            handler.topic(timestamp)
+                        };
+                        match self.gossip.publish(selector, Some(block)) {
+                            Ok(id) => info!("Published unsafe payload | {:?}", id),
+                            Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
+                        }
+                    }
                     event = self.gossip.next() => {
                         let Some(event) = event else {
                             error!(target: "node::p2p", "The gossip swarm stream has ended");
@@ -176,7 +179,7 @@ impl Network {
                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(peer_id).unwrap_or_default();
 
                                 // Record the peer score in the metrics.
-                                kona_macros::record!(histogram, crate::Metrics::PEER_SCORES, score);
+                                kona_macros::record!(histogram, crate::Metrics::PEER_SCORES, "peer", peer_id.to_string(), score);
 
                                 if score < ban_peers.ban_threshold {
                                    return Some(*peer_id);
@@ -205,16 +208,16 @@ impl Network {
                                 );
                             }
 
-                            if let Some(addr) = self.gossip.peerstore.remove(&peer_to_remove){
+                            if let Some(info) = self.gossip.peerstore.remove(&peer_to_remove){
                                 use crate::ConnectionGate;
                                 self.gossip.connection_gate.remove_dial(&peer_to_remove);
                                 let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
                                 kona_macros::inc!(gauge, crate::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
-                                return Some(addr);
+                                return Some(info.listen_addrs);
                             }
 
                             None
-                        }).collect::<HashSet<_>>();
+                        }).collect::<Vec<_>>().into_iter().flatten().collect::<HashSet<_>>();
 
                         // We send a request to the discovery handler to ban the set of addresses.
                         if let Err(send_err) = handler.sender.send(HandlerRequest::BanAddrs { addrs_to_ban: addrs_to_ban.into(), ban_duration: ban_peers.ban_duration }).await{

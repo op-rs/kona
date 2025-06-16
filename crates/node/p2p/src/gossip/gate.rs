@@ -1,5 +1,7 @@
 //! Connection Gate for the libp2p Gossip Swarm.
 
+use crate::Connectedness;
+use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::net::IpAddr;
 
@@ -10,7 +12,10 @@ use std::net::IpAddr;
 /// gossip swarm.
 pub trait ConnectionGate {
     /// Checks if a peer is allowed to connect to the gossip swarm.
-    fn can_dial(&self, peer_id: &Multiaddr) -> bool;
+    fn can_dial(&mut self, peer_id: &Multiaddr) -> bool;
+
+    /// Returns the [`Connectedness`] for a given peer id.
+    fn connectedness(&self, peer_id: &PeerId) -> Connectedness;
 
     /// Marks an address as currently being dialed.
     fn dialing(&mut self, addr: &Multiaddr);
@@ -46,17 +51,20 @@ pub trait ConnectionGate {
     fn list_blocked_addrs(&self) -> Vec<IpAddr>;
 
     /// Blocks a subnet from connecting to the gossip swarm.
-    fn block_subnet(&mut self, subnet: &str);
+    fn block_subnet(&mut self, subnet: IpNet);
 
     /// Unblocks a subnet, allowing it to connect to the gossip swarm.
-    fn unblock_subnet(&mut self, subnet: &str);
+    fn unblock_subnet(&mut self, subnet: IpNet);
 
     /// Lists all blocked subnets.
-    fn list_blocked_subnets(&self) -> Vec<String>;
+    fn list_blocked_subnets(&self) -> Vec<IpNet>;
 
     /// Protects a peer from being disconnected.
     fn protect_peer(&mut self, peer_id: PeerId);
 
     /// Unprotects a peer, allowing it to be disconnected.
     fn unprotect_peer(&mut self, peer_id: PeerId);
+
+    /// Lists all protected peers.
+    fn list_protected_peers(&self) -> Vec<PeerId>;
 }

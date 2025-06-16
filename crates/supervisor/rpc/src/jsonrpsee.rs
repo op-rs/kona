@@ -33,15 +33,27 @@ pub trait SupervisorApi {
         block_id: BlockNumHash,
     ) -> RpcResult<BlockInfo>;
 
-    /// Gets the localUnsafe BlockId
+    /// Returns the [`LocalUnsafe`] block for given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_localunsafe>
+    ///
+    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
-    /// Gets the crossSafe DerivedIdPair
+    /// Returns the [`CrossSafe`] block for given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_crosssafe>
+    ///
+    /// [`CrossSafe`]: SafetyLevel::Safe
     #[method(name = "crossSafe")]
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
 
-    /// Gets the finalized BlockId
+    /// Returns the [`Finalized`] block for the given chain.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_finalized>
+    ///
+    /// [`Finalized`]: SafetyLevel::Finalized
     #[method(name = "finalized")]
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
@@ -66,8 +78,8 @@ pub trait SupervisorApi {
     #[method(name = "syncStatus")]
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus>;
 
-    /// Returns the last derived block, aka the [`LocalSafe`] block, for each chain, from the given
-    /// L1 block.
+    /// Returns the last derived block, for each chain, from the given L1 block. This block is at
+    /// least [`LocalSafe`].
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_allsafederivedat>
     ///

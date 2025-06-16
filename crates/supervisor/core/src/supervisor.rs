@@ -1,5 +1,4 @@
 use core::fmt::Debug;
-use op_alloy_rpc_types::InvalidInboxEntry;
 
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
@@ -12,6 +11,7 @@ use kona_supervisor_storage::{
     StorageError,
 };
 use kona_supervisor_types::{AccessListError, SuperHead, parse_access_list};
+use op_alloy_rpc_types::SuperchainDAError;
 use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
@@ -36,7 +36,7 @@ pub enum SupervisorError {
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
-    InvalidInboxEntry(#[from] InvalidInboxEntry),
+    DataAvailability(#[from] SuperchainDAError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
@@ -72,11 +72,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) => {
                 ErrorObjectOwned::from(ErrorCode::InternalError)
             }
-            SupervisorError::InvalidInboxEntry(err) => ErrorObjectOwned::owned(
-                (err as i64).try_into().expect("should fit i32"),
-                err.to_string(),
-                None::<()>,
-            ),
+            SupervisorError::DataAvailability(err) => err.into(),
         }
     }
 }
@@ -107,6 +103,21 @@ pub trait SupervisorService: Debug + Send + Sync {
     ) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns the
+    /// Returns [`LocalUnsafe`] block for the given chain.
+    ///
+    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns [`CrossSafe`] block for the given chain.
+    ///
+    /// [`CrossSafe`]: SafetyLevel::Safe
+    fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns [`Finalized`] block for the given chain.
+    ///
+    /// [`Finalized`]: SafetyLevel::Finalized
+    fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
     /// Verifies if an access-list references only valid messages
     fn check_access_list(
         &self,
@@ -231,13 +242,13 @@ impl Supervisor {
             .derived_to_source(BlockNumHash { number: block.number, hash: block.hash })?;
 
         if derived.hash != block.hash {
-            return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData));
+            return Err(SupervisorError::from(SuperchainDAError::ConflictingData));
         }
 
         let head_ref = self.database_factory.get_db(chain_id)?.get_safety_head_ref(safety)?;
 
         if head_ref.number < block.number {
-            return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData));
+            return Err(SupervisorError::from(SuperchainDAError::ConflictingData));
         }
 
         Ok(())
@@ -250,8 +261,9 @@ impl SupervisorService for Supervisor {
         self.config.dependency_set.dependencies.keys().copied()
     }
 
-    fn super_head(&self, _chain: ChainId) -> Result<SuperHead, SupervisorError> {
-        todo!("implement call to ChainDbFactory")
+    fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
+        let db = self.database_factory.get_db(chain)?;
+        Ok(db.get_super_head()?)
     }
 
     fn latest_block_from(
@@ -268,6 +280,18 @@ impl SupervisorService for Supervisor {
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.derived_to_source(derived)?)
+    }
+
+    fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Unsafe)?)
+    }
+
+    fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Safe)?)
+    }
+
+    fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized)?)
     }
 
     fn check_access_list(
@@ -306,7 +330,7 @@ impl SupervisorService for Supervisor {
             if !self.is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
                 !self.is_interop_enabled(executing_chain_id, access.timestamp)
             {
-                return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData));
+                return Err(SupervisorError::from(SuperchainDAError::ConflictingData));
             }
 
             // Verify the initiating message exists and valid for corresponding executing message.
@@ -315,7 +339,7 @@ impl SupervisorService for Supervisor {
                 .get_db(initiating_chain_id)?
                 .get_block(access.block_number)?;
             if block.timestamp != access.timestamp {
-                return Err(SupervisorError::from(InvalidInboxEntry::ConflictingData))
+                return Err(SupervisorError::from(SuperchainDAError::ConflictingData))
             }
             let log = self
                 .database_factory
@@ -341,9 +365,9 @@ mod test {
 
     #[test]
     fn test_rpc_error_conversion() {
-        let err = InvalidInboxEntry::UnknownChain;
+        let err = SuperchainDAError::UnknownChain;
         let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
     }
 }

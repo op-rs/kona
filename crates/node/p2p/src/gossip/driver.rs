@@ -3,6 +3,7 @@
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
+use kona_peers::{EnrValidation, PeerMonitoring, enr_to_multiaddr};
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
     gossipsub::{IdentTopic, MessageId},
@@ -10,11 +11,15 @@ use libp2p::{
 };
 use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::sync::Mutex;
 
 use crate::{
-    Behaviour, BlockHandler, ConnectionGate, EnrValidation, Event, GossipDriverBuilder, Handler,
-    PublishError, enr_to_multiaddr, peers::PeerMonitoring,
+    Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -34,15 +39,15 @@ pub struct GossipDriver<G: ConnectionGate> {
     #[debug(skip)]
     pub sync_handler: libp2p_stream::Control,
     /// The inbound streams for the sync request/response protocol.
-    /// Set to `None` if the sync request/response protocol is not enabled.
+    ///
+    /// This is an option to allow to take the underlying value when the gossip driver gets
+    /// activated.
+    ///
+    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2141>`): remove the sync-req-resp protocol once the `op-node` phases it out.
     #[debug(skip)]
     pub sync_protocol: Option<IncomingStreams>,
     /// A mapping from [`PeerId`] to [`Multiaddr`].
-    pub peerstore: HashMap<PeerId, Multiaddr>,
-    /// A mapping from [`PeerId`] to [`libp2p::identify::Info`].
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2015>`): we should probably find a way to merge `peer_infos` and `peerstore` into a
-    /// single map.
-    pub peer_infos: HashMap<PeerId, libp2p::identify::Info>,
+    pub peerstore: HashMap<PeerId, libp2p::identify::Info>,
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     pub peer_monitoring: Option<PeerMonitoring>,
@@ -50,6 +55,8 @@ pub struct GossipDriver<G: ConnectionGate> {
     pub peer_connection_start: HashMap<PeerId, Instant>,
     /// The connection gate.
     pub connection_gate: G,
+    /// Tracks ping times for peers.
+    pub ping: Arc<Mutex<HashMap<PeerId, Duration>>>,
 }
 
 impl<G> GossipDriver<G>
@@ -75,13 +82,12 @@ where
             addr,
             handler,
             peerstore: Default::default(),
-            peer_infos: Default::default(),
             peer_monitoring: None,
             peer_connection_start: Default::default(),
             sync_handler,
-            // TODO(@theochap): make this field truly optional (through CLI args).
             sync_protocol: Some(sync_protocol),
             connection_gate: gate,
+            ping: Arc::new(Mutex::new(Default::default())),
         }
     }
 
@@ -213,6 +219,8 @@ where
             Event::Gossipsub(e) => return self.handle_gossipsub_event(e),
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!(target: "gossip", ?peer, ?result, "Ping received");
+
+                // If the peer is connected to gossip, record the connection duration.
                 if let Some(start_time) = self.peer_connection_start.get(&peer) {
                     let ping_duration = start_time.elapsed();
                     kona_macros::record!(
@@ -221,6 +229,24 @@ where
                         ping_duration.as_secs_f64()
                     );
                 }
+
+                // Record the peer score in the metrics if available.
+                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer) {
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::PEER_SCORES,
+                        "peer",
+                        peer.to_string(),
+                        peer_score
+                    );
+                }
+
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    if let Ok(time) = result {
+                        pings.lock().await.insert(peer, time);
+                    }
+                });
             }
             Event::Identify(e) => self.handle_identify_event(e),
             // Don't do anything with stream events as this should be unreachable code.
@@ -236,7 +262,7 @@ where
         match event {
             libp2p::identify::Event::Received { connection_id, peer_id, info } => {
                 debug!(target: "gossip", ?connection_id, ?peer_id, ?info, "Received identify info from peer");
-                self.peer_infos.insert(peer_id, info);
+                self.peerstore.insert(peer_id, info);
             }
             libp2p::identify::Event::Sent { connection_id, peer_id } => {
                 debug!(target: "gossip", ?connection_id, ?peer_id, "Sent identify info to peer");
@@ -299,7 +325,7 @@ where
             SwarmEvent::Behaviour(behavior_event) => {
                 return self.handle_gossip_event(behavior_event)
             }
-            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 let peer_count = self.swarm.connected_peers().count();
                 info!(target: "gossip", "Connection established: {:?} | Peer Count: {}", peer_id, peer_count);
                 kona_macros::inc!(
@@ -310,7 +336,6 @@ where
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
 
-                self.peerstore.insert(peer_id, endpoint.get_remote_address().clone());
                 self.peer_connection_start.insert(peer_id, Instant::now());
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
@@ -342,6 +367,7 @@ where
                 );
                 kona_macros::set!(gauge, crate::Metrics::GOSSIP_PEER_COUNT, peer_count as f64);
 
+                // Record the total connection duration.
                 if let Some(start_time) = self.peer_connection_start.remove(&peer_id) {
                     let peer_duration = start_time.elapsed();
                     kona_macros::record!(
@@ -350,6 +376,22 @@ where
                         peer_duration.as_secs_f64()
                     );
                 }
+
+                // Record the peer score in the metrics if available.
+                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer_id) {
+                    kona_macros::record!(
+                        histogram,
+                        crate::Metrics::PEER_SCORES,
+                        "peer",
+                        peer_id.to_string(),
+                        peer_score
+                    );
+                }
+
+                let pings = Arc::clone(&self.ping);
+                tokio::spawn(async move {
+                    pings.lock().await.remove(&peer_id);
+                });
 
                 // If the connection was initiated by us, remove the peer from the current dials
                 // set so that we can dial it again.

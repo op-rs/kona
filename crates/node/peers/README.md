@@ -1,3 +1,7 @@
+#
+
+
+
 //! Networking Utilities ported from reth.
 //!
 //! Much of this module is ported from
@@ -33,37 +37,3 @@
 //!   required.
 //! - [`AnyNode`]: An enum over [`PeerId`], [`NodeRecord`], and [`discv5::Enr`], useful in
 //!   deserialization when the type of the node record is not known.
-
-/// Alias for a peer identifier.
-///
-/// This is the most primitive secp256k1 public key identifier for a given peer.
-pub type PeerId = alloy_primitives::B512;
-
-mod nodes;
-pub use nodes::{BootNodes, OP_RAW_BOOTNODES, OP_RAW_TESTNET_BOOTNODES};
-
-mod store;
-pub use store::BootStore;
-
-mod score;
-pub use score::PeerScoreLevel;
-
-mod enr;
-pub use enr::{EnrValidation, OpStackEnr, OpStackEnrError};
-
-mod any;
-pub use any::{AnyNode, DialOptsError};
-
-mod boot;
-pub use boot::BootNode;
-
-mod record;
-pub use record::{NodeRecord, NodeRecordParseError};
-
-mod utils;
-pub use utils::{
-    PeerIdConversionError, enr_to_multiaddr, local_id_to_p2p_id, peer_id_to_secp256k1_pubkey,
-};
-
-mod monitoring;
-pub use monitoring::PeerMonitoring;

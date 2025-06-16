@@ -4,14 +4,17 @@ use std::{
     collections::{HashMap, HashSet},
     net::IpAddr,
     num::TryFromIntError,
+    sync::Arc,
 };
 
-use crate::{Discv5Handler, GossipDriver, OpStackEnr};
+use crate::{Discv5Handler, GossipDriver, GossipScores};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
     multiaddr::Protocol,
 };
+use ipnet::IpNet;
+use kona_peers::OpStackEnr;
 use libp2p::PeerId;
 use tokio::sync::oneshot::Sender;
 
@@ -66,6 +69,17 @@ pub enum P2pRpcRequest {
     },
     /// Request to list all blocked IP Addresses.
     ListBlockedAddrs(Sender<Vec<IpAddr>>),
+    /// Request to block a given Subnet.
+    BlockSubnet {
+        /// The Subnet to block.
+        address: IpNet,
+    },
+    /// Request to unblock a given Subnet.
+    UnblockSubnet {
+        /// The Subnet to unblock.
+        address: IpNet,
+    },
+
     /// Request to connect to a given peer.
     ConnectPeer {
         /// The [`Multiaddr`] of the peer to connect to.
@@ -86,6 +100,8 @@ pub enum P2pRpcRequest {
         /// The id of the peer.
         peer_id: PeerId,
     },
+    /// Request to list all blocked Subnets.
+    ListBlockedSubnets(Sender<Vec<IpNet>>),
     /// Returns the current peer stats for both the
     /// - Discovery Service ([`crate::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
@@ -114,6 +130,9 @@ impl P2pRpcRequest {
             Self::ListBlockedAddrs(s) => Self::list_blocked_addrs(s, gossip),
             Self::ProtectPeer { peer_id } => Self::protect_peer(peer_id, gossip),
             Self::UnprotectPeer { peer_id } => Self::unprotect_peer(peer_id, gossip),
+            Self::BlockSubnet { address } => Self::block_subnet(address, gossip),
+            Self::UnblockSubnet { address } => Self::unblock_subnet(address, gossip),
+            Self::ListBlockedSubnets(s) => Self::list_blocked_subnets(s, gossip),
         }
     }
 
@@ -142,10 +161,12 @@ impl P2pRpcRequest {
 
     fn block_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
         gossip.connection_gate.block_peer(&id);
+        gossip.swarm.behaviour_mut().gossipsub.blacklist_peer(&id);
     }
 
     fn unblock_peer<G: ConnectionGate>(id: PeerId, gossip: &mut GossipDriver<G>) {
         gossip.connection_gate.unblock_peer(&id);
+        gossip.swarm.behaviour_mut().gossipsub.remove_blacklisted_peer(&id);
     }
 
     fn list_blocked_peers<G: ConnectionGate>(s: Sender<Vec<PeerId>>, gossip: &GossipDriver<G>) {
@@ -153,6 +174,14 @@ impl P2pRpcRequest {
         if let Err(e) = s.send(blocked_peers) {
             warn!(target: "p2p::rpc", "Failed to send blocked peers through response channel: {:?}", e);
         }
+    }
+
+    fn block_subnet<G: ConnectionGate>(address: IpNet, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.block_subnet(address);
+    }
+
+    fn unblock_subnet<G: ConnectionGate>(address: IpNet, gossip: &mut GossipDriver<G>) {
+        gossip.connection_gate.unblock_subnet(address);
     }
 
     fn connect_peer<G: ConnectionGate>(address: Multiaddr, gossip: &mut GossipDriver<G>) {
@@ -173,6 +202,13 @@ impl P2pRpcRequest {
                     peer_duration.as_secs_f64()
                 );
             }
+        }
+    }
+
+    fn list_blocked_subnets<G: ConnectionGate>(s: Sender<Vec<IpNet>>, gossip: &GossipDriver<G>) {
+        let blocked_subnets = gossip.connection_gate.list_blocked_subnets();
+        if let Err(e) = s.send(blocked_subnets) {
+            warn!(target: "p2p::rpc", "Failed to send blocked subnets through response channel: {:?}", e);
         }
     }
 
@@ -215,6 +251,17 @@ impl P2pRpcRequest {
         let banned_subnets = gossip.connection_gate.list_blocked_subnets();
         let banned_ips = gossip.connection_gate.list_blocked_addrs();
         let banned_peers = gossip.connection_gate.list_blocked_peers();
+        let protected_peers = gossip.connection_gate.list_protected_peers();
+
+        // For each peer id, get the connectedness using the connection gate.
+        let connectedness = peer_ids
+            .iter()
+            .copied()
+            .map(|id| (id, gossip.connection_gate.connectedness(&id)))
+            .collect::<HashMap<PeerId, Connectedness>>();
+
+        // Clone the ping map
+        let pings = Arc::clone(&gossip.ping);
 
         #[derive(Default)]
         struct PeerMetadata {
@@ -222,11 +269,12 @@ impl P2pRpcRequest {
             addresses: Vec<String>,
             user_agent: String,
             protocol_version: String,
+            score: f64,
         }
 
         // Build a map of peer ids to their supported protocols and addresses.
         let mut peer_metadata: HashMap<PeerId, PeerMetadata> = gossip
-            .peer_infos
+            .peerstore
             .iter()
             .map(|(id, info)| {
                 let protocols = if info.protocols.is_empty() {
@@ -241,6 +289,9 @@ impl P2pRpcRequest {
                 };
                 let addresses =
                     info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
+
+                let score = gossip.swarm.behaviour().gossipsub.peer_score(id).unwrap_or_default();
+
                 (
                     *id,
                     PeerMetadata {
@@ -248,6 +299,7 @@ impl P2pRpcRequest {
                         addresses,
                         user_agent: info.agent_version.clone(),
                         protocol_version: info.protocol_version.clone(),
+                        score,
                     },
                 )
             })
@@ -285,6 +337,8 @@ impl P2pRpcRequest {
                 return;
             };
 
+            let pings = { pings.lock().await.clone() };
+
             let node_to_peer_id: HashMap<NodeId, PeerId> = peer_ids.into_iter().filter_map(|id|
             {
                 let Ok(pubkey) = libp2p_identity::PublicKey::try_decode_protobuf(&id.to_bytes()[2..]) else {
@@ -310,20 +364,24 @@ impl P2pRpcRequest {
                 .filter_map(|(id, enr, status)| {
                     let opstack_enr = OpStackEnr::try_from(enr).ok();
 
-                    // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): improve the connectedness information to include the other
-                    // variants.
-                    let connectedness = if status.is_connected() {
-                        Connectedness::Connected
-                    } else {
-                        Connectedness::NotConnected
-                    };
-
                     let direction =
                         if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
 
                     node_to_peer_id.get(id).map(|peer_id| {
-                        let PeerMetadata { protocols, addresses, user_agent, protocol_version } =
-                            peer_metadata.remove(peer_id).unwrap_or_default();
+                        let PeerMetadata {
+                            protocols,
+                            addresses,
+                            user_agent,
+                            protocol_version,
+                            score,
+                        } = peer_metadata.remove(peer_id).unwrap_or_default();
+
+                        let peer_connectedness = connectedness
+                            .get(peer_id)
+                            .copied()
+                            .unwrap_or(Connectedness::NotConnected);
+
+                        let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
 
                         let node_id = format!("{:?}", &enr.node_id());
                         (
@@ -336,18 +394,41 @@ impl P2pRpcRequest {
                                 enr: enr.to_string(),
                                 addresses,
                                 protocols,
-                                connectedness,
+                                connectedness: peer_connectedness,
                                 direction,
                                 // Note: we use the chain id from the ENR if it exists, otherwise we
                                 // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
                                 chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
                                 gossip_blocks: peer_gossip_info.contains(peer_id),
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                protected: false,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                latency: 0,
-                                // TODO(@theochap, `<https://github.com/op-rs/kona/issues/1562>`): support these fields
-                                peer_scores: PeerScores::default(),
+                                protected: protected_peers.contains(peer_id),
+                                latency,
+                                peer_scores: PeerScores {
+                                    gossip: GossipScores {
+                                        total: score,
+                                        // Note(@theochap): we don't compute the topic scores
+                                        // because we don't
+                                        // `rust-libp2p` doesn't expose that information to the
+                                        // user-facing API.
+                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                        blocks: Default::default(),
+                                        // Note(@theochap): We can't compute the ip colocation
+                                        // factor because
+                                        // `rust-libp2p` doesn't expose that information to the
+                                        // user-facing API
+                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                        ip_colocation_factor: Default::default(),
+                                        // Note(@theochap): We can't compute the behavioral penalty
+                                        // because
+                                        // `rust-libp2p` doesn't expose that information to the
+                                        // user-facing API
+                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                        behavioral_penalty: Default::default(),
+                                    },
+                                    // We only support a shim implementation for the req/resp
+                                    // protocol so we're not
+                                    // computing scores for it.
+                                    req_resp: Default::default(),
+                                },
                             },
                         )
                     })
@@ -384,6 +465,7 @@ impl P2pRpcRequest {
                 addr.to_string()
             })
             .collect::<Vec<String>>();
+
         tokio::spawn(async move {
             let enr = match local_enr.await {
                 Ok(enr) => enr,
@@ -428,6 +510,8 @@ impl P2pRpcRequest {
         let peers_known = gossip.peerstore.len();
         let gossip_network_info = gossip.swarm.network_info();
         let table_info = disc.peer_count();
+
+        let banned_peers = gossip.connection_gate.list_blocked_peers().len();
 
         let topics = gossip.swarm.behaviour().gossipsub.topics().collect::<HashSet<_>>();
 
@@ -507,8 +591,7 @@ impl P2pRpcRequest {
                 blocks_topic_v2: block_topics[1],
                 blocks_topic_v3: block_topics[2],
                 blocks_topic_v4: block_topics[3],
-                // TODO(@theochap): track the number of banned peers
-                banned: 0,
+                banned: banned_peers as u32,
                 known,
             };
 

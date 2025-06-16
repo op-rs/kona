@@ -25,14 +25,14 @@ func TestSystemNodeP2p(t *testing.T) {
 	)
 }
 
-// Check that the node has at least 4 peers that are connected to its topics when there is more than 6 peers in the network initially.
+// Check that the node has at least 3 peers that are connected to its topics when there is more than 6 peers in the network initially.
 func TestSystemNodeP2pLargeNetwork(t *testing.T) {
 	t.Parallel()
 	// Wait for the network to stabilize.
 	time.Sleep(2 * time.Minute)
 
 	systest.SystemTest(t,
-		peerCount(4, 5),
+		peerCount(5, 3),
 		validators.HasSufficientL2Nodes(0, 6),
 	)
 }

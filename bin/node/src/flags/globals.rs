@@ -15,7 +15,14 @@ pub struct GlobalArgs {
     #[command(flatten)]
     pub v: LogArgs,
     /// The L2 chain ID to use.
-    #[arg(long, short = 'c', global = true, default_value = "10", help = "The L2 chain ID to use")]
+    #[arg(
+        long,
+        short = 'c',
+        global = true,
+        default_value = "10",
+        env = "KONA_NODE_L2_CHAIN_ID",
+        help = "The L2 chain ID to use"
+    )]
     pub l2_chain_id: u64,
     /// Embed the override flags globally to provide override values adjacent to the configs.
     #[command(flatten)]

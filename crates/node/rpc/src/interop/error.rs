@@ -1,14 +1,14 @@
 //! Interop supervisor RPC client errors.
 
 use core::error;
-use op_alloy_rpc_types::InvalidInboxEntry;
+use op_alloy_rpc_types::SuperchainDAError;
 
 /// Failures occurring during validation of inbox entries.
 #[derive(thiserror::Error, Debug)]
 pub enum InteropTxValidatorError {
     /// Error validating interop event.
     #[error(transparent)]
-    InvalidInboxEntry(#[from] InvalidInboxEntry),
+    InvalidInboxEntry(#[from] SuperchainDAError),
 
     /// RPC client failure.
     #[error("supervisor rpc client failure: {0}")]
@@ -46,7 +46,7 @@ impl From<jsonrpsee::core::ClientError> for InteropTxValidatorError {
 
 impl From<jsonrpsee::types::ErrorObjectOwned> for InteropTxValidatorError {
     fn from(err: jsonrpsee::types::ErrorObjectOwned) -> Self {
-        InvalidInboxEntry::try_from(err.code() as i64)
+        SuperchainDAError::try_from(err.code())
             .map(Self::InvalidInboxEntry)
             .unwrap_or(Self::server_unexpected(err))
     }
