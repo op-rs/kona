@@ -10,12 +10,11 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
-    DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
+    DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
+    SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{
-    BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts, SubscriptionEvent,
-};
+use kona_supervisor_types::{BlockSeal, L2BlockRef, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.

@@ -1,9 +1,8 @@
 use crate::{LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
-use kona_interop::DerivedRefPair;
+use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
-use kona_supervisor_types::BlockReplacement;
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -106,7 +105,7 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        if let Err(err) = self.state_manager.save_derived_block_pair(derived_ref_pair.clone()) {
+        if let Err(err) = self.state_manager.save_derived_block_pair(derived_ref_pair) {
             error!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
@@ -258,9 +257,8 @@ mod tests {
 
         let node = Arc::new(MockNode);
         let mut mockdb = MockDb::new();
-        let block_pair_clone = block_pair.clone();
         mockdb.expect_save_derived_block_pair().returning(move |_pair: DerivedRefPair| {
-            assert_eq!(_pair, block_pair_clone);
+            assert_eq!(_pair, block_pair);
             Ok(())
         });
 

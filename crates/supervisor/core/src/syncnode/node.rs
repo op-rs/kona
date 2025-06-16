@@ -286,10 +286,10 @@ where
 mod tests {
     use super::*;
     use alloy_eips::BlockNumHash;
-    use kona_interop::{DerivedRefPair, SafetyLevel};
+    use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
-    use kona_supervisor_types::{Log, ManagedEvent};
+    use kona_supervisor_types::Log;
     use mockall::mock;
 
     use std::io::Write;

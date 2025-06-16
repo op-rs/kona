@@ -41,7 +41,7 @@ impl ChainDb {
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         self.env.update(|tx| {
-            DerivationProvider::new(tx).initialise(anchor.clone())?;
+            DerivationProvider::new(tx).initialise(anchor)?;
             LogProvider::new(tx).initialise(anchor.derived)?;
 
             let sp = SafetyHeadRefProvider::new(tx);
@@ -114,7 +114,7 @@ impl DerivationStorageWriter for ChainDb {
                     "conflict between unsafe block and derived block".to_string(),
                 ));
             }
-            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
+            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
             SafetyHeadRefProvider::new(ctx)
                 .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
         })?
@@ -227,7 +227,7 @@ mod tests {
             },
         };
 
-        db.initialise(anchor.clone()).expect("initialise db");
+        db.initialise(anchor).expect("initialise db");
 
         let block = BlockInfo {
             hash: B256::from([4u8; 32]),
@@ -292,10 +292,10 @@ mod tests {
         };
 
         // Initialise the database with the anchor derived block pair
-        db.initialise(anchor.clone()).expect("initialise db with anchor");
+        db.initialise(anchor).expect("initialise db with anchor");
 
         // Save derived block pair - should error conflict
-        let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
+        let err = db.save_derived_block_pair(derived_pair).unwrap_err();
         assert!(matches!(err, StorageError::ConflictError(_)));
 
         db.store_block_logs(
@@ -310,7 +310,7 @@ mod tests {
         .expect("storing logs failed");
 
         // Save derived block pair
-        db.save_derived_block_pair(derived_pair.clone()).expect("save derived pair");
+        db.save_derived_block_pair(derived_pair).expect("save derived pair");
 
         // Retrieve latest derived block pair
         let latest_pair = db.latest_derived_block_pair().expect("get latest derived pair");
@@ -411,7 +411,7 @@ mod tests {
             },
         };
 
-        db.initialise(anchor.clone()).expect("initialise db with anchor");
+        db.initialise(anchor).expect("initialise db with anchor");
 
         // Test blocks for each safety level
         let l1_block = BlockInfo {
