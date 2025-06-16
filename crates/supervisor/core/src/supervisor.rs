@@ -7,7 +7,8 @@ use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader, StorageError,
+    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
+    StorageError,
 };
 use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::SuperchainDAError;
@@ -96,7 +97,6 @@ pub trait SupervisorService: Debug + Send + Sync {
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError>;
 
-    /// Returns the
     /// Returns [`LocalUnsafe`] block for the given chain.
     ///
     /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
@@ -111,6 +111,9 @@ pub trait SupervisorService: Debug + Send + Sync {
     ///
     /// [`Finalized`]: SafetyLevel::Finalized
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns the finalized L1 block that the supervisor is synced to.
+    fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
@@ -254,6 +257,10 @@ impl SupervisorService for Supervisor {
 
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized)?)
+    }
+
+    fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_finalized_l1()?)
     }
 
     async fn check_access_list(
