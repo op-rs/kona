@@ -59,7 +59,7 @@ pub use chain::{
 };
 
 mod genesis;
-pub use genesis::{ChainGenesis, Predeploys};
+pub use genesis::ChainGenesis;
 
 mod rollup;
 pub use rollup::{
