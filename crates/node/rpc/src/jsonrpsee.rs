@@ -144,4 +144,3 @@ pub trait Ws {
     #[subscription(name = "subscribe_unsafe_head", item = kona_protocol::L2BlockInfo)]
     async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
 }
-
