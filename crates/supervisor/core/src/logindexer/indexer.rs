@@ -33,20 +33,32 @@ where
         Self { receipt_provider, log_writer }
     }
 
-    /// Processes the logs of a given block and stores them into the state manager.
+    /// Stores the logs of a given block in into the state manager.
+    ///
+    /// This function:
+    /// - Saves all log entries atomically using the [`LogStorageWriter`].
+    ///
+    /// # Arguments
+    /// - `block`: Metadata about the block being processed.
+    pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
+        let log_entries = self.process_logs(block).await?;
+        self.log_writer.store_block_logs(block, log_entries)?;
+
+        Ok(())
+    }
+
+    /// Processes the logs of a given block
     ///
     /// This function:
     /// - Fetches all receipts for the given block from the specified chain.
     /// - Iterates through all logs in all receipts.
     /// - For each log, computes a hash from the log and optionally parses an [`ExecutingMessage`].
     /// - Records each [`Log`] including the message if found.
-    /// - Saves all log entries atomically using the [`LogStorageWriter`].
     ///
     /// # Arguments
     /// - `block`: Metadata about the block being processed.
-    pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
+    pub async fn process_logs(&self, block: &BlockInfo) -> Result<Vec<Log>, LogIndexerError> {
         let receipts = self.receipt_provider.fetch_receipts(block.hash).await?;
-
         let mut log_entries = Vec::with_capacity(receipts.len());
         let mut log_index: u32 = 0;
 
@@ -73,10 +85,7 @@ where
         }
 
         log_entries.shrink_to_fit();
-
-        self.log_writer.store_block_logs(block, log_entries)?;
-
-        Ok(())
+        Ok(log_entries)
     }
 }
 

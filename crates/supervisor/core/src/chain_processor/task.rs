@@ -3,7 +3,7 @@ use crate::{
     syncnode::{ManagedNodeProvider, NodeEvent},
 };
 use alloy_primitives::ChainId;
-use kona_interop::{DerivedRefPair, SafetyLevel};
+use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use kona_supervisor_types::BlockReplacement;
@@ -128,25 +128,28 @@ where
             block_number = block_info.number,
             "Processing unsafe block"
         );
-        if let Err(err) = self.log_indexer.process_and_store_logs(&block_info).await {
+        let log_entries = match self.log_indexer.process_logs(&block_info).await {
+            Ok(entries) => entries,
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = block_info.number,
+                    %err,
+                    "Failed to process logs for unsafe block"
+                );
+                // TODO: take next action based on the error
+                return;
+            }
+        };
+
+        if let Err(err) = self.state_manager.store_block_logs(&block_info, log_entries) {
             error!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = block_info.number,
                 %err,
                 "Failed to process unsafe block"
-            );
-            // TODO: take next action based on the error
-        }
-        if let Err(err) =
-            self.state_manager.update_safety_head_ref(SafetyLevel::Unsafe, &block_info)
-        {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block_info.number,
-                %err,
-                "Failed to update safety head reference"
             );
             // TODO: take next action based on the error
         }
