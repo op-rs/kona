@@ -43,3 +43,20 @@ func TestL2UnsafeSync(gt *testing.T) {
 
 	dsl.CheckAll(t, checkFuns...)
 }
+
+// Check that all the kona nodes in the network are synced to the finalized block.
+func TestL2FinalizedSync(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	out := NewMixedOpKona(t)
+
+	nodes := out.L2CLKonaNodes
+
+	checkFuns := make([]dsl.CheckFunc, 0, 2*len(nodes))
+
+	for _, node := range nodes {
+		checkFuns = append(checkFuns, node.ReachedFn(types.Finalized, 10, 400))
+	}
+
+	dsl.CheckAll(t, checkFuns...)
+}
