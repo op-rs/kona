@@ -52,29 +52,6 @@ impl ChainDb {
             sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
         })?
     }
-
-    /// Fetches all safety heads and current L1 state
-    pub fn get_super_head(&self) -> Result<SuperHead, StorageError> {
-        let l1_source = self.get_current_l1()?;
-
-        self.env.view(|tx| {
-            let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
-            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
-            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
-
-            Ok(SuperHead {
-                l1_source,
-                local_unsafe,
-                cross_unsafe,
-                local_safe,
-                cross_safe,
-                finalized,
-            })
-        })?
-    }
 }
 
 impl DerivationStorageReader for ChainDb {
@@ -152,6 +129,29 @@ impl HeadRefStorageReader for ChainDb {
 
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
+    }
+
+    /// Fetches all safety heads and current L1 state
+    fn get_super_head(&self) -> Result<SuperHead, StorageError> {
+        let l1_source = self.get_current_l1()?;
+
+        self.env.view(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
+            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+
+            Ok(SuperHead {
+                l1_source,
+                local_unsafe,
+                cross_unsafe,
+                local_safe,
+                cross_safe,
+                finalized,
+            })
+        })?
     }
 }
 
