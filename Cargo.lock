@@ -5046,7 +5046,6 @@ dependencies = [
  "kona-genesis",
  "kona-interop",
  "kona-protocol",
- "kona-rpc",
  "kona-supervisor-core",
  "kona-supervisor-rpc",
  "kona-supervisor-storage",
