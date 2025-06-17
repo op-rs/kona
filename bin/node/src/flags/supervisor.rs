@@ -88,7 +88,7 @@ impl SupervisorArgs {
     pub fn as_rpc_config(&self) -> anyhow::Result<SupervisorRpcConfig> {
         let jwt_secret = self.load_jwt_secret()?;
         let socket_address = self.socket_addr();
-        Ok(SupervisorRpcConfig { rpc_enabled: self.rpc_enabled, socket_address, jwt_secret })
+        Ok(SupervisorRpcConfig { rpc_disabled: !self.rpc_enabled, socket_address, jwt_secret })
     }
 }
 
@@ -119,12 +119,16 @@ mod tests {
 
         let expected_addr = SocketAddr::new(expected_ip, 9333);
         assert_eq!(args.supervisor.socket_addr(), expected_addr);
+
+        args.supervisor.as_rpc_config().unwrap_err();
     }
 
     #[test]
     fn test_supervisor_args_rpc_enabled() {
         let args = MockCommand::parse_from(["test", "--supervisor.rpc-enabled"]);
         assert!(args.supervisor.rpc_enabled);
+
+        args.supervisor.as_rpc_config().unwrap_err();
     }
 
     #[test]
@@ -153,9 +157,19 @@ mod tests {
 
     #[test]
     fn test_supervisor_args_jwt_secret() {
-        let args = MockCommand::parse_from(["test", "--supervisor.jwt.secret", "my-secret-key"]);
-        assert_eq!(args.supervisor.jwt_secret, Some("my-secret-key".to_string()));
+        let args = MockCommand::parse_from([
+            "test",
+            "--supervisor.jwt.secret",
+            "1fceaf7306ed8342ac35f9eb00b7291e19f737b1e632aff53ffeeac87a536f9d",
+        ]);
+        assert_eq!(
+            args.supervisor.jwt_secret,
+            Some("1fceaf7306ed8342ac35f9eb00b7291e19f737b1e632aff53ffeeac87a536f9d".to_string())
+        );
         assert_eq!(args.supervisor.jwt_secret_file, None);
+
+        let cfg = args.supervisor.as_rpc_config().unwrap();
+        assert!(cfg.rpc_disabled);
     }
 
     #[test]
@@ -217,13 +231,16 @@ mod tests {
             "test",
             "--supervisor.rpc-enabled",
             "--supervisor.jwt.secret",
-            "test-secret",
+            "1fceaf7306ed8342ac35f9eb00b7291e19f737b1e632aff53ffeeac87a536f9d",
         ]);
 
         // Test Debug trait
         let debug_output = format!("{:?}", args.supervisor);
         assert!(debug_output.contains("SupervisorArgs"));
         assert!(debug_output.contains("rpc_enabled: true"));
+
+        let cfg = args.supervisor.as_rpc_config().unwrap();
+        assert!(!cfg.rpc_disabled);
     }
 
     #[test]
