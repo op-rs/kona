@@ -7,8 +7,4 @@ pub enum ChainProcessorError {
     /// Represents an error that occurred while interacting with the managed node.
     #[error(transparent)]
     ManagedNode(#[from] ManagedNodeError),
-
-    /// Represents chain mismatch that occurred while adding a node to the chain processor.
-    #[error("chain id mismatch")]
-    InvalidChainId,
 }

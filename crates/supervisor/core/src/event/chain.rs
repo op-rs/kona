@@ -1,19 +1,19 @@
-use kona_interop::DerivedRefPair;
+use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::BlockReplacement;
 
-/// Represents node events that [`ManagedNode`](`super::ManagedNode`) emits.
-/// These events are used to notify the supervisor about changes in block states,
-/// such as unsafe blocks, safe blocks, or block replacements.
+/// Represents chain events that are emitted from modules in the supervisor.
+/// These events are used to notify the [`ChainProcessor`](crate::chain_processor::ChainProcessor)
+/// about changes in block states, such as unsafe blocks, safe blocks, or block replacements.
 /// Each event carries relevant information about the block involved,
 /// allowing the supervisor to take appropriate actions based on the event type.
 #[derive(Debug, Clone)]
-pub enum NodeEvent {
+pub enum ChainEvent {
     /// An unsafe block event, indicating that a new unsafe block has been detected.
     UnsafeBlock {
         /// The [`BlockInfo`] of the unsafe block.
         block: BlockInfo,
     },
+
     /// A derived block event, indicating that a new derived block has been detected.
     DerivedBlock {
         /// The [`DerivedRefPair`] containing the derived block and its source block.

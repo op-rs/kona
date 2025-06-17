@@ -5,8 +5,10 @@ use std::{
 };
 
 use alloy_primitives::ChainId;
+use kona_protocol::BlockInfo;
+use tracing::error;
 
-use crate::{chaindb::ChainDb, error::StorageError};
+use crate::{FinalizedL1Storage, chaindb::ChainDb, error::StorageError};
 
 /// Factory for managing multiple chain databases.
 /// This struct allows for the creation and retrieval of `ChainDb` instances
@@ -15,12 +17,16 @@ use crate::{chaindb::ChainDb, error::StorageError};
 pub struct ChainDbFactory {
     db_path: PathBuf,
     dbs: RwLock<HashMap<ChainId, Arc<ChainDb>>>,
+
+    /// Finalized L1 block reference, used for tracking the finalized L1 block.
+    /// In-memory only, not persisted.
+    finalized_l1: RwLock<Option<BlockInfo>>,
 }
 
 impl ChainDbFactory {
     /// Create a new, empty factory.
     pub fn new(db_path: PathBuf) -> Self {
-        Self { db_path, dbs: RwLock::new(HashMap::new()) }
+        Self { db_path, dbs: RwLock::new(HashMap::new()), finalized_l1: RwLock::new(None) }
     }
 
     /// Get or create a [`ChainDb`] for the given chain id.
@@ -58,6 +64,43 @@ impl ChainDbFactory {
         dbs.get(&chain_id)
             .cloned()
             .ok_or_else(|| StorageError::EntryNotFound("chain not found".to_string()))
+    }
+}
+
+impl FinalizedL1Storage for ChainDbFactory {
+    fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError> {
+        let guard = self.finalized_l1.read().map_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on finalized_l1");
+            StorageError::LockPoisoned
+        })?;
+        guard.as_ref().cloned().ok_or(StorageError::FutureData)
+    }
+
+    fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
+        let mut guard = self
+            .finalized_l1
+            .write()
+            .map_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to acquire write lock on finalized_l1");
+                StorageError::LockPoisoned
+            })?;
+
+        // Check if the new block number is greater than the current finalized block
+        if let Some(ref current) = *guard {
+            if block.number <= current.number {
+                error!(target: "supervisor_storage",
+                    current_block_number = current.number,
+                    new_block_number = block.number,
+                    "New finalized block number is not greater than current finalized block number",
+                );
+                return Err(StorageError::BlockOutOfOrder);
+            }
+        }
+        *guard = Some(block);
+
+        // todo: update safety head ref for finalized level for all chains
+
+        Ok(())
     }
 }
 
@@ -111,5 +154,49 @@ mod tests {
 
         assert!(tmp.path().join("1").exists());
         assert!(tmp.path().join("2").exists());
+    }
+
+    #[test]
+    fn test_get_finalized_l1_returns_error_when_none() {
+        let (_tmp, factory) = temp_factory();
+        let err = factory.get_finalized_l1().unwrap_err();
+        assert!(matches!(err, StorageError::FutureData));
+    }
+
+    #[test]
+    fn test_update_and_get_finalized_l1_success() {
+        let (_tmp, factory) = temp_factory();
+        let block1 = BlockInfo { number: 100, ..Default::default() };
+        let block2 = BlockInfo { number: 200, ..Default::default() };
+
+        // Set first finalized block
+        factory.update_finalized_l1(block1).unwrap();
+        assert_eq!(factory.get_finalized_l1().unwrap(), block1);
+
+        // Update with higher block number
+        factory.update_finalized_l1(block2).unwrap();
+        assert_eq!(factory.get_finalized_l1().unwrap(), block2);
+    }
+
+    #[test]
+    fn test_update_finalized_l1_with_lower_block_number_errors() {
+        let (_tmp, factory) = temp_factory();
+        let block1 = BlockInfo { number: 100, ..Default::default() };
+        let block2 = BlockInfo { number: 50, ..Default::default() };
+
+        factory.update_finalized_l1(block1).unwrap();
+        let err = factory.update_finalized_l1(block2).unwrap_err();
+        assert!(matches!(err, StorageError::BlockOutOfOrder));
+    }
+
+    #[test]
+    fn test_update_finalized_l1_with_same_block_number_errors() {
+        let (_tmp, factory) = temp_factory();
+        let block1 = BlockInfo { number: 100, ..Default::default() };
+        let block2 = BlockInfo { number: 100, ..Default::default() };
+
+        factory.update_finalized_l1(block1).unwrap();
+        let err = factory.update_finalized_l1(block2).unwrap_err();
+        assert!(matches!(err, StorageError::BlockOutOfOrder));
     }
 }

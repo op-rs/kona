@@ -1,5 +1,5 @@
 use super::{ChainProcessorError, ChainProcessorTask};
-use crate::syncnode::{ManagedNodeProvider, NodeEvent};
+use crate::{event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
 /// Responsible for managing [`ManagedNodeProvider`] and processing
-/// [`NodeEvent`]. It listens for events emitted by the managed node
+/// [`ChainEvent`]. It listens for events emitted by the managed node
 /// and handles them accordingly.
 // chain processor will support multiple managed nodes in the future.
 #[derive(Debug)]
@@ -44,6 +44,7 @@ where
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
     ) -> Self {
+        // todo: validate chain_id against managed_node
         Self { chain_id, managed_node, state_manager, cancel_token, task_handle: Mutex::new(None) }
     }
 
@@ -61,7 +62,7 @@ where
         }
 
         // todo: figure out value for buffer size
-        let (event_tx, event_rx) = mpsc::channel::<NodeEvent>(100);
+        let (event_tx, event_rx) = mpsc::channel::<ChainEvent>(100);
         self.managed_node.start_subscription(event_tx).await?;
 
         let task = ChainProcessorTask::new(
@@ -83,7 +84,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::{ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider};
+    use crate::{
+        event::ChainEvent,
+        syncnode::{ManagedNodeError, NodeSubscriber, ReceiptProvider},
+    };
     use alloy_primitives::B256;
     use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
@@ -114,7 +118,7 @@ mod tests {
     impl NodeSubscriber for MockNode {
         async fn start_subscription(
             &self,
-            _tx: mpsc::Sender<NodeEvent>,
+            _tx: mpsc::Sender<ChainEvent>,
         ) -> Result<(), ManagedNodeError> {
             self.subscribed.store(true, Ordering::SeqCst);
             Ok(())

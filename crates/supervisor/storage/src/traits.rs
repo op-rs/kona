@@ -25,7 +25,7 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(BlockInfo)` containing the source block information if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the source block.
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
 
     /// Gets the latest derived [`BlockInfo`] associated with the given source block
@@ -158,6 +158,7 @@ pub trait HeadRefStorageReader: Debug {
     /// * `Ok(BlockInfo)` containing the current L1 block reference.
     /// * `Err(StorageError)` if there is an issue retrieving the reference.
     fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
+
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -186,6 +187,7 @@ pub trait HeadRefStorageWriter: Debug {
     /// * `Ok(())` if the reference was successfully updated.
     /// * `Err(StorageError)` if there is an issue updating the reference.
     fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
+
     /// Updates the safety head reference for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -209,3 +211,25 @@ pub trait HeadRefStorageWriter: Debug {
 pub trait HeadRefStorage: HeadRefStorageReader + HeadRefStorageWriter {}
 
 impl<T: HeadRefStorageReader + HeadRefStorageWriter> HeadRefStorage for T {}
+
+/// Provides an interface for managing the finalized L1 block reference in the storage.
+///
+/// This trait defines methods to update and retrieve the finalized L1 block reference.
+pub trait FinalizedL1Storage {
+    /// Updates the finalized L1 block reference in the storage.
+    ///
+    /// # Arguments
+    /// * `block` - The new [`BlockInfo`] to set as the finalized L1 block reference.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
+
+    /// Retrieves the finalized L1 block reference from the storage.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the finalized L1 block reference.
+    /// * `Err(StorageError)` if there is an issue retrieving the reference.
+    fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
+}

@@ -19,4 +19,5 @@ mod rpc;
 pub use rpc::SupervisorRpc;
 
 pub mod config;
+pub mod event;
 pub mod syncnode;

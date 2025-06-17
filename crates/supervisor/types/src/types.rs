@@ -6,11 +6,8 @@
 
 use alloy_eips::BlockId;
 use alloy_primitives::{B256, U64};
-use derive_more::{Constructor, Display};
-use kona_interop::DerivedRefPair;
-use kona_protocol::BlockInfo;
+use kona_interop::ManagedEvent;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 // todo:: Determine appropriate locations for these structs and move them accordingly.
 // todo:: Link these structs to the spec documentation after the related PR is merged.
@@ -66,24 +63,6 @@ impl<T> L2BlockRef<T> {
     }
 }
 
-/// Represents a [`BlockReplacement`] event where one block replaces another.
-#[derive(Debug, Clone, Display, PartialEq, Eq, Serialize, Deserialize)]
-#[display("replacement: {replacement}, invalidated: {invalidated}")]
-#[serde(rename_all = "camelCase")]
-pub struct BlockReplacement<T = BlockInfo> {
-    /// The block that replaces the invalidated block
-    pub replacement: T,
-    /// Hash of the block being invalidated and replaced
-    pub invalidated: B256,
-}
-
-impl<T> BlockReplacement<T> {
-    /// Creates a new [`BlockReplacement`].
-    pub const fn new(replacement: T, invalidated: B256) -> Self {
-        Self { replacement, invalidated }
-    }
-}
-
 /// Output data for version 0 of the protocol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -110,58 +89,6 @@ impl OutputV0 {
 /// Represents the events structure sent by the node to the supervisor.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SubscriptionEvent {
-    /// represents the event data sent by the node
+    /// Represents the event data sent by the node
     pub data: Option<ManagedEvent>,
-}
-
-/// Event sent by the node to the supervisor to share updates.
-///
-/// This struct is used to communicate various events that occur within the node.
-/// At least one of the fields will be `Some`, and the rest will be `None`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Constructor)]
-#[serde(rename_all = "camelCase")]
-pub struct ManagedEvent {
-    /// Indicates a successful reset operation with an optional message
-    pub reset: Option<String>,
-
-    /// Information about a new unsafe block
-    pub unsafe_block: Option<BlockInfo>,
-
-    /// Update about a newly derived L2 block from L1
-    pub derivation_update: Option<DerivedRefPair>,
-
-    /// Signals that there are no more L1 blocks to process
-    pub exhaust_l1: Option<DerivedRefPair>,
-
-    /// Confirms a successful block replacement operation
-    pub replace_block: Option<BlockReplacement>,
-
-    /// Indicates an update to the derivation origin
-    pub derivation_origin_update: Option<BlockInfo>,
-}
-
-impl fmt::Display for ManagedEvent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut parts = Vec::new();
-        if let Some(ref reset) = self.reset {
-            parts.push(format!("reset: {reset}"));
-        }
-        if let Some(ref block) = self.unsafe_block {
-            parts.push(format!("unsafe_block: {block}"));
-        }
-        if let Some(ref pair) = self.derivation_update {
-            parts.push(format!("derivation_update: {pair}"));
-        }
-        if let Some(ref pair) = self.exhaust_l1 {
-            parts.push(format!("exhaust_l1: {pair}"));
-        }
-        if let Some(ref replacement) = self.replace_block {
-            parts.push(format!("replace_block: {replacement}"));
-        }
-        if let Some(ref origin) = self.derivation_origin_update {
-            parts.push(format!("derivation_origin_update: {origin}"));
-        }
-
-        if parts.is_empty() { write!(f, "none") } else { write!(f, "{}", parts.join(", ")) }
-    }
 }

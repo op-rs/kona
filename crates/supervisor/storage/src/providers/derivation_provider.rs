@@ -253,7 +253,7 @@ where
 
         // Save the derived block pair to the database
         self.tx
-            .put::<DerivedBlocks>(incoming_pair.derived.number, incoming_pair.clone().into())
+            .put::<DerivedBlocks>(incoming_pair.derived.number, incoming_pair.into())
             .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
@@ -319,7 +319,7 @@ mod tests {
     fn initialize_db(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = DerivationProvider::new(&tx);
-        let res = provider.initialise(pair.clone());
+        let res = provider.initialise(*pair);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
         }
@@ -330,7 +330,7 @@ mod tests {
     fn insert_pair(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = DerivationProvider::new(&tx);
-        let res = provider.save_derived_block_pair(pair.clone());
+        let res = provider.save_derived_block_pair(*pair);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
         }

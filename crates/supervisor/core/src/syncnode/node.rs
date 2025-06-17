@@ -16,10 +16,10 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    AuthenticationError, ManagedNodeError, NodeEvent, NodeSubscriber, ReceiptProvider,
+    AuthenticationError, ManagedEventTask, ManagedNodeError, NodeSubscriber, ReceiptProvider,
     SubscriptionError,
 };
-use crate::syncnode::task::ManagedEventTask;
+use crate::event::ChainEvent;
 
 /// [`ManagedNodeConfig`] sets the configuration for the managed node.
 #[derive(Debug, Clone)]
@@ -181,7 +181,7 @@ where
     /// Spawns a background task to process incoming events.
     async fn start_subscription(
         &self,
-        event_tx: mpsc::Sender<NodeEvent>,
+        event_tx: mpsc::Sender<ChainEvent>,
     ) -> Result<(), ManagedNodeError> {
         let mut task_handle_guard = self.task_handle.lock().await;
         if task_handle_guard.is_some() {
@@ -286,10 +286,10 @@ where
 mod tests {
     use super::*;
     use alloy_eips::BlockNumHash;
-    use kona_interop::{DerivedRefPair, SafetyLevel};
+    use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
-    use kona_supervisor_types::{Log, ManagedEvent};
+    use kona_supervisor_types::Log;
     use mockall::mock;
 
     use std::io::Write;
