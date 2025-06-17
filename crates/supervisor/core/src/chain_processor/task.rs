@@ -6,7 +6,7 @@ use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, Log
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -56,7 +56,14 @@ where
                         self.handle_event(event).await;
                     }
                 }
-                _ = self.cancel_token.cancelled() => break,
+                _ = self.cancel_token.cancelled() => {
+                    info!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        "ChainProcessorTask cancellation requested, stopping..."
+                    );
+                    break;
+                }
             }
         }
     }
@@ -124,6 +131,7 @@ where
             block_number = block_info.number,
             "Processing unsafe block"
         );
+
         if let Err(err) = self.log_indexer.process_and_store_logs(&block_info).await {
             error!(
                 target: "chain_processor",
@@ -215,16 +223,16 @@ mod tests {
 
         mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
 
+        // Send unsafe block event
+        let block =
+            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
+
         let writer = Arc::new(mockdb);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
         let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
-
-        // Send unsafe block event
-        let block =
-            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
 
         tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 

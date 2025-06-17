@@ -60,7 +60,7 @@ where
     /// Helper to get [`StoredDerivedBlockPair`] by derived [`BlockNumHash`].
     /// This function checks if the derived block hash matches the expected hash.
     /// If there is a mismatch, it logs a warning and returns [`StorageError::EntryNotFound`] error.
-    fn get_derived_block_pair(
+    pub(crate) fn get_derived_block_pair(
         &self,
         derived_block_id: BlockNumHash,
     ) -> Result<StoredDerivedBlockPair, StorageError> {

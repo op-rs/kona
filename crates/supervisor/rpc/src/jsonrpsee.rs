@@ -56,6 +56,12 @@ pub trait SupervisorApi {
     #[method(name = "finalized")]
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
+    /// Returns the finalized L1 block that the supervisor is synced to.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_finalizedl1>
+    #[method(name = "finalizedL1")]
+    async fn finalized_l1(&self) -> RpcResult<BlockInfo>;
+
     /// Gets the super root state at a specified timestamp, which represents the global state
     /// across all monitored chains.
     #[method(name = "superRootAtTimestamp")]
