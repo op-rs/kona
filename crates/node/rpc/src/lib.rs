@@ -9,6 +9,8 @@
 #[macro_use]
 extern crate tracing;
 
+mod admin;
+
 mod config;
 pub use config::RpcConfig;
 
@@ -28,7 +30,8 @@ pub use output::OutputResponse;
 
 mod jsonrpsee;
 pub use jsonrpsee::{
-    MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer, WsServer,
+    AdminApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
+    WsServer,
 };
 
 #[cfg(feature = "reqwest")]

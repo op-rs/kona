@@ -31,7 +31,7 @@ alloy-rpc-types.workspace = true
 alloy-rpc-client.workspace = true
 
 # op-alloy
-op-alloy-rpc-types.workspace = true
+op-alloy-rpc-types = { workspace = true, features = ["jsonrpsee"] }
 op-alloy-consensus.workspace = true
 
 # jsonrpsee

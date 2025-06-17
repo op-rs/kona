@@ -8,7 +8,8 @@ use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader, StorageError,
+    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
+    StorageError,
 };
 use kona_supervisor_types::SuperHead;
 use op_alloy_rpc_types::SuperchainDAError;
@@ -37,7 +38,7 @@ pub enum SupervisorError {
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
-    InvalidInboxEntry(#[from] SuperchainDAError),
+    DataAvailability(#[from] SuperchainDAError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
@@ -68,11 +69,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) => {
                 ErrorObjectOwned::from(ErrorCode::InternalError)
             }
-            SupervisorError::InvalidInboxEntry(err) => ErrorObjectOwned::owned(
-                (err as i64).try_into().expect("should fit i32"),
-                err.to_string(),
-                None::<()>,
-            ),
+            SupervisorError::DataAvailability(err) => err.into(),
         }
     }
 }
@@ -102,21 +99,23 @@ pub trait SupervisorService: Debug + Send + Sync {
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError>;
 
-    /// Returns the
     /// Returns [`LocalUnsafe`] block for the given chain.
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`CrossSafe`] block for the given chain.
     ///
-    /// [`CrossSafe`]: SafetyLevel::Safe
+    /// [`CrossSafe`]: SafetyLevel::CrossSafe
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`Finalized`] block for the given chain.
     ///
     /// [`Finalized`]: SafetyLevel::Finalized
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns the finalized L1 block that the supervisor is synced to.
+    fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
@@ -264,15 +263,19 @@ impl SupervisorService for Supervisor {
     }
 
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Unsafe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe)?)
     }
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Safe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe)?)
     }
 
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized)?)
+    }
+
+    fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_finalized_l1()?)
     }
 
     async fn check_access_list(
@@ -294,6 +297,6 @@ mod test {
         let err = SuperchainDAError::UnknownChain;
         let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::InvalidInboxEntry(err)), rpc_err);
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
     }
 }

@@ -25,7 +25,7 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(BlockInfo)` containing the source block information if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the source block.
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
 
     /// Gets the latest derived [`BlockInfo`] associated with the given source block

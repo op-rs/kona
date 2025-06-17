@@ -41,15 +41,15 @@ impl ChainDb {
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         self.env.update(|tx| {
-            DerivationProvider::new(tx).initialise(anchor.clone())?;
+            DerivationProvider::new(tx).initialise(anchor)?;
             LogProvider::new(tx).initialise(anchor.derived)?;
 
             let sp = SafetyHeadRefProvider::new(tx);
             // todo: cross check if we can consider following safety head ref update
-            sp.update_safety_head_ref(SafetyLevel::Unsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::LocalUnsafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
+            sp.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor.derived)
         })?
     }
 
@@ -59,7 +59,7 @@ impl ChainDb {
     ) -> Result<(), StorageError> {
         self.env.update(|tx| {
             let sp = SafetyHeadRefProvider::new(tx);
-            let safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+            let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
 
             let dp = DerivationProvider::new(tx);
             let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
@@ -86,10 +86,10 @@ impl ChainDb {
 
         self.env.view(|tx| {
             let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
             let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
             let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
             let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
 
             Ok(SuperHead {
@@ -141,7 +141,7 @@ impl DerivationStorageWriter for ChainDb {
                     "conflict between unsafe block and derived block".to_string(),
                 ));
             }
-            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
+            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
             SafetyHeadRefProvider::new(ctx)
                 .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
         })?
@@ -254,7 +254,7 @@ mod tests {
             },
         };
 
-        db.initialise(anchor.clone()).expect("initialise db");
+        db.initialise(anchor).expect("initialise db");
 
         let block = BlockInfo {
             hash: B256::from([4u8; 32]),
@@ -319,10 +319,10 @@ mod tests {
         };
 
         // Initialise the database with the anchor derived block pair
-        db.initialise(anchor.clone()).expect("initialise db with anchor");
+        db.initialise(anchor).expect("initialise db with anchor");
 
         // Save derived block pair - should error conflict
-        let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
+        let err = db.save_derived_block_pair(derived_pair).unwrap_err();
         assert!(matches!(err, StorageError::ConflictError(_)));
 
         db.store_block_logs(
@@ -337,7 +337,7 @@ mod tests {
         .expect("storing logs failed");
 
         // Save derived block pair
-        db.save_derived_block_pair(derived_pair.clone()).expect("save derived pair");
+        db.save_derived_block_pair(derived_pair).expect("save derived pair");
 
         // Retrieve latest derived block pair
         let latest_pair = db.latest_derived_block_pair().expect("get latest derived pair");
@@ -391,17 +391,18 @@ mod tests {
         };
 
         // Test optimistic safety level
-        db.update_safety_head_ref(SafetyLevel::Unsafe, &unsafe_block).expect("update unsafe head");
+        db.update_safety_head_ref(SafetyLevel::LocalUnsafe, &unsafe_block)
+            .expect("update unsafe head");
         let retrieved_unsafe =
-            db.get_safety_head_ref(SafetyLevel::Unsafe).expect("get unsafe head");
+            db.get_safety_head_ref(SafetyLevel::LocalUnsafe).expect("get unsafe head");
         assert_eq!(
             retrieved_unsafe, unsafe_block,
             "Retrieved unsafe head should match stored block"
         );
 
         // Test safe safety level
-        db.update_safety_head_ref(SafetyLevel::Safe, &safe_block).expect("update safe head");
-        let retrieved_safe = db.get_safety_head_ref(SafetyLevel::Safe).expect("get safe head");
+        db.update_safety_head_ref(SafetyLevel::CrossSafe, &safe_block).expect("update safe head");
+        let retrieved_safe = db.get_safety_head_ref(SafetyLevel::CrossSafe).expect("get safe head");
         assert_eq!(retrieved_safe, safe_block, "Retrieved safe head should match stored block");
 
         // Test finalized safety level
@@ -437,7 +438,7 @@ mod tests {
             },
         };
 
-        db.initialise(anchor.clone()).expect("initialise db with anchor");
+        db.initialise(anchor).expect("initialise db with anchor");
 
         // Test blocks for each safety level
         let l1_block = BlockInfo {
@@ -486,11 +487,12 @@ mod tests {
         db.update_current_l1(l1_block).expect("update current L1");
 
         // Test safety head refs
-        db.update_safety_head_ref(SafetyLevel::Unsafe, &local_unsafe_block)
+        db.update_safety_head_ref(SafetyLevel::LocalUnsafe, &local_unsafe_block)
             .expect("update unsafe head");
         db.update_safety_head_ref(SafetyLevel::LocalSafe, &local_safe_block)
             .expect("update local safe head");
-        db.update_safety_head_ref(SafetyLevel::Safe, &cross_safe_block).expect("update safe head");
+        db.update_safety_head_ref(SafetyLevel::CrossSafe, &cross_safe_block)
+            .expect("update safe head");
         db.update_safety_head_ref(SafetyLevel::Finalized, &finalized_block)
             .expect("update finalized head");
         db.update_safety_head_ref(SafetyLevel::CrossUnsafe, &cross_unsafe_block)

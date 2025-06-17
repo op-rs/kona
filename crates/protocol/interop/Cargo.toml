@@ -21,7 +21,7 @@ kona-protocol.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
-derive_more = { workspace = true, features = ["from", "as_ref"] }
+derive_more = { workspace = true, features = ["from", "as_ref", "constructor"] }
 
 # Alloy
 alloy-rlp.workspace = true

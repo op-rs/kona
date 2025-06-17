@@ -119,6 +119,17 @@ where
         )
     }
 
+    async fn finalized_l1(&self) -> RpcResult<BlockInfo> {
+        crate::observe_rpc_call!(
+            "finalized_l1",
+            async {
+                trace!(target: "supervisor_rpc", "Received finalized_l1 request");
+                Ok(self.supervisor.finalized_l1()?)
+            }
+            .await
+        )
+    }
+
     async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse> {
         crate::observe_rpc_call!(
             "super_root_at_timestamp",
@@ -303,6 +314,10 @@ mod tests {
         }
 
         fn finalized(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+            unimplemented!()
+        }
+
+        fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
             unimplemented!()
         }
     }

@@ -1,7 +1,7 @@
 //! Broadcast handles broadcasting unsafe blocks in-order.
 
 use backon::{ExponentialBuilder, Retryable};
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
     collections::VecDeque,
     sync::{Arc, Mutex},
@@ -15,26 +15,26 @@ use tokio::{
 #[derive(Debug)]
 pub struct Broadcast {
     /// An in-memory buffer to store blocks.
-    buffer: VecDeque<OpNetworkPayloadEnvelope>,
+    buffer: VecDeque<OpExecutionPayloadEnvelope>,
     /// The channel to broadcast blocks.
-    channel: BroadcastSender<OpNetworkPayloadEnvelope>,
+    channel: BroadcastSender<OpExecutionPayloadEnvelope>,
     /// Tracks if broadcasting is being attempted.
     broadcasting: Arc<Mutex<bool>>,
 }
 
 impl Broadcast {
     /// Creates a new `Broadcast` instance with the given channel.
-    pub fn new(channel: BroadcastSender<OpNetworkPayloadEnvelope>) -> Self {
+    pub fn new(channel: BroadcastSender<OpExecutionPayloadEnvelope>) -> Self {
         Self { buffer: VecDeque::new(), channel, broadcasting: Arc::new(Mutex::new(false)) }
     }
 
-    /// Pushes a new unsafe block to the buffer.
-    pub fn push(&mut self, block: OpNetworkPayloadEnvelope) {
-        self.buffer.push_back(block);
+    /// Pushes a new unsafe payload to the buffer.
+    pub fn push(&mut self, payload: impl Into<OpExecutionPayloadEnvelope>) {
+        self.buffer.push_back(payload.into());
     }
 
     /// Subscribe to the broadcast channel.
-    pub fn subscribe(&self) -> BroadcastReceiver<OpNetworkPayloadEnvelope> {
+    pub fn subscribe(&self) -> BroadcastReceiver<OpExecutionPayloadEnvelope> {
         self.channel.subscribe()
     }
 
@@ -67,7 +67,7 @@ impl Broadcast {
                 };
 
                 let res = fut.retry(ExponentialBuilder::default())
-                .notify(|err: &tokio::sync::broadcast::error::SendError<OpNetworkPayloadEnvelope>, dur: Duration| {
+                .notify(|err: &tokio::sync::broadcast::error::SendError<OpExecutionPayloadEnvelope>, dur: Duration| {
                     warn!(target: "net", ?err, "Failed to broadcast block [Duration: {:?}]", dur);
                 })
                 .await;

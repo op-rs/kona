@@ -1,6 +1,5 @@
-use kona_interop::DerivedRefPair;
+use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::BlockReplacement;
 
 /// Represents chain events that are emitted from modules in the supervisor.
 /// These events are used to notify the [`ChainProcessor`](crate::chain_processor::ChainProcessor)

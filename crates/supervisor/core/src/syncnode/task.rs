@@ -4,13 +4,12 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
 use jsonrpsee::ws_client::WsClient;
-use kona_interop::{DerivedRefPair, SafetyLevel};
+use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_storage::{
     DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageError,
 };
-use kona_supervisor_types::ManagedEvent;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -73,9 +72,7 @@ where
                     // todo: check any pre processing needed
                     if let Err(err) = self
                         .event_tx
-                        .send(ChainEvent::DerivedBlock {
-                            derived_ref_pair: derived_ref_pair.clone(),
-                        })
+                        .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
                         .await
                     {
                         warn!(target: "managed_event_task", %err, "Failed to derivation update event, channel closed or receiver dropped");
@@ -99,7 +96,7 @@ where
                     // todo: check any pre processing needed
                     if let Err(err) = self
                         .event_tx
-                        .send(ChainEvent::BlockReplaced { replacement: replacement.clone() })
+                        .send(ChainEvent::BlockReplaced { replacement: *replacement })
                         .await
                     {
                         warn!(target: "managed_event_task", %err, "Failed to send block replacement event, channel closed or receiver dropped");
@@ -195,7 +192,7 @@ where
     async fn handle_reset(&self, reset_id: &str) {
         info!(target: "managed_event_task", %reset_id, "Reset event received");
 
-        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Unsafe) {
+        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
             Ok(val) => val,
             Err(err) => {
                 error!(target: "managed_event_task", %err, "Failed to get unsafe head ref");
@@ -220,7 +217,7 @@ where
             }
         };
 
-        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Safe) {
+        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossSafe) {
             Ok(val) => val,
             Err(err) => {
                 error!(target: "managed_event_task", %err, "Failed to get safe head ref");
@@ -306,10 +303,10 @@ mod tests {
     use alloy_eips::BlockNumHash;
     use alloy_primitives::B256;
     use alloy_transport::mock::*;
-    use kona_interop::{DerivedRefPair, SafetyLevel};
+    use kona_interop::{BlockReplacement, DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{DerivationStorageReader, LogStorageReader, StorageError};
-    use kona_supervisor_types::{BlockReplacement, Log};
+    use kona_supervisor_types::Log;
     use mockall::mock;
 
     mock! {
@@ -389,7 +386,7 @@ mod tests {
         let managed_event = ManagedEvent {
             reset: None,
             unsafe_block: None,
-            derivation_update: Some(derived_ref_pair.clone()),
+            derivation_update: Some(derived_ref_pair),
             exhaust_l1: None,
             replace_block: None,
             derivation_origin_update: None,
@@ -429,7 +426,7 @@ mod tests {
             unsafe_block: None,
             derivation_update: None,
             exhaust_l1: None,
-            replace_block: Some(replacement.clone()),
+            replace_block: Some(replacement),
             derivation_origin_update: None,
         };
 
