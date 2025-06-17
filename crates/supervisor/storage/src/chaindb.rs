@@ -79,29 +79,6 @@ impl ChainDb {
             sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
         })?
     }
-
-    /// Fetches all safety heads and current L1 state
-    pub fn get_super_head(&self) -> Result<SuperHead, StorageError> {
-        let l1_source = self.get_current_l1()?;
-
-        self.env.view(|tx| {
-            let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
-            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
-            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
-
-            Ok(SuperHead {
-                l1_source,
-                local_unsafe,
-                cross_unsafe,
-                local_safe,
-                cross_safe,
-                finalized,
-            })
-        })?
-    }
 }
 
 impl DerivationStorageReader for ChainDb {
