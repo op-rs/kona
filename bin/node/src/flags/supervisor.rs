@@ -20,7 +20,7 @@ pub struct SupervisorArgs {
     )]
     pub rpc_enabled: bool,
 
-    /// IP to bind Sequencer Websocket to.
+    /// IP to bind Supervisor Websocket RPC server to.
     #[arg(
         long = "supervisor.ip.address",
         default_value = "0.0.0.0",
