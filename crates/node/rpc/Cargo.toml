@@ -72,6 +72,7 @@ reqwest = ["client", "dep:alloy-rpc-client"]
 client = [
     "jsonrpsee/client",
     "jsonrpsee/async-client",
+    "op-alloy-rpc-types/jsonrpsee",
     "op-alloy-rpc-jsonrpsee/client",
 ]
 metrics = ["dep:metrics"]

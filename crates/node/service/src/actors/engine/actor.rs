@@ -12,7 +12,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
 use op_alloy_provider::ext::engine::OpEngineApi;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -53,8 +53,8 @@ pub struct EngineActor {
     runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
     attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
-    /// A channel to receive [`OpNetworkPayloadEnvelope`] from the network actor.
-    unsafe_block_rx: mpsc::Receiver<OpNetworkPayloadEnvelope>,
+    /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
+    unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// A channel to receive reset requests.
     reset_request_rx: mpsc::Receiver<()>,
     /// The cancellation token, shared between all tasks.
@@ -73,7 +73,7 @@ impl EngineActor {
         derivation_signal_tx: mpsc::Sender<Signal>,
         runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
         attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
-        unsafe_block_rx: mpsc::Receiver<OpNetworkPayloadEnvelope>,
+        unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
         reset_request_rx: mpsc::Receiver<()>,
         finalized_block_rx: watch::Receiver<Option<BlockInfo>>,
         inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
@@ -347,8 +347,8 @@ impl NodeActor for EngineActor {
 pub enum InboundEngineMessage {
     /// Engine reset requested.
     ResetRequest,
-    /// Received a new unsafe [`OpNetworkPayloadEnvelope`].
-    UnsafeBlockReceived(Box<OpNetworkPayloadEnvelope>),
+    /// Received a new unsafe [`OpExecutionPayloadEnvelope`].
+    UnsafeBlockReceived(Box<OpExecutionPayloadEnvelope>),
     /// Received new derived [`OpAttributesWithParent`].
     DerivedAttributesReceived(Box<OpAttributesWithParent>),
     /// Received an update to the runtime configuration.

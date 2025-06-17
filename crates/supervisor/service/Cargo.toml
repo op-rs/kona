@@ -30,7 +30,6 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 kona-genesis = { workspace = true }
 kona-protocol = { workspace = true }
-kona-rpc = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tokio-util = { workspace = true }
