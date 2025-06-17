@@ -150,8 +150,8 @@ pub trait Ws {
 }
 
 /// SupervisorEvents
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws"))]
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws_supervisor"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws_supervisor"))]
 #[async_trait]
 pub trait SupervisorEvents {
     /// Subscribes to the stream of events from the node.
