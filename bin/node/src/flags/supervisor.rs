@@ -90,9 +90,9 @@ mod tests {
     fn test_supervisor_args_defaults() {
         let args = MockCommand::parse_from(["test"]);
         assert_eq!(args.supervisor, SupervisorArgs::default());
-        assert!(args.supervisor.rpc_enabled);
+        assert!(!args.supervisor.rpc_enabled);
         assert_eq!(args.supervisor.ip_address, "0.0.0.0".parse::<IpAddr>().unwrap());
-        assert_eq!(args.supervisor.port, 9222);
+        assert_eq!(args.supervisor.port, 9333);
         assert_eq!(args.supervisor.jwt_secret, None);
         assert_eq!(args.supervisor.jwt_secret_file, None);
     }
