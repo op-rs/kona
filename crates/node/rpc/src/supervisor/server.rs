@@ -46,14 +46,7 @@ impl SupervisorRpcServer {
 
     /// Launches the RPC server with the given socket address.
     pub async fn launch(self) -> std::io::Result<ServerHandle> {
-        // let secret = self.jwt_token.clone();
-        // let rpc_middleware =
-        //     RpcServiceBuilder::new().layer_fn(move |service| AuthMiddleware::new(secret,
-        // service));
-        let server = jsonrpsee::server::ServerBuilder::default()
-            // .set_rpc_middleware(rpc_middleware)
-            .build(self.socket)
-            .await?;
+        let server = jsonrpsee::server::ServerBuilder::default().build(self.socket).await?;
 
         Ok(server.start(self.into_rpc()))
     }
