@@ -92,8 +92,6 @@ pub trait SupervisorApi {
     /// Returns the [`DependencySet`] for the supervisor.
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/pull/684>
-    ///
-    /// [`DependencySet`]: depset::DependencySet
     #[method(name = "dependencySet")]
     async fn dependency_set(&self) -> RpcResult<DependencySet>;
 }
