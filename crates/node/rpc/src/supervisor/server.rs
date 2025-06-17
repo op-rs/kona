@@ -7,14 +7,20 @@ use jsonrpsee::{
     core::SubscriptionError,
     server::{PendingSubscriptionSink, ServerHandle, SubscriptionMessage},
 };
+use kona_interop::{ControlEvent, ManagedEvent};
 use std::net::SocketAddr;
 use tokio::sync::broadcast;
 
 /// The supervisor rpc for the kona-node.
 #[derive(Debug)]
 pub struct SupervisorRpcServer {
-    /// A channel to receive managed events from the node.
-    events: broadcast::Receiver<()>,
+    /// A channel to receive [`ManagedEvent`] from the node.
+    managed_events: broadcast::Receiver<ManagedEvent>,
+
+    // TODO: use this sender for http rpc queries
+    /// A channel to send [`ControlEvent`].
+    #[allow(dead_code)]
+    control_events: broadcast::Sender<ControlEvent>,
     /// A JWT token for authentication.
     #[allow(dead_code)]
     jwt_token: JwtSecret,
@@ -25,11 +31,12 @@ pub struct SupervisorRpcServer {
 impl SupervisorRpcServer {
     /// Creates a new instance of the `SupervisorRpcServer`.
     pub const fn new(
-        events: broadcast::Receiver<()>,
+        managed_events: broadcast::Receiver<ManagedEvent>,
+        control_events: broadcast::Sender<ControlEvent>,
         jwt_token: JwtSecret,
         socket: SocketAddr,
     ) -> Self {
-        Self { events, jwt_token, socket }
+        Self { managed_events, control_events, jwt_token, socket }
     }
 
     /// Returns the socket address for the RPC server.
@@ -58,7 +65,7 @@ impl SupervisorEventsServer for SupervisorRpcServer {
         &self,
         sink: PendingSubscriptionSink,
     ) -> Result<(), SubscriptionError> {
-        let mut events = self.events.resubscribe();
+        let mut events = self.managed_events.resubscribe();
         tokio::spawn(async move {
             let sub = match sink.accept().await {
                 Ok(s) => s,

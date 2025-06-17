@@ -2,7 +2,7 @@
 
 use crate::{
     DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
-    RuntimeLauncher, service::spawn_and_wait,
+    RuntimeLauncher, SupervisorExt, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -43,6 +43,8 @@ pub trait ValidatorNodeService {
     type DataAvailabilityWatcher: NodeActor<Error: Display> + Send + Sync + 'static;
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
+    /// The supervisor ext provider.
+    type SupervisorExt: SupervisorExt + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
     type Error: From<RpcLauncherError>
         + From<jsonrpsee::server::RegisterMethodError>
@@ -68,6 +70,9 @@ pub trait ValidatorNodeService {
 
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
+
+    /// Creates a new [`Self::SupervisorExt`] to be used in the supervisor rpc actor.
+    async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
     /// Returns the [`RuntimeLauncher`] for the node.
     fn runtime(&self) -> RuntimeLauncher;
@@ -117,6 +122,13 @@ pub trait ValidatorNodeService {
             cancellation.clone(),
         );
         let derivation = Some(derivation);
+
+        // TODO: get the supervisor ext.
+        // TODO: use the supervisor ext to create the supervisor actor.
+        // let supervisor_ext = self.supervisor_ext();
+        // let supervisor_rpx = SupervisorActor::new(
+        //
+        // )
 
         /// The size of the RPC channel buffer for the engine actor.
         const ENGINE_RPC_CHANNEL_SIZE: usize = 1024;

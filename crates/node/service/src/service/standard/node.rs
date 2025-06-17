@@ -2,7 +2,7 @@
 
 use crate::{
     EngineLauncher, L1WatcherRpc, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
-    RuntimeLauncher, SequencerNodeService, ValidatorNodeService,
+    RuntimeLauncher, SequencerNodeService, SupervisorRpcServerExt, ValidatorNodeService,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
@@ -19,7 +19,9 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
     OnlinePipeline,
 };
-use kona_rpc::{L1WatcherQueries, NetworkRpc, RpcLauncher};
+use kona_rpc::{
+    L1WatcherQueries, NetworkRpc, RpcLauncher, SupervisorRpcConfig, SupervisorRpcServer,
+};
 
 /// The size of the cache used in the derivation pipeline's providers.
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
@@ -48,6 +50,8 @@ pub struct RollupNode {
     pub(crate) network_disabled: bool,
     /// The [`RuntimeLauncher`] for the runtime loading service.
     pub(crate) runtime_launcher: RuntimeLauncher,
+    /// The supervisor rpc server config.
+    pub(crate) supervisor_rpc: SupervisorRpcConfig,
 }
 
 impl RollupNode {
@@ -75,6 +79,7 @@ impl SequencerNodeService for RollupNode {
 impl ValidatorNodeService for RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
     type DerivationPipeline = OnlinePipeline;
+    type SupervisorExt = SupervisorRpcServerExt;
     type Error = RollupNodeError;
 
     fn config(&self) -> &RollupConfig {
@@ -98,6 +103,24 @@ impl ValidatorNodeService for RollupNode {
             cancellation,
             l1_watcher_inbound_queries,
         )
+    }
+
+    async fn supervisor_ext(&self) -> Option<Self::SupervisorExt> {
+        if self.supervisor_rpc.is_disabled() {
+            return None;
+        }
+        let (events_tx, events_rx) = tokio::sync::broadcast::channel(1024);
+        let (control_tx, control_rx) = tokio::sync::broadcast::channel(1024);
+        let server = SupervisorRpcServer::new(
+            events_rx,
+            control_tx,
+            self.supervisor_rpc.jwt_secret,
+            self.supervisor_rpc.socket_address,
+        );
+        // TODO: handle this error properly by encapsulating this logic in a trait-abstracted
+        // launcher.
+        let handle = server.launch().await.ok()?;
+        Some(SupervisorRpcServerExt::new(handle, events_tx, control_rx))
     }
 
     fn runtime(&self) -> RuntimeLauncher {

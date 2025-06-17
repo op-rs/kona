@@ -20,6 +20,11 @@ impl SupervisorRpcConfig {
     pub const fn disable(self) -> Self {
         Self { rpc_enabled: false, ..self }
     }
+
+    /// Returns if the rpc is disabled.
+    pub const fn is_disabled(&self) -> bool {
+        !self.rpc_enabled
+    }
 }
 
 // By default, the RPC server is disabled.

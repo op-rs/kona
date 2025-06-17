@@ -12,7 +12,9 @@ mod engine;
 pub use engine::{EngineActor, EngineError, EngineLauncher, InboundEngineMessage, L2Finalizer};
 
 mod supervisor;
-pub use supervisor::{SupervisorActor, SupervisorActorError, SupervisorExt};
+pub use supervisor::{
+    SupervisorActor, SupervisorActorError, SupervisorExt, SupervisorRpcServerExt,
+};
 
 mod rpc;
 pub use rpc::{RpcActor, RpcActorError};
