@@ -75,8 +75,7 @@ impl SupervisorArgs {
                     .to_string();
                 JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e))
             }
-            (Some(secret), None) => JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e)),
-            (Some(secret), Some(_)) => JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e)),
+            (Some(secret), _) => JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e)),
         }
     }
 
