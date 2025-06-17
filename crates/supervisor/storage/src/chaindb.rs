@@ -144,7 +144,7 @@ impl LogStorageWriter for ChainDb {
         self.env.update(|ctx| {
             LogProvider::new(ctx).store_block_logs(block, logs)?;
 
-            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(SafetyLevel::Unsafe, block)
+            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(SafetyLevel::LocalUnsafe, block)
         })?
     }
 }

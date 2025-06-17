@@ -227,14 +227,6 @@ mod tests {
         let block =
             BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
 
-        mockdb.expect_update_safety_head_ref().returning(
-            move |_safety_level: SafetyLevel, _pair: &BlockInfo| {
-                assert_eq!(_safety_level, SafetyLevel::Unsafe);
-                assert_eq!(*_pair, block);
-                Ok(())
-            },
-        );
-
         let writer = Arc::new(mockdb);
 
         let cancel_token = CancellationToken::new();
@@ -242,7 +234,7 @@ mod tests {
 
         let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
 
-        tx.send(NodeEvent::UnsafeBlock { block }).await.unwrap();
+        tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 
         let task_handle = tokio::spawn(task.run());
 
