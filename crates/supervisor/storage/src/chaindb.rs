@@ -19,7 +19,7 @@ use reth_db::{
 };
 use reth_db_api::database::Database;
 use std::{path::Path, sync::RwLock};
-use tracing::error;
+use tracing::{error, warn};
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -41,38 +41,42 @@ impl ChainDb {
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         self.env.update(|tx| {
-            DerivationProvider::new(tx).initialise(anchor.clone())?;
+            DerivationProvider::new(tx).initialise(anchor)?;
             LogProvider::new(tx).initialise(anchor.derived)?;
 
             let sp = SafetyHeadRefProvider::new(tx);
             // todo: cross check if we can consider following safety head ref update
-            sp.update_safety_head_ref(SafetyLevel::Unsafe, &anchor.derived)?;
+            sp.update_safety_head_ref(SafetyLevel::LocalUnsafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
+            sp.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor.derived)
         })?
     }
 
-    /// Fetches all safety heads and current L1 state
-    pub fn get_super_head(&self) -> Result<SuperHead, StorageError> {
-        let l1_source = self.get_current_l1()?;
-
-        self.env.view(|tx| {
+    pub(super) fn update_finalized_head_ref(
+        &self,
+        l1_finalized: BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.env.update(|tx| {
             let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::Unsafe)?;
-            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
-            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+            let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
 
-            Ok(SuperHead {
-                l1_source,
-                local_unsafe,
-                cross_unsafe,
-                local_safe,
-                cross_safe,
-                finalized,
-            })
+            let dp = DerivationProvider::new(tx);
+            let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
+
+            if l1_finalized.number >= safe_block_pair.source.number {
+                // this could happen during initial sync
+                warn!(
+                    target: "supervisor_storage",
+                    l1_finilized_block_number = l1_finalized.number,
+                    safe_source_block_number = safe_block_pair.source.number,
+                    "L1 finalized block is greater than safe block",
+                );
+                return sp.update_safety_head_ref(SafetyLevel::Finalized, &safe);
+            }
+
+            let latest_derived = dp.latest_derived_block_at_source(l1_finalized.id())?;
+            sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
         })?
     }
 }
@@ -114,7 +118,7 @@ impl DerivationStorageWriter for ChainDb {
                     "conflict between unsafe block and derived block".to_string(),
                 ));
             }
-            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair.clone())?;
+            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
             SafetyHeadRefProvider::new(ctx)
                 .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
         })?
@@ -153,6 +157,29 @@ impl HeadRefStorageReader for ChainDb {
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
     }
+
+    /// Fetches all safety heads and current L1 state
+    fn get_super_head(&self) -> Result<SuperHead, StorageError> {
+        let l1_source = self.get_current_l1()?;
+
+        self.env.view(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
+            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+
+            Ok(SuperHead {
+                l1_source,
+                local_unsafe,
+                cross_unsafe,
+                local_safe,
+                cross_safe,
+                finalized,
+            })
+        })?
+    }
 }
 
 impl HeadRefStorageWriter for ChainDb {
@@ -164,6 +191,18 @@ impl HeadRefStorageWriter for ChainDb {
                 error!(target: "supervisor_storage", %err, "Failed to acquire write lock on current_l1" );
                 StorageError::LockPoisoned
             })?;
+
+        // Check if the new block number is greater than the current L1 block
+        if let Some(ref current) = *guard {
+            if block.number <= current.number {
+                error!(target: "supervisor_storage",
+                    current_block_number = current.number,
+                    new_block_number = block.number,
+                    "New L1 block number is not greater than current L1 block number",
+                );
+                return Err(StorageError::BlockOutOfOrder);
+            }
+        }
         *guard = Some(block);
         Ok(())
     }
@@ -215,7 +254,7 @@ mod tests {
             },
         };
 
-        db.initialise(anchor.clone()).expect("initialise db");
+        db.initialise(anchor).expect("initialise db");
 
         let block = BlockInfo {
             hash: B256::from([4u8; 32]),
@@ -280,10 +319,10 @@ mod tests {
         };
 
         // Initialise the database with the anchor derived block pair
-        db.initialise(anchor.clone()).expect("initialise db with anchor");
+        db.initialise(anchor).expect("initialise db with anchor");
 
         // Save derived block pair - should error conflict
-        let err = db.save_derived_block_pair(derived_pair.clone()).unwrap_err();
+        let err = db.save_derived_block_pair(derived_pair).unwrap_err();
         assert!(matches!(err, StorageError::ConflictError(_)));
 
         db.store_block_logs(
@@ -298,7 +337,7 @@ mod tests {
         .expect("storing logs failed");
 
         // Save derived block pair
-        db.save_derived_block_pair(derived_pair.clone()).expect("save derived pair");
+        db.save_derived_block_pair(derived_pair).expect("save derived pair");
 
         // Retrieve latest derived block pair
         let latest_pair = db.latest_derived_block_pair().expect("get latest derived pair");
@@ -352,17 +391,18 @@ mod tests {
         };
 
         // Test optimistic safety level
-        db.update_safety_head_ref(SafetyLevel::Unsafe, &unsafe_block).expect("update unsafe head");
+        db.update_safety_head_ref(SafetyLevel::LocalUnsafe, &unsafe_block)
+            .expect("update unsafe head");
         let retrieved_unsafe =
-            db.get_safety_head_ref(SafetyLevel::Unsafe).expect("get unsafe head");
+            db.get_safety_head_ref(SafetyLevel::LocalUnsafe).expect("get unsafe head");
         assert_eq!(
             retrieved_unsafe, unsafe_block,
             "Retrieved unsafe head should match stored block"
         );
 
         // Test safe safety level
-        db.update_safety_head_ref(SafetyLevel::Safe, &safe_block).expect("update safe head");
-        let retrieved_safe = db.get_safety_head_ref(SafetyLevel::Safe).expect("get safe head");
+        db.update_safety_head_ref(SafetyLevel::CrossSafe, &safe_block).expect("update safe head");
+        let retrieved_safe = db.get_safety_head_ref(SafetyLevel::CrossSafe).expect("get safe head");
         assert_eq!(retrieved_safe, safe_block, "Retrieved safe head should match stored block");
 
         // Test finalized safety level
@@ -398,7 +438,7 @@ mod tests {
             },
         };
 
-        db.initialise(anchor.clone()).expect("initialise db with anchor");
+        db.initialise(anchor).expect("initialise db with anchor");
 
         // Test blocks for each safety level
         let l1_block = BlockInfo {
@@ -447,11 +487,12 @@ mod tests {
         db.update_current_l1(l1_block).expect("update current L1");
 
         // Test safety head refs
-        db.update_safety_head_ref(SafetyLevel::Unsafe, &local_unsafe_block)
+        db.update_safety_head_ref(SafetyLevel::LocalUnsafe, &local_unsafe_block)
             .expect("update unsafe head");
         db.update_safety_head_ref(SafetyLevel::LocalSafe, &local_safe_block)
             .expect("update local safe head");
-        db.update_safety_head_ref(SafetyLevel::Safe, &cross_safe_block).expect("update safe head");
+        db.update_safety_head_ref(SafetyLevel::CrossSafe, &cross_safe_block)
+            .expect("update safe head");
         db.update_safety_head_ref(SafetyLevel::Finalized, &finalized_block)
             .expect("update finalized head");
         db.update_safety_head_ref(SafetyLevel::CrossUnsafe, &cross_unsafe_block)
@@ -466,5 +507,34 @@ mod tests {
         assert_eq!(super_head.local_safe, local_safe_block, "Local safe should match");
         assert_eq!(super_head.cross_safe, cross_safe_block, "Cross safe should match");
         assert_eq!(super_head.finalized, finalized_block, "Finalized should match");
+    }
+
+    #[test]
+    fn test_update_and_get_current_l1() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb_current_l1");
+        let db = ChainDb::new(&db_path).unwrap();
+
+        let block1 = BlockInfo { number: 10, ..Default::default() };
+        let block2 = BlockInfo { number: 20, ..Default::default() };
+
+        // Initially, get_current_l1 should return FutureData error
+        let err = db.get_current_l1().unwrap_err();
+        assert!(matches!(err, StorageError::FutureData));
+
+        // Update current_l1 with block1
+        db.update_current_l1(block1).unwrap();
+        let got = db.get_current_l1().unwrap();
+        assert_eq!(got, block1);
+
+        // Update with a higher block number
+        db.update_current_l1(block2).unwrap();
+        let got = db.get_current_l1().unwrap();
+        assert_eq!(got, block2);
+
+        // Update with a lower block number should error
+        let block3 = BlockInfo { number: 15, ..Default::default() };
+        let err = db.update_current_l1(block3).unwrap_err();
+        assert!(matches!(err, StorageError::BlockOutOfOrder));
     }
 }

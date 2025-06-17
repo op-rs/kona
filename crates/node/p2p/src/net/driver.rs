@@ -1,10 +1,12 @@
 //! Driver for network services.
 
 use alloy_primitives::{Address, hex};
+use alloy_signer::SignerSync;
+use alloy_signer_local::PrivateKeySigner;
 use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use libp2p::TransportError;
 use libp2p_stream::IncomingStreams;
-use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
+use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
 use std::collections::HashSet;
 use tokio::{
     select,
@@ -32,13 +34,15 @@ pub struct Network {
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to publish an unsafe block.
-    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope>,
+    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
-    pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpNetworkPayloadEnvelope>,
+    pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// The swarm instance.
     pub gossip: GossipDriver<crate::ConnectionGater>,
     /// The discovery service driver.
     pub discovery: Discv5Driver,
+    /// The local signer for unsigned payloads.
+    pub local_signer: Option<PrivateKeySigner>,
 }
 
 impl Network {
@@ -53,12 +57,12 @@ impl Network {
     /// Creates a new unsafe block mpsc sender.
     pub fn new_unsafe_block_sender(
         &mut self,
-    ) -> tokio::sync::mpsc::Sender<OpNetworkPayloadEnvelope> {
+    ) -> tokio::sync::mpsc::Sender<OpExecutionPayloadEnvelope> {
         self.publish_tx.clone()
     }
 
     /// Take the unsafe block receiver.
-    pub fn unsafe_block_recv(&mut self) -> BroadcastReceiver<OpNetworkPayloadEnvelope> {
+    pub fn unsafe_block_recv(&mut self) -> BroadcastReceiver<OpExecutionPayloadEnvelope> {
         self.broadcast.subscribe()
     }
 
@@ -141,7 +145,24 @@ impl Network {
                         let selector = |handler: &crate::BlockHandler| {
                             handler.topic(timestamp)
                         };
-                        match self.gossip.publish(selector, Some(block)) {
+                        let Some(signer) = self.local_signer.as_ref() else {
+                            warn!(target: "net", "No local signer available to sign the payload");
+                            continue;
+                        };
+                        use ssz::Encode;
+                        let ssz_bytes = block.as_ssz_bytes();
+                        let Ok(signature) = signer.sign_message_sync(&ssz_bytes) else {
+                            warn!(target: "net", "Failed to sign the payload bytes");
+                            continue;
+                        };
+                        let payload_hash = block.payload_hash();
+                        let payload = OpNetworkPayloadEnvelope {
+                            payload: block.payload,
+                            signature,
+                            payload_hash,
+                            parent_beacon_block_root: block.parent_beacon_block_root,
+                        };
+                        match self.gossip.publish(selector, Some(payload)) {
                             Ok(id) => info!("Published unsafe payload | {:?}", id),
                             Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
                         }
@@ -229,7 +250,16 @@ impl Network {
                             error!(target: "node::p2p", "The rpc receiver channel has closed");
                             return;
                         };
-                        req.handle(&mut self.gossip, &handler);
+                        let payload = match req {
+                            P2pRpcRequest::PostUnsafePayload { payload } => payload,
+                            req => {
+                                req.handle(&mut self.gossip, &handler);
+                                continue;
+                            }
+                        };
+                        debug!(target: "node::p2p", "Broadcasting unsafe payload from admin api");
+                        broadcast.push(payload);
+                        broadcast.broadcast();
                     },
                 }
             }
