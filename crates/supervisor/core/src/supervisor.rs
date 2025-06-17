@@ -78,7 +78,7 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns list of supervised [`ChainId`]s.
     fn chain_ids(&self) -> impl Iterator<Item = ChainId>;
 
-    /// Returns list of supervised [`ChainId`]s.
+    /// Returns mapping of supervised [`ChainId`]s to their [`ChainDependency`] config.
     fn dependency_set(&self) -> DependencySet;
 
     /// Returns [`SuperHead`] of given supervised chain.

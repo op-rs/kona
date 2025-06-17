@@ -92,8 +92,9 @@ pub trait SupervisorApi {
     /// Returns the [`DependencySet`] for the supervisor.
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/pull/684>
-    #[method(name = "dependencySet")]
-    async fn dependency_set(&self) -> RpcResult<DependencySet>;
+    /// TODO: Replace the link above after the PR is merged.
+    #[method(name = "dependencySetV1")]
+    async fn dependency_set_v1(&self) -> RpcResult<DependencySet>;
 }
 
 /// Represents the topics for subscriptions in the Managed Mode API.

@@ -88,7 +88,7 @@ where
         )
     }
 
-    async fn dependency_set(&self) -> RpcResult<DependencySet> {
+    async fn dependency_set_v1(&self) -> RpcResult<DependencySet> {
         crate::observe_rpc_call!(
             "dependency_set",
             async {
