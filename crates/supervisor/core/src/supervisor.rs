@@ -165,14 +165,7 @@ impl Supervisor {
         self.init_database().await?;
         self.init_managed_nodes().await?;
         self.init_chain_processor().await?;
-
-        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
-        let l1_watcher =
-            L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
-
-        tokio::spawn(async move {
-            l1_watcher.run().await;
-        });
+        self.init_l1_watcher()?;
         Ok(())
     }
 
@@ -228,6 +221,17 @@ impl Supervisor {
                 "Managed node for chain initialized successfully",
             );
         }
+        Ok(())
+    }
+
+    fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
+        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
+        let l1_watcher =
+            L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
+
+        tokio::spawn(async move {
+            l1_watcher.run().await;
+        });
         Ok(())
     }
 }
