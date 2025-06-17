@@ -4984,13 +4984,14 @@ dependencies = [
 name = "kona-supervisor-core"
 version = "0.1.0"
 dependencies = [
+ "alloy-consensus",
  "alloy-eips",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-client",
- "alloy-rpc-types",
  "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth",
  "alloy-transport",
  "async-trait",
  "auto_impl",

@@ -1,5 +1,6 @@
+use alloy_eips::BlockNumberOrTag;
 use alloy_rpc_client::RpcClient;
-use alloy_rpc_types::BlockNumberOrTag;
+use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::FinalizedL1Storage;
@@ -34,7 +35,7 @@ where
     pub async fn run(&self) {
         let finalized_head_poller = self
             .rpc_client
-            .prepare_static_poller::<_, alloy_rpc_types::Block>(
+            .prepare_static_poller::<_, Block>(
                 "eth_getBlockByNumber",
                 (BlockNumberOrTag::Finalized, false),
             )
@@ -54,12 +55,8 @@ where
                     if let Some(block) = finalized_block {
                         let block_number = block.header.number;
                         if block_number != last_finalized_number {
-                            let block_info = BlockInfo {
-                              hash: block.header.hash,
-                              number: block.header.number,
-                              parent_hash: block.header.parent_hash,
-                              timestamp: block.header.timestamp,
-                            };
+                            let Header { hash, inner: alloy_consensus::Header { number, parent_hash, timestamp, .. }, .. } = block.header;
+                            let block_info = BlockInfo::new(hash, number, parent_hash, timestamp);
                             info!(target: "l1_watcher", block_number = block_info.number, "New finalized L1 block received");
                             if let Err(err) = self.finalized_l1_storage.update_finalized_l1(block_info) {
                               error!(target: "l1_watcher", %err, "Failed to update finalized L1 block");

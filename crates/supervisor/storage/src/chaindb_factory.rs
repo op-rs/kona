@@ -111,7 +111,7 @@ impl FinalizedL1Storage for ChainDbFactory {
         })?;
         for (chain_id, db) in dbs.iter() {
             if let Err(err) = db.update_finalized_head_ref(block) {
-                error!(target: "supervisor_storage", chain_id = *chain_id, %err, "Failed to update finalized L1 in chain database");
+                error!(target: "supervisor_storage", chain_id = %chain_id, %err, "Failed to update finalized L1 in chain database");
             }
         }
 
