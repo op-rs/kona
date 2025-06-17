@@ -3,11 +3,7 @@ use core::fmt::Debug;
 use alloy_eips::BlockNumHash;
 use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
-use alloy_provider::{
-    RootProvider,
-    mock::{Asserter, MockTransport},
-};
-use alloy_rpc_client::RpcClient;
+use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
@@ -16,6 +12,7 @@ use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
 };
 use kona_supervisor_types::SuperHead;
+use reqwest::Url;
 use std::{collections::HashMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
@@ -153,14 +150,12 @@ impl Supervisor {
 
     async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
-            let asserter = Asserter::new();
-            let transport = MockTransport::new(asserter.clone());
-            let l1_provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-
+            let provider =
+                RootProvider::<Ethereum>::new_http(Url::parse(&self.config.l1_rpc).unwrap());
             let mut managed_node = ManagedNode::<ChainDb>::new(
                 Arc::new(config.clone()),
                 self.cancel_token.clone(),
-                l1_provider,
+                provider,
             );
 
             let chain_id = managed_node.chain_id().await?;
