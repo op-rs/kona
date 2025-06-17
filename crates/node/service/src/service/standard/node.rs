@@ -41,8 +41,7 @@ pub struct RollupNode {
     /// The [`EngineLauncher`] handles launching the engine api.
     pub(crate) engine_launcher: EngineLauncher,
     /// The [`RpcLauncher`] for the node.
-    /// If `None`, the RPC server will not be started.
-    pub(crate) rpc_launcher: Option<RpcLauncher>,
+    pub(crate) rpc_launcher: RpcLauncher,
     /// The P2P [`Config`] for the node.
     pub(crate) p2p_config: Option<Config>,
     /// Whether p2p networking is entirely disabled.
@@ -109,7 +108,7 @@ impl ValidatorNodeService for RollupNode {
         self.engine_launcher.clone()
     }
 
-    fn rpc(&self) -> Option<RpcLauncher> {
+    fn rpc(&self) -> RpcLauncher {
         self.rpc_launcher.clone()
     }
 

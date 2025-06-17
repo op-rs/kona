@@ -47,6 +47,22 @@ impl RpcLauncher {
         Self { config, module: RpcModule::new(()) }
     }
 
+    /// Creates a new [`RpcLauncher`] that is disabled.
+    pub fn new_disabled() -> Self {
+        Self {
+            config: RpcConfig {
+                disabled: true,
+                no_restart: false,
+                // Use a dummy socket address. The RPC server is disabled, so it will not be used.
+                socket: SocketAddr::from(([127, 0, 0, 1], 8080)),
+                enable_admin: false,
+                admin_persistence: None,
+                ws_enabled: false,
+            },
+            module: RpcModule::new(()),
+        }
+    }
+
     /// Returns whether WebSocket RPC endpoint is enabled
     pub const fn ws_enabled(&self) -> bool {
         self.config.ws_enabled

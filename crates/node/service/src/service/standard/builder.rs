@@ -18,7 +18,7 @@ use url::Url;
 use kona_genesis::RollupConfig;
 use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::{RpcConfig, SupervisorRpcConfig};
+use kona_rpc::{RpcConfig, RpcLauncher, SupervisorRpcConfig};
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
@@ -140,7 +140,8 @@ impl RollupNodeBuilder {
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
-        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher());
+        let rpc_launcher =
+            self.rpc_config.map(|c| c.as_launcher()).unwrap_or(RpcLauncher::new_disabled());
 
         let config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {
