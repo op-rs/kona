@@ -6,4 +6,4 @@ mod service;
 pub use service::Service;
 
 mod actors;
-pub use actors::{SupervisorActor};
+pub use actors::SupervisorActor;

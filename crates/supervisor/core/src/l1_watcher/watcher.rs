@@ -22,7 +22,7 @@ where
     F: FinalizedL1Storage + 'static,
 {
     /// Creates a new [`L1Watcher`] instance.
-    pub fn new(
+    pub const fn new(
         rpc_client: RpcClient,
         finalized_l1_storage: Arc<F>,
         cancellation: CancellationToken,

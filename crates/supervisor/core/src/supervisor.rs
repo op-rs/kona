@@ -167,7 +167,8 @@ impl Supervisor {
         self.init_chain_processor().await?;
 
         let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
-        let l1_watcher = L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
+        let l1_watcher =
+            L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
 
         tokio::spawn(async move {
             l1_watcher.run().await;

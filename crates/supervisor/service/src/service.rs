@@ -24,7 +24,12 @@ pub struct Service<T = Supervisor> {
 impl Service {
     /// Creates a new Supervisor service instance.
     pub fn new(config: Config) -> Self {
-        Self { config, supervisor: None, rpc_server_handle: None, cancel_token: CancellationToken::new() }
+        Self {
+            config,
+            supervisor: None,
+            rpc_server_handle: None,
+            cancel_token: CancellationToken::new(),
+        }
     }
 
     /// Runs the Supervisor service.

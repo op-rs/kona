@@ -65,7 +65,7 @@ impl ChainDb {
             let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
 
             if l1_finalized.number >= safe_block_pair.source.number {
-                // this could happen during initial sync 
+                // this could happen during initial sync
                 warn!(
                     target: "supervisor_storage",
                     l1_finilized_block_number = l1_finalized.number,
