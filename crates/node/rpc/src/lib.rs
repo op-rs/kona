@@ -20,6 +20,9 @@ pub use launcher::{HealthzResponse, RpcLauncher, RpcLauncherError};
 mod net;
 pub use net::NetworkRpc;
 
+mod supervisor;
+pub use supervisor::SupervisorRpcConfig;
+
 mod p2p;
 
 mod response;

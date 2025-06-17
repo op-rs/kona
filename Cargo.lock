@@ -4872,6 +4872,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rpc-client",
+ "alloy-rpc-types-engine",
  "async-trait",
  "derive_more",
  "getrandom 0.3.3",

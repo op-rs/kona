@@ -18,7 +18,7 @@ use url::Url;
 use kona_genesis::RollupConfig;
 use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::RpcConfig;
+use kona_rpc::{RpcConfig, SupervisorRpcConfig};
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
@@ -39,6 +39,9 @@ pub struct RollupNodeBuilder {
     p2p_config: Option<Config>,
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
+    /// An RPC Configuration for the supervisor rpc.
+    #[allow(dead_code)]
+    supervisor_rpc_config: Option<SupervisorRpcConfig>,
     /// An interval to load the runtime config.
     runtime_load_interval: Option<std::time::Duration>,
     /// The mode to run the node in.
@@ -56,6 +59,11 @@ impl RollupNodeBuilder {
     /// Sets the mode on the [`RollupNodeBuilder`].
     pub fn with_mode(self, mode: NodeMode) -> Self {
         Self { mode, ..self }
+    }
+
+    /// Appends the [`SupervisorRpcConfig`] to the builder.
+    pub fn with_supervisor_rpc_config(self, config: SupervisorRpcConfig) -> Self {
+        Self { supervisor_rpc_config: Some(config), ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.

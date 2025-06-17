@@ -2,8 +2,11 @@
 
 use std::{fs, net::IpAddr, path::PathBuf};
 
+use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Ok, anyhow};
 use clap::Parser;
+use kona_rpc::SupervisorRpcConfig;
+use std::net::SocketAddr;
 
 /// Supervisor CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -52,9 +55,15 @@ impl Default for SupervisorArgs {
         Self::parse_from::<[_; 0], &str>([])
     }
 }
+
 impl SupervisorArgs {
+    /// Returns the [`SocketAddr`] for the supervisor rpc.
+    pub const fn socket_addr(&self) -> SocketAddr {
+        SocketAddr::new(self.ip_address, self.port)
+    }
+
     /// Load the JWT secret for the supervisor websocket authentication.
-    pub fn load_jwt_secret(&self) -> anyhow::Result<String> {
+    pub fn load_jwt_secret(&self) -> anyhow::Result<JwtSecret> {
         match (&self.jwt_secret, &self.jwt_secret_file) {
             (None, None) => Err(anyhow!("JWT secret required for websocket authentication")),
             (None, Some(file)) => {
@@ -64,11 +73,23 @@ impl SupervisorArgs {
                     })?
                     .trim()
                     .to_string();
-                Ok(secret)
+                JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e))
             }
-            (Some(secret), None) => Ok(secret.to_string()),
-            (Some(secret), Some(_)) => Ok(secret.to_string()),
+            (Some(secret), None) => JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e)),
+            (Some(secret), Some(_)) => JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e)),
         }
+    }
+
+    /// Constructs the [`SupervisorRpcConfig`] from the [`SupervisorArgs`].
+    ///
+    /// ## Errors
+    ///
+    /// This method errors if the JWT secret is unable to be loaded using
+    /// [`SupervisorArgs::load_jwt_secret`].
+    pub fn as_rpc_config(&self) -> anyhow::Result<SupervisorRpcConfig> {
+        let jwt_secret = self.load_jwt_secret()?;
+        let socket_address = self.socket_addr();
+        Ok(SupervisorRpcConfig { rpc_enabled: self.rpc_enabled, socket_address, jwt_secret })
     }
 }
 
@@ -91,10 +112,14 @@ mod tests {
         let args = MockCommand::parse_from(["test"]);
         assert_eq!(args.supervisor, SupervisorArgs::default());
         assert!(!args.supervisor.rpc_enabled);
-        assert_eq!(args.supervisor.ip_address, "0.0.0.0".parse::<IpAddr>().unwrap());
+        let expected_ip = "0.0.0.0".parse::<IpAddr>().unwrap();
+        assert_eq!(args.supervisor.ip_address, expected_ip);
         assert_eq!(args.supervisor.port, 9333);
         assert_eq!(args.supervisor.jwt_secret, None);
         assert_eq!(args.supervisor.jwt_secret_file, None);
+
+        let expected_addr = SocketAddr::new(expected_ip, 9333);
+        assert_eq!(args.supervisor.socket_addr(), expected_addr);
     }
 
     #[test]
