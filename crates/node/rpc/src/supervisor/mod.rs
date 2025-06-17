@@ -2,3 +2,6 @@
 
 mod config;
 pub use config::SupervisorRpcConfig;
+
+mod server;
+pub use server::SupervisorRpcServer;

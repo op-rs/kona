@@ -17,14 +17,11 @@ pub use config::RpcConfig;
 mod launcher;
 pub use launcher::{HealthzResponse, RpcLauncher, RpcLauncherError};
 
-mod supervisor;
-pub use supervisor::SupervisorRpcServer;
-
 mod net;
 pub use net::NetworkRpc;
 
 mod supervisor;
-pub use supervisor::SupervisorRpcConfig;
+pub use supervisor::{SupervisorRpcConfig, SupervisorRpcServer};
 
 mod p2p;
 
