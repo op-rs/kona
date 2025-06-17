@@ -11,7 +11,7 @@ use kona_protocol::BlockInfo;
 ///
 /// - `source`: The [`BlockNumHash`] of the source (L1) block.
 /// - `derived`: The [`BlockNumHash`] of the derived (L2) block.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct DerivedIdPair {
@@ -29,7 +29,7 @@ pub struct DerivedIdPair {
 /// - `source`: The [`BlockInfo`] of the source (L1) block.
 /// - `derived`: The [`BlockInfo`] of the derived (L2) block.
 // todo: link specs in docs once spec PR #708 is merged
-#[derive(Debug, Clone, Display, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Display, PartialEq, Eq)]
 #[display("source: {source}, derived: {derived}")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]

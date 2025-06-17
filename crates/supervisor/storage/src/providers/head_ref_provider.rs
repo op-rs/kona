@@ -90,13 +90,13 @@ mod tests {
         let write_provider = SafetyHeadRefProvider::new(&write_tx);
 
         // Initially, there should be no head ref
-        let result = write_provider.get_safety_head_ref(SafetyLevel::Safe);
+        let result = write_provider.get_safety_head_ref(SafetyLevel::CrossSafe);
         assert!(result.is_err());
 
         // Update head ref
         let block_info = BlockInfo::default();
         write_provider
-            .update_safety_head_ref(SafetyLevel::Safe, &block_info)
+            .update_safety_head_ref(SafetyLevel::CrossSafe, &block_info)
             .expect("Failed to update head ref");
 
         // Commit the write transaction
@@ -106,7 +106,7 @@ mod tests {
         let tx = db.tx().expect("Failed to create transaction");
         let provider = SafetyHeadRefProvider::new(&tx);
         let result =
-            provider.get_safety_head_ref(SafetyLevel::Safe).expect("Failed to get head ref");
+            provider.get_safety_head_ref(SafetyLevel::CrossSafe).expect("Failed to get head ref");
         assert_eq!(result, block_info);
     }
 
@@ -124,7 +124,7 @@ mod tests {
             timestamp: 100,
         };
         write_provider
-            .update_safety_head_ref(SafetyLevel::Safe, &initial_block_info)
+            .update_safety_head_ref(SafetyLevel::CrossSafe, &initial_block_info)
             .expect("Failed to update head ref");
 
         // Create updated block info
@@ -136,7 +136,7 @@ mod tests {
         };
         updated_block_info.number = 100;
         write_provider
-            .update_safety_head_ref(SafetyLevel::Safe, &updated_block_info)
+            .update_safety_head_ref(SafetyLevel::CrossSafe, &updated_block_info)
             .expect("Failed to update head ref");
 
         // Commit the write transaction
@@ -146,7 +146,7 @@ mod tests {
         let tx = db.tx().expect("Failed to create transaction");
         let provider = SafetyHeadRefProvider::new(&tx);
         let result =
-            provider.get_safety_head_ref(SafetyLevel::Safe).expect("Failed to get head ref");
+            provider.get_safety_head_ref(SafetyLevel::CrossSafe).expect("Failed to get head ref");
         assert_eq!(result, updated_block_info);
     }
 }
