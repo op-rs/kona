@@ -15,9 +15,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::{
-    config::Config,
-    l1_watcher::L1Watcher,
-    SupervisorError, chain_processor::ChainProcessor, config::Config, syncnode::ManagedNode,
+    ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::ManagedNode,
 };
 
 /// Defines the service for the Supervisor core logic.
