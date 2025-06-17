@@ -2,6 +2,7 @@ use core::fmt::Debug;
 
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
+use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
@@ -19,6 +20,7 @@ use tracing::{info, warn};
 use crate::{
     chain_processor::{ChainProcessor, ChainProcessorError},
     config::Config,
+    l1_watcher::L1Watcher,
     syncnode::{ManagedNode, ManagedNodeError},
 };
 
@@ -162,7 +164,15 @@ impl Supervisor {
     pub async fn initialise(&mut self) -> Result<(), SupervisorError> {
         self.init_database().await?;
         self.init_managed_nodes().await?;
-        self.init_chain_processor().await
+        self.init_chain_processor().await?;
+
+        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
+        let l1_watcher = L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
+
+        tokio::spawn(async move {
+            l1_watcher.run().await;
+        });
+        Ok(())
     }
 
     async fn init_database(&self) -> Result<(), SupervisorError> {

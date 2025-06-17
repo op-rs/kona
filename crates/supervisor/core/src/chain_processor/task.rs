@@ -7,7 +7,7 @@ use kona_supervisor_types::BlockReplacement;
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -57,7 +57,14 @@ where
                         self.handle_event(event).await;
                     }
                 }
-                _ = self.cancel_token.cancelled() => break,
+                _ = self.cancel_token.cancelled() => {
+                    info!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        "ChainProcessorTask cancellation requested, stopping..."
+                    );
+                    break;
+                }
             }
         }
     }

@@ -19,7 +19,7 @@ use reth_db::{
 };
 use reth_db_api::database::Database;
 use std::{path::Path, sync::RwLock};
-use tracing::error;
+use tracing::{error, warn};
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -50,6 +50,33 @@ impl ChainDb {
             sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
             sp.update_safety_head_ref(SafetyLevel::Safe, &anchor.derived)
+        })?
+    }
+
+    pub(super) fn update_finalized_head_ref(
+        &self,
+        l1_finalized: BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.env.update(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let safe = sp.get_safety_head_ref(SafetyLevel::Safe)?;
+
+            let dp = DerivationProvider::new(tx);
+            let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
+
+            if l1_finalized.number >= safe_block_pair.source.number {
+                // this could happen during initial sync 
+                warn!(
+                    target: "supervisor_storage",
+                    l1_finilized_block_number = l1_finalized.number,
+                    safe_source_block_number = safe_block_pair.source.number,
+                    "L1 finalized block is greater than safe block",
+                );
+                return sp.update_safety_head_ref(SafetyLevel::Finalized, &safe);
+            }
+
+            let latest_derived = dp.latest_derived_block_at_source(l1_finalized.id())?;
+            sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
         })?
     }
 
