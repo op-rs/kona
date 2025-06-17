@@ -140,7 +140,7 @@ impl RollupNodeBuilder {
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
-        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher()).unwrap_or_default();
+        let rpc_launcher = self.rpc_config.map(|c| c.as_launcher());
 
         let config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {

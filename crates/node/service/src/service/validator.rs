@@ -76,7 +76,7 @@ pub trait ValidatorNodeService {
     fn engine(&self) -> EngineLauncher;
 
     /// Returns the [`RpcLauncher`] for the node.
-    fn rpc(&self) -> RpcLauncher;
+    fn rpc(&self) -> Option<RpcLauncher>;
 
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), Self::Error> {
@@ -166,18 +166,20 @@ pub trait ValidatorNodeService {
         );
 
         // The RPC Server should go last to let other actors register their rpc modules.
-        let mut launcher = self.rpc();
-        launcher = launcher.merge(p2p_module.map(|r| r.into_rpc())).map_err(Self::Error::from)?;
-        let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
-        launcher = launcher.merge(Some(rollup_rpc.into_rpc())).map_err(Self::Error::from)?;
-        if launcher.ws_enabled() {
-            launcher = launcher
-                .merge(Some(WsRPC::new(engine_query_sender).into_rpc()))
-                .map_err(Self::Error::from)?;
-        }
-
-        let handle = launcher.launch().await?;
-        let rpc = handle.map(|h| RpcActor::new(launcher, h, cancellation.clone()));
+        let rpc = if let Some(launcher) = self.rpc() {
+            let mut launcher = launcher.with_healthz()?;
+            p2p_module.map(|r| launcher.merge(r.into_rpc())).transpose()?;
+            let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
+            launcher.merge(rollup_rpc.into_rpc())?;
+            if launcher.ws_enabled() {
+                launcher
+                    .merge(WsRPC::new(engine_query_sender).into_rpc())
+                    .map_err(Self::Error::from)?;
+            }
+            Some(RpcActor::new(launcher, cancellation.clone()))
+        } else {
+            None
+        };
 
         spawn_and_wait!(
             cancellation,
