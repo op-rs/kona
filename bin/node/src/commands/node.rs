@@ -1,7 +1,7 @@
 //! Node Subcommand.
 
 use crate::{
-    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs, SupervisorArgs},
     metrics::CliMetrics,
 };
 use alloy_rpc_types_engine::JwtSecret;
@@ -75,6 +75,9 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
+    /// SUPERVISOR CLI arguments.
+    #[command(flatten)]
+    pub supervisor_flags: SupervisorArgs,
 }
 
 impl Default for NodeCommand {
@@ -91,6 +94,7 @@ impl Default for NodeCommand {
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
             l2_engine_kind: EngineKind::Geth,
+            supervisor_flags: SupervisorArgs::default(),
         }
     }
 }
