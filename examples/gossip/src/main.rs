@@ -20,10 +20,13 @@
 use clap::{ArgAction, Parser};
 use discv5::enr::CombinedKey;
 use kona_cli::init_tracing_subscriber;
-use kona_p2p::{LocalNode, Network};
+use kona_p2p::{Config, LocalNode, Network};
 use kona_registry::ROLLUP_CONFIGS;
-use libp2p::Multiaddr;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use libp2p::{Multiaddr, identity::Keypair};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
 use tracing_subscriber::EnvFilter;
 
 /// The gossip command.
@@ -74,18 +77,34 @@ impl GossipCommand {
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
             unreachable!()
         };
-        let disc_addr = LocalNode::new(
-            secret_key,
-            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            self.disc_port,
-            self.disc_port,
-        );
-        let mut network = Network::builder()
-            .with_discovery_address(disc_addr)
-            .with_rollup_config(rollup_config.clone())
-            .with_gossip_address(gossip_addr)
-            .with_unsafe_block_signer(signer)
-            .build()?;
+
+        let disc_ip = Ipv4Addr::UNSPECIFIED;
+        let disc_addr =
+            LocalNode::new(secret_key, IpAddr::V4(disc_ip), self.disc_port, self.disc_port);
+
+        let mut network = Network::builder(Config {
+            discovery_address: disc_addr,
+            gossip_address: gossip_addr,
+            unsafe_block_signer: signer,
+            discovery_config: discv5::ConfigBuilder::new(discv5::ListenConfig::Ipv4 {
+                ip: disc_ip,
+                port: self.disc_port,
+            })
+            .build(),
+            discovery_interval: Duration::from_secs(self.interval),
+            discovery_randomize: None,
+            keypair: Keypair::generate_secp256k1(),
+            gossip_config: Default::default(),
+            scoring: Default::default(),
+            topic_scoring: Default::default(),
+            monitor_peers: Default::default(),
+            bootstore: None,
+            gater_config: Default::default(),
+            bootnodes: Default::default(),
+            rollup_config: rollup_config.clone(),
+            local_signer: None,
+        })
+        .build()?;
 
         let mut recv = network.unsafe_block_recv();
         network.start().await?;

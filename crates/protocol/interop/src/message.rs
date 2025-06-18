@@ -4,9 +4,9 @@
 //! <https://github.com/ethereum-optimism/optimism/blob/34d5f66ade24bd1f3ce4ce7c0a6cfc1a6540eca1/packages/contracts-bedrock/src/L2/CrossL2Inbox.sol>
 
 use alloc::{vec, vec::Vec};
-use alloy_primitives::{Bytes, Log, keccak256};
+use alloy_primitives::{Bytes, ChainId, Log, keccak256};
 use alloy_sol_types::{SolEvent, sol};
-use derive_more::{AsRef, From};
+use derive_more::{AsRef, Constructor, From};
 use kona_protocol::Predeploys;
 use op_alloy_consensus::OpReceiptEnvelope;
 
@@ -74,7 +74,7 @@ impl From<executeMessageCall> for ExecutingMessage {
 
 /// An [`ExecutingDescriptor`] is a part of the payload to `supervisor_checkAccessList`
 /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#executingdescriptor>
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Constructor)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExecutingDescriptor {
     /// The timestamp used to enforce timestamp [invariant](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/derivation.md#invariants)
@@ -83,13 +83,9 @@ pub struct ExecutingDescriptor {
     /// (message expiry may drop previously valid messages).
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     timeout: Option<u64>,
-}
-
-impl ExecutingDescriptor {
-    /// Create a new [`ExecutingDescriptor`] from the timestamp and timeout
-    pub const fn new(timestamp: u64, timeout: Option<u64>) -> Self {
-        Self { timestamp, timeout }
-    }
+    /// Chain ID of the chain that the message was executed on.
+    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
+    chain_id: ChainId,
 }
 
 /// A wrapper type for [ExecutingMessage] containing the chain ID of the chain that the message was
@@ -146,4 +142,23 @@ pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
     (log.address == Predeploys::CROSS_L2_INBOX && log.topics().len() == 2)
         .then(|| ExecutingMessage::decode_log_data(&log.data).ok())
         .flatten()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Test the serialization of ExecutingDescriptor
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serialize_executing_descriptor() {
+        let descriptor =
+            ExecutingDescriptor { timestamp: 1234567890, timeout: Some(3600), chain_id: 1000 };
+        let serialized = serde_json::to_string(&descriptor).unwrap();
+        let expected = r#"{"timestamp":1234567890,"timeout":3600,"chain_id":"0x3e8"}"#;
+        assert_eq!(serialized, expected);
+
+        let deserialized: ExecutingDescriptor = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(descriptor, deserialized);
+    }
 }

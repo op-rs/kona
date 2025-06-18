@@ -11,13 +11,4 @@ pub enum NetworkBuilderError {
     /// An error from building the discv5 driver.
     #[error(transparent)]
     DiscoveryDriverBuilder(#[from] Discv5BuilderError),
-    /// The unsafe block signer is missing.
-    #[error("missing unsafe block signer")]
-    UnsafeBlockSignerNotSet,
-    /// Missing RPC receiver.
-    #[error("missing RPC receiver")]
-    MissingRpcReceiver,
-    /// Missing the `RollupConfig`.
-    #[error("missing RollupConfig")]
-    MissingRollupConfig,
 }

@@ -4,7 +4,10 @@
 
 use clap::Parser;
 use kona_rpc::RpcConfig;
-use std::{net::IpAddr, path::PathBuf};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::PathBuf,
+};
 
 /// RPC CLI Arguments
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
@@ -41,23 +44,16 @@ impl Default for RpcArgs {
     }
 }
 
-impl From<&RpcArgs> for RpcConfig {
-    fn from(args: &RpcArgs) -> Self {
+impl From<RpcArgs> for RpcConfig {
+    fn from(args: RpcArgs) -> Self {
         Self {
-            enabled: !args.rpc_disabled,
+            disabled: args.rpc_disabled,
             no_restart: args.no_restart,
-            listen_addr: args.listen_addr,
-            listen_port: args.listen_port,
+            socket: SocketAddr::from((args.listen_addr, args.listen_port)),
             enable_admin: args.enable_admin,
             admin_persistence: args.admin_persistence.clone(),
             ws_enabled: args.ws_enabled,
         }
-    }
-}
-
-impl From<RpcArgs> for RpcConfig {
-    fn from(args: RpcArgs) -> Self {
-        Self::from(&args)
     }
 }
 

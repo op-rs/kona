@@ -131,6 +131,7 @@ where
             block_number = block_info.number,
             "Processing unsafe block"
         );
+
         if let Err(err) = self.log_indexer.process_and_store_logs(&block_info).await {
             error!(
                 target: "chain_processor",
@@ -222,16 +223,16 @@ mod tests {
 
         mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
 
+        // Send unsafe block event
+        let block =
+            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
+
         let writer = Arc::new(mockdb);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
         let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
-
-        // Send unsafe block event
-        let block =
-            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
 
         tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 

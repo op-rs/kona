@@ -141,7 +141,11 @@ impl LogStorageReader for ChainDb {
 
 impl LogStorageWriter for ChainDb {
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
-        self.env.update(|ctx| LogProvider::new(ctx).store_block_logs(block, logs))?
+        self.env.update(|ctx| {
+            LogProvider::new(ctx).store_block_logs(block, logs)?;
+
+            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(SafetyLevel::LocalUnsafe, block)
+        })?
     }
 }
 
