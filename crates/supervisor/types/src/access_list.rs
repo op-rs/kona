@@ -87,8 +87,8 @@ impl Access {
         exec_ts_with_duration: u64,
         expiry_window: u64,
     ) -> Result<(), AccessListError> {
-        if self.timestamp > exec_ts {
-            return Err(AccessListError::MalformedEntry);
+        if self.timestamp >= exec_ts {
+            return Err(AccessListError::InvalidTimestampInvariant);
         }
         let expires_at = self.timestamp.saturating_add(expiry_window);
         if expires_at < exec_ts_with_duration {
@@ -150,6 +150,10 @@ pub enum AccessListError {
     /// Message expired.
     #[error("message expired")]
     MessageExpired,
+
+    /// Timestamp invariant violated.
+    #[error("executing timestamp is earlier than initiating timestamp")]
+    InvalidTimestampInvariant,
 }
 
 // Access list entry type byte constants

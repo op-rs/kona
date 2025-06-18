@@ -192,14 +192,6 @@ impl Supervisor {
         Ok(())
     }
 
-    fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
-        self.config
-            .rollup_config_set
-            .get(chain_id)
-            .map(|cfg| cfg.is_post_interop(timestamp))
-            .unwrap_or(false) // if config not found, return false
-    }
-
     fn verify_safety_level(
         &self,
         chain_id: ChainId,
@@ -301,24 +293,23 @@ impl SupervisorService for Supervisor {
 
             // The interop fork must be active for both the executing and
             // initiating chains at the respective timestamps.
-            if !self.is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
-                !self.is_interop_enabled(executing_chain_id, access.timestamp)
+            let rollup_config = &self.config.rollup_config_set;
+            if !rollup_config
+                .is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
+                !rollup_config.is_interop_enabled(executing_chain_id, access.timestamp)
             {
                 return Err(SupervisorError::from(SuperchainDAError::ConflictingData)); // todo: replace with better error
             }
 
             // Verify the initiating message exists and valid for corresponding executing message.
-            let block = self
-                .database_factory
-                .get_db(initiating_chain_id)?
-                .get_block(access.block_number)?;
+            let db = self.database_factory.get_db(initiating_chain_id)?;
+
+            let block = db.get_block(access.block_number)?;
             if block.timestamp != access.timestamp {
                 return Err(SupervisorError::from(SuperchainDAError::ConflictingData))
             }
-            let log = self
-                .database_factory
-                .get_db(initiating_chain_id)?
-                .get_log(access.block_number, access.log_index)?;
+
+            let log = db.get_log(access.block_number, access.log_index)?;
             access.verify_checksum(&log.hash)?;
 
             // The message must be included in a block that is at least as safe as required
