@@ -187,7 +187,7 @@ mod tests {
 
         let logs = vec![&valid_log, &invalid_log];
         let mut iter = parse_logs_to_executing_msgs(logs.into_iter());
-        assert!(iter.next().unwrap().is_some());
+        assert_eq!(iter.next().unwrap().unwrap(), event);
         assert!(iter.next().unwrap().is_none());
     }
 }
