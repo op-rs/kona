@@ -115,10 +115,9 @@ where
                 error!(target: "managed_node", %err, "Failed to create auth headers");
             })?;
 
-            let ws_url = format!("ws://{}", self.config.url);
-            info!(target: "managed_node", ws_url, "Creating a new web socket client");
-
-            let client = WsClientBuilder::default().set_headers(headers).build(&ws_url).await?;
+            info!(target: "managed_node", ws_url = self.config.url, "Creating a new web socket client");
+            let client =
+                WsClientBuilder::default().set_headers(headers).build(&self.config.url).await?;
 
             *ws_client_guard = Some(Arc::new(client));
         }
@@ -161,7 +160,6 @@ where
             AuthenticationError::InvalidJwt
         })?;
 
-        info!(target: "managed_node", token, "JWT token created successfully");
         let mut headers = HeaderMap::new();
         let auth_header = format!("Bearer {}", token);
 
@@ -303,8 +301,9 @@ mod tests {
         #[derive(Debug)]
         pub Db {}
         impl LogStorageReader for Db {
+            fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
-            fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+            fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
 

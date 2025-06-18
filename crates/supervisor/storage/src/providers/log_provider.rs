@@ -149,15 +149,11 @@ where
         Ok(block.into())
     }
 
-    pub(crate) fn get_block_by_log(
-        &self,
-        block_number: u64,
-        log: &Log,
-    ) -> Result<BlockInfo, StorageError> {
+    pub(crate) fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError> {
         debug!(
             target: "supervisor_storage",
             block_number,
-            log_index = log.index,
+            log_index,
             "Fetching block  by log"
         );
 
@@ -165,11 +161,11 @@ where
             error!(target: "supervisor_storage", %err, "Failed to get cursor for LogEntries");
         })?;
 
-        let result = cursor.seek_by_key_subkey(block_number, log.index).inspect_err(|err| {
+        let result = cursor.seek_by_key_subkey(block_number, log_index).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
                 block_number,
-                log_index = log.index,
+                log_index,
                 %err,
                 "Failed to read log entry"
             );
@@ -179,25 +175,16 @@ where
             warn!(
                 target: "supervisor_storage",
                 block_number,
-                log_index = log.index,
+                log_index,
                 "Log not found"
             );
             StorageError::EntryNotFound(format!(
                 "log not found at block {block_number} index {}",
-                log.index,
+                log_index,
             ))
         })?;
 
-        if log_entry.hash != log.hash {
-            warn!(
-                target: "supervisor_storage",
-                block_number,
-                log_index = log.index,
-                "Log hash mismatch"
-            );
-            return Err(StorageError::EntryNotFound("log hash mismatch".to_string()));
-        }
-        self.get_block(block_number)
+        Ok(Log::from(log_entry))
     }
 
     pub(crate) fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
@@ -405,10 +392,9 @@ mod tests {
         let block = log_reader.get_latest_block().expect("Failed to get latest block");
         assert_eq!(block, block3);
 
-        // get_block_by_log
-        let block =
-            log_reader.get_block_by_log(1, &logs1[1].clone()).expect("Failed to get block by log");
-        assert_eq!(block, block1);
+        // get log
+        let log = log_reader.get_log(1, 1).expect("Failed to get block by log");
+        assert_eq!(log, logs1[1]);
 
         // get_logs
         let logs = log_reader.get_logs(block2.number).expect("Failed to get logs");
@@ -443,7 +429,7 @@ mod tests {
         let logs = log_reader.get_logs(2).expect("Should not return error");
         assert_eq!(logs.len(), 0);
 
-        let result = log_reader.get_block_by_log(1, &sample_log(1, false));
+        let result = log_reader.get_log(1, 1);
         assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
     }
 
@@ -466,25 +452,5 @@ mod tests {
 
         let result = insert_block_logs(&db, &block2, logs2);
         assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
-    }
-
-    #[test]
-    fn test_get_block_by_log_hash_mismatch() {
-        let db = setup_db();
-        let genesis = genesis_block();
-        initialize_db(&db, &genesis).expect("Failed to initialize DB with genesis block");
-
-        let block1 = sample_block_info(1, genesis.hash);
-        let log1 = sample_log(0, false);
-        insert_block_logs(&db, &block1, vec![log1.clone()]).expect("Should insert logs");
-
-        // Create a log with the same index but different hash
-        let mut wrong_log = log1;
-        wrong_log.hash = B256::from([0xFF; 32]);
-
-        let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = LogProvider::new(&tx);
-        let result = log_reader.get_block_by_log(block1.number, &wrong_log);
-        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
     }
 }

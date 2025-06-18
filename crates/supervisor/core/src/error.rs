@@ -3,6 +3,7 @@
 use crate::{ChainProcessorError, syncnode::ManagedNodeError};
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_supervisor_storage::StorageError;
+use kona_supervisor_types::AccessListError;
 use op_alloy_rpc_types::SuperchainDAError;
 use thiserror::Error;
 
@@ -36,6 +37,10 @@ pub enum SupervisorError {
     /// Indicates the error occurred while processing the chain.
     #[error(transparent)]
     ChainProcessorError(#[from] ChainProcessorError),
+
+    /// Indicates the error occurred while parsing the access_list
+    #[error(transparent)]
+    AccessListError(#[from] AccessListError),
 }
 
 impl From<SupervisorError> for ErrorObjectOwned {
@@ -47,9 +52,8 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::Initialise(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::ManagedNodeError(_) |
-            SupervisorError::ChainProcessorError(_) => {
-                ErrorObjectOwned::from(ErrorCode::InternalError)
-            }
+            SupervisorError::ChainProcessorError(_) |
+            SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::DataAvailability(err) => err.into(),
         }
     }

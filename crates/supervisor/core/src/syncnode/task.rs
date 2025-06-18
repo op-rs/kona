@@ -304,8 +304,9 @@ mod tests {
         #[derive(Debug)]
         pub Db {}
         impl LogStorageReader for Db {
+            fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
-            fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+            fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
 
