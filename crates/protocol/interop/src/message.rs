@@ -149,6 +149,7 @@ mod tests {
     use super::*;
 
     // Test the serialization of ExecutingDescriptor
+    #[cfg(feature = "serde")]
     #[test]
     fn test_serialize_executing_descriptor() {
         let descriptor =
