@@ -175,11 +175,10 @@ mod tests {
             chainId: U256::from(12),
         };
         let payload_hash = B256::repeat_byte(0x88);
-        let event = ExecutingMessage { payloadHash: payload_hash, identifier: identifier.clone() };
+        let event = ExecutingMessage { payloadHash: payload_hash, identifier };
         let data = ExecutingMessage::encode_log_data(&event);
 
-        let valid_log =
-            Log { address: Predeploys::CROSS_L2_INBOX, data: data.into(), ..Default::default() };
+        let valid_log = Log { address: Predeploys::CROSS_L2_INBOX, data };
         let invalid_log = Log {
             address: Address::repeat_byte(0x99),
             data: LogData::new_unchecked([B256::ZERO, B256::ZERO].to_vec(), Bytes::default()),
