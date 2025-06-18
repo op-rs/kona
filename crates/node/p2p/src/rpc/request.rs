@@ -506,7 +506,7 @@ impl P2pRpcRequest {
                 peer_id: peer_id.to_string(),
                 node_id,
                 user_agent: "kona".to_string(),
-                protocol_version: "1".to_string(),
+                protocol_version: String::new(),
                 enr: Some(enr.to_string()),
                 addresses,
                 protocols: None,
