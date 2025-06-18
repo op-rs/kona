@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum-optimism/optimism/devnet-sdk/system"
 	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
 	"github.com/ethereum-optimism/optimism/op-service/apis"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +20,10 @@ func TestSystemP2PPeers(t *testing.T) {
 
 	systest.SystemTest(t,
 		p2pSelfAndPeers(),
+	)
+
+	systest.SystemTest(t,
+		p2pBanPeer(),
 	)
 }
 
@@ -115,6 +120,69 @@ func p2pPeersAndPeerStats() systest.SystemTestFunc {
 					require.Equal(t, len(peers.Peers), int(peers.TotalConnected), "peer count mismatch node %s", clName)
 				}(l2, node)
 				wg.Wait()
+			}
+		}
+	}
+}
+
+func p2pBanPeer() systest.SystemTestFunc {
+	return func(t systest.T, sys system.System) {
+		l2s := sys.L2s()
+		for _, l2 := range l2s {
+			for _, node := range l2.Nodes() {
+				clRPC := node.CLRPC()
+				clName := node.CLName()
+
+				if !isKonaNode(t, clRPC, clName) {
+					t.Log("is not a kona node, skipping test", clName)
+					return
+				}
+
+				peers := &apis.PeerDump{}
+				require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
+
+				connectedPeers := peers.TotalConnected
+
+				// Try to ban a peer.
+				// We pick the first peer that is connected.
+				peerToBan := ""
+				for _, peer := range peers.Peers {
+					if peer.Connectedness == network.Connected {
+						peerToBan = peer.PeerID.String()
+						break
+					}
+				}
+
+				require.NotEmpty(t, peerToBan, "no connected peer found")
+
+				require.NoError(t, SendRPCRequest[any](clRPC, "opp2p_blockPeer", nil, peerToBan), "failed to send RPC request to node %s: %s", clName)
+
+				// Check that the peer is banned.
+				peersAfterBan := &apis.PeerDump{}
+				require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peersAfterBan, true), "failed to send RPC request to node %s: %s", clName)
+
+				require.Equal(t, connectedPeers, peersAfterBan.TotalConnected, "totalConnected mismatch node %s", clName)
+
+				contains := false
+				// Loop over all the banned peers and check that the peer is banned.
+				for _, bannedPeer := range peersAfterBan.BannedPeers {
+					if bannedPeer.String() == peerToBan {
+						require.Equal(t, bannedPeer.String(), peerToBan, "peer %s not banned", peerToBan)
+						contains = true
+					}
+				}
+
+				require.True(t, contains, "peer %s not banned", peerToBan)
+
+				// Try to unban the peer.
+				require.NoError(t, SendRPCRequest[any](clRPC, "opp2p_unblockPeer", nil, peerToBan), "failed to send RPC request to node %s: %s", clName)
+
+				// Check that the peer is unbanned.
+				peersAfterUnban := &apis.PeerDump{}
+				require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peersAfterUnban, true), "failed to send RPC request to node %s: %s", clName)
+
+				require.Equal(t, connectedPeers, peersAfterUnban.TotalConnected, "totalConnected mismatch node %s", clName)
+				require.NotContains(t, peersAfterUnban.BannedPeers, peerToBan, "peer %s is banned", peerToBan)
 			}
 		}
 	}
