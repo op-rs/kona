@@ -2,7 +2,6 @@
 
 use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::B256;
 use core::net::IpAddr;
 use ipnet::IpNet;
 use jsonrpsee::{
@@ -10,7 +9,6 @@ use jsonrpsee::{
     proc_macros::rpc,
 };
 use kona_genesis::RollupConfig;
-use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
 use op_alloy_consensus::interop::SafetyLevel;
@@ -147,20 +145,6 @@ pub trait Ws {
     /// Subscribes to the stream of unsafe head updates.
     #[subscription(name = "subscribe_unsafe_head", item = kona_protocol::L2BlockInfo)]
     async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
-}
-
-/// Supervisor API for interop.
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
-pub trait SupervisorApi {
-    /// Checks if the given inbox entries meet the given minimum safety level.
-    #[method(name = "checkAccessList")]
-    async fn check_access_list(
-        &self,
-        inbox_entries: Vec<B256>,
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> RpcResult<()>;
 }
 
 /// The admin namespace for the consensus node.
