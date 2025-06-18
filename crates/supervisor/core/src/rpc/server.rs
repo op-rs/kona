@@ -8,7 +8,9 @@ use jsonrpsee::{
     core::RpcResult,
     types::{ErrorObject, error::ErrorCode},
 };
-use kona_interop::{DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse};
+use kona_interop::{
+    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
+};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
 use kona_supervisor_types::SuperHead;
@@ -81,6 +83,20 @@ where
                 );
 
                 Ok(self.supervisor.local_unsafe(chain_id)?.id())
+            }
+            .await
+        )
+    }
+
+    async fn dependency_set_v1(&self) -> RpcResult<DependencySet> {
+        crate::observe_rpc_call!(
+            "dependency_set",
+            async {
+                trace!(target: "supervisor_rpc",
+                    "Received the dependency set"
+                );
+
+                Ok(self.supervisor.dependency_set().to_owned())
             }
             .await
         )
@@ -166,10 +182,9 @@ where
             );
             self.supervisor
                 .check_access_list(inbox_entries, min_safety, executing_descriptor)
-                .await
-                .map_err(|e| {
-                    warn!(target: "supervisor_rpc", "Error from core supervisor check_access_list: {:?}", e);
-                    ErrorObject::from(ErrorCode::InternalError)
+                .map_err(|err| {
+                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
+                    ErrorObject::from(err)
                 })
         }.await)
     }
@@ -271,6 +286,7 @@ impl<T> Clone for SupervisorRpc<T> {
 mod tests {
     use super::*;
     use alloy_primitives::ChainId;
+    use kona_interop::ChainDependency;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
     use std::sync::Arc;
@@ -279,12 +295,17 @@ mod tests {
     struct MockSupervisorService {
         pub chain_ids: Vec<ChainId>,
         pub super_head_map: std::collections::HashMap<ChainId, SuperHead>,
+        pub dependency_set: DependencySet,
     }
 
     #[async_trait::async_trait]
     impl SupervisorService for MockSupervisorService {
         fn chain_ids(&self) -> impl Iterator<Item = ChainId> {
             self.chain_ids.clone().into_iter()
+        }
+
+        fn dependency_set(&self) -> &DependencySet {
+            &self.dependency_set
         }
 
         fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
@@ -327,6 +348,15 @@ mod tests {
             unimplemented!()
         }
 
+        fn check_access_list(
+            &self,
+            _inbox_entries: Vec<B256>,
+            _min_safety: SafetyLevel,
+            _executing_descriptor: ExecutingDescriptor,
+        ) -> Result<(), SupervisorError> {
+            unimplemented!()
+        }
+
         async fn super_root_at_timestamp(
             &self,
             _timestamp: u64,
@@ -337,9 +367,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_status_empty_chains() {
+        let mut deps = HashMap::default();
+        deps.insert(1, ChainDependency {});
+        let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
+
         let mock_service = MockSupervisorService {
             chain_ids: vec![],
             super_head_map: std::collections::HashMap::new(),
+            dependency_set: ds,
         };
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
@@ -351,6 +386,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_status_single_chain() {
+        let mut deps = HashMap::default();
+        deps.insert(1, ChainDependency {});
+        let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
         let chain_id = ChainId::from(1u64);
 
         let block_info = BlockInfo { number: 42, ..Default::default() };
@@ -364,7 +402,10 @@ mod tests {
         let mut super_head_map = std::collections::HashMap::new();
         super_head_map.insert(chain_id, super_head);
 
-        let mock_service = MockSupervisorService { chain_ids: vec![chain_id], super_head_map };
+        let mock_service =
+            MockSupervisorService { chain_ids: vec![chain_id], super_head_map, dependency_set: ds };
+
+        assert_eq!(mock_service.dependency_set.dependencies.len(), 1);
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await.unwrap();
@@ -377,6 +418,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_status_missing_super_head() {
+        let mut deps = HashMap::default();
+        deps.insert(1, ChainDependency {});
+        deps.insert(2, ChainDependency {});
+        let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
         let chain_id_1 = ChainId::from(1u64);
         let chain_id_2 = ChainId::from(2u64);
 
@@ -392,8 +437,11 @@ mod tests {
         let mut super_head_map = std::collections::HashMap::new();
         super_head_map.insert(chain_id_1, super_head);
 
-        let mock_service =
-            MockSupervisorService { chain_ids: vec![chain_id_1, chain_id_2], super_head_map };
+        let mock_service = MockSupervisorService {
+            chain_ids: vec![chain_id_1, chain_id_2],
+            super_head_map,
+            dependency_set: ds,
+        };
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await;

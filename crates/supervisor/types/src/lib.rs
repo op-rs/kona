@@ -15,5 +15,8 @@ pub use message::ExecutingMessage;
 mod receipt;
 pub use receipt::Receipts;
 
+mod access_list;
+pub use access_list::{Access, AccessListError, parse_access_list};
+
 mod types;
 pub use types::{BlockSeal, OutputV0, SubscriptionEvent};

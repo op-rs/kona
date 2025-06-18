@@ -4503,6 +4503,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
+ "alloy-serde",
  "alloy-sol-types",
  "arbitrary",
  "async-trait",
@@ -4610,6 +4611,7 @@ dependencies = [
  "kona-derive",
  "kona-engine",
  "kona-genesis",
+ "kona-interop",
  "kona-macros",
  "kona-p2p",
  "kona-protocol",
@@ -4623,6 +4625,7 @@ dependencies = [
  "op-alloy-rpc-types-engine",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tower",
  "tracing",
@@ -4872,6 +4875,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rpc-client",
+ "alloy-rpc-types-engine",
  "async-trait",
  "derive_more",
  "getrandom 0.3.3",
@@ -5086,12 +5090,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
- "async-trait",
  "derive_more",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus 0.18.1",
  "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

@@ -1,9 +1,12 @@
 //! Supervisor RPC CLI Flags
 
-use std::{fs, net::IpAddr, path::PathBuf};
+use std::{fs, net::IpAddr, num::ParseIntError, path::PathBuf, time::Duration};
 
-use anyhow::{Ok, anyhow};
+use alloy_rpc_types_engine::JwtSecret;
+use anyhow::anyhow;
 use clap::Parser;
+use kona_rpc::SupervisorRpcConfig;
+use std::net::SocketAddr;
 
 /// Supervisor CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -43,6 +46,31 @@ pub struct SupervisorArgs {
         conflicts_with = "jwt_secret"
     )]
     pub jwt_secret_file: Option<PathBuf>,
+
+    /// Enable the conductor service.
+    #[arg(
+        long = "conductor.enabled",
+        env = "KONA_NODE_CONDUCTOR_ENABLED",
+        default_value = "false"
+    )]
+    pub conductor_enabled: bool,
+
+    /// Conductor service rpc endpoint.
+    #[arg(
+        long = "conductor.rpc",
+        env = "KONA_NODE_CONDUCTOR_RPC",
+        default_value = "127.0.0.1:8547"
+    )]
+    pub conductor_rpc: Option<SocketAddr>,
+
+    /// Conductor service rpc timeout.
+    #[arg(
+        long = "conductor.rpc.timeout",
+        default_value = "1",
+        env = "KONA_NODE_CONDUCTOR_RPC_TIMEOUT",
+        value_parser = |arg: &str| -> Result<Duration, ParseIntError> {Ok(Duration::from_secs(arg.parse()?))}
+    )]
+    pub conductor_rpc_timeout: Duration,
 }
 
 impl Default for SupervisorArgs {
@@ -52,9 +80,15 @@ impl Default for SupervisorArgs {
         Self::parse_from::<[_; 0], &str>([])
     }
 }
+
 impl SupervisorArgs {
+    /// Returns the [`SocketAddr`] for the supervisor rpc.
+    pub const fn socket_addr(&self) -> SocketAddr {
+        SocketAddr::new(self.ip_address, self.port)
+    }
+
     /// Load the JWT secret for the supervisor websocket authentication.
-    pub fn load_jwt_secret(&self) -> anyhow::Result<String> {
+    pub fn load_jwt_secret(&self) -> anyhow::Result<JwtSecret> {
         match (&self.jwt_secret, &self.jwt_secret_file) {
             (None, None) => Err(anyhow!("JWT secret required for websocket authentication")),
             (None, Some(file)) => {
@@ -64,11 +98,22 @@ impl SupervisorArgs {
                     })?
                     .trim()
                     .to_string();
-                Ok(secret)
+                JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e))
             }
-            (Some(secret), None) => Ok(secret.to_string()),
-            (Some(secret), Some(_)) => Ok(secret.to_string()),
+            (Some(secret), _) => JwtSecret::from_hex(secret).map_err(|e| anyhow::anyhow!(e)),
         }
+    }
+
+    /// Constructs the [`SupervisorRpcConfig`] from the [`SupervisorArgs`].
+    ///
+    /// ## Errors
+    ///
+    /// This method errors if the JWT secret is unable to be loaded using
+    /// [`SupervisorArgs::load_jwt_secret`].
+    pub fn as_rpc_config(&self) -> anyhow::Result<SupervisorRpcConfig> {
+        let jwt_secret = self.load_jwt_secret()?;
+        let socket_address = self.socket_addr();
+        Ok(SupervisorRpcConfig { rpc_disabled: !self.rpc_enabled, socket_address, jwt_secret })
     }
 }
 
@@ -91,16 +136,24 @@ mod tests {
         let args = MockCommand::parse_from(["test"]);
         assert_eq!(args.supervisor, SupervisorArgs::default());
         assert!(!args.supervisor.rpc_enabled);
-        assert_eq!(args.supervisor.ip_address, "0.0.0.0".parse::<IpAddr>().unwrap());
+        let expected_ip = "0.0.0.0".parse::<IpAddr>().unwrap();
+        assert_eq!(args.supervisor.ip_address, expected_ip);
         assert_eq!(args.supervisor.port, 9333);
         assert_eq!(args.supervisor.jwt_secret, None);
         assert_eq!(args.supervisor.jwt_secret_file, None);
+
+        let expected_addr = SocketAddr::new(expected_ip, 9333);
+        assert_eq!(args.supervisor.socket_addr(), expected_addr);
+
+        args.supervisor.as_rpc_config().unwrap_err();
     }
 
     #[test]
     fn test_supervisor_args_rpc_enabled() {
         let args = MockCommand::parse_from(["test", "--supervisor.rpc-enabled"]);
         assert!(args.supervisor.rpc_enabled);
+
+        args.supervisor.as_rpc_config().unwrap_err();
     }
 
     #[test]
@@ -129,9 +182,19 @@ mod tests {
 
     #[test]
     fn test_supervisor_args_jwt_secret() {
-        let args = MockCommand::parse_from(["test", "--supervisor.jwt.secret", "my-secret-key"]);
-        assert_eq!(args.supervisor.jwt_secret, Some("my-secret-key".to_string()));
+        let args = MockCommand::parse_from([
+            "test",
+            "--supervisor.jwt.secret",
+            "1fceaf7306ed8342ac35f9eb00b7291e19f737b1e632aff53ffeeac87a536f9d",
+        ]);
+        assert_eq!(
+            args.supervisor.jwt_secret,
+            Some("1fceaf7306ed8342ac35f9eb00b7291e19f737b1e632aff53ffeeac87a536f9d".to_string())
+        );
         assert_eq!(args.supervisor.jwt_secret_file, None);
+
+        let cfg = args.supervisor.as_rpc_config().unwrap();
+        assert!(cfg.rpc_disabled);
     }
 
     #[test]
@@ -193,13 +256,16 @@ mod tests {
             "test",
             "--supervisor.rpc-enabled",
             "--supervisor.jwt.secret",
-            "test-secret",
+            "1fceaf7306ed8342ac35f9eb00b7291e19f737b1e632aff53ffeeac87a536f9d",
         ]);
 
         // Test Debug trait
         let debug_output = format!("{:?}", args.supervisor);
         assert!(debug_output.contains("SupervisorArgs"));
         assert!(debug_output.contains("rpc_enabled: true"));
+
+        let cfg = args.supervisor.as_rpc_config().unwrap();
+        assert!(!cfg.rpc_disabled);
     }
 
     #[test]
@@ -210,6 +276,9 @@ mod tests {
             port: 8080,
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
+            conductor_enabled: true,
+            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
+            conductor_rpc_timeout: Duration::from_secs(1),
         };
 
         let args2 = SupervisorArgs {
@@ -218,6 +287,9 @@ mod tests {
             port: 8080,
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
+            conductor_enabled: true,
+            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
+            conductor_rpc_timeout: Duration::from_secs(1),
         };
 
         let args3 = SupervisorArgs {
@@ -226,6 +298,9 @@ mod tests {
             port: 8080,
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
+            conductor_enabled: false,
+            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
+            conductor_rpc_timeout: Duration::from_secs(1),
         };
 
         assert_eq!(args1, args2);

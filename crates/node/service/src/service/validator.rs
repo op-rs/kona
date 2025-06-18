@@ -2,7 +2,7 @@
 
 use crate::{
     DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
-    RuntimeLauncher, service::spawn_and_wait,
+    RuntimeLauncher, SupervisorExt, service::spawn_and_wait,
 };
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -43,6 +43,8 @@ pub trait ValidatorNodeService {
     type DataAvailabilityWatcher: NodeActor<Error: Display> + Send + Sync + 'static;
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
+    /// The supervisor ext provider.
+    type SupervisorExt: SupervisorExt + Send + Sync + 'static;
     /// The type of error for the service's entrypoint.
     type Error: From<RpcLauncherError>
         + From<jsonrpsee::server::RegisterMethodError>
@@ -68,6 +70,9 @@ pub trait ValidatorNodeService {
 
     /// Creates a new instance of the [`Network`].
     async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
+
+    /// Creates a new [`Self::SupervisorExt`] to be used in the supervisor rpc actor.
+    async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
     /// Returns the [`RuntimeLauncher`] for the node.
     fn runtime(&self) -> RuntimeLauncher;
@@ -118,6 +123,13 @@ pub trait ValidatorNodeService {
         );
         let derivation = Some(derivation);
 
+        // TODO: get the supervisor ext.
+        // TODO: use the supervisor ext to create the supervisor actor.
+        // let supervisor_ext = self.supervisor_ext();
+        // let supervisor_rpx = SupervisorActor::new(
+        //
+        // )
+
         /// The size of the RPC channel buffer for the engine actor.
         const ENGINE_RPC_CHANNEL_SIZE: usize = 1024;
 
@@ -166,18 +178,21 @@ pub trait ValidatorNodeService {
         );
 
         // The RPC Server should go last to let other actors register their rpc modules.
-        let mut launcher = self.rpc();
-        launcher = launcher.merge(p2p_module.map(|r| r.into_rpc())).map_err(Self::Error::from)?;
+        let launcher = self.rpc();
+        let mut launcher = launcher.with_healthz()?;
+
+        p2p_module.map(|r| launcher.merge(r.into_rpc())).transpose()?;
+
         let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
-        launcher = launcher.merge(Some(rollup_rpc.into_rpc())).map_err(Self::Error::from)?;
+        launcher.merge(rollup_rpc.into_rpc())?;
+
         if launcher.ws_enabled() {
-            launcher = launcher
-                .merge(Some(WsRPC::new(engine_query_sender).into_rpc()))
+            launcher
+                .merge(WsRPC::new(engine_query_sender).into_rpc())
                 .map_err(Self::Error::from)?;
         }
 
-        let handle = launcher.launch().await?;
-        let rpc = handle.map(|h| RpcActor::new(launcher, h, cancellation.clone()));
+        let rpc = Some(RpcActor::new(launcher, cancellation.clone()));
 
         spawn_and_wait!(
             cancellation,

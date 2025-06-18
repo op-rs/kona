@@ -393,7 +393,6 @@ impl P2PArgs {
             .gossip_lazy(self.gossip_mesh_dlazy)
             .flood_publish(self.gossip_flood_publish)
             .build()?;
-        let block_time = config.block_time;
 
         let monitor_peers = self.ban_enabled.then_some(PeerMonitoring {
             ban_duration: Duration::from_secs(60 * self.ban_duration),
@@ -419,7 +418,6 @@ impl P2PArgs {
             unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
             gossip_config,
             scoring: self.scoring,
-            block_time,
             monitor_peers,
             bootstore: self.bootstore,
             topic_scoring: self.topic_scoring,

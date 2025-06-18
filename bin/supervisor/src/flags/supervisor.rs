@@ -152,11 +152,8 @@ impl SupervisorArgs {
         for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
             let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
 
-            managed_nodes.push(ManagedNodeConfig {
-                l1_rpc_url: self.l1_rpc.clone(),
-                url: rpc_url.clone(),
-                jwt_path: secret.clone(),
-            });
+            managed_nodes
+                .push(ManagedNodeConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
         }
         Ok(managed_nodes)
     }
@@ -308,22 +305,8 @@ mod tests {
 
         let loaded_depset = result.unwrap();
         let mut expected_dependencies = HashMap::default();
-        expected_dependencies.insert(
-            1,
-            ChainDependency {
-                chain_index: 10,
-                activation_time: 1678886400,
-                history_min_time: 1609459200,
-            },
-        );
-        expected_dependencies.insert(
-            2,
-            ChainDependency {
-                chain_index: 20,
-                activation_time: 1678886401,
-                history_min_time: 1609459201,
-            },
-        );
+        expected_dependencies.insert(1, ChainDependency {});
+        expected_dependencies.insert(2, ChainDependency {});
 
         let expected_depset = DependencySet {
             dependencies: expected_dependencies,

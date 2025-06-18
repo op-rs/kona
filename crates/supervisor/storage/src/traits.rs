@@ -93,19 +93,23 @@ pub trait LogStorageReader: Debug {
     /// * `Err(StorageError)` if there is an issue retrieving the latest block.
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
 
-    /// Finds a [`BlockInfo`] by a specific [`Log`].
-    /// This method searches for the block that contains the specified log at the given
-    /// block number.
+    /// Retrieves the [`BlockInfo`] from the storage for a given block number
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the block information.
+    /// * `Err(StorageError)` if there is an issue retrieving the block.
+    fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
+
+    /// Finds a [`Log`] by block_number and log_index
     ///
     /// # Arguments
     /// * `block_number` - The block number to search for the log.
-    /// * `log` - The [`Log`] to find the associated block.
+    /// * `log_index` - The index of the log within the block.
     ///
     /// # Returns
-    /// * `Ok(BlockInfo)` containing the block information if the log is found.
-    /// * `Err(StorageError)` if there is an issue retrieving the block or if the log is not found.
-    // todo: refactor the arguments to use a more structured type
-    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError>;
+    /// * `Ok(Log)` containing the [`Log`] object.
+    /// * `Err(StorageError)` if there is an issue retrieving the log or if the log is not found.
+    fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError>;
 
     /// Retrieves all [`Log`]s associated with a specific block number.
     ///

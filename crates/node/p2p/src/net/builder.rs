@@ -16,16 +16,12 @@ use crate::{
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct NetworkBuilder {
     /// The discovery driver.
     discovery: Discv5Builder,
     /// The gossip driver.
     gossip: GossipDriverBuilder,
-    /// The unsafe block signer [`Address`].
-    signer: Option<Address>,
-    /// The [`RollupConfig`] only used to select which topic to publish blocks to.
-    cfg: Option<RollupConfig>,
     /// A receiver for network RPC requests.
     rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
@@ -36,36 +32,51 @@ pub struct NetworkBuilder {
 
 impl From<Config> for NetworkBuilder {
     fn from(config: Config) -> Self {
-        Self::new()
-            .with_discovery_config(config.discovery_config)
-            .with_discovery_randomize(config.discovery_randomize)
-            .with_bootstore(config.bootstore)
-            .with_bootnodes(config.bootnodes)
-            .with_discovery_interval(config.discovery_interval)
-            .with_discovery_address(config.discovery_address)
-            .with_gossip_address(config.gossip_address)
-            .with_unsafe_block_signer(config.unsafe_block_signer)
-            .with_gossip_config(config.gossip_config)
-            .with_peer_scoring(config.scoring)
-            .with_peer_monitoring(config.monitor_peers)
-            .with_block_time(config.block_time)
-            .with_keypair(config.keypair)
-            .with_topic_scoring(config.topic_scoring)
-            .with_gater_config(config.gater_config)
-            .with_local_signer(config.local_signer)
+        Self::new(
+            config.rollup_config,
+            config.unsafe_block_signer,
+            config.gossip_address,
+            config.keypair,
+            config.discovery_address,
+            config.discovery_config,
+        )
+        .with_discovery_randomize(config.discovery_randomize)
+        .with_bootstore(config.bootstore)
+        .with_bootnodes(config.bootnodes)
+        .with_discovery_interval(config.discovery_interval)
+        .with_gossip_config(config.gossip_config)
+        .with_peer_scoring(config.scoring)
+        .with_peer_monitoring(config.monitor_peers)
+        .with_topic_scoring(config.topic_scoring)
+        .with_gater_config(config.gater_config)
+        .with_local_signer(config.local_signer)
     }
 }
 
 impl NetworkBuilder {
     /// Creates a new [`NetworkBuilder`].
-    pub const fn new() -> Self {
+    pub const fn new(
+        rollup_config: RollupConfig,
+        unsafe_block_signer: Address,
+        gossip_addr: Multiaddr,
+        keypair: Keypair,
+        discovery_address: LocalNode,
+        discovery_config: discv5::Config,
+    ) -> Self {
         Self {
-            discovery: Discv5Builder::new(),
-            gossip: GossipDriverBuilder::new(),
-            signer: None,
+            discovery: Discv5Builder::new(
+                discovery_address,
+                rollup_config.l2_chain_id,
+                discovery_config,
+            ),
+            gossip: GossipDriverBuilder::new(
+                rollup_config,
+                unsafe_block_signer,
+                gossip_addr,
+                keypair,
+            ),
             rpc_recv: None,
             payload_tx: None,
-            cfg: None,
             local_signer: None,
         }
     }
@@ -98,11 +109,6 @@ impl NetworkBuilder {
         Self { discovery: self.discovery.with_bootnodes(bootnodes), ..self }
     }
 
-    /// Sets the block time used by peer scoring.
-    pub fn with_block_time(self, block_time: u64) -> Self {
-        Self { gossip: self.gossip.with_block_time(block_time), ..self }
-    }
-
     /// Sets the peer scoring based on the given [`PeerScoreLevel`].
     pub fn with_peer_scoring(self, level: PeerScoreLevel) -> Self {
         Self { gossip: self.gossip.with_peer_scoring(level), ..self }
@@ -133,11 +139,6 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_config(config), ..self }
     }
 
-    /// Sets the [`RollupConfig`] for the [`crate::Network`].
-    pub fn with_rollup_config(self, cfg: RollupConfig) -> Self {
-        Self { cfg: Some(cfg), ..self }
-    }
-
     /// Sets the rpc receiver for the [`crate::Network`].
     pub fn with_rpc_receiver(self, rpc_recv: tokio::sync::mpsc::Receiver<P2pRpcRequest>) -> Self {
         Self { rpc_recv: Some(rpc_recv), ..self }
@@ -158,16 +159,6 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_timeout(timeout), ..self }
     }
 
-    /// Sets the keypair for the [`crate::GossipDriver`].
-    pub fn with_keypair(self, keypair: Keypair) -> Self {
-        Self { gossip: self.gossip.with_keypair(keypair), ..self }
-    }
-
-    /// Sets the unsafe block signer for the [`crate::GossipDriver`].
-    pub fn with_unsafe_block_signer(self, signer: Address) -> Self {
-        Self { signer: Some(signer), ..self }
-    }
-
     /// Sets the unsafe block sender for the [`crate::Network`].
     pub fn with_unsafe_block_sender(
         self,
@@ -178,18 +169,8 @@ impl NetworkBuilder {
 
     /// Builds the [`Network`].
     pub fn build(mut self) -> Result<Network, NetworkBuilderError> {
-        let signer = self.signer.take().ok_or(NetworkBuilderError::UnsafeBlockSignerNotSet)?;
-        let (signer_tx, signer_rx) = tokio::sync::watch::channel(signer);
-        let unsafe_block_signer_sender = Some(signer_tx);
-
-        let cfg = self.cfg.ok_or(NetworkBuilderError::MissingRollupConfig)?;
-        let chain_id = cfg.l2_chain_id;
-        let gossip = self
-            .gossip
-            .with_rollup_config(cfg)
-            .with_unsafe_block_signer_receiver(signer_rx)
-            .build()?;
-        let discovery = self.discovery.with_chain_id(chain_id).build()?;
+        let (gossip, unsafe_block_signer_sender) = self.gossip.build()?;
+        let discovery = self.discovery.build()?;
         let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
         let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
@@ -210,44 +191,48 @@ impl NetworkBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::GossipDriverBuilderError;
     use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
     use libp2p::gossipsub::IdentTopic;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    #[test]
-    fn test_build_missing_unsafe_block_signer() {
-        let builder = NetworkBuilder::new();
-        let err = builder.build().unwrap_err();
-        assert_eq!(err, NetworkBuilderError::UnsafeBlockSignerNotSet);
+    #[derive(Debug)]
+    struct NetworkBuilderParams {
+        rollup_config: RollupConfig,
+        signer: Address,
     }
 
-    #[test]
-    fn test_build_missing_rollup_config() {
-        let builder = NetworkBuilder::new();
-        let keypair = Keypair::generate_secp256k1();
-        let err = builder
-            .with_unsafe_block_signer(Address::random())
-            .with_keypair(keypair)
-            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
-            .build()
-            .unwrap_err();
-        assert_eq!(err, NetworkBuilderError::MissingRollupConfig);
+    impl Default for NetworkBuilderParams {
+        fn default() -> Self {
+            Self { rollup_config: RollupConfig::default(), signer: Address::random() }
+        }
     }
 
-    #[test]
-    fn test_build_missing_gossip_address() {
+    fn network_builder(params: NetworkBuilderParams) -> NetworkBuilder {
         let keypair = Keypair::generate_secp256k1();
-        let builder = NetworkBuilder::new();
-        let err = builder
-            .with_unsafe_block_signer(Address::random())
-            .with_keypair(keypair)
-            .with_rollup_config(RollupConfig::default())
-            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
-            .build()
-            .unwrap_err();
-        let gossip_err = GossipDriverBuilderError::GossipAddrNotSet;
-        assert_eq!(err, NetworkBuilderError::GossipDriverBuilder(gossip_err));
+        let signer = params.signer;
+        let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
+        let mut gossip_addr = Multiaddr::from(gossip.ip());
+        gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
+
+        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
+            unreachable!()
+        };
+
+        let discovery_address =
+            LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
+
+        let discovery_config =
+            ConfigBuilder::new(ListenConfig::from_ip(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098))
+                .build();
+
+        NetworkBuilder::new(
+            params.rollup_config,
+            signer,
+            gossip_addr,
+            keypair,
+            discovery_address,
+            discovery_config,
+        )
     }
 
     #[test]
@@ -257,27 +242,21 @@ mod tests {
             unreachable!()
         };
         let disc_listen = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9097);
-        let disc_enr =
-            LocalNode::new(secret_key.clone(), IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
+        let disc_enr = LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098, 9098);
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
 
-        let secret_key = libp2p_identity::secp256k1::SecretKey::try_from_bytes(
-            secret_key.to_bytes().as_mut_slice(),
-        )
+        let driver = network_builder(NetworkBuilderParams {
+            rollup_config: RollupConfig { l2_chain_id: 10, ..Default::default() },
+            signer,
+        })
+        .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
+        .with_gossip_address(gossip_addr.clone())
+        .with_discovery_address(disc_enr)
+        .with_discovery_config(ConfigBuilder::new(disc_listen.into()).build())
+        .build()
         .unwrap();
-        let keypair = libp2p_identity::secp256k1::Keypair::from(secret_key);
-        let driver = NetworkBuilder::new()
-            .with_keypair(keypair.into())
-            .with_unsafe_block_signer(signer)
-            .with_rollup_config(RollupConfig { l2_chain_id: 10, ..Default::default() })
-            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
-            .with_gossip_address(gossip_addr.clone())
-            .with_discovery_address(disc_enr)
-            .with_discovery_config(ConfigBuilder::new(disc_listen.into()).build())
-            .build()
-            .unwrap();
 
         // Driver Assertions
         let id = 10;
@@ -299,8 +278,6 @@ mod tests {
 
     #[test]
     fn test_build_network_custom_configs() {
-        let keypair = Keypair::generate_secp256k1();
-        let signer = Address::random();
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099);
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
@@ -313,10 +290,7 @@ mod tests {
         let discovery_config =
             ConfigBuilder::new(ListenConfig::from_ip(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9098))
                 .build();
-        let driver = NetworkBuilder::new()
-            .with_unsafe_block_signer(signer)
-            .with_rollup_config(RollupConfig::default())
-            .with_keypair(keypair)
+        let driver = network_builder(Default::default())
             .with_gossip_address(gossip_addr)
             .with_discovery_address(disc)
             .with_discovery_config(discovery_config)
