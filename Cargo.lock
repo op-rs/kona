@@ -4503,6 +4503,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
+ "alloy-serde",
  "alloy-sol-types",
  "arbitrary",
  "async-trait",
@@ -4624,6 +4625,7 @@ dependencies = [
  "op-alloy-rpc-types-engine",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tower",
  "tracing",
@@ -5088,12 +5090,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
- "async-trait",
  "derive_more",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus 0.18.1",
  "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

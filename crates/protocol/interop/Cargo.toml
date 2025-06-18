@@ -24,6 +24,7 @@ tracing.workspace = true
 derive_more = { workspace = true, features = ["from", "as_ref", "constructor"] }
 
 # Alloy
+alloy-serde = { workspace = true, optional = true }
 alloy-rlp.workspace = true
 alloy-eips.workspace = true
 alloy-sol-types.workspace = true
@@ -66,6 +67,7 @@ arbitrary = [
 ]
 serde = [
   "dep:serde",
+  "dep:alloy-serde",
   "alloy-eips/serde",
   "alloy-primitives/serde",
   "kona-protocol/serde",

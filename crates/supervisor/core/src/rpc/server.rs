@@ -177,10 +177,9 @@ where
             );
             self.supervisor
                 .check_access_list(inbox_entries, min_safety, executing_descriptor)
-                .await
-                .map_err(|e| {
-                    warn!(target: "supervisor_rpc", "Error from core supervisor check_access_list: {:?}", e);
-                    ErrorObject::from(ErrorCode::InternalError)
+                .map_err(|err| {
+                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
+                    ErrorObject::from(err)
                 })
         }.await)
     }
@@ -340,6 +339,15 @@ mod tests {
         }
 
         fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
+            unimplemented!()
+        }
+
+        fn check_access_list(
+            &self,
+            _inbox_entries: Vec<B256>,
+            _min_safety: SafetyLevel,
+            _executing_descriptor: ExecutingDescriptor,
+        ) -> Result<(), SupervisorError> {
             unimplemented!()
         }
     }

@@ -130,8 +130,12 @@ impl LogStorageReader for ChainDb {
         self.env.view(|tx| LogProvider::new(tx).get_latest_block())?
     }
 
-    fn get_block_by_log(&self, block_number: u64, log: &Log) -> Result<BlockInfo, StorageError> {
-        self.env.view(|tx| LogProvider::new(tx).get_block_by_log(block_number, log))?
+    fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
+        self.env.view(|tx| LogProvider::new(tx).get_block(block_number))?
+    }
+
+    fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError> {
+        self.env.view(|tx| LogProvider::new(tx).get_log(block_number, log_index))?
     }
 
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
@@ -281,8 +285,8 @@ mod tests {
         let latest_block = db.get_latest_block().expect("latest block");
         assert_eq!(latest_block, block, "Latest block should match stored block");
 
-        let block_by_log = db.get_block_by_log(block.number, &logs[1]).expect("get block by log");
-        assert_eq!(block_by_log, block, "Block by log should match stored block");
+        let log = db.get_log(block.number, 1).expect("get block by log");
+        assert_eq!(log, logs[1], "Block by log should match stored block");
     }
 
     #[test]
