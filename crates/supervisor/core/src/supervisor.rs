@@ -79,7 +79,7 @@ pub trait SupervisorService: Debug + Send + Sync {
     fn chain_ids(&self) -> impl Iterator<Item = ChainId>;
 
     /// Returns mapping of supervised [`ChainId`]s to their [`ChainDependency`] config.
-    fn dependency_set(&self) -> DependencySet;
+    fn dependency_set(&self) -> &DependencySet;
 
     /// Returns [`SuperHead`] of given supervised chain.
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError>;
@@ -226,8 +226,8 @@ impl SupervisorService for Supervisor {
         self.config.dependency_set.dependencies.keys().copied()
     }
 
-    fn dependency_set(&self) -> DependencySet {
-        self.config.dependency_set.clone()
+    fn dependency_set(&self) -> &DependencySet {
+        &self.config.dependency_set
     }
 
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {

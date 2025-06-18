@@ -96,7 +96,7 @@ where
                     "Received the dependency set"
                 );
 
-                Ok(self.supervisor.dependency_set())
+                Ok(self.supervisor.dependency_set().to_owned())
             }
             .await
         )
@@ -288,8 +288,8 @@ mod tests {
             self.chain_ids.clone().into_iter()
         }
 
-        fn dependency_set(&self) -> DependencySet {
-            self.dependency_set.clone()
+        fn dependency_set(&self) -> &DependencySet {
+            &self.dependency_set
         }
 
         fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
