@@ -150,8 +150,9 @@ impl Supervisor {
 
     async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
-            let provider =
-                RootProvider::<Ethereum>::new_http(Url::parse(&self.config.l1_rpc).unwrap());
+            let url = Url::parse(&self.config.l1_rpc)
+                .map_err(|e| SupervisorError::Initialise(format!("Invalid L1 RPC URL: {e}")))?;
+            let provider = RootProvider::<Ethereum>::new_http(url);
             let mut managed_node = ManagedNode::<ChainDb>::new(
                 Arc::new(config.clone()),
                 self.cancel_token.clone(),

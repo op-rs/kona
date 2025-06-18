@@ -30,8 +30,6 @@ pub struct ManagedNodeConfig {
     pub url: String,
     /// The path to the JWT token for the managed node
     pub jwt_path: String,
-    /// The L1 RPC URL for the managed node
-    pub l1_rpc_url: String,
 }
 
 impl ManagedNodeConfig {
@@ -79,7 +77,7 @@ pub struct ManagedNode<DB> {
     /// Handle to the async subscription task
     task_handle: Mutex<Option<JoinHandle<()>>>,
     /// Shared L1 provider for fetching receipts
-    l1_provider: OnceLock<RootProvider<Ethereum>>,
+    l1_provider: RootProvider<Ethereum>,
 }
 
 impl<DB> ManagedNode<DB>
@@ -92,8 +90,6 @@ where
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
-        let l1_provider_lock = OnceLock::new();
-        l1_provider_lock.set(l1_provider).expect("L1 provider should be set only once");
         Self {
             config,
             chain_id: OnceLock::new(),
@@ -101,7 +97,7 @@ where
             ws_client: Mutex::new(None),
             cancel_token,
             task_handle: Mutex::new(None),
-            l1_provider: OnceLock::new(),
+            l1_provider: l1_provider,
         }
     }
 
@@ -215,13 +211,7 @@ where
         let db_provider =
             self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
-        let l1_provider = self
-            .l1_provider
-            .get()
-            .ok_or_else(|| ManagedNodeError::L1ProviderUninitialized)
-            .unwrap()
-            .clone();
-        let task = ManagedEventTask::new(l1_provider, db_provider.clone(), event_tx, client);
+        let task = ManagedEventTask::new(self.l1_provider.clone(), db_provider.clone(), event_tx, client);
         // Start background task to handle events
         let handle = tokio::spawn(async move {
             info!(target: "managed_node", "Subscription task started");
@@ -468,7 +458,6 @@ mod tests {
         let config = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret = config.jwt_secret();
@@ -478,7 +467,6 @@ mod tests {
         let config_invalid = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: "/nonexistent/path/jwt.hex".to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret_fallback = config_invalid.jwt_secret();
@@ -509,7 +497,6 @@ mod tests {
         let config = ManagedNodeConfig {
             url: "test.server".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         };
 
         let jwt_secret = config.jwt_secret().expect("Should have JWT secret");
@@ -535,7 +522,6 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "invalid.server:8545".to_string(), // Intentionally invalid to test error handling
             jwt_path: jwt_path.to_str().unwrap().to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let asserter = Asserter::new();
@@ -566,7 +552,6 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "invalid.server:8545".to_string(),
             jwt_path: jwt_path.to_str().unwrap().to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let asserter = Asserter::new();
@@ -587,7 +572,6 @@ mod tests {
         let config_no_jwt = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(),
             jwt_path: "/nonexistent/jwt.hex".to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let asserter = Asserter::new();
@@ -610,7 +594,6 @@ mod tests {
         let config = Arc::new(ManagedNodeConfig {
             url: "localhost:8545".to_string(), // Use localhost to avoid DNS resolution delays
             jwt_path: jwt_path.to_str().unwrap().to_string(),
-            l1_rpc_url: "test.l1.rpc".to_string(),
         });
 
         let asserter = Asserter::new();
