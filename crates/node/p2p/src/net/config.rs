@@ -6,7 +6,7 @@ use alloy_signer_local::PrivateKeySigner;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
-use libp2p::identity::Keypair;
+use libp2p::{Multiaddr, identity::Keypair};
 use std::path::PathBuf;
 use tokio::time::Duration;
 
@@ -36,8 +36,6 @@ pub struct Config {
     pub topic_scoring: bool,
     /// Peer score monitoring config.
     pub monitor_peers: Option<PeerMonitoring>,
-    /// The L2 Block Time.
-    pub block_time: u64,
     /// An optional path to the bootstore.
     pub bootstore: Option<PathBuf>,
     /// The configuration for the connection gater.
@@ -48,4 +46,37 @@ pub struct Config {
     pub rollup_config: RollupConfig,
     /// A local signer for payloads.
     pub local_signer: Option<PrivateKeySigner>,
+}
+
+impl Config {
+    const DEFAULT_DISCOVERY_INTERVAL: Duration = Duration::from_secs(5);
+    const DEFAULT_DISCOVERY_RANDOMIZE: Option<Duration> = None;
+
+    /// Creates a new [`Config`] with the given [`RollupConfig`] with the minimum required fields.
+    /// Generates a random keypair for the node.
+    pub fn new(
+        rollup_config: RollupConfig,
+        discovery_listen: LocalNode,
+        gossip_address: Multiaddr,
+        unsafe_block_signer: Address,
+    ) -> Self {
+        Self {
+            rollup_config,
+            discovery_config: discv5::ConfigBuilder::new((&discovery_listen).into()).build(),
+            discovery_address: discovery_listen,
+            discovery_interval: Self::DEFAULT_DISCOVERY_INTERVAL,
+            discovery_randomize: Self::DEFAULT_DISCOVERY_RANDOMIZE,
+            gossip_address,
+            unsafe_block_signer,
+            keypair: Keypair::generate_secp256k1(),
+            bootnodes: Default::default(),
+            bootstore: Default::default(),
+            gater_config: Default::default(),
+            gossip_config: Default::default(),
+            scoring: Default::default(),
+            topic_scoring: Default::default(),
+            monitor_peers: Default::default(),
+            local_signer: Default::default(),
+        }
+    }
 }

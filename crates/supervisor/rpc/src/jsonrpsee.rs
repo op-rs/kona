@@ -10,7 +10,7 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
-    DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
+    DependencySet, DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
     SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
@@ -94,6 +94,13 @@ pub trait SupervisorApi {
         &self,
         derived_from: BlockNumHash,
     ) -> RpcResult<HashMap<ChainId, BlockNumHash>>;
+
+    /// Returns the [`DependencySet`] for the supervisor.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/pull/684>
+    /// TODO: Replace the link above after the PR is merged.
+    #[method(name = "dependencySetV1")]
+    async fn dependency_set_v1(&self) -> RpcResult<DependencySet>;
 }
 
 /// Represents the topics for subscriptions in the Managed Mode API.

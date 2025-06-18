@@ -33,6 +33,7 @@ op-alloy-rpc-types.workspace = true
 
 # Alloy
 alloy-eips = { workspace = true, features = ["serde", "std"] }
+alloy-rpc-types-engine = { workspace = true, features = ["serde", "std"] }
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "std"] }
 
 # Misc

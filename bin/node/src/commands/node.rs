@@ -1,7 +1,7 @@
 //! Node Subcommand.
 
 use crate::{
-    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
+    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs, SupervisorArgs},
     metrics::CliMetrics,
 };
 use alloy_rpc_types_engine::JwtSecret;
@@ -12,6 +12,7 @@ use kona_cli::metrics_args::MetricsArgs;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
+use kona_rpc::SupervisorRpcConfig;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -75,6 +76,9 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
+    /// SUPERVISOR CLI arguments.
+    #[command(flatten)]
+    pub supervisor_flags: SupervisorArgs,
 }
 
 impl Default for NodeCommand {
@@ -91,6 +95,7 @@ impl Default for NodeCommand {
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
             l2_engine_kind: EngineKind::Geth,
+            supervisor_flags: SupervisorArgs::default(),
         }
     }
 }
@@ -193,6 +198,15 @@ impl NodeCommand {
         let cfg = self.get_l2_config(args)?;
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
+        let supervisor_rpc_config =
+            match (self.supervisor_flags.as_rpc_config(), self.supervisor_flags.rpc_enabled) {
+                (Ok(cfg), true) => Some(cfg),
+                (Err(e), true) => return Err(e),
+                (_, false) => None,
+            };
+        let supervisor_rpc_config =
+            supervisor_rpc_config.unwrap_or(SupervisorRpcConfig::default().disable());
+
         self.p2p_flags.check_ports()?;
         let disabled = self.p2p_flags.disabled;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
@@ -211,6 +225,7 @@ impl NodeCommand {
             .with_p2p_config(p2p_config)
             .with_network_disabled(disabled)
             .with_rpc_config(rpc_config)
+            .with_supervisor_rpc_config(supervisor_rpc_config)
             .build()
             .start()
             .await

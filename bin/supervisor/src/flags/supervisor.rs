@@ -152,11 +152,8 @@ impl SupervisorArgs {
         for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
             let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
 
-            managed_nodes.push(ManagedNodeConfig {
-                l1_rpc_url: self.l1_rpc.clone(),
-                url: rpc_url.clone(),
-                jwt_path: secret.clone(),
-            });
+            managed_nodes
+                .push(ManagedNodeConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
         }
         Ok(managed_nodes)
     }

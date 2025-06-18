@@ -14,7 +14,9 @@ use tokio::{
     time::Duration,
 };
 
-use crate::{Broadcast, Discv5Driver, GossipDriver, HandlerRequest, NetworkBuilder, P2pRpcRequest};
+use crate::{
+    Broadcast, Config, Discv5Driver, GossipDriver, HandlerRequest, NetworkBuilder, P2pRpcRequest,
+};
 
 /// Network
 ///
@@ -27,7 +29,7 @@ pub struct Network {
     /// The broadcast handler to broadcast unsafe payloads.
     pub(crate) broadcast: Broadcast,
     /// Channel to send unsafe signer updates.
-    pub(crate) unsafe_block_signer_sender: Option<Sender<Address>>,
+    pub(crate) unsafe_block_signer_sender: Sender<Address>,
     /// Handler for RPC Requests.
     ///
     /// This is allowed to be optional since it may not be desirable
@@ -50,8 +52,8 @@ impl Network {
     const PEER_SCORE_INSPECT_FREQUENCY: Duration = Duration::from_secs(1);
 
     /// Returns the [`NetworkBuilder`] that can be used to construct the [`Network`].
-    pub const fn builder() -> NetworkBuilder {
-        NetworkBuilder::new()
+    pub fn builder(config: Config) -> NetworkBuilder {
+        NetworkBuilder::from(config)
     }
 
     /// Creates a new unsafe block mpsc sender.
@@ -66,9 +68,9 @@ impl Network {
         self.broadcast.subscribe()
     }
 
-    /// Take the unsafe block signer sender.
-    pub const fn take_unsafe_block_signer_sender(&mut self) -> Option<Sender<Address>> {
-        self.unsafe_block_signer_sender.take()
+    /// Returns a clone of the unsafe block signer sender.
+    pub fn unsafe_block_signer_sender(&mut self) -> Sender<Address> {
+        self.unsafe_block_signer_sender.clone()
     }
 
     /// Handles the sync request/response protocol.

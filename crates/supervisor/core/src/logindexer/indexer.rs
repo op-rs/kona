@@ -33,7 +33,7 @@ where
         Self { receipt_provider, log_writer }
     }
 
-    /// Processes the logs of a given block and stores them into the state manager.
+    /// Processes and stores the logs of a given block in into the state manager.
     ///
     /// This function:
     /// - Fetches all receipts for the given block from the specified chain.
@@ -46,7 +46,6 @@ where
     /// - `block`: Metadata about the block being processed.
     pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
         let receipts = self.receipt_provider.fetch_receipts(block.hash).await?;
-
         let mut log_entries = Vec::with_capacity(receipts.len());
         let mut log_index: u32 = 0;
 
@@ -75,7 +74,6 @@ where
         log_entries.shrink_to_fit();
 
         self.log_writer.store_block_logs(block, log_entries)?;
-
         Ok(())
     }
 }

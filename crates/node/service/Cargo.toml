@@ -17,6 +17,7 @@ kona-p2p.workspace = true
 kona-engine.workspace = true
 kona-sources.workspace = true
 kona-genesis.workspace = true
+kona-interop.workspace = true
 kona-derive.workspace = true
 kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
@@ -47,6 +48,7 @@ thiserror.workspace = true
 tokio-util.workspace = true
 async-trait.workspace = true
 async-stream.workspace = true
+tokio-stream.workspace = true
 derive_more = { workspace = true, features = ["debug"] }
 jsonrpsee = { workspace = true, features = ["server"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

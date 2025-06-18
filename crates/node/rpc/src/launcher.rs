@@ -3,12 +3,11 @@
 use jsonrpsee::server::{RegisterMethodError, RpcModule, Server, ServerHandle};
 use std::net::SocketAddr;
 
+use crate::RpcConfig;
+
 /// An error that can occur when using the [`RpcLauncher`].
 #[derive(Debug, thiserror::Error)]
 pub enum RpcLauncherError {
-    /// The [`SocketAddr`] is missing.
-    #[error("socket address is missing")]
-    MissingSocket,
     /// An error occurred while starting the [`Server`].
     #[error("failed to start server: {0}")]
     ServerStart(#[from] std::io::Error),
@@ -20,7 +19,6 @@ pub enum RpcLauncherError {
 impl PartialEq for RpcLauncherError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::MissingSocket, Self::MissingSocket) => true,
             (Self::ServerStart(e1), Self::ServerStart(e2)) => e1.kind() == e2.kind(),
             _ => false,
         }
@@ -35,85 +33,89 @@ pub struct HealthzResponse {
 }
 
 /// Launches a [`Server`] using a set of [`RpcModule`]s.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct RpcLauncher {
-    disabled: bool,
-    /// If `true`, the RPC server will not attempt to restart if it stops.
-    pub no_restart: bool,
-    socket: Option<SocketAddr>,
-    module: Option<RpcModule<()>>,
-    /// Enable the websocket rpc server
-    pub ws_enabled: bool,
-}
-
-impl From<SocketAddr> for RpcLauncher {
-    fn from(socket: SocketAddr) -> Self {
-        Self {
-            disabled: false,
-            no_restart: false,
-            socket: Some(socket),
-            module: None,
-            ws_enabled: false,
-        }
-    }
+    /// The RPC configuration associated with the [`RpcLauncher`].
+    pub(crate) config: RpcConfig,
+    /// The modules to register on the RPC server.
+    pub(crate) module: RpcModule<()>,
 }
 
 impl RpcLauncher {
     /// Creates a new [`RpcLauncher`].
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(config: RpcConfig) -> Self {
+        Self { config, module: RpcModule::new(()) }
     }
 
-    /// Disable the RPC server, preventing the launcher from starting the RPC server.
-    pub const fn disable(&mut self) {
-        self.disabled = true;
+    /// Creates a new [`RpcLauncher`] that is disabled.
+    pub fn new_disabled() -> Self {
+        Self {
+            config: RpcConfig {
+                disabled: true,
+                no_restart: false,
+                // Use a dummy socket address. The RPC server is disabled, so it will not be used.
+                socket: SocketAddr::from(([127, 0, 0, 1], 8080)),
+                enable_admin: false,
+                admin_persistence: None,
+                ws_enabled: false,
+            },
+            module: RpcModule::new(()),
+        }
     }
 
     /// Returns whether WebSocket RPC endpoint is enabled
     pub const fn ws_enabled(&self) -> bool {
-        self.ws_enabled
+        self.config.ws_enabled
     }
 
     /// Merges a given [`RpcModule`] into the [`RpcLauncher`].
-    pub fn merge<CTX>(
-        mut self,
-        module: Option<RpcModule<CTX>>,
-    ) -> Result<Self, RegisterMethodError> {
-        let Some(module) = module else {
-            return Ok(self);
-        };
-        let mut existing = self.module.take().map_or_else(|| RpcModule::new(()), |m| m);
-        existing.merge(module)?;
-        Ok(Self { module: Some(existing), ..self })
+    pub fn merge<CTX>(&mut self, other: RpcModule<CTX>) -> Result<(), RegisterMethodError> {
+        self.module.merge(other)?;
+
+        Ok(())
+    }
+
+    /// Returns the socket address of the [`RpcLauncher`].
+    pub const fn socket(&self) -> SocketAddr {
+        self.config.socket
+    }
+
+    /// Returns the number of times the RPC server will attempt to restart if it stops.
+    pub const fn restart_count(&self) -> u32 {
+        if self.config.no_restart { 0 } else { 3 }
     }
 
     /// Sets the given [`SocketAddr`] on the [`RpcLauncher`].
-    pub fn set_addr(self, addr: SocketAddr) -> Self {
-        Self { socket: Some(addr), ..self }
+    pub const fn set_addr(mut self, addr: SocketAddr) -> Self {
+        self.config.socket = addr;
+
+        self
+    }
+
+    /// Registers the healthz endpoint on the [`RpcLauncher`].
+    pub fn with_healthz(mut self) -> Result<Self, RegisterMethodError> {
+        self.module.register_method("healthz", |_, _, _| {
+            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
+            jsonrpsee::core::RpcResult::Ok(response)
+        })?;
+
+        Ok(self)
     }
 
     /// Launches the jsonrpsee [`Server`].
     ///
     /// If the RPC server is disabled, this will return `Ok(None)`.
     ///
-    /// The `/healthz` endpoint is automatically merged into the RPC module.
-    ///
     /// ## Errors
     ///
-    /// - [`RpcLauncherError::MissingSocket`] if the socket address is missing.
     /// - [`RpcLauncherError::ServerStart`] if the server fails to start.
-    pub async fn launch(&mut self) -> Result<Option<ServerHandle>, RpcLauncherError> {
-        if self.disabled {
+    pub async fn launch(self) -> Result<Option<ServerHandle>, RpcLauncherError> {
+        if self.config.disabled {
             return Ok(None);
         }
-        let socket = self.socket.take().ok_or(RpcLauncherError::MissingSocket)?;
-        let server = Server::builder().build(socket).await?;
-        let mut module = self.module.take().unwrap_or_else(|| RpcModule::new(()));
-        module.register_method("healthz", |_, _, _| {
-            let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
-            jsonrpsee::core::RpcResult::Ok(response)
-        })?;
-        Ok(Some(server.start(module)))
+
+        let server = Server::builder().build(self.config.socket).await?;
+        Ok(Some(server.start(self.module)))
     }
 }
 
@@ -122,28 +124,32 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_launch_missing_socket() {
-        let mut launcher = RpcLauncher::new();
-        let result = launcher.launch().await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), RpcLauncherError::MissingSocket);
-    }
-
-    #[tokio::test]
     async fn test_launch_no_modules() {
-        let mut launcher = RpcLauncher::new();
-        launcher = launcher.set_addr(SocketAddr::from(([127, 0, 0, 1], 8080)));
+        let launcher = RpcLauncher::new(RpcConfig {
+            disabled: false,
+            socket: SocketAddr::from(([127, 0, 0, 1], 8080)),
+            no_restart: false,
+            enable_admin: false,
+            admin_persistence: None,
+            ws_enabled: false,
+        });
         let result = launcher.launch().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_launch_with_modules() {
-        let mut launcher = RpcLauncher::new();
-        launcher = launcher.set_addr(SocketAddr::from(([127, 0, 0, 1], 8081)));
-        launcher = launcher.merge(Some(RpcModule::new(()))).expect("module merge");
-        launcher = launcher.merge::<()>(None).expect("module merge");
-        launcher = launcher.merge(Some(RpcModule::new(()))).expect("module merge");
+        let mut launcher = RpcLauncher::new(RpcConfig {
+            disabled: false,
+            socket: SocketAddr::from(([127, 0, 0, 1], 8081)),
+            no_restart: false,
+            enable_admin: false,
+            admin_persistence: None,
+            ws_enabled: false,
+        });
+        launcher.merge(RpcModule::new(())).expect("module merge");
+        launcher.merge::<()>(RpcModule::new(())).expect("module merge");
+        launcher.merge(RpcModule::new(())).expect("module merge");
         let result = launcher.launch().await;
         assert!(result.is_ok());
     }
