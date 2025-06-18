@@ -4,7 +4,7 @@
 //! <https://github.com/ethereum-optimism/optimism/blob/34d5f66ade24bd1f3ce4ce7c0a6cfc1a6540eca1/packages/contracts-bedrock/src/L2/CrossL2Inbox.sol>
 
 use alloc::{vec, vec::Vec};
-use alloy_primitives::{keccak256, Bytes, Log, U256};
+use alloy_primitives::{Bytes, ChainId, Log, keccak256};
 use alloy_sol_types::{SolEvent, sol};
 use derive_more::{AsRef, Constructor, From};
 use kona_protocol::Predeploys;
@@ -84,7 +84,8 @@ pub struct ExecutingDescriptor {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     timeout: Option<u64>,
     /// Chain ID of the chain that the message was executed on.
-    chain_id: U256,
+    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
+    chain_id: ChainId,
 }
 
 /// A wrapper type for [ExecutingMessage] containing the chain ID of the chain that the message was
@@ -141,4 +142,22 @@ pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
     (log.address == Predeploys::CROSS_L2_INBOX && log.topics().len() == 2)
         .then(|| ExecutingMessage::decode_log_data(&log.data).ok())
         .flatten()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Test the serialization of ExecutingDescriptor
+    #[test]
+    fn test_serialize_executing_descriptor() {
+        let descriptor =
+            ExecutingDescriptor { timestamp: 1234567890, timeout: Some(3600), chain_id: 1000 };
+        let serialized = serde_json::to_string(&descriptor).unwrap();
+        let expected = r#"{"timestamp":1234567890,"timeout":3600,"chain_id":"0x3e8"}"#;
+        assert_eq!(serialized, expected);
+
+        let deserialized: ExecutingDescriptor = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(descriptor, deserialized);
+    }
 }
