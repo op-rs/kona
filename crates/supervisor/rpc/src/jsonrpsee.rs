@@ -71,7 +71,9 @@ pub trait SupervisorApi {
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_superrootattimestamp>
     ///
-    /// [`SuperRootResponse`]: kona_protocol::interop::SuperRootResponse
+    /// [`SuperRootResponse`]: kona_interop::SuperRootResponse
+    /// [`SuperRoot`]: kona_interop::SuperRoot
+    /// [`ChainRootInfo`]: kona_interop::ChainRootInfo
     #[method(name = "superRootAtTimestamp")]
     async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse>;
 

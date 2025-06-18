@@ -13,7 +13,6 @@ use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
 };
 use kona_supervisor_types::SuperHead;
-use serde_json;
 use std::{collections::HashMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
@@ -71,7 +70,7 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global
     /// state across all monitored chains.
     ///
-    /// [`SuperRootResponse`]: kona_protocol::interop::SuperRootResponse
+    /// [`SuperRootResponse`]: kona_interop::SuperRootResponse
     async fn super_root_at_timestamp(
         &self,
         timestamp: u64,
