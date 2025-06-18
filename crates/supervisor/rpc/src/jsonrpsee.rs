@@ -11,7 +11,7 @@ use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DependencySet, DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
-    SuperRootResponse,
+    SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::{BlockSeal, OutputV0, Receipts, SubscriptionEvent};
@@ -62,7 +62,7 @@ pub trait SupervisorApi {
     #[method(name = "finalizedL1")]
     async fn finalized_l1(&self) -> RpcResult<BlockInfo>;
 
-    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global
+    /// Returns the [`SuperRootOutput`] at a specified timestamp, which represents the global
     /// state across all monitored chains. Contains the
     /// - Highest L1 [`BlockNumHash`] that is cross-safe among all chains
     /// - Timestamp of the super root
@@ -71,11 +71,11 @@ pub trait SupervisorApi {
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_superrootattimestamp>
     ///
-    /// [`SuperRootResponse`]: kona_interop::SuperRootResponse
+    /// [`SuperRootOutput`]: kona_interop::SuperRootOutput
     /// [`SuperRoot`]: kona_interop::SuperRoot
     /// [`ChainRootInfo`]: kona_interop::ChainRootInfo
     #[method(name = "superRootAtTimestamp")]
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse>;
+    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput>;
 
     /// Verifies if an access-list references only valid messages w.r.t. locally configured minimum
     /// [`SafetyLevel`].

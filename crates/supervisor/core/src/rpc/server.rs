@@ -6,10 +6,10 @@ use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
 use jsonrpsee::{
     core::RpcResult,
-    types::{ErrorObject, error::ErrorCode},
+    types::ErrorObject,
 };
 use kona_interop::{
-    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
+    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
@@ -146,7 +146,7 @@ where
         )
     }
 
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse> {
+    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput> {
         crate::observe_rpc_call!(
             "super_root_at_timestamp",
             async {
@@ -360,7 +360,7 @@ mod tests {
         async fn super_root_at_timestamp(
             &self,
             _timestamp: u64,
-        ) -> Result<SuperRootResponse, SupervisorError> {
+        ) -> Result<SuperRootOutput, SupervisorError> {
             unimplemented!()
         }
     }

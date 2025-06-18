@@ -1,6 +1,3 @@
-use crate::{
-    ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::ManagedNode,
-};
 use alloy_eips::BlockNumHash;
 use alloy_network::Ethereum;
 use alloy_primitives::{B256, Bytes, ChainId, keccak256};
@@ -10,7 +7,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_interop::{DependencySet, 
     ChainRootInfo, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
-    SuperRoot, SuperRootResponse,
+    SuperRoot, SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
@@ -79,14 +76,14 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns the finalized L1 block that the supervisor is synced to.
     fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
 
-    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global
+    /// Returns the [`SuperRootOutput`] at a specified timestamp, which represents the global
     /// state across all monitored chains.
     ///
-    /// [`SuperRootResponse`]: kona_interop::SuperRootResponse
+    /// [`SuperRootOutput`]: kona_interop::SuperRootOutput
     async fn super_root_at_timestamp(
         &self,
         timestamp: u64,
-    ) -> Result<SuperRootResponse, SupervisorError>;
+    ) -> Result<SuperRootOutput, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     fn check_access_list(
@@ -282,7 +279,7 @@ impl SupervisorService for Supervisor {
     async fn super_root_at_timestamp(
         &self,
         timestamp: u64,
-    ) -> Result<SuperRootResponse, SupervisorError> {
+    ) -> Result<SuperRootOutput, SupervisorError> {
         let mut chain_ids = self.config.dependency_set.dependencies.keys().collect::<Vec<_>>();
         // Sorting chain ids for deterministic super root hash
         chain_ids.sort();
@@ -323,7 +320,7 @@ impl SupervisorService for Supervisor {
 
         let super_root_hash = super_root.hash();
 
-        Ok(SuperRootResponse {
+        Ok(SuperRootOutput {
             cross_safe_derived_from: cross_safe_source,
             timestamp,
             super_root: super_root_hash,

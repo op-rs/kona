@@ -109,7 +109,7 @@ pub struct ChainRootInfo {
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct SuperRootResponse {
+pub struct SuperRootOutput {
     /// The Highest L1 Block that is cross-safe among all chains.
     pub cross_safe_derived_from: BlockNumHash,
     /// The timestamp of the super root.
