@@ -19,7 +19,7 @@ use reth_db::{
 };
 use reth_db_api::database::Database;
 use std::{path::Path, sync::RwLock};
-use tracing::error;
+use tracing::{error, warn};
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -53,26 +53,30 @@ impl ChainDb {
         })?
     }
 
-    /// Fetches all safety heads and current L1 state
-    pub fn get_super_head(&self) -> Result<SuperHead, StorageError> {
-        let l1_source = self.get_current_l1()?;
-
-        self.env.view(|tx| {
+    pub(super) fn update_finalized_head_ref(
+        &self,
+        l1_finalized: BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.env.update(|tx| {
             let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
-            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
-            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+            let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
 
-            Ok(SuperHead {
-                l1_source,
-                local_unsafe,
-                cross_unsafe,
-                local_safe,
-                cross_safe,
-                finalized,
-            })
+            let dp = DerivationProvider::new(tx);
+            let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
+
+            if l1_finalized.number >= safe_block_pair.source.number {
+                // this could happen during initial sync
+                warn!(
+                    target: "supervisor_storage",
+                    l1_finilized_block_number = l1_finalized.number,
+                    safe_source_block_number = safe_block_pair.source.number,
+                    "L1 finalized block is greater than safe block",
+                );
+                return sp.update_safety_head_ref(SafetyLevel::Finalized, &safe);
+            }
+
+            let latest_derived = dp.latest_derived_block_at_source(l1_finalized.id())?;
+            sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
         })?
     }
 }
@@ -137,7 +141,11 @@ impl LogStorageReader for ChainDb {
 
 impl LogStorageWriter for ChainDb {
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
-        self.env.update(|ctx| LogProvider::new(ctx).store_block_logs(block, logs))?
+        self.env.update(|ctx| {
+            LogProvider::new(ctx).store_block_logs(block, logs)?;
+
+            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(SafetyLevel::LocalUnsafe, block)
+        })?
     }
 }
 
@@ -152,6 +160,29 @@ impl HeadRefStorageReader for ChainDb {
 
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
+    }
+
+    /// Fetches all safety heads and current L1 state
+    fn get_super_head(&self) -> Result<SuperHead, StorageError> {
+        let l1_source = self.get_current_l1()?;
+
+        self.env.view(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
+            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+
+            Ok(SuperHead {
+                l1_source,
+                local_unsafe,
+                cross_unsafe,
+                local_safe,
+                cross_safe,
+                finalized,
+            })
+        })?
     }
 }
 

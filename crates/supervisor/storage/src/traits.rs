@@ -2,7 +2,7 @@ use crate::StorageError;
 use alloy_eips::eip1898::BlockNumHash;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::Log;
+use kona_supervisor_types::{Log, SuperHead};
 use op_alloy_consensus::interop::SafetyLevel;
 use std::fmt::Debug;
 
@@ -168,6 +168,13 @@ pub trait HeadRefStorageReader: Debug {
     /// * `Ok(BlockInfo)` containing the current safety head reference.
     /// * `Err(StorageError)` if there is an issue retrieving the reference.
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+
+    /// Retrieves the super head reference from the storage.
+    ///
+    /// # Returns
+    /// * `Ok(SuperHead)` containing the super head reference.
+    /// * `Err(StorageError)` if there is an issue retrieving the super head reference.
+    fn get_super_head(&self) -> Result<SuperHead, StorageError>;
 }
 
 /// Provides an interface for storing head references.

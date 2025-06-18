@@ -1,14 +1,17 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
+use alloy_primitives::Address;
 use derive_more::Debug;
 use discv5::Enr;
 use futures::stream::StreamExt;
+use kona_genesis::RollupConfig;
 use kona_peers::{EnrValidation, PeerMonitoring, enr_to_multiaddr};
 use libp2p::{
     Multiaddr, PeerId, Swarm, TransportError,
     gossipsub::{IdentTopic, MessageId},
     swarm::SwarmEvent,
 };
+use libp2p_identity::Keypair;
 use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::OpNetworkPayloadEnvelope;
 use std::{
@@ -64,8 +67,13 @@ where
     G: ConnectionGate,
 {
     /// Returns the [`GossipDriverBuilder`] that can be used to construct the [`GossipDriver`].
-    pub const fn builder() -> GossipDriverBuilder {
-        GossipDriverBuilder::new()
+    pub const fn builder(
+        rollup_config: RollupConfig,
+        signer: Address,
+        gossip_addr: Multiaddr,
+        keypair: Keypair,
+    ) -> GossipDriverBuilder {
+        GossipDriverBuilder::new(rollup_config, signer, gossip_addr, keypair)
     }
 
     /// Creates a new [`GossipDriver`] instance.

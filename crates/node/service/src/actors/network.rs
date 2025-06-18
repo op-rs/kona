@@ -72,9 +72,7 @@ impl NodeActor for NetworkActor {
         let mut unsafe_block_receiver = self.driver.unsafe_block_recv();
 
         // Take the unsafe block signer sender.
-        let Some(unsafe_block_signer) = self.driver.take_unsafe_block_signer_sender() else {
-            return Err(NetworkActorError::MissingUnsafeBlockSigner);
-        };
+        let unsafe_block_signer = self.driver.unsafe_block_signer_sender();
 
         // Start the network driver.
         self.driver.start().await?;

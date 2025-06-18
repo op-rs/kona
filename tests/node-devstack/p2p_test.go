@@ -125,7 +125,7 @@ func TestP2PPeersInNetwork(gt *testing.T) {
 		nodeIds = append(nodeIds, node.PeerInfo().PeerID.String())
 	}
 
-	for _, node := range nodes {
+	for _, node := range out.L2CLKonaNodes {
 		for _, peer := range node.Peers().Peers {
 			require.Contains(t, nodeIds, peer.PeerID.String(), fmt.Sprintf("%s has a peer that is not in the network: %s", node.Escape().ID(), peer.PeerID))
 		}

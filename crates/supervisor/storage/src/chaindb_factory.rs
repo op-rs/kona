@@ -35,14 +35,20 @@ impl ChainDbFactory {
     pub fn get_or_create_db(&self, chain_id: ChainId) -> Result<Arc<ChainDb>, StorageError> {
         {
             // Try to get it without locking for write
-            let dbs = self.dbs.write().unwrap_or_else(|e| e.into_inner());
+            let dbs = self.dbs.read().map_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
+                StorageError::LockPoisoned
+            })?;
             if let Some(db) = dbs.get(&chain_id) {
                 return Ok(db.clone());
             }
         }
 
         // Not found, create and insert
-        let mut dbs = self.dbs.write().unwrap_or_else(|e| e.into_inner());
+        let mut dbs = self.dbs.write().map_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to acquire write lock on databases");
+            StorageError::LockPoisoned
+        })?;
         // Double-check in case another thread inserted
         if let Some(db) = dbs.get(&chain_id) {
             return Ok(db.clone());
@@ -98,7 +104,16 @@ impl FinalizedL1Storage for ChainDbFactory {
         }
         *guard = Some(block);
 
-        // todo: update safety head ref for finalized level for all chains
+        // update all chain databases finalized safety head refs
+        let dbs = self.dbs.read().map_err(|err| {
+            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
+            StorageError::LockPoisoned
+        })?;
+        for (chain_id, db) in dbs.iter() {
+            if let Err(err) = db.update_finalized_head_ref(block) {
+                error!(target: "supervisor_storage", chain_id = %chain_id, %err, "Failed to update finalized L1 in chain database");
+            }
+        }
 
         Ok(())
     }

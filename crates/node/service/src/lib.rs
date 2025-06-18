@@ -20,7 +20,7 @@ pub use actors::{
     DerivationActor, DerivationError, EngineActor, EngineError, EngineLauncher,
     InboundDerivationMessage, InboundEngineMessage, L1WatcherRpc, L1WatcherRpcError, L2Finalizer,
     NetworkActor, NetworkActorError, NodeActor, RpcActor, RpcActorError, RuntimeActor,
-    RuntimeLauncher,
+    RuntimeLauncher, SupervisorActor, SupervisorActorError, SupervisorExt,
 };
 
 mod metrics;
