@@ -146,3 +146,13 @@ pub trait Ws {
     #[subscription(name = "subscribe_unsafe_head", item = kona_protocol::L2BlockInfo)]
     async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
 }
+
+/// The admin namespace for the consensus node.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
+pub trait AdminApi {
+    /// Posts the unsafe payload.
+    #[method(name = "postUnsafePayload")]
+    async fn admin_post_unsafe_payload(&self, payload: OpExecutionPayloadEnvelope)
+    -> RpcResult<()>;
+}
