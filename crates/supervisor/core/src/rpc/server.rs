@@ -4,10 +4,7 @@ use crate::{SupervisorError, SupervisorService};
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
-use jsonrpsee::{
-    core::RpcResult,
-    types::ErrorObject,
-};
+use jsonrpsee::{core::RpcResult, types::ErrorObject};
 use kona_interop::{
     DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootOutput,
 };

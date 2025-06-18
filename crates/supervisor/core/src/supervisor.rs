@@ -5,9 +5,9 @@ use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use kona_interop::{DependencySet, 
-    ChainRootInfo, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
-    SuperRoot, SuperRootOutput,
+use kona_interop::{
+    ChainRootInfo, DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION,
+    SafetyLevel, SuperRoot, SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
