@@ -2,4 +2,4 @@
 .github @dhyaniarun1993
 bin/supervisor @dhyaniarun1993 @itschaindev @sadiq1971
 crates/supervisor @dhyaniarun1993 @itschaindev @sadiq1971
-crates/protocol/interop @dhyaniarun1993 @itschaindev @sadiq1971
+crates/protocol/interop/ @dhyaniarun1993 @itschaindev @sadiq1971
