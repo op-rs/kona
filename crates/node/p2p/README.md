@@ -17,7 +17,7 @@ Contains a gossipsub driver to run discv5 peer discovery and block gossip.
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use alloy_primitives::address;
 use kona_genesis::RollupConfig;
-use kona_p2p::{LocalNode, Network};
+use kona_p2p::{LocalNode, Network, Config};
 use libp2p::Multiaddr;
 use discv5::enr::CombinedKey;
 
@@ -34,13 +34,12 @@ async fn main() {
         unreachable!()
     };
     let disc = LocalNode::new(k256_key, advertise_ip, 9097, 9098);
-    let network = Network::builder()
-        .with_rollup_config(RollupConfig { l2_chain_id: 10, ..Default::default() })
-        .with_unsafe_block_signer(signer)
-        .with_discovery_address(disc)
-        .with_gossip_address(gossip_addr)
-        .build()
-        .expect("Failed to builder network driver");
+    let network = Network::builder(Config::new(
+        RollupConfig::default(),
+        disc,
+        gossip_addr,
+        signer
+    )).build().expect("Failed to builder network driver");
 
     // Starting the network spawns gossip and discovery service
     // handling in a new thread so this is a non-blocking,

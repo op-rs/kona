@@ -2,7 +2,7 @@
 
 use backon::{ExponentialBuilder, RetryableWithContext};
 use derive_more::Debug;
-use discv5::{Discv5, Enr, enr::NodeId};
+use discv5::{Config, Discv5, Enr, enr::NodeId};
 use kona_peers::{BootNode, BootNodes, BootStore, EnrValidation, enr_to_multiaddr};
 use libp2p::Multiaddr;
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 
-use crate::{Discv5Builder, Discv5Handler, HandlerRequest};
+use crate::{Discv5Builder, Discv5Handler, HandlerRequest, LocalNode};
 
 /// The [`Discv5Driver`] drives the discovery service.
 ///
@@ -52,8 +52,12 @@ pub struct Discv5Driver {
 
 impl Discv5Driver {
     /// Returns a new [`Discv5Builder`] instance.
-    pub const fn builder() -> Discv5Builder {
-        Discv5Builder::new()
+    pub const fn builder(
+        local_node: LocalNode,
+        chain_id: u64,
+        discovery_config: Config,
+    ) -> Discv5Builder {
+        Discv5Builder::new(local_node, chain_id, discovery_config)
     }
 
     /// Instantiates a new [`Discv5Driver`].
@@ -466,12 +470,13 @@ mod tests {
         };
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
-        let discovery = Discv5Driver::builder()
-            .with_local_node(LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
-            .with_chain_id(OP_SEPOLIA_CHAIN_ID)
-            .with_discovery_config(ConfigBuilder::new(socket.into()).build())
-            .build()
-            .expect("Failed to build discovery service");
+        let discovery = Discv5Driver::builder(
+            LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0),
+            OP_SEPOLIA_CHAIN_ID,
+            ConfigBuilder::new(socket.into()).build(),
+        )
+        .build()
+        .expect("Failed to build discovery service");
         let (handle, _) = discovery.start();
         assert_eq!(handle.chain_id, OP_SEPOLIA_CHAIN_ID);
     }
@@ -487,12 +492,13 @@ mod tests {
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
             unreachable!()
         };
-        let mut discovery = Discv5Driver::builder()
-            .with_local_node(LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
-            .with_chain_id(OP_SEPOLIA_CHAIN_ID)
-            .with_discovery_config(ConfigBuilder::new(socket.into()).build())
-            .build()
-            .expect("Failed to build discovery service");
+        let mut discovery = Discv5Driver::builder(
+            LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0),
+            OP_SEPOLIA_CHAIN_ID,
+            ConfigBuilder::new(socket.into()).build(),
+        )
+        .build()
+        .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
 
         discovery = discovery.init().await.expect("Failed to initialize discovery service");
@@ -575,12 +581,13 @@ mod tests {
             unreachable!()
         };
 
-        let mut discovery = Discv5Driver::builder()
-            .with_local_node(LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0))
-            .with_chain_id(OP_MAINNET_CHAIN_ID)
-            .with_discovery_config(ConfigBuilder::new(socket.into()).build())
-            .build()
-            .expect("Failed to build discovery service");
+        let mut discovery = Discv5Driver::builder(
+            LocalNode::new(secret_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0, 0),
+            OP_MAINNET_CHAIN_ID,
+            ConfigBuilder::new(socket.into()).build(),
+        )
+        .build()
+        .expect("Failed to build discovery service");
         discovery.store.path = dir.join("bootstore.json");
 
         discovery = discovery.init().await.expect("Failed to initialize discovery service");

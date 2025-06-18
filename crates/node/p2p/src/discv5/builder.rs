@@ -21,6 +21,15 @@ pub struct LocalNode {
     pub udp_port: u16,
 }
 
+impl From<&LocalNode> for discv5::ListenConfig {
+    fn from(local_node: &LocalNode) -> Self {
+        match local_node.ip {
+            IpAddr::V4(ip) => Self::Ipv4 { ip, port: local_node.tcp_port },
+            IpAddr::V6(ip) => Self::Ipv6 { ip, port: local_node.tcp_port },
+        }
+    }
+}
+
 impl LocalNode {
     /// Creates a new [`LocalNode`] instance.
     pub const fn new(
@@ -60,18 +69,18 @@ impl LocalNode {
 }
 
 /// Discovery service builder.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Discv5Builder {
     /// The node information advertised by the discovery service.
-    local_node: Option<LocalNode>,
+    local_node: LocalNode,
     /// The chain ID of the network.
-    chain_id: Option<u64>,
+    chain_id: u64,
+    /// The discovery config for the discovery service.
+    discovery_config: Config,
     /// The interval to find peers.
     interval: Option<Duration>,
     /// The interval to randomize discovery peers.
     randomize: Option<Duration>,
-    /// The discovery config for the discovery service.
-    discovery_config: Option<Config>,
     /// An optional path to the bootstore.
     bootstore: Option<PathBuf>,
     /// Additional bootnodes to manually add to the initial bootstore
@@ -84,12 +93,12 @@ pub struct Discv5Builder {
 
 impl Discv5Builder {
     /// Creates a new [`Discv5Builder`] instance.
-    pub const fn new() -> Self {
+    pub const fn new(local_node: LocalNode, chain_id: u64, discovery_config: Config) -> Self {
         Self {
-            local_node: None,
-            chain_id: None,
+            local_node,
+            chain_id,
+            discovery_config,
             interval: None,
-            discovery_config: None,
             randomize: None,
             bootstore: None,
             bootnodes: Vec::new(),
@@ -118,13 +127,13 @@ impl Discv5Builder {
 
     /// Sets the discovery service advertised local node information.
     pub fn with_local_node(mut self, local_node: LocalNode) -> Self {
-        self.local_node = Some(local_node);
+        self.local_node = local_node;
         self
     }
 
     /// Sets the chain ID of the network.
     pub const fn with_chain_id(mut self, chain_id: u64) -> Self {
-        self.chain_id = Some(chain_id);
+        self.chain_id = chain_id;
         self
     }
 
@@ -136,7 +145,7 @@ impl Discv5Builder {
 
     /// Sets the discovery config for the discovery service.
     pub fn with_discovery_config(mut self, config: Config) -> Self {
-        self.discovery_config = Some(config);
+        self.discovery_config = config;
         self
     }
 
@@ -154,11 +163,11 @@ impl Discv5Builder {
 
     /// Builds a [`Discv5Driver`].
     pub fn build(self) -> Result<Discv5Driver, Discv5BuilderError> {
-        let chain_id = self.chain_id.ok_or(Discv5BuilderError::ChainIdNotSet)?;
+        let chain_id = self.chain_id;
 
-        let config = self.discovery_config.ok_or(Discv5BuilderError::DiscoveryConfigNotSet)?;
+        let config = self.discovery_config;
 
-        let local_node = self.local_node.ok_or(Discv5BuilderError::LocalNodeNotSet)?;
+        let local_node = self.local_node;
         let key = local_node.signing_key.clone();
 
         let enr = local_node.build_enr(chain_id).map_err(|_| Discv5BuilderError::EnrBuildFailed)?;
@@ -189,9 +198,12 @@ mod tests {
         };
 
         let addr = LocalNode::new(k256_key, IpAddr::V4(Ipv4Addr::UNSPECIFIED), 9099, 9099);
-        let mut builder = Discv5Builder::new();
-        builder = builder.with_local_node(addr);
-        builder = builder.with_chain_id(10);
+        let mut builder = Discv5Builder::new(
+            addr,
+            10,
+            ConfigBuilder::new(ListenConfig::Ipv4 { ip: Ipv4Addr::UNSPECIFIED, port: 9099 })
+                .build(),
+        );
         builder = builder.with_discovery_config(
             ConfigBuilder::new(ListenConfig::Ipv4 { ip: Ipv4Addr::UNSPECIFIED, port: 9099 })
                 .build(),

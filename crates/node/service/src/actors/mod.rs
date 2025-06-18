@@ -11,6 +11,9 @@ pub use runtime::{RuntimeActor, RuntimeLauncher};
 mod engine;
 pub use engine::{EngineActor, EngineError, EngineLauncher, InboundEngineMessage, L2Finalizer};
 
+mod supervisor;
+pub use supervisor::{SupervisorActor, SupervisorActorError, SupervisorExt};
+
 mod rpc;
 pub use rpc::{RpcActor, RpcActorError};
 

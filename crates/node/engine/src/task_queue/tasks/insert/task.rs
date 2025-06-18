@@ -16,7 +16,7 @@ use kona_protocol::L2BlockInfo;
 use op_alloy_consensus::OpBlock;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::{
-    OpExecutionPayload, OpExecutionPayloadSidecar, OpNetworkPayloadEnvelope,
+    OpExecutionPayload, OpExecutionPayloadEnvelope, OpExecutionPayloadSidecar,
 };
 use std::{sync::Arc, time::Instant};
 
@@ -30,7 +30,7 @@ pub struct InsertUnsafeTask {
     /// The engine forkchoice version.
     version: EngineForkchoiceVersion,
     /// The network payload envelope.
-    envelope: OpNetworkPayloadEnvelope,
+    envelope: OpExecutionPayloadEnvelope,
 }
 
 impl InsertUnsafeTask {
@@ -38,7 +38,7 @@ impl InsertUnsafeTask {
     pub fn new(
         client: Arc<EngineClient>,
         rollup_config: Arc<RollupConfig>,
-        envelope: OpNetworkPayloadEnvelope,
+        envelope: OpExecutionPayloadEnvelope,
     ) -> Self {
         let version =
             EngineForkchoiceVersion::from_cfg(rollup_config.as_ref(), envelope.payload.timestamp());

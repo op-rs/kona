@@ -1,81 +1,25 @@
-use core::fmt::Debug;
-
+use crate::{
+    ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::ManagedNode,
+};
 use alloy_eips::BlockNumHash;
+use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
+use alloy_provider::RootProvider;
+use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
-use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
-use kona_interop::{ExecutingDescriptor, SafetyLevel};
+use core::fmt::Debug;
+use kona_interop::{DependencySet, ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader, LogStorageReader,
-    StorageError,
+    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
+    LogStorageReader,
 };
-use kona_supervisor_types::{AccessListError, SuperHead, parse_access_list};
+use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
+use reqwest::Url;
 use std::{collections::HashMap, sync::Arc};
-use thiserror::Error;
 use tokio_util::sync::CancellationToken;
-use tracing::{info, warn};
-
-use crate::{
-    chain_processor::{ChainProcessor, ChainProcessorError},
-    config::Config,
-    syncnode::{ManagedNode, ManagedNodeError},
-};
-
-/// Custom error type for the Supervisor core logic.
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum SupervisorError {
-    /// Indicates that a feature or method is not yet implemented.
-    #[error("functionality not implemented")]
-    Unimplemented,
-    /// No chains are configured for supervision.
-    #[error("empty dependency set")]
-    EmptyDependencySet,
-    /// Data availability errors.
-    ///
-    /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
-    #[error(transparent)]
-    DataAvailability(#[from] SuperchainDAError),
-
-    /// Indicates that the supervisor was unable to initialise due to an error.
-    #[error("unable to initialize the supervisor: {0}")]
-    Initialise(String),
-
-    /// Indicates that error occurred while interacting with the storage layer.
-    #[error(transparent)]
-    StorageError(#[from] StorageError),
-
-    /// Indicates the error occured while interacting with the managed node.
-    #[error(transparent)]
-    ManagedNodeError(#[from] ManagedNodeError),
-
-    /// Indicates the error occured while processing the chain.
-    #[error(transparent)]
-    ChainProcessorError(#[from] ChainProcessorError),
-
-    /// Indicates the error occurred while parsing the access_list
-    #[error(transparent)]
-    AccessListError(#[from] AccessListError),
-}
-
-impl From<SupervisorError> for ErrorObjectOwned {
-    fn from(err: SupervisorError) -> Self {
-        match err {
-            // todo: handle these errors more gracefully
-            SupervisorError::Unimplemented |
-            SupervisorError::EmptyDependencySet |
-            SupervisorError::Initialise(_) |
-            SupervisorError::StorageError(_) |
-            SupervisorError::ManagedNodeError(_) |
-            SupervisorError::AccessListError(_) |
-            SupervisorError::ChainProcessorError(_) => {
-                ErrorObjectOwned::from(ErrorCode::InternalError)
-            }
-            SupervisorError::DataAvailability(err) => err.into(),
-        }
-    }
-}
+use tracing::{error, info, warn};
 
 /// Defines the service for the Supervisor core logic.
 #[async_trait]
@@ -83,6 +27,11 @@ impl From<SupervisorError> for ErrorObjectOwned {
 pub trait SupervisorService: Debug + Send + Sync {
     /// Returns list of supervised [`ChainId`]s.
     fn chain_ids(&self) -> impl Iterator<Item = ChainId>;
+
+    /// Returns mapping of supervised [`ChainId`]s to their [`ChainDependency`] config.
+    ///
+    /// [`ChainDependency`]: kona_interop::ChainDependency
+    fn dependency_set(&self) -> &DependencySet;
 
     /// Returns [`SuperHead`] of given supervised chain.
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError>;
@@ -102,21 +51,23 @@ pub trait SupervisorService: Debug + Send + Sync {
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError>;
 
-    /// Returns the
     /// Returns [`LocalUnsafe`] block for the given chain.
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`CrossSafe`] block for the given chain.
     ///
-    /// [`CrossSafe`]: SafetyLevel::Safe
+    /// [`CrossSafe`]: SafetyLevel::CrossSafe
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`Finalized`] block for the given chain.
     ///
     /// [`Finalized`]: SafetyLevel::Finalized
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns the finalized L1 block that the supervisor is synced to.
+    fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     fn check_access_list(
@@ -162,7 +113,9 @@ impl Supervisor {
     pub async fn initialise(&mut self) -> Result<(), SupervisorError> {
         self.init_database().await?;
         self.init_managed_nodes().await?;
-        self.init_chain_processor().await
+        self.init_chain_processor().await?;
+        self.init_l1_watcher()?;
+        Ok(())
     }
 
     async fn init_database(&self) -> Result<(), SupervisorError> {
@@ -200,8 +153,16 @@ impl Supervisor {
 
     async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
-            let mut managed_node =
-                ManagedNode::<ChainDb>::new(Arc::new(config.clone()), self.cancel_token.clone());
+            let url = Url::parse(&self.config.l1_rpc).map_err(|e| {
+                error!(target: "supervisor_service", %e, "Failed to parse L1 RPC URL");
+                SupervisorError::Initialise("invalid l1 rpc url".to_string())
+            })?;
+            let provider = RootProvider::<Ethereum>::new_http(url);
+            let mut managed_node = ManagedNode::<ChainDb>::new(
+                Arc::new(config.clone()),
+                self.cancel_token.clone(),
+                provider,
+            );
 
             let chain_id = managed_node.chain_id().await?;
             let db = self.database_factory.get_db(chain_id)?;
@@ -217,6 +178,17 @@ impl Supervisor {
                 "Managed node for chain initialized successfully",
             );
         }
+        Ok(())
+    }
+
+    fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
+        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
+        let l1_watcher =
+            L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
+
+        tokio::spawn(async move {
+            l1_watcher.run().await;
+        });
         Ok(())
     }
 
@@ -255,6 +227,10 @@ impl SupervisorService for Supervisor {
         self.config.dependency_set.dependencies.keys().copied()
     }
 
+    fn dependency_set(&self) -> &DependencySet {
+        &self.config.dependency_set
+    }
+
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
         let db = self.database_factory.get_db(chain)?;
         Ok(db.get_super_head()?)
@@ -277,15 +253,19 @@ impl SupervisorService for Supervisor {
     }
 
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Unsafe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe)?)
     }
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Safe)?)
+        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe)?)
     }
 
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized)?)
+    }
+
+    fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.database_factory.get_finalized_l1()?)
     }
 
     fn check_access_list(
@@ -343,25 +323,12 @@ impl SupervisorService for Supervisor {
 
             // The message must be included in a block that is at least as safe as required
             // by the `min_safety` level
-            if min_safety != SafetyLevel::Unsafe {
+            if min_safety != SafetyLevel::LocalUnsafe {
                 // The block is already unsafe as it is found in log db
                 self.verify_safety_level(initiating_chain_id, &block, min_safety)?;
             }
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_rpc_error_conversion() {
-        let err = SuperchainDAError::UnknownChain;
-        let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
-
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
     }
 }

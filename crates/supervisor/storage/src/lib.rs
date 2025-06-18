@@ -34,6 +34,7 @@ pub use chaindb_factory::ChainDbFactory;
 
 mod traits;
 pub use traits::{
-    DerivationStorage, DerivationStorageReader, DerivationStorageWriter, HeadRefStorage,
-    HeadRefStorageReader, HeadRefStorageWriter, LogStorage, LogStorageReader, LogStorageWriter,
+    DerivationStorage, DerivationStorageReader, DerivationStorageWriter, FinalizedL1Storage,
+    HeadRefStorage, HeadRefStorageReader, HeadRefStorageWriter, LogStorage, LogStorageReader,
+    LogStorageWriter,
 };

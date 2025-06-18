@@ -62,8 +62,15 @@ impl DiscCommand {
         );
         tracing::info!("Starting discovery service on {:?}", socket);
 
-        let discovery_builder =
-            Discv5Builder::new().with_local_node(socket).with_chain_id(self.l2_chain_id);
+        let discovery_builder = Discv5Builder::new(
+            socket,
+            self.l2_chain_id,
+            discv5::ConfigBuilder::new(discv5::ListenConfig::Ipv4 {
+                ip: Ipv4Addr::UNSPECIFIED,
+                port: self.disc_port,
+            })
+            .build(),
+        );
         let mut discovery = discovery_builder.build()?;
         discovery.interval = std::time::Duration::from_secs(self.interval);
         discovery.forward = false;

@@ -19,6 +19,4 @@ mod access_list;
 pub use access_list::{Access, AccessListError, parse_access_list};
 
 mod types;
-pub use types::{
-    BlockReplacement, BlockSeal, L2BlockRef, ManagedEvent, OutputV0, SubscriptionEvent,
-};
+pub use types::{BlockSeal, L2BlockRef, OutputV0, SubscriptionEvent};

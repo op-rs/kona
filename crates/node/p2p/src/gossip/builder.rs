@@ -8,54 +8,56 @@ use libp2p::{
     noise::Config as NoiseConfig, tcp::Config as TcpConfig, yamux::Config as YamuxConfig,
 };
 use std::time::Duration;
-use tokio::sync::watch::Receiver;
+use tokio::sync::watch::{self};
 
 use crate::{
     Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, gossip::gater::GaterConfig,
 };
 
 /// A builder for the [`GossipDriver`].
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct GossipDriverBuilder {
+    /// The [`RollupConfig`] for the network.
+    rollup_config: RollupConfig,
+    /// The [`Keypair`] for the node.
+    keypair: Keypair,
+    /// The [`Multiaddr`] for the gossip driver to listen on.
+    gossip_addr: Multiaddr,
+    /// Unsafe block signer [`Address`].
+    signer: Address,
     /// The idle connection timeout as a [`Duration`].
     timeout: Option<Duration>,
-    /// The [`Keypair`] for the node.
-    keypair: Option<Keypair>,
-    /// The [`Multiaddr`] for the gossip driver to listen on.
-    gossip_addr: Option<Multiaddr>,
-    /// Unsafe block signer [`Receiver`].
-    signer: Option<Receiver<Address>>,
     /// Sets the [`PeerScoreLevel`] for the [`Behaviour`].
     scoring: Option<PeerScoreLevel>,
     /// The [`Config`] for the [`Behaviour`].
     config: Option<Config>,
-    /// Sets the block time for the peer scoring.
-    block_time: Option<u64>,
     /// If set, the gossip layer will monitor peer scores and ban peers that are below a given
     /// threshold.
     peer_monitoring: Option<PeerMonitoring>,
     /// The configuration for the connection gater.
     gater_config: Option<GaterConfig>,
-    /// The [`RollupConfig`] for the network.
-    rollup_config: Option<RollupConfig>,
     /// Topic scoring. Disabled by default.
     topic_scoring: bool,
 }
 
 impl GossipDriverBuilder {
     /// Creates a new [`GossipDriverBuilder`].
-    pub const fn new() -> Self {
+    pub const fn new(
+        rollup_config: RollupConfig,
+        signer: Address,
+        gossip_addr: Multiaddr,
+        keypair: Keypair,
+    ) -> Self {
         Self {
             timeout: None,
-            keypair: None,
-            gossip_addr: None,
-            signer: None,
+            keypair,
+            gossip_addr,
+            signer,
             scoring: None,
             config: None,
-            block_time: None,
             peer_monitoring: None,
             gater_config: None,
-            rollup_config: None,
+            rollup_config,
             topic_scoring: false,
         }
     }
@@ -69,13 +71,7 @@ impl GossipDriverBuilder {
     /// Sets the [`RollupConfig`] for the network.
     /// This is used to determine the topic to publish to.
     pub fn with_rollup_config(mut self, rollup_config: RollupConfig) -> Self {
-        self.rollup_config = Some(rollup_config);
-        self
-    }
-
-    /// Sets the block time for the peer scoring.
-    pub const fn with_block_time(mut self, block_time: u64) -> Self {
-        self.block_time = Some(block_time);
+        self.rollup_config = rollup_config;
         self
     }
 
@@ -98,15 +94,15 @@ impl GossipDriverBuilder {
         self
     }
 
-    /// Sets the unsafe block signer [`Address`] [`Receiver`] channel.
-    pub fn with_unsafe_block_signer_receiver(mut self, signer: Receiver<Address>) -> Self {
-        self.signer = Some(signer);
+    /// Sets the unsafe block signer [`Address`].
+    pub const fn with_unsafe_block_signer_receiver(mut self, signer: Address) -> Self {
+        self.signer = signer;
         self
     }
 
     /// Sets the [`Keypair`] for the node.
     pub fn with_keypair(mut self, keypair: Keypair) -> Self {
-        self.keypair = Some(keypair);
+        self.keypair = keypair;
         self
     }
 
@@ -118,7 +114,7 @@ impl GossipDriverBuilder {
 
     /// Sets the [`Multiaddr`] for the gossip driver to listen on.
     pub fn with_address(mut self, addr: Multiaddr) -> Self {
-        self.gossip_addr = Some(addr);
+        self.gossip_addr = addr;
         self
     }
 
@@ -131,18 +127,23 @@ impl GossipDriverBuilder {
     /// Builds the [`GossipDriver`].
     pub fn build(
         mut self,
-    ) -> Result<GossipDriver<crate::ConnectionGater>, GossipDriverBuilderError> {
+    ) -> Result<
+        (GossipDriver<crate::ConnectionGater>, watch::Sender<Address>),
+        GossipDriverBuilderError,
+    > {
         // Extract builder arguments
         let timeout = self.timeout.take().unwrap_or(Duration::from_secs(60));
-        let keypair = self.keypair.take().ok_or(GossipDriverBuilderError::MissingKeyPair)?;
-        let addr = self.gossip_addr.take().ok_or(GossipDriverBuilderError::GossipAddrNotSet)?;
-        let signer_recv = self.signer.ok_or(GossipDriverBuilderError::MissingUnsafeBlockSigner)?;
-        let rollup_config =
-            self.rollup_config.take().ok_or(GossipDriverBuilderError::MissingRollupConfig)?;
+        let keypair = self.keypair;
+        let addr = self.gossip_addr;
+        let signer_recv = self.signer;
+        let rollup_config = self.rollup_config;
         let l2_chain_id = rollup_config.l2_chain_id;
+        let block_time = rollup_config.block_time;
+
+        let (signer_tx, signer_rx) = watch::channel(signer_recv);
 
         // Block Handler setup
-        let handler = BlockHandler::new(rollup_config, signer_recv);
+        let handler = BlockHandler::new(rollup_config, signer_rx);
 
         // Construct the gossip behaviour
         let config = self.config.unwrap_or(crate::default_config());
@@ -173,8 +174,6 @@ impl GossipDriverBuilder {
             }
             Some(level) => {
                 use crate::gossip::handler::Handler;
-                let block_time =
-                    self.block_time.ok_or(GossipDriverBuilderError::MissingL2BlockTime)?;
                 let params = level
                     .to_params(handler.topics(), self.topic_scoring, block_time)
                     .unwrap_or_default();
@@ -216,6 +215,6 @@ impl GossipDriverBuilder {
         let gater_config = self.gater_config.take().unwrap_or_default();
         let gate = crate::ConnectionGater::new(gater_config);
 
-        Ok(GossipDriver::new(swarm, addr, handler, sync_handler, sync_protocol, gate))
+        Ok((GossipDriver::new(swarm, addr, handler, sync_handler, sync_protocol, gate), signer_tx))
     }
 }

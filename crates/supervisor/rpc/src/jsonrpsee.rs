@@ -10,12 +10,11 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
-    DerivedIdPair, DerivedRefPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
+    DependencySet, DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
+    SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{
-    BlockSeal, L2BlockRef, ManagedEvent, OutputV0, Receipts, SubscriptionEvent,
-};
+use kona_supervisor_types::{BlockSeal, L2BlockRef, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -37,7 +36,7 @@ pub trait SupervisorApi {
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_localunsafe>
     ///
-    /// [`LocalUnsafe`]: SafetyLevel::Unsafe
+    /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     #[method(name = "localUnsafe")]
     async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
 
@@ -45,7 +44,7 @@ pub trait SupervisorApi {
     ///
     /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_crosssafe>
     ///
-    /// [`CrossSafe`]: SafetyLevel::Safe
+    /// [`CrossSafe`]: SafetyLevel::CrossSafe
     #[method(name = "crossSafe")]
     async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
 
@@ -56,6 +55,12 @@ pub trait SupervisorApi {
     /// [`Finalized`]: SafetyLevel::Finalized
     #[method(name = "finalized")]
     async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
+
+    /// Returns the finalized L1 block that the supervisor is synced to.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_finalizedl1>
+    #[method(name = "finalizedL1")]
+    async fn finalized_l1(&self) -> RpcResult<BlockInfo>;
 
     /// Gets the super root state at a specified timestamp, which represents the global state
     /// across all monitored chains.
@@ -89,6 +94,13 @@ pub trait SupervisorApi {
         &self,
         derived_from: BlockNumHash,
     ) -> RpcResult<HashMap<ChainId, BlockNumHash>>;
+
+    /// Returns the [`DependencySet`] for the supervisor.
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/pull/684>
+    /// TODO: Replace the link above after the PR is merged.
+    #[method(name = "dependencySetV1")]
+    async fn dependency_set_v1(&self) -> RpcResult<DependencySet>;
 }
 
 /// Represents the topics for subscriptions in the Managed Mode API.

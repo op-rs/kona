@@ -54,10 +54,17 @@ impl NetCommand {
         // Setup the RPC server with the P2P RPC Module
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
         let p2p_module = NetworkRpc::new(tx.clone()).into_rpc();
-        let rpc_config = RpcConfig::from(&self.rpc);
-        let mut launcher = rpc_config.as_launcher().merge(Some(p2p_module))?;
+        let rpc_config = RpcConfig::from(self.rpc);
+
+        if rpc_config.disabled {
+            info!(target: "net", "RPC server disabled");
+        } else {
+            info!(target: "net", socket = ?rpc_config.socket, "Starting RPC server");
+        }
+
+        let mut launcher = rpc_config.as_launcher();
+        launcher.merge(p2p_module)?;
         let handle = launcher.launch().await?;
-        info!(target: "net", "Started RPC server on {:?}:{}", rpc_config.listen_addr, rpc_config.listen_port);
 
         // Get the rollup config from the args
         let rollup_config = args
@@ -67,10 +74,7 @@ impl NetCommand {
         // Start the Network Stack
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
-        let mut network = NetworkBuilder::from(p2p_config)
-            .with_rpc_receiver(rx)
-            .with_rollup_config(rollup_config)
-            .build()?;
+        let mut network = NetworkBuilder::from(p2p_config).with_rpc_receiver(rx).build()?;
         let mut recv = network.unsafe_block_recv();
         network.start().await?;
         info!(target: "net", "Network started, receiving blocks.");
@@ -82,7 +86,7 @@ impl NetCommand {
             tokio::select! {
                 payload = recv.recv() => {
                     match payload {
-                        Ok(payload) => info!(target: "net", "Received unsafe payload: {:?}", payload.payload_hash),
+                        Ok(payload) => info!(target: "net", "Received unsafe payload: {:?}", payload.payload.block_hash()),
                         Err(e) => debug!(target: "net", "Failed to receive unsafe payload: {:?}", e),
                     }
                 }

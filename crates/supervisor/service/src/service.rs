@@ -17,13 +17,19 @@ pub struct Service<T = Supervisor> {
     config: Config,
     supervisor: Option<Arc<T>>,
     rpc_server_handle: Option<ServerHandle>,
+    cancel_token: CancellationToken,
     // TODO:: add other actors
 }
 
 impl Service {
     /// Creates a new Supervisor service instance.
     pub fn new(config: Config) -> Self {
-        Self { config, supervisor: None, rpc_server_handle: None }
+        Self {
+            config,
+            supervisor: None,
+            rpc_server_handle: None,
+            cancel_token: CancellationToken::new(),
+        }
     }
 
     /// Runs the Supervisor service.
@@ -41,7 +47,7 @@ impl Service {
         let database_factory = Arc::new(ChainDbFactory::new(self.config.datadir.clone()));
 
         let mut supervisor =
-            Supervisor::new(self.config.clone(), database_factory, CancellationToken::new());
+            Supervisor::new(self.config.clone(), database_factory, self.cancel_token.clone());
 
         supervisor.initialise().await.map_err(|err| {
             warn!(target: "supervisor_service",
@@ -69,6 +75,11 @@ impl Service {
     }
 
     pub async fn shutdown(mut self) -> Result<()> {
+        self.cancel_token.cancel(); // Signal cancellation to all tasks
+
+        // If the RPC server handle is present, stop it gracefully
+        // This will signal the server to stop accepting new connections
+        // and wait for existing connections to finish.
         if let Some(handle) = self.rpc_server_handle.take() {
             info!(target: "supervisor_service", "Sending stop signal to RPC server...");
             handle.stop()?; // Signal the server to stop accepting new connections
