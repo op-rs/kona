@@ -241,7 +241,10 @@ impl SupervisorService for Supervisor {
         &self,
         timestamp: u64,
     ) -> Result<SuperRootResponse, SupervisorError> {
-        let chain_ids = self.config.dependency_set.dependencies.keys().collect::<Vec<_>>();
+        let mut chain_ids = self.config.dependency_set.dependencies.keys().collect::<Vec<_>>();
+        // Sorting chain ids for deterministic super root hash
+        chain_ids.sort();
+        
         let mut chain_infos = Vec::<ChainRootInfo>::with_capacity(chain_ids.len());
         let mut super_root_chains = Vec::<OutputRootWithChain>::with_capacity(chain_ids.len());
         let mut cross_safe_source = BlockNumHash::default();
