@@ -59,9 +59,9 @@ pub struct SupervisorArgs {
     #[arg(
         long = "conductor.rpc",
         env = "KONA_NODE_CONDUCTOR_RPC",
-        default_value = "http://127.0.0.1:8547"
+        default_value = "127.0.0.1:8547"
     )]
-    pub conductor_rpc: Option<String>,
+    pub conductor_rpc: Option<std::net::SocketAddr>,
 
     /// Conductor service rpc timeout.
     #[arg(
@@ -277,7 +277,7 @@ mod tests {
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
             conductor_enabled: true,
-            conductor_rpc: Some("http://127.0.0.1:8547".to_owned()),
+            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
             conductor_rpc_timeout: Duration::from_secs(1),
         };
 
@@ -288,7 +288,7 @@ mod tests {
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
             conductor_enabled: true,
-            conductor_rpc: Some("http://127.0.0.1:8547".to_owned()),
+            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
             conductor_rpc_timeout: Duration::from_secs(1),
         };
 
@@ -299,7 +299,7 @@ mod tests {
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
             conductor_enabled: false,
-            conductor_rpc: Some("http://127.0.0.1:8547".to_owned()),
+            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
             conductor_rpc_timeout: Duration::from_secs(1),
         };
 
