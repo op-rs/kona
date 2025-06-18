@@ -446,6 +446,6 @@ mod tests {
             checksum: B256::default(),
         };
         let err = access.validate_message_lifetime(100, 150, 100);
-        assert_eq!(err, Err(AccessListError::MalformedEntry));
+        assert_eq!(err, Err(AccessListError::InvalidTimestampInvariant));
     }
 }
