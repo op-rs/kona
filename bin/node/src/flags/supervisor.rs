@@ -61,7 +61,7 @@ pub struct SupervisorArgs {
         env = "KONA_NODE_CONDUCTOR_RPC",
         default_value = "127.0.0.1:8547"
     )]
-    pub conductor_rpc: Option<std::net::SocketAddr>,
+    pub conductor_rpc: Option<SocketAddr>,
 
     /// Conductor service rpc timeout.
     #[arg(
