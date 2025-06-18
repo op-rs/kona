@@ -151,7 +151,15 @@ pub const BASE_MAINNET_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
     eip1559_denominator_canyon: BASE_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
 };
 
-/// Optimism Base Fee Config
+/// Optimism Base Fee Config.
+///
+/// ## Compatibility note:
+/// The base fee configs of the Optimism chains are stored as `u128` here to follow `alloy`'s [format](https://github.com/alloy-rs/alloy/blob/0031ec3dd2ac6da303056374b86c1b4a8995bc34/crates/eips/src/eip1559/basefee.rs#L15-L26).
+///
+/// This is different from the `op-geth`'s [format](https://github.com/ethereum-optimism/op-geth/blob/6005dd53e1b50fe5a3f59764e3e2056a639eff2f/params/config.go#L509-L514) as they're using `u64` instead.
+///
+/// This should cause serialization/deserialization incompatibilities between the `RollupConfig`
+/// types returned by `op-node`s and `kona-node`s.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
