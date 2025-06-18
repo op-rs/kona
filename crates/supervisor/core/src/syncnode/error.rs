@@ -36,6 +36,20 @@ impl PartialEq for ManagedNodeError {
 
 impl Eq for ManagedNodeError {}
 
+/// Represents various errors that can occur during managed node api calls.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ManagedNodeApiError {
+    /// Represents an error that occurred while fetching the output v0 at a given timestamp.
+    #[error("failed to fetch output v0 at timestamp: {0}")]
+    OutputV0AtTimestamp(u64),
+    /// Represents an error that occurred while fetching the pending output v0 at a given timestamp.
+    #[error("failed to fetch pending output v0 at timestamp: {0}")]
+    PendingOutputV0AtTimestamp(u64),
+    /// Represents an error that occurred while fetching the l2 block ref by timestamp.
+    #[error("failed to fetch l2 block ref by timestamp: {0}")]
+    L2BlockRefByTimestamp(u64),
+}
+
 /// Error establishing authenticated connection to managed node.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum AuthenticationError {

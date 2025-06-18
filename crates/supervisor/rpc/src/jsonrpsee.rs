@@ -14,7 +14,7 @@ use kona_interop::{
     SuperRootResponse,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, L2BlockRef, OutputV0, Receipts, SubscriptionEvent};
+use kona_supervisor_types::{BlockSeal, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -62,8 +62,16 @@ pub trait SupervisorApi {
     #[method(name = "finalizedL1")]
     async fn finalized_l1(&self) -> RpcResult<BlockInfo>;
 
-    /// Gets the super root state at a specified timestamp, which represents the global state
-    /// across all monitored chains.
+    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global state
+    /// across all monitored chains. Contains the
+    /// - Highest L1 [`BlockNumHash`] that is cross-safe among all chains
+    /// - Timestamp of the super root
+    /// - The [`SuperRoot`] hash
+    /// - All chains [`ChainRootInfo`]s
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_superrootattimestamp>
+    ///
+    /// [`SuperRootResponse`]: kona_protocol::interop::SuperRootResponse
     #[method(name = "superRootAtTimestamp")]
     async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse>;
 
@@ -187,5 +195,5 @@ pub trait ManagedModeApi {
 
     /// Get the l2 block ref for a given timestamp
     #[method(name = "l2BlockRefByTimestamp")]
-    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> RpcResult<L2BlockRef>;
+    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> RpcResult<BlockInfo>;
 }

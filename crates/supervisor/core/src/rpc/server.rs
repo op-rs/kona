@@ -134,12 +134,17 @@ where
         crate::observe_rpc_call!(
             "super_root_at_timestamp",
             async {
-        trace!(target: "supervisor_rpc",
-            %timestamp,
-            "Received super_root_at_timestamp request"
-        );
-        warn!(target: "supervisor_rpc", "super_root_at_timestamp method not yet implemented");
-        Err(ErrorObject::from(ErrorCode::InternalError))
+            trace!(target: "supervisor_rpc",
+                %timestamp,
+                "Received super_root_at_timestamp request"
+            );
+
+            self.supervisor.super_root_at_timestamp(timestamp)
+                .await
+                .map_err(|err| {
+                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
+                    ErrorObject::from(err)
+                })
         }.await)
     }
 
@@ -276,6 +281,7 @@ mod tests {
         pub super_head_map: std::collections::HashMap<ChainId, SuperHead>,
     }
 
+    #[async_trait::async_trait]
     impl SupervisorService for MockSupervisorService {
         fn chain_ids(&self) -> impl Iterator<Item = ChainId> {
             self.chain_ids.clone().into_iter()
@@ -318,6 +324,10 @@ mod tests {
         }
 
         fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
+            unimplemented!()
+        }
+
+        async fn super_root_at_timestamp(&self, _timestamp: u64) -> Result<SuperRootResponse, SupervisorError> {
             unimplemented!()
         }
     }
