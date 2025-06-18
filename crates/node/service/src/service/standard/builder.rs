@@ -40,7 +40,6 @@ pub struct RollupNodeBuilder {
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
     /// An RPC Configuration for the supervisor rpc.
-    #[allow(dead_code)]
     supervisor_rpc_config: Option<SupervisorRpcConfig>,
     /// An interval to load the runtime config.
     runtime_load_interval: Option<std::time::Duration>,
@@ -156,6 +155,7 @@ impl RollupNodeBuilder {
             kona_sources::RuntimeLoader::new(l1_rpc_url, config.clone()),
             self.runtime_load_interval,
         );
+        let supervisor_rpc = self.supervisor_rpc_config.unwrap_or_default();
 
         RollupNode {
             mode: self.mode,
@@ -168,6 +168,7 @@ impl RollupNodeBuilder {
             p2p_config: self.p2p_config,
             network_disabled: self.network_disabled,
             runtime_launcher,
+            supervisor_rpc,
         }
     }
 }
