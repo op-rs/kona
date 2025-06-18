@@ -149,6 +149,16 @@ pub trait Ws {
     async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
 }
 
+/// SupervisorEvents
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws_supervisor"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws_supervisor"))]
+#[async_trait]
+pub trait SupervisorEvents {
+    /// Subscribes to the stream of events from the node.
+    #[subscription(name = "subscribe_events", item = ())]
+    async fn ws_event_stream(&self) -> SubscriptionResult;
+}
+
 /// Supervisor API for interop.
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]

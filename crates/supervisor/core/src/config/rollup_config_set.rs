@@ -1,4 +1,4 @@
-use alloy_primitives::{B256, U64};
+use alloy_primitives::{B256, ChainId, U64};
 use kona_genesis::ChainGenesis;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
@@ -78,6 +78,17 @@ impl RollupConfig {
             interop_time: config.hardforks.interop_time,
         }
     }
+
+    /// Returns `true` if the timestamp is strictly after the interop activation block.
+    ///
+    /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
+    /// current block timestamp is *after* that activation, skipping the activation block
+    /// itself.
+    ///
+    /// Returns `false` if `interop_time` is not configured.
+    pub fn is_post_interop(&self, timestamp: u64) -> bool {
+        self.interop_time.is_some_and(|t| timestamp.saturating_sub(self.block_time) >= t)
+    }
 }
 
 /// RollupConfigSet contains the configuration for multiple Optimism rollups.
@@ -107,5 +118,10 @@ impl RollupConfigSet {
     ) {
         let rollup_config = RollupConfig::new_from_rollup_config(config, l1_time);
         self.rollups.insert(chain_id, rollup_config);
+    }
+
+    /// returns whether interop is enabled for a chain at given timestamp
+    pub fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
+        self.get(chain_id).map(|cfg| cfg.is_post_interop(timestamp)).unwrap_or(false) // if config not found, return false
     }
 }

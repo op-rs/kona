@@ -305,22 +305,8 @@ mod tests {
 
         let loaded_depset = result.unwrap();
         let mut expected_dependencies = HashMap::default();
-        expected_dependencies.insert(
-            1,
-            ChainDependency {
-                chain_index: 10,
-                activation_time: 1678886400,
-                history_min_time: 1609459200,
-            },
-        );
-        expected_dependencies.insert(
-            2,
-            ChainDependency {
-                chain_index: 20,
-                activation_time: 1678886401,
-                history_min_time: 1609459201,
-            },
-        );
+        expected_dependencies.insert(1, ChainDependency {});
+        expected_dependencies.insert(2, ChainDependency {});
 
         let expected_depset = DependencySet {
             dependencies: expected_dependencies,
