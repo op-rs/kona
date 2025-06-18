@@ -5,10 +5,12 @@ use std::{
 };
 
 use alloy_primitives::ChainId;
+use op_alloy_consensus::interop::SafetyLevel;
 use kona_protocol::BlockInfo;
 use tracing::error;
-
-use crate::{FinalizedL1Storage, chaindb::ChainDb, error::StorageError};
+use kona_supervisor_types::Log;
+use crate::{FinalizedL1Storage, chaindb::ChainDb, error::StorageError, CrossChainSafetyProvider};
+use crate::providers::SafetyHeadRefProvider;
 
 /// Factory for managing multiple chain databases.
 /// This struct allows for the creation and retrieval of `ChainDb` instances
@@ -117,6 +119,9 @@ impl FinalizedL1Storage for ChainDbFactory {
 
         Ok(())
     }
+}
+
+impl CrossChainSafetyProvider for ChainDbFactory {
 }
 
 #[cfg(test)]
