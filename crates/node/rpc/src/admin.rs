@@ -21,4 +21,11 @@ impl AdminApiServer for NetworkRpc {
             .await
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
+
+    async fn override_leader(&self) -> RpcResult<()> {
+        self.sender
+            .send(P2pRpcRequest::OverrideLeader)
+            .await
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+    }
 }

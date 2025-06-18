@@ -113,6 +113,9 @@ pub enum P2pRpcRequest {
     /// This information can be used to briefly monitor the current state of the p2p network for a
     /// given peer.
     PeerStats(Sender<PeerStats>),
+    /// Disables sequencer conductor interactions and allow sequencer to run in non-HA mode during
+    /// disaster recovery scenarios.
+    OverrideLeader,
 }
 
 impl P2pRpcRequest {
@@ -141,6 +144,9 @@ impl P2pRpcRequest {
                 // Unsafe payload handling happens in the network driver.
                 // This must never be reached.
                 error!(target: "p2p::rpc", ?payload, "PostUnsafePayload request received, but it should not be handled here.");
+            }
+            Self::OverrideLeader => {
+                error!(target: "p2p::rpc", "OverrideLeader request received, but it should not be handled here.");
             }
         }
     }

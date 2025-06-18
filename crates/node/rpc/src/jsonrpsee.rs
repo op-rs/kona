@@ -181,4 +181,7 @@ pub trait AdminApi {
     #[method(name = "postUnsafePayload")]
     async fn admin_post_unsafe_payload(&self, payload: OpExecutionPayloadEnvelope)
     -> RpcResult<()>;
+    /// Disables sequencer conductor instructions
+    #[method(name = "overrideLeader")]
+    async fn override_leader(&self) -> RpcResult<()>;
 }
