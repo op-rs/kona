@@ -55,7 +55,7 @@ impl Behaviour {
 
         let identify = libp2p::identify::Behaviour::new(
             libp2p::identify::Config::new("".to_string(), public_key)
-                .with_agent_version("optimism".to_string()),
+                .with_agent_version("kona".to_string()),
         );
 
         let sync_req_resp = libp2p_stream::Behaviour::new();

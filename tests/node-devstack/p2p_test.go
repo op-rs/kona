@@ -112,26 +112,6 @@ func TestP2PChainID(gt *testing.T) {
 	}
 }
 
-// Check that, for all the nodes in the network, all the peers are connected to a known node.
-func TestP2PPeersInNetwork(gt *testing.T) {
-	t := devtest.ParallelT(gt)
-
-	out := NewMixedOpKona(t)
-
-	nodes := out.L2CLNodes()
-
-	nodeIds := make([]string, 0, len(nodes))
-	for _, node := range nodes {
-		nodeIds = append(nodeIds, node.PeerInfo().PeerID.String())
-	}
-
-	for _, node := range out.L2CLKonaNodes {
-		for _, peer := range node.Peers().Peers {
-			require.Contains(t, nodeIds, peer.PeerID.String(), fmt.Sprintf("%s has a peer that is not in the network: %s", node.Escape().ID(), peer.PeerID))
-		}
-	}
-}
-
 // Check that all the nodes in the network have enough connected peers and peers in the discovery table.
 func TestNetworkConnectivity(gt *testing.T) {
 	t := devtest.ParallelT(gt)

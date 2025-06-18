@@ -18,10 +18,8 @@ pub struct SystemConfig {
     #[cfg_attr(feature = "serde", serde(rename = "batcherAddress", alias = "batcherAddr"))]
     pub batcher_address: Address,
     /// Fee overhead value
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_u256"))]
     pub overhead: U256,
     /// Fee scalar value
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_u256"))]
     pub scalar: U256,
     /// Gas limit value
     pub gas_limit: u64,
@@ -37,14 +35,6 @@ pub struct SystemConfig {
     pub operator_fee_scalar: Option<u32>,
     /// The operator fee constant (isthmus hardfork)
     pub operator_fee_constant: Option<u64>,
-}
-
-#[cfg(feature = "serde")]
-fn serialize_u256<S>(ts: &U256, ser: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    ser.serialize_str(&alloy_primitives::hex::encode_prefixed(ts.to_le_bytes::<32>()))
 }
 
 /// Custom EIP-1559 parameter decoding is needed here for holocene encoding.

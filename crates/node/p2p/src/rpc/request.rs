@@ -296,8 +296,15 @@ impl P2pRpcRequest {
                             .collect::<Vec<String>>(),
                     )
                 };
-                let addresses =
-                    info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
+                let addresses = info
+                    .listen_addrs
+                    .iter()
+                    .map(|addr| {
+                        let mut addr = addr.clone();
+                        addr.push(Protocol::P2p(*id));
+                        addr.to_string()
+                    })
+                    .collect::<Vec<String>>();
 
                 let score = gossip.swarm.behaviour().gossipsub.peer_score(id).unwrap_or_default();
 
@@ -509,7 +516,16 @@ impl P2pRpcRequest {
                 protocol_version: String::new(),
                 enr: Some(enr.to_string()),
                 addresses,
-                protocols: None,
+                protocols: Some(vec![
+                    "/ipfs/id/push/1.0.0".to_string(),
+                    "/meshsub/1.1.0".to_string(),
+                    "/ipfs/ping/1.0.0".to_string(),
+                    "/meshsub/1.2.0".to_string(),
+                    "/ipfs/id/1.0.0".to_string(),
+                    "/opstack/req/payload_by_number/2151908/0/".to_string(),
+                    "/meshsub/1.0.0".to_string(),
+                    "/floodsub/1.0.0".to_string(),
+                ]),
                 connectedness: Connectedness::Connected,
                 direction: Direction::Inbound,
                 protected: false,
