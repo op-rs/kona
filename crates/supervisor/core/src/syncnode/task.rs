@@ -7,9 +7,7 @@ use jsonrpsee::ws_client::WsClient;
 use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
-use kona_supervisor_storage::{
-    DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageError,
-};
+use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -225,13 +223,8 @@ where
         let finalised_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Finalized) {
             Ok(val) => val,
             Err(err) => {
-                if matches!(err, StorageError::EntryNotFound(_)) {
-                    // todo: remove this once finalised head ref logic is implemented
-                    local_safe_ref
-                } else {
-                    error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
-                    return;
-                }
+                error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
+                return;
             }
         };
 
