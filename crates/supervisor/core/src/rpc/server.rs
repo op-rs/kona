@@ -347,10 +347,7 @@ mod tests {
     #[tokio::test]
     async fn test_sync_status_empty_chains() {
         let mut deps = HashMap::default();
-        deps.insert(
-            1,
-            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
-        );
+        deps.insert(1, ChainDependency {});
         let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
 
         let mock_service = MockSupervisorService {
@@ -369,10 +366,7 @@ mod tests {
     #[tokio::test]
     async fn test_sync_status_single_chain() {
         let mut deps = HashMap::default();
-        deps.insert(
-            1,
-            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
-        );
+        deps.insert(1, ChainDependency {});
         let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
         let chain_id = ChainId::from(1u64);
 
@@ -391,7 +385,6 @@ mod tests {
             MockSupervisorService { chain_ids: vec![chain_id], super_head_map, dependency_set: ds };
 
         assert_eq!(mock_service.dependency_set.dependencies.len(), 1);
-        assert_eq!(mock_service.dependency_set.dependencies.get(&1).unwrap().chain_index, 1);
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await.unwrap();
@@ -405,14 +398,8 @@ mod tests {
     #[tokio::test]
     async fn test_sync_status_missing_super_head() {
         let mut deps = HashMap::default();
-        deps.insert(
-            1,
-            ChainDependency { chain_index: 1, activation_time: 100, history_min_time: 50 },
-        );
-        deps.insert(
-            2,
-            ChainDependency { chain_index: 2, activation_time: 200, history_min_time: 50 },
-        );
+        deps.insert(1, ChainDependency {});
+        deps.insert(2, ChainDependency {});
         let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
         let chain_id_1 = ChainId::from(1u64);
         let chain_id_2 = ChainId::from(2u64);
