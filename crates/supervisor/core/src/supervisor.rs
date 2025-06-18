@@ -26,6 +26,8 @@ pub trait SupervisorService: Debug + Send + Sync {
     fn chain_ids(&self) -> impl Iterator<Item = ChainId>;
 
     /// Returns mapping of supervised [`ChainId`]s to their [`ChainDependency`] config.
+    ///
+    /// [`ChainDependency`]: kona_interop::ChainDependency
     fn dependency_set(&self) -> &DependencySet;
 
     /// Returns [`SuperHead`] of given supervised chain.
