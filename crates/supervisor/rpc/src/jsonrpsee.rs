@@ -62,8 +62,8 @@ pub trait SupervisorApi {
     #[method(name = "finalizedL1")]
     async fn finalized_l1(&self) -> RpcResult<BlockInfo>;
 
-    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global state
-    /// across all monitored chains. Contains the
+    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global
+    /// state across all monitored chains. Contains the
     /// - Highest L1 [`BlockNumHash`] that is cross-safe among all chains
     /// - Timestamp of the super root
     /// - The [`SuperRoot`] hash

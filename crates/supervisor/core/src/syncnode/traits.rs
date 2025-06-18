@@ -45,11 +45,12 @@ pub trait ReceiptProvider: Send + Sync + Debug {
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
 }
 
-/// [`ManagedNodeApiProvider`] abstracts the managed node APIs that supervisor uses to fetch info from the managed node.
+/// [`ManagedNodeApiProvider`] abstracts the managed node APIs that supervisor uses to fetch info
+/// from the managed node.
 #[async_trait]
 pub trait ManagedNodeApiProvider: Send + Sync + Debug {
     /// Fetch the output v0 at a given timestamp.
-    /// 
+    ///
     /// # Arguments
     /// * `timestamp` - The timestamp to fetch the output v0 at.
     ///
@@ -57,25 +58,31 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
     /// The output v0 at the given timestamp,
     /// or an error if the fetch fails.
     async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
-    
+
     /// Fetch the pending output v0 at a given timestamp.
-    /// 
+    ///
     /// # Arguments
     /// * `timestamp` - The timestamp to fetch the pending output v0 at.
     ///
     /// # Returns
     /// The pending output v0 at the given timestamp,
     /// or an error if the fetch fails.
-    async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
+    async fn pending_output_v0_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<OutputV0, ManagedNodeError>;
 
     /// Fetch the l2 block ref by timestamp.
-    /// 
+    ///
     /// # Arguments
     /// * `timestamp` - The timestamp to fetch the l2 block ref at.
     ///
     /// # Returns
     /// The l2 block ref at the given timestamp,
-    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ManagedNodeError>;
+    async fn l2_block_ref_by_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<BlockInfo, ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:
@@ -86,7 +93,13 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
 /// This is the main abstraction used for a fully-managed node
 /// within the supervisor context.
 #[async_trait]
-pub trait ManagedNodeProvider: NodeSubscriber + ReceiptProvider + ManagedNodeApiProvider + Send + Sync + Debug {}
+pub trait ManagedNodeProvider:
+    NodeSubscriber + ReceiptProvider + ManagedNodeApiProvider + Send + Sync + Debug
+{
+}
 
 #[async_trait]
-impl<T> ManagedNodeProvider for T where T: NodeSubscriber + ReceiptProvider + ManagedNodeApiProvider + Send + Sync + Debug {}
+impl<T> ManagedNodeProvider for T where
+    T: NodeSubscriber + ReceiptProvider + ManagedNodeApiProvider + Send + Sync + Debug
+{
+}

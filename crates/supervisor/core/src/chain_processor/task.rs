@@ -159,7 +159,7 @@ mod tests {
     use kona_supervisor_storage::{
         DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
-    use kona_supervisor_types::{Log, Receipts, OutputV0};
+    use kona_supervisor_types::{Log, OutputV0, Receipts};
     use mockall::mock;
     use std::time::Duration;
     use tokio::sync::mpsc;
@@ -176,7 +176,7 @@ mod tests {
             Ok(())
         }
     }
-    
+
     #[async_trait]
     impl ReceiptProvider for MockNode {
         async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
@@ -186,15 +186,24 @@ mod tests {
 
     #[async_trait]
     impl ManagedNodeApiProvider for MockNode {
-        async fn output_v0_at_timestamp(&self, _timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
+        async fn output_v0_at_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<OutputV0, ManagedNodeError> {
             Ok(OutputV0::default())
         }
 
-        async fn pending_output_v0_at_timestamp(&self, _timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
+        async fn pending_output_v0_at_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<OutputV0, ManagedNodeError> {
             Ok(OutputV0::default())
         }
 
-        async fn l2_block_ref_by_timestamp(&self, _timestamp: u64) -> Result<BlockInfo, ManagedNodeError> {
+        async fn l2_block_ref_by_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<BlockInfo, ManagedNodeError> {
             Ok(BlockInfo::default())
         }
     }

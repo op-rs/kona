@@ -5,7 +5,10 @@ mod node;
 pub use node::{ManagedNode, ManagedNodeConfig};
 
 mod error;
-pub use error::{AuthenticationError, ManagedEventTaskError, ManagedNodeApiError, ManagedNodeError, SubscriptionError};
+pub use error::{
+    AuthenticationError, ManagedEventTaskError, ManagedNodeApiError, ManagedNodeError,
+    SubscriptionError,
+};
 
 mod task;
 mod traits;

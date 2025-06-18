@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    AuthenticationError, ManagedEventTask, ManagedNodeError, NodeSubscriber, ReceiptProvider,
-    SubscriptionError, ManagedNodeApiProvider,
+    AuthenticationError, ManagedEventTask, ManagedNodeApiProvider, ManagedNodeError,
+    NodeSubscriber, ReceiptProvider, SubscriptionError,
 };
 use crate::event::ChainEvent;
 
@@ -290,19 +290,29 @@ where
 {
     async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let output_v0 = ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await?;
+        let output_v0 =
+            ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await?;
         Ok(output_v0)
     }
 
-    async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
+    async fn pending_output_v0_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<OutputV0, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let output_v0 = ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp).await?;
+        let output_v0 =
+            ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp)
+                .await?;
         Ok(output_v0)
     }
 
-    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ManagedNodeError> {
+    async fn l2_block_ref_by_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<BlockInfo, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let block_info = ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await?;
+        let block_info =
+            ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await?;
         Ok(block_info)
     }
 }

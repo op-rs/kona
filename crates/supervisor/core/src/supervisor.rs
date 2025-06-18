@@ -1,22 +1,28 @@
 use core::fmt::Debug;
 
 use alloy_eips::BlockNumHash;
-use serde_json;
-use alloy_primitives::{keccak256, ChainId, B256, Bytes};
+use alloy_primitives::{B256, Bytes, ChainId, keccak256};
 use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
-use kona_interop::{ChainRootInfo, ExecutingDescriptor, OutputRootWithChain, SafetyLevel, SuperRoot, SuperRootResponse, SUPER_ROOT_VERSION};
+use kona_interop::{
+    ChainRootInfo, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
+    SuperRoot, SuperRootResponse,
+};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
 };
 use kona_supervisor_types::SuperHead;
+use serde_json;
 use std::{collections::HashMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::{
-    ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::{ManagedNode, ManagedNodeApiProvider},
+    ChainProcessor, SupervisorError,
+    config::Config,
+    l1_watcher::L1Watcher,
+    syncnode::{ManagedNode, ManagedNodeApiProvider},
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -62,11 +68,14 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// Returns the finalized L1 block that the supervisor is synced to.
     fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
 
-    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global state
-    /// across all monitored chains.
+    /// Returns the [`SuperRootResponse`] at a specified timestamp, which represents the global
+    /// state across all monitored chains.
     ///
     /// [`SuperRootResponse`]: kona_protocol::interop::SuperRootResponse
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> Result<SuperRootResponse, SupervisorError>;
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<SuperRootResponse, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     async fn check_access_list(
@@ -229,7 +238,10 @@ impl SupervisorService for Supervisor {
         Ok(self.database_factory.get_finalized_l1()?)
     }
 
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> Result<SuperRootResponse, SupervisorError> {
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<SuperRootResponse, SupervisorError> {
         let chain_ids = self.config.dependency_set.dependencies.keys().collect::<Vec<_>>();
         let mut chain_infos = Vec::<ChainRootInfo>::with_capacity(chain_ids.len());
         let mut super_root_chains = Vec::<OutputRootWithChain>::with_capacity(chain_ids.len());
@@ -240,20 +252,20 @@ impl SupervisorService for Supervisor {
             let output_v0 = managed_node.output_v0_at_timestamp(timestamp).await?;
             let output_v0_string = serde_json::to_string(&output_v0).unwrap();
             let canonical_root = keccak256(output_v0_string.as_bytes());
-            
+
             let pending_output_v0 = managed_node.pending_output_v0_at_timestamp(timestamp).await?;
-            let pending_output_v0_bytes = Bytes::copy_from_slice(serde_json::to_string(&pending_output_v0).unwrap().as_bytes());
-            
+            let pending_output_v0_bytes = Bytes::copy_from_slice(
+                serde_json::to_string(&pending_output_v0).unwrap().as_bytes(),
+            );
+
             chain_infos.push(ChainRootInfo {
                 chain_id: *id,
                 canonical: canonical_root,
                 pending: pending_output_v0_bytes,
             });
-            
-            super_root_chains.push(OutputRootWithChain {
-                chain_id: *id,
-                output_root: canonical_root,
-            });
+
+            super_root_chains
+                .push(OutputRootWithChain { chain_id: *id, output_root: canonical_root });
 
             let l2_block = managed_node.l2_block_ref_by_timestamp(timestamp).await?;
             let source = self.database_factory.get_db(*id)?.derived_to_source(l2_block.id())?;
@@ -263,10 +275,7 @@ impl SupervisorService for Supervisor {
             }
         }
 
-        let super_root = SuperRoot {
-            timestamp,
-            output_roots: super_root_chains,
-        };
+        let super_root = SuperRoot { timestamp, output_roots: super_root_chains };
 
         let super_root_hash = super_root.hash();
 

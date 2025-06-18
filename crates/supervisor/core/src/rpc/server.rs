@@ -327,7 +327,10 @@ mod tests {
             unimplemented!()
         }
 
-        async fn super_root_at_timestamp(&self, _timestamp: u64) -> Result<SuperRootResponse, SupervisorError> {
+        async fn super_root_at_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<SuperRootResponse, SupervisorError> {
             unimplemented!()
         }
     }
