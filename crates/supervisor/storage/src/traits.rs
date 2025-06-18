@@ -1,11 +1,11 @@
 use crate::StorageError;
 use alloy_eips::eip1898::BlockNumHash;
+use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::{Log, SuperHead};
 use op_alloy_consensus::interop::SafetyLevel;
 use std::fmt::Debug;
-use alloy_primitives::ChainId;
 
 /// Provides an interface for supervisor storage to manage source and derived blocks.
 ///
@@ -271,9 +271,14 @@ pub trait CrossChainSafetyProvider {
     /// # Returns
     /// * `Ok(Vec<Log>)` containing all logs for the block.
     /// * `Err(StorageError)` if there is an issue fetching the logs.
-    fn get_block_logs(&self, chain_id: ChainId, block_number: u64) -> Result<Vec<Log>, StorageError>;
+    fn get_block_logs(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+    ) -> Result<Vec<Log>, StorageError>;
 
-    /// Retrieves the latest known safe head reference for a given chain at the specified safety level.
+    /// Retrieves the latest known safe head reference for a given chain at the specified safety
+    /// level.
     ///
     /// # Arguments
     /// * `chain_id` - The [`ChainId`] of the target chain.
@@ -282,7 +287,9 @@ pub trait CrossChainSafetyProvider {
     /// # Returns
     /// * `Ok(BlockInfo)` representing the safe head block at the requested safety level.
     /// * `Err(StorageError)` if the safe head cannot be retrieved.
-    fn get_safe_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+    fn get_safety_head_ref(
+        &self,
+        chain_id: ChainId,
+        level: SafetyLevel,
+    ) -> Result<BlockInfo, StorageError>;
 }
-
-
