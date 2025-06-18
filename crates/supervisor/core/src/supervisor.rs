@@ -12,10 +12,11 @@ use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
 };
 use kona_supervisor_types::SuperHead;
+use op_alloy_rpc_types::error;
 use reqwest::Url;
 use std::{collections::HashMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 use crate::{
     ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::ManagedNode,
@@ -151,7 +152,10 @@ impl Supervisor {
     async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
             let url = Url::parse(&self.config.l1_rpc)
-                .map_err(|e| SupervisorError::Initialise(format!("Invalid L1 RPC URL: {e}")))?;
+                .map_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to parse L1 RPC URL");
+                    SupervisorError::Initialise("invalid l1 rpc url".to_string())
+                })?;
             let provider = RootProvider::<Ethereum>::new_http(url);
             let mut managed_node = ManagedNode::<ChainDb>::new(
                 Arc::new(config.clone()),
