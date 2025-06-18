@@ -97,7 +97,7 @@ where
             ws_client: Mutex::new(None),
             cancel_token,
             task_handle: Mutex::new(None),
-            l1_provider: l1_provider,
+            l1_provider,
         }
     }
 
@@ -211,7 +211,8 @@ where
         let db_provider =
             self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
-        let task = ManagedEventTask::new(self.l1_provider.clone(), db_provider.clone(), event_tx, client);
+        let task =
+            ManagedEventTask::new(self.l1_provider.clone(), db_provider.clone(), event_tx, client);
         // Start background task to handle events
         let handle = tokio::spawn(async move {
             info!(target: "managed_node", "Subscription task started");
