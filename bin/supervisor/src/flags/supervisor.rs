@@ -310,7 +310,7 @@ mod tests {
 
         let expected_depset = DependencySet {
             dependencies: expected_dependencies,
-            override_message_expiry_window: 3600,
+            override_message_expiry_window: Some(3600),
         };
 
         assert_eq!(loaded_depset, expected_depset);
