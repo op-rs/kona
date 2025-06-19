@@ -17,16 +17,16 @@ pub struct DependencySet {
     pub dependencies: HashMap<ChainId, ChainDependency>,
 
     /// Override message expiry window to use for this dependency set.
-    pub override_message_expiry_window: u64,
+    pub override_message_expiry_window: Option<u64>,
 }
 
 impl DependencySet {
     /// Returns the message expiry window associated with this dependency set.
     pub const fn get_message_expiry_window(&self) -> u64 {
-        if self.override_message_expiry_window == 0 {
-            return MESSAGE_EXPIRY_WINDOW;
+        match self.override_message_expiry_window {
+            Some(window) if window > 0 => window,
+            _ => MESSAGE_EXPIRY_WINDOW,
         }
-        self.override_message_expiry_window
     }
 }
 
@@ -40,7 +40,7 @@ mod tests {
         dependencies: HashMap<ChainId, ChainDependency>,
         override_expiry: u64,
     ) -> DependencySet {
-        DependencySet { dependencies, override_message_expiry_window: override_expiry }
+        DependencySet { dependencies, override_message_expiry_window: Some(override_expiry) }
     }
 
     #[test]
