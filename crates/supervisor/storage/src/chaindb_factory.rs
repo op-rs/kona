@@ -4,11 +4,15 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use crate::{
+    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, LogStorageReader,
+    chaindb::ChainDb, error::StorageError,
+};
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
+use kona_supervisor_types::Log;
+use op_alloy_consensus::interop::SafetyLevel;
 use tracing::error;
-
-use crate::{FinalizedL1Storage, chaindb::ChainDb, error::StorageError};
 
 /// Factory for managing multiple chain databases.
 /// This struct allows for the creation and retrieval of `ChainDb` instances
@@ -116,6 +120,28 @@ impl FinalizedL1Storage for ChainDbFactory {
         }
 
         Ok(())
+    }
+}
+
+impl CrossChainSafetyProvider for ChainDbFactory {
+    fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError> {
+        self.get_db(chain_id)?.get_block(block_number)
+    }
+
+    fn get_block_logs(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+    ) -> Result<Vec<Log>, StorageError> {
+        self.get_db(chain_id)?.get_logs(block_number)
+    }
+
+    fn get_safety_head_ref(
+        &self,
+        chain_id: ChainId,
+        level: SafetyLevel,
+    ) -> Result<BlockInfo, StorageError> {
+        self.get_db(chain_id)?.get_safety_head_ref(level)
     }
 }
 
