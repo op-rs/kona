@@ -24,4 +24,4 @@ pub mod l1_watcher;
 pub mod syncnode;
 
 pub mod safety_checker;
-pub use safety_checker::CrossSafetyError;
+pub use safety_checker::{CrossSafetyCheckerJob, CrossSafetyError};

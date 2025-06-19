@@ -292,4 +292,21 @@ pub trait CrossChainSafetyProvider {
         chain_id: ChainId,
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError>;
+
+    /// Updates the safety head reference for a given [`SafetyLevel`].
+    ///
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `safety_level` - The safety level for which to update the head reference.
+    /// * `block` - The new [`BlockInfo`] to set as the safety head reference.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_safety_head_ref(
+        &self,
+        chain_id: ChainId,
+        safety_level: SafetyLevel,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError>;
 }

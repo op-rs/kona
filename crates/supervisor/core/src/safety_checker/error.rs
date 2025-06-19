@@ -1,5 +1,6 @@
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::StorageError;
+use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
 
 /// Errors returned when validating cross-chain message dependencies.
@@ -19,4 +20,12 @@ pub enum CrossSafetyError {
         /// The block number of the dependency that failed the safety check
         block_number: u64,
     },
+
+    /// No candidate block is currently available for promotion.
+    #[error("no candidate block found to promote")]
+    NoBlockToPromote,
+
+    /// The requested safety level is not supported for promotion.
+    #[error("promotion to level {0:?} is not supported")]
+    UnsupportedTargetLevel(SafetyLevel),
 }
