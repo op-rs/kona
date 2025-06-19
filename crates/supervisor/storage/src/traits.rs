@@ -1,5 +1,6 @@
 use crate::StorageError;
 use alloy_eips::eip1898::BlockNumHash;
+use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::{Log, SuperHead};
@@ -243,4 +244,52 @@ pub trait FinalizedL1Storage {
     /// * `Ok(BlockInfo)` containing the finalized L1 block reference.
     /// * `Err(StorageError)` if there is an issue retrieving the reference.
     fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
+}
+
+/// Provides an interface for retrieving block and safety information across multiple chains.
+///
+/// This trait defines methods required by the cross-chain safety checker to access
+/// block metadata, logs, and safe head references for various chains.
+pub trait CrossChainSafetyProvider {
+    /// Retrieves the [`BlockInfo`] for a given block number on the specified chain.
+    ///
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block_number` - The number of the block to retrieve.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the block metadata if available.
+    /// * `Err(StorageError)` if there is an issue fetching the block.
+    fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
+
+    /// Retrieves all logs associated with the specified block on the given chain.
+    ///
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block_number` - The number of the block whose logs should be retrieved.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Log>)` containing all logs for the block.
+    /// * `Err(StorageError)` if there is an issue fetching the logs.
+    fn get_block_logs(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+    ) -> Result<Vec<Log>, StorageError>;
+
+    /// Retrieves the latest known safe head reference for a given chain at the specified safety
+    /// level.
+    ///
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `level` - The desired [`SafetyLevel`] (e.g., `CrossSafe`, `LocalSafe`).
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` representing the safe head block at the requested safety level.
+    /// * `Err(StorageError)` if the safe head cannot be retrieved.
+    fn get_safety_head_ref(
+        &self,
+        chain_id: ChainId,
+        level: SafetyLevel,
+    ) -> Result<BlockInfo, StorageError>;
 }

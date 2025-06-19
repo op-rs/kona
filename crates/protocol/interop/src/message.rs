@@ -146,6 +146,8 @@ pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
 
 #[cfg(test)]
 mod tests {
+    use alloy_primitives::{Address, B256, LogData, U256};
+
     use super::*;
 
     // Test the serialization of ExecutingDescriptor
@@ -160,5 +162,31 @@ mod tests {
 
         let deserialized: ExecutingDescriptor = serde_json::from_str(&serialized).unwrap();
         assert_eq!(descriptor, deserialized);
+    }
+
+    #[test]
+    fn test_parse_logs_to_executing_msgs_iterator() {
+        // One valid, one invalid log
+        let identifier = MessageIdentifier {
+            origin: Address::repeat_byte(0x77),
+            blockNumber: U256::from(200),
+            logIndex: U256::from(3),
+            timestamp: U256::from(777777),
+            chainId: U256::from(12),
+        };
+        let payload_hash = B256::repeat_byte(0x88);
+        let event = ExecutingMessage { payloadHash: payload_hash, identifier };
+        let data = ExecutingMessage::encode_log_data(&event);
+
+        let valid_log = Log { address: Predeploys::CROSS_L2_INBOX, data };
+        let invalid_log = Log {
+            address: Address::repeat_byte(0x99),
+            data: LogData::new_unchecked([B256::ZERO, B256::ZERO].to_vec(), Bytes::default()),
+        };
+
+        let logs = vec![&valid_log, &invalid_log];
+        let mut iter = parse_logs_to_executing_msgs(logs.into_iter());
+        assert_eq!(iter.next().unwrap().unwrap(), event);
+        assert!(iter.next().unwrap().is_none());
     }
 }
