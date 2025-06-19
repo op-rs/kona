@@ -356,7 +356,7 @@ mod tests {
     async fn test_sync_status_empty_chains() {
         let mut deps = HashMap::default();
         deps.insert(1, ChainDependency {});
-        let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
+        let ds = DependencySet { dependencies: deps, override_message_expiry_window: Some(0) };
 
         let mock_service = MockSupervisorService {
             chain_ids: vec![],
@@ -375,7 +375,7 @@ mod tests {
     async fn test_sync_status_single_chain() {
         let mut deps = HashMap::default();
         deps.insert(1, ChainDependency {});
-        let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
+        let ds = DependencySet { dependencies: deps, override_message_expiry_window: Some(0) };
         let chain_id = ChainId::from(1u64);
 
         let block_info = BlockInfo { number: 42, ..Default::default() };
@@ -408,7 +408,7 @@ mod tests {
         let mut deps = HashMap::default();
         deps.insert(1, ChainDependency {});
         deps.insert(2, ChainDependency {});
-        let ds = DependencySet { dependencies: deps, override_message_expiry_window: 0 };
+        let ds = DependencySet { dependencies: deps, override_message_expiry_window: Some(0) };
         let chain_id_1 = ChainId::from(1u64);
         let chain_id_2 = ChainId::from(2u64);
 
