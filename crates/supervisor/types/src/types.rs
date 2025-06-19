@@ -31,7 +31,7 @@ impl BlockSeal {
 }
 /// Output data for version 0 of the protocol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct OutputV0 {
     /// The state root hash
     pub state_root: B256,
