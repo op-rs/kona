@@ -290,11 +290,21 @@ impl SupervisorService for Supervisor {
 
         for id in chain_ids {
             let managed_node = self.managed_nodes.get(id).unwrap();
-            let output_v0 = managed_node.output_v0_at_timestamp(timestamp).await?;
+            let output_v0 = managed_node
+                .output_v0_at_timestamp(timestamp)
+                .await
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get output v0 at timestamp {timestamp} for chain {id}");
+                })?;
             let output_v0_string = serde_json::to_string(&output_v0).unwrap();
             let canonical_root = keccak256(output_v0_string.as_bytes());
 
-            let pending_output_v0 = managed_node.pending_output_v0_at_timestamp(timestamp).await?;
+            let pending_output_v0 = managed_node
+                .pending_output_v0_at_timestamp(timestamp)
+                .await
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get pending output v0 at timestamp {timestamp} for chain {id}");
+                })?;
             let pending_output_v0_bytes = Bytes::copy_from_slice(
                 serde_json::to_string(&pending_output_v0).unwrap().as_bytes(),
             );
@@ -308,8 +318,19 @@ impl SupervisorService for Supervisor {
             super_root_chains
                 .push(OutputRootWithChain { chain_id: *id, output_root: canonical_root });
 
-            let l2_block = managed_node.l2_block_ref_by_timestamp(timestamp).await?;
-            let source = self.database_factory.get_db(*id)?.derived_to_source(l2_block.id())?;
+            let l2_block = managed_node
+                .l2_block_ref_by_timestamp(timestamp)
+                .await
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get L2 block ref at timestamp {timestamp} for chain {id}");
+                })?;
+            let source = self
+                .database_factory
+                .get_db(*id)
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get database for chain {id}");
+                })?
+                .derived_to_source(l2_block.id())?;
 
             if cross_safe_source.number == 0 || cross_safe_source.number < source.number {
                 cross_safe_source = source.id();
