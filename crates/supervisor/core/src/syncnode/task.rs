@@ -285,15 +285,6 @@ where
             })?
         }
 
-        if next_l1_block.header.number <= derived_ref_pair.source.number {
-            error!(target: "managed_event_task", "Next L1 Block number is less than source number");
-            self.handle_reset("next L1 Block number is less than source number").await;
-            Err(ManagedEventTaskError::BlockNumberMismatch {
-                incoming: next_l1_block.header.number,
-                stored: derived_ref_pair.source.number,
-            })?
-        }
-
         // check if the derived block is already stored and is consistent with the incoming derived
         // block
         let derived_block = derived_ref_pair.derived;
