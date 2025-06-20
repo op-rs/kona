@@ -3,6 +3,7 @@ use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
+use alloy_rpc_types_eth::Block;
 use jsonrpsee::ws_client::WsClient;
 use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
@@ -142,13 +143,7 @@ where
             .await;
         match next_block {
             Ok(Some(block)) => {
-                if block.header.parent_hash != derived_ref_pair.source.hash {
-                    error!(target: "managed_event_task", "Block parent hash mismatch");
-                    Err(ManagedEventTaskError::BlockHashMismatch {
-                        current: derived_ref_pair.source.hash,
-                        parent: block.header.parent_hash,
-                    })?
-                }
+                self.check_node_consistency(derived_ref_pair, &block).await?;
 
                 let block_info = BlockInfo {
                     hash: block.header.hash,
@@ -273,6 +268,52 @@ where
             .await
         {
             error!(target: "managed_event_task", %err, "Failed to reset managed node");
+        }
+    }
+
+    async fn check_node_consistency(
+        &self,
+        derived_ref_pair: &DerivedRefPair,
+        next_l1_block: &Block,
+    ) -> Result<(), ManagedEventTaskError> {
+        if next_l1_block.header.parent_hash != derived_ref_pair.source.hash {
+            error!(target: "managed_event_task", "L1 Block parent hash mismatch");
+            self.handle_reset("l1 block parent hash mismatch").await;
+            Err(ManagedEventTaskError::BlockHashMismatch {
+                current: derived_ref_pair.source.hash,
+                parent: next_l1_block.header.parent_hash,
+            })?
+        }
+
+        if next_l1_block.header.number <= derived_ref_pair.source.number {
+            error!(target: "managed_event_task", "Next L1 Block number is less than source number");
+            self.handle_reset("next L1 Block number is less than source number").await;
+            Err(ManagedEventTaskError::BlockNumberMismatch {
+                incoming: next_l1_block.header.number,
+                stored: derived_ref_pair.source.number,
+            })?
+        }
+
+        // check if the derived block is already stored and is consistent with the incoming derived
+        // block
+        let derived_block = derived_ref_pair.derived;
+
+        match self.db_provider.get_block(derived_block.number) {
+            Ok(stored_block) => {
+                if stored_block != derived_block {
+                    error!(target: "managed_event_task", "Incoming derived block does not match stored block");
+                    self.handle_reset("incoming derived block does not match stored block").await;
+                    return Err(ManagedEventTaskError::BlockNumberMismatch {
+                        incoming: derived_block.number,
+                        stored: stored_block.number,
+                    })
+                }
+                Ok(())
+            }
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to find stored block");
+                Err(ManagedEventTaskError::BlockNotFound(derived_block.number))
+            }
         }
     }
 
@@ -495,13 +536,23 @@ mod tests {
             "parentBeaconBlockRoot": "0x95c4dbd5b19f6fe3cbc3183be85ff4e85ebe75c5b4fc911f1c91e5b7a554a685"
         }"#;
 
-        let db = Arc::new(MockDb::new());
+        let mut db = MockDb::new();
+
+        // need to expect because it gets called indirectly in handle_reset()
+        db.expect_get_safety_head_ref().returning(|_| {
+            Ok(BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 1,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 42,
+            })
+        });
 
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new_for_testing(provider, db, tx);
+        let task = ManagedEventTask::new_for_testing(provider, Arc::new(db), tx);
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
