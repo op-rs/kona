@@ -15,8 +15,8 @@
 //! 8. Payload Attributes Derivation
 //! 9. (Omitted) Engine Queue
 
-mod l1_traversal;
-pub use l1_traversal::L1Traversal;
+mod traversal;
+pub use traversal::{L1Traversal, ManagedTraversal, TraversalProvider};
 
 mod l1_retrieval;
 pub use l1_retrieval::{L1Retrieval, L1RetrievalProvider};
