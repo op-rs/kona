@@ -3,7 +3,7 @@
 use crate::{
     AttributesBuilder, AttributesQueue, BatchProvider, BatchStream, ChainProvider, ChannelProvider,
     ChannelReader, DataAvailabilityProvider, DerivationPipeline, FrameQueue, L1Retrieval,
-    L1Traversal, L2ChainProvider,
+    L1Traversal, L2ChainProvider, ManagedTraversal, TraversalProvider,
 };
 use alloc::sync::Arc;
 use core::fmt::Debug;
@@ -11,7 +11,7 @@ use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 
 /// Type alias for the [L1Traversal] stage.
-pub type L1TraversalStage<P> = L1Traversal<P>;
+pub type L1TraversalStage<P> = TraversalProvider<P>;
 
 /// Type alias for the [L1Retrieval] stage.
 pub type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;
@@ -39,7 +39,7 @@ pub type AttributesQueueStage<DAP, P, T, B> = AttributesQueue<BatchProviderStage
 pub struct PipelineBuilder<B, P, T, D>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -54,7 +54,7 @@ where
 impl<B, P, T, D> Default for PipelineBuilder<B, P, T, D>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -73,7 +73,7 @@ where
 impl<B, P, T, D> PipelineBuilder<B, P, T, D>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -128,7 +128,7 @@ impl<B, P, T, D> From<PipelineBuilder<B, P, T, D>>
     for DerivationPipeline<AttributesQueueStage<D, P, T, B>, T>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -141,9 +141,14 @@ where
         let attributes_builder = builder.builder.expect("builder must be set");
 
         // Compose the stage stack.
-        let mut l1_traversal = L1Traversal::new(chain_provider, Arc::clone(&rollup_config));
+        let mut l1_traversal = L1Traversal::new(chain_provider.clone(), Arc::clone(&rollup_config));
         l1_traversal.block = Some(builder.origin.expect("origin must be set"));
-        let l1_retrieval = L1Retrieval::new(l1_traversal, dap_source);
+        let mut managed_traversal =
+            ManagedTraversal::new(chain_provider, Arc::clone(&rollup_config));
+        managed_traversal.block = Some(builder.origin.expect("origin must be set"));
+        let traversal_provider =
+            TraversalProvider::new(l1_traversal, managed_traversal, Arc::clone(&rollup_config));
+        let l1_retrieval = L1Retrieval::new(traversal_provider, dap_source);
         let frame_queue = FrameQueue::new(l1_retrieval, Arc::clone(&rollup_config));
         let channel_provider = ChannelProvider::new(Arc::clone(&rollup_config), frame_queue);
         let channel_reader = ChannelReader::new(channel_provider, Arc::clone(&rollup_config));

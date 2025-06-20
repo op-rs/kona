@@ -21,7 +21,7 @@ use kona_protocol::BlockInfo;
 ///
 /// This allows the pipeline to seamlessly switch between normal and managed operation.
 #[derive(Debug)]
-pub struct TraversalProvider<P: ChainProvider + Send + Sync + 'static> {
+pub struct TraversalProvider<P: ChainProvider + Send + Sync> {
     /// The autonomous L1 traversal stage (used before interop/managed mode).
     pub l1_traversal: L1Traversal<P>,
     /// The managed L1 traversal stage (used after interop/managed mode).
@@ -32,7 +32,7 @@ pub struct TraversalProvider<P: ChainProvider + Send + Sync + 'static> {
     pub rollup_config: Arc<RollupConfig>,
 }
 
-impl<P: ChainProvider + Send + Sync + 'static> TraversalProvider<P> {
+impl<P: ChainProvider + Send + Sync> TraversalProvider<P> {
     /// Create a new mux provider from the given traversal stages.
     pub const fn new(
         l1_traversal: L1Traversal<P>,
@@ -52,7 +52,7 @@ impl<P: ChainProvider + Send + Sync + 'static> TraversalProvider<P> {
 }
 
 #[async_trait]
-impl<P: ChainProvider + Send + Sync + 'static> L1RetrievalProvider for TraversalProvider<P> {
+impl<P: ChainProvider + Send + Sync> L1RetrievalProvider for TraversalProvider<P> {
     /// Retrieve the next L1 block from the active traversal stage.
     async fn next_l1_block(&mut self) -> PipelineResult<Option<BlockInfo>> {
         self.update_mode_from_origin();
@@ -73,7 +73,7 @@ impl<P: ChainProvider + Send + Sync + 'static> L1RetrievalProvider for Traversal
     }
 }
 
-impl<P: ChainProvider + Send + Sync + 'static> OriginProvider for TraversalProvider<P> {
+impl<P: ChainProvider + Send + Sync> OriginProvider for TraversalProvider<P> {
     /// Get the current L1 origin block from the active traversal stage.
     fn origin(&self) -> Option<BlockInfo> {
         if self.is_managed { self.managed_traversal.origin() } else { self.l1_traversal.origin() }
@@ -81,7 +81,7 @@ impl<P: ChainProvider + Send + Sync + 'static> OriginProvider for TraversalProvi
 }
 
 #[async_trait]
-impl<P: ChainProvider + Send + Sync + 'static> OriginAdvancer for TraversalProvider<P> {
+impl<P: ChainProvider + Send + Sync> OriginAdvancer for TraversalProvider<P> {
     /// Advance the L1 origin in the active traversal stage.
     async fn advance_origin(&mut self) -> PipelineResult<()> {
         self.update_mode_from_origin();
@@ -94,7 +94,7 @@ impl<P: ChainProvider + Send + Sync + 'static> OriginAdvancer for TraversalProvi
 }
 
 #[async_trait]
-impl<P: ChainProvider + Send + Sync + 'static> SignalReceiver for TraversalProvider<P> {
+impl<P: ChainProvider + Send + Sync> SignalReceiver for TraversalProvider<P> {
     /// Pass a signal to the active traversal stage.
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         self.update_mode_from_origin();
