@@ -7,10 +7,10 @@ use crate::{
     ChainProvider, L1RetrievalProvider, L1Traversal, ManagedTraversal, OriginAdvancer,
     OriginProvider, PipelineResult, Signal, SignalReceiver,
 };
+use alloc::sync::Arc;
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
-use std::sync::Arc;
 
 /// `TraversalProvider` is a mux between the autonomous `L1Traversal` stage and the
 /// externally-controlled `ManagedTraversal` stage.
@@ -45,9 +45,7 @@ impl<P: ChainProvider + Send + Sync + 'static> TraversalProvider<P> {
     /// Update the is_managed flag based on the current origin's timestamp and the rollup config's
     /// interop activation.
     fn update_mode_from_origin(&mut self) {
-        // Use the origin from either traversal (should be the same in practice)
-        let origin = self.l1_traversal.origin().or_else(|| self.managed_traversal.origin());
-        if let Some(block) = origin {
+        if let Some(block) = self.origin() {
             self.is_managed = self.rollup_config.is_interop_active(block.timestamp);
         }
     }
@@ -105,5 +103,85 @@ impl<P: ChainProvider + Send + Sync + 'static> SignalReceiver for TraversalProvi
         } else {
             self.l1_traversal.signal(signal).await
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::TestChainProvider;
+
+    fn make_block(number: u64, timestamp: u64) -> BlockInfo {
+        BlockInfo { number, timestamp, ..BlockInfo::default() }
+    }
+
+    fn make_provider_with_origin(
+        origin: BlockInfo,
+        interop_time: Option<u64>,
+    ) -> TraversalProvider<TestChainProvider> {
+        let mut l1_provider = TestChainProvider::default();
+        l1_provider.insert_block(origin.number, origin);
+        let mut l1_traversal =
+            L1Traversal::new(l1_provider.clone(), Arc::new(RollupConfig::default()));
+        let mut managed_traversal =
+            ManagedTraversal::new(l1_provider, Arc::new(RollupConfig::default()));
+        l1_traversal.block = Some(origin);
+        managed_traversal.block = Some(origin);
+        let mut cfg = RollupConfig::default();
+        cfg.hardforks.interop_time = interop_time;
+        TraversalProvider::new(l1_traversal, managed_traversal, Arc::new(cfg))
+    }
+
+    #[test]
+    fn test_autonomous_mode_before_interop() {
+        let origin = make_block(1, 100);
+        let mut provider = make_provider_with_origin(origin, Some(200));
+        provider.update_mode_from_origin();
+        assert!(!provider.is_managed, "Should be in autonomous mode before interop");
+        assert_eq!(provider.origin(), Some(origin));
+    }
+
+    #[test]
+    fn test_managed_mode_after_interop() {
+        let origin = make_block(1, 300);
+        let mut provider = make_provider_with_origin(origin, Some(200));
+        provider.update_mode_from_origin();
+        assert!(provider.is_managed, "Should be in managed mode after interop");
+        assert_eq!(provider.origin(), Some(origin));
+    }
+
+    #[test]
+    fn test_transition_to_managed_mode() {
+        let origin = make_block(1, 199);
+        let mut provider = make_provider_with_origin(origin, Some(200));
+        provider.update_mode_from_origin();
+        assert!(!provider.is_managed, "Should start in autonomous mode");
+        // Simulate advancing to interop
+        let new_origin = make_block(2, 200);
+        provider.l1_traversal.block = Some(new_origin);
+        provider.update_mode_from_origin();
+        assert!(provider.is_managed, "Should transition to managed mode at interop");
+    }
+
+    #[tokio::test]
+    async fn test_transition_back_to_autonomous_mode() {
+        let origin = make_block(1, 300);
+        let mut provider = make_provider_with_origin(origin, Some(200));
+        provider.update_mode_from_origin();
+        assert!(provider.is_managed, "Should start in managed mode");
+        // Simulate reorg to before interop
+        let new_origin = make_block(2, 100);
+        provider.l1_traversal.block = Some(new_origin);
+        // Send a reset signal to update managed_traversal's origin as well
+        provider
+            .signal(Signal::Reset(crate::types::ResetSignal {
+                l1_origin: new_origin,
+                system_config: Some(kona_genesis::SystemConfig::default()),
+                ..Default::default()
+            }))
+            .await
+            .unwrap();
+        provider.update_mode_from_origin();
+        assert!(!provider.is_managed, "Should transition back to autonomous mode before interop");
     }
 }
