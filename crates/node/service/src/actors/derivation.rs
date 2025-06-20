@@ -179,10 +179,16 @@ where
                                     kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
 
-                                self.reset_request_tx.send(()).await.map_err(|e| {
-                                    error!(target: "derivation", ?e, "Failed to send reset request");
-                                    DerivationError::Sender(Box::new(e))
-                                })?;
+                                if self
+                                    .pipeline
+                                    .rollup_config()
+                                    .is_interop_active(l2_safe_head.block_info.timestamp)
+                                {
+                                    self.reset_request_tx.send(()).await.map_err(|e| {
+                                        error!(target: "derivation", ?e, "Failed to send reset request");
+                                        DerivationError::Sender(Box::new(e))
+                                    })?;
+                                }
                                 self.waiting_for_signal = true;
                                 return Err(DerivationError::Yield);
                             }
