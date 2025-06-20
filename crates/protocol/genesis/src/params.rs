@@ -8,86 +8,86 @@ use crate::{
 
 /// Base fee max change denominator for Optimism Mainnet as defined in the Optimism
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
-pub const OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u128 = 50;
+pub const OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 
 /// Base fee max change denominator for Optimism Mainnet as defined in the Optimism Canyon
 /// hardfork.
-pub const OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u128 = 250;
+pub const OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Base fee max change denominator for Optimism Mainnet as defined in the Optimism
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
-pub const OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 6;
+pub const OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 6;
 
 /// Base fee max change denominator for Optimism Sepolia as defined in the Optimism
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
-pub const OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u128 = 50;
+pub const OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 
 /// Base fee max change denominator for Optimism Sepolia as defined in the Optimism Canyon
 /// hardfork.
-pub const OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u128 = 250;
+pub const OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Base fee max change denominator for Optimism Sepolia as defined in the Optimism
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
-pub const OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 6;
+pub const OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 6;
 
 /// Base fee max change denominator for Base Sepolia as defined in the Optimism
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
-pub const BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 10;
+pub const BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 10;
 
 /// Base fee max change denominator for Base Sepolia as defined in the Optimism Canyon
 /// hardfork.
-pub const BASE_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u128 = 50;
+pub const BASE_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 
 /// Base fee max change denominator for Base Sepolia as defined in the Optimism Canyon
 /// hardfork.
-pub const BASE_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u128 = 250;
+pub const BASE_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Base fee max change denominator for Base Mainnet as defined in the Optimism
 /// [transaction costs](https://community.optimism.io/docs/developers/build/differences/#transaction-costs) doc.
-pub const BASE_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u128 = 6;
+pub const BASE_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER: u64 = 6;
 
 /// Base fee max change denominator for Base Mainnet as defined in the Optimism Canyon
 /// hardfork.
-pub const BASE_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u128 = 50;
+pub const BASE_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR: u64 = 50;
 
 /// Base fee max change denominator for Base Mainnet as defined in the Optimism Canyon
 /// hardfork.
-pub const BASE_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u128 = 250;
+pub const BASE_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON: u64 = 250;
 
 /// Get the base fee parameters for Optimism Sepolia.
 pub const OP_SEPOLIA_BASE_FEE_PARAMS: BaseFeeParams = BaseFeeParams {
-    max_change_denominator: OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
-    elasticity_multiplier: OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    max_change_denominator: OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR as u128,
+    elasticity_multiplier: OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER as u128,
 };
 
 /// Get the base fee parameters for Base Sepolia.
 pub const BASE_SEPOLIA_BASE_FEE_PARAMS: BaseFeeParams = BaseFeeParams {
-    max_change_denominator: OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
-    elasticity_multiplier: BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    max_change_denominator: OP_SEPOLIA_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR as u128,
+    elasticity_multiplier: BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER as u128,
 };
 
 /// Get the base fee parameters for Optimism Mainnet.
 pub const OP_MAINNET_BASE_FEE_PARAMS: BaseFeeParams = BaseFeeParams {
-    max_change_denominator: OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR,
-    elasticity_multiplier: OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    max_change_denominator: OP_MAINNET_EIP1559_DEFAULT_BASE_FEE_MAX_CHANGE_DENOMINATOR as u128,
+    elasticity_multiplier: OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER as u128,
 };
 
 /// Get the base fee parameters for Optimism Sepolia.
 pub const OP_SEPOLIA_BASE_FEE_PARAMS_CANYON: BaseFeeParams = BaseFeeParams {
-    max_change_denominator: OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
-    elasticity_multiplier: OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    max_change_denominator: OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON as u128,
+    elasticity_multiplier: OP_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER as u128,
 };
 
 /// Get the base fee parameters for Base Sepolia.
 pub const BASE_SEPOLIA_BASE_FEE_PARAMS_CANYON: BaseFeeParams = BaseFeeParams {
-    max_change_denominator: OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
-    elasticity_multiplier: BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    max_change_denominator: OP_SEPOLIA_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON as u128,
+    elasticity_multiplier: BASE_SEPOLIA_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER as u128,
 };
 
 /// Get the base fee parameters for Optimism Mainnet.
 pub const OP_MAINNET_BASE_FEE_PARAMS_CANYON: BaseFeeParams = BaseFeeParams {
-    max_change_denominator: OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON,
-    elasticity_multiplier: OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER,
+    max_change_denominator: OP_MAINNET_EIP1559_BASE_FEE_MAX_CHANGE_DENOMINATOR_CANYON as u128,
+    elasticity_multiplier: OP_MAINNET_EIP1559_DEFAULT_ELASTICITY_MULTIPLIER as u128,
 };
 
 /// Returns the [`BaseFeeParams`] for the given chain id.
@@ -154,12 +154,13 @@ pub const BASE_MAINNET_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
 /// Optimism Base Fee Config.
 ///
 /// ## Compatibility note:
-/// The base fee configs of the Optimism chains are stored as `u128` here to follow `alloy`'s [format](https://github.com/alloy-rs/alloy/blob/0031ec3dd2ac6da303056374b86c1b4a8995bc34/crates/eips/src/eip1559/basefee.rs#L15-L26).
+/// We are automatically serializing/deserializing the fields of this struct using the
+/// `kona_serde::quantity` format. This is to ensure we can properly parse the superchain [registry](https://github.com/op-rs/kona/tree/main/crates/protocol/registry) entries.
 ///
-/// This is different from the `op-geth`'s [format](https://github.com/ethereum-optimism/op-geth/blob/6005dd53e1b50fe5a3f59764e3e2056a639eff2f/params/config.go#L509-L514) as they're using `u64` instead.
-///
-/// This should cause serialization/deserialization incompatibilities between the `RollupConfig`
-/// types returned by `op-node`s and `kona-node`s.
+/// This causes serialization/deserialization incompatibilities between the `RollupConfig` format of
+/// the `op-node` and `kona-node`. In the `op-node`, these fields are serialized/deserialized as
+/// simple `u64`s which may cause RPC response parsing errors for the `optimism_rollupConfig`
+/// endpoint.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -170,21 +171,21 @@ pub struct BaseFeeConfig {
         serde(rename = "eip1559Elasticity", alias = "eip1559_elasticity")
     )]
     #[cfg_attr(feature = "serde", serde(with = "kona_serde::quantity"))]
-    pub eip1559_elasticity: u128,
+    pub eip1559_elasticity: u64,
     /// EIP 1559 Denominator
     #[cfg_attr(
         feature = "serde",
         serde(rename = "eip1559Denominator", alias = "eip1559_denominator")
     )]
     #[cfg_attr(feature = "serde", serde(with = "kona_serde::quantity"))]
-    pub eip1559_denominator: u128,
+    pub eip1559_denominator: u64,
     /// EIP 1559 Denominator for the Canyon hardfork
     #[cfg_attr(
         feature = "serde",
         serde(rename = "eip1559DenominatorCanyon", alias = "eip1559_denominator_canyon")
     )]
     #[cfg_attr(feature = "serde", serde(with = "kona_serde::quantity"))]
-    pub eip1559_denominator_canyon: u128,
+    pub eip1559_denominator_canyon: u64,
 }
 
 impl BaseFeeConfig {
@@ -200,16 +201,16 @@ impl BaseFeeConfig {
     /// Returns the inner [BaseFeeParams].
     pub const fn as_base_fee_params(&self) -> BaseFeeParams {
         BaseFeeParams {
-            max_change_denominator: self.eip1559_denominator,
-            elasticity_multiplier: self.eip1559_elasticity,
+            max_change_denominator: self.eip1559_denominator as u128,
+            elasticity_multiplier: self.eip1559_elasticity as u128,
         }
     }
 
     /// Returns the [BaseFeeParams] for the canyon hardfork.
     pub const fn as_canyon_base_fee_params(&self) -> BaseFeeParams {
         BaseFeeParams {
-            max_change_denominator: self.eip1559_denominator_canyon,
-            elasticity_multiplier: self.eip1559_elasticity,
+            max_change_denominator: self.eip1559_denominator_canyon as u128,
+            elasticity_multiplier: self.eip1559_elasticity as u128,
         }
     }
 }
