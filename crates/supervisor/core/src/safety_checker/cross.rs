@@ -6,7 +6,8 @@ use kona_supervisor_types::ExecutingMessage;
 use op_alloy_consensus::interop::SafetyLevel;
 
 /// Uses a [`CrossChainSafetyProvider`] to verify the safety of cross-chain message dependencies.
-struct CrossSafetyChecker<'a, P> {
+#[derive(Debug)]
+pub struct CrossSafetyChecker<'a, P> {
     provider: &'a P,
 }
 
@@ -15,12 +16,12 @@ impl<'a, P> CrossSafetyChecker<'a, P>
 where
     P: CrossChainSafetyProvider,
 {
-    const fn new(provider: &'a P) -> Self {
+    pub(crate) const fn new(provider: &'a P) -> Self {
         Self { provider }
     }
 
     /// Verifies that all executing messages in the given block meet the required safety level.
-    fn verify_block_dependencies(
+    pub fn verify_block_dependencies(
         &self,
         chain_id: ChainId,
         block: BlockInfo,
@@ -75,6 +76,7 @@ mod tests {
             fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
             fn get_block_logs(&self, chain_id: ChainId, block_number: u64) -> Result<Vec<Log>, StorageError>;
+            fn update_safety_head_ref(&self, chain_id: ChainId, safety_level: SafetyLevel, block_number: &BlockInfo) -> Result<(), StorageError>;
         }
     );
 

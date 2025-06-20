@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, LogStorageReader,
-    chaindb::ChainDb, error::StorageError,
+    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, HeadRefStorageWriter,
+    LogStorageReader, chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
@@ -142,6 +142,15 @@ impl CrossChainSafetyProvider for ChainDbFactory {
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError> {
         self.get_db(chain_id)?.get_safety_head_ref(level)
+    }
+
+    fn update_safety_head_ref(
+        &self,
+        chain_id: ChainId,
+        safety_level: SafetyLevel,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.get_db(chain_id)?.update_safety_head_ref(safety_level, block)
     }
 }
 

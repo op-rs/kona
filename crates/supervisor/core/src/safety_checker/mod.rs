@@ -7,5 +7,9 @@
 //! It ensures correctness in cross-chain execution by validating that initiating blocks
 //! of messages are safely committed before the messages are executed in other chains.
 mod cross;
+pub use cross::CrossSafetyChecker;
 mod error;
+mod task;
+pub use task::CrossSafetyCheckerJob;
+
 pub use error::CrossSafetyError;
