@@ -16,7 +16,7 @@
 //! 9. (Omitted) Engine Queue
 
 mod traversal;
-pub use traversal::{L1Traversal, ManagedTraversal};
+pub use traversal::{L1Traversal, ManagedTraversal, TraversalProvider};
 
 mod l1_retrieval;
 pub use l1_retrieval::{L1Retrieval, L1RetrievalProvider};
