@@ -107,7 +107,10 @@ func TestP2PChainID(gt *testing.T) {
 		require.Equal(t, chainID, nodeChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
 
 		for _, peer := range node.Peers().Peers {
-			require.Equal(t, chainID, peer.ChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
+			// Sometimes peers don't have a chainID because they are not part of the discovery table while being connected to gossip.
+			if peer.ChainID != 0 {
+				require.Equal(t, chainID, peer.ChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
+			}
 		}
 	}
 }
