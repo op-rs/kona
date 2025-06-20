@@ -45,9 +45,7 @@ pub struct RollupNode {
     /// The [`RpcLauncher`] for the node.
     pub(crate) rpc_launcher: RpcLauncher,
     /// The P2P [`Config`] for the node.
-    pub(crate) p2p_config: Option<Config>,
-    /// Whether p2p networking is entirely disabled.
-    pub(crate) network_disabled: bool,
+    pub(crate) p2p_config: Config,
     /// The [`RuntimeLauncher`] for the runtime loading service.
     pub(crate) runtime_launcher: RuntimeLauncher,
     /// The supervisor rpc server config.
@@ -125,24 +123,14 @@ impl RollupNodeService for RollupNode {
         self.rpc_launcher.clone()
     }
 
-    async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error> {
-        if self.network_disabled {
-            return Ok(None);
-        }
-        let Some(ref p2p_config) = self.p2p_config else {
-            warn!(
-                target: "rollup_node",
-                "No network configuration provided, skipping network initialization"
-            );
-            return Ok(None);
-        };
+    async fn init_network(&self) -> Result<(Network, NetworkRpc), Self::Error> {
         let (tx, rx) = tokio::sync::mpsc::channel(1024);
         let p2p_module = NetworkRpc::new(tx);
-        let builder = NetworkBuilder::from(p2p_config.clone())
+        let builder = NetworkBuilder::from(self.p2p_config.clone())
             .with_rpc_receiver(rx)
             .build()
             .map_err(RollupNodeError::Network)?;
-        Ok(Some((builder, p2p_module)))
+        Ok((builder, p2p_module))
     }
 
     async fn init_derivation(&self) -> Result<OnlinePipeline, Self::Error> {

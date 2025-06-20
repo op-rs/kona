@@ -73,7 +73,7 @@ pub trait RollupNodeService {
         finalized_updates: watch::Sender<Option<BlockInfo>>,
         block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
-        l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
+        l1_watcher_inbound_queries: Option<mpsc::Receiver<L1WatcherQueries>>,
     ) -> Self::DataAvailabilityWatcher;
 
     /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
@@ -81,7 +81,7 @@ pub trait RollupNodeService {
     async fn init_derivation(&self) -> Result<Self::DerivationPipeline, Self::Error>;
 
     /// Creates a new instance of the [`Network`].
-    async fn init_network(&self) -> Result<Option<(Network, NetworkRpc)>, Self::Error>;
+    async fn init_network(&self) -> Result<(Network, NetworkRpc), Self::Error>;
 
     /// Creates a new [`Self::SupervisorExt`] to be used in the supervisor rpc actor.
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
@@ -111,28 +111,30 @@ pub trait RollupNodeService {
         let cancellation = CancellationToken::new();
 
         // Create channels for communication between actors.
-        let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
+        let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
         let (runtime_config_tx, runtime_config_rx) = mpsc::channel(16);
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
-
         let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
+        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
+        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
+        let (engine_query_sender, engine_query_recv) = mpsc::channel(1024);
         let (head_updates_tx, head_updates_rx) = watch::channel(None);
         let (finalized_updates_tx, finalized_updates_rx) = watch::channel(None);
-        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = tokio::sync::mpsc::channel(1024);
-        let da_watcher = Some(self.new_da_watcher(
+        let (engine_l2_safe_tx, engine_l2_safe_rx) = watch::channel(L2BlockInfo::default());
+
+        // Create the DA watcher actor.
+        let da_watcher = self.new_da_watcher(
             head_updates_tx,
             finalized_updates_tx,
             block_signer_tx,
             cancellation.clone(),
             Some(l1_watcher_queries_recv),
-        ));
+        );
 
+        // Create the derivation actor.
         let derivation_pipeline = self.init_derivation().await?;
-        let (engine_l2_safe_tx, engine_l2_safe_rx) =
-            tokio::sync::watch::channel(L2BlockInfo::default());
         let derivation = DerivationActor::new(
             derivation_pipeline,
             engine_l2_safe_rx,
@@ -143,7 +145,6 @@ pub trait RollupNodeService {
             reset_request_tx,
             cancellation.clone(),
         );
-        let derivation = Some(derivation);
 
         // TODO: get the supervisor ext.
         // TODO: use the supervisor ext to create the supervisor actor.
@@ -152,26 +153,21 @@ pub trait RollupNodeService {
         //
         // )
 
-        /// The size of the RPC channel buffer for the engine actor.
-        const ENGINE_RPC_CHANNEL_SIZE: usize = 1024;
-
-        let (engine_query_sender, engine_query_recv) =
-            tokio::sync::mpsc::channel(ENGINE_RPC_CHANNEL_SIZE);
-
+        // Create the runtime configuration actor.
         let runtime = self
             .runtime()
             .with_tx(runtime_config_tx)
             .with_cancellation(cancellation.clone())
             .launch();
 
-        let launcher = self.engine();
-        let client = launcher.client();
-        let engine = launcher.launch();
-
+        // Create the engine actor.
+        let engine_launcher = self.engine();
+        let client = engine_launcher.client();
+        let engine_task_queue = engine_launcher.launch();
         let engine = EngineActor::new(
             std::sync::Arc::new(self.config().clone()),
             client,
-            engine,
+            engine_task_queue,
             engine_l2_safe_tx,
             sync_complete_tx,
             derivation_signal_tx,
@@ -183,42 +179,44 @@ pub trait RollupNodeService {
             Some(engine_query_recv),
             cancellation.clone(),
         );
-        let engine = Some(engine);
 
-        let mut p2p_module = None;
-        let network = (self.init_network().await?).map_or_else(
-            || None,
-            |(driver, module)| {
-                p2p_module = Some(module);
-                Some(NetworkActor::new(
-                    driver,
-                    unsafe_block_tx,
-                    block_signer_rx,
-                    cancellation.clone(),
-                ))
-            },
-        );
+        // Create the p2p actor.
+        let (p2p_rpc_module, network) = {
+            let (driver, module) = self.init_network().await?;
+            let actor =
+                NetworkActor::new(driver, unsafe_block_tx, block_signer_rx, cancellation.clone());
 
-        // The RPC Server should go last to let other actors register their rpc modules.
-        let launcher = self.rpc();
-        let mut launcher = launcher.with_healthz()?;
+            (module, actor)
+        };
 
-        p2p_module.map(|r| launcher.merge(r.into_rpc())).transpose()?;
+        // Create the RPC server actor.
+        let rpc = {
+            let mut rpc_launcher = self.rpc().with_healthz()?;
 
-        let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
-        launcher.merge(rollup_rpc.into_rpc())?;
+            rpc_launcher.merge(p2p_rpc_module.into_rpc())?;
 
-        if launcher.ws_enabled() {
-            launcher
-                .merge(WsRPC::new(engine_query_sender).into_rpc())
-                .map_err(Self::Error::from)?;
-        }
+            let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
+            rpc_launcher.merge(rollup_rpc.into_rpc())?;
 
-        let rpc = Some(RpcActor::new(launcher, cancellation.clone()));
+            if rpc_launcher.ws_enabled() {
+                rpc_launcher
+                    .merge(WsRPC::new(engine_query_sender).into_rpc())
+                    .map_err(Self::Error::from)?;
+            }
+
+            RpcActor::new(rpc_launcher, cancellation.clone())
+        };
 
         spawn_and_wait!(
             cancellation,
-            actors = [da_watcher, runtime, rpc, derivation, engine, network]
+            actors = [
+                runtime,
+                Some(network),
+                Some(da_watcher),
+                Some(derivation),
+                Some(engine),
+                Some(rpc)
+            ]
         );
         Ok(())
     }

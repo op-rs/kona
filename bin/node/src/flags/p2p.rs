@@ -29,9 +29,6 @@ use url::Url;
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
 pub struct P2PArgs {
-    /// Fully disable the P2P stack.
-    #[arg(long = "p2p.disable", default_value = "false", env = "KONA_NODE_P2P_DISABLE")]
-    pub disabled: bool,
     /// Disable Discv5 (node discovery).
     #[arg(long = "p2p.no-discovery", default_value = "false", env = "KONA_NODE_P2P_NO_DISCOVERY")]
     pub no_discovery: bool,
@@ -255,10 +252,6 @@ impl P2PArgs {
     /// - If the TCP port is already in use.
     /// - If the UDP port is already in use.
     pub fn check_ports(&self) -> Result<()> {
-        if self.disabled {
-            tracing::debug!(target: "p2p::flags", "P2P is disabled, skipping port check");
-            return Ok(());
-        }
         Self::check_ports_inner(
             // If the advertised ip is not specified, we use the listen ip.
             self.advertise_ip.unwrap_or(self.listen_ip),
@@ -515,12 +508,6 @@ mod tests {
         assert_eq!(args.p2p.discovery_randomize, Some(10));
         let args = MockCommand::parse_from(["test"]);
         assert_eq!(args.p2p.discovery_randomize, None);
-    }
-
-    #[test]
-    fn test_p2p_args_disabled() {
-        let args = MockCommand::parse_from(["test", "--p2p.disable"]);
-        assert!(args.p2p.disabled);
     }
 
     #[test]
