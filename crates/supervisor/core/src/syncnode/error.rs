@@ -99,4 +99,15 @@ pub enum ManagedEventTaskError {
     /// Next block is either empty or unavailable.
     #[error("next block is either empty or unavailable, number: {0}")]
     NextBlockNotFound(u64),
+    /// Block not found in database.
+    #[error("block not found in database, number: {0}")]
+    BlockNotFound(u64),
+    /// Incoming derived block does not match stored block.
+    #[error("incoming derived block does not match stored block")]
+    BlockNumberMismatch {
+        /// Incoming derived block number.
+        incoming: u64,
+        /// Stored derived block number.
+        stored: u64,
+    },
 }
