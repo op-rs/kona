@@ -232,15 +232,13 @@ impl P2PArgs {
         }
         let tcp_socket = std::net::TcpListener::bind((ip_addr, tcp_port));
         let udp_socket = std::net::UdpSocket::bind((ip_addr, udp_port));
-        if tcp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "TCP port {} is already in use", tcp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different TCP port with --p2p.listen.tcp");
-            anyhow::bail!("TCP port {} is already in use", tcp_port);
+        if let Err(e) = tcp_socket {
+            tracing::error!(target: "p2p::flags", tcp_port, "Error binding TCP socket: {e}");
+            anyhow::bail!("Error binding TCP socket on port {}: {}", tcp_port, e);
         }
-        if udp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "UDP port {} is already in use", udp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different UDP port with --p2p.listen.udp");
-            anyhow::bail!("UDP port {} is already in use", udp_port);
+        if let Err(e) = udp_socket {
+            tracing::error!(target: "p2p::flags", udp_port, "Error binding UDP socket: {e}");
+            anyhow::bail!("Error binding UDP socket on port {}: {}", udp_port, e);
         }
 
         Ok(())
