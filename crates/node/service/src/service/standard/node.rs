@@ -2,7 +2,7 @@
 
 use crate::{
     EngineLauncher, L1WatcherRpc, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
-    RuntimeLauncher, SequencerNodeService, SupervisorRpcServerExt, ValidatorNodeService,
+    RuntimeLauncher, SupervisorRpcServerExt,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
@@ -63,24 +63,14 @@ impl RollupNode {
 
 #[async_trait]
 impl RollupNodeService for RollupNode {
-    fn mode(&self) -> NodeMode {
-        self.mode
-    }
-}
-
-#[async_trait]
-impl SequencerNodeService for RollupNode {
-    async fn start(&self) -> Result<(), Self::Error> {
-        unimplemented!()
-    }
-}
-
-#[async_trait]
-impl ValidatorNodeService for RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
     type DerivationPipeline = OnlinePipeline;
     type SupervisorExt = SupervisorRpcServerExt;
     type Error = RollupNodeError;
+
+    fn mode(&self) -> NodeMode {
+        self.mode
+    }
 
     fn config(&self) -> &RollupConfig {
         &self.config
