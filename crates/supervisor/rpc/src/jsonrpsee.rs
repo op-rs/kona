@@ -11,10 +11,10 @@ use alloy_primitives::{B256, BlockHash, ChainId, map::HashMap};
 use jsonrpsee::proc_macros::rpc;
 use kona_interop::{
     DependencySet, DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
-    SuperRootResponse,
+    SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, L2BlockRef, OutputV0, Receipts, SubscriptionEvent};
+use kona_supervisor_types::{BlockSeal, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -62,10 +62,20 @@ pub trait SupervisorApi {
     #[method(name = "finalizedL1")]
     async fn finalized_l1(&self) -> RpcResult<BlockInfo>;
 
-    /// Gets the super root state at a specified timestamp, which represents the global state
-    /// across all monitored chains.
+    /// Returns the [`SuperRootOutput`] at a specified timestamp, which represents the global
+    /// state across all monitored chains. Contains the
+    /// - Highest L1 [`BlockNumHash`] that is cross-safe among all chains
+    /// - Timestamp of the super root
+    /// - The [`SuperRoot`] hash
+    /// - All chains [`ChainRootInfo`]s
+    ///
+    /// Spec: <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#supervisor_superrootattimestamp>
+    ///
+    /// [`SuperRootOutput`]: kona_interop::SuperRootOutput
+    /// [`SuperRoot`]: kona_interop::SuperRoot
+    /// [`ChainRootInfo`]: kona_interop::ChainRootInfo
     #[method(name = "superRootAtTimestamp")]
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse>;
+    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput>;
 
     /// Verifies if an access-list references only valid messages w.r.t. locally configured minimum
     /// [`SafetyLevel`].
@@ -194,5 +204,5 @@ pub trait ManagedModeApi {
 
     /// Get the l2 block ref for a given timestamp
     #[method(name = "l2BlockRefByTimestamp")]
-    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> RpcResult<L2BlockRef>;
+    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> RpcResult<BlockInfo>;
 }

@@ -4,6 +4,7 @@
 
 use crate::{SUPER_ROOT_VERSION, SuperRootError, SuperRootResult};
 use alloc::vec::Vec;
+use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, Bytes, U256, keccak256};
 use alloy_rlp::{Buf, BufMut};
 
@@ -108,11 +109,15 @@ pub struct ChainRootInfo {
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct SuperRootResponse {
+pub struct SuperRootOutput {
+    /// The Highest L1 Block that is cross-safe among all chains.
+    pub cross_safe_derived_from: BlockNumHash,
     /// The timestamp of the super root.
     pub timestamp: u64,
     /// The super root hash.
     pub super_root: B256,
+    /// The version of the super root.
+    pub version: u8,
     /// The chain root info for each chain in the dependency set.
     /// It represents the state of the chain at or before the timestamp.
     pub chains: Vec<ChainRootInfo>,

@@ -107,10 +107,12 @@ func SendRPCRequest[T any](addr string, method string, resOutput *T, params ...a
 		return err
 	}
 
-	err = json.Unmarshal(rpcResp.Result, resOutput)
+	if resOutput != nil {
+		err = json.Unmarshal(rpcResp.Result, resOutput)
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

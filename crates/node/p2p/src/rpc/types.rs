@@ -23,8 +23,10 @@ pub struct PeerInfo {
     /// The protocol version.
     pub protocol_version: String,
     /// The enr for the peer.
+    /// If the peer is not in the discovery table, this will not be set.
     #[serde(rename = "ENR")]
-    pub enr: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enr: Option<String>,
     /// The peer addresses.
     pub addresses: Vec<String>,
     /// Peer supported protocols
@@ -323,7 +325,7 @@ mod tests {
             node_id: String::from("node123"),
             user_agent: String::from("MyUserAgent"),
             protocol_version: String::from("v1"),
-            enr: String::from("enr123"),
+            enr: Some(String::from("enr123")),
             addresses: [String::from("127.0.0.1")].to_vec(),
             protocols: Some([String::from("eth"), String::from("p2p")].to_vec()),
             connectedness: Connectedness::Connected,
