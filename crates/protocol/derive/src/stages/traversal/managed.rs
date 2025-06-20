@@ -150,3 +150,193 @@ impl<F: ChainProvider + Send> SignalReceiver for ManagedTraversal<F> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{errors::PipelineErrorKind, test_utils::TestChainProvider};
+    use alloc::vec;
+    use alloy_consensus::Receipt;
+    use alloy_primitives::{B256, Bytes, Log, LogData, address, b256, hex};
+    use kona_genesis::{CONFIG_UPDATE_EVENT_VERSION_0, CONFIG_UPDATE_TOPIC};
+
+    const L1_SYS_CONFIG_ADDR: Address = address!("1337000000000000000000000000000000000000");
+
+    fn new_update_batcher_log() -> Log {
+        Log {
+            address: L1_SYS_CONFIG_ADDR,
+            data: LogData::new_unchecked(
+                vec![
+                    CONFIG_UPDATE_TOPIC,
+                    CONFIG_UPDATE_EVENT_VERSION_0,
+                    B256::ZERO, // Update type
+                ],
+                hex!("00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000beef").into()
+            )
+        }
+    }
+
+    fn new_receipts() -> alloc::vec::Vec<Receipt> {
+        let mut receipt =
+            Receipt { status: alloy_consensus::Eip658Value::Eip658(true), ..Receipt::default() };
+        let bad = Log::new(
+            Address::from([2; 20]),
+            vec![CONFIG_UPDATE_TOPIC, B256::default()],
+            Bytes::default(),
+        )
+        .unwrap();
+        receipt.logs = vec![new_update_batcher_log(), bad, new_update_batcher_log()];
+        vec![receipt.clone(), Receipt::default(), receipt]
+    }
+
+    fn new_test_managed(
+        blocks: alloc::vec::Vec<BlockInfo>,
+        receipts: alloc::vec::Vec<Receipt>,
+    ) -> ManagedTraversal<TestChainProvider> {
+        let mut provider = TestChainProvider::default();
+        let rollup_config = RollupConfig {
+            l1_system_config_address: L1_SYS_CONFIG_ADDR,
+            ..RollupConfig::default()
+        };
+        for (i, block) in blocks.iter().enumerate() {
+            provider.insert_block(i as u64, *block);
+        }
+        for (i, receipt) in receipts.iter().enumerate() {
+            let hash = blocks.get(i).map(|b| b.hash).unwrap_or_default();
+            provider.insert_receipts(hash, vec![receipt.clone()]);
+        }
+        ManagedTraversal::new(provider, Arc::new(rollup_config))
+    }
+
+    fn new_populated_test_managed() -> ManagedTraversal<TestChainProvider> {
+        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let receipts = new_receipts();
+        new_test_managed(blocks, receipts)
+    }
+
+    #[test]
+    fn test_managed_traversal_batcher_address() {
+        let mut traversal = new_populated_test_managed();
+        traversal.system_config.batcher_address = L1_SYS_CONFIG_ADDR;
+        assert_eq!(traversal.batcher_addr(), L1_SYS_CONFIG_ADDR);
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_activation_signal() {
+        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let receipts = new_receipts();
+        let mut traversal = new_test_managed(blocks, receipts);
+        let cfg = SystemConfig::default();
+        traversal.done = true;
+        assert!(
+            traversal
+                .signal(Signal::Activation(ActivationSignal {
+                    system_config: Some(cfg),
+                    ..Default::default()
+                }))
+                .await
+                .is_ok()
+        );
+        assert_eq!(traversal.origin(), Some(BlockInfo::default()));
+        assert_eq!(traversal.system_config, cfg);
+        assert!(!traversal.done);
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_reset_signal() {
+        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let receipts = new_receipts();
+        let mut traversal = new_test_managed(blocks, receipts);
+        let cfg = SystemConfig::default();
+        traversal.done = true;
+        assert!(
+            traversal
+                .signal(Signal::Reset(ResetSignal {
+                    system_config: Some(cfg),
+                    ..Default::default()
+                }))
+                .await
+                .is_ok()
+        );
+        assert_eq!(traversal.origin(), Some(BlockInfo::default()));
+        assert_eq!(traversal.system_config, cfg);
+        assert!(!traversal.done);
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_next_l1_block() {
+        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let receipts = new_receipts();
+        let mut traversal = new_test_managed(blocks, receipts);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
+        assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_missing_receipts() {
+        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let mut traversal = new_test_managed(blocks, vec![]);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
+        assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
+        // provide_next_block will fail due to missing receipts
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        let err = traversal.provide_next_block(next_block).await.unwrap_err();
+        matches!(err, PipelineErrorKind::Temporary(PipelineError::Provider(_)));
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_reorgs() {
+        let hash = b256!("3333333333333333333333333333333333333333333333333333333333333333");
+        let block = BlockInfo { hash, number: 0, ..BlockInfo::default() };
+        let blocks = vec![block];
+        let receipts = new_receipts();
+        let mut traversal = new_test_managed(blocks, receipts);
+        traversal.block = Some(block);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(block));
+        // provide_next_block will fail due to hash mismatch (simulate reorg)
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        let err = traversal.provide_next_block(next_block).await.unwrap_err();
+        assert_eq!(err, ResetError::NextL1BlockHashMismatch(hash, next_block.parent_hash).reset());
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_missing_blocks() {
+        let mut traversal = new_test_managed(vec![], vec![]);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
+        assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
+        // provide_next_block will fail due to missing origin
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        let err = traversal.provide_next_block(next_block).await.unwrap_err();
+        matches!(err, PipelineErrorKind::Temporary(PipelineError::MissingOrigin));
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_system_config_update_fails() {
+        let first = b256!("3333333333333333333333333333333333333333333333333333333333333333");
+        let second = b256!("4444444444444444444444444444444444444444444444444444444444444444");
+        let block1 = BlockInfo { hash: first, ..BlockInfo::default() };
+        let block2 = BlockInfo { number: 1, hash: second, ..BlockInfo::default() };
+        let blocks = vec![block1, block2];
+        let receipts = new_receipts();
+        let mut traversal = new_test_managed(blocks, receipts);
+        traversal.block = Some(block1);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(block1));
+        // provide_next_block will fail due to system config update error
+        let err = traversal.provide_next_block(block2).await.unwrap_err();
+        matches!(err, PipelineErrorKind::Critical(PipelineError::SystemConfigUpdate(_)));
+    }
+
+    #[tokio::test]
+    async fn test_managed_traversal_system_config_updated() {
+        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
+        let receipts = new_receipts();
+        let mut traversal = new_test_managed(blocks, receipts);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
+        assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
+        // provide_next_block should update system config
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        assert!(traversal.provide_next_block(next_block).await.is_ok());
+        let expected = address!("000000000000000000000000000000000000bEEF");
+        assert_eq!(traversal.system_config.batcher_address, expected);
+    }
+}
