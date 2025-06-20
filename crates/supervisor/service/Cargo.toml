@@ -17,6 +17,7 @@ exclude.workspace = true
 kona-supervisor-core = { workspace = true }
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 kona-supervisor-storage = { workspace = true }
+kona-supervisor-metrics = { workspace = true }
 kona-interop.workspace = true
 
 # External dependencies
