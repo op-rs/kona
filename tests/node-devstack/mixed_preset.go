@@ -214,7 +214,7 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opNodes, konaNo
 		sysgo.WithDeployerOptions(
 			sysgo.WithLocalContractSources(),
 			sysgo.WithCommons(ids.L1.ChainID()),
-			sysgo.WithPrefundedL2(ids.L2.ChainID()),
+			sysgo.WithPrefundedL2(ids.L1.ChainID(), ids.L2.ChainID()),
 		),
 	)
 
