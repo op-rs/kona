@@ -820,8 +820,8 @@ github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7/go.mod h1:q4W45
 github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a h1:1ur3QoCqvE5fl+nylMaIr9PVV1w343YRDtsy+Rwu7XI=
 github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a/go.mod h1:RRCYJbIwD5jmqPI9XoAFR0OcDxqUctll6zUj/+B4S48=
 github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07/go.mod h1:kDXzergiv9cbyO7IOYJZWg1U88JhDg3PB6klq9Hg2pA=
-github.com/theochap/optimism v0.0.0-20250620135737-3909da243eed h1:fHzZjuUeEhXZj+okxDMX9Vgf+cUX7jIlyqCliIg2CYw=
-github.com/theochap/optimism v0.0.0-20250620135737-3909da243eed/go.mod h1:yImPc3xmqpN9hsIQivAaubX9ROSlGvhR0JURIQ2AZrU=
+github.com/theochap/optimism v0.0.0-20250620180554-847d8c8ce5a8 h1:E/MfrBxq4PADUP0yzKCKf3P0QHM9Jiqt1ZMyjvcyB7c=
+github.com/theochap/optimism v0.0.0-20250620180554-847d8c8ce5a8/go.mod h1:yImPc3xmqpN9hsIQivAaubX9ROSlGvhR0JURIQ2AZrU=
 github.com/tklauser/go-sysconf v0.3.14 h1:g5vzr9iPFFz24v2KZXs/pvpvh8/V9Fw6vQK5ZZb78yU=
 github.com/tklauser/go-sysconf v0.3.14/go.mod h1:1ym4lWMLUOhuBOPGtRcJm7tEGX4SCYNEEEtghGG/8uY=
 github.com/tklauser/numcpus v0.8.0 h1:Mx4Wwe/FjZLeQsK/6kt2EOepwwSl7SmJrK5bV/dXYgY=
