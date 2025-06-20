@@ -135,7 +135,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{stages::l1_traversal::tests::*, test_utils::TestDAP};
+    use crate::{stages::traversal::polling::tests::*, test_utils::TestDAP};
     use alloc::vec;
     use alloy_primitives::Bytes;
 
