@@ -178,7 +178,7 @@ where
 
                                     kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
-
+                                // send the `reset` signal to the engine actor only when interop is not active.
                                 if !self
                                     .pipeline
                                     .rollup_config()
