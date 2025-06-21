@@ -6,6 +6,7 @@ use alloy_consensus::{Block, Transaction, Typed2718};
 use alloy_eips::{BlockNumHash, eip2718::Eip2718Error, eip7685::EMPTY_REQUESTS_HASH};
 use alloy_primitives::B256;
 use alloy_rpc_types_engine::{CancunPayloadFields, PraguePayloadFields};
+use alloy_rpc_types_eth::Block as RpcBlock;
 use derive_more::Display;
 use kona_genesis::ChainGenesis;
 use op_alloy_consensus::{OpBlock, OpTxEnvelope};
@@ -55,6 +56,28 @@ impl<T> From<Block<T>> for BlockInfo {
 
 impl<T> From<&Block<T>> for BlockInfo {
     fn from(block: &Block<T>) -> Self {
+        Self {
+            hash: block.header.hash_slow(),
+            number: block.header.number,
+            parent_hash: block.header.parent_hash,
+            timestamp: block.header.timestamp,
+        }
+    }
+}
+
+impl<T> From<RpcBlock<T>> for BlockInfo {
+    fn from(block: RpcBlock<T>) -> Self {
+        Self {
+            hash: block.header.hash_slow(),
+            number: block.header.number,
+            parent_hash: block.header.parent_hash,
+            timestamp: block.header.timestamp,
+        }
+    }
+}
+
+impl<T> From<&RpcBlock<T>> for BlockInfo {
+    fn from(block: &RpcBlock<T>) -> Self {
         Self {
             hash: block.header.hash_slow(),
             number: block.header.number,
