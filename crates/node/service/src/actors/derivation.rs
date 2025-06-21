@@ -179,7 +179,7 @@ where
                                     kona_macros::inc!(counter, Metrics::L1_REORG_COUNT);
                                 }
 
-                                if self
+                                if !self
                                     .pipeline
                                     .rollup_config()
                                     .is_interop_active(l2_safe_head.block_info.timestamp)
