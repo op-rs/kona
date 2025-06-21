@@ -53,6 +53,7 @@ impl ConsolidateTask {
             self.cfg.clone(),
             self.attributes.clone(),
             self.is_attributes_derived,
+            None,
         );
         build_task.execute(state).await
     }

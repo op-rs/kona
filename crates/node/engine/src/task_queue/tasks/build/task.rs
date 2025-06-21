@@ -14,8 +14,9 @@ use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 use op_alloy_provider::ext::engine::OpEngineApi;
-use op_alloy_rpc_types_engine::OpExecutionPayload;
+use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
 use std::{sync::Arc, time::Instant};
+use tokio::sync::mpsc;
 
 /// The [`BuildTask`] is responsible for building new blocks and importing them via the engine API.
 #[derive(Debug, Clone)]
@@ -28,6 +29,9 @@ pub struct BuildTask {
     pub attributes: OpAttributesWithParent,
     /// Whether or not the payload was derived, or created by the sequencer.
     pub is_attributes_derived: bool,
+    /// An optional channel to send the built [`OpExecutionPayloadEnvelope`] to, after the block
+    /// has been built, imported, and canonicalized.
+    pub payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
 }
 
 impl BuildTask {
@@ -37,8 +41,9 @@ impl BuildTask {
         cfg: Arc<RollupConfig>,
         attributes: OpAttributesWithParent,
         is_attributes_derived: bool,
+        payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
     ) -> Self {
-        Self { engine, cfg, attributes, is_attributes_derived }
+        Self { engine, cfg, attributes, is_attributes_derived, payload_tx }
     }
 
     /// Starts the block building process by sending an initial `engine_forkchoiceUpdate` call with
@@ -148,7 +153,7 @@ impl BuildTask {
         engine: &EngineClient,
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
-    ) -> Result<L2BlockInfo, BuildTaskError> {
+    ) -> Result<(OpExecutionPayloadEnvelope, L2BlockInfo), BuildTaskError> {
         let payload_timestamp = payload_attrs.inner().payload_attributes.timestamp;
 
         debug!(
@@ -159,7 +164,7 @@ impl BuildTask {
         );
 
         let get_payload_version = EngineGetPayloadVersion::from_cfg(cfg, payload_timestamp);
-        let (payload, response) = match get_payload_version {
+        let (payload_envelope, response) = match get_payload_version {
             EngineGetPayloadVersion::V4 => {
                 let payload = engine.get_payload_v4(payload_id).await.map_err(|e| {
                     error!(target: "engine_builder", "Payload fetch failed: {e}");
@@ -176,7 +181,13 @@ impl BuildTask {
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
-                (OpExecutionPayload::V4(payload.execution_payload), response)
+                (
+                    OpExecutionPayloadEnvelope {
+                        parent_beacon_block_root: Some(payload.parent_beacon_block_root),
+                        payload: OpExecutionPayload::V4(payload.execution_payload),
+                    },
+                    response,
+                )
             }
             EngineGetPayloadVersion::V3 => {
                 let payload = engine.get_payload_v3(payload_id).await.map_err(|e| {
@@ -194,7 +205,13 @@ impl BuildTask {
                         BuildTaskError::NewPayloadFailed(e)
                     })?;
 
-                (OpExecutionPayload::V3(payload.execution_payload), response)
+                (
+                    OpExecutionPayloadEnvelope {
+                        parent_beacon_block_root: Some(payload.parent_beacon_block_root),
+                        payload: OpExecutionPayload::V3(payload.execution_payload),
+                    },
+                    response,
+                )
             }
             EngineGetPayloadVersion::V2 => {
                 let payload = engine.get_payload_v2(payload_id).await.map_err(|e| {
@@ -212,7 +229,13 @@ impl BuildTask {
                             BuildTaskError::NewPayloadFailed(e)
                         })?;
 
-                        (OpExecutionPayload::V2(payload), response)
+                        (
+                            OpExecutionPayloadEnvelope {
+                                parent_beacon_block_root: None,
+                                payload: OpExecutionPayload::V2(payload),
+                            },
+                            response,
+                        )
                     }
                     ExecutionPayloadFieldV2::V1(payload) => {
                         let response =
@@ -221,7 +244,13 @@ impl BuildTask {
                                 BuildTaskError::NewPayloadFailed(e)
                             })?;
 
-                        (OpExecutionPayload::V1(payload), response)
+                        (
+                            OpExecutionPayloadEnvelope {
+                                parent_beacon_block_root: None,
+                                payload: OpExecutionPayload::V1(payload),
+                            },
+                            response,
+                        )
                     }
                 }
             }
@@ -231,11 +260,14 @@ impl BuildTask {
             PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing => {
                 debug!(target: "engine_builder", "Payload import successful");
 
-                Ok(L2BlockInfo::from_payload_and_genesis(
-                    payload,
-                    payload_attrs.inner().payload_attributes.parent_beacon_block_root,
-                    &cfg.genesis,
-                )?)
+                Ok((
+                    payload_envelope.clone(),
+                    L2BlockInfo::from_payload_and_genesis(
+                        payload_envelope.payload,
+                        payload_attrs.inner().payload_attributes.parent_beacon_block_root,
+                        &cfg.genesis,
+                    )?,
+                ))
             }
             PayloadStatusEnum::Invalid { validation_error } => {
                 if payload_attrs.is_deposits_only() {
@@ -251,6 +283,7 @@ impl BuildTask {
                         self.cfg.clone(),
                         self.attributes.as_deposits_only(),
                         self.is_attributes_derived,
+                        self.payload_tx.clone(),
                     )
                     .execute(state)
                     .await
@@ -303,7 +336,7 @@ impl EngineTaskExt for BuildTask {
 
         // Fetch the payload from the EL and import it into the engine.
         let block_import_start_time = Instant::now();
-        let new_block_ref = self
+        let (new_payload, new_block_ref) = self
             .fetch_and_import_payload(
                 state,
                 &self.cfg,
@@ -324,6 +357,11 @@ impl EngineTaskExt for BuildTask {
 
         // Send a FCU to canonicalize the imported block.
         ForkchoiceTask::new(Arc::clone(&self.engine)).execute(state).await?;
+
+        // If a channel was provided, send the built payload envelope to it.
+        if let Some(tx) = &self.payload_tx {
+            tx.send(new_payload).await.map_err(BuildTaskError::MpscSend)?;
+        }
 
         info!(
             target: "engine_builder",
