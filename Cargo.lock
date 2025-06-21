@@ -5022,6 +5022,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-supervisor-metrics"
+version = "0.1.0"
+
+[[package]]
 name = "kona-supervisor-rpc"
 version = "0.1.0"
 dependencies = [
@@ -5052,6 +5056,7 @@ dependencies = [
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-core",
+ "kona-supervisor-metrics",
  "kona-supervisor-rpc",
  "kona-supervisor-storage",
  "thiserror 2.0.12",
@@ -5071,7 +5076,9 @@ dependencies = [
  "eyre",
  "kona-interop",
  "kona-protocol",
+ "kona-supervisor-metrics",
  "kona-supervisor-types",
+ "metrics",
  "modular-bitfield",
  "op-alloy-consensus 0.18.1",
  "reth-codecs",

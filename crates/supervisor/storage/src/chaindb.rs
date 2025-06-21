@@ -9,9 +9,12 @@ use crate::{
     },
 };
 use alloy_eips::eip1898::BlockNumHash;
+use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
+use kona_supervisor_metrics::MetricsReporter;
 use kona_supervisor_types::{Log, SuperHead};
+use metrics::{Label, gauge};
 use op_alloy_consensus::interop::SafetyLevel;
 use reth_db::{
     DatabaseEnv,
@@ -25,7 +28,9 @@ use tracing::{error, warn};
 /// Provides transactional access to data via providers.
 #[derive(Debug)]
 pub struct ChainDb {
+    chain_id: ChainId,
     env: DatabaseEnv,
+
     /// Current L1 block reference, used for tracking the latest L1 block processed.
     /// In-memory only, not persisted.
     current_l1: RwLock<Option<BlockInfo>>,
@@ -33,9 +38,9 @@ pub struct ChainDb {
 
 impl ChainDb {
     /// Creates or opens a database environment at the given path.
-    pub fn new(path: &Path) -> Result<Self, StorageError> {
+    pub fn new(chain_id: ChainId, path: &Path) -> Result<Self, StorageError> {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
-        Ok(Self { env, current_l1: RwLock::new(None) })
+        Ok(Self { chain_id, env, current_l1: RwLock::new(None) })
     }
 
     /// initialises the database with a given anchor derived block pair.
@@ -226,6 +231,83 @@ impl HeadRefStorageWriter for ChainDb {
     }
 }
 
+impl MetricsReporter for ChainDb {
+    fn report_metrics(&self) {
+        let mut metrics = Vec::new();
+
+        let _ = self
+            .env
+            .view(|tx| {
+                for table in crate::models::Tables::ALL.iter().map(crate::models::Tables::name) {
+                    let table_db = tx.inner.open_db(Some(table))?;
+
+                    let stats = tx.inner.db_stat(&table_db)?;
+
+                    let page_size = stats.page_size() as usize;
+                    let leaf_pages = stats.leaf_pages();
+                    let branch_pages = stats.branch_pages();
+                    let overflow_pages = stats.overflow_pages();
+                    let num_pages = leaf_pages + branch_pages + overflow_pages;
+                    let table_size = page_size * num_pages;
+                    let entries = stats.entries();
+
+                    metrics.push((
+                        "kona_supervisor_storage.table_size",
+                        table_size as f64,
+                        vec![
+                            Label::new("table", table),
+                            Label::new("chain_id", self.chain_id.to_string()),
+                        ],
+                    ));
+                    metrics.push((
+                        "kona_supervisor_storage.table_pages",
+                        leaf_pages as f64,
+                        vec![
+                            Label::new("table", table),
+                            Label::new("type", "leaf"),
+                            Label::new("chain_id", self.chain_id.to_string()),
+                        ],
+                    ));
+                    metrics.push((
+                        "kona_supervisor_storage.table_pages",
+                        branch_pages as f64,
+                        vec![
+                            Label::new("table", table),
+                            Label::new("type", "branch"),
+                            Label::new("chain_id", self.chain_id.to_string()),
+                        ],
+                    ));
+                    metrics.push((
+                        "kona_supervisor_storage.table_pages",
+                        overflow_pages as f64,
+                        vec![
+                            Label::new("table", table),
+                            Label::new("type", "overflow"),
+                            Label::new("chain_id", self.chain_id.to_string()),
+                        ],
+                    ));
+                    metrics.push((
+                        "kona_supervisor_storage.table_entries",
+                        entries as f64,
+                        vec![
+                            Label::new("table", table),
+                            Label::new("chain_id", self.chain_id.to_string()),
+                        ],
+                    ));
+                }
+
+                Ok::<(), eyre::Report>(())
+            })
+            .inspect_err(|err| {
+                warn!(target: "supervisor_storage", %err, "Failed to collect database metrics");
+            });
+
+        for (name, value, labels) in metrics {
+            gauge!(name, labels).set(value);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,7 +319,7 @@ mod tests {
     fn test_create_and_open_db() {
         let tmp_dir = TempDir::new().expect("create temp dir");
         let db_path = tmp_dir.path().join("chaindb");
-        let db = ChainDb::new(&db_path);
+        let db = ChainDb::new(1, &db_path);
         assert!(db.is_ok(), "Should create or open database");
     }
 
@@ -245,7 +327,7 @@ mod tests {
     fn test_log_storage() {
         let tmp_dir = TempDir::new().expect("create temp dir");
         let db_path = tmp_dir.path().join("chaindb_logs");
-        let db = ChainDb::new(&db_path).expect("create db");
+        let db = ChainDb::new(1, &db_path).expect("create db");
 
         let anchor = DerivedRefPair {
             source: BlockInfo {
@@ -293,7 +375,7 @@ mod tests {
     fn test_derivation_storage() {
         let tmp_dir = TempDir::new().expect("create temp dir");
         let db_path = tmp_dir.path().join("chaindb_derivation");
-        let db = ChainDb::new(&db_path).expect("create db");
+        let db = ChainDb::new(1, &db_path).expect("create db");
 
         let anchor = DerivedRefPair {
             source: BlockInfo {
@@ -376,7 +458,7 @@ mod tests {
     fn test_safety_head_ref_storage() {
         let tmp_dir = TempDir::new().expect("create temp dir");
         let db_path = tmp_dir.path().join("chaindb_safety_head");
-        let db = ChainDb::new(&db_path).expect("create db");
+        let db = ChainDb::new(1, &db_path).expect("create db");
 
         // Create test blocks for different safety levels
         let unsafe_block = BlockInfo {
@@ -428,7 +510,7 @@ mod tests {
     fn test_get_super_head() {
         let tmp_dir = TempDir::new().expect("create temp dir");
         let db_path = tmp_dir.path().join("chaindb_super_head");
-        let db = ChainDb::new(&db_path).expect("create db");
+        let db = ChainDb::new(1, &db_path).expect("create db");
 
         // Create anchor block
         let anchor = DerivedRefPair {
@@ -521,7 +603,7 @@ mod tests {
     fn test_update_and_get_current_l1() {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let db_path = tmp_dir.path().join("chaindb_current_l1");
-        let db = ChainDb::new(&db_path).unwrap();
+        let db = ChainDb::new(1, &db_path).unwrap();
 
         let block1 = BlockInfo { number: 10, ..Default::default() };
         let block2 = BlockInfo { number: 20, ..Default::default() };

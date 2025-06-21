@@ -10,6 +10,7 @@ use crate::{
 };
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
+use kona_supervisor_metrics::MetricsReporter;
 use kona_supervisor_types::Log;
 use op_alloy_consensus::interop::SafetyLevel;
 use tracing::error;
@@ -20,6 +21,8 @@ use tracing::error;
 #[derive(Debug)]
 pub struct ChainDbFactory {
     db_path: PathBuf,
+    metrics_enabled: Option<bool>,
+
     dbs: RwLock<HashMap<ChainId, Arc<ChainDb>>>,
 
     /// Finalized L1 block reference, used for tracking the finalized L1 block.
@@ -30,7 +33,18 @@ pub struct ChainDbFactory {
 impl ChainDbFactory {
     /// Create a new, empty factory.
     pub fn new(db_path: PathBuf) -> Self {
-        Self { db_path, dbs: RwLock::new(HashMap::new()), finalized_l1: RwLock::new(None) }
+        Self {
+            db_path,
+            metrics_enabled: None,
+            dbs: RwLock::new(HashMap::new()),
+            finalized_l1: RwLock::new(None),
+        }
+    }
+
+    /// Enables metrics on the database environment.
+    pub const fn with_metrics(mut self) -> Self {
+        self.metrics_enabled = Some(true);
+        self
     }
 
     /// Get or create a [`ChainDb`] for the given chain id.
@@ -59,7 +73,8 @@ impl ChainDbFactory {
         }
 
         let chain_db_path = self.db_path.join(chain_id.to_string());
-        let db = Arc::new(ChainDb::new(chain_db_path.as_path())?);
+        let chain_db = ChainDb::new(chain_id, chain_db_path.as_path())?;
+        let db = Arc::new(chain_db);
         dbs.insert(chain_id, db.clone());
         Ok(db)
     }
@@ -74,6 +89,21 @@ impl ChainDbFactory {
         dbs.get(&chain_id)
             .cloned()
             .ok_or_else(|| StorageError::EntryNotFound("chain not found".to_string()))
+    }
+}
+
+impl MetricsReporter for ChainDbFactory {
+    fn report_metrics(&self) {
+        let metrics_enabled = self.metrics_enabled.unwrap_or(false);
+        if metrics_enabled {
+            let dbs: Vec<Arc<ChainDb>> = {
+                let dbs_guard = self.dbs.read().unwrap_or_else(|e| e.into_inner());
+                dbs_guard.values().cloned().collect()
+            };
+            for db in dbs {
+                db.report_metrics();
+            }
+        }
     }
 }
 

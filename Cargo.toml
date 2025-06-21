@@ -100,6 +100,7 @@ kona-supervisor-core = { path = "crates/supervisor/core", version = "0.1.0", def
 kona-supervisor-service = { path = "crates/supervisor/service", version = "0.1.0", default-features = false }
 kona-supervisor-types = { path = "crates/supervisor/types", version = "0.1.0", default-features = false }
 kona-supervisor-storage = { path = "crates/supervisor/storage", version = "0.1.0", default-features = false }
+kona-supervisor-metrics = { path = "crates/supervisor/metrics", version = "0.1.0", default-features = false }
 
 # Providers
 kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.2.0", default-features = false }

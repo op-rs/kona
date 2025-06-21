@@ -17,6 +17,7 @@ exclude.workspace = true
 kona-protocol.workspace = true
 kona-interop.workspace = true
 kona-supervisor-types.workspace = true
+kona-supervisor-metrics.workspace = true
 
 # Alloy
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "rand"] }
@@ -33,6 +34,7 @@ modular-bitfield.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 eyre.workspace = true
+metrics.workspace = true
 
 #reth
 reth-db-api = { workspace = true }

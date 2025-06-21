@@ -4,3 +4,6 @@
 
 mod traits;
 pub use traits::SupervisorActor;
+
+mod metric_reporter;
+pub use metric_reporter::MetricReporter;
