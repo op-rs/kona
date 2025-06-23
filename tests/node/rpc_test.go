@@ -13,6 +13,7 @@ import (
 
 // Check that the node p2p RPC endpoints are working.
 func TestSystemP2PPeers(t *testing.T) {
+	t.Skip("TODO(@theochap): this test is broken because the devnet-sdk doesn't support the newer versions of the optimism-package.")
 
 	systest.SystemTest(t,
 		p2pPeersAndPeerStats(),

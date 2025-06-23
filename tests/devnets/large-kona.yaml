@@ -6,6 +6,7 @@ optimism_package:
     enabled: true
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
+    chain0:
     # Chain with more nodes
       participants:
         optimism-1:

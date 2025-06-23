@@ -8,6 +8,7 @@ import (
 
 // Ensures that the node synchronizes the chain correctly.
 func TestSystemNodeFinalizedSync(t *testing.T) {
+	t.Skip("TODO(@theochap): this test is broken because the devnet-sdk doesn't support the newer versions of the optimism-package.")
 	t.Parallel()
 
 	systest.SystemTest(t,
@@ -18,6 +19,7 @@ func TestSystemNodeFinalizedSync(t *testing.T) {
 
 // Ensures that the node synchronizes the safe chain correctly.
 func TestSystemSyncSafe(t *testing.T) {
+	t.Skip("TODO(@theochap): this test is broken because the devnet-sdk doesn't support the newer versions of the optimism-package.")
 	t.Parallel()
 
 	systest.SystemTest(t,
@@ -29,6 +31,7 @@ func TestSystemSyncSafe(t *testing.T) {
 
 // Ensures that the unsafe chain eventually becomes the safe chain.
 func TestSystemSyncUnsafeBecomesSafe(t *testing.T) {
+	t.Skip("TODO(@theochap): this test is broken because the devnet-sdk doesn't support the newer versions of the optimism-package.")
 	t.Parallel()
 
 	systest.SystemTest(t,
@@ -40,6 +43,7 @@ func TestSystemSyncUnsafeBecomesSafe(t *testing.T) {
 
 // Ensures that the node synchronizes the unsafe chain correctly.
 func TestSystemSyncUnsafe(t *testing.T) {
+	t.Skip("TODO(@theochap): this test is broken because the devnet-sdk doesn't support the newer versions of the optimism-package.")
 	t.Parallel()
 
 	systest.SystemTest(t,
