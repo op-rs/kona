@@ -31,7 +31,7 @@ where
     C: ChainProvider + Send + Clone + Debug,
     B: BlobProvider + Send + Clone + Debug,
 {
-    /// Instantiates a new [EthereumDataSource].
+    /// Instantiates a new [`EthereumDataSource`].
     pub const fn new(
         blob_source: BlobSource<C, B>,
         calldata_source: CalldataSource<C>,
@@ -40,7 +40,7 @@ where
         Self { ecotone_timestamp: cfg.hardforks.ecotone_time, blob_source, calldata_source }
     }
 
-    /// Instantiates a new [EthereumDataSource] from parts.
+    /// Instantiates a new [`EthereumDataSource`] from parts.
     pub fn new_from_parts(provider: C, blobs: B, cfg: &RollupConfig) -> Self {
         Self {
             ecotone_timestamp: cfg.hardforks.ecotone_time,

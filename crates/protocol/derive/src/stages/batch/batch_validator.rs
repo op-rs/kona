@@ -12,11 +12,11 @@ use core::fmt::Debug;
 use kona_genesis::RollupConfig;
 use kona_protocol::{Batch, BatchValidity, BlockInfo, L2BlockInfo, SingleBatch};
 
-/// The [BatchValidator] stage is responsible for validating the [SingleBatch]es from
-/// the [BatchStream] [AttributesQueue]'s consumption.
+/// The [`BatchValidator`] stage is responsible for validating the [`SingleBatch`]es from
+/// the [`BatchStream`] [`AttributesQueue`]'s consumption.
 ///
-/// [BatchStream]: crate::stages::BatchStream
-/// [AttributesQueue]: crate::stages::attributes_queue::AttributesQueue
+/// [`BatchStream`]: crate::stages::BatchStream
+/// [`AttributesQueue`]: crate::stages::attributes_queue::AttributesQueue
 #[derive(Debug)]
 pub struct BatchValidator<P>
 where
@@ -41,7 +41,7 @@ impl<P> BatchValidator<P>
 where
     P: NextBatchProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
-    /// Create a new [BatchValidator] stage.
+    /// Create a new [`BatchValidator`] stage.
     pub const fn new(cfg: Arc<RollupConfig>, prev: P) -> Self {
         Self { cfg, prev, origin: None, l1_blocks: Vec::new() }
     }
@@ -57,7 +57,7 @@ where
         self.prev.origin().is_none_or(|origin| origin.number < parent.l1_origin.number)
     }
 
-    /// Updates the [BatchValidator]'s view of the L1 origin blocks.
+    /// Updates the [`BatchValidator`]'s view of the L1 origin blocks.
     ///
     /// ## Takes
     /// - `parent`: The parent block of the current batch.

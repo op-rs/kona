@@ -21,7 +21,7 @@ pub enum BlobDecodingError {
     MissingData,
 }
 
-/// An error returned by the [BlobProviderError].
+/// An error returned by the [`BlobProviderError`].
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum BlobProviderError {
     /// The number of specified blob hashes did not match the number of returned sidecars.

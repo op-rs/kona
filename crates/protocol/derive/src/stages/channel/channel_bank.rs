@@ -17,7 +17,7 @@ pub(crate) const MAX_CHANNEL_BANK_SIZE: usize = 100_000_000;
 /// The maximum size of a channel bank after the Fjord Hardfork.
 pub(crate) const FJORD_MAX_CHANNEL_BANK_SIZE: usize = 1_000_000_000;
 
-/// [ChannelBank] is a stateful stage that does the following:
+/// [`ChannelBank`] is a stateful stage that does the following:
 /// 1. Unmarshalls frames from L1 transaction data
 /// 2. Applies those frames to a channel
 /// 3. Attempts to read from the channel when it is ready
@@ -27,7 +27,7 @@ pub(crate) const FJORD_MAX_CHANNEL_BANK_SIZE: usize = 1_000_000_000;
 /// As we switch between ingesting data & reading, the prune step occurs at an odd point
 /// Specifically, the channel bank is not allowed to become too large between successive calls
 /// to `IngestData`. This means that we can do an ingest and then do a read while becoming too
-/// large. [ChannelBank] buffers channel frames, and emits full channel data
+/// large. [`ChannelBank`] buffers channel frames, and emits full channel data
 #[derive(Debug)]
 pub struct ChannelBank<P>
 where
@@ -47,7 +47,7 @@ impl<P> ChannelBank<P>
 where
     P: NextFrameProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
-    /// Create a new [ChannelBank] stage.
+    /// Create a new [`ChannelBank`] stage.
     pub fn new(cfg: Arc<RollupConfig>, prev: P) -> Self {
         Self { cfg, channels: HashMap::default(), channel_queue: VecDeque::new(), prev }
     }

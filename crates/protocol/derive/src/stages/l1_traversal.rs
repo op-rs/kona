@@ -10,12 +10,12 @@ use async_trait::async_trait;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::BlockInfo;
 
-/// The [L1Traversal] stage of the derivation pipeline.
+/// The [`L1Traversal`] stage of the derivation pipeline.
 ///
 /// This stage sits at the bottom of the pipeline, holding a handle to the data source
-/// (a [ChainProvider] implementation) and the current L1 [BlockInfo] in the pipeline,
-/// which are used to traverse the L1 chain. When the [L1Traversal] stage is advanced,
-/// it fetches the next L1 [BlockInfo] from the data source and updates the [SystemConfig]
+/// (a [`ChainProvider`] implementation) and the current L1 [`BlockInfo`] in the pipeline,
+/// which are used to traverse the L1 chain. When the [`L1Traversal`] stage is advanced,
+/// it fetches the next L1 [`BlockInfo`] from the data source and updates the [`SystemConfig`]
 /// with the receipts from the block.
 #[derive(Debug, Clone)]
 pub struct L1Traversal<Provider: ChainProvider> {
@@ -48,7 +48,7 @@ impl<F: ChainProvider + Send> L1RetrievalProvider for L1Traversal<F> {
 }
 
 impl<F: ChainProvider> L1Traversal<F> {
-    /// Creates a new [L1Traversal] instance.
+    /// Creates a new [`L1Traversal`] instance.
     pub fn new(data_source: F, cfg: Arc<RollupConfig>) -> Self {
         Self {
             block: Some(BlockInfo::default()),
@@ -69,9 +69,9 @@ impl<F: ChainProvider> L1Traversal<F> {
 
 #[async_trait]
 impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
-    /// Advances the internal state of the [L1Traversal] stage to the next L1 block.
-    /// This function fetches the next L1 [BlockInfo] from the data source and updates the
-    /// [SystemConfig] with the receipts from the block.
+    /// Advances the internal state of the [`L1Traversal`] stage to the next L1 block.
+    /// This function fetches the next L1 [`BlockInfo`] from the data source and updates the
+    /// [`SystemConfig`] with the receipts from the block.
     async fn advance_origin(&mut self) -> PipelineResult<()> {
         // Advance start time for metrics.
         #[cfg(feature = "metrics")]
