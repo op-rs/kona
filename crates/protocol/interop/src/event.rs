@@ -1,9 +1,18 @@
 //! Contains the managed node event.
 
 use crate::{BlockReplacement, DerivedRefPair};
-use alloc::{format, string::String, vec::Vec};
-use derive_more::Constructor;
+use alloc::{format, vec::Vec};
+use derive_more::{Constructor, Display};
 use kona_protocol::BlockInfo;
+
+/// Represents reset events that are emitted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum ResetEvent {
+    /// A reset event, indicating that the chain has been reset to a specific block.
+    Reset,
+}
 
 /// Event sent by the node to the supervisor to share updates.
 ///
@@ -18,7 +27,7 @@ pub struct ManagedEvent {
     /// This is emitted when the node has determined that it needs a reset.
     /// It tells the supervisor to send the interop_reset event with the
     /// required parameters.
-    pub reset: Option<String>,
+    pub reset: Option<ResetEvent>,
 
     /// New L2 unsafe block was processed, updating local-unsafe head.
     pub unsafe_block: Option<BlockInfo>,

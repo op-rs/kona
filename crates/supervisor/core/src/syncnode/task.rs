@@ -4,7 +4,7 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
 use jsonrpsee::ws_client::WsClient;
-use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
+use kona_interop::{DerivedRefPair, ManagedEvent, ResetEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
@@ -111,12 +111,12 @@ where
                 }
 
                 // Check if this was an empty event (all fields None)
-                if event.reset.is_none() &&
-                    event.unsafe_block.is_none() &&
-                    event.derivation_update.is_none() &&
-                    event.exhaust_l1.is_none() &&
-                    event.replace_block.is_none() &&
-                    event.derivation_origin_update.is_none()
+                if event.reset.is_none()
+                    && event.unsafe_block.is_none()
+                    && event.derivation_update.is_none()
+                    && event.exhaust_l1.is_none()
+                    && event.replace_block.is_none()
+                    && event.derivation_origin_update.is_none()
                 {
                     debug!(target: "managed_event_task", "Received empty event with all fields None");
                 }
@@ -184,7 +184,7 @@ where
     }
 
     // todo: refactor
-    async fn handle_reset(&self, reset_id: &str) {
+    async fn handle_reset(&self, reset_id: &ResetEvent) {
         info!(target: "managed_event_task", %reset_id, "Reset event received");
 
         let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {

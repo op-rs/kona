@@ -151,7 +151,7 @@ where
     fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(AuthenticationError::InvalidJwt.into())
+            return Err(AuthenticationError::InvalidJwt.into());
         };
 
         // Create JWT claims with current time
@@ -323,7 +323,7 @@ mod tests {
     use alloy_eips::BlockNumHash;
     use alloy_provider::mock::{Asserter, MockTransport};
     use alloy_rpc_client::RpcClient;
-    use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
+    use kona_interop::{DerivedRefPair, ManagedEvent, ResetEvent, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
     use kona_supervisor_types::{Log, SuperHead};
@@ -367,7 +367,7 @@ mod tests {
     async fn test_managed_event_serialization_deserialization() {
         // Test deserializing a complete ManagedEvent from JSON
         let complete_json = r#"{
-            "reset": "reset_id_123",
+            "reset": "reset",
             "unsafeBlock": {
                 "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
                 "number": 124,
@@ -423,7 +423,7 @@ mod tests {
             .expect("Failed to deserialize complete ManagedEvent from JSON");
 
         // Verify all fields are correctly deserialized
-        assert_eq!(deserialized.reset, Some("reset_id_123".to_string()));
+        assert_eq!(deserialized.reset, Some(ResetEvent::Reset));
         assert!(deserialized.unsafe_block.is_some());
         assert!(deserialized.derivation_update.is_some());
         assert!(deserialized.exhaust_l1.is_some());
@@ -460,7 +460,7 @@ mod tests {
 
         // Test deserializing partial ManagedEvent (only some fields present)
         let partial_json = r#"{
-            "reset": "partial_reset",
+            "reset": "reset",
             "unsafeBlock": {
                 "hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
                 "number": 42,
@@ -472,7 +472,7 @@ mod tests {
         let partial_deserialized: ManagedEvent = serde_json::from_str(partial_json)
             .expect("Failed to deserialize partial ManagedEvent from JSON");
 
-        assert_eq!(partial_deserialized.reset, Some("partial_reset".to_string()));
+        assert_eq!(partial_deserialized.reset, Some(ResetEvent::Reset));
         assert!(partial_deserialized.unsafe_block.is_some());
         assert!(partial_deserialized.derivation_update.is_none());
         assert!(partial_deserialized.exhaust_l1.is_none());
