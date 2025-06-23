@@ -296,8 +296,15 @@ impl P2pRpcRequest {
                             .collect::<Vec<String>>(),
                     )
                 };
-                let addresses =
-                    info.listen_addrs.iter().map(|addr| addr.to_string()).collect::<Vec<String>>();
+                let addresses = info
+                    .listen_addrs
+                    .iter()
+                    .map(|addr| {
+                        let mut addr = addr.clone();
+                        addr.push(Protocol::P2p(*id));
+                        addr.to_string()
+                    })
+                    .collect::<Vec<String>>();
 
                 let score = gossip.swarm.behaviour().gossipsub.peer_score(id).unwrap_or_default();
 
@@ -368,79 +375,88 @@ impl P2pRpcRequest {
             }
             ).collect();
 
-            let infos: HashMap<String, PeerInfo, RandomState> = table_infos
+            // Filter out peers that are not in the gossip network.
+            let node_to_table_infos = table_infos
+                .into_iter()
+                .filter(|(id, _, _)| node_to_peer_id.contains_key(id))
+                .map(|(id, enr, status)| (id, (enr, status)))
+                .collect::<HashMap<_, _>>();
+
+            // Build the peer info map.
+            let infos: HashMap<String, PeerInfo, RandomState> = node_to_peer_id
                 .iter()
-                .filter_map(|(id, enr, status)| {
-                    let opstack_enr = OpStackEnr::try_from(enr).ok();
+                .map(|(id, peer_id)| {
+                    let (maybe_enr, maybe_status) = node_to_table_infos.get(id).cloned().unzip();
 
-                    let direction =
-                        if status.is_incoming() { Direction::Inbound } else { Direction::Outbound };
+                    let opstack_enr =
+                        maybe_enr.clone().and_then(|enr| OpStackEnr::try_from(&enr).ok());
 
-                    node_to_peer_id.get(id).map(|peer_id| {
-                        let PeerMetadata {
-                            protocols,
-                            addresses,
+                    let direction = maybe_status
+                        .map(|status| {
+                            if status.is_incoming() {
+                                Direction::Inbound
+                            } else {
+                                Direction::Outbound
+                            }
+                        })
+                        .unwrap_or_default();
+
+                    let PeerMetadata { protocols, addresses, user_agent, protocol_version, score } =
+                        peer_metadata.remove(peer_id).unwrap_or_default();
+
+                    let peer_connectedness =
+                        connectedness.get(peer_id).copied().unwrap_or(Connectedness::NotConnected);
+
+                    let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
+
+                    let node_id = format!("{:?}", &id);
+                    (
+                        peer_id.to_string(),
+                        PeerInfo {
+                            peer_id: peer_id.to_string(),
+                            node_id,
                             user_agent,
                             protocol_version,
-                            score,
-                        } = peer_metadata.remove(peer_id).unwrap_or_default();
-
-                        let peer_connectedness = connectedness
-                            .get(peer_id)
-                            .copied()
-                            .unwrap_or(Connectedness::NotConnected);
-
-                        let latency = pings.get(peer_id).map(|d| d.as_secs()).unwrap_or(0);
-
-                        let node_id = format!("{:?}", &enr.node_id());
-                        (
-                            peer_id.to_string(),
-                            PeerInfo {
-                                peer_id: peer_id.to_string(),
-                                node_id,
-                                user_agent,
-                                protocol_version,
-                                enr: enr.to_string(),
-                                addresses,
-                                protocols,
-                                connectedness: peer_connectedness,
-                                direction,
-                                // Note: we use the chain id from the ENR if it exists, otherwise we
-                                // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
-                                chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
-                                gossip_blocks: peer_gossip_info.contains(peer_id),
-                                protected: protected_peers.contains(peer_id),
-                                latency,
-                                peer_scores: PeerScores {
-                                    gossip: GossipScores {
-                                        total: score,
-                                        // Note(@theochap): we don't compute the topic scores
-                                        // because we don't
-                                        // `rust-libp2p` doesn't expose that information to the
-                                        // user-facing API.
-                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
-                                        blocks: Default::default(),
-                                        // Note(@theochap): We can't compute the ip colocation
-                                        // factor because
-                                        // `rust-libp2p` doesn't expose that information to the
-                                        // user-facing API
-                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
-                                        ip_colocation_factor: Default::default(),
-                                        // Note(@theochap): We can't compute the behavioral penalty
-                                        // because
-                                        // `rust-libp2p` doesn't expose that information to the
-                                        // user-facing API
-                                        // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
-                                        behavioral_penalty: Default::default(),
-                                    },
-                                    // We only support a shim implementation for the req/resp
-                                    // protocol so we're not
-                                    // computing scores for it.
-                                    req_resp: Default::default(),
+                            enr: maybe_enr.map(|enr| enr.to_string()),
+                            addresses,
+                            protocols,
+                            connectedness: peer_connectedness,
+                            direction,
+                            // Note: we use the chain id from the ENR if it exists, otherwise we
+                            // use 0 to be consistent with op-node's behavior (`<https://github.com/ethereum-optimism/optimism/blob/6a8b2349c29c2a14f948fcb8aefb90526130acec/op-service/apis/p2p.go#L55>`).
+                            chain_id: opstack_enr.map(|enr| enr.chain_id).unwrap_or(0),
+                            gossip_blocks: peer_gossip_info.contains(peer_id),
+                            protected: protected_peers.contains(peer_id),
+                            latency,
+                            peer_scores: PeerScores {
+                                gossip: GossipScores {
+                                    total: score,
+                                    // Note(@theochap): we don't compute the topic scores
+                                    // because we don't
+                                    // `rust-libp2p` doesn't expose that information to the
+                                    // user-facing API.
+                                    // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                    blocks: Default::default(),
+                                    // Note(@theochap): We can't compute the ip colocation
+                                    // factor because
+                                    // `rust-libp2p` doesn't expose that information to the
+                                    // user-facing API
+                                    // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                    ip_colocation_factor: Default::default(),
+                                    // Note(@theochap): We can't compute the behavioral penalty
+                                    // because
+                                    // `rust-libp2p` doesn't expose that information to the
+                                    // user-facing API
+                                    // See `<https://github.com/libp2p/rust-libp2p/issues/6058>`
+                                    behavioral_penalty: Default::default(),
                                 },
+                                // We only support a shim implementation for the req/resp
+                                // protocol so we're not
+                                // computing scores for it.
+                                req_resp: Default::default(),
                             },
-                        )
-                    })
+                        },
+                    )
                 })
                 .collect();
 
@@ -465,7 +481,7 @@ impl P2pRpcRequest {
         let peer_id = *gossip.local_peer_id();
         let chain_id = disc.chain_id;
         let local_enr = disc.local_enr();
-        let addresses = gossip
+        let mut addresses = gossip
             .swarm
             .listeners()
             .map(|a| {
@@ -474,6 +490,10 @@ impl P2pRpcRequest {
                 addr.to_string()
             })
             .collect::<Vec<String>>();
+
+        addresses.append(
+            &mut gossip.swarm.external_addresses().map(|a| a.to_string()).collect::<Vec<String>>(),
+        );
 
         tokio::spawn(async move {
             let enr = match local_enr.await {
@@ -493,10 +513,19 @@ impl P2pRpcRequest {
                 peer_id: peer_id.to_string(),
                 node_id,
                 user_agent: "kona".to_string(),
-                protocol_version: "1".to_string(),
-                enr: enr.to_string(),
+                protocol_version: String::new(),
+                enr: Some(enr.to_string()),
                 addresses,
-                protocols: None,
+                protocols: Some(vec![
+                    "/ipfs/id/push/1.0.0".to_string(),
+                    "/meshsub/1.1.0".to_string(),
+                    "/ipfs/ping/1.0.0".to_string(),
+                    "/meshsub/1.2.0".to_string(),
+                    "/ipfs/id/1.0.0".to_string(),
+                    "/opstack/req/payload_by_number/2151908/0/".to_string(),
+                    "/meshsub/1.0.0".to_string(),
+                    "/floodsub/1.0.0".to_string(),
+                ]),
                 connectedness: Connectedness::Connected,
                 direction: Direction::Inbound,
                 protected: false,

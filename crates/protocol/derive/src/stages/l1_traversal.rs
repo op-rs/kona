@@ -160,6 +160,11 @@ impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
                 self.update_origin(l1_origin);
                 self.system_config = system_config.expect("System config must be provided.");
             }
+            Signal::ProvideBlock(_) => {
+                /* Not supported in this stage. */
+                warn!(target: "l1_traversal", "ProvideBlock signal not supported in L1Traversal stage.");
+                return Err(PipelineError::UnsupportedSignal.temp());
+            }
             _ => {}
         }
 

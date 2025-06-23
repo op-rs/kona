@@ -98,6 +98,9 @@ pub enum PipelineError {
     /// Provider error variant.
     #[error("Provider error: {0}")]
     Provider(String),
+    /// The signal is unsupported by the pipeline.
+    #[error("Unsupported signal")]
+    UnsupportedSignal,
 }
 
 impl PipelineError {

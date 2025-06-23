@@ -17,6 +17,8 @@ pub enum Signal {
     Activation(ActivationSignal),
     /// Flush the currently active channel.
     FlushChannel,
+    /// Provide a new L1 block to the L1 traversal stage.
+    ProvideBlock(BlockInfo),
 }
 
 impl core::fmt::Display for Signal {
@@ -25,6 +27,7 @@ impl core::fmt::Display for Signal {
             Self::Reset(_) => write!(f, "reset"),
             Self::Activation(_) => write!(f, "activation"),
             Self::FlushChannel => write!(f, "flush_channel"),
+            Self::ProvideBlock(_) => write!(f, "provide_block"),
         }
     }
 }
@@ -36,6 +39,7 @@ impl Signal {
             Self::Reset(reset) => reset.with_system_config(system_config).signal(),
             Self::Activation(activation) => activation.with_system_config(system_config).signal(),
             Self::FlushChannel => Self::FlushChannel,
+            Self::ProvideBlock(block) => Self::ProvideBlock(block),
         }
     }
 }
