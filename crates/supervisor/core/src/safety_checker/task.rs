@@ -19,6 +19,7 @@ pub struct CrossSafetyCheckerJob<P> {
     cancel_token: CancellationToken,
     interval: Duration,
     target_level: SafetyLevel,
+    target_level_lower_bound: SafetyLevel,
 }
 
 impl<P> CrossSafetyCheckerJob<P>
@@ -26,22 +27,34 @@ where
     P: CrossChainSafetyProvider + Send + Sync + 'static,
 {
     /// Initializes the [`CrossSafetyCheckerJob`]
-    pub const fn new(
+    pub fn new(
         chain_id: ChainId,
         provider: Arc<P>,
         cancel_token: CancellationToken,
         interval: Duration,
         target_level: SafetyLevel,
-    ) -> Self {
-        Self { chain_id, provider, cancel_token, interval, target_level }
+    ) -> Result<Self, CrossSafetyError> {
+        let target_level_lower_bound = match target_level {
+            SafetyLevel::CrossUnsafe => SafetyLevel::LocalUnsafe,
+            SafetyLevel::CrossSafe => SafetyLevel::LocalSafe,
+            _ => return Err(CrossSafetyError::UnsupportedTargetLevel(target_level)),
+        };
+        Ok(Self {
+            chain_id,
+            provider,
+            cancel_token,
+            interval,
+            target_level,
+            target_level_lower_bound,
+        })
     }
 
-    /// Runs the job loop until cancelled, promoting blocks to the target safety level.
+    /// Runs the job loop until cancelled, promoting blocks to the target `SafetyLevel`.
     ///
     /// On each iteration:
     /// - Tries to promote the next eligible block
-    /// - Waits for `interval` if promotion fails
-    /// - Exits when [`cancel_token`](CancellationToken) is triggered
+    /// - Waits for configured interval if promotion fails
+    /// - Exits when [`CancellationToken`] is triggered
     pub async fn run(self) {
         info!(
             target: "safety_checker",
@@ -87,7 +100,7 @@ where
         info!(target: "safety_checker", chain_id = self.chain_id, target_level = %self.target_level, "Stopped safety checker");
     }
 
-    // Attempts to promote the next block at the current safety level,
+    // Attempts to promote the next block at the target safety level,
     // after validating cross-chain dependencies.
     fn promote_next_block(
         &self,
@@ -104,12 +117,11 @@ where
         Ok(candidate)
     }
 
-    // Finds the next block that is eligible for promotion at the current target level.
+    // Finds the next block that is eligible for promotion at the configured target level.
     fn find_next_promotable_block(&self) -> Result<BlockInfo, CrossSafetyError> {
-        let promotion_boundary = self.promotion_upper_bound()?;
-
         let current_head = self.provider.get_safety_head_ref(self.chain_id, self.target_level)?;
-        let upper_head = self.provider.get_safety_head_ref(self.chain_id, promotion_boundary)?;
+        let upper_head =
+            self.provider.get_safety_head_ref(self.chain_id, self.target_level_lower_bound)?;
 
         if current_head.number >= upper_head.number {
             return Err(CrossSafetyError::NoBlockToPromote);
@@ -118,19 +130,6 @@ where
         let candidate = self.provider.get_block(self.chain_id, current_head.number + 1)?;
 
         Ok(candidate)
-    }
-
-    // Returns the safety level that defines the upper promotion boundary for the current level.
-    //
-    // For example:
-    // - CrossUnsafe promotions are bounded by LocalUnsafe.
-    // - CrossSafe promotions are bounded by LocalSafe.
-    const fn promotion_upper_bound(&self) -> Result<SafetyLevel, CrossSafetyError> {
-        match self.target_level {
-            SafetyLevel::CrossUnsafe => Ok(SafetyLevel::LocalUnsafe),
-            SafetyLevel::CrossSafe => Ok(SafetyLevel::LocalSafe),
-            _ => Err(CrossSafetyError::UnsupportedTargetLevel(self.target_level)),
-        }
     }
 }
 
@@ -198,7 +197,8 @@ mod tests {
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::CrossUnsafe,
-        );
+        )
+        .expect("error initializing cross-safety checker job");
 
         let checker = CrossSafetyChecker::new(&*job.provider);
         let result = job.promote_next_block(&checker);
@@ -226,7 +226,8 @@ mod tests {
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::CrossSafe,
-        );
+        )
+        .expect("error initializing cross-safety checker job");
 
         let checker = CrossSafetyChecker::new(&*job.provider);
         let result = job.promote_next_block(&checker);
@@ -245,7 +246,8 @@ mod tests {
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::Finalized, // unsupported
-        );
+        )
+        .expect("error initializing cross-safety checker job");
 
         let checker = CrossSafetyChecker::new(&*job.provider);
         let result = job.promote_next_block(&checker);

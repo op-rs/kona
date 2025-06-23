@@ -26,6 +26,6 @@ pub enum CrossSafetyError {
     NoBlockToPromote,
 
     /// The requested safety level is not supported for promotion.
-    #[error("promotion to level {0:?} is not supported")]
+    #[error("promotion to level {0} is not supported")]
     UnsupportedTargetLevel(SafetyLevel),
 }
