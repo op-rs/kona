@@ -39,7 +39,7 @@ where
     DP: DriverPipeline<P> + Send + Sync + Debug,
     P: Pipeline + SignalReceiver + Send + Sync + Debug,
 {
-    /// Creates a new [Driver].
+    /// Creates a new [`Driver`].
     pub const fn new(cursor: Arc<RwLock<PipelineCursor>>, executor: E, pipeline: DP) -> Self {
         Self {
             _marker: core::marker::PhantomData,
@@ -62,7 +62,7 @@ where
     /// - `target`: The target block number.
     ///
     /// ## Returns
-    /// - `Ok((l2_safe_head, output_root))` - A tuple containing the [L2BlockInfo] of the produced
+    /// - `Ok((l2_safe_head, output_root))` - A tuple containing the [`L2BlockInfo`] of the produced
     ///   block and the output root.
     /// - `Err(e)` - An error if the block could not be produced.
     pub async fn advance_to_target(

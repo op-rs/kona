@@ -22,7 +22,7 @@ pub trait Executor {
     /// Updates the safe header.
     fn update_safe_head(&mut self, header: Sealed<Header>);
 
-    /// Execute the gicen [OpPayloadAttributes].
+    /// Execute the given [`OpPayloadAttributes`].
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
