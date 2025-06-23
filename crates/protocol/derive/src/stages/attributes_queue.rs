@@ -196,6 +196,9 @@ where
                 self.batch = None;
                 self.prev.signal(s).await?;
             }
+            s @ Signal::ProvideBlock(_) => {
+                self.prev.signal(s).await?;
+            }
         }
         Ok(())
     }

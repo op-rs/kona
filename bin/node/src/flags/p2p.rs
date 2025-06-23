@@ -29,9 +29,6 @@ use url::Url;
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
 pub struct P2PArgs {
-    /// Fully disable the P2P stack.
-    #[arg(long = "p2p.disable", default_value = "false", env = "KONA_NODE_P2P_DISABLE")]
-    pub disabled: bool,
     /// Disable Discv5 (node discovery).
     #[arg(long = "p2p.no-discovery", default_value = "false", env = "KONA_NODE_P2P_NO_DISCOVERY")]
     pub no_discovery: bool,
@@ -232,15 +229,13 @@ impl P2PArgs {
         }
         let tcp_socket = std::net::TcpListener::bind((ip_addr, tcp_port));
         let udp_socket = std::net::UdpSocket::bind((ip_addr, udp_port));
-        if tcp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "TCP port {} is already in use", tcp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different TCP port with --p2p.listen.tcp");
-            anyhow::bail!("TCP port {} is already in use", tcp_port);
+        if let Err(e) = tcp_socket {
+            tracing::error!(target: "p2p::flags", tcp_port, "Error binding TCP socket: {e}");
+            anyhow::bail!("Error binding TCP socket on port {}: {}", tcp_port, e);
         }
-        if udp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "UDP port {} is already in use", udp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different UDP port with --p2p.listen.udp");
-            anyhow::bail!("UDP port {} is already in use", udp_port);
+        if let Err(e) = udp_socket {
+            tracing::error!(target: "p2p::flags", udp_port, "Error binding UDP socket: {e}");
+            anyhow::bail!("Error binding UDP socket on port {}: {}", udp_port, e);
         }
 
         Ok(())
@@ -255,10 +250,6 @@ impl P2PArgs {
     /// - If the TCP port is already in use.
     /// - If the UDP port is already in use.
     pub fn check_ports(&self) -> Result<()> {
-        if self.disabled {
-            tracing::debug!(target: "p2p::flags", "P2P is disabled, skipping port check");
-            return Ok(());
-        }
         Self::check_ports_inner(
             // If the advertised ip is not specified, we use the listen ip.
             self.advertise_ip.unwrap_or(self.listen_ip),
@@ -515,12 +506,6 @@ mod tests {
         assert_eq!(args.p2p.discovery_randomize, Some(10));
         let args = MockCommand::parse_from(["test"]);
         assert_eq!(args.p2p.discovery_randomize, None);
-    }
-
-    #[test]
-    fn test_p2p_args_disabled() {
-        let args = MockCommand::parse_from(["test", "--p2p.disable"]);
-        assert!(args.p2p.disabled);
     }
 
     #[test]

@@ -5,6 +5,7 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go#L233-L265
 
 use clap::Parser;
+use std::{net::SocketAddr, num::ParseIntError, time::Duration};
 
 /// Sequencer CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -48,6 +49,31 @@ pub struct SequencerArgs {
         env = "KONA_NODE_SSEQUENCER_RECOVER"
     )]
     pub recover: bool,
+
+    /// Enable the conductor service.
+    #[arg(
+        long = "conductor.enabled",
+        env = "KONA_NODE_CONDUCTOR_ENABLED",
+        default_value = "false"
+    )]
+    pub conductor_enabled: bool,
+
+    /// Conductor service rpc endpoint.
+    #[arg(
+        long = "conductor.rpc",
+        env = "KONA_NODE_CONDUCTOR_RPC",
+        default_value = "127.0.0.1:8547"
+    )]
+    pub conductor_rpc: Option<SocketAddr>,
+
+    /// Conductor service rpc timeout.
+    #[arg(
+        long = "conductor.rpc.timeout",
+        default_value = "1",
+        env = "KONA_NODE_CONDUCTOR_RPC_TIMEOUT",
+        value_parser = |arg: &str| -> Result<Duration, ParseIntError> {Ok(Duration::from_secs(arg.parse()?))}
+    )]
+    pub conductor_rpc_timeout: Duration,
 }
 
 impl Default for SequencerArgs {

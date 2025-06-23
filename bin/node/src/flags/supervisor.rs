@@ -1,12 +1,14 @@
 //! Supervisor RPC CLI Flags
 
-use std::{fs, net::IpAddr, num::ParseIntError, path::PathBuf, time::Duration};
-
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::anyhow;
 use clap::Parser;
 use kona_rpc::SupervisorRpcConfig;
-use std::net::SocketAddr;
+use std::{
+    fs,
+    net::{IpAddr, SocketAddr},
+    path::PathBuf,
+};
 
 /// Supervisor CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -46,31 +48,6 @@ pub struct SupervisorArgs {
         conflicts_with = "jwt_secret"
     )]
     pub jwt_secret_file: Option<PathBuf>,
-
-    /// Enable the conductor service.
-    #[arg(
-        long = "conductor.enabled",
-        env = "KONA_NODE_CONDUCTOR_ENABLED",
-        default_value = "false"
-    )]
-    pub conductor_enabled: bool,
-
-    /// Conductor service rpc endpoint.
-    #[arg(
-        long = "conductor.rpc",
-        env = "KONA_NODE_CONDUCTOR_RPC",
-        default_value = "127.0.0.1:8547"
-    )]
-    pub conductor_rpc: Option<SocketAddr>,
-
-    /// Conductor service rpc timeout.
-    #[arg(
-        long = "conductor.rpc.timeout",
-        default_value = "1",
-        env = "KONA_NODE_CONDUCTOR_RPC_TIMEOUT",
-        value_parser = |arg: &str| -> Result<Duration, ParseIntError> {Ok(Duration::from_secs(arg.parse()?))}
-    )]
-    pub conductor_rpc_timeout: Duration,
 }
 
 impl Default for SupervisorArgs {
@@ -276,9 +253,6 @@ mod tests {
             port: 8080,
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
-            conductor_enabled: true,
-            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
-            conductor_rpc_timeout: Duration::from_secs(1),
         };
 
         let args2 = SupervisorArgs {
@@ -287,9 +261,6 @@ mod tests {
             port: 8080,
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
-            conductor_enabled: true,
-            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
-            conductor_rpc_timeout: Duration::from_secs(1),
         };
 
         let args3 = SupervisorArgs {
@@ -298,9 +269,6 @@ mod tests {
             port: 8080,
             jwt_secret: Some("secret".to_string()),
             jwt_secret_file: None,
-            conductor_enabled: false,
-            conductor_rpc: Some("127.0.0.1:8547".parse().expect("invalid url")),
-            conductor_rpc_timeout: Duration::from_secs(1),
         };
 
         assert_eq!(args1, args2);
