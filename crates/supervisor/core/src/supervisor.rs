@@ -18,15 +18,11 @@ use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use reqwest::Url;
 use std::{collections::HashMap, sync::Arc};
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
-use crate::{
-    ChainProcessor, SupervisorError,
-    config::Config,
-    l1_watcher::L1Watcher,
-    syncnode::{ManagedNode, ManagedNodeApiProvider},
-};
+use crate::{ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::{ManagedNode, ManagedNodeApiProvider}, CrossSafetyCheckerJob};
 
 /// Defines the service for the Supervisor core logic.
 #[async_trait]
@@ -131,6 +127,7 @@ impl Supervisor {
         self.init_managed_nodes().await?;
         self.init_chain_processor().await?;
         self.init_l1_watcher()?;
+        self.init_cross_safety_checker().await?;
         Ok(())
     }
 
@@ -166,6 +163,39 @@ impl Supervisor {
         }
         Ok(())
     }
+    async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
+        for (&chain_id, _) in &self.config.rollup_config_set.rollups {
+            let db = Arc::clone(&self.database_factory);
+            let cancel = self.cancel_token.clone();
+
+            let cross_safe_job = CrossSafetyCheckerJob::new(
+                chain_id,
+                db.clone(),
+                cancel.clone(),
+                Duration::from_secs(1), // todo: check block generation time. 
+                SafetyLevel::CrossSafe,
+            )?;
+
+            tokio::spawn(async move {
+                cross_safe_job.run().await;
+            });
+
+            let cross_unsafe_job = CrossSafetyCheckerJob::new(
+                chain_id,
+                db,
+                cancel,
+                Duration::from_secs(1), // todo: check block generation time. 
+                SafetyLevel::CrossUnsafe,
+            )?;
+
+            tokio::spawn(async move {
+                cross_unsafe_job.run().await;
+            });
+        }
+
+        Ok(())
+    }
+
 
     async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
