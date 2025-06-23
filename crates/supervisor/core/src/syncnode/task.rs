@@ -288,22 +288,29 @@ where
         // check if the derived block is already stored and is consistent with the incoming derived
         // block
         let derived_block = derived_ref_pair.derived;
+        let source_block = derived_ref_pair.source;
 
-        match self.db_provider.get_block(derived_block.number) {
-            Ok(stored_block) => {
-                if stored_block != derived_block {
-                    error!(target: "managed_event_task", "Incoming derived block does not match stored block");
-                    self.handle_reset("incoming derived block does not match stored block").await;
+        match self.db_provider.latest_derived_block_pair() {
+            Ok(stored_pair) => {
+                if stored_pair.derived != derived_block || stored_pair.source != source_block {
+                    error!(target: "managed_event_task", "Incoming derived block pair does not match stored block pair");
+                    self.handle_reset(
+                        "incoming derived block pair does not match stored block pair",
+                    )
+                    .await;
                     return Err(ManagedEventTaskError::BlockNumberMismatch {
                         incoming: derived_block.number,
-                        stored: stored_block.number,
+                        stored: stored_pair.derived.number,
                     })
                 }
                 Ok(())
             }
             Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to find stored block");
-                Err(ManagedEventTaskError::BlockNotFound(derived_block.number))
+                error!(target: "managed_event_task", %err, "Failed to get latest derived block pair");
+                Err(ManagedEventTaskError::DerivedBlockPairNotFound {
+                    derived_block_number: derived_block.number,
+                    source_block_number: source_block.number,
+                })
             }
         }
     }
