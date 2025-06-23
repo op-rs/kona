@@ -6,12 +6,20 @@ use derive_more::{Constructor, Display};
 use kona_protocol::BlockInfo;
 
 /// Represents reset events that are emitted.
+/// See: https://specs.optimism.io/protocol/derivation.html?highlight=reset#resetting-the-pipeline
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum ResetEvent {
-    /// A reset event, indicating that the chain has been reset to a specific block.
-    Reset,
+    /// Recover the pipeline when the L1 chain reorganizes.
+    L1Reorg,
+    /// Initialize the pipeline without starting from 0.
+    RestartEngine,
+    /// Recover the pipeline if it becomes inconsistent with the execution engine chain.
+    SyncMismatch,
+    /// Initialize the pipeline to derive a disputed L2 block with prior L1 and L2 history inside a
+    /// fault-proof program.
+    DisputedBlock,
 }
 
 /// Event sent by the node to the supervisor to share updates.

@@ -367,7 +367,7 @@ mod tests {
     async fn test_managed_event_serialization_deserialization() {
         // Test deserializing a complete ManagedEvent from JSON
         let complete_json = r#"{
-            "reset": "reset",
+            "reset": "l1Reorg",
             "unsafeBlock": {
                 "hash": "0x0101010101010101010101010101010101010101010101010101010101010101",
                 "number": 124,
@@ -423,7 +423,7 @@ mod tests {
             .expect("Failed to deserialize complete ManagedEvent from JSON");
 
         // Verify all fields are correctly deserialized
-        assert_eq!(deserialized.reset, Some(ResetEvent::Reset));
+        assert_eq!(deserialized.reset, Some(ResetEvent::L1Reorg));
         assert!(deserialized.unsafe_block.is_some());
         assert!(deserialized.derivation_update.is_some());
         assert!(deserialized.exhaust_l1.is_some());
@@ -460,7 +460,7 @@ mod tests {
 
         // Test deserializing partial ManagedEvent (only some fields present)
         let partial_json = r#"{
-            "reset": "reset",
+            "reset": "restartEngine",
             "unsafeBlock": {
                 "hash": "0x1111111111111111111111111111111111111111111111111111111111111111",
                 "number": 42,
@@ -472,7 +472,7 @@ mod tests {
         let partial_deserialized: ManagedEvent = serde_json::from_str(partial_json)
             .expect("Failed to deserialize partial ManagedEvent from JSON");
 
-        assert_eq!(partial_deserialized.reset, Some(ResetEvent::Reset));
+        assert_eq!(partial_deserialized.reset, Some(ResetEvent::RestartEngine));
         assert!(partial_deserialized.unsafe_block.is_some());
         assert!(partial_deserialized.derivation_update.is_none());
         assert!(partial_deserialized.exhaust_l1.is_none());
