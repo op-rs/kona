@@ -37,6 +37,7 @@ where
         let target_level_lower_bound = match target_level {
             SafetyLevel::CrossUnsafe => SafetyLevel::LocalUnsafe,
             SafetyLevel::CrossSafe => SafetyLevel::LocalSafe,
+            // other target level is out of the scope of this module and handled separately.
             _ => return Err(CrossSafetyError::UnsupportedTargetLevel(target_level)),
         };
         Ok(Self {
@@ -49,7 +50,7 @@ where
         })
     }
 
-    /// Runs the job loop until cancelled, promoting blocks to the target `SafetyLevel`.
+    /// Runs the job loop until cancelled, promoting blocks to the target [`SafetyLevel`].
     ///
     /// On each iteration:
     /// - Tries to promote the next eligible block
