@@ -1,6 +1,7 @@
 //! Main database access structure and transaction contexts.
 
 use crate::{
+    Metrics,
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
     traits::{
@@ -12,7 +13,7 @@ use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use kona_supervisor_metrics::MetricsReporter;
+use kona_supervisor_metrics::{MetricsReporter, observe_metrics_for_result};
 use kona_supervisor_types::{Log, SuperHead};
 use metrics::{Label, gauge};
 use op_alloy_consensus::interop::SafetyLevel;
@@ -29,6 +30,8 @@ use tracing::{error, warn};
 #[derive(Debug)]
 pub struct ChainDb {
     chain_id: ChainId,
+    metrics_enabled: Option<bool>,
+
     env: DatabaseEnv,
 
     /// Current L1 block reference, used for tracking the latest L1 block processed.
@@ -40,7 +43,32 @@ impl ChainDb {
     /// Creates or opens a database environment at the given path.
     pub fn new(chain_id: ChainId, path: &Path) -> Result<Self, StorageError> {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
-        Ok(Self { chain_id, env, current_l1: RwLock::new(None) })
+        Ok(Self { chain_id, metrics_enabled: None, env, current_l1: RwLock::new(None) })
+    }
+
+    /// Enables metrics on the database environment.
+    pub const fn with_metrics(mut self) -> Self {
+        self.metrics_enabled = Some(true);
+        self
+    }
+
+    fn observe_call<T, E, F: FnOnce() -> Result<T, E>>(
+        &self,
+        name: &'static str,
+        f: F,
+    ) -> Result<T, E> {
+        if self.metrics_enabled.unwrap_or(false) {
+            observe_metrics_for_result!(
+                Metrics::STORAGE_REQUESTS_SUCCESS_TOTAL,
+                Metrics::STORAGE_REQUESTS_ERROR_TOTAL,
+                Metrics::STORAGE_REQUEST_DURATION_SECONDS,
+                name,
+                f(),
+                "chain_id" => self.chain_id.to_string()
+            )
+        } else {
+            f()
+        }
     }
 
     /// initialises the database with a given anchor derived block pair.
@@ -62,162 +90,198 @@ impl ChainDb {
         &self,
         l1_finalized: BlockInfo,
     ) -> Result<(), StorageError> {
-        self.env.update(|tx| {
-            let sp = SafetyHeadRefProvider::new(tx);
-            let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+        self.observe_call("update_finalized_head_ref", || {
+            self.env.update(|tx| {
+                let sp = SafetyHeadRefProvider::new(tx);
+                let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
 
-            let dp = DerivationProvider::new(tx);
-            let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
+                let dp = DerivationProvider::new(tx);
+                let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
 
-            if l1_finalized.number >= safe_block_pair.source.number {
-                // this could happen during initial sync
-                warn!(
-                    target: "supervisor_storage",
-                    l1_finilized_block_number = l1_finalized.number,
-                    safe_source_block_number = safe_block_pair.source.number,
-                    "L1 finalized block is greater than safe block",
-                );
-                return sp.update_safety_head_ref(SafetyLevel::Finalized, &safe);
-            }
+                if l1_finalized.number >= safe_block_pair.source.number {
+                    // this could happen during initial sync
+                    warn!(
+                        target: "supervisor_storage",
+                        l1_finilized_block_number = l1_finalized.number,
+                        safe_source_block_number = safe_block_pair.source.number,
+                        "L1 finalized block is greater than safe block",
+                    );
+                    return sp.update_safety_head_ref(SafetyLevel::Finalized, &safe);
+                }
 
-            let latest_derived = dp.latest_derived_block_at_source(l1_finalized.id())?;
-            sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
+                let latest_derived = dp.latest_derived_block_at_source(l1_finalized.id())?;
+                sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
+            })
         })?
     }
 }
 
 impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
-        self.env.view(|tx| DerivationProvider::new(tx).derived_to_source(derived_block_id))?
+        self.observe_call("derived_to_source", || {
+            self.env.view(|tx| DerivationProvider::new(tx).derived_to_source(derived_block_id))
+        })?
     }
 
     fn latest_derived_block_at_source(
         &self,
         source_block_id: BlockNumHash,
     ) -> Result<BlockInfo, StorageError> {
-        self.env.view(|tx| {
-            DerivationProvider::new(tx).latest_derived_block_at_source(source_block_id)
+        self.observe_call("latest_derived_block_at_source", || {
+            self.env.view(|tx| {
+                DerivationProvider::new(tx).latest_derived_block_at_source(source_block_id)
+            })
         })?
     }
 
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
-        self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())?
+        self.observe_call("latest_derived_block_pair", || {
+            self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())
+        })?
     }
 }
 
 impl DerivationStorageWriter for ChainDb {
     // Todo: better name save_derived_block_pair
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        self.env.update(|ctx| {
-            let derived_block = incoming_pair.derived;
-            let block =
-                LogProvider::new(ctx).get_block(derived_block.number).map_err(|err| match err {
-                    StorageError::EntryNotFound(_) => StorageError::ConflictError(
-                        "conflict between unsafe block and derived block".to_string(),
-                    ),
-                    other => other, // propagate other errors as-is
-                })?;
+        self.observe_call("save_derived_block_pair", || {
+            self.env.update(|ctx| {
+                let derived_block = incoming_pair.derived;
+                let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
+                    |err| match err {
+                        StorageError::EntryNotFound(_) => StorageError::ConflictError(
+                            "conflict between unsafe block and derived block".to_string(),
+                        ),
+                        other => other, // propagate other errors as-is
+                    },
+                )?;
 
-            if block != derived_block {
-                return Err(StorageError::ConflictError(
-                    "conflict between unsafe block and derived block".to_string(),
-                ));
-            }
-            DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
-            SafetyHeadRefProvider::new(ctx)
-                .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
+                if block != derived_block {
+                    return Err(StorageError::ConflictError(
+                        "conflict between unsafe block and derived block".to_string(),
+                    ));
+                }
+                DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
+                SafetyHeadRefProvider::new(ctx)
+                    .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
+            })
         })?
     }
 }
 
 impl LogStorageReader for ChainDb {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
-        self.env.view(|tx| LogProvider::new(tx).get_latest_block())?
+        self.observe_call("get_latest_block", || {
+            self.env.view(|tx| LogProvider::new(tx).get_latest_block())
+        })?
     }
 
     fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
-        self.env.view(|tx| LogProvider::new(tx).get_block(block_number))?
+        self.observe_call("get_block", || {
+            self.env.view(|tx| LogProvider::new(tx).get_block(block_number))
+        })?
     }
 
     fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError> {
-        self.env.view(|tx| LogProvider::new(tx).get_log(block_number, log_index))?
+        self.observe_call("get_log", || {
+            self.env.view(|tx| LogProvider::new(tx).get_log(block_number, log_index))
+        })?
     }
 
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
-        self.env.view(|tx| LogProvider::new(tx).get_logs(block_number))?
+        self.observe_call("get_logs", || {
+            self.env.view(|tx| LogProvider::new(tx).get_logs(block_number))
+        })?
     }
 }
 
 impl LogStorageWriter for ChainDb {
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
-        self.env.update(|ctx| {
-            LogProvider::new(ctx).store_block_logs(block, logs)?;
+        self.observe_call("store_block_logs", || {
+            self.env.update(|ctx| {
+                LogProvider::new(ctx).store_block_logs(block, logs)?;
 
-            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(SafetyLevel::LocalUnsafe, block)
+                SafetyHeadRefProvider::new(ctx)
+                    .update_safety_head_ref(SafetyLevel::LocalUnsafe, block)
+            })
         })?
     }
 }
 
 impl HeadRefStorageReader for ChainDb {
     fn get_current_l1(&self) -> Result<BlockInfo, StorageError> {
-        let guard = self.current_l1.read().map_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on current_l1");
-            StorageError::LockPoisoned
-        })?;
-        guard.as_ref().cloned().ok_or(StorageError::FutureData)
+        self.observe_call(
+            "get_current_l1",
+            || {
+                let guard = self.current_l1.read().map_err(|err| {
+                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on current_l1");
+                    StorageError::LockPoisoned
+                })?;
+                guard.as_ref().cloned().ok_or(StorageError::FutureData)
+            }
+        )
     }
 
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
-        self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))?
+        self.observe_call("get_safety_head_ref", || {
+            self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))
+        })?
     }
 
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
-        let l1_source = self.get_current_l1()?;
+        self.observe_call("get_super_head", || {
+            let l1_source = self.get_current_l1()?;
 
-        self.env.view(|tx| {
-            let sp = SafetyHeadRefProvider::new(tx);
-            let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
-            let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-            let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-            let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
-            let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+            self.env.view(|tx| {
+                let sp = SafetyHeadRefProvider::new(tx);
+                let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
+                let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+                let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
+                let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+                let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
 
-            Ok(SuperHead {
-                l1_source,
-                local_unsafe,
-                cross_unsafe,
-                local_safe,
-                cross_safe,
-                finalized,
-            })
-        })?
+                Ok(SuperHead {
+                    l1_source,
+                    local_unsafe,
+                    cross_unsafe,
+                    local_safe,
+                    cross_safe,
+                    finalized,
+                })
+            })?
+        })
     }
 }
 
 impl HeadRefStorageWriter for ChainDb {
     fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
-        let mut guard = self
-            .current_l1
-            .write()
-            .map_err(|err| {
-                error!(target: "supervisor_storage", %err, "Failed to acquire write lock on current_l1" );
-                StorageError::LockPoisoned
-            })?;
+        self.observe_call(
+            "update_current_l1", 
+            || {
+                let mut guard = self
+                    .current_l1
+                    .write()
+                    .map_err(|err| {
+                        error!(target: "supervisor_storage", %err, "Failed to acquire write lock on current_l1" );
+                        StorageError::LockPoisoned
+                    })?;
 
-        // Check if the new block number is greater than the current L1 block
-        if let Some(ref current) = *guard {
-            if block.number <= current.number {
-                error!(target: "supervisor_storage",
-                    current_block_number = current.number,
-                    new_block_number = block.number,
-                    "New L1 block number is not greater than current L1 block number",
-                );
-                return Err(StorageError::BlockOutOfOrder);
-            }
-        }
-        *guard = Some(block);
-        Ok(())
+                // Check if the new block number is greater than the current L1 block
+                if let Some(ref current) = *guard {
+                    if block.number <= current.number {
+                        error!(target: "supervisor_storage",
+                            current_block_number = current.number,
+                            new_block_number = block.number,
+                            "New L1 block number is not greater than current L1 block number",
+                        );
+                        return Err(StorageError::BlockOutOfOrder);
+                    }
+                }
+                *guard = Some(block);
+                Ok(())
+            },
+        )
     }
 
     fn update_safety_head_ref(
@@ -225,8 +289,10 @@ impl HeadRefStorageWriter for ChainDb {
         safety_level: SafetyLevel,
         block: &BlockInfo,
     ) -> Result<(), StorageError> {
-        self.env.update(|ctx| {
-            SafetyHeadRefProvider::new(ctx).update_safety_head_ref(safety_level, block)
+        self.observe_call("update_safety_head_ref", || {
+            self.env.update(|ctx| {
+                SafetyHeadRefProvider::new(ctx).update_safety_head_ref(safety_level, block)
+            })
         })?
     }
 }
