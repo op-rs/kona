@@ -75,7 +75,7 @@ where
                 _ = async {
                     match self.promote_next_block(&checker) {
                         Ok(block_info) => {
-                            debug!(
+                            info!(
                                 target: "safety_checker",
                                 chain_id = self.chain_id,
                                 target_level = %self.target_level,
