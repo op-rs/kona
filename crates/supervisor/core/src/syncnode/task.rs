@@ -3,7 +3,6 @@ use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
-use alloy_rpc_types_eth::Block;
 use jsonrpsee::ws_client::WsClient;
 use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
@@ -143,7 +142,16 @@ where
             .await;
         match next_block {
             Ok(Some(block)) => {
-                self.check_node_consistency(derived_ref_pair, &block).await?;
+                if block.header.parent_hash != derived_ref_pair.source.hash {
+                    // this could happen due to a reorg.
+                    // this case should be handled by the reorg manager
+                    error!(target: "managed_event_task", "L1 Block parent hash mismatch");
+                    Err(ManagedEventTaskError::BlockHashMismatch {
+                        current: derived_ref_pair.source.hash,
+                        parent: block.header.parent_hash,
+                    })?
+                }
+                self.check_node_consistency(derived_ref_pair).await?;
 
                 let block_info = BlockInfo {
                     hash: block.header.hash,
@@ -274,17 +282,7 @@ where
     async fn check_node_consistency(
         &self,
         derived_ref_pair: &DerivedRefPair,
-        next_l1_block: &Block,
     ) -> Result<(), ManagedEventTaskError> {
-        if next_l1_block.header.parent_hash != derived_ref_pair.source.hash {
-            error!(target: "managed_event_task", "L1 Block parent hash mismatch");
-            self.handle_reset("l1 block parent hash mismatch").await;
-            Err(ManagedEventTaskError::BlockHashMismatch {
-                current: derived_ref_pair.source.hash,
-                parent: next_l1_block.header.parent_hash,
-            })?
-        }
-
         // check if the derived block is already stored and is consistent with the incoming derived
         // block
         let derived_block = derived_ref_pair.derived;
