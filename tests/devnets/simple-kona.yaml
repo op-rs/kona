@@ -6,27 +6,34 @@ optimism_package:
     enabled: true
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
-    # Chain with only two nodes
-    - participants:
-      # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
-      # So we use op-geth for now.
-      - el_type: op-geth
-        cl_type: op-node
-        cl_log_level: "debug"
-        count: 1
-      - el_type: op-reth
-        cl_type: kona-node
-        # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
-        cl_image: "kona-node:local"
-        cl_extra_env_vars:
-          KONA_NODE_RPC_WS_ENABLED: "true"
-        cl_log_level: "debug"
-        count: 1
+    chain0:
+      # Chain with only two nodes
+      participants:
+        optimism:
+        # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
+        # So we use op-geth for now.
+          el:
+            type: op-geth
+            log_level: "debug"
+          cl:
+            type: op-node
+            log_level: "debug"
+          sequencer: true
+        kona:
+          el:
+            type: op-reth
+          cl: 
+            type: kona-node
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+            log_level: "debug"
+          sequencer: false
       network_params:
         network: "kurtosis"
         network_id: "2151908"
         seconds_per_slot: 2
-        name: "op-kurtosis"
   global_log_level: "info"
   global_node_selectors: {}
   global_tolerations: []

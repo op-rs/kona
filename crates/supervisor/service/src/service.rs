@@ -6,8 +6,11 @@ use kona_supervisor_core::{Supervisor, SupervisorRpc, config::Config};
 use kona_supervisor_rpc::SupervisorApiServer;
 use kona_supervisor_storage::ChainDbFactory;
 use std::sync::Arc;
+use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
+
+use crate::actors::{MetricWorker, SupervisorActor};
 
 /// The main service structure for the Kona
 /// [`SupervisorService`](`kona_supervisor_core::SupervisorService`). Orchestrates the various
@@ -44,7 +47,23 @@ impl Service {
         // In the future, this might take configuration or client connections
         // This creates an Arc<Supervisor>
 
-        let database_factory = Arc::new(ChainDbFactory::new(self.config.datadir.clone()));
+        let database_factory =
+            Arc::new(ChainDbFactory::new(self.config.datadir.clone()).with_metrics());
+
+        MetricWorker::new(
+            Duration::from_secs(30),
+            vec![database_factory.clone()],
+            self.cancel_token.clone(),
+        )
+        .start()
+        .await
+        .map_err(|err| {
+            warn!(target: "supervisor_service",
+                %err,
+                "Failed to start MetricReporter actor"
+            );
+            anyhow::anyhow!("failed to start MetricReporter actor: {}", err)
+        })?;
 
         let mut supervisor =
             Supervisor::new(self.config.clone(), database_factory, self.cancel_token.clone());
