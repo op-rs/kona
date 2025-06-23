@@ -10,7 +10,7 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::actors::{MetricReporter, SupervisorActor};
+use crate::actors::{MetricWorker, SupervisorActor};
 
 /// The main service structure for the Kona
 /// [`SupervisorService`](`kona_supervisor_core::SupervisorService`). Orchestrates the various
@@ -50,7 +50,7 @@ impl Service {
         let database_factory =
             Arc::new(ChainDbFactory::new(self.config.datadir.clone()).with_metrics());
 
-        MetricReporter::new(
+        MetricWorker::new(
             Duration::from_secs(30),
             vec![database_factory.clone()],
             self.cancel_token.clone(),
