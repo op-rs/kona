@@ -240,18 +240,14 @@ mod tests {
         let chain_id = 1;
         let mock = MockProvider::default();
 
-        let job = CrossSafetyCheckerJob::new(
+        let err = CrossSafetyCheckerJob::new(
             chain_id,
             Arc::new(mock),
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::Finalized, // unsupported
         )
-        .expect("error initializing cross-safety checker job");
-
-        let checker = CrossSafetyChecker::new(&*job.provider);
-        let result = job.promote_next_block(&checker);
-
-        assert!(matches!(result, Err(CrossSafetyError::UnsupportedTargetLevel(_))));
+        .unwrap_err();
+        assert!(matches!(err, CrossSafetyError::UnsupportedTargetLevel(_)));
     }
 }
