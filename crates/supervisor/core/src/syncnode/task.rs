@@ -111,12 +111,12 @@ where
                 }
 
                 // Check if this was an empty event (all fields None)
-                if event.reset.is_none()
-                    && event.unsafe_block.is_none()
-                    && event.derivation_update.is_none()
-                    && event.exhaust_l1.is_none()
-                    && event.replace_block.is_none()
-                    && event.derivation_origin_update.is_none()
+                if event.reset.is_none() &&
+                    event.unsafe_block.is_none() &&
+                    event.derivation_update.is_none() &&
+                    event.exhaust_l1.is_none() &&
+                    event.replace_block.is_none() &&
+                    event.derivation_origin_update.is_none()
                 {
                     debug!(target: "managed_event_task", "Received empty event with all fields None");
                 }

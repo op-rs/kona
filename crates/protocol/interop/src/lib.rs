@@ -12,8 +12,7 @@ mod graph;
 pub use graph::MessageGraph;
 
 mod event;
-pub use event::ManagedEvent;
-pub use event::ResetEvent;
+pub use event::{ManagedEvent, ResetEvent};
 
 mod control;
 pub use control::ControlEvent;
