@@ -1,18 +1,16 @@
-//! Core [RollupNode] service, composing the available [NodeActor]s into various modes of operation.
+//! Core [`RollupNode`] service, composing the available [`NodeActor`]s into various modes of
+//! operation.
 //!
-//! [NodeActor]: crate::NodeActor
+//! [`NodeActor`]: crate::NodeActor
 
 mod core;
-pub use core::{NodeMode, RollupNodeService};
-
-mod validator;
-pub use validator::ValidatorNodeService;
-
-mod sequencer;
-pub use sequencer::SequencerNodeService;
+pub use core::RollupNodeService;
 
 mod standard;
 pub use standard::{RollupNode, RollupNodeBuilder, RollupNodeError};
+
+mod mode;
+pub use mode::NodeMode;
 
 pub(crate) mod util;
 pub(crate) use util::spawn_and_wait;

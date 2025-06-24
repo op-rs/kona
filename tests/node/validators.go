@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func nodeSupportsKonaWs(t systest.T, clRPC string, clName string) bool {
+func isKonaNode(t systest.T, clRPC string, clName string) bool {
 	peerInfo := &apis.PeerInfo{}
 
 	require.NoError(t, SendRPCRequest(clRPC, "opp2p_self", peerInfo), "failed to send RPC request to node %s: %s", clName)
@@ -30,7 +30,7 @@ func atLeastOneNodeSupportsKonaWs(t systest.T, sys system.System) (context.Conte
 		for _, node := range l2.Nodes() {
 			clRPC := node.CLRPC()
 			clName := node.CLName()
-			if nodeSupportsKonaWs(t, clRPC, clName) {
+			if isKonaNode(t, clRPC, clName) {
 				return t.Context(), nil
 			}
 		}

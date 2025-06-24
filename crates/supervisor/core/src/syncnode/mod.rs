@@ -9,6 +9,6 @@ pub use error::{AuthenticationError, ManagedEventTaskError, ManagedNodeError, Su
 
 mod task;
 mod traits;
-pub use traits::{ManagedNodeProvider, NodeSubscriber, ReceiptProvider};
+pub use traits::{ManagedNodeApiProvider, ManagedNodeProvider, NodeSubscriber, ReceiptProvider};
 
 pub use task::ManagedEventTask;

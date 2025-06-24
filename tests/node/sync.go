@@ -31,7 +31,7 @@ func syncUnsafeBecomesSafe() systest.SystemTestFunc {
 					clRPC := node.CLRPC()
 					clName := node.CLName()
 
-					if !nodeSupportsKonaWs(t, clRPC, clName) {
+					if !isKonaNode(t, clRPC, clName) {
 						t.Log("node does not support ws endpoint, skipping sync test", clName)
 						return
 					}
@@ -86,7 +86,7 @@ func syncUnsafe() systest.SystemTestFunc {
 					clRPC := node.CLRPC()
 					clName := node.CLName()
 
-					if !nodeSupportsKonaWs(t, clRPC, clName) {
+					if !isKonaNode(t, clRPC, clName) {
 						t.Log("node does not support ws endpoint, skipping sync test", clName)
 						return
 					}
@@ -142,7 +142,7 @@ func syncSafe() systest.SystemTestFunc {
 					clRPC := node.CLRPC()
 					clName := node.CLName()
 
-					if !nodeSupportsKonaWs(t, clRPC, clName) {
+					if !isKonaNode(t, clRPC, clName) {
 						t.Log("node does not support ws endpoint, skipping sync test", clName)
 						return
 					}
@@ -198,7 +198,7 @@ func syncFinalized() systest.SystemTestFunc {
 					clRPC := node.CLRPC()
 					clName := node.CLName()
 
-					if !nodeSupportsKonaWs(t, clRPC, clName) {
+					if !isKonaNode(t, clRPC, clName) {
 						t.Log("node does not support ws endpoint, skipping sync test", clName)
 						return
 					}

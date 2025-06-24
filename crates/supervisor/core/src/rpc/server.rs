@@ -4,12 +4,9 @@ use crate::{SupervisorError, SupervisorService};
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
-use jsonrpsee::{
-    core::RpcResult,
-    types::{ErrorObject, error::ErrorCode},
-};
+use jsonrpsee::{core::RpcResult, types::ErrorObject};
 use kona_interop::{
-    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootResponse,
+    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
@@ -146,16 +143,21 @@ where
         )
     }
 
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootResponse> {
+    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput> {
         crate::observe_rpc_call!(
             "super_root_at_timestamp",
             async {
-        trace!(target: "supervisor_rpc",
-            %timestamp,
-            "Received super_root_at_timestamp request"
-        );
-        warn!(target: "supervisor_rpc", "super_root_at_timestamp method not yet implemented");
-        Err(ErrorObject::from(ErrorCode::InternalError))
+            trace!(target: "supervisor_rpc",
+                %timestamp,
+                "Received super_root_at_timestamp request"
+            );
+
+            self.supervisor.super_root_at_timestamp(timestamp)
+                .await
+                .map_err(|err| {
+                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
+                    ErrorObject::from(err)
+                })
         }.await)
     }
 
@@ -293,6 +295,7 @@ mod tests {
         pub dependency_set: DependencySet,
     }
 
+    #[async_trait::async_trait]
     impl SupervisorService for MockSupervisorService {
         fn chain_ids(&self) -> impl Iterator<Item = ChainId> {
             self.chain_ids.clone().into_iter()
@@ -348,6 +351,13 @@ mod tests {
             _min_safety: SafetyLevel,
             _executing_descriptor: ExecutingDescriptor,
         ) -> Result<(), SupervisorError> {
+            unimplemented!()
+        }
+
+        async fn super_root_at_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<SuperRootOutput, SupervisorError> {
             unimplemented!()
         }
     }

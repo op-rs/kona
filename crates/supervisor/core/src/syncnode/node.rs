@@ -6,9 +6,10 @@ use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{Claims, JwtSecret};
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
+use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
-use kona_supervisor_types::Receipts;
+use kona_supervisor_types::{OutputV0, Receipts};
 use std::sync::{Arc, OnceLock};
 use tokio::{
     sync::{Mutex, mpsc},
@@ -18,8 +19,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    AuthenticationError, ManagedEventTask, ManagedNodeError, NodeSubscriber, ReceiptProvider,
-    SubscriptionError,
+    AuthenticationError, ManagedEventTask, ManagedNodeApiProvider, ManagedNodeError,
+    NodeSubscriber, ReceiptProvider, SubscriptionError,
 };
 use crate::event::ChainEvent;
 
@@ -279,6 +280,40 @@ where
         let client = self.get_ws_client().await?;
         let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
         Ok(receipts)
+    }
+}
+
+#[async_trait]
+impl<DB> ManagedNodeApiProvider for ManagedNode<DB>
+where
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
+{
+    async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        let output_v0 =
+            ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await?;
+        Ok(output_v0)
+    }
+
+    async fn pending_output_v0_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<OutputV0, ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        let output_v0 =
+            ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp)
+                .await?;
+        Ok(output_v0)
+    }
+
+    async fn l2_block_ref_by_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<BlockInfo, ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        let block_info =
+            ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await?;
+        Ok(block_info)
     }
 }
 

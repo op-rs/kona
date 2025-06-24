@@ -898,8 +898,8 @@ mod tests {
     #[test]
     fn test_eip1559_default_param_cant_overflow() {
         let (mut cfg, mut attributes, mut block) = eip1559_test_setup();
-        cfg.chain_op_config.eip1559_denominator_canyon = u128::MAX;
-        cfg.chain_op_config.eip1559_elasticity = u128::MAX;
+        cfg.chain_op_config.eip1559_denominator_canyon = u64::MAX;
+        cfg.chain_op_config.eip1559_elasticity = u64::MAX;
 
         attributes.inner.eip_1559_params = Some(Default::default());
         block.header.extra_data = vec![0; 9].into();
@@ -912,8 +912,8 @@ mod tests {
             check,
             AttributesMatch::Mismatch(EIP1559Parameters(
                 BaseFeeParams {
-                    max_change_denominator: u128::MAX,
-                    elasticity_multiplier: u128::MAX
+                    max_change_denominator: u64::MAX as u128,
+                    elasticity_multiplier: u64::MAX as u128
                 },
                 BaseFeeParams { max_change_denominator: 0, elasticity_multiplier: 0 }
             ))

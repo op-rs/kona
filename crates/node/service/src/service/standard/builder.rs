@@ -45,8 +45,6 @@ pub struct RollupNodeBuilder {
     runtime_load_interval: Option<std::time::Duration>,
     /// The mode to run the node in.
     mode: NodeMode,
-    /// If p2p networking is entirely disabled.
-    network_disabled: bool,
 }
 
 impl RollupNodeBuilder {
@@ -105,11 +103,6 @@ impl RollupNodeBuilder {
         Self { runtime_load_interval: Some(interval), ..self }
     }
 
-    /// Appends whether p2p networking is entirely disabled to the builder.
-    pub fn with_network_disabled(self, network_disabled: bool) -> Self {
-        Self { network_disabled, ..self }
-    }
-
     /// Assembles the [`RollupNode`] service.
     ///
     /// ## Panics
@@ -120,6 +113,7 @@ impl RollupNodeBuilder {
     /// - The L2 provider RPC URL is not set.
     /// - The L2 engine URL is not set.
     /// - The jwt secret is not set.
+    /// - The P2P config is not set.
     pub fn build(self) -> RollupNode {
         let l1_rpc_url = self.l1_provider_rpc_url.expect("l1 provider rpc url not set");
         let l1_provider = RootProvider::new_http(l1_rpc_url.clone());
@@ -142,9 +136,9 @@ impl RollupNodeBuilder {
         let rpc_launcher =
             self.rpc_config.map(|c| c.as_launcher()).unwrap_or(RpcLauncher::new_disabled());
 
-        let config = Arc::new(self.config);
+        let rollup_config = Arc::new(self.config);
         let engine_launcher = EngineLauncher {
-            config: Arc::clone(&config),
+            config: Arc::clone(&rollup_config),
             l2_rpc_url,
             l1_rpc_url: l1_rpc_url.clone(),
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
@@ -152,21 +146,22 @@ impl RollupNodeBuilder {
         };
 
         let runtime_launcher = RuntimeLauncher::new(
-            kona_sources::RuntimeLoader::new(l1_rpc_url, config.clone()),
+            kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
             self.runtime_load_interval,
         );
         let supervisor_rpc = self.supervisor_rpc_config.unwrap_or_default();
 
+        let p2p_config = self.p2p_config.expect("P2P config not set");
+
         RollupNode {
             mode: self.mode,
-            config,
+            config: rollup_config,
             l1_provider,
             l1_beacon,
             l2_provider,
             engine_launcher,
             rpc_launcher,
-            p2p_config: self.p2p_config,
-            network_disabled: self.network_disabled,
+            p2p_config,
             runtime_launcher,
             supervisor_rpc,
         }

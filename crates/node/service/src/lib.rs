@@ -10,10 +10,7 @@
 extern crate tracing;
 
 mod service;
-pub use service::{
-    NodeMode, RollupNode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
-    SequencerNodeService, ValidatorNodeService,
-};
+pub use service::{NodeMode, RollupNode, RollupNodeBuilder, RollupNodeError, RollupNodeService};
 
 mod actors;
 pub use actors::{

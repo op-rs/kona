@@ -86,7 +86,7 @@ mod tests {
     use super::*;
     use crate::{
         event::ChainEvent,
-        syncnode::{ManagedNodeError, NodeSubscriber, ReceiptProvider},
+        syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
     };
     use alloy_primitives::B256;
     use async_trait::async_trait;
@@ -95,7 +95,7 @@ mod tests {
     use kona_supervisor_storage::{
         DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
-    use kona_supervisor_types::{Log, Receipts};
+    use kona_supervisor_types::{Log, OutputV0, Receipts};
     use mockall::mock;
     use std::{
         sync::atomic::{AtomicBool, Ordering},
@@ -129,6 +129,30 @@ mod tests {
     impl ReceiptProvider for MockNode {
         async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
             Ok(vec![]) // dummy
+        }
+    }
+
+    #[async_trait]
+    impl ManagedNodeApiProvider for MockNode {
+        async fn output_v0_at_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<OutputV0, ManagedNodeError> {
+            Ok(OutputV0::default())
+        }
+
+        async fn pending_output_v0_at_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<OutputV0, ManagedNodeError> {
+            Ok(OutputV0::default())
+        }
+
+        async fn l2_block_ref_by_timestamp(
+            &self,
+            _timestamp: u64,
+        ) -> Result<BlockInfo, ManagedNodeError> {
+            Ok(BlockInfo::default())
         }
     }
 

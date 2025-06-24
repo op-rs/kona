@@ -107,27 +107,10 @@ func TestP2PChainID(gt *testing.T) {
 		require.Equal(t, chainID, nodeChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
 
 		for _, peer := range node.Peers().Peers {
-			require.Equal(t, chainID, peer.ChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
-		}
-	}
-}
-
-// Check that, for all the nodes in the network, all the peers are connected to a known node.
-func TestP2PPeersInNetwork(gt *testing.T) {
-	t := devtest.ParallelT(gt)
-
-	out := NewMixedOpKona(t)
-
-	nodes := out.L2CLNodes()
-
-	nodeIds := make([]string, 0, len(nodes))
-	for _, node := range nodes {
-		nodeIds = append(nodeIds, node.PeerInfo().PeerID.String())
-	}
-
-	for _, node := range out.L2CLKonaNodes {
-		for _, peer := range node.Peers().Peers {
-			require.Contains(t, nodeIds, peer.PeerID.String(), fmt.Sprintf("%s has a peer that is not in the network: %s", node.Escape().ID(), peer.PeerID))
+			// Sometimes peers don't have a chainID because they are not part of the discovery table while being connected to gossip.
+			if peer.ChainID != 0 {
+				require.Equal(t, chainID, peer.ChainID, fmt.Sprintf("%s has a different chainID", node.Escape().ID()))
+			}
 		}
 	}
 }

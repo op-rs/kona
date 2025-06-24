@@ -30,7 +30,7 @@ mod errors;
 pub use errors::{MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult};
 
 mod root;
-pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootResponse};
+pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootOutput};
 
 mod message;
 pub use message::{

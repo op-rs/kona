@@ -1,14 +1,14 @@
-use crate::{
-    ChainProcessor, SupervisorError, config::Config, l1_watcher::L1Watcher, syncnode::ManagedNode,
-};
 use alloy_eips::BlockNumHash;
 use alloy_network::Ethereum;
-use alloy_primitives::{B256, ChainId};
+use alloy_primitives::{B256, Bytes, ChainId, keccak256};
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use core::fmt::Debug;
-use kona_interop::{DependencySet, ExecutingDescriptor, SafetyLevel};
+use kona_interop::{
+    ChainRootInfo, DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION,
+    SafetyLevel, SuperRoot, SuperRootOutput,
+};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
@@ -20,6 +20,13 @@ use reqwest::Url;
 use std::{collections::HashMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
+
+use crate::{
+    ChainProcessor, SupervisorError,
+    config::Config,
+    l1_watcher::L1Watcher,
+    syncnode::{ManagedNode, ManagedNodeApiProvider},
+};
 
 /// Defines the service for the Supervisor core logic.
 #[async_trait]
@@ -68,6 +75,15 @@ pub trait SupervisorService: Debug + Send + Sync {
 
     /// Returns the finalized L1 block that the supervisor is synced to.
     fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
+
+    /// Returns the [`SuperRootOutput`] at a specified timestamp, which represents the global
+    /// state across all monitored chains.
+    ///
+    /// [`SuperRootOutput`]: kona_interop::SuperRootOutput
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<SuperRootOutput, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     fn check_access_list(
@@ -258,6 +274,80 @@ impl SupervisorService for Supervisor {
 
     fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
         Ok(self.database_factory.get_finalized_l1()?)
+    }
+
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<SuperRootOutput, SupervisorError> {
+        let mut chain_ids = self.config.dependency_set.dependencies.keys().collect::<Vec<_>>();
+        // Sorting chain ids for deterministic super root hash
+        chain_ids.sort();
+
+        let mut chain_infos = Vec::<ChainRootInfo>::with_capacity(chain_ids.len());
+        let mut super_root_chains = Vec::<OutputRootWithChain>::with_capacity(chain_ids.len());
+        let mut cross_safe_source = BlockNumHash::default();
+
+        for id in chain_ids {
+            let managed_node = self.managed_nodes.get(id).unwrap();
+            let output_v0 = managed_node
+                .output_v0_at_timestamp(timestamp)
+                .await
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get output v0 at timestamp {timestamp} for chain {id}");
+                })?;
+            let output_v0_string = serde_json::to_string(&output_v0).unwrap();
+            let canonical_root = keccak256(output_v0_string.as_bytes());
+
+            let pending_output_v0 = managed_node
+                .pending_output_v0_at_timestamp(timestamp)
+                .await
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get pending output v0 at timestamp {timestamp} for chain {id}");
+                })?;
+            let pending_output_v0_bytes = Bytes::copy_from_slice(
+                serde_json::to_string(&pending_output_v0).unwrap().as_bytes(),
+            );
+
+            chain_infos.push(ChainRootInfo {
+                chain_id: *id,
+                canonical: canonical_root,
+                pending: pending_output_v0_bytes,
+            });
+
+            super_root_chains
+                .push(OutputRootWithChain { chain_id: *id, output_root: canonical_root });
+
+            let l2_block = managed_node
+                .l2_block_ref_by_timestamp(timestamp)
+                .await
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get L2 block ref at timestamp {timestamp} for chain {id}");
+                })?;
+            let source = self
+                .database_factory
+                .get_db(*id)
+                .inspect_err(|e| {
+                    error!(target: "supervisor_service", %e, "Failed to get database for chain {id}");
+                })?
+                .derived_to_source(l2_block.id())?;
+
+            if cross_safe_source.number == 0 || cross_safe_source.number < source.number {
+                cross_safe_source = source.id();
+            }
+        }
+
+        let super_root = SuperRoot { timestamp, output_roots: super_root_chains };
+
+        let super_root_hash = super_root.hash();
+
+        Ok(SuperRootOutput {
+            cross_safe_derived_from: cross_safe_source,
+            timestamp,
+            super_root: super_root_hash,
+            chains: chain_infos,
+            version: SUPER_ROOT_VERSION,
+        })
     }
 
     fn check_access_list(

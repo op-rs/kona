@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, LogStorageReader, Metrics,
-    chaindb::ChainDb, error::StorageError,
+    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, HeadRefStorageWriter,
+    LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
@@ -21,8 +21,9 @@ use tracing::error;
 #[derive(Debug)]
 pub struct ChainDbFactory {
     db_path: PathBuf,
-    dbs: RwLock<HashMap<ChainId, Arc<ChainDb>>>,
     metrics_enabled: Option<bool>,
+
+    dbs: RwLock<HashMap<ChainId, Arc<ChainDb>>>,
     /// Finalized L1 block reference, used for tracking the finalized L1 block.
     /// In-memory only, not persisted.
     finalized_l1: RwLock<Option<BlockInfo>>,
@@ -202,6 +203,15 @@ impl CrossChainSafetyProvider for ChainDbFactory {
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError> {
         self.get_db(chain_id)?.get_safety_head_ref(level)
+    }
+
+    fn update_safety_head_ref(
+        &self,
+        chain_id: ChainId,
+        safety_level: SafetyLevel,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.get_db(chain_id)?.update_safety_head_ref(safety_level, block)
     }
 }
 

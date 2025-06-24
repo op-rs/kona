@@ -143,12 +143,15 @@ where
         match next_block {
             Ok(Some(block)) => {
                 if block.header.parent_hash != derived_ref_pair.source.hash {
-                    error!(target: "managed_event_task", "Block parent hash mismatch");
+                    // this could happen due to a reorg.
+                    // this case should be handled by the reorg manager
+                    error!(target: "managed_event_task", "L1 Block parent hash mismatch");
                     Err(ManagedEventTaskError::BlockHashMismatch {
                         current: derived_ref_pair.source.hash,
                         parent: block.header.parent_hash,
                     })?
                 }
+                self.check_node_consistency(derived_ref_pair).await?;
 
                 let block_info = BlockInfo {
                     hash: block.header.hash,
@@ -273,6 +276,40 @@ where
             .await
         {
             error!(target: "managed_event_task", %err, "Failed to reset managed node");
+        }
+    }
+
+    async fn check_node_consistency(
+        &self,
+        derived_ref_pair: &DerivedRefPair,
+    ) -> Result<(), ManagedEventTaskError> {
+        // check if the derived block is already stored and is consistent with the incoming derived
+        // block
+        let derived_block = derived_ref_pair.derived;
+        let source_block = derived_ref_pair.source;
+
+        match self.db_provider.latest_derived_block_pair() {
+            Ok(stored_pair) => {
+                if stored_pair.derived != derived_block || stored_pair.source != source_block {
+                    error!(target: "managed_event_task", "Incoming derived block pair does not match stored block pair");
+                    self.handle_reset(
+                        "incoming derived block pair does not match stored block pair",
+                    )
+                    .await;
+                    return Err(ManagedEventTaskError::BlockNumberMismatch {
+                        incoming: derived_block.number,
+                        stored: stored_pair.derived.number,
+                    })
+                }
+                Ok(())
+            }
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get latest derived block pair");
+                Err(ManagedEventTaskError::DerivedBlockPairNotFound {
+                    derived_block_number: derived_block.number,
+                    source_block_number: source_block.number,
+                })
+            }
         }
     }
 
@@ -495,13 +532,23 @@ mod tests {
             "parentBeaconBlockRoot": "0x95c4dbd5b19f6fe3cbc3183be85ff4e85ebe75c5b4fc911f1c91e5b7a554a685"
         }"#;
 
-        let db = Arc::new(MockDb::new());
+        let mut db = MockDb::new();
+
+        // need to expect because it gets called indirectly in handle_reset()
+        db.expect_get_safety_head_ref().returning(|_| {
+            Ok(BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 1,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 42,
+            })
+        });
 
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new_for_testing(provider, db, tx);
+        let task = ManagedEventTask::new_for_testing(provider, Arc::new(db), tx);
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
