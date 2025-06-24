@@ -22,7 +22,7 @@ impl Ecotone {
     pub const DEPOSITOR_ACCOUNT: Address = address!("DeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001");
 
     /// The Enable Ecotone Input Method 4Byte Signature
-    pub const ENABLE_ECOTONE_INPUT: [u8; 4] = hex!("22b908b3");
+    pub const ENABLE_ECOTONE_INPUT: [u8; 4] = hex!("22b90ab3");
 
     /// L1 Block Deployer Address
     pub const L1_BLOCK_DEPLOYER: Address = address!("4210000000000000000000000000000000000000");
