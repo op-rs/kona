@@ -6,24 +6,12 @@ use tokio_util::sync::CancellationToken;
 
 use crate::SupervisorActor;
 
+#[derive(derive_more::Constructor)]
 pub struct MetricWorker<R> {
     interval: Duration,
     // list of reporters
     reporters: Vec<Arc<R>>,
     cancel_token: CancellationToken,
-}
-
-impl<R> MetricWorker<R>
-where
-    R: MetricsReporter + Send + Sync + 'static,
-{
-    pub fn new(
-        interval: Duration,
-        reporters: Vec<Arc<R>>,
-        cancel_token: CancellationToken,
-    ) -> Self {
-        Self { interval, reporters, cancel_token }
-    }
 }
 
 #[async_trait]

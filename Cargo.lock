@@ -5050,6 +5050,7 @@ dependencies = [
  "alloy-rpc-client",
  "anyhow",
  "async-trait",
+ "derive_more",
  "futures",
  "jsonrpsee",
  "kona-genesis",
