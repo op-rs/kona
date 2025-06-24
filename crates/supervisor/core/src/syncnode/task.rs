@@ -290,7 +290,7 @@ where
 
         match self.db_provider.latest_derived_block_pair() {
             Ok(stored_pair) => {
-                // only checking the derived block number here due to #2086 issue
+                // only checking the derived block number here due to https://github.com/op-rs/kona/issues/2086 issue
                 if stored_pair.derived != derived_block {
                     error!(
                         target: "managed_event_task",

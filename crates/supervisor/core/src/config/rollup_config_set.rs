@@ -55,6 +55,7 @@ impl RollupConfig {
     /// Creates a new [`RollupConfig`] with the given genesis and block time.
     pub fn new_from_rollup_config(config: kona_genesis::RollupConfig, l1_block: BlockInfo) -> Self {
         // todo: cross check the l1_block with the config
+        // issue: https://github.com/op-rs/kona/issues/2254
         Self {
             genesis: Genesis::new_from_rollup_genesis(config.genesis, l1_block),
             block_time: config.block_time,
