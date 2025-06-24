@@ -69,11 +69,16 @@ serde_json.workspace = true
 
 [features]
 default = []
-reqwest = ["client", "dep:alloy-rpc-client"]
+reqwest = [ "client", "dep:alloy-rpc-client" ]
 client = [
-    "jsonrpsee/client",
-    "jsonrpsee/async-client",
-    "op-alloy-rpc-types/jsonrpsee",
-    "op-alloy-rpc-jsonrpsee/client",
+	"jsonrpsee/async-client",
+	"jsonrpsee/client",
+	"op-alloy-rpc-jsonrpsee/client",
+	"op-alloy-rpc-types/jsonrpsee",
 ]
-metrics = ["dep:metrics"]
+metrics = [
+	"dep:metrics",
+	"kona-engine/metrics",
+	"kona-p2p/metrics",
+	"libp2p/metrics",
+]

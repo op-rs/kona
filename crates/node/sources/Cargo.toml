@@ -42,7 +42,7 @@ metrics = { workspace = true, optional = true }
 
 [features]
 default = []
-metrics = ["dep:metrics"]
+metrics = [ "dep:metrics", "kona-derive/metrics" ]
 
 [dev-dependencies]
 tokio.workspace = true

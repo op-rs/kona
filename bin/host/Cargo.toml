@@ -73,9 +73,9 @@ ark-ff.workspace = true
 proptest.workspace = true
 
 [features]
-default = ["single", "interop"]
+default = [ "interop", "single" ]
 single = []
-interop = ["single"]
+interop = [ "single" ]
 
 [[bin]]
 name = "kona-host"

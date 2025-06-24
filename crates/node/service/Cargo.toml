@@ -60,4 +60,12 @@ metrics = { workspace = true, optional = true }
 
 [features]
 default = []
-metrics = ["kona-p2p/metrics", "kona-engine/metrics", "dep:metrics"]
+metrics = [
+	"dep:metrics",
+	"kona-derive/metrics",
+	"kona-engine/metrics",
+	"kona-p2p/metrics",
+	"kona-rpc/metrics",
+	"kona-sources/metrics",
+	"libp2p/metrics",
+]
