@@ -108,3 +108,39 @@ impl RollupConfigSet {
         self.get(chain_id).map(|cfg| cfg.is_post_interop(timestamp)).unwrap_or(false) // if config not found, return false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kona_protocol::BlockInfo;
+    use alloy_primitives::ChainId;
+
+    fn dummy_blockinfo(number: u64) -> BlockInfo {
+        BlockInfo::new(B256::ZERO, number, B256::ZERO, 0)
+    }
+
+    #[test]
+    fn test_is_interop_enabled() {
+        let mut set = RollupConfigSet::default();
+        let chain_id = ChainId::from(1u64);
+
+        // Interop time is 100, block_time is 10
+        let rollup_config = RollupConfig::new(
+            Genesis::new(dummy_blockinfo(0), dummy_blockinfo(0)),
+            10,
+            Some(100),
+        );
+        set.rollups.insert(chain_id, rollup_config);
+
+        // Before interop time
+        assert!(!set.is_interop_enabled(chain_id, 100));
+        assert!(!set.is_interop_enabled(chain_id, 109));
+        // After interop time (should be true)
+        assert!(set.is_interop_enabled(chain_id, 110));
+        assert!(set.is_interop_enabled(chain_id, 111));
+        assert!(set.is_interop_enabled(chain_id, 200));
+
+        // Unknown chain_id returns false
+        assert!(!set.is_interop_enabled(ChainId::from(999u64), 200));
+    }
+}
