@@ -31,4 +31,4 @@ jobs:
         env:
           DISABLE_OP_E2E_LEGACY: true
           DEVSTACK_ORCHESTRATOR: sysext
-        run: just build-devnet-and-test-e2e simple-supervisor supervisor
+        run: just build-devnet-and-test-e2e simple-supervisor supervisor github.com/dhyaniarun1993/optimism-package@kona-supervisor

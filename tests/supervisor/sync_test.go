@@ -217,9 +217,9 @@ func TestFinalizedHeadAdvancing(gt *testing.T) {
 			status.FinalizedL2.Number > supervisorStatus.Chains[l2aChainID].Finalized.Number, nil
 	})
 
-	// Wait and check if the finalized head has advanced on L2A
+	// Wait and check if the finalized head has advanced on L2B
 	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
-		status := out.L2CLA.SyncStatus()
+		status := out.L2CLB.SyncStatus()
 		return status.FinalizedL1.Time > supervisorStatus.FinalizedTimestamp &&
 			status.FinalizedL2.Number > supervisorStatus.Chains[l2bChainID].Finalized.Number, nil
 	})
