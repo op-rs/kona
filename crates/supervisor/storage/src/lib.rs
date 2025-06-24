@@ -29,6 +29,9 @@ mod providers;
 mod chaindb;
 pub use chaindb::ChainDb;
 
+mod metrics;
+pub(crate) use metrics::Metrics;
+
 mod chaindb_factory;
 pub use chaindb_factory::ChainDbFactory;
 

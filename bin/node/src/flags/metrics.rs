@@ -15,7 +15,7 @@ pub fn init_unified_metrics(args: &MetricsArgs) -> anyhow::Result<()> {
         kona_p2p::Metrics::init();
         kona_engine::Metrics::init();
         kona_node_service::Metrics::init();
-        kona_derive::metrics::Metrics::init();
+        kona_derive::Metrics::init();
         VersionInfo::from_build().register_version_metrics();
     }
     Ok(())

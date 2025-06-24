@@ -28,11 +28,11 @@ pub use channel_assembler::ChannelAssembler;
 pub(crate) mod channel_reader;
 pub use channel_reader::{ChannelReader, ChannelReaderProvider};
 
-/// Provides frames for the [ChannelBank] and [ChannelAssembler] stages.
+/// Provides frames for the [`ChannelBank`] and [`ChannelAssembler`] stages.
 #[async_trait]
 pub trait NextFrameProvider {
-    /// Retrieves the next [Frame] from the [FrameQueue] stage.
+    /// Retrieves the next [`Frame`] from the [`FrameQueue`] stage.
     ///
-    /// [FrameQueue]: crate::stages::FrameQueue
+    /// [`FrameQueue`]: crate::stages::FrameQueue
     async fn next_frame(&mut self) -> PipelineResult<Frame>;
 }

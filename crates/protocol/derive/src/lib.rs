@@ -49,7 +49,7 @@ pub use traits::{
 mod types;
 pub use types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult};
 
-pub mod metrics;
+mod metrics;
 pub use metrics::Metrics;
 
 #[cfg(feature = "test-utils")]

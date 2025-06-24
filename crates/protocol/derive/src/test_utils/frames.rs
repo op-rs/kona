@@ -9,7 +9,7 @@ use alloy_primitives::Bytes;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, DERIVATION_VERSION_0, Frame};
 
-/// A [FrameQueue] builder.
+/// A [`FrameQueue`] builder.
 #[derive(Debug, Default)]
 pub struct FrameQueueBuilder {
     origin: Option<BlockInfo>,
@@ -29,7 +29,7 @@ fn encode_frames(frames: &[Frame]) -> Bytes {
 }
 
 impl FrameQueueBuilder {
-    /// Create a new [FrameQueueBuilder] instance.
+    /// Create a new [`FrameQueueBuilder`] instance.
     pub const fn new() -> Self {
         Self { origin: None, config: None, mock: None, expected_frames: vec![], expected_err: None }
     }
@@ -73,7 +73,7 @@ impl FrameQueueBuilder {
         self
     }
 
-    /// Build the [FrameQueue].
+    /// Build the [`FrameQueue`].
     pub fn build(self) -> FrameQueueAsserter {
         let mut mock = self.mock.unwrap_or_else(|| TestFrameQueueProvider::new(vec![]));
         if let Some(origin) = self.origin {
@@ -86,7 +86,7 @@ impl FrameQueueBuilder {
     }
 }
 
-/// The [FrameQueueAsserter] validates frame queue outputs.
+/// The [`FrameQueueAsserter`] validates frame queue outputs.
 #[derive(Debug)]
 pub struct FrameQueueAsserter {
     inner: FrameQueue<TestFrameQueueProvider>,
@@ -95,7 +95,7 @@ pub struct FrameQueueAsserter {
 }
 
 impl FrameQueueAsserter {
-    /// Create a new [FrameQueueAsserter] instance.
+    /// Create a new [`FrameQueueAsserter`] instance.
     pub const fn new(
         inner: FrameQueue<TestFrameQueueProvider>,
         expected_frames: Vec<Frame>,

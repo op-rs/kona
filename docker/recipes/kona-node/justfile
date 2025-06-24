@@ -1,7 +1,7 @@
 # Generates a JWT secret, if one does not already exist.
 generate-jwt:
   @echo "Attempting to generate JWT secret"
-  @sh ./generate-jwt.sh
+  @bash ./generate-jwt.sh
 
 # Spins up the docker environment
 up: generate-jwt

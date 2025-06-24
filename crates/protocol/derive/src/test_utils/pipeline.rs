@@ -17,10 +17,10 @@ use crate::{
     test_utils::{TestAttributesBuilder, TestDAP},
 };
 
-/// A fully custom [NextAttributes].
+/// A fully custom [`NextAttributes`].
 #[derive(Default, Debug, Clone)]
 pub struct TestNextAttributes {
-    /// The next [OpAttributesWithParent] to return.
+    /// The next [`OpAttributesWithParent`] to return.
     pub next_attributes: Option<OpAttributesWithParent>,
 }
 
@@ -50,40 +50,40 @@ impl OriginAdvancer for TestNextAttributes {
 
 #[async_trait::async_trait]
 impl NextAttributes for TestNextAttributes {
-    /// Returns the next valid [OpAttributesWithParent].
+    /// Returns the next valid [`OpAttributesWithParent`].
     async fn next_attributes(&mut self, _: L2BlockInfo) -> PipelineResult<OpAttributesWithParent> {
         self.next_attributes.take().ok_or(PipelineError::Eof.temp())
     }
 }
 
-/// An [L1Traversal] using test providers and sources.
+/// An [`L1Traversal`] using test providers and sources.
 pub type TestL1Traversal = L1Traversal<TestChainProvider>;
 
-/// An [L1Retrieval] stage using test providers and sources.
+/// An [`L1Retrieval`] stage using test providers and sources.
 pub type TestL1Retrieval = L1Retrieval<TestDAP, TestL1Traversal>;
 
-/// A [FrameQueue] using test providers and sources.
+/// A [`FrameQueue`] using test providers and sources.
 pub type TestFrameQueue = FrameQueue<TestL1Retrieval>;
 
-/// A [ChannelBank] using test providers and sources.
+/// A [`ChannelBank`] using test providers and sources.
 pub type TestChannelProvider = ChannelProvider<TestFrameQueue>;
 
-/// A [ChannelReader] using test providers and sources.
+/// A [`ChannelReader`] using test providers and sources.
 pub type TestChannelReader = ChannelReader<TestChannelProvider>;
 
-/// A [BatchStream] using test providers and sources.
+/// A [`BatchStream`] using test providers and sources.
 pub type TestBatchStream = BatchStream<TestChannelReader, TestL2ChainProvider>;
 
-/// A [BatchQueue] using test providers and sources.
+/// A [`BatchQueue`] using test providers and sources.
 pub type TestBatchProvider = BatchProvider<TestBatchStream, TestL2ChainProvider>;
 
-/// An [AttributesQueue] using test providers and sources.
+/// An [`AttributesQueue`] using test providers and sources.
 pub type TestAttributesQueue = AttributesQueue<TestBatchProvider, TestAttributesBuilder>;
 
-/// A [DerivationPipeline] using test providers and sources.
+/// A [`DerivationPipeline`] using test providers and sources.
 pub type TestPipeline = DerivationPipeline<TestAttributesQueue, TestL2ChainProvider>;
 
-/// Constructs a [DerivationPipeline] using test providers and sources.
+/// Constructs a [`DerivationPipeline`] using test providers and sources.
 pub fn new_test_pipeline() -> TestPipeline {
     PipelineBuilder::new()
         .rollup_config(Arc::new(RollupConfig::default()))

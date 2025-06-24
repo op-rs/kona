@@ -9,28 +9,29 @@ use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
 
-/// Provides L1 blocks for the [L1Retrieval] stage.
+/// Provides L1 blocks for the [`L1Retrieval`] stage.
 /// This is the previous stage in the pipeline.
 #[async_trait]
 pub trait L1RetrievalProvider {
-    /// Returns the next L1 [BlockInfo] in the [L1Traversal] stage, if the stage is not complete.
-    /// This function can only be called once while the stage is in progress, and will return
-    /// [`None`] on subsequent calls unless the stage is reset or complete. If the stage is
-    /// complete and the [BlockInfo] has been consumed, an [PipelineError::Eof] error is returned.
+    /// Returns the next L1 [`BlockInfo`] in the [`L1Traversal`] stage, if the stage is not
+    /// complete. This function can only be called once while the stage is in progress, and will
+    /// return [`None`] on subsequent calls unless the stage is reset or complete. If the stage
+    /// is complete and the [`BlockInfo`] has been consumed, an [PipelineError::Eof] error is
+    /// returned.
     ///
-    /// [L1Traversal]: crate::stages::L1Traversal
+    /// [`L1Traversal`]: crate::stages::L1Traversal
     async fn next_l1_block(&mut self) -> PipelineResult<Option<BlockInfo>>;
 
-    /// Returns the batcher [Address] from the [kona_genesis::SystemConfig].
+    /// Returns the batcher [`Address`] from the [kona_genesis::SystemConfig].
     fn batcher_addr(&self) -> Address;
 }
 
-/// The [L1Retrieval] stage of the derivation pipeline.
+/// The [`L1Retrieval`] stage of the derivation pipeline.
 ///
-/// For each L1 [BlockInfo] pulled from the [L1Traversal] stage, [L1Retrieval] fetches the
-/// associated data from a specified [DataAvailabilityProvider].
+/// For each L1 [`BlockInfo`] pulled from the [`L1Traversal`] stage, [`L1Retrieval`] fetches the
+/// associated data from a specified [`DataAvailabilityProvider`].
 ///
-/// [L1Traversal]: crate::stages::L1Traversal
+/// [`L1Traversal`]: crate::stages::L1Traversal
 #[derive(Debug)]
 pub struct L1Retrieval<DAP, P>
 where
@@ -50,10 +51,10 @@ where
     DAP: DataAvailabilityProvider,
     P: L1RetrievalProvider + OriginAdvancer + OriginProvider + SignalReceiver,
 {
-    /// Creates a new [L1Retrieval] stage with the previous [L1Traversal] stage and given
-    /// [DataAvailabilityProvider].
+    /// Creates a new [`L1Retrieval`] stage with the previous [`L1Traversal`] stage and given
+    /// [`DataAvailabilityProvider`].
     ///
-    /// [L1Traversal]: crate::stages::L1Traversal
+    /// [`L1Traversal`]: crate::stages::L1Traversal
     pub const fn new(prev: P, provider: DAP) -> Self {
         Self { prev, provider, next: None }
     }

@@ -290,8 +290,14 @@ where
 
         match self.db_provider.latest_derived_block_pair() {
             Ok(stored_pair) => {
-                if stored_pair.derived != derived_block || stored_pair.source != source_block {
-                    error!(target: "managed_event_task", "Incoming derived block pair does not match stored block pair");
+                // only checking the derived block number here due to https://github.com/op-rs/kona/issues/2086 issue
+                if stored_pair.derived != derived_block {
+                    error!(
+                        target: "managed_event_task",
+                        incoming_pair = %derived_ref_pair,
+                        stored_pair = %stored_pair,
+                        "Incoming derived block pair does not match stored block pair",
+                    );
                     self.handle_reset(
                         "incoming derived block pair does not match stored block pair",
                     )

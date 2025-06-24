@@ -31,4 +31,6 @@ jobs:
         env:
           DISABLE_OP_E2E_LEGACY: true
           DEVSTACK_ORCHESTRATOR: sysext
-        run: just build-devnet-and-test-e2e simple-supervisor supervisor
+        # todo:: once the PR is merged, switch back to the ethpandaops/optimism-package
+        # pr: https://github.com/ethpandaops/optimism-package/pull/343
+        run: just build-devnet-and-test-e2e simple-supervisor supervisor github.com/dhyaniarun1993/optimism-package@kona-supervisor

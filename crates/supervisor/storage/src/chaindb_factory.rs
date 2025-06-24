@@ -6,11 +6,11 @@ use std::{
 
 use crate::{
     CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, HeadRefStorageWriter,
-    LogStorageReader, chaindb::ChainDb, error::StorageError,
+    LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
-use kona_supervisor_metrics::MetricsReporter;
+use kona_supervisor_metrics::{MetricsReporter, observe_metrics_for_result};
 use kona_supervisor_types::Log;
 use op_alloy_consensus::interop::SafetyLevel;
 use tracing::error;
@@ -24,7 +24,6 @@ pub struct ChainDbFactory {
     metrics_enabled: Option<bool>,
 
     dbs: RwLock<HashMap<ChainId, Arc<ChainDb>>>,
-
     /// Finalized L1 block reference, used for tracking the finalized L1 block.
     /// In-memory only, not persisted.
     finalized_l1: RwLock<Option<BlockInfo>>,
@@ -42,9 +41,28 @@ impl ChainDbFactory {
     }
 
     /// Enables metrics on the database environment.
-    pub const fn with_metrics(mut self) -> Self {
+    pub fn with_metrics(mut self) -> Self {
         self.metrics_enabled = Some(true);
+        crate::Metrics::init();
         self
+    }
+
+    fn observe_call<T, E, F: FnOnce() -> Result<T, E>>(
+        &self,
+        name: &'static str,
+        f: F,
+    ) -> Result<T, E> {
+        if self.metrics_enabled.unwrap_or(false) {
+            observe_metrics_for_result!(
+                Metrics::STORAGE_REQUESTS_SUCCESS_TOTAL,
+                Metrics::STORAGE_REQUESTS_ERROR_TOTAL,
+                Metrics::STORAGE_REQUEST_DURATION_SECONDS,
+                name,
+                f()
+            )
+        } else {
+            f()
+        }
     }
 
     /// Get or create a [`ChainDb`] for the given chain id.
@@ -73,7 +91,10 @@ impl ChainDbFactory {
         }
 
         let chain_db_path = self.db_path.join(chain_id.to_string());
-        let chain_db = ChainDb::new(chain_id, chain_db_path.as_path())?;
+        let mut chain_db = ChainDb::new(chain_id, chain_db_path.as_path())?;
+        if self.metrics_enabled.unwrap_or(false) {
+            chain_db = chain_db.with_metrics();
+        }
         let db = Arc::new(chain_db);
         dbs.insert(chain_id, db.clone());
         Ok(db)
@@ -109,47 +130,57 @@ impl MetricsReporter for ChainDbFactory {
 
 impl FinalizedL1Storage for ChainDbFactory {
     fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError> {
-        let guard = self.finalized_l1.read().map_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on finalized_l1");
-            StorageError::LockPoisoned
-        })?;
-        guard.as_ref().cloned().ok_or(StorageError::FutureData)
+        self.observe_call(
+            "get_finalized_l1",
+            || {
+                let guard = self.finalized_l1.read().map_err(|err| {
+                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on finalized_l1");
+                    StorageError::LockPoisoned
+                })?;
+                guard.as_ref().cloned().ok_or(StorageError::FutureData)
+            }
+        )
     }
 
     fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
-        let mut guard = self
-            .finalized_l1
-            .write()
-            .map_err(|err| {
-                error!(target: "supervisor_storage", %err, "Failed to acquire write lock on finalized_l1");
-                StorageError::LockPoisoned
-            })?;
+        self.observe_call(
+            "update_finalized_l1",
+            || {
+                let mut guard = self
+                    .finalized_l1
+                    .write()
+                    .map_err(|err| {
+                        error!(target: "supervisor_storage", %err, "Failed to acquire write lock on finalized_l1");
+                        StorageError::LockPoisoned
+                    })?;
 
-        // Check if the new block number is greater than the current finalized block
-        if let Some(ref current) = *guard {
-            if block.number <= current.number {
-                error!(target: "supervisor_storage",
-                    current_block_number = current.number,
-                    new_block_number = block.number,
-                    "New finalized block number is not greater than current finalized block number",
-                );
-                return Err(StorageError::BlockOutOfOrder);
+                // Check if the new block number is greater than the current finalized block
+                if let Some(ref current) = *guard {
+                    if block.number <= current.number {
+                        error!(target: "supervisor_storage",
+                            current_block_number = current.number,
+                            new_block_number = block.number,
+                            "New finalized block number is not greater than current finalized block number",
+                        );
+                        return Err(StorageError::BlockOutOfOrder);
+                    }
+                }
+                *guard = Some(block);
+
+                // update all chain databases finalized safety head refs
+                let dbs = self.dbs.read().map_err(|err| {
+                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
+                    StorageError::LockPoisoned
+                })?;
+                for (chain_id, db) in dbs.iter() {
+                    if let Err(err) = db.update_finalized_head_ref(block) {
+                        error!(target: "supervisor_storage", chain_id = %chain_id, %err, "Failed to update finalized L1 in chain database");
+                    }
+                }
+
+                Ok(())
             }
-        }
-        *guard = Some(block);
-
-        // update all chain databases finalized safety head refs
-        let dbs = self.dbs.read().map_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
-            StorageError::LockPoisoned
-        })?;
-        for (chain_id, db) in dbs.iter() {
-            if let Err(err) = db.update_finalized_head_ref(block) {
-                error!(target: "supervisor_storage", chain_id = %chain_id, %err, "Failed to update finalized L1 in chain database");
-            }
-        }
-
-        Ok(())
+        )
     }
 }
 

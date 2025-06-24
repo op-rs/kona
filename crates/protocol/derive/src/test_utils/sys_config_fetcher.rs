@@ -15,7 +15,7 @@ use thiserror::Error;
 /// A mock implementation of the `SystemConfigL2Fetcher` for testing.
 #[derive(Debug, Default)]
 pub struct TestSystemConfigL2Fetcher {
-    /// A map from [u64] block number to a [SystemConfig].
+    /// A map from [u64] block number to a [`SystemConfig`].
     pub system_configs: HashMap<u64, SystemConfig>,
 }
 
@@ -31,7 +31,7 @@ impl TestSystemConfigL2Fetcher {
     }
 }
 
-/// An error returned by the [TestSystemConfigL2Fetcher].
+/// An error returned by the [`TestSystemConfigL2Fetcher`].
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum TestSystemConfigL2FetcherError {
     /// The system config was not found.

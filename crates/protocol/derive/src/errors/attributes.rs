@@ -5,9 +5,9 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::B256;
 use thiserror::Error;
 
-/// An [AttributesBuilder] Error.
+/// An [`AttributesBuilder`] Error.
 ///
-/// [AttributesBuilder]: crate::traits::AttributesBuilder
+/// [`AttributesBuilder`]: crate::traits::AttributesBuilder
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum BuilderError {
     /// Mismatched blocks.
@@ -16,9 +16,9 @@ pub enum BuilderError {
     /// Mismatched blocks for the start of an Epoch.
     #[error("Block mismatch on epoch reset. Expected {0:?}, got {1:?}")]
     BlockMismatchEpochReset(BlockNumHash, BlockNumHash, B256),
-    /// [SystemConfig] update failed.
+    /// [`SystemConfig`] update failed.
     ///
-    /// [SystemConfig]: kona_genesis::SystemConfig
+    /// [`SystemConfig`]: kona_genesis::SystemConfig
     #[error("System config update failed")]
     SystemConfigUpdate,
     /// Broken time invariant between L2 and L1.

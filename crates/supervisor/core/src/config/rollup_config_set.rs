@@ -1,53 +1,35 @@
-use alloy_primitives::{B256, ChainId, U64};
+use alloy_primitives::{B256, ChainId};
 use kona_genesis::ChainGenesis;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::BlockSeal;
 use std::collections::HashMap;
 
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
 pub struct Genesis {
-    /// The L1 [`BlockSeal`] that the rollup starts after.
-    pub l1: BlockSeal,
-    /// The L2 [`BlockSeal`] that the rollup starts from.
-    pub l2: BlockSeal,
+    /// The L1 [`BlockInfo`] that the rollup starts after.
+    pub l1: BlockInfo,
+    /// The L2 [`BlockInfo`] that the rollup starts from.
+    pub l2: BlockInfo,
 }
 
 impl Genesis {
     /// Creates a new Genesis with the given L1 and L2 block seals.
-    pub const fn new(l1: BlockSeal, l2: BlockSeal) -> Self {
+    pub const fn new(l1: BlockInfo, l2: BlockInfo) -> Self {
         Self { l1, l2 }
     }
 
     /// Creates a new Genesis from a RollupConfig.
-    pub fn new_from_rollup_genesis(genesis: ChainGenesis, l1_time: u64) -> Self {
+    pub const fn new_from_rollup_genesis(genesis: ChainGenesis, l1_block: BlockInfo) -> Self {
         Self {
-            l1: BlockSeal::new(genesis.l1.hash, U64::from(genesis.l1.number), U64::from(l1_time)),
-            l2: BlockSeal::new(
-                genesis.l2.hash,
-                U64::from(genesis.l2.number),
-                U64::from(genesis.l2_time),
-            ),
+            l1: l1_block,
+            l2: BlockInfo::new(genesis.l2.hash, genesis.l2.number, B256::ZERO, genesis.l2_time),
         }
     }
 
     /// Returns the genesis anchor as a [`DerivedRefPair`].
-    pub fn get_anchor(&self) -> DerivedRefPair {
-        DerivedRefPair {
-            derived: BlockInfo {
-                hash: self.l2.hash,
-                number: self.l2.number.try_into().unwrap(),
-                parent_hash: B256::ZERO,
-                timestamp: self.l2.timestamp.try_into().unwrap(),
-            },
-            source: BlockInfo {
-                hash: self.l1.hash,
-                number: self.l1.number.try_into().unwrap(),
-                parent_hash: B256::ZERO, // check if we need to set this properly
-                timestamp: self.l1.timestamp.try_into().unwrap(),
-            },
-        }
+    pub const fn get_anchor(&self) -> DerivedRefPair {
+        DerivedRefPair { derived: self.l2, source: self.l1 }
     }
 }
 
@@ -71,9 +53,11 @@ impl RollupConfig {
     }
 
     /// Creates a new [`RollupConfig`] with the given genesis and block time.
-    pub fn new_from_rollup_config(config: kona_genesis::RollupConfig, l1_time: u64) -> Self {
+    pub fn new_from_rollup_config(config: kona_genesis::RollupConfig, l1_block: BlockInfo) -> Self {
+        // todo: cross check the l1_block with the config
+        // issue: https://github.com/op-rs/kona/issues/2254
         Self {
-            genesis: Genesis::new_from_rollup_genesis(config.genesis, l1_time),
+            genesis: Genesis::new_from_rollup_genesis(config.genesis, l1_block),
             block_time: config.block_time,
             interop_time: config.hardforks.interop_time,
         }
@@ -114,14 +98,47 @@ impl RollupConfigSet {
         &mut self,
         chain_id: u64,
         config: kona_genesis::RollupConfig,
-        l1_time: u64,
+        l1_block: BlockInfo,
     ) {
-        let rollup_config = RollupConfig::new_from_rollup_config(config, l1_time);
+        let rollup_config = RollupConfig::new_from_rollup_config(config, l1_block);
         self.rollups.insert(chain_id, rollup_config);
     }
 
     /// returns whether interop is enabled for a chain at given timestamp
     pub fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
         self.get(chain_id).map(|cfg| cfg.is_post_interop(timestamp)).unwrap_or(false) // if config not found, return false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::ChainId;
+    use kona_protocol::BlockInfo;
+
+    fn dummy_blockinfo(number: u64) -> BlockInfo {
+        BlockInfo::new(B256::ZERO, number, B256::ZERO, 0)
+    }
+
+    #[test]
+    fn test_is_interop_enabled() {
+        let mut set = RollupConfigSet::default();
+        let chain_id = ChainId::from(1u64);
+
+        // Interop time is 100, block_time is 10
+        let rollup_config =
+            RollupConfig::new(Genesis::new(dummy_blockinfo(0), dummy_blockinfo(0)), 10, Some(100));
+        set.rollups.insert(chain_id, rollup_config);
+
+        // Before interop time
+        assert!(!set.is_interop_enabled(chain_id, 100));
+        assert!(!set.is_interop_enabled(chain_id, 109));
+        // After interop time (should be true)
+        assert!(set.is_interop_enabled(chain_id, 110));
+        assert!(set.is_interop_enabled(chain_id, 111));
+        assert!(set.is_interop_enabled(chain_id, 200));
+
+        // Unknown chain_id returns false
+        assert!(!set.is_interop_enabled(ChainId::from(999u64), 200));
     }
 }

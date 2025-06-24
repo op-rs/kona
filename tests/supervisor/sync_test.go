@@ -9,53 +9,221 @@ import (
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/wait"
 )
 
-func TestNetworkConfig(gt *testing.T) {
+const (
+	// UnSafeHeadAdvanceRetries is the number of retries for unsafe head advancement
+	UnSafeHeadAdvanceRetries = 15
+
+	// CrossUnsafeHeadAdvanceRetries is the number of retries for cross-unsafe head advancement
+	CrossUnsafeHeadAdvanceRetries = 15
+
+	// LocalSafeHeadAdvanceRetries is the number of retries for safe head advancement
+	LocalSafeHeadAdvanceRetries = 15
+
+	// SafeHeadAdvanceRetries is the number of retries for safe head advancement
+	SafeHeadAdvanceRetries = 25
+
+	// FinalizedHeadAdvanceRetries is the number of retries for finalized head advancement
+	FinalizedHeadAdvanceRetries = 100
+)
+
+func TestLocalUnsafeHeadAdvancing(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
-	t.Require().Equal(out.L2CLA.ChainID().String(), "2151908")
-	t.Require().Equal(out.L2CLB.ChainID().String(), "2151909")
-	t.Require().Equal(out.L2CLA.Peers().TotalConnected, uint(0))
-	t.Require().Equal(out.L2CLB.Peers().TotalConnected, uint(0))
-}
+	l2aChainID := out.L2CLA.ChainID()
+	l2bChainID := out.L2CLB.ChainID()
 
-func TestL2UnsafeBlockProgress(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	supervisorStatus := out.Supervisor.FetchSyncStatus()
 
-	out := presets.NewSimpleInterop(t)
-	status := out.L2CLA.SyncStatus()
-	block_a := status.UnsafeL2.Number
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "unsafe", UnSafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "unsafe", UnSafeHeadAdvanceRetries)
 
+	// Wait and check if the local unsafe head has advanced on L2A
 	err := wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
 		status := out.L2CLA.SyncStatus()
-		block_b := status.UnsafeL2.Number
-		return block_a < block_b, nil
+		return status.UnsafeL2.Number > supervisorStatus.Chains[l2aChainID].LocalUnsafe.Number, nil
+	})
+
+	// Wait and check if the local unsafe head has advanced on L2B
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLB.SyncStatus()
+		return status.UnsafeL2.Number > supervisorStatus.Chains[l2bChainID].LocalUnsafe.Number, nil
+	})
+
+	// Wait and cross check the supervisor unsafe heads to advance on both chains
+	err = wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
+		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
+		return latestSupervisorStatus.Chains[l2aChainID].LocalUnsafe.Number > supervisorStatus.Chains[l2aChainID].LocalUnsafe.Number &&
+			latestSupervisorStatus.Chains[l2bChainID].LocalUnsafe.Number >= supervisorStatus.Chains[l2bChainID].LocalUnsafe.Number, nil
 	})
 	t.Require().NoError(err)
 }
 
-func TestL2SafeBlockProgress(gt *testing.T) {
+func TestCrossUnsafeHeadAdvancing(gt *testing.T) {
+	gt.Skip("Feature not implemented yet")
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
-	status := out.L2CLA.SyncStatus()
-	block_a := status.SafeL2.Number
+	l2aChainID := out.L2CLA.ChainID()
+	l2bChainID := out.L2CLB.ChainID()
 
-	err := wait.For(t.Ctx(), 10*time.Second, func() (bool, error) {
+	supervisorStatus := out.Supervisor.FetchSyncStatus()
+
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 2, "cross-unsafe", CrossUnsafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 2, "cross-unsafe", CrossUnsafeHeadAdvanceRetries)
+
+	// Wait and cross check the supervisor cross unsafe heads to advance on both chains
+	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
+		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
+		return latestSupervisorStatus.Chains[l2aChainID].LocalUnsafe.Number > supervisorStatus.Chains[l2aChainID].LocalUnsafe.Number &&
+			latestSupervisorStatus.Chains[l2bChainID].LocalUnsafe.Number >= supervisorStatus.Chains[l2bChainID].LocalUnsafe.Number, nil
+	})
+
+	// Wait and check if the cross unsafe head has advanced on L2A
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
 		status := out.L2CLA.SyncStatus()
-		block_b := status.SafeL2.Number
-		return block_a < block_b, nil
+		return status.CrossUnsafeL2.Number > supervisorStatus.Chains[l2aChainID].CrossUnsafe.Number, nil
+	})
+
+	// Wait and check if the cross unsafe head has advanced on L2B
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLB.SyncStatus()
+		return status.CrossUnsafeL2.Number > supervisorStatus.Chains[l2bChainID].CrossUnsafe.Number, nil
+	})
+
+	t.Require().NoError(err)
+}
+
+func TestLocalSafeHeadAdvancing(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	out := presets.NewSimpleInterop(t)
+	l2aChainID := out.L2CLA.ChainID()
+	l2bChainID := out.L2CLB.ChainID()
+
+	supervisorStatus := out.Supervisor.FetchSyncStatus()
+
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "local-safe", LocalSafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "local-safe", LocalSafeHeadAdvanceRetries)
+
+	// Wait and check if the local safe head has advanced on L2A
+	err := wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLA.SyncStatus()
+		return status.LocalSafeL2.Number > supervisorStatus.Chains[l2aChainID].LocalSafe.Number, nil
+	})
+
+	// Wait and check if the local safe head has advanced on L2B
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLB.SyncStatus()
+		return status.LocalSafeL2.Number > supervisorStatus.Chains[l2bChainID].LocalSafe.Number, nil
+	})
+
+	// Wait and cross check the supervisor local safe heads to advance on both chains
+	err = wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
+		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
+		return latestSupervisorStatus.Chains[l2aChainID].LocalSafe.Number > supervisorStatus.Chains[l2aChainID].LocalSafe.Number &&
+			latestSupervisorStatus.Chains[l2bChainID].LocalSafe.Number >= supervisorStatus.Chains[l2bChainID].LocalSafe.Number, nil
 	})
 	t.Require().NoError(err)
 }
 
-func TestSupervisorProgress(gt *testing.T) {
+func TestCrossSafeHeadAdvancing(gt *testing.T) {
+	gt.Skip("Feature not implemented yet")
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
-	//  Checks for heads to advance and also asserts success internally.
-	out.Supervisor.WaitForUnsafeHeadToAdvance(out.L2ChainA.ChainID(), 1)
-	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "unsafe", 5)
+	l2aChainID := out.L2CLA.ChainID()
+	l2bChainID := out.L2CLB.ChainID()
+
+	supervisorStatus := out.Supervisor.FetchSyncStatus()
+
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "safe", SafeHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "safe", SafeHeadAdvanceRetries)
+
+	// Wait and cross check the supervisor cross safe heads to advance on both chains
+	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
+		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
+		return latestSupervisorStatus.Chains[l2aChainID].CrossSafe.Number > supervisorStatus.Chains[l2aChainID].CrossSafe.Number &&
+			latestSupervisorStatus.Chains[l2bChainID].CrossSafe.Number >= supervisorStatus.Chains[l2bChainID].CrossSafe.Number, nil
+	})
+
+	// Wait and check if the cross safe head has advanced on L2A
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLA.SyncStatus()
+		return status.SafeL2.Number > supervisorStatus.Chains[l2aChainID].CrossSafe.Number, nil
+	})
+
+	// Wait and check if the cross safe head has advanced on L2B
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLB.SyncStatus()
+		return status.SafeL2.Number > supervisorStatus.Chains[l2bChainID].CrossSafe.Number, nil
+	})
+
+	t.Require().NoError(err)
+}
+
+func TestMinSyncedL1Advancing(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	out := presets.NewSimpleInterop(t)
+	supervisorStatus := out.Supervisor.FetchSyncStatus()
+
+	out.Supervisor.AwaitMinL1(supervisorStatus.MinSyncedL1.Number + 1)
+
+	// Wait and check if the currentL1 head has advanced on L2A
+	err := wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLA.SyncStatus()
+		return status.CurrentL1.Number > supervisorStatus.MinSyncedL1.Number, nil
+	})
+
+	// Wait and check if the currentL1 head has advanced on L2B
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLB.SyncStatus()
+		return status.CurrentL1.Number > supervisorStatus.MinSyncedL1.Number, nil
+	})
+
+	// Wait and check if the min synced L1 has advanced
+	err = wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
+		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
+		return latestSupervisorStatus.MinSyncedL1.Number > supervisorStatus.MinSyncedL1.Number, nil
+	})
+	t.Require().NoError(err)
+}
+
+func TestFinalizedHeadAdvancing(gt *testing.T) {
+	gt.Skip("Feature not implemented yet")
+	t := devtest.ParallelT(gt)
+
+	out := presets.NewSimpleInterop(t)
+	l2aChainID := out.L2CLA.ChainID()
+	l2bChainID := out.L2CLB.ChainID()
+
+	supervisorStatus := out.Supervisor.FetchSyncStatus()
+
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainA.ChainID(), 1, "finalized", FinalizedHeadAdvanceRetries)
+	out.Supervisor.WaitForL2HeadToAdvance(out.L2ChainB.ChainID(), 1, "finalized", FinalizedHeadAdvanceRetries)
+
+	// Wait and cross check the supervisor finalized heads to advance on both chains
+	err := wait.For(t.Ctx(), 5*time.Second, func() (bool, error) {
+		latestSupervisorStatus := out.Supervisor.FetchSyncStatus()
+		return latestSupervisorStatus.Chains[l2aChainID].Finalized.Number > supervisorStatus.Chains[l2aChainID].Finalized.Number &&
+			latestSupervisorStatus.Chains[l2bChainID].Finalized.Number >= supervisorStatus.Chains[l2bChainID].Finalized.Number, nil
+	})
+
+	// Wait and check if the finalized head has advanced on L2A
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLA.SyncStatus()
+		return status.FinalizedL1.Time > supervisorStatus.FinalizedTimestamp &&
+			status.FinalizedL2.Number > supervisorStatus.Chains[l2aChainID].Finalized.Number, nil
+	})
+
+	// Wait and check if the finalized head has advanced on L2B
+	err = wait.For(t.Ctx(), 2*time.Second, func() (bool, error) {
+		status := out.L2CLB.SyncStatus()
+		return status.FinalizedL1.Time > supervisorStatus.FinalizedTimestamp &&
+			status.FinalizedL2.Number > supervisorStatus.Chains[l2bChainID].Finalized.Number, nil
+	})
+	t.Require().NoError(err)
 }
 
 func TestDerivationPipeline(gt *testing.T) {

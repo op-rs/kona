@@ -15,7 +15,7 @@ pub trait SignalReceiver {
 
 /// Provides a method for accessing the pipeline's current L1 origin.
 pub trait OriginProvider {
-    /// Returns the optional L1 [BlockInfo] origin.
+    /// Returns the optional L1 [`BlockInfo`] origin.
     fn origin(&self) -> Option<BlockInfo>;
 }
 

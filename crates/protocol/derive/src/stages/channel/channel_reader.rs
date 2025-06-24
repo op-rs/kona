@@ -14,7 +14,7 @@ use kona_genesis::{
 use kona_protocol::{Batch, BatchReader, BlockInfo};
 use tracing::{debug, warn};
 
-/// The [ChannelReader] provider trait.
+/// The [`ChannelReader`] provider trait.
 #[async_trait]
 pub trait ChannelReaderProvider {
     /// Pulls the next piece of data from the channel bank. Note that it attempts to pull data out
@@ -24,9 +24,9 @@ pub trait ChannelReaderProvider {
     async fn next_data(&mut self) -> PipelineResult<Option<Bytes>>;
 }
 
-/// [ChannelReader] is a stateful stage that reads [Batch]es from `Channel`s.
+/// [`ChannelReader`] is a stateful stage that reads [`Batch`]es from `Channel`s.
 ///
-/// The [ChannelReader] pulls `Channel`s from the channel bank as raw data
+/// The [`ChannelReader`] pulls `Channel`s from the channel bank as raw data
 /// and pipes it into a `BatchReader`. Since the raw data is compressed,
 /// the `BatchReader` first decompresses the data using the first bytes as
 /// a compression algorithm identifier.
@@ -50,7 +50,7 @@ impl<P> ChannelReader<P>
 where
     P: ChannelReaderProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
-    /// Create a new [ChannelReader] stage.
+    /// Create a new [`ChannelReader`] stage.
     pub const fn new(prev: P, cfg: Arc<RollupConfig>) -> Self {
         Self { prev, next_batch: None, cfg }
     }

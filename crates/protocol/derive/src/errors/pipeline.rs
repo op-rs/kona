@@ -17,7 +17,7 @@ macro_rules! ensure {
     };
 }
 
-/// A top level filter for [PipelineError] that sorts by severity.
+/// A top level filter for [`PipelineError`] that sorts by severity.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum PipelineErrorKind {
     /// A temporary error.
@@ -42,37 +42,37 @@ pub enum PipelineError {
     /// [PipelineError::Eof] will be encountered.
     #[error("Not enough data")]
     NotEnoughData,
-    /// No channels are available in the [ChannelProvider].
+    /// No channels are available in the [`ChannelProvider`].
     ///
-    /// [ChannelProvider]: crate::stages::ChannelProvider
+    /// [`ChannelProvider`]: crate::stages::ChannelProvider
     #[error("The channel provider is empty")]
     ChannelProviderEmpty,
-    /// The channel has already been built by the [ChannelAssembler] stage.
+    /// The channel has already been built by the [`ChannelAssembler`] stage.
     ///
-    /// [ChannelAssembler]: crate::stages::ChannelAssembler
+    /// [`ChannelAssembler`]: crate::stages::ChannelAssembler
     #[error("Channel already built")]
     ChannelAlreadyBuilt,
-    /// Failed to find channel in the [ChannelProvider].
+    /// Failed to find channel in the [`ChannelProvider`].
     ///
-    /// [ChannelProvider]: crate::stages::ChannelProvider
+    /// [`ChannelProvider`]: crate::stages::ChannelProvider
     #[error("Channel not found in channel provider")]
     ChannelNotFound,
-    /// No channel returned by the [ChannelReader] stage.
+    /// No channel returned by the [`ChannelReader`] stage.
     ///
-    /// [ChannelReader]: crate::stages::ChannelReader
+    /// [`ChannelReader`]: crate::stages::ChannelReader
     #[error("The channel reader has no channel available")]
     ChannelReaderEmpty,
-    /// The [BatchQueue] is empty.
+    /// The [`BatchQueue`] is empty.
     ///
-    /// [BatchQueue]: crate::stages::BatchQueue
+    /// [`BatchQueue`]: crate::stages::BatchQueue
     #[error("The batch queue has no batches available")]
     BatchQueueEmpty,
     /// Missing L1 origin.
     #[error("Missing L1 origin from previous stage")]
     MissingOrigin,
-    /// Missing data from [L1Retrieval].
+    /// Missing data from [`L1Retrieval`].
     ///
-    /// [L1Retrieval]: crate::stages::L1Retrieval
+    /// [`L1Retrieval`]: crate::stages::L1Retrieval
     #[error("L1 Retrieval missing data")]
     MissingL1Data,
     /// Invalid batch type passed.
@@ -81,15 +81,15 @@ pub enum PipelineError {
     /// Invalid batch validity variant.
     #[error("Invalid batch validity")]
     InvalidBatchValidity,
-    /// [SystemConfig] update error.
+    /// [`SystemConfig`] update error.
     ///
-    /// [SystemConfig]: kona_genesis::SystemConfig
+    /// [`SystemConfig`]: kona_genesis::SystemConfig
     #[error("Error updating system config: {0}")]
     SystemConfigUpdate(SystemConfigUpdateError),
-    /// Attributes builder error variant, with [BuilderError].
+    /// Attributes builder error variant, with [`BuilderError`].
     #[error("Attributes builder error: {0}")]
     AttributesBuilder(#[from] BuilderError),
-    /// [PipelineEncodingError] variant.
+    /// [`PipelineEncodingError`] variant.
     #[error("Decode error: {0}")]
     BadEncoding(#[from] PipelineEncodingError),
     /// The data source can no longer provide any more data.
@@ -104,12 +104,12 @@ pub enum PipelineError {
 }
 
 impl PipelineError {
-    /// Wrap [PipelineError] as a [PipelineErrorKind::Critical].
+    /// Wrap [`PipelineError`] as a [PipelineErrorKind::Critical].
     pub const fn crit(self) -> PipelineErrorKind {
         PipelineErrorKind::Critical(self)
     }
 
-    /// Wrap [PipelineError] as a [PipelineErrorKind::Temporary].
+    /// Wrap [`PipelineError`] as a [PipelineErrorKind::Temporary].
     pub const fn temp(self) -> PipelineErrorKind {
         PipelineErrorKind::Temporary(self)
     }
@@ -136,7 +136,7 @@ pub enum ResetError {
     /// The second argument is the parent_hash of the next l1 origin block.
     #[error("L1 reorg detected: expected {0}, got {1}")]
     ReorgDetected(B256, B256),
-    /// Attributes builder error variant, with [BuilderError].
+    /// Attributes builder error variant, with [`BuilderError`].
     #[error("Attributes builder error: {0}")]
     AttributesBuilder(#[from] BuilderError),
     /// A Holocene activation temporary error.
@@ -145,7 +145,7 @@ pub enum ResetError {
 }
 
 impl ResetError {
-    /// Wrap [ResetError] as a [PipelineErrorKind::Reset].
+    /// Wrap [`ResetError`] as a [PipelineErrorKind::Reset].
     pub const fn reset(self) -> PipelineErrorKind {
         PipelineErrorKind::Reset(self)
     }
