@@ -12,8 +12,8 @@ use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 // Re-export these types used internally to the test pipeline.
 use crate::{
     AttributesQueue, BatchStream, ChannelProvider, ChannelReader, DerivationPipeline, FrameQueue,
-    L1Retrieval, L1Traversal, NextAttributes, OriginAdvancer, OriginProvider, PipelineBuilder,
-    PipelineError, Signal, SignalReceiver,
+    L1Retrieval, NextAttributes, OriginAdvancer, OriginProvider, PipelineBuilder, PipelineError,
+    PollingTraversal, Signal, SignalReceiver,
     test_utils::{TestAttributesBuilder, TestDAP},
 };
 
@@ -56,8 +56,8 @@ impl NextAttributes for TestNextAttributes {
     }
 }
 
-/// An [`L1Traversal`] using test providers and sources.
-pub type TestL1Traversal = L1Traversal<TestChainProvider>;
+/// An [`PollingTraversal`] using test providers and sources.
+pub type TestL1Traversal = PollingTraversal<TestChainProvider>;
 
 /// An [`L1Retrieval`] stage using test providers and sources.
 pub type TestL1Retrieval = L1Retrieval<TestDAP, TestL1Traversal>;

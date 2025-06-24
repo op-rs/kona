@@ -1,4 +1,4 @@
-//! Contains the [L1Traversal] stage of the derivation pipeline.
+//! Contains the [`ManagedTraversal`] stage of the derivation pipeline.
 
 use crate::{
     ActivationSignal, ChainProvider, L1RetrievalProvider, OriginAdvancer, OriginProvider,
@@ -10,20 +10,20 @@ use async_trait::async_trait;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::BlockInfo;
 
-/// The [`L1Traversal`] stage of the derivation pipeline.
+/// The [`ManagedTraversal`] stage of the derivation pipeline.
 ///
 /// This stage sits at the bottom of the pipeline, holding a handle to the data source
 /// (a [`ChainProvider`] implementation) and the current L1 [`BlockInfo`] in the pipeline,
-/// which are used to traverse the L1 chain. When the [`L1Traversal`] stage is advanced,
+/// which are used to traverse the L1 chain. When the [`ManagedTraversal`] stage is advanced,
 /// it fetches the next L1 [`BlockInfo`] from the data source and updates the [`SystemConfig`]
 /// with the receipts from the block.
 #[derive(Debug, Clone)]
-pub struct L1Traversal<Provider: ChainProvider> {
+pub struct ManagedTraversal<Provider: ChainProvider> {
     /// The current block in the traversal stage.
     pub block: Option<BlockInfo>,
     /// The data source for the traversal stage.
     pub data_source: Provider,
-    /// Signals whether or not the traversal stage is complete.
+    /// Indicates whether the block has been consumed by other stages.
     pub done: bool,
     /// The system config.
     pub system_config: SystemConfig,
@@ -32,7 +32,7 @@ pub struct L1Traversal<Provider: ChainProvider> {
 }
 
 #[async_trait]
-impl<F: ChainProvider + Send> L1RetrievalProvider for L1Traversal<F> {
+impl<F: ChainProvider + Send> L1RetrievalProvider for ManagedTraversal<F> {
     fn batcher_addr(&self) -> Address {
         self.system_config.batcher_address
     }
@@ -47,8 +47,8 @@ impl<F: ChainProvider + Send> L1RetrievalProvider for L1Traversal<F> {
     }
 }
 
-impl<F: ChainProvider> L1Traversal<F> {
-    /// Creates a new [`L1Traversal`] instance.
+impl<F: ChainProvider> ManagedTraversal<F> {
+    /// Creates a new [`ManagedTraversal`] instance.
     pub fn new(data_source: F, cfg: Arc<RollupConfig>) -> Self {
         Self {
             block: Some(BlockInfo::default()),
@@ -65,94 +65,77 @@ impl<F: ChainProvider> L1Traversal<F> {
         self.block = Some(block);
         kona_macros::set!(gauge, crate::metrics::Metrics::PIPELINE_ORIGIN, block.number as f64);
     }
-}
 
-#[async_trait]
-impl<F: ChainProvider + Send> OriginAdvancer for L1Traversal<F> {
-    /// Advances the internal state of the [`L1Traversal`] stage to the next L1 block.
-    /// This function fetches the next L1 [`BlockInfo`] from the data source and updates the
-    /// [`SystemConfig`] with the receipts from the block.
-    async fn advance_origin(&mut self) -> PipelineResult<()> {
-        // Advance start time for metrics.
-        #[cfg(feature = "metrics")]
-        let start_time = std::time::Instant::now();
-
-        // Pull the next block or return EOF.
-        // PipelineError::EOF has special handling further up the pipeline.
-        let block = match self.block {
-            Some(block) => block,
-            None => {
-                warn!(target: "l1_traversal",  "Missing current block, can't advance origin with no reference.");
-                return Err(PipelineError::Eof.temp());
-            }
+    /// Provide the next block to the traversal stage.
+    async fn provide_next_block(&mut self, block_info: BlockInfo) -> PipelineResult<()> {
+        if !self.done {
+            debug!(target: "traversal", "Not finished consuming block, ignoring provided block.");
+            return Ok(());
+        }
+        let Some(block) = self.block else {
+            return Err(PipelineError::MissingOrigin.temp());
         };
-        let next_l1_origin =
-            self.data_source.block_info_by_number(block.number + 1).await.map_err(Into::into)?;
-
-        // Check block hashes for reorgs.
-        if block.hash != next_l1_origin.parent_hash {
-            return Err(ResetError::ReorgDetected(block.hash, next_l1_origin.parent_hash).into());
+        if block.number + 1 != block_info.number {
+            // Safe to ignore.
+            // The next step will exhaust l1 and get the correct next l1 block.
+            return Ok(());
+        }
+        if block.hash != block_info.parent_hash {
+            return Err(
+                ResetError::NextL1BlockHashMismatch(block.hash, block_info.parent_hash).reset()
+            );
         }
 
         // Fetch receipts for the next l1 block and update the system config.
         let receipts =
-            self.data_source.receipts_by_hash(next_l1_origin.hash).await.map_err(Into::into)?;
+            self.data_source.receipts_by_hash(block_info.hash).await.map_err(Into::into)?;
 
         let addr = self.rollup_config.l1_system_config_address;
-        let active = self.rollup_config.is_ecotone_active(next_l1_origin.timestamp);
+        let active = self.rollup_config.is_ecotone_active(block_info.timestamp);
         match self.system_config.update_with_receipts(&receipts[..], addr, active) {
             Ok(true) => {
-                let next = next_l1_origin.number as f64;
+                let next = block_info.number as f64;
                 kona_macros::set!(gauge, crate::Metrics::PIPELINE_LATEST_SYS_CONFIG_UPDATE, next);
-                info!(target: "l1_traversal", "System config updated at block {next}.");
+                info!(target: "traversal", "System config updated at block {next}.");
             }
             Ok(false) => { /* Ignore, no update applied */ }
             Err(err) => {
-                error!(target: "l1_traversal", ?err, "Failed to update system config at block {}", next_l1_origin.number);
+                error!(target: "traversal", ?err, "Failed to update system config at block {}", block_info.number);
                 kona_macros::set!(
                     gauge,
                     crate::Metrics::PIPELINE_SYS_CONFIG_UPDATE_ERROR,
-                    next_l1_origin.number as f64
+                    block_info.number as f64
                 );
                 return Err(PipelineError::SystemConfigUpdate(err).crit());
             }
         }
 
-        let prev_block_holocene = self.rollup_config.is_holocene_active(block.timestamp);
-        let next_block_holocene = self.rollup_config.is_holocene_active(next_l1_origin.timestamp);
-
-        // Update the block origin regardless of if a holocene activation is required.
-        self.update_origin(next_l1_origin);
-
-        // Record the origin as advanced.
-        #[cfg(feature = "metrics")]
-        {
-            let duration = start_time.elapsed();
-            kona_macros::record!(
-                histogram,
-                crate::metrics::Metrics::PIPELINE_ORIGIN_ADVANCE,
-                duration.as_secs_f64()
-            );
-        }
-
-        // If the prev block is not holocene, but the next is, we need to flag this
-        // so the pipeline driver will reset the pipeline for holocene activation.
-        if !prev_block_holocene && next_block_holocene {
-            return Err(ResetError::HoloceneActivation.reset());
-        }
+        // Update the origin block.
+        self.update_origin(block_info);
 
         Ok(())
     }
 }
 
-impl<F: ChainProvider> OriginProvider for L1Traversal<F> {
+#[async_trait]
+impl<F: ChainProvider + Send> OriginAdvancer for ManagedTraversal<F> {
+    async fn advance_origin(&mut self) -> PipelineResult<()> {
+        if !self.done {
+            debug!(target: "traversal", "Not finished consuming block, ignoring advance call.");
+            return Ok(());
+        }
+        return Err(PipelineError::Eof.temp());
+    }
+}
+
+impl<F: ChainProvider> OriginProvider for ManagedTraversal<F> {
     fn origin(&self) -> Option<BlockInfo> {
         self.block
     }
 }
 
 #[async_trait]
-impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
+impl<F: ChainProvider + Send> SignalReceiver for ManagedTraversal<F> {
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         match signal {
             Signal::Reset(ResetSignal { l1_origin, system_config, .. }) |
@@ -160,11 +143,7 @@ impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
                 self.update_origin(l1_origin);
                 self.system_config = system_config.expect("System config must be provided.");
             }
-            Signal::ProvideBlock(_) => {
-                /* Not supported in this stage. */
-                warn!(target: "l1_traversal", "ProvideBlock signal not supported in L1Traversal stage.");
-                return Err(PipelineError::UnsupportedSignal.temp());
-            }
+            Signal::ProvideBlock(block_info) => self.provide_next_block(block_info).await?,
             _ => {}
         }
 
@@ -173,7 +152,7 @@ impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
     use crate::{errors::PipelineErrorKind, test_utils::TestChainProvider};
     use alloc::vec;
@@ -197,7 +176,7 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn new_receipts() -> alloc::vec::Vec<Receipt> {
+    fn new_receipts() -> alloc::vec::Vec<Receipt> {
         let mut receipt =
             Receipt { status: alloy_consensus::Eip658Value::Eip658(true), ..Receipt::default() };
         let bad = Log::new(
@@ -210,10 +189,10 @@ pub(crate) mod tests {
         vec![receipt.clone(), Receipt::default(), receipt]
     }
 
-    pub(crate) fn new_test_traversal(
+    fn new_test_managed(
         blocks: alloc::vec::Vec<BlockInfo>,
         receipts: alloc::vec::Vec<Receipt>,
-    ) -> L1Traversal<TestChainProvider> {
+    ) -> ManagedTraversal<TestChainProvider> {
         let mut provider = TestChainProvider::default();
         let rollup_config = RollupConfig {
             l1_system_config_address: L1_SYS_CONFIG_ADDR,
@@ -226,47 +205,35 @@ pub(crate) mod tests {
             let hash = blocks.get(i).map(|b| b.hash).unwrap_or_default();
             provider.insert_receipts(hash, vec![receipt.clone()]);
         }
-        L1Traversal::new(provider, Arc::new(rollup_config))
+        ManagedTraversal::new(provider, Arc::new(rollup_config))
     }
 
-    pub(crate) fn new_populated_test_traversal() -> L1Traversal<TestChainProvider> {
+    fn new_populated_test_managed() -> ManagedTraversal<TestChainProvider> {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let receipts = new_receipts();
-        new_test_traversal(blocks, receipts)
+        new_test_managed(blocks, receipts)
     }
 
     #[test]
-    fn test_l1_traversal_batcher_address() {
-        let mut traversal = new_populated_test_traversal();
+    fn test_managed_traversal_batcher_address() {
+        let mut traversal = new_populated_test_managed();
         traversal.system_config.batcher_address = L1_SYS_CONFIG_ADDR;
         assert_eq!(traversal.batcher_addr(), L1_SYS_CONFIG_ADDR);
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_flush_channel() {
+    async fn test_managed_traversal_activation_signal() {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
-        assert!(traversal.advance_origin().await.is_ok());
-        traversal.done = true;
-        assert!(traversal.signal(Signal::FlushChannel).await.is_ok());
-        assert_eq!(traversal.origin(), Some(BlockInfo::default()));
-        assert!(traversal.done);
-    }
-
-    #[tokio::test]
-    async fn test_l1_traversal_activation_signal() {
-        let blocks = vec![BlockInfo::default(), BlockInfo::default()];
-        let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
-        assert!(traversal.advance_origin().await.is_ok());
+        let mut traversal = new_test_managed(blocks, receipts);
         let cfg = SystemConfig::default();
         traversal.done = true;
         assert!(
             traversal
-                .signal(
-                    ActivationSignal { system_config: Some(cfg), ..Default::default() }.signal()
-                )
+                .signal(Signal::Activation(ActivationSignal {
+                    system_config: Some(cfg),
+                    ..Default::default()
+                }))
                 .await
                 .is_ok()
         );
@@ -276,16 +243,18 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_reset_signal() {
+    async fn test_managed_traversal_reset_signal() {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
-        assert!(traversal.advance_origin().await.is_ok());
+        let mut traversal = new_test_managed(blocks, receipts);
         let cfg = SystemConfig::default();
         traversal.done = true;
         assert!(
             traversal
-                .signal(ResetSignal { system_config: Some(cfg), ..Default::default() }.signal())
+                .signal(Signal::Reset(ResetSignal {
+                    system_config: Some(cfg),
+                    ..Default::default()
+                }))
                 .await
                 .is_ok()
         );
@@ -295,74 +264,78 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    async fn test_l1_traversal() {
+    async fn test_managed_traversal_next_l1_block() {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
+        let mut traversal = new_test_managed(blocks, receipts);
         assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
         assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
-        assert!(traversal.advance_origin().await.is_ok());
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_missing_receipts() {
+    async fn test_managed_traversal_missing_receipts() {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
-        let mut traversal = new_test_traversal(blocks, vec![]);
+        let mut traversal = new_test_managed(blocks, vec![]);
         assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
         assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
-        matches!(
-            traversal.advance_origin().await.unwrap_err(),
-            PipelineErrorKind::Temporary(PipelineError::Provider(_))
-        );
+        // provide_next_block will fail due to missing receipts
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        let err = traversal.provide_next_block(next_block).await.unwrap_err();
+        matches!(err, PipelineErrorKind::Temporary(PipelineError::Provider(_)));
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_reorgs() {
+    async fn test_managed_traversal_reorgs() {
         let hash = b256!("3333333333333333333333333333333333333333333333333333333333333333");
-        let block = BlockInfo { hash, ..BlockInfo::default() };
-        let blocks = vec![block, block];
+        let block = BlockInfo { hash, number: 0, ..BlockInfo::default() };
+        let blocks = vec![block];
         let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
-        assert!(traversal.advance_origin().await.is_ok());
-        let err = traversal.advance_origin().await.unwrap_err();
-        assert_eq!(err, ResetError::ReorgDetected(block.hash, block.parent_hash).into());
+        let mut traversal = new_test_managed(blocks, receipts);
+        traversal.block = Some(block);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(block));
+        // provide_next_block will fail due to hash mismatch (simulate reorg)
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        let err = traversal.provide_next_block(next_block).await.unwrap_err();
+        assert_eq!(err, ResetError::NextL1BlockHashMismatch(hash, next_block.parent_hash).reset());
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_missing_blocks() {
-        let mut traversal = new_test_traversal(vec![], vec![]);
+    async fn test_managed_traversal_missing_blocks() {
+        let mut traversal = new_test_managed(vec![], vec![]);
         assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
         assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
-        matches!(
-            traversal.advance_origin().await.unwrap_err(),
-            PipelineErrorKind::Temporary(PipelineError::Provider(_))
-        );
+        // provide_next_block will fail due to missing origin
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        let err = traversal.provide_next_block(next_block).await.unwrap_err();
+        matches!(err, PipelineErrorKind::Temporary(PipelineError::MissingOrigin));
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_system_config_update_fails() {
+    async fn test_managed_traversal_system_config_update_fails() {
         let first = b256!("3333333333333333333333333333333333333333333333333333333333333333");
         let second = b256!("4444444444444444444444444444444444444444444444444444444444444444");
         let block1 = BlockInfo { hash: first, ..BlockInfo::default() };
-        let block2 = BlockInfo { hash: second, ..BlockInfo::default() };
+        let block2 = BlockInfo { number: 1, hash: second, ..BlockInfo::default() };
         let blocks = vec![block1, block2];
         let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
-        assert!(traversal.advance_origin().await.is_ok());
-        // Only the second block should fail since the second receipt
-        // contains invalid logs that will error for a system config update.
-        let err = traversal.advance_origin().await.unwrap_err();
+        let mut traversal = new_test_managed(blocks, receipts);
+        traversal.block = Some(block1);
+        assert_eq!(traversal.next_l1_block().await.unwrap(), Some(block1));
+        // provide_next_block will fail due to system config update error
+        let err = traversal.provide_next_block(block2).await.unwrap_err();
         matches!(err, PipelineErrorKind::Critical(PipelineError::SystemConfigUpdate(_)));
     }
 
     #[tokio::test]
-    async fn test_l1_traversal_system_config_updated() {
+    async fn test_managed_traversal_system_config_updated() {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let receipts = new_receipts();
-        let mut traversal = new_test_traversal(blocks, receipts);
+        let mut traversal = new_test_managed(blocks, receipts);
         assert_eq!(traversal.next_l1_block().await.unwrap(), Some(BlockInfo::default()));
         assert_eq!(traversal.next_l1_block().await.unwrap_err(), PipelineError::Eof.temp());
-        assert!(traversal.advance_origin().await.is_ok());
+        // provide_next_block should update system config
+        let next_block = BlockInfo { number: 1, ..BlockInfo::default() };
+        assert!(traversal.provide_next_block(next_block).await.is_ok());
         let expected = address!("000000000000000000000000000000000000bEEF");
         assert_eq!(traversal.system_config.batcher_address, expected);
     }
