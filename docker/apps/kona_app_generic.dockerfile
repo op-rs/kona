@@ -87,6 +87,11 @@ SHELL ["/bin/bash", "-c"]
 ARG BIN_TARGET
 ARG BUILD_PROFILE
 
+# Install ca-certificates and libssl-dev for TLS support.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  libssl-dev
+
 # Copy in the binary from the build image.
 COPY --from=builder "app/target/${BUILD_PROFILE}/${BIN_TARGET}" "/usr/local/bin/${BIN_TARGET}"
 
