@@ -162,7 +162,7 @@ impl<F: ChainProvider + Send> SignalReceiver for PollingTraversal<F> {
             }
             Signal::ProvideBlock(_) => {
                 /* Not supported in this stage. */
-                warn!(target: "traversal", "ProvideBlock signal not supported in L1Traversal stage.");
+                warn!(target: "traversal", "ProvideBlock signal not supported in PollingTraversal stage.");
                 return Err(PipelineError::UnsupportedSignal.temp());
             }
             _ => {}
