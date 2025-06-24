@@ -112,8 +112,8 @@ impl RollupConfigSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kona_protocol::BlockInfo;
     use alloy_primitives::ChainId;
+    use kona_protocol::BlockInfo;
 
     fn dummy_blockinfo(number: u64) -> BlockInfo {
         BlockInfo::new(B256::ZERO, number, B256::ZERO, 0)
@@ -125,11 +125,8 @@ mod tests {
         let chain_id = ChainId::from(1u64);
 
         // Interop time is 100, block_time is 10
-        let rollup_config = RollupConfig::new(
-            Genesis::new(dummy_blockinfo(0), dummy_blockinfo(0)),
-            10,
-            Some(100),
-        );
+        let rollup_config =
+            RollupConfig::new(Genesis::new(dummy_blockinfo(0), dummy_blockinfo(0)), 10, Some(100));
         set.rollups.insert(chain_id, rollup_config);
 
         // Before interop time
