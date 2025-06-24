@@ -7,9 +7,9 @@ use std::collections::HashMap;
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
 pub struct Genesis {
-    /// The L1 [`BlockSeal`] that the rollup starts after.
+    /// The L1 [`BlockInfo`] that the rollup starts after.
     pub l1: BlockInfo,
-    /// The L2 [`BlockSeal`] that the rollup starts from.
+    /// The L2 [`BlockInfo`] that the rollup starts from.
     pub l2: BlockInfo,
 }
 
@@ -20,24 +20,16 @@ impl Genesis {
     }
 
     /// Creates a new Genesis from a RollupConfig.
-    pub fn new_from_rollup_genesis(genesis: ChainGenesis, l1_block: BlockInfo) -> Self {
+    pub const fn new_from_rollup_genesis(genesis: ChainGenesis, l1_block: BlockInfo) -> Self {
         Self {
             l1: l1_block,
-            l2: BlockInfo::new(
-                genesis.l2.hash,
-                genesis.l2.number,
-                B256::ZERO,
-                genesis.l2_time,
-            ),
+            l2: BlockInfo::new(genesis.l2.hash, genesis.l2.number, B256::ZERO, genesis.l2_time),
         }
     }
 
     /// Returns the genesis anchor as a [`DerivedRefPair`].
-    pub fn get_anchor(&self) -> DerivedRefPair {
-        DerivedRefPair {
-            derived: self.l2,
-            source: self.l1,
-        }
+    pub const fn get_anchor(&self) -> DerivedRefPair {
+        DerivedRefPair { derived: self.l2, source: self.l1 }
     }
 }
 
