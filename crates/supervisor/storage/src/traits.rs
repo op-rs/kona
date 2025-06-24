@@ -200,6 +200,19 @@ pub trait HeadRefStorageWriter: Debug {
     /// * `Err(StorageError)` if there is an issue updating the reference.
     fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
 
+    /// Updates the finalized head reference using a finalized source(l1) block.
+    ///
+    /// # Arguments
+    /// * `source_block` - The [`BlockInfo`] of the source block to use for the update.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the updated finalized derived(l2) block information.
+    /// * `Err(StorageError)` if there is an issue updating the finalized head reference.
+    fn update_finalized_using_source(
+        &self,
+        finalized_source_block: BlockInfo,
+    ) -> Result<BlockInfo, StorageError>;
+
     /// Updates the safety head reference for a given [`SafetyLevel`].
     ///
     /// # Arguments

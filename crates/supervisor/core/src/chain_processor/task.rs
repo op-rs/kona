@@ -14,6 +14,8 @@ use tracing::{debug, error, info};
 pub struct ChainProcessorTask<P, W> {
     chain_id: ChainId,
 
+    managed_node: Arc<P>,
+
     state_manager: Arc<W>,
 
     log_indexer: Arc<LogIndexer<P, W>>,
@@ -37,12 +39,14 @@ where
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
+        let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
             chain_id,
             cancel_token,
+            managed_node,
             event_rx,
-            state_manager: state_manager.clone(),
-            log_indexer: Arc::from(LogIndexer::new(managed_node, state_manager)),
+            state_manager,
+            log_indexer: Arc::from(log_indexer),
         }
     }
 
@@ -80,11 +84,47 @@ where
             ChainEvent::BlockReplaced { replacement } => {
                 self.handle_block_replacement(replacement).await
             }
+            ChainEvent::FinalizedSourceUpdate { finalized_source_block } => {
+                self.handle_finalized_l1_update(finalized_source_block).await
+            }
         }
     }
 
     async fn handle_block_replacement(&self, _replacement: BlockReplacement) {
         // Logic to handle block replacement
+    }
+
+    async fn handle_finalized_l1_update(&self, finalized_source_block: BlockInfo) {
+        debug!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = finalized_source_block.number,
+            "Processing finalized L1 update"
+        );
+        let finalized_derived_block =
+            match self.state_manager.update_finalized_using_source(finalized_source_block) {
+                Ok(finalized_l2) => finalized_l2,
+                Err(err) => {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = finalized_source_block.number,
+                        %err,
+                        "Failed to update finalized L1 block"
+                    );
+                    return;
+                }
+            };
+
+        if let Err(err) = self.managed_node.update_finalized(finalized_derived_block.id()).await {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = finalized_source_block.number,
+                %err,
+                "Failed to update finalized L2 block on managed node"
+            );
+        }
     }
 
     fn handle_derivation_origin_update(&self, origin: BlockInfo) {
@@ -153,6 +193,7 @@ mod tests {
         syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
     };
     use alloy_primitives::B256;
+    use alloy_rpc_types_eth::BlockNumHash;
     use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
@@ -206,6 +247,13 @@ mod tests {
         ) -> Result<BlockInfo, ManagedNodeError> {
             Ok(BlockInfo::default())
         }
+
+        async fn update_finalized(
+            &self,
+            _finalized_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError> {
+            Ok(())
+        }
     }
 
     mock!(
@@ -232,6 +280,11 @@ mod tests {
                 &self,
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;
+
+            fn update_finalized_using_source(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<BlockInfo, StorageError>;
 
             fn update_safety_head_ref(
                 &self,
