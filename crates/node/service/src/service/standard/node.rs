@@ -1,8 +1,8 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    EngineLauncher, L1WatcherRpc, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
-    RuntimeLauncher, SupervisorRpcServerExt,
+    EngineLauncher, L1WatcherRpc, NodeActor, NodeMode, RollupNodeBuilder, RollupNodeError,
+    RollupNodeService, RuntimeLauncher, SupervisorRpcServerExt,
 };
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
@@ -80,8 +80,9 @@ impl RollupNodeService for RollupNode {
         finalized_updates: watch::Sender<Option<BlockInfo>>,
         block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
-        l1_watcher_inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
-    ) -> Self::DataAvailabilityWatcher {
+        l1_watcher_inbound_queries: mpsc::Receiver<L1WatcherQueries>,
+    ) -> (Self::DataAvailabilityWatcher, <Self::DataAvailabilityWatcher as NodeActor>::Context)
+    {
         L1WatcherRpc::new(
             self.config.clone(),
             self.l1_provider.clone(),

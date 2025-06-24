@@ -14,10 +14,12 @@ pub use service::{NodeMode, RollupNode, RollupNodeBuilder, RollupNodeError, Roll
 
 mod actors;
 pub use actors::{
-    DerivationActor, DerivationError, EngineActor, EngineError, EngineLauncher,
-    InboundDerivationMessage, InboundEngineMessage, L1WatcherRpc, L1WatcherRpcError, L2Finalizer,
-    NetworkActor, NetworkActorError, NodeActor, RpcActor, RpcActorError, RuntimeActor,
-    RuntimeLauncher, SupervisorActor, SupervisorActorError, SupervisorExt, SupervisorRpcServerExt,
+    ActorContext, DerivationActor, DerivationContext, DerivationError, EngineActor, EngineContext,
+    EngineError, EngineLauncher, InboundDerivationMessage, InboundEngineMessage, L1WatcherRpc,
+    L1WatcherRpcContext, L1WatcherRpcError, L2Finalizer, NetworkActor, NetworkActorError,
+    NetworkContext, NodeActor, RpcActor, RpcActorError, RpcContext, RuntimeActor, RuntimeContext,
+    RuntimeLauncher, SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
+    SupervisorRpcServerExt,
 };
 
 mod metrics;

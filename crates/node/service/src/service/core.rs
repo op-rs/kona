@@ -73,8 +73,8 @@ pub trait RollupNodeService {
         finalized_updates: watch::Sender<Option<BlockInfo>>,
         block_signer_tx: mpsc::Sender<Address>,
         cancellation: CancellationToken,
-        l1_watcher_inbound_queries: Option<mpsc::Receiver<L1WatcherQueries>>,
-    ) -> Self::DataAvailabilityWatcher;
+        l1_watcher_inbound_queries: mpsc::Receiver<L1WatcherQueries>,
+    ) -> (Self::DataAvailabilityWatcher, <Self::DataAvailabilityWatcher as NodeActor>::Context);
 
     /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
     /// forkchoice state and the initialized derivation pipeline.
@@ -110,7 +110,7 @@ pub trait RollupNodeService {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
-        // Create channels for communication between actors.
+        // Create context for communication between actors.
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
         let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
         let (runtime_config_tx, runtime_config_rx) = mpsc::channel(16);
@@ -130,7 +130,7 @@ pub trait RollupNodeService {
             finalized_updates_tx,
             block_signer_tx,
             cancellation.clone(),
-            Some(l1_watcher_queries_recv),
+            l1_watcher_queries_recv,
         );
 
         // Create the derivation actor.

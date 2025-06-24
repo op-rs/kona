@@ -1,7 +1,7 @@
 //! [`NodeActor`] implementation for an L1 chain watcher that polls for L1 block updates over HTTP
 //! RPC.
 
-use crate::NodeActor;
+use crate::{NodeActor, actors::ActorContext};
 use alloy_eips::{BlockId, BlockNumberOrTag};
 use alloy_primitives::{Address, B256};
 use alloy_provider::{Provider, RootProvider};
@@ -24,7 +24,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// An L1 chain watcher that checks for L1 block updates over RPC.
 #[derive(Debug)]
@@ -34,17 +34,27 @@ pub struct L1WatcherRpc {
     config: Arc<RollupConfig>,
     /// The L1 provider.
     l1_provider: RootProvider,
+}
+
+/// The communication context used by the L1 watcher actor.
+#[derive(Debug)]
+pub struct L1WatcherRpcContext {
+    /// The block signer sender.
+    block_signer_sender: mpsc::Sender<Address>,
+    /// The inbound queries to the L1 watcher.
+    inbound_queries: tokio::sync::mpsc::Receiver<L1WatcherQueries>,
     /// The latest L1 head block.
     latest_head: watch::Sender<Option<BlockInfo>>,
     /// The latest L1 finalized block.
     latest_finalized: watch::Sender<Option<BlockInfo>>,
-    /// The latest
-    /// The block signer sender.
-    block_signer_sender: mpsc::Sender<Address>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
-    /// Inbound queries to the L1 watcher.
-    inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
+}
+
+impl ActorContext for L1WatcherRpcContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
 }
 
 impl L1WatcherRpc {
@@ -56,18 +66,17 @@ impl L1WatcherRpc {
         finalized_updates: watch::Sender<Option<BlockInfo>>,
         block_signer_sender: mpsc::Sender<Address>,
         cancellation: CancellationToken,
-        // Can be None if we disable communication with the L1 watcher.
-        inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
-    ) -> Self {
-        Self {
-            config,
-            l1_provider,
+        inbound_queries: mpsc::Receiver<L1WatcherQueries>,
+    ) -> (Self, L1WatcherRpcContext) {
+        let actor = Self { config, l1_provider };
+        let context = L1WatcherRpcContext {
+            block_signer_sender,
+            inbound_queries,
             latest_head: head_updates,
             latest_finalized: finalized_updates,
-            block_signer_sender,
             cancellation,
-            inbound_queries,
-        }
+        };
+        (actor, context)
     }
 
     /// Fetches logs for the given block hash.
@@ -84,11 +93,11 @@ impl L1WatcherRpc {
     fn start_query_processor(
         &self,
         mut inbound_queries: tokio::sync::mpsc::Receiver<L1WatcherQueries>,
+        head_updates_recv: watch::Receiver<Option<BlockInfo>>,
     ) -> JoinHandle<()> {
         // Start the inbound query processor in a separate task to avoid blocking the main task.
         // We can cheaply clone the l1 provider here because it is an Arc.
         let l1_provider = self.l1_provider.clone();
-        let head_updates_recv = self.latest_head.subscribe();
         let rollup_config = self.config.clone();
 
         tokio::spawn(async move {
@@ -144,8 +153,18 @@ impl L1WatcherRpc {
 #[async_trait]
 impl NodeActor for L1WatcherRpc {
     type Error = L1WatcherRpcError<BlockInfo>;
+    type Context = L1WatcherRpcContext;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
+    async fn start(
+        mut self,
+        L1WatcherRpcContext {
+            inbound_queries,
+            latest_head,
+            latest_finalized,
+            block_signer_sender,
+            cancellation,
+        }: Self::Context,
+    ) -> Result<(), Self::Error> {
         let mut head_stream =
             BlockStream::new(&self.l1_provider, BlockNumberOrTag::Latest, Duration::from_secs(13))
                 .into_stream();
@@ -156,14 +175,13 @@ impl NodeActor for L1WatcherRpc {
         )
         .into_stream();
 
-        let inbound_queries = std::mem::take(&mut self.inbound_queries);
         let inbound_query_processor =
-            inbound_queries.map(|queries| self.start_query_processor(queries));
+            self.start_query_processor(inbound_queries, latest_head.subscribe());
 
         // Start the main processing loop.
         loop {
             select! {
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     // Exit the task on cancellation.
                     info!(
                         target: "l1_watcher",
@@ -171,7 +189,7 @@ impl NodeActor for L1WatcherRpc {
                     );
 
                     // Kill the inbound query processor.
-                    if let Some(inbound_query_processor) = inbound_query_processor { inbound_query_processor.abort() }
+                    inbound_query_processor.abort();
 
                     return Ok(());
                 },
@@ -181,7 +199,7 @@ impl NodeActor for L1WatcherRpc {
                     }
                     Some(head_block_info) => {
                         // Send the head update event to all consumers.
-                        self.latest_head.send_replace(Some(head_block_info));
+                        latest_head.send_replace(Some(head_block_info));
 
                         // For each log, attempt to construct a `SystemConfigLog`.
                         // Build the `SystemConfigUpdate` from the log.
@@ -200,7 +218,7 @@ impl NodeActor for L1WatcherRpc {
                                     target: "l1_watcher",
                                     "Unsafe block signer update: {unsafe_block_signer}"
                                 );
-                                if let Err(e) = self.block_signer_sender.send(unsafe_block_signer).await {
+                                if let Err(e) = block_signer_sender.send(unsafe_block_signer).await {
                                     error!(
                                         target: "l1_watcher",
                                         "Error sending unsafe block signer update: {e}"
@@ -215,7 +233,7 @@ impl NodeActor for L1WatcherRpc {
                         return Err(L1WatcherRpcError::StreamEnded);
                     }
                     Some(finalized_block_info) => {
-                        self.latest_finalized.send_replace(Some(finalized_block_info));
+                        latest_finalized.send_replace(Some(finalized_block_info));
                     }
                 }
             }

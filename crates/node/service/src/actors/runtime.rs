@@ -4,9 +4,22 @@ use async_trait::async_trait;
 use kona_sources::{RuntimeConfig, RuntimeLoader, RuntimeLoaderError};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
-use crate::NodeActor;
+use crate::{NodeActor, actors::ActorContext};
+
+/// The communication context used by the runtime actor.
+#[derive(Debug)]
+pub struct RuntimeContext {
+    runtime_config: mpsc::Sender<RuntimeConfig>,
+    cancellation: CancellationToken,
+}
+
+impl ActorContext for RuntimeContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
+}
 
 /// The Runtime Actor.
 ///
@@ -18,10 +31,6 @@ pub struct RuntimeActor {
     loader: RuntimeLoader,
     /// The interval at which to load the runtime.
     interval: Duration,
-    /// A channel to send the loaded runtime config to the engine actor.
-    runtime_config_tx: mpsc::Sender<RuntimeConfig>,
-    /// The cancellation token, shared between all tasks.
-    cancellation: CancellationToken,
 }
 
 impl RuntimeActor {
@@ -29,10 +38,12 @@ impl RuntimeActor {
     pub const fn new(
         loader: RuntimeLoader,
         interval: Duration,
-        runtime_config_tx: mpsc::Sender<RuntimeConfig>,
+        runtime_config: mpsc::Sender<RuntimeConfig>,
         cancellation: CancellationToken,
-    ) -> Self {
-        Self { loader, interval, runtime_config_tx, cancellation }
+    ) -> (Self, RuntimeContext) {
+        let actor = Self { loader, interval };
+        let context = RuntimeContext { runtime_config, cancellation };
+        (actor, context)
     }
 }
 
@@ -66,7 +77,7 @@ impl RuntimeLauncher {
     }
 
     /// Launches the [`RuntimeActor`].
-    pub fn launch(self) -> Option<RuntimeActor> {
+    pub fn launch(self) -> Option<(RuntimeActor, RuntimeContext)> {
         let cancellation = self.cancellation?;
         let tx = self.tx?;
         if self.interval.is_some() {
@@ -79,19 +90,23 @@ impl RuntimeLauncher {
 #[async_trait]
 impl NodeActor for RuntimeActor {
     type Error = RuntimeLoaderError;
+    type Context = RuntimeContext;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
+    async fn start(
+        mut self,
+        RuntimeContext { runtime_config, cancellation }: Self::Context,
+    ) -> Result<(), Self::Error> {
         let mut interval = tokio::time::interval(self.interval);
         loop {
             tokio::select! {
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     warn!(target: "runtime", "RuntimeActor received shutdown signal.");
                     return Ok(());
                 }
                 _ = interval.tick() => {
                     let config = self.loader.load_latest().await?;
                     debug!(target: "runtime", ?config, "Loaded latest runtime config");
-                    if let Err(e) = self.runtime_config_tx.send(config).await {
+                    if let Err(e) = runtime_config.send(config).await {
                         error!(target: "runtime", ?e, "Failed to send runtime config to the engine actor");
                     }
                 }

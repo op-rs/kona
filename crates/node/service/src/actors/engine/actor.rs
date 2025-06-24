@@ -18,10 +18,10 @@ use tokio::{
     sync::{mpsc, oneshot, watch},
     task::JoinHandle,
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 use url::Url;
 
-use crate::NodeActor;
+use crate::{NodeActor, actors::ActorContext};
 
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
@@ -36,19 +36,22 @@ pub struct EngineActor {
     engine: Engine,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
+    /// Handler for inbound queries to the engine.
+    inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
+}
 
-    /// The channel to send the l2 safe head to the derivation actor.
+/// The communication context used by the engine actor.
+#[derive(Debug)]
+pub struct EngineContext {
+    /// The receiver for L2 safe head update notifications.
     engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
     /// start. Because the EL sync state machine within [`EngineState`] can only complete once,
     /// this channel is consumed after the first successful send. Future cases where EL sync is
     /// re-triggered can occur, but we will not block derivation on it.
-    sync_complete_tx: Option<oneshot::Sender<()>>,
+    sync_complete_tx: oneshot::Sender<()>,
     /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
     derivation_signal_tx: mpsc::Sender<Signal>,
-
-    /// Handler for inbound queries to the engine.
-    inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
@@ -59,6 +62,12 @@ pub struct EngineActor {
     reset_request_rx: mpsc::Receiver<()>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
+}
+
+impl ActorContext for EngineContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
 }
 
 impl EngineActor {
@@ -78,44 +87,52 @@ impl EngineActor {
         finalized_block_rx: watch::Receiver<Option<BlockInfo>>,
         inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
         cancellation: CancellationToken,
-    ) -> Self {
+    ) -> (Self, EngineContext) {
         let client = Arc::new(client);
-        Self {
+        let actor = Self {
             config,
             client: Arc::clone(&client),
             engine,
             finalizer: L2Finalizer::new(finalized_block_rx, client),
+            inbound_queries,
+        };
+        let context = EngineContext {
             engine_l2_safe_head_tx,
-            sync_complete_tx: Some(sync_complete_tx),
+            sync_complete_tx,
             derivation_signal_tx,
             runtime_config_rx,
             attributes_rx,
             unsafe_block_rx,
             reset_request_rx,
-            inbound_queries,
             cancellation,
-        }
+        };
+        (actor, context)
     }
 
     /// Resets the inner [`Engine`] and propagates the reset to the derivation actor.
-    pub async fn reset(&mut self) -> Result<(), EngineError> {
+    pub async fn reset(
+        &mut self,
+        derivation_signal_tx: &mpsc::Sender<Signal>,
+        engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
+        cancellation: &CancellationToken,
+    ) -> Result<(), EngineError> {
         // Reset the engine.
         let (l2_safe_head, l1_origin, system_config) =
             self.engine.reset(self.client.clone(), &self.config).await?;
 
         // Signal the derivation actor to reset.
         let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
-        match self.derivation_signal_tx.send(signal.signal()).await {
+        match derivation_signal_tx.send(signal.signal()).await {
             Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
             Err(err) => {
                 error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
-                self.cancellation.cancel();
+                cancellation.cancel();
                 return Err(EngineError::ChannelClosed);
             }
         }
 
         // Attempt to update the safe head following the reset.
-        self.maybe_update_safe_head();
+        self.maybe_update_safe_head(engine_l2_safe_head_tx);
 
         // Clear the queue of L2 blocks awaiting finalization.
         self.finalizer.clear();
@@ -124,14 +141,20 @@ impl EngineActor {
     }
 
     /// Drains the inner [`Engine`] task queue and attempts to update the safe head.
-    async fn drain(&mut self) -> Result<(), EngineError> {
+    async fn drain(
+        &mut self,
+        derivation_signal_tx: &mpsc::Sender<Signal>,
+        sync_complete_tx: &mut Option<oneshot::Sender<()>>,
+        engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
+        cancellation: &CancellationToken,
+    ) -> Result<(), EngineError> {
         match self.engine.drain().await {
             Ok(_) => {
                 trace!(target: "engine", "[ENGINE] tasks drained");
             }
             Err(EngineTaskError::Reset(err)) => {
                 warn!(target: "engine", ?err, "Received reset request");
-                self.reset().await?;
+                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, cancellation).await?;
             }
             Err(EngineTaskError::Flush(err)) => {
                 // This error is encountered when the payload is marked INVALID
@@ -139,20 +162,20 @@ impl EngineActor {
                 // a "deposits-only" block and re-executed. At the same time,
                 // the channel and any remaining buffered batches are flushed.
                 warn!(target: "engine", ?err, "Invalid payload, Flushing derivation pipeline.");
-                match self.derivation_signal_tx.send(Signal::FlushChannel).await {
+                match derivation_signal_tx.send(Signal::FlushChannel).await {
                     Ok(_) => {
                         debug!(target: "engine", "Sent flush signal to derivation actor")
                     }
                     Err(err) => {
                         error!(target: "engine", ?err, "Failed to send flush signal to the derivation actor.");
-                        self.cancellation.cancel();
+                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     }
                 }
             }
             Err(err @ EngineTaskError::Critical(_)) => {
                 error!(target: "engine", ?err, "Critical error draining engine tasks");
-                self.cancellation.cancel();
+                cancellation.cancel();
                 return Err(err.into());
             }
             Err(EngineTaskError::Temporary(err)) => {
@@ -160,30 +183,42 @@ impl EngineActor {
             }
         }
 
-        self.maybe_update_safe_head();
-        self.check_el_sync().await?;
+        self.maybe_update_safe_head(engine_l2_safe_head_tx);
+        self.check_el_sync(
+            derivation_signal_tx,
+            engine_l2_safe_head_tx,
+            sync_complete_tx,
+            cancellation,
+        )
+        .await?;
 
         Ok(())
     }
 
     /// Checks if the EL has finished syncing, notifying the derivation actor if it has.
-    async fn check_el_sync(&mut self) -> Result<(), EngineError> {
+    async fn check_el_sync(
+        &mut self,
+        derivation_signal_tx: &mpsc::Sender<Signal>,
+        engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
+        sync_complete_tx: &mut Option<oneshot::Sender<()>>,
+        cancellation: &CancellationToken,
+    ) -> Result<(), EngineError> {
         if self.engine.state().el_sync_finished {
-            let Some(sender) = self.sync_complete_tx.take() else {
+            let Some(sync_complete_tx) = std::mem::take(sync_complete_tx) else {
                 return Ok(());
             };
 
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
-            self.reset().await?;
-            sender.send(()).ok();
+            self.reset(derivation_signal_tx, engine_l2_safe_head_tx, cancellation).await?;
+            sync_complete_tx.send(()).ok();
         }
 
         Ok(())
     }
 
     /// Attempts to update the safe head via the watch channel.
-    fn maybe_update_safe_head(&self) {
+    fn maybe_update_safe_head(&self, engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>) {
         let state_safe_head = self.engine.state().safe_head();
         let update = |head: &mut L2BlockInfo| {
             if head != &state_safe_head {
@@ -192,7 +227,7 @@ impl EngineActor {
             }
             false
         };
-        let sent = self.engine_l2_safe_head_tx.send_if_modified(update);
+        let sent = engine_l2_safe_head_tx.send_if_modified(update);
         trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
     }
 
@@ -218,11 +253,17 @@ impl EngineActor {
         })
     }
 
-    async fn process(&mut self, msg: InboundEngineMessage) -> Result<(), EngineError> {
+    async fn process(
+        &mut self,
+        msg: InboundEngineMessage,
+        derivation_signal_tx: &mpsc::Sender<Signal>,
+        engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
+        cancellation: &CancellationToken,
+    ) -> Result<(), EngineError> {
         match msg {
             InboundEngineMessage::ResetRequest => {
                 warn!(target: "engine", "Received reset request");
-                self.reset().await?;
+                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, cancellation).await?;
             }
             InboundEngineMessage::UnsafeBlockReceived(envelope) => {
                 let task = EngineTask::InsertUnsafe(InsertUnsafeTask::new(
@@ -273,20 +314,43 @@ impl EngineActor {
 #[async_trait]
 impl NodeActor for EngineActor {
     type Error = EngineError;
+    type Context = EngineContext;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
+    async fn start(
+        mut self,
+        EngineContext {
+            engine_l2_safe_head_tx,
+            sync_complete_tx,
+            derivation_signal_tx,
+            mut runtime_config_rx,
+            mut attributes_rx,
+            mut unsafe_block_rx,
+            mut reset_request_rx,
+            cancellation,
+        }: Self::Context,
+    ) -> Result<(), Self::Error> {
         // Start the engine query server in a separate task to avoid blocking the main task.
         let handle = std::mem::take(&mut self.inbound_queries)
             .map(|inbound_query_channel| self.start_query_task(inbound_query_channel));
 
+        // The sync complete tx is consumed after the first successful send. Hence we need to wrap
+        // it in an `Option` to ensure we satisfy the borrow checker.
+        let mut sync_complete_tx = Some(sync_complete_tx);
+
         loop {
             // Attempt to drain all outstanding tasks from the engine queue before adding new ones.
-            self.drain().await?;
+            self.drain(
+                &derivation_signal_tx,
+                &mut sync_complete_tx,
+                &engine_l2_safe_head_tx,
+                &cancellation,
+            )
+            .await?;
 
             tokio::select! {
                 biased;
 
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     warn!(target: "engine", "EngineActor received shutdown signal.");
 
                     if let Some(handle) = handle {
@@ -296,45 +360,45 @@ impl NodeActor for EngineActor {
 
                     return Ok(());
                 }
-                reset = self.reset_request_rx.recv() => {
+                reset = reset_request_rx.recv() => {
                     if reset.is_none() {
                         error!(target: "engine", "Reset request receiver closed unexpectedly");
-                        self.cancellation.cancel();
+                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     }
-                    self.process(InboundEngineMessage::ResetRequest).await?;
+                    self.process(InboundEngineMessage::ResetRequest, &derivation_signal_tx, &engine_l2_safe_head_tx, &cancellation).await?;
                 }
-                unsafe_block = self.unsafe_block_rx.recv() => {
+                unsafe_block = unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {
                         error!(target: "engine", "Unsafe block receiver closed unexpectedly");
-                        self.cancellation.cancel();
+                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    self.process(InboundEngineMessage::UnsafeBlockReceived(envelope.into())).await?;
+                    self.process(InboundEngineMessage::UnsafeBlockReceived(envelope.into()), &derivation_signal_tx, &engine_l2_safe_head_tx, &cancellation).await?;
                 }
-                attributes = self.attributes_rx.recv() => {
+                attributes = attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
                         error!(target: "engine", "Attributes receiver closed unexpectedly");
-                        self.cancellation.cancel();
+                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    self.process(InboundEngineMessage::DerivedAttributesReceived(attributes.into())).await?;
+                    self.process(InboundEngineMessage::DerivedAttributesReceived(attributes.into()), &derivation_signal_tx, &engine_l2_safe_head_tx, &cancellation).await?;
                 }
-                config = self.runtime_config_rx.recv() => {
+                config = runtime_config_rx.recv() => {
                     let Some(config) = config else {
                         error!(target: "engine", "Runtime config receiver closed unexpectedly");
-                        self.cancellation.cancel();
+                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    self.process(InboundEngineMessage::RuntimeConfigUpdate(config.into())).await?;
+                    self.process(InboundEngineMessage::RuntimeConfigUpdate(config.into()), &derivation_signal_tx, &engine_l2_safe_head_tx, &cancellation).await?;
                 }
                 msg = self.finalizer.new_finalized_block() => {
                     if let Err(err) = msg {
                         error!(target: "engine", ?err, "L1 finalized block receiver closed unexpectedly");
-                        self.cancellation.cancel();
+                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     }
-                    self.process(InboundEngineMessage::NewFinalizedL1Block).await?;
+                    self.process(InboundEngineMessage::NewFinalizedL1Block, &derivation_signal_tx, &engine_l2_safe_head_tx, &cancellation).await?;
                 }
             }
         }

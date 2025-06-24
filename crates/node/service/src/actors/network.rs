@@ -1,6 +1,6 @@
 //! Network Actor
 
-use crate::NodeActor;
+use crate::{NodeActor, actors::ActorContext};
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use derive_more::Debug;
@@ -9,7 +9,7 @@ use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
 use tokio::{select, sync::mpsc};
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The network actor handles two core networking components of the rollup node:
 /// - *discovery*: Peer discovery over UDP using discv5.
@@ -42,12 +42,6 @@ use tokio_util::sync::CancellationToken;
 pub struct NetworkActor {
     /// Network driver
     driver: Network,
-    /// The sender for [`OpExecutionPayloadEnvelope`]s received via p2p gossip.
-    blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
-    /// The receiver for unsafe block signer updates.
-    signer: mpsc::Receiver<Address>,
-    /// The cancellation token, shared between all tasks.
-    cancellation: CancellationToken,
 }
 
 impl NetworkActor {
@@ -57,16 +51,36 @@ impl NetworkActor {
         blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
         signer: mpsc::Receiver<Address>,
         cancellation: CancellationToken,
-    ) -> Self {
-        Self { driver, blocks, signer, cancellation }
+    ) -> (Self, NetworkContext) {
+        let actor = Self { driver };
+        let context = NetworkContext { blocks, signer, cancellation };
+        (actor, context)
+    }
+}
+
+/// The communication context used by the network actor.
+#[derive(Debug)]
+pub struct NetworkContext {
+    blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    signer: mpsc::Receiver<Address>,
+    cancellation: CancellationToken,
+}
+
+impl ActorContext for NetworkContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
     }
 }
 
 #[async_trait]
 impl NodeActor for NetworkActor {
     type Error = NetworkActorError;
+    type Context = NetworkContext;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
+    async fn start(
+        mut self,
+        NetworkContext { blocks, mut signer, cancellation }: Self::Context,
+    ) -> Result<(), Self::Error> {
         // Take the unsafe block receiver
         let mut unsafe_block_receiver = self.driver.unsafe_block_recv();
 
@@ -78,7 +92,7 @@ impl NodeActor for NetworkActor {
 
         loop {
             select! {
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     info!(
                         target: "network",
                         "Received shutdown signal. Exiting network task."
@@ -88,7 +102,7 @@ impl NodeActor for NetworkActor {
                 block = unsafe_block_receiver.recv() => {
                     match block {
                         Ok(block) => {
-                            match self.blocks.send(block).await {
+                            match blocks.send(block).await {
                                 Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
                                 Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
                             }
@@ -99,7 +113,7 @@ impl NodeActor for NetworkActor {
                         }
                     }
                 }
-                signer = self.signer.recv() => {
+                signer = signer.recv() => {
                     let Some(signer) = signer else {
                         warn!(
                             target: "network",

@@ -1,7 +1,7 @@
 //! The [`EngineActor`] and its components.
 
 mod actor;
-pub use actor::{EngineActor, EngineLauncher, InboundEngineMessage};
+pub use actor::{EngineActor, EngineContext, EngineLauncher, InboundEngineMessage};
 
 mod error;
 pub use error::EngineError;

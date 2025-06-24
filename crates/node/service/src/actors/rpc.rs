@@ -1,10 +1,10 @@
 //! RPC Server Actor
 
-use crate::NodeActor;
+use crate::{NodeActor, actors::ActorContext};
 use async_trait::async_trait;
 use jsonrpsee::core::RegisterMethodError;
 use kona_rpc::{RpcLauncher, RpcLauncherError};
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// An error returned by the [`RpcActor`].
 #[derive(Debug, thiserror::Error)]
@@ -28,22 +28,39 @@ pub enum RpcActorError {
 pub struct RpcActor {
     /// A launcher for the rpc.
     launcher: RpcLauncher,
-    /// The cancellation token, shared between all tasks.
-    cancellation: CancellationToken,
 }
 
 impl RpcActor {
     /// Constructs a new [`RpcActor`] given the [`RpcLauncher`] and [`CancellationToken`].
-    pub const fn new(launcher: RpcLauncher, cancellation: CancellationToken) -> Self {
-        Self { launcher, cancellation }
+    pub const fn new(launcher: RpcLauncher, cancellation: CancellationToken) -> (Self, RpcContext) {
+        let actor = Self { launcher };
+        let context = RpcContext { cancellation };
+        (actor, context)
+    }
+}
+
+/// The communication context used by the RPC actor.
+#[derive(Debug)]
+pub struct RpcContext {
+    /// The cancellation token, shared between all tasks.
+    cancellation: CancellationToken,
+}
+
+impl ActorContext for RpcContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
     }
 }
 
 #[async_trait]
 impl NodeActor for RpcActor {
     type Error = RpcActorError;
+    type Context = RpcContext;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
+    async fn start(
+        mut self,
+        RpcContext { cancellation }: Self::Context,
+    ) -> Result<(), Self::Error> {
         let restarts = self.launcher.restart_count();
 
         let Some(mut handle) = self.launcher.clone().launch().await? else {
@@ -62,12 +79,12 @@ impl NodeActor for RpcActor {
                         }
                         Err(err) => {
                             error!(target: "rpc", ?err, "Failed to launch rpc server");
-                            self.cancellation.cancel();
+                            cancellation.cancel();
                             return Err(RpcActorError::ServerStopped);
                         }
                     }
                 }
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     // The cancellation token has been triggered, so we should stop the server.
                     handle.stop().map_err(|_| RpcActorError::StopFailed)?;
                     // Since the RPC Server didn't originate the error, we should return Ok.
@@ -77,7 +94,7 @@ impl NodeActor for RpcActor {
         }
 
         // Stop the node if there has already been 3 rpc restarts.
-        self.cancellation.cancel();
+        cancellation.cancel();
         return Err(RpcActorError::ServerStopped);
     }
 }
