@@ -4972,6 +4972,7 @@ dependencies = [
  "kona-cli",
  "kona-genesis",
  "kona-interop",
+ "kona-protocol",
  "kona-registry",
  "kona-supervisor-core",
  "kona-supervisor-service",

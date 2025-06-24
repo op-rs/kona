@@ -5,6 +5,7 @@ use clap::Args;
 use glob::glob;
 use kona_genesis::RollupConfig;
 use kona_interop::DependencySet;
+use kona_protocol::BlockInfo;
 use kona_supervisor_core::{
     config::{Config, RollupConfigSet},
     syncnode::ManagedNodeConfig,
@@ -135,7 +136,12 @@ impl SupervisorArgs {
             rollup_config_set.add_from_rollup_config(
                 chain_id,
                 rollup_config,
-                l1_genesis.header.timestamp,
+                BlockInfo::new(
+                    l1_genesis.header.hash,
+                    l1_genesis.header.number,
+                    l1_genesis.header.parent_hash,
+                    l1_genesis.header.timestamp,
+                ),
             );
         }
 

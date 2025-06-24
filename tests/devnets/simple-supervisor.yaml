@@ -3,21 +3,18 @@ optimism_package:
     enabled: true
     image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
-    chain0:
+    chain1:
       participants:
-        optimism-1:
-        # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
-        # So we use op-geth for now.
+        node1:
           el:
             type: op-geth
-            log_level: "info"
           cl:
             type: op-node
-            log_level: "info"
-          sequencer: true
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
+            log_level: debug
       network_params:
+        network: "kurtosis"
         network_id: "2151908"
-        name: "op-kurtosis-1"
         interop_time_offset: 0
         holocene_time_offset: 0
         isthmus_time_offset: 0
@@ -29,11 +26,17 @@ optimism_package:
       proposer_params:
         game_type: 1
         proposal_interval: 10m
-    - participants:
-      - el_type: op-geth
-        cl_type: op-node
-        cl_log_level: debug
+    chain2:
+      participants:
+        node1:
+          el:
+            type: op-geth
+          cl:
+            type: op-node
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
+            log_level: debug
       network_params:
+        network: "kurtosis"
         network_id: "2151909"
         interop_time_offset: 0
         holocene_time_offset: 0
@@ -52,6 +55,7 @@ optimism_package:
   supervisors:
     supervisor: # default op-supervisor
       enabled: true
+      type: kona-supervisor
       image: kona-supervisor:local
       superchain: superchain
   global_log_level: "info"
