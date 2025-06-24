@@ -41,7 +41,6 @@ impl RpcActor {
 
 #[async_trait]
 impl NodeActor for RpcActor {
-    type InboundEvent = ();
     type Error = RpcActorError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
@@ -80,9 +79,5 @@ impl NodeActor for RpcActor {
         // Stop the node if there has already been 3 rpc restarts.
         self.cancellation.cancel();
         return Err(RpcActorError::ServerStopped);
-    }
-
-    async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
-        Ok(())
     }
 }

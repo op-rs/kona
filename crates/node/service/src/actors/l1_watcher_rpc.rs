@@ -143,7 +143,6 @@ impl L1WatcherRpc {
 
 #[async_trait]
 impl NodeActor for L1WatcherRpc {
-    type InboundEvent = ();
     type Error = L1WatcherRpcError<BlockInfo>;
 
     async fn start(mut self) -> Result<(), Self::Error> {
@@ -221,11 +220,6 @@ impl NodeActor for L1WatcherRpc {
                 }
             }
         }
-    }
-
-    async fn process(&mut self, _msg: Self::InboundEvent) -> Result<(), Self::Error> {
-        // The L1 watcher does not process any incoming messages.
-        Ok(())
     }
 }
 

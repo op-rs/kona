@@ -209,64 +209,6 @@ where
             }
         }
     }
-}
-
-#[async_trait]
-impl<P> NodeActor for DerivationActor<P>
-where
-    P: Pipeline + SignalReceiver + Send + Sync,
-{
-    type InboundEvent = InboundDerivationMessage;
-    type Error = DerivationError;
-
-    async fn start(mut self) -> Result<(), Self::Error> {
-        loop {
-            select! {
-                biased;
-
-                _ = self.cancellation.cancelled() => {
-                    info!(
-                        target: "derivation",
-                        "Received shutdown signal. Exiting derivation task."
-                    );
-                    return Ok(());
-                }
-                signal = self.derivation_signal_rx.recv() => {
-                    let Some(signal) = signal else {
-                        error!(
-                            target: "derivation",
-                            ?signal,
-                            "DerivationActor failed to receive signal"
-                        );
-                        return Err(DerivationError::SignalReceiveFailed);
-                    };
-
-                    self.signal(signal).await;
-                    self.waiting_for_signal = false;
-                }
-                msg = self.l1_head_updates.changed() => {
-                    if let Err(err) = msg {
-                        error!(
-                            target: "derivation",
-                            ?err,
-                            "L1 head update stream closed without cancellation. Exiting derivation task."
-                        );
-                        return Ok(());
-                    }
-
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
-                }
-                _ = self.engine_l2_safe_head.changed() => {
-                    self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
-                }
-                _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
-                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
-                    // Optimistically process the first message.
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
-                }
-            }
-        }
-    }
 
     /// Attempts to process the next payload attributes.
     ///
@@ -280,7 +222,7 @@ where
     /// attributes are successfully produced. If the pipeline step errors,
     /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
     /// zero hash, the pipeline is not stepped on.
-    async fn process(&mut self, msg: Self::InboundEvent) -> Result<(), Self::Error> {
+    async fn process(&mut self, msg: InboundDerivationMessage) -> Result<(), DerivationError> {
         // Only attempt derivation once the engine finishes syncing.
         if !self.el_sync_complete_rx.is_terminated() {
             trace!(target: "derivation", "Engine not ready, skipping derivation");
@@ -341,6 +283,63 @@ where
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl<P> NodeActor for DerivationActor<P>
+where
+    P: Pipeline + SignalReceiver + Send + Sync,
+{
+    type Error = DerivationError;
+
+    async fn start(mut self) -> Result<(), Self::Error> {
+        loop {
+            select! {
+                biased;
+
+                _ = self.cancellation.cancelled() => {
+                    info!(
+                        target: "derivation",
+                        "Received shutdown signal. Exiting derivation task."
+                    );
+                    return Ok(());
+                }
+                signal = self.derivation_signal_rx.recv() => {
+                    let Some(signal) = signal else {
+                        error!(
+                            target: "derivation",
+                            ?signal,
+                            "DerivationActor failed to receive signal"
+                        );
+                        return Err(DerivationError::SignalReceiveFailed);
+                    };
+
+                    self.signal(signal).await;
+                    self.waiting_for_signal = false;
+                }
+                msg = self.l1_head_updates.changed() => {
+                    if let Err(err) = msg {
+                        error!(
+                            target: "derivation",
+                            ?err,
+                            "L1 head update stream closed without cancellation. Exiting derivation task."
+                        );
+                        return Ok(());
+                    }
+
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
+                }
+                _ = self.engine_l2_safe_head.changed() => {
+                    self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
+                }
+                _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
+                    info!(target: "derivation", "Engine finished syncing, starting derivation.");
+                    // Optimistically process the first message.
+                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
+                }
+            }
+        }
     }
 }
 

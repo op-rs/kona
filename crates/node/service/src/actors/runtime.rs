@@ -78,7 +78,6 @@ impl RuntimeLauncher {
 
 #[async_trait]
 impl NodeActor for RuntimeActor {
-    type InboundEvent = ();
     type Error = RuntimeLoaderError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
@@ -98,10 +97,5 @@ impl NodeActor for RuntimeActor {
                 }
             }
         }
-    }
-
-    async fn process(&mut self, e: Self::InboundEvent) -> Result<(), Self::Error> {
-        trace!(target: "runtime", ?e, "Runtime Actor received unexpected inbound event. Ignoring.");
-        Ok(())
     }
 }
