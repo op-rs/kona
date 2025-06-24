@@ -58,7 +58,10 @@ impl RollupConfig {
         l1_block: BlockInfo,
     ) -> Result<Self, String> {
         if config.genesis.l1.number != l1_block.number {
-            return Err("L1 block number mismatch".to_string());
+            return Err(format!(
+                "L1 block number mismatch: expected {}, but got {}",
+                config.genesis.l1.number, l1_block.number
+            ));
         }
 
         Ok(Self {
@@ -105,8 +108,7 @@ impl RollupConfigSet {
         config: kona_genesis::RollupConfig,
         l1_block: BlockInfo,
     ) -> Result<(), String> {
-        let rollup_config =
-            RollupConfig::new_from_rollup_config(config, l1_block).map_err(|err| err)?;
+        let rollup_config = RollupConfig::new_from_rollup_config(config, l1_block)?;
         self.rollups.insert(chain_id, rollup_config);
         Ok(())
     }
