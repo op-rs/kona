@@ -23,7 +23,7 @@ kona-providers-alloy.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
-alloy-provider = { workspace = true, features = ["reqwest", "reqwest-default-tls", "hyper", "hyper-tls"] }
+alloy-provider = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
 
