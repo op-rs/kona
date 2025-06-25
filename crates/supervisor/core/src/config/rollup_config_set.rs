@@ -4,6 +4,8 @@ use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use std::collections::HashMap;
 
+use crate::SupervisorError;
+
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
 pub struct Genesis {
@@ -56,12 +58,9 @@ impl RollupConfig {
     pub fn new_from_rollup_config(
         config: kona_genesis::RollupConfig,
         l1_block: BlockInfo,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, SupervisorError> {
         if config.genesis.l1.number != l1_block.number {
-            return Err(format!(
-                "L1 block number mismatch: expected {}, but got {}",
-                config.genesis.l1.number, l1_block.number
-            ));
+            return Err(SupervisorError::L1BlockMismatch(config.genesis.l1.number, l1_block.number));
         }
 
         Ok(Self {
@@ -107,7 +106,7 @@ impl RollupConfigSet {
         chain_id: u64,
         config: kona_genesis::RollupConfig,
         l1_block: BlockInfo,
-    ) -> Result<(), String> {
+    ) -> Result<(), SupervisorError> {
         let rollup_config = RollupConfig::new_from_rollup_config(config, l1_block)?;
         self.rollups.insert(chain_id, rollup_config);
         Ok(())
