@@ -30,7 +30,7 @@ where
     DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedEventTask`] instance.
-    pub fn new(
+    pub const fn new(
         l1_provider: RootProvider<Ethereum>,
         db_provider: Arc<DB>,
         event_tx: mpsc::Sender<ChainEvent>,
