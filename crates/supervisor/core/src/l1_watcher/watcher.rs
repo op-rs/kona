@@ -138,7 +138,7 @@ mod tests {
         event_txs.insert(2, tx2);
 
         let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter.clone());
+        let transport = MockTransport::new(asserter);
         let rpc_client = RpcClient::new(transport, false);
 
         let watcher = L1Watcher {
@@ -149,7 +149,7 @@ mod tests {
         };
 
         let block = BlockInfo::new(B256::ZERO, 42, B256::ZERO, 12345);
-        watcher.broadcast_finalized_source_update(block.clone());
+        watcher.broadcast_finalized_source_update(block);
 
         assert!(
             matches!(rx1.recv().await, Some(ChainEvent::FinalizedSourceUpdate { finalized_source_block }) if finalized_source_block == block)
@@ -168,7 +168,7 @@ mod tests {
         mock_storage.expect_update_finalized_l1().returning(|_block| Ok(()));
 
         let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter.clone());
+        let transport = MockTransport::new(asserter);
         let rpc_client = RpcClient::new(transport, false);
 
         let watcher = L1Watcher {
@@ -220,7 +220,7 @@ mod tests {
             .returning(|_block| Err(StorageError::DatabaseNotInitialised));
 
         let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter.clone());
+        let transport = MockTransport::new(asserter);
         let rpc_client = RpcClient::new(transport, false);
 
         let watcher = L1Watcher {
