@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineLauncher, NodeMode, RollupNode, RuntimeLauncher};
+use crate::{EngineLauncher, NodeMode, RollupNode, actors::RuntimeState};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -145,10 +145,10 @@ impl RollupNodeBuilder {
             jwt_secret,
         };
 
-        let runtime_launcher = RuntimeLauncher::new(
-            kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
-            self.runtime_load_interval,
-        );
+        let runtime_launcher = self.runtime_load_interval.map(|load_interval| RuntimeState {
+            loader: kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
+            interval: load_interval,
+        });
         let supervisor_rpc = self.supervisor_rpc_config.unwrap_or_default();
 
         let p2p_config = self.p2p_config.expect("P2P config not set");

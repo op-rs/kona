@@ -4,6 +4,7 @@ use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
 use alloy_provider::RootProvider;
 use alloy_rpc_types_engine::{Claims, JwtSecret};
+use alloy_rpc_types_eth::BlockNumHash;
 use async_trait::async_trait;
 use jsonrpsee::ws_client::{HeaderMap, HeaderValue, WsClient, WsClientBuilder};
 use kona_protocol::BlockInfo;
@@ -314,6 +315,15 @@ where
         let block_info =
             ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await?;
         Ok(block_info)
+    }
+
+    async fn update_finalized(
+        &self,
+        finalized_block_id: BlockNumHash,
+    ) -> Result<(), ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        ManagedModeApiClient::update_finalized(client.as_ref(), finalized_block_id).await?;
+        Ok(())
     }
 }
 

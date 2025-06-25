@@ -14,6 +14,8 @@ use tracing::{debug, error, info};
 pub struct ChainProcessorTask<P, W> {
     chain_id: ChainId,
 
+    managed_node: Arc<P>,
+
     state_manager: Arc<W>,
 
     log_indexer: Arc<LogIndexer<P, W>>,
@@ -37,12 +39,14 @@ where
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
+        let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
             chain_id,
             cancel_token,
+            managed_node,
             event_rx,
-            state_manager: state_manager.clone(),
-            log_indexer: Arc::from(LogIndexer::new(managed_node, state_manager)),
+            state_manager,
+            log_indexer: Arc::from(log_indexer),
         }
     }
 
@@ -80,11 +84,47 @@ where
             ChainEvent::BlockReplaced { replacement } => {
                 self.handle_block_replacement(replacement).await
             }
+            ChainEvent::FinalizedSourceUpdate { finalized_source_block } => {
+                self.handle_finalized_l1_update(finalized_source_block).await
+            }
         }
     }
 
     async fn handle_block_replacement(&self, _replacement: BlockReplacement) {
         // Logic to handle block replacement
+    }
+
+    async fn handle_finalized_l1_update(&self, finalized_source_block: BlockInfo) {
+        debug!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = finalized_source_block.number,
+            "Processing finalized L1 update"
+        );
+        let finalized_derived_block =
+            match self.state_manager.update_finalized_using_source(finalized_source_block) {
+                Ok(finalized_l2) => finalized_l2,
+                Err(err) => {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = finalized_source_block.number,
+                        %err,
+                        "Failed to update finalized L1 block"
+                    );
+                    return;
+                }
+            };
+
+        if let Err(err) = self.managed_node.update_finalized(finalized_derived_block.id()).await {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = finalized_source_block.number,
+                %err,
+                "Failed to update finalized L2 block on managed node"
+            );
+        }
     }
 
     fn handle_derivation_origin_update(&self, origin: BlockInfo) {
@@ -153,6 +193,7 @@ mod tests {
         syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
     };
     use alloy_primitives::B256;
+    use alloy_rpc_types_eth::BlockNumHash;
     use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
@@ -164,49 +205,46 @@ mod tests {
     use std::time::Duration;
     use tokio::sync::mpsc;
 
-    #[derive(Debug)]
-    struct MockNode;
+    mock!(
+        #[derive(Debug)]
+        pub Node {}
 
-    #[async_trait]
-    impl NodeSubscriber for MockNode {
-        async fn start_subscription(
-            &self,
-            _event_tx: mpsc::Sender<ChainEvent>,
-        ) -> Result<(), ManagedNodeError> {
-            Ok(())
-        }
+        #[async_trait]
+        impl NodeSubscriber for Node {
+            async fn start_subscription(
+                &self,
+                _event_tx: mpsc::Sender<ChainEvent>,
+            ) -> Result<(), ManagedNodeError>;
     }
 
     #[async_trait]
-    impl ReceiptProvider for MockNode {
-        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
-            Ok(vec![])
-        }
+    impl ReceiptProvider for Node {
+        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
     }
 
     #[async_trait]
-    impl ManagedNodeApiProvider for MockNode {
+    impl ManagedNodeApiProvider for Node {
         async fn output_v0_at_timestamp(
             &self,
             _timestamp: u64,
-        ) -> Result<OutputV0, ManagedNodeError> {
-            Ok(OutputV0::default())
-        }
+        ) -> Result<OutputV0, ManagedNodeError>;
 
         async fn pending_output_v0_at_timestamp(
             &self,
             _timestamp: u64,
-        ) -> Result<OutputV0, ManagedNodeError> {
-            Ok(OutputV0::default())
-        }
+        ) -> Result<OutputV0, ManagedNodeError>;
 
         async fn l2_block_ref_by_timestamp(
             &self,
             _timestamp: u64,
-        ) -> Result<BlockInfo, ManagedNodeError> {
-            Ok(BlockInfo::default())
-        }
+        ) -> Result<BlockInfo, ManagedNodeError>;
+
+        async fn update_finalized(
+            &self,
+            _finalized_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError>;
     }
+    );
 
     mock!(
         #[derive(Debug)]
@@ -233,6 +271,11 @@ mod tests {
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;
 
+            fn update_finalized_using_source(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<BlockInfo, StorageError>;
+
             fn update_safety_head_ref(
                 &self,
                 safety_level: SafetyLevel,
@@ -243,21 +286,25 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_unsafe_event_triggers() {
-        let node = Arc::new(MockNode);
         let mut mockdb = MockDb::new();
-
-        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
+        let mut mocknode = MockNode::new();
 
         // Send unsafe block event
-        let block =
-            BlockInfo { number: 123, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 0 };
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 0);
+
+        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
+        mocknode.expect_fetch_receipts().returning(move |block_hash| {
+            assert!(block_hash == block.hash);
+            Ok(Receipts::default())
+        });
 
         let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
 
         tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 
@@ -288,19 +335,21 @@ mod tests {
             },
         };
 
-        let node = Arc::new(MockNode);
         let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
         mockdb.expect_save_derived_block_pair().returning(move |_pair: DerivedRefPair| {
             assert_eq!(_pair, block_pair);
             Ok(())
         });
 
         let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send unsafe block event
         tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
@@ -320,8 +369,9 @@ mod tests {
         let origin =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
-        let node = Arc::new(MockNode);
         let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
         let origin_clone = origin;
         mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);
@@ -329,11 +379,12 @@ mod tests {
         });
 
         let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
 
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, node, writer, cancel_token.clone(), rx);
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send derivation origin update event
         tx.send(ChainEvent::DerivationOriginUpdate { origin }).await.unwrap();
@@ -342,6 +393,89 @@ mod tests {
 
         // Give it time to process
         tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_finalized_source_update_triggers() {
+        let finalized_source_block =
+            BlockInfo { number: 99, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
+
+        let mut mocknode = MockNode::new();
+        let mut mockdb = MockDb::new();
+
+        // The finalized_derived_block returned by update_finalized_using_source
+        let finalized_derived_block =
+            BlockInfo { number: 5, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
+
+        // Expect update_finalized_using_source to be called with finalized_source_block
+        mockdb.expect_update_finalized_using_source().returning(move |block_info: BlockInfo| {
+            assert_eq!(block_info, finalized_source_block);
+            Ok(finalized_derived_block)
+        });
+
+        // Expect update_finalized to be called with the derived block's id
+        let finalized_derived_block_id = finalized_derived_block.id();
+        mocknode.expect_update_finalized().returning(move |block_id| {
+            assert_eq!(block_id, finalized_derived_block_id);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+
+        // Send FinalizedSourceUpdate event
+        tx.send(ChainEvent::FinalizedSourceUpdate { finalized_source_block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_finalized_source_update_db_error() {
+        let finalized_source_block =
+            BlockInfo { number: 99, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
+
+        let mut mocknode = MockNode::new();
+        let mut mockdb = MockDb::new();
+
+        // DB returns error
+        mockdb
+            .expect_update_finalized_using_source()
+            .returning(|_block_info: BlockInfo| Err(StorageError::DatabaseNotInitialised));
+
+        // Managed node's update_finalized should NOT be called
+        mocknode.expect_update_finalized().never();
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+
+        // Send FinalizedSourceUpdate event
+        tx.send(ChainEvent::FinalizedSourceUpdate { finalized_source_block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         // Stop the task
         cancel_token.cancel();

@@ -32,4 +32,10 @@ pub enum ChainEvent {
         /// hash.
         replacement: BlockReplacement,
     },
+
+    /// A finalized source update event, indicating that a new source block has been finalized.
+    FinalizedSourceUpdate {
+        /// The [`BlockInfo`] of the new finalized source(l1) block.
+        finalized_source_block: BlockInfo,
+    },
 }

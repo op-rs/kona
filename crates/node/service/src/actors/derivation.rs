@@ -1,6 +1,6 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
-use crate::{Metrics, NodeActor};
+use crate::{Metrics, NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_derive::{
     ActivationSignal, Pipeline, PipelineError, PipelineErrorKind, ResetError, ResetSignal, Signal,
@@ -12,7 +12,7 @@ use tokio::{
     select,
     sync::{mpsc, oneshot, watch},
 };
-use tokio_util::sync::CancellationToken;
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// The [NodeActor] for the derivation sub-routine.
 ///
@@ -24,13 +24,50 @@ pub struct DerivationActor<P>
 where
     P: Pipeline + SignalReceiver,
 {
-    /// The derivation pipeline.
-    pipeline: P,
+    /// The state for the derivation actor.
+    state: DerivationState<P>,
+    /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
+    attributes_out: mpsc::Sender<OpAttributesWithParent>,
+    /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
+    /// them to the engine.
+    reset_request_tx: mpsc::Sender<()>,
+}
 
-    /// The l2 safe head from the engine.
-    engine_l2_safe_head: watch::Receiver<L2BlockInfo>,
+/// The state for the derivation actor.
+#[derive(Debug)]
+pub struct DerivationState<P>
+where
+    P: Pipeline + SignalReceiver,
+{
+    /// The derivation pipeline.
+    pub pipeline: P,
+    /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
+    /// has yielded to wait for more data on the DAL.
+    pub derivation_idle: bool,
+    /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
+    /// signal, derivation cannot process any incoming events.
+    pub waiting_for_signal: bool,
+}
+
+/// The outbound channels for the derivation actor.
+#[derive(Debug)]
+pub struct DerivationOutboundChannels {
+    /// The receiver for derived [`OpAttributesWithParent`]s produced by the actor.
+    pub attributes_out: mpsc::Receiver<OpAttributesWithParent>,
+    /// The receiver for reset requests, used to handle [`PipelineErrorKind::Reset`] events and
+    /// forward them to the engine.
+    pub reset_request_tx: mpsc::Receiver<()>,
+}
+
+/// The communication context used by the derivation actor.
+#[derive(Debug)]
+pub struct DerivationContext {
+    /// The receiver for L1 head update notifications.
+    pub l1_head_updates: watch::Receiver<Option<BlockInfo>>,
+    /// The receiver for L2 safe head update notifications.
+    pub engine_l2_safe_head: watch::Receiver<L2BlockInfo>,
     /// A receiver that tells derivation to begin. Completing EL sync consumes the instance.
-    el_sync_complete_rx: oneshot::Receiver<()>,
+    pub el_sync_complete_rx: oneshot::Receiver<()>,
     /// A receiver that sends a [`Signal`] to the derivation pipeline.
     ///
     /// The derivation actor steps over the derivation pipeline to generate
@@ -49,55 +86,24 @@ where
     /// occurs.
     ///
     /// Specs: <https://specs.optimism.io/protocol/derivation.html#l1-sync-payload-attributes-processing>
-    derivation_signal_rx: mpsc::Receiver<Signal>,
-    /// The receiver for L1 head update notifications.
-    l1_head_updates: watch::Receiver<Option<BlockInfo>>,
-
-    /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
-    attributes_out: mpsc::Sender<OpAttributesWithParent>,
-    /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
-    /// them to the engine.
-    reset_request_tx: mpsc::Sender<()>,
-
-    /// A flag indicating whether or not derivation is idle. Derivation is considered idle when it
-    /// has yielded to wait for more data on the DAL.
-    derivation_idle: bool,
-    /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
-    /// signal, derivation cannot process any incoming events.
-    waiting_for_signal: bool,
-
+    pub derivation_signal_rx: mpsc::Receiver<Signal>,
     /// The cancellation token, shared between all tasks.
-    cancellation: CancellationToken,
+    pub cancellation: CancellationToken,
 }
 
-impl<P> DerivationActor<P>
+impl CancellableContext for DerivationContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
+}
+
+impl<P> DerivationState<P>
 where
     P: Pipeline + SignalReceiver,
 {
-    /// Creates a new instance of the [DerivationActor].
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pipeline: P,
-        engine_l2_safe_head: watch::Receiver<L2BlockInfo>,
-        el_sync_complete_rx: oneshot::Receiver<()>,
-        derivation_signal_rx: mpsc::Receiver<Signal>,
-        l1_head_updates: watch::Receiver<Option<BlockInfo>>,
-        attributes_out: mpsc::Sender<OpAttributesWithParent>,
-        reset_request_tx: mpsc::Sender<()>,
-        cancellation: CancellationToken,
-    ) -> Self {
-        Self {
-            pipeline,
-            engine_l2_safe_head,
-            el_sync_complete_rx,
-            derivation_signal_rx,
-            l1_head_updates,
-            attributes_out,
-            reset_request_tx,
-            derivation_idle: true,
-            waiting_for_signal: false,
-            cancellation,
-        }
+    /// Creates a new instance of the [DerivationState].
+    pub const fn new(pipeline: P) -> Self {
+        Self { pipeline, derivation_idle: true, waiting_for_signal: false }
     }
 
     /// Handles a [`Signal`] received over the derivation signal receiver channel.
@@ -116,12 +122,16 @@ where
 
     /// Attempts to step the derivation pipeline forward as much as possible in order to produce the
     /// next safe payload.
-    async fn produce_next_attributes(&mut self) -> Result<OpAttributesWithParent, DerivationError> {
+    async fn produce_next_attributes(
+        &mut self,
+        engine_l2_safe_head: &watch::Receiver<L2BlockInfo>,
+        reset_request_tx: &mpsc::Sender<()>,
+    ) -> Result<OpAttributesWithParent, DerivationError> {
         // As we start the safe head at the disputed block's parent, we step the pipeline until the
         // first attributes are produced. All batches at and before the safe head will be
         // dropped, so the first payload will always be the disputed one.
         loop {
-            let l2_safe_head = *self.engine_l2_safe_head.borrow();
+            let l2_safe_head = *engine_l2_safe_head.borrow();
             match self.pipeline.step(l2_safe_head).await {
                 StepResult::PreparedAttributes => { /* continue; attributes will be sent off. */ }
                 StepResult::AdvancedOrigin => {
@@ -159,6 +169,7 @@ where
                                     .pipeline
                                     .origin()
                                     .ok_or(PipelineError::MissingOrigin.crit())?;
+
                                 self.pipeline
                                     .signal(
                                         ActivationSignal {
@@ -185,7 +196,7 @@ where
                                     .rollup_config()
                                     .is_interop_active(l2_safe_head.block_info.timestamp)
                                 {
-                                    self.reset_request_tx.send(()).await.map_err(|e| {
+                                    reset_request_tx.send(()).await.map_err(|e| {
                                         error!(target: "derivation", ?e, "Failed to send reset request");
                                         DerivationError::Sender(Box::new(e))
                                     })?;
@@ -222,9 +233,16 @@ where
     /// attributes are successfully produced. If the pipeline step errors,
     /// the same [`L2BlockInfo`] is used again. If the [`L2BlockInfo`] is the
     /// zero hash, the pipeline is not stepped on.
-    async fn process(&mut self, msg: InboundDerivationMessage) -> Result<(), DerivationError> {
+    async fn process(
+        &mut self,
+        msg: InboundDerivationMessage,
+        engine_l2_safe_head: &mut watch::Receiver<L2BlockInfo>,
+        el_sync_complete_rx: &oneshot::Receiver<()>,
+        attributes_out: &mpsc::Sender<OpAttributesWithParent>,
+        reset_request_tx: &mpsc::Sender<()>,
+    ) -> Result<(), DerivationError> {
         // Only attempt derivation once the engine finishes syncing.
-        if !self.el_sync_complete_rx.is_terminated() {
+        if !el_sync_complete_rx.is_terminated() {
             trace!(target: "derivation", "Engine not ready, skipping derivation");
             return Ok(());
         } else if self.waiting_for_signal {
@@ -236,7 +254,7 @@ where
         // check if the safe head has changed before continuing. This is to prevent attempts to
         // progress the pipeline while it is in the middle of processing a channel.
         if !(self.derivation_idle || msg == InboundDerivationMessage::SafeHeadUpdated) {
-            match self.engine_l2_safe_head.has_changed() {
+            match engine_l2_safe_head.has_changed() {
                 Ok(true) => { /* Proceed to produce next payload attributes. */ }
                 Ok(false) => {
                     trace!(target: "derivation", "Safe head hasn't changed, skipping derivation.");
@@ -250,7 +268,7 @@ where
         }
 
         // Wait for the engine to initialize unknowns prior to kicking off derivation.
-        let engine_safe_head = *self.engine_l2_safe_head.borrow();
+        let engine_safe_head = *engine_l2_safe_head.borrow();
         if engine_safe_head.block_info.hash.is_zero() {
             warn!(target: "derivation", engine_safe_head = ?engine_safe_head.block_info.number, "Waiting for engine to initialize state prior to derivation.");
             return Ok(());
@@ -258,26 +276,27 @@ where
 
         // Advance the pipeline as much as possible, new data may be available or there still may be
         // payloads in the attributes queue.
-        let payload_attrs = match self.produce_next_attributes().await {
-            Ok(attrs) => attrs,
-            Err(DerivationError::Yield) => {
-                // Yield until more data is available.
-                self.derivation_idle = true;
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let payload_attrs =
+            match self.produce_next_attributes(engine_l2_safe_head, reset_request_tx).await {
+                Ok(attrs) => attrs,
+                Err(DerivationError::Yield) => {
+                    // Yield until more data is available.
+                    self.derivation_idle = true;
+                    return Ok(());
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            };
 
         // Mark derivation as busy.
         self.derivation_idle = false;
 
         // Mark the L2 safe head as seen.
-        self.engine_l2_safe_head.borrow_and_update();
+        engine_l2_safe_head.borrow_and_update();
 
         // Send payload attributes out for processing.
-        self.attributes_out
+        attributes_out
             .send(payload_attrs)
             .await
             .map_err(|e| DerivationError::Sender(Box::new(e)))?;
@@ -286,26 +305,63 @@ where
     }
 }
 
+impl<P> DerivationActor<P>
+where
+    P: Pipeline + SignalReceiver,
+{
+    /// Creates a new instance of the [DerivationActor].
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(state: DerivationState<P>) -> (DerivationOutboundChannels, Self) {
+        let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
+        let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
+        let actor = Self { state, attributes_out: derived_payload_tx, reset_request_tx };
+
+        (
+            DerivationOutboundChannels {
+                attributes_out: derived_payload_rx,
+                reset_request_tx: reset_request_rx,
+            },
+            actor,
+        )
+    }
+}
+
 #[async_trait]
 impl<P> NodeActor for DerivationActor<P>
 where
-    P: Pipeline + SignalReceiver + Send + Sync,
+    P: Pipeline + SignalReceiver + Send + Sync + 'static,
 {
     type Error = DerivationError;
+    type InboundData = DerivationContext;
+    type State = DerivationState<P>;
+    type OutboundData = DerivationOutboundChannels;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
+    fn build(config: Self::State) -> (Self::OutboundData, Self) {
+        Self::new(config)
+    }
+
+    async fn start(
+        mut self,
+        DerivationContext {
+            mut l1_head_updates,
+            mut engine_l2_safe_head,
+            mut el_sync_complete_rx,
+            mut derivation_signal_rx,
+            cancellation,
+        }: Self::InboundData,
+    ) -> Result<(), Self::Error> {
         loop {
             select! {
                 biased;
 
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     info!(
                         target: "derivation",
                         "Received shutdown signal. Exiting derivation task."
                     );
                     return Ok(());
                 }
-                signal = self.derivation_signal_rx.recv() => {
+                signal = derivation_signal_rx.recv() => {
                     let Some(signal) = signal else {
                         error!(
                             target: "derivation",
@@ -315,10 +371,10 @@ where
                         return Err(DerivationError::SignalReceiveFailed);
                     };
 
-                    self.signal(signal).await;
-                    self.waiting_for_signal = false;
+                    self.state.signal(signal).await;
+                    self.state.waiting_for_signal = false;
                 }
-                msg = self.l1_head_updates.changed() => {
+                msg = l1_head_updates.changed() => {
                     if let Err(err) = msg {
                         error!(
                             target: "derivation",
@@ -328,15 +384,15 @@ where
                         return Ok(());
                     }
 
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
+                    self.state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
                 }
-                _ = self.engine_l2_safe_head.changed() => {
-                    self.process(InboundDerivationMessage::SafeHeadUpdated).await?;
+                _ = engine_l2_safe_head.changed() => {
+                    self.state.process(InboundDerivationMessage::SafeHeadUpdated, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
                 }
-                _ = &mut self.el_sync_complete_rx, if !self.el_sync_complete_rx.is_terminated() => {
+                _ = &mut el_sync_complete_rx, if !el_sync_complete_rx.is_terminated() => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
                     // Optimistically process the first message.
-                    self.process(InboundDerivationMessage::NewDataAvailable).await?;
+                    self.state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
                 }
             }
         }

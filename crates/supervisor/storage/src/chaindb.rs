@@ -85,35 +85,6 @@ impl ChainDb {
             sp.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor.derived)
         })?
     }
-
-    pub(super) fn update_finalized_head_ref(
-        &self,
-        l1_finalized: BlockInfo,
-    ) -> Result<(), StorageError> {
-        self.observe_call("update_finalized_head_ref", || {
-            self.env.update(|tx| {
-                let sp = SafetyHeadRefProvider::new(tx);
-                let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
-
-                let dp = DerivationProvider::new(tx);
-                let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
-
-                if l1_finalized.number >= safe_block_pair.source.number {
-                    // this could happen during initial sync
-                    warn!(
-                        target: "supervisor_storage",
-                        l1_finilized_block_number = l1_finalized.number,
-                        safe_source_block_number = safe_block_pair.source.number,
-                        "L1 finalized block is greater than safe block",
-                    );
-                    return sp.update_safety_head_ref(SafetyLevel::Finalized, &safe);
-                }
-
-                let latest_derived = dp.latest_derived_block_at_source(l1_finalized.id())?;
-                sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)
-            })
-        })?
-    }
 }
 
 impl DerivationStorageReader for ChainDb {
@@ -282,6 +253,35 @@ impl HeadRefStorageWriter for ChainDb {
                 Ok(())
             },
         )
+    }
+
+    fn update_finalized_using_source(
+        &self,
+        finalized_source_block: BlockInfo,
+    ) -> Result<BlockInfo, StorageError> {
+        self.env.update(|tx| {
+            let sp = SafetyHeadRefProvider::new(tx);
+            let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+
+            let dp = DerivationProvider::new(tx);
+            let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
+
+            if finalized_source_block.number >= safe_block_pair.source.number {
+                // this could happen during initial sync
+                warn!(
+                    target: "supervisor_storage",
+                    l1_finalized_block_number = finalized_source_block.number,
+                    safe_source_block_number = safe_block_pair.source.number,
+                    "L1 finalized block is greater than safe block",
+                );
+                sp.update_safety_head_ref(SafetyLevel::Finalized, &safe)?;
+                return Ok(safe);
+            }
+
+            let latest_derived = dp.latest_derived_block_at_source(finalized_source_block.id())?;
+            sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)?;
+            Ok(latest_derived)
+        })?
     }
 
     fn update_safety_head_ref(

@@ -18,12 +18,14 @@ use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use reqwest::Url;
 use std::{collections::HashMap, sync::Arc, time::Duration};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::{
     ChainProcessor, CrossSafetyCheckerJob, SupervisorError,
     config::Config,
+    event::ChainEvent,
     l1_watcher::L1Watcher,
     syncnode::{ManagedNode, ManagedNodeApiProvider},
 };
@@ -157,7 +159,7 @@ impl Supervisor {
                 )))?;
 
             // initialise chain processor for the chain.
-            let processor =
+            let mut processor =
                 ChainProcessor::new(*chain_id, managed_node.clone(), db, self.cancel_token.clone());
 
             // Start the chain processors.
@@ -232,8 +234,26 @@ impl Supervisor {
 
     fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
         let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
-        let l1_watcher =
-            L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
+
+        let mut senders = HashMap::<ChainId, mpsc::Sender<ChainEvent>>::new();
+        for (chain_id, chain_processor) in &self.chain_processors {
+            if let Some(sender) = chain_processor.event_sender() {
+                senders.insert(*chain_id, sender);
+            } else {
+                error!(target: "supervisor_service", chain_id, "No sender found for chain processor");
+                return Err(SupervisorError::Initialise(format!(
+                    "no sender found for chain processor for chain {}",
+                    chain_id
+                )));
+            }
+        }
+
+        let l1_watcher = L1Watcher::new(
+            l1_rpc,
+            self.database_factory.clone(),
+            senders,
+            self.cancel_token.clone(),
+        );
 
         tokio::spawn(async move {
             l1_watcher.run().await;

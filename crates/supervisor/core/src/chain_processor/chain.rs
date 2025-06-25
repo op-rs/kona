@@ -19,6 +19,8 @@ pub struct ChainProcessor<P, W> {
     // The chainId that this processor is associated with
     chain_id: ChainId,
 
+    event_tx: Option<mpsc::Sender<ChainEvent>>,
+
     // The managed node that this processor will handle
     managed_node: Arc<P>,
 
@@ -45,7 +47,15 @@ where
         cancel_token: CancellationToken,
     ) -> Self {
         // todo: validate chain_id against managed_node
-        Self { chain_id, managed_node, state_manager, cancel_token, task_handle: Mutex::new(None) }
+
+        Self {
+            chain_id,
+            event_tx: None,
+            managed_node,
+            state_manager,
+            cancel_token,
+            task_handle: Mutex::new(None),
+        }
     }
 
     /// Returns the [`ChainId`] associated with this processor.
@@ -53,8 +63,13 @@ where
         self.chain_id
     }
 
+    /// Returns the [`mpsc::Sender`] for [`ChainEvent`]s.
+    pub fn event_sender(&self) -> Option<mpsc::Sender<ChainEvent>> {
+        self.event_tx.clone()
+    }
+
     /// Starts the chain processor, which begins listening for events from the managed node.
-    pub async fn start(&self) -> Result<(), ChainProcessorError> {
+    pub async fn start(&mut self) -> Result<(), ChainProcessorError> {
         let mut handle_guard = self.task_handle.lock().await;
         if handle_guard.is_some() {
             warn!(target: "chain_processor", "ChainProcessor is already running");
@@ -63,7 +78,8 @@ where
 
         // todo: figure out value for buffer size
         let (event_tx, event_rx) = mpsc::channel::<ChainEvent>(100);
-        self.managed_node.start_subscription(event_tx).await?;
+        self.event_tx = Some(event_tx.clone());
+        self.managed_node.start_subscription(event_tx.clone()).await?;
 
         let task = ChainProcessorTask::new(
             self.chain_id,
@@ -89,6 +105,7 @@ mod tests {
         syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
     };
     use alloy_primitives::B256;
+    use alloy_rpc_types_eth::BlockNumHash;
     use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
@@ -154,6 +171,13 @@ mod tests {
         ) -> Result<BlockInfo, ManagedNodeError> {
             Ok(BlockInfo::default())
         }
+
+        async fn update_finalized(
+            &self,
+            _finalized_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError> {
+            Ok(())
+        }
     }
 
     mock!(
@@ -181,6 +205,11 @@ mod tests {
                 block_info: BlockInfo,
             ) -> Result<(), StorageError>;
 
+            fn update_finalized_using_source(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<BlockInfo, StorageError>;
+
             fn update_safety_head_ref(
                 &self,
                 safety_level: SafetyLevel,
@@ -195,7 +224,7 @@ mod tests {
         let storage = Arc::new(MockDb::new());
         let cancel_token = CancellationToken::new();
 
-        let processor =
+        let mut processor =
             ChainProcessor::new(1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
 
         assert!(processor.start().await.is_ok());

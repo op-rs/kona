@@ -14,9 +14,9 @@ macro_rules! spawn_and_wait {
 
         // Check if the actor is present, and spawn it if it is.
         $(
-            if let Some(actor) = $actor {
+            if let Some((actor, context)) = $actor {
                 task_handles.spawn(async move {
-                    if let Err(e) = actor.start().await {
+                    if let Err(e) = actor.start(context).await {
                         return Err(format!("{e:?}"));
                     }
                     Ok(())
