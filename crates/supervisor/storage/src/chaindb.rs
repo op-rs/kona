@@ -294,7 +294,8 @@ impl HeadRefStorageWriter for ChainDb {
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                 if !parent.is_parent_of(block) {
                     return Err(StorageError::ConflictError(
-                        "candidate block is not the child of the current cross-unsafe head".to_string(),
+                        "candidate block is not the child of the current cross-unsafe head"
+                            .to_string(),
                     ));
                 }
 
@@ -302,43 +303,43 @@ impl HeadRefStorageWriter for ChainDb {
                 let stored_block = lp.get_block(block.number)?;
                 if stored_block.hash != block.hash {
                     warn!(
-                    target: "supervisor_storage",
-                    incoming_block_hash = %block.hash,
-                    stored_block_hash = %stored_block.hash,
-                    "Hash mismatch while updating CrossUnsafe head",
-                );
+                        target: "supervisor_storage",
+                        incoming_block_hash = %block.hash,
+                        stored_block_hash = %stored_block.hash,
+                        "Hash mismatch while updating CrossUnsafe head",
+                    );
                     return Err(StorageError::EntryNotFound(
                         "block hash does not match".to_string(),
                     ));
                 }
 
                 sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, block)?;
-                
+
                 Ok(())
             })?
         })
     }
-
 
     fn update_current_cross_safe(&self, block: &BlockInfo) -> Result<DerivedRefPair, StorageError> {
         self.observe_call("update_current_cross_safe", || {
             self.env.update(|tx| {
                 let dp = DerivationProvider::new(tx);
                 let sp = SafetyHeadRefProvider::new(tx);
-                
+
                 // Check parent-child relationship with current CrossUnsafe head, if it exists.
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
                 if !parent.is_parent_of(block) {
                     return Err(StorageError::ConflictError(
-                        "candidate block is not the child of the current cross-safe head".to_string(),
+                        "candidate block is not the child of the current cross-safe head"
+                            .to_string(),
                     ));
                 }
-                
+
                 // Ensure the block exists in derivation storage and hasn't been pruned due to a
                 // re-org.
                 let derived_pair = dp.get_derived_block_pair(block.id())?;
                 sp.update_safety_head_ref(SafetyLevel::CrossSafe, block)?;
-                
+
                 Ok(derived_pair.into())
             })?
         })
@@ -829,11 +830,11 @@ mod tests {
 
         db.store_block_logs(&block2, vec![]).unwrap();
         db.save_derived_block_pair(DerivedRefPair { source, derived: block2 }).unwrap();
-        
+
         let ref_pair = db.update_current_cross_safe(&block2).unwrap();
         assert_eq!(ref_pair.source, source);
         assert_eq!(ref_pair.derived, block2);
-        
+
         let cross_safe_block = db.get_safety_head_ref(SafetyLevel::CrossSafe).unwrap();
         assert_eq!(cross_safe_block, block2);
     }
