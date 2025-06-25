@@ -175,7 +175,7 @@ impl Supervisor {
             let cancel = self.cancel_token.clone();
 
             // todo: remove dependency from chain processors to get event txs
-            // initialize event txs independent and pass at the time of initialization
+            // initialize event txs independently and pass at the time of initialization
             let processor = self.chain_processors.get(&chain_id).ok_or_else(|| {
                 error!(target: "supervisor_service", %chain_id, "processor not initialized");
                 SupervisorError::Initialise("processor not initialized".into())
