@@ -170,7 +170,7 @@ impl RollupNodeBuilder {
         RollupNode {
             mode: self.mode,
             config: rollup_config,
-            interop_mode: self.interop_mode,
+            interop_mode,
             l1_provider,
             l1_beacon,
             l2_provider,
