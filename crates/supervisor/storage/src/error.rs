@@ -1,3 +1,5 @@
+use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
+use op_alloy_rpc_types::SuperchainDAError;
 use reth_db::DatabaseError;
 use thiserror::Error;
 
@@ -59,6 +61,27 @@ impl PartialEq for StorageError {
             (ConflictError(a), ConflictError(b)) => a == b,
             _ => false,
         }
+    }
+}
+
+impl From<StorageError> for SuperchainDAError {
+    fn from(err: StorageError) -> Self {
+        match err {
+            StorageError::Database(_) => Self::DataCorruption,
+            StorageError::FutureData => Self::FutureData,
+            StorageError::EntryNotFound(_) => Self::MissedData,
+            StorageError::DatabaseNotInitialised => Self::UninitializedChainDatabase,
+            StorageError::ConflictError(_) => Self::ConflictingData,
+            StorageError::BlockOutOfOrder => Self::OutOfOrder,
+            StorageError::DerivedBlockOutOfOrder => Self::OutOfOrder,
+            _ => err.into(),
+        }
+    }
+}
+
+impl From<StorageError> for ErrorObjectOwned {
+    fn from(err: StorageError) -> Self {
+        ErrorObjectOwned::owned(ErrorCode::InternalError.code(), err.to_string(), None::<()>)
     }
 }
 

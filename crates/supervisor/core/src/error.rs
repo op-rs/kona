@@ -13,14 +13,20 @@ pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
     Unimplemented,
+
     /// No chains are configured for supervision.
     #[error("empty dependency set")]
     EmptyDependencySet,
+
+    /// Interop has not yet been enabled for the chain.
+    #[error("interop not enabled")]
+    InteropNotEnabled,
+
     /// Data availability errors.
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
-    DataAvailability(#[from] SuperchainDAError),
+    SuperchainDAError(#[from] SuperchainDAError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
@@ -49,12 +55,13 @@ impl From<SupervisorError> for ErrorObjectOwned {
             // todo: handle these errors more gracefully
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
+            SupervisorError::InteropNotEnabled |
             SupervisorError::Initialise(_) |
-            SupervisorError::StorageError(_) |
             SupervisorError::ManagedNodeError(_) |
             SupervisorError::ChainProcessorError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
-            SupervisorError::DataAvailability(err) => err.into(),
+            SupervisorError::SuperchainDAError(err) => err.into(),
+            SupervisorError::StorageError(err) => err.into(),
         }
     }
 }
@@ -68,6 +75,6 @@ mod test {
         let err = SuperchainDAError::UnknownChain;
         let rpc_err = ErrorObjectOwned::owned(err as i32, err.to_string(), None::<()>);
 
-        assert_eq!(ErrorObjectOwned::from(SupervisorError::DataAvailability(err)), rpc_err);
+        assert_eq!(ErrorObjectOwned::from(SupervisorError::SuperchainDAError(err)), rpc_err);
     }
 }
