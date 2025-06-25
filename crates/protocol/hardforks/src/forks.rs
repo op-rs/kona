@@ -6,7 +6,7 @@ use crate::{Ecotone, Fjord, Interop, Isthmus};
 ///
 /// This type is used to encapsulate hardfork transactions.
 /// It exposes methods that return hardfork upgrade transactions
-/// as [alloy_primitives::Bytes].
+/// as [`alloy_primitives::Bytes`].
 ///
 /// # Example
 ///

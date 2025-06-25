@@ -83,7 +83,7 @@ where
     /// Signals the pipeline by calling the [`SignalReceiver::signal`] method.
     ///
     /// During a [`Signal::Reset`], each stage is recursively called from the top-level
-    /// [crate::stages::AttributesQueue] to the bottom [crate::stages::L1Traversal]
+    /// [crate::stages::AttributesQueue] to the bottom [crate::PollingTraversal]
     /// with a head-recursion pattern. This effectively clears the internal state
     /// of each stage in the pipeline from bottom on up.
     ///

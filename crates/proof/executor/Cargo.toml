@@ -61,19 +61,20 @@ kona-executor = { workspace = true, features = ["test-utils"] }
 
 [features]
 test-utils = [
-  "dep:rand",
-  "dep:serde_json",
-  "dep:serde",
-  "dep:tokio",
-  "dep:rstest",
-  "dep:kona-registry",
-  "dep:rocksdb",
-  "dep:tempfile",
-  "dep:alloy-rpc-types-engine",
-  "dep:alloy-provider",
-  "dep:alloy-rpc-client",
-  "dep:alloy-transport",
-  "dep:alloy-transport-http",
+	"dep:alloy-provider",
+	"dep:alloy-rpc-client",
+	"dep:alloy-rpc-types-engine",
+	"dep:alloy-transport",
+	"dep:alloy-transport-http",
+	"dep:kona-registry",
+	"dep:rand",
+	"dep:rocksdb",
+	"dep:rstest",
+	"dep:serde",
+	"dep:serde_json",
+	"dep:tempfile",
+	"dep:tokio",
+	"kona-protocol/test-utils",
 ]
 
 [package.metadata.cargo-udeps.ignore]

@@ -13,13 +13,13 @@ use kona_protocol::BlockInfo;
 /// This is the previous stage in the pipeline.
 #[async_trait]
 pub trait L1RetrievalProvider {
-    /// Returns the next L1 [`BlockInfo`] in the [`L1Traversal`] stage, if the stage is not
+    /// Returns the next L1 [`BlockInfo`] in the [`PollingTraversal`] stage, if the stage is not
     /// complete. This function can only be called once while the stage is in progress, and will
     /// return [`None`] on subsequent calls unless the stage is reset or complete. If the stage
     /// is complete and the [`BlockInfo`] has been consumed, an [PipelineError::Eof] error is
     /// returned.
     ///
-    /// [`L1Traversal`]: crate::stages::L1Traversal
+    /// [`PollingTraversal`]: crate::PollingTraversal
     async fn next_l1_block(&mut self) -> PipelineResult<Option<BlockInfo>>;
 
     /// Returns the batcher [`Address`] from the [kona_genesis::SystemConfig].
@@ -28,10 +28,10 @@ pub trait L1RetrievalProvider {
 
 /// The [`L1Retrieval`] stage of the derivation pipeline.
 ///
-/// For each L1 [`BlockInfo`] pulled from the [`L1Traversal`] stage, [`L1Retrieval`] fetches the
-/// associated data from a specified [`DataAvailabilityProvider`].
+/// For each L1 [`BlockInfo`] pulled from the [`PollingTraversal`] stage, [`L1Retrieval`] fetches
+/// the associated data from a specified [`DataAvailabilityProvider`].
 ///
-/// [`L1Traversal`]: crate::stages::L1Traversal
+/// [`PollingTraversal`]: crate::PollingTraversal
 #[derive(Debug)]
 pub struct L1Retrieval<DAP, P>
 where
@@ -51,10 +51,10 @@ where
     DAP: DataAvailabilityProvider,
     P: L1RetrievalProvider + OriginAdvancer + OriginProvider + SignalReceiver,
 {
-    /// Creates a new [`L1Retrieval`] stage with the previous [`L1Traversal`] stage and given
+    /// Creates a new [`L1Retrieval`] stage with the previous [`PollingTraversal`] stage and given
     /// [`DataAvailabilityProvider`].
     ///
-    /// [`L1Traversal`]: crate::stages::L1Traversal
+    /// [`PollingTraversal`]: crate::PollingTraversal
     pub const fn new(prev: P, provider: DAP) -> Self {
         Self { prev, provider, next: None }
     }
@@ -136,13 +136,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{stages::l1_traversal::tests::*, test_utils::TestDAP};
+    use crate::test_utils::{TestDAP, TraversalTestHelper};
     use alloc::vec;
     use alloy_primitives::Bytes;
 
     #[tokio::test]
     async fn test_l1_retrieval_flush_channel() {
-        let traversal = new_populated_test_traversal();
+        let traversal = TraversalTestHelper::new_populated();
         let dap = TestDAP { results: vec![] };
         let mut retrieval = L1Retrieval::new(traversal, dap);
         retrieval.prev.block = None;
@@ -155,7 +155,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_activation_signal() {
-        let traversal = new_populated_test_traversal();
+        let traversal = TraversalTestHelper::new_populated();
         let dap = TestDAP { results: vec![] };
         let mut retrieval = L1Retrieval::new(traversal, dap);
         retrieval.prev.block = None;
@@ -174,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_reset_signal() {
-        let traversal = new_populated_test_traversal();
+        let traversal = TraversalTestHelper::new_populated();
         let dap = TestDAP { results: vec![] };
         let mut retrieval = L1Retrieval::new(traversal, dap);
         retrieval.prev.block = None;
@@ -193,7 +193,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_origin() {
-        let traversal = new_populated_test_traversal();
+        let traversal = TraversalTestHelper::new_populated();
         let dap = TestDAP { results: vec![] };
         let retrieval = L1Retrieval::new(traversal, dap);
         let expected = BlockInfo::default();
@@ -202,7 +202,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_next_data() {
-        let traversal = new_populated_test_traversal();
+        let traversal = TraversalTestHelper::new_populated();
         let results = vec![Err(PipelineError::Eof.temp()), Ok(Bytes::default())];
         let dap = TestDAP { results };
         let mut retrieval = L1Retrieval::new(traversal, dap);
@@ -213,7 +213,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_next_data_respect_next() {
-        let mut traversal = new_populated_test_traversal();
+        let mut traversal = TraversalTestHelper::new_populated();
         traversal.done = true;
         let results = vec![Err(PipelineError::Eof.temp()), Ok(Bytes::default())];
         let dap = TestDAP { results };
@@ -228,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_next_data_l1_block_errors() {
-        let mut traversal = new_populated_test_traversal();
+        let mut traversal = TraversalTestHelper::new_populated();
         traversal.done = true;
         let results = vec![Err(PipelineError::Eof.temp()), Ok(Bytes::default())];
         let dap = TestDAP { results };
@@ -241,7 +241,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_l1_retrieval_existing_data_errors() {
-        let traversal = new_populated_test_traversal();
+        let traversal = TraversalTestHelper::new_populated();
         let dap = TestDAP { results: vec![Err(PipelineError::Eof.temp())] };
         let mut retrieval =
             L1Retrieval { prev: traversal, provider: dap, next: Some(BlockInfo::default()) };

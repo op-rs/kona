@@ -32,6 +32,12 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = []
-std = ["dep:async-channel"]
-rkyv = ["dep:rkyv"]
-serde = ["dep:serde"]
+std = [
+	"alloy-primitives/std",
+	"dep:async-channel",
+	"serde?/std",
+	"thiserror/std",
+	"tracing/std",
+]
+rkyv = [ "dep:rkyv" ]
+serde = [ "alloy-primitives/serde", "dep:serde" ]

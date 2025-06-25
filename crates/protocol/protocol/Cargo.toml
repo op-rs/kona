@@ -32,7 +32,6 @@ alloy-rpc-types-eth.workspace = true
 alloy-rpc-types-engine.workspace = true
 
 # Misc
-rand = { workspace = true, features = ["small_rng"] }
 tracing.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
@@ -75,41 +74,55 @@ op-alloy-rpc-types.workspace = true
 [features]
 default = []
 std = [
-  "kona-genesis/std",
-  "op-alloy-consensus/std",
-  "brotli/std",
-  "alloy-consensus/std",
-  "alloy-primitives/std",
-  "alloy-rlp/std",
-  "alloy-serde?/std",
-  "miniz_oxide/std",
-  "thiserror/std",
-  "unsigned-varint/std"
+	"alloy-consensus/std",
+	"alloy-eips/std",
+	"alloy-primitives/std",
+	"alloy-rlp/std",
+	"alloy-rpc-types-engine/std",
+	"alloy-rpc-types-eth/std",
+	"alloy-serde?/std",
+	"brotli/std",
+	"derive_more/std",
+	"kona-genesis/std",
+	"miniz_oxide/std",
+	"op-alloy-consensus/std",
+	"op-alloy-rpc-types-engine/std",
+	"op-alloy-rpc-types/std",
+	"serde?/std",
+	"spin?/std",
+	"thiserror/std",
+	"tracing/std",
+	"unsigned-varint/std",
 ]
-test-utils = [
-  "dep:spin",
-  "dep:tracing-subscriber",
-]
+test-utils = [ "dep:spin", "dep:tracing-subscriber" ]
 arbitrary = [
-  "std",
-  "dep:arbitrary",
-  "kona-genesis/arbitrary",
-  "op-alloy-consensus/arbitrary",
-  "alloy-consensus/arbitrary",
-  "alloy-eips/arbitrary",
-  "alloy-primitives/rand",
-  "alloy-primitives/arbitrary",
+	"alloy-consensus/arbitrary",
+	"alloy-eips/arbitrary",
+	"alloy-primitives/arbitrary",
+	"alloy-primitives/rand",
+	"alloy-rpc-types-engine/arbitrary",
+	"alloy-rpc-types-eth/arbitrary",
+	"alloy-serde?/arbitrary",
+	"dep:arbitrary",
+	"kona-genesis/arbitrary",
+	"op-alloy-consensus/arbitrary",
+	"op-alloy-rpc-types-engine/arbitrary",
+	"op-alloy-rpc-types/arbitrary",
+	"std",
 ]
 serde = [
-  "dep:serde",
-  "dep:alloy-serde",
-  "kona-genesis/serde",
-  "op-alloy-consensus/serde",
-  "op-alloy-rpc-types-engine/serde",
-  "alloy-consensus/serde",
-  "alloy-eips/serde",
-  "alloy-primitives/serde",
-  "tracing-subscriber?/serde"
+	"alloy-consensus/serde",
+	"alloy-eips/serde",
+	"alloy-primitives/serde",
+	"alloy-rpc-types-engine/serde",
+	"alloy-rpc-types-eth/serde",
+	"dep:alloy-serde",
+	"dep:serde",
+	"kona-genesis/serde",
+	"op-alloy-consensus/serde",
+	"op-alloy-rpc-types-engine/serde",
+	"op-alloy-rpc-types/serde",
+	"tracing-subscriber?/serde",
 ]
 
 [package.metadata.cargo-udeps.ignore]

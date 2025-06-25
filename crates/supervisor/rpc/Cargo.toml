@@ -34,8 +34,15 @@ op-alloy-consensus.workspace = true
 serde_json.workspace = true
 
 [features]
-serde = ["kona-interop/serde"]
+serde = [
+	"alloy-eips/serde",
+	"alloy-primitives/serde",
+	"kona-interop/serde",
+	"kona-protocol/serde",
+	"op-alloy-consensus/serde",
+]
 # The `jsonrpsee` feature enables the core RPC functionality.
 # When it's active, we also need the `serde` feature.
-jsonrpsee = ["serde", "dep:jsonrpsee"]
-client = ["jsonrpsee", "jsonrpsee/client"] # Client feature builds upon the base jsonrpsee feature
+jsonrpsee = [ "dep:jsonrpsee", "serde" ]
+# Client feature builds upon the base jsonrpsee feature
+client = [ "jsonrpsee", "jsonrpsee/client" ]

@@ -47,29 +47,33 @@ alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 
 [features]
 default = []
-revm = ["dep:op-revm"]
+revm = [ "dep:op-revm" ]
 std = [
-    "alloy-primitives/std",
-    "alloy-sol-types/std",
-    "alloy-consensus/std",
-    "alloy-eips/std",
-    "kona-serde?/std",
-    "serde?/std",
-    "thiserror/std"
+	"alloy-consensus/std",
+	"alloy-eips/std",
+	"alloy-primitives/std",
+	"alloy-sol-types/std",
+	"derive_more/std",
+	"kona-serde?/std",
+	"op-revm?/std",
+	"serde?/std",
+	"thiserror/std",
 ]
 arbitrary = [
-    "std",
-    "dep:arbitrary",
-    "alloy-consensus/arbitrary",
-    "alloy-eips/arbitrary",
-    "alloy-primitives/rand",
-    "alloy-primitives/arbitrary",
+	"alloy-consensus/arbitrary",
+	"alloy-eips/arbitrary",
+	"alloy-primitives/arbitrary",
+	"alloy-primitives/rand",
+	"alloy-sol-types/arbitrary",
+	"dep:arbitrary",
+	"std",
 ]
 serde = [
-    "dep:serde",
-    "dep:serde_repr",
-    "dep:kona-serde",
-    "alloy-primitives/serde",
-    "alloy-eips/serde",
-    "alloy-consensus/serde",
+	"alloy-consensus/serde",
+	"alloy-eips/serde",
+	"alloy-primitives/serde",
+	"dep:kona-serde",
+	"dep:serde",
+	"dep:serde_repr",
+	"op-revm?/serde",
 ]

@@ -64,7 +64,6 @@ impl NetworkActor {
 
 #[async_trait]
 impl NodeActor for NetworkActor {
-    type InboundEvent = ();
     type Error = NetworkActorError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
@@ -117,10 +116,6 @@ impl NodeActor for NetworkActor {
                 }
             }
         }
-    }
-
-    async fn process(&mut self, _: Self::InboundEvent) -> Result<(), Self::Error> {
-        Ok(())
     }
 }
 

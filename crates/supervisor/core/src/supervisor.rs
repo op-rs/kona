@@ -17,12 +17,12 @@ use kona_supervisor_storage::{
 use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use reqwest::Url;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::{
-    ChainProcessor, SupervisorError,
+    ChainProcessor, CrossSafetyCheckerJob, SupervisorError,
     config::Config,
     l1_watcher::L1Watcher,
     syncnode::{ManagedNode, ManagedNodeApiProvider},
@@ -131,6 +131,7 @@ impl Supervisor {
         self.init_managed_nodes().await?;
         self.init_chain_processor().await?;
         self.init_l1_watcher()?;
+        self.init_cross_safety_checker().await?;
         Ok(())
     }
 
@@ -164,6 +165,38 @@ impl Supervisor {
             processor.start().await?;
             self.chain_processors.insert(*chain_id, processor);
         }
+        Ok(())
+    }
+    async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
+        for (&chain_id, config) in &self.config.rollup_config_set.rollups {
+            let db = Arc::clone(&self.database_factory);
+            let cancel = self.cancel_token.clone();
+
+            let cross_safe_job = CrossSafetyCheckerJob::new(
+                chain_id,
+                db.clone(),
+                cancel.clone(),
+                Duration::from_secs(config.block_time),
+                SafetyLevel::CrossSafe,
+            )?;
+
+            tokio::spawn(async move {
+                cross_safe_job.run().await;
+            });
+
+            let cross_unsafe_job = CrossSafetyCheckerJob::new(
+                chain_id,
+                db,
+                cancel,
+                Duration::from_secs(config.block_time),
+                SafetyLevel::CrossUnsafe,
+            )?;
+
+            tokio::spawn(async move {
+                cross_unsafe_job.run().await;
+            });
+        }
+
         Ok(())
     }
 

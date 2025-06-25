@@ -1,6 +1,6 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{ChainProcessorError, syncnode::ManagedNodeError};
+use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_supervisor_storage::StorageError;
 use kona_supervisor_types::AccessListError;
@@ -47,6 +47,10 @@ pub enum SupervisorError {
     /// Indicates the error occurred while parsing the access_list
     #[error(transparent)]
     AccessListError(#[from] AccessListError),
+
+    /// Indicated the error occurred while initializing the safety checker jobs
+    #[error(transparent)]
+    CrossSafetyCheckerError(#[from] CrossSafetyError),
 }
 
 impl From<SupervisorError> for ErrorObjectOwned {
@@ -59,6 +63,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::Initialise(_) |
             SupervisorError::ManagedNodeError(_) |
             SupervisorError::ChainProcessorError(_) |
+            SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SuperchainDAError(err) => err.into(),
             SupervisorError::StorageError(err) => err.into(),

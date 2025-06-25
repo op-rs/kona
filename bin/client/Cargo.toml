@@ -59,8 +59,8 @@ kona-preimage = { workspace = true, features = ["std"] }
 sha2.workspace = true
 
 [features]
-default = ["client-tracing"]
-client-tracing = ["kona-std-fpvm/tracing"]
+default = [ "client-tracing" ]
+client-tracing = [ "kona-std-fpvm/tracing" ]
 
 [[bin]]
 name = "kona"

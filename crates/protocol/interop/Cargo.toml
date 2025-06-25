@@ -48,29 +48,43 @@ rand = { workspace = true, features = ["thread_rng"] }
 [features]
 default = []
 std = [
-  "derive_more/display",
-  "alloy-consensus/std",
-  "alloy-eips/std",
-  "alloy-primitives/std",
-  "alloy-rlp/std",
-  "alloy-sol-types/std",
-  "derive_more/std",
-  "serde?/std",
-  "thiserror/std",
+	"alloy-consensus/std",
+	"alloy-eips/std",
+	"alloy-primitives/std",
+	"alloy-rlp/std",
+	"alloy-serde?/std",
+	"alloy-sol-types/std",
+	"derive_more/display",
+	"derive_more/std",
+	"kona-genesis/std",
+	"kona-protocol/std",
+	"kona-registry/std",
+	"op-alloy-consensus/std",
+	"serde?/std",
+	"thiserror/std",
+	"tracing/std",
 ]
 arbitrary = [
-  "std",
-  "dep:arbitrary",
-  "alloy-primitives/arbitrary",
-  "alloy-consensus/arbitrary",
-  "alloy-eips/arbitrary",
+	"alloy-consensus/arbitrary",
+	"alloy-eips/arbitrary",
+	"alloy-primitives/arbitrary",
+	"alloy-serde?/arbitrary",
+	"alloy-sol-types/arbitrary",
+	"dep:arbitrary",
+	"kona-genesis/arbitrary",
+	"kona-protocol/arbitrary",
+	"op-alloy-consensus/arbitrary",
+	"std",
 ]
 serde = [
-  "dep:serde",
-  "dep:alloy-serde",
-  "alloy-eips/serde",
-  "alloy-primitives/serde",
-  "kona-protocol/serde",
+	"alloy-consensus/serde",
+	"alloy-eips/serde",
+	"alloy-primitives/serde",
+	"dep:alloy-serde",
+	"dep:serde",
+	"kona-genesis/serde",
+	"kona-protocol/serde",
+	"op-alloy-consensus/serde",
 ]
-test-utils = ["std"]
+test-utils = [ "kona-protocol/test-utils", "std" ]
 

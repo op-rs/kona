@@ -57,4 +57,16 @@ arbitrary = { version = "1.4", features = ["derive"] }
 rand.workspace = true
 
 [features]
-arbitrary = ["dep:arbitrary", "alloy-primitives/arbitrary", "kona-interop/arbitrary"]
+arbitrary = [
+	"alloy-consensus/arbitrary",
+	"alloy-eips/arbitrary",
+	"alloy-primitives/arbitrary",
+	"alloy-rpc-types-engine/arbitrary",
+	"dep:arbitrary",
+	"kona-genesis/arbitrary",
+	"kona-interop/arbitrary",
+	"kona-protocol/arbitrary",
+	"op-alloy-consensus/arbitrary",
+	"op-alloy-rpc-types-engine/arbitrary",
+	"revm/arbitrary",
+]

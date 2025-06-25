@@ -43,14 +43,12 @@ alloy-eips.workspace = true
 
 [features]
 default = []
-tabled = [
-	"std",
-	"dep:tabled",
-]
+tabled = [ "dep:tabled", "std" ]
 std = [
-	"kona-genesis/std",
-	"serde_json/std",
+	"alloy-chains/std",
 	"alloy-primitives/std",
+	"kona-genesis/std",
 	"serde/std",
-	"alloy-chains/std"
+	"serde_json/std",
+	"tabled?/std",
 ]
