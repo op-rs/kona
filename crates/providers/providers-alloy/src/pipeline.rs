@@ -4,7 +4,7 @@ use crate::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, Online
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    DerivationPipeline, EthereumDataSource, L2ChainProvider, ManagedAttributesQueueStage,
+    DerivationPipeline, EthereumDataSource, IndexedAttributesQueueStage, L2ChainProvider,
     OriginProvider, Pipeline, PipelineBuilder, PipelineErrorKind, PipelineResult,
     PolledAttributesQueueStage, ResetSignal, Signal, SignalReceiver, StatefulAttributesBuilder,
     StepResult,
@@ -26,7 +26,7 @@ pub type OnlinePolledDerivationPipeline = DerivationPipeline<
 
 /// An online managed derivation pipeline.
 pub type OnlineManagedDerivationPipeline = DerivationPipeline<
-    ManagedAttributesQueueStage<
+    IndexedAttributesQueueStage<
         OnlineDataProvider,
         AlloyChainProvider,
         AlloyL2ChainProvider,

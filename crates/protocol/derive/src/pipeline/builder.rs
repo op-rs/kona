@@ -2,9 +2,9 @@
 
 use crate::{
     AttributesBuilder, AttributesQueue, BatchProvider, BatchStream, ChainProvider, ChannelProvider,
-    ChannelReader, DataAvailabilityProvider, DerivationPipeline, FrameQueue, L1Retrieval,
-    L2ChainProvider, ManagedAttributesQueueStage, ManagedTraversal, PolledAttributesQueueStage,
-    PollingTraversal,
+    ChannelReader, DataAvailabilityProvider, DerivationPipeline, FrameQueue,
+    IndexedAttributesQueueStage, IndexedTraversal, L1Retrieval, L2ChainProvider,
+    PolledAttributesQueueStage, PollingTraversal,
 };
 use alloc::sync::Arc;
 use core::fmt::Debug;
@@ -100,8 +100,8 @@ where
         self.into()
     }
 
-    /// Builds a derivation pipeline with the [`ManagedAttributesQueueStage`].
-    pub fn build_managed(self) -> DerivationPipeline<ManagedAttributesQueueStage<D, P, T, B>, T> {
+    /// Builds a derivation pipeline with the [`IndexedAttributesQueueStage`].
+    pub fn build_managed(self) -> DerivationPipeline<IndexedAttributesQueueStage<D, P, T, B>, T> {
         self.into()
     }
 }
@@ -142,7 +142,7 @@ where
 }
 
 impl<B, P, T, D> From<PipelineBuilder<B, P, T, D>>
-    for DerivationPipeline<ManagedAttributesQueueStage<D, P, T, B>, T>
+    for DerivationPipeline<IndexedAttributesQueueStage<D, P, T, B>, T>
 where
     B: AttributesBuilder + Send + Debug,
     P: ChainProvider + Clone + Send + Sync + Debug,
@@ -158,7 +158,7 @@ where
         let attributes_builder = builder.builder.expect("builder must be set");
 
         // Compose the stage stack.
-        let mut l1_traversal = ManagedTraversal::new(chain_provider, Arc::clone(&rollup_config));
+        let mut l1_traversal = IndexedTraversal::new(chain_provider, Arc::clone(&rollup_config));
         l1_traversal.block = Some(builder.origin.expect("origin must be set"));
         let l1_retrieval = L1Retrieval::new(l1_traversal, dap_source);
         let frame_queue = FrameQueue::new(l1_retrieval, Arc::clone(&rollup_config));

@@ -5,12 +5,12 @@
 //!
 //! ## Types
 //!
-//! - [`ManagedTraversal`]: A passive traversal stage that receives the next block through a signal.
+//! - [`IndexedTraversal`]: A passive traversal stage that receives the next block through a signal.
 //! - [`PollingTraversal`]: An active traversal stage that polls for the next block through its
 //!   provider.
 
 mod managed;
-pub use managed::ManagedTraversal;
+pub use managed::IndexedTraversal;
 
 mod polling;
 pub use polling::PollingTraversal;
