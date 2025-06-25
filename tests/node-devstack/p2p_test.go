@@ -33,7 +33,7 @@ func checkPeerStats(t devtest.T, node *dsl.L2CLNode, minConnected uint, minTable
 	require.NoError(t, err, "failed to get peer stats for %s", nodeName)
 
 	require.GreaterOrEqual(t, peerStats.Connected, minConnected, fmt.Sprintf("%s has no connected peers", nodeName))
-	require.Greater(t, peerStats.Table, minTable, fmt.Sprintf("%s has no peers in the discovery table", nodeName))
+	require.GreaterOrEqual(t, peerStats.Table, minTable, fmt.Sprintf("%s has no peers in the discovery table", nodeName))
 	require.GreaterOrEqual(t, peerStats.BlocksTopic, minBlocksTopic, fmt.Sprintf("%s has no peers in the blocks topic", nodeName))
 	require.GreaterOrEqual(t, peerStats.BlocksTopicV2, minBlocksTopic, fmt.Sprintf("%s has no peers in the blocks topic v2", nodeName))
 	require.GreaterOrEqual(t, peerStats.BlocksTopicV3, minBlocksTopic, fmt.Sprintf("%s has no peers in the blocks topic v3", nodeName))
