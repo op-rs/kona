@@ -77,7 +77,7 @@ impl Metrics {
     }
 }
 
-/// See [`observe_rpc_call`](crate::rpc::observe_rpc_call).
+/// See [`observe_rpc_call`](crate::observe_rpc_call).
 #[macro_export]
 macro_rules! observe_rpc_call_managed_mode {
     ($method_name:expr, $block:expr) => {{
