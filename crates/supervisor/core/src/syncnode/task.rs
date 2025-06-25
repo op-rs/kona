@@ -1,4 +1,4 @@
-use super::{ManagedEventTaskError, metrics::Metrics};
+use super::ManagedEventTaskError;
 use crate::{event::ChainEvent, observe_rpc_call_managed_mode};
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
