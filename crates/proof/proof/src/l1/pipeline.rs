@@ -5,8 +5,8 @@ use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    AttributesQueueStage, ChainProvider, DataAvailabilityProvider, DerivationPipeline,
-    L2ChainProvider, OriginProvider, Pipeline, PipelineBuilder, PipelineErrorKind, PipelineResult,
+    ChainProvider, DataAvailabilityProvider, DerivationPipeline, L2ChainProvider, OriginProvider,
+    Pipeline, PipelineBuilder, PipelineErrorKind, PipelineResult, PolledAttributesQueueStage,
     ResetSignal, Signal, SignalReceiver, StatefulAttributesBuilder, StepResult,
 };
 use kona_driver::{DriverPipeline, PipelineCursor};
@@ -16,8 +16,10 @@ use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.
-pub type ProviderDerivationPipeline<L1, L2, DA> =
-    DerivationPipeline<AttributesQueueStage<DA, L1, L2, ProviderAttributesBuilder<L1, L2>>, L2>;
+pub type ProviderDerivationPipeline<L1, L2, DA> = DerivationPipeline<
+    PolledAttributesQueueStage<DA, L1, L2, ProviderAttributesBuilder<L1, L2>>,
+    L2,
+>;
 
 /// An oracle-backed payload attributes builder for the `AttributesQueue` stage of the derivation
 /// pipeline.
@@ -67,7 +69,7 @@ where
             .chain_provider(chain_provider)
             .builder(attributes)
             .origin(sync_start.read().origin())
-            .build();
+            .build_polled();
 
         // Reset the pipeline to populate the initial system configuration in L1 Traversal.
         let l2_safe_head = *sync_start.read().l2_safe_head();

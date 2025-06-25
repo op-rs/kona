@@ -166,18 +166,6 @@ impl FinalizedL1Storage for ChainDbFactory {
                     }
                 }
                 *guard = Some(block);
-
-                // update all chain databases finalized safety head refs
-                let dbs = self.dbs.read().map_err(|err| {
-                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
-                    StorageError::LockPoisoned
-                })?;
-                for (chain_id, db) in dbs.iter() {
-                    if let Err(err) = db.update_finalized_head_ref(block) {
-                        error!(target: "supervisor_storage", chain_id = %chain_id, %err, "Failed to update finalized L1 in chain database");
-                    }
-                }
-
                 Ok(())
             }
         )

@@ -6,7 +6,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::CrossChainSafetyProvider;
 use op_alloy_consensus::interop::SafetyLevel;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// A background job that promotes blocks to a target safety level on a given chain.
 ///
@@ -75,7 +75,7 @@ where
                 _ = async {
                     match self.promote_next_block(&checker) {
                         Ok(block_info) => {
-                            debug!(
+                            info!(
                                 target: "safety_checker",
                                 chain_id = self.chain_id,
                                 target_level = %self.target_level,
@@ -84,13 +84,19 @@ where
                             );
                         }
                         Err(err) => {
-                            warn!(
-                                target: "safety_checker",
-                                chain_id = self.chain_id,
-                                target_level = %self.target_level,
-                                %err,
-                                "Error promoting next candidate block"
-                            );
+                            match err {
+                                 // don't spam warnings if head is already on top - nothing to promote
+                                CrossSafetyError::NoBlockToPromote => {},
+                                _ => {
+                                    warn!(
+                                        target: "safety_checker",
+                                        chain_id = self.chain_id,
+                                        target_level = %self.target_level,
+                                        %err,
+                                        "Error promoting next candidate block"
+                                    );
+                                }
+                            }
                             tokio::time::sleep(self.interval).await;
                         }
                     }

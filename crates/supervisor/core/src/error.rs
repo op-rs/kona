@@ -1,6 +1,6 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{ChainProcessorError, syncnode::ManagedNodeError};
+use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_supervisor_storage::StorageError;
 use kona_supervisor_types::AccessListError;
@@ -42,6 +42,10 @@ pub enum SupervisorError {
     #[error(transparent)]
     AccessListError(#[from] AccessListError),
 
+    /// Indicated the error occurred while initializing the safety checker jobs
+    #[error(transparent)]
+    CrossSafetyCheckerError(#[from] CrossSafetyError),
+
     /// Indicates the L1 block does not match the epxected L1 block.
     #[error("L1 block number mismatch. expected: {0}, but got {1}")]
     L1BlockMismatch(u64, u64),
@@ -58,6 +62,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::StorageError(_) |
             SupervisorError::ManagedNodeError(_) |
             SupervisorError::ChainProcessorError(_) |
+            SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::DataAvailability(err) => err.into(),
         }

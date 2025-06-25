@@ -1,5 +1,6 @@
 use super::ManagedNodeError;
 use crate::event::ChainEvent;
+use alloy_eips::BlockNumHash;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
@@ -83,6 +84,19 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
         &self,
         timestamp: u64,
     ) -> Result<BlockInfo, ManagedNodeError>;
+
+    /// Update the finalized block head using the given [`BlockNumHash`].
+    ///
+    /// # Arguments
+    /// * `finalized_block_id` - The block number and hash of the finalized block
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the update fails
+    async fn update_finalized(
+        &self,
+        finalized_block_id: BlockNumHash,
+    ) -> Result<(), ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:

@@ -35,8 +35,6 @@ pub struct Network {
     /// This is allowed to be optional since it may not be desirable
     /// run a networking stack with RPC access.
     pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
-    /// A channel to publish an unsafe block.
-    pub(crate) publish_tx: tokio::sync::mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
     pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// The swarm instance.
@@ -54,13 +52,6 @@ impl Network {
     /// Returns the [`NetworkBuilder`] that can be used to construct the [`Network`].
     pub fn builder(config: Config) -> NetworkBuilder {
         NetworkBuilder::from(config)
-    }
-
-    /// Creates a new unsafe block mpsc sender.
-    pub fn new_unsafe_block_sender(
-        &mut self,
-    ) -> tokio::sync::mpsc::Sender<OpExecutionPayloadEnvelope> {
-        self.publish_tx.clone()
     }
 
     /// Take the unsafe block receiver.
@@ -139,10 +130,7 @@ impl Network {
         tokio::spawn(async move {
             loop {
                 select! {
-                    block = self.publish_rx.recv() => {
-                        let Some(block) = block else {
-                            continue;
-                        };
+                    Some(block) = self.publish_rx.recv(), if !self.publish_rx.is_closed() => {
                         let timestamp = block.payload.timestamp();
                         let selector = |handler: &crate::BlockHandler| {
                             handler.topic(timestamp)

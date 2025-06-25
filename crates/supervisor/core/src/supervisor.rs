@@ -17,13 +17,15 @@ use kona_supervisor_storage::{
 use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use reqwest::Url;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::{
-    ChainProcessor, SupervisorError,
+    ChainProcessor, CrossSafetyCheckerJob, SupervisorError,
     config::Config,
+    event::ChainEvent,
     l1_watcher::L1Watcher,
     syncnode::{ManagedNode, ManagedNodeApiProvider},
 };
@@ -131,6 +133,7 @@ impl Supervisor {
         self.init_managed_nodes().await?;
         self.init_chain_processor().await?;
         self.init_l1_watcher()?;
+        self.init_cross_safety_checker().await?;
         Ok(())
     }
 
@@ -156,7 +159,7 @@ impl Supervisor {
                 )))?;
 
             // initialise chain processor for the chain.
-            let processor =
+            let mut processor =
                 ChainProcessor::new(*chain_id, managed_node.clone(), db, self.cancel_token.clone());
 
             // Start the chain processors.
@@ -164,6 +167,38 @@ impl Supervisor {
             processor.start().await?;
             self.chain_processors.insert(*chain_id, processor);
         }
+        Ok(())
+    }
+    async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
+        for (&chain_id, config) in &self.config.rollup_config_set.rollups {
+            let db = Arc::clone(&self.database_factory);
+            let cancel = self.cancel_token.clone();
+
+            let cross_safe_job = CrossSafetyCheckerJob::new(
+                chain_id,
+                db.clone(),
+                cancel.clone(),
+                Duration::from_secs(config.block_time),
+                SafetyLevel::CrossSafe,
+            )?;
+
+            tokio::spawn(async move {
+                cross_safe_job.run().await;
+            });
+
+            let cross_unsafe_job = CrossSafetyCheckerJob::new(
+                chain_id,
+                db,
+                cancel,
+                Duration::from_secs(config.block_time),
+                SafetyLevel::CrossUnsafe,
+            )?;
+
+            tokio::spawn(async move {
+                cross_unsafe_job.run().await;
+            });
+        }
+
         Ok(())
     }
 
@@ -199,8 +234,26 @@ impl Supervisor {
 
     fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
         let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
-        let l1_watcher =
-            L1Watcher::new(l1_rpc, self.database_factory.clone(), self.cancel_token.clone());
+
+        let mut senders = HashMap::<ChainId, mpsc::Sender<ChainEvent>>::new();
+        for (chain_id, chain_processor) in &self.chain_processors {
+            if let Some(sender) = chain_processor.event_sender() {
+                senders.insert(*chain_id, sender);
+            } else {
+                error!(target: "supervisor_service", chain_id, "No sender found for chain processor");
+                return Err(SupervisorError::Initialise(format!(
+                    "no sender found for chain processor for chain {}",
+                    chain_id
+                )));
+            }
+        }
+
+        let l1_watcher = L1Watcher::new(
+            l1_rpc,
+            self.database_factory.clone(),
+            senders,
+            self.cancel_token.clone(),
+        );
 
         tokio::spawn(async move {
             l1_watcher.run().await;

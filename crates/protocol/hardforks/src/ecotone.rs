@@ -1,4 +1,4 @@
-//! Module containing a [TxDeposit] builder for the Ecotone network upgrade transactions.
+//! Module containing a [`TxDeposit`] builder for the Ecotone network upgrade transactions.
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
@@ -108,7 +108,7 @@ impl Ecotone {
             .into()
     }
 
-    /// Returns the list of [TxDeposit]s for the Ecotone network upgrade.
+    /// Returns the list of [`TxDeposit`]s for the Ecotone network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
         ([
             // Deploy the L1 Block contract for Ecotone.

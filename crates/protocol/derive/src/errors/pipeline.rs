@@ -142,6 +142,9 @@ pub enum ResetError {
     /// A Holocene activation temporary error.
     #[error("Holocene activation reset")]
     HoloceneActivation,
+    /// The next l1 block provided to the managed traversal stage is not the expected one.
+    #[error("Next L1 block hash mismatch: expected {0}, got {1}")]
+    NextL1BlockHashMismatch(B256, B256),
 }
 
 impl ResetError {

@@ -12,7 +12,6 @@ use kona_cli::metrics_args::MetricsArgs;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{RollupNode, RollupNodeService};
-use kona_rpc::SupervisorRpcConfig;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -204,8 +203,6 @@ impl NodeCommand {
                 (Err(e), true) => return Err(e),
                 (_, false) => None,
             };
-        let supervisor_rpc_config =
-            supervisor_rpc_config.unwrap_or(SupervisorRpcConfig::default().disable());
 
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
@@ -223,7 +220,7 @@ impl NodeCommand {
             .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
-            .with_supervisor_rpc_config(supervisor_rpc_config)
+            .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
             .build()
             .start()
             .await
