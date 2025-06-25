@@ -54,9 +54,9 @@ impl PartialEq for StorageError {
             (Database(a), Database(b)) => a == b,
             (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
             (EntryNotFound(a), EntryNotFound(b)) => a == b,
-            (InvalidAnchor, InvalidAnchor) => true,
-            (DatabaseNotInitialised, DatabaseNotInitialised) => true,
-            (ConflictError, ConflictError) => a == b,
+            (InvalidAnchor, InvalidAnchor) |
+            (DatabaseNotInitialised, DatabaseNotInitialised) |
+            (ConflictError, ConflictError) => true,
             _ => false,
         }
     }
