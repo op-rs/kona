@@ -4,7 +4,7 @@ use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
 
 /// Errors returned when validating cross-chain message dependencies.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Eq, PartialEq)]
 pub enum CrossSafetyError {
     /// Indicates a failure while accessing storage during dependency checking.
     #[error("storage error: {0}")]
