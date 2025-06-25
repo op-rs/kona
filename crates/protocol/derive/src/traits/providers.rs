@@ -1,6 +1,6 @@
 //! Chain providers for the derivation pipeline.
 
-use crate::errors::PipelineErrorKind;
+use crate::PipelineErrorKind;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use alloy_consensus::{Header, Receipt, TxEnvelope};
 use alloy_primitives::B256;

@@ -1,11 +1,9 @@
 //! Contains the core derivation pipeline.
 
 use crate::{
-    errors::{PipelineError, PipelineErrorKind},
-    traits::{
-        L2ChainProvider, NextAttributes, OriginAdvancer, OriginProvider, Pipeline, SignalReceiver,
-    },
-    types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult},
+    ActivationSignal, L2ChainProvider, NextAttributes, OriginAdvancer, OriginProvider, Pipeline,
+    PipelineError, PipelineErrorKind, PipelineResult, ResetSignal, Signal, SignalReceiver,
+    StepResult,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use async_trait::async_trait;
