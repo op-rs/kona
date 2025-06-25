@@ -21,9 +21,9 @@ stages of the pipeline are as follows (from top down).
 
 - [`FrameQueue`][frame-queue]
 - [`L1Retrieval`][retrieval]
-- [`L1Traversal`][traversal]
+- [`IndexedTraversal` or `PollingTraversal`][traversal]
 
-In this set of stages, the [`L1Traversal`][traversal] stage sits at the bottom.
+In this set of stages, the [`IndexedTraversal` or `PollingTraversal`][traversal] stage sits at the bottom.
 It implements the [`L1Retrieval`][retrieval] trait called the
 [`L1RetrievalProvider`][retrieval-provider]. This provides generic methods that
 allow the [`L1Retrieval`][retrieval] stage to call those methods on the generic
@@ -42,7 +42,7 @@ Now that we understand the trait abstractions, let's swap out the
 // ...
 
 // We use the same "L1RetrievalProvider" trait here
-// in order to seamlessly use the `L1Traversal`
+// in order to seamlessly use the `IndexedTraversal` or `PollingTraversal`
 
 /// DapRetrieval stage
 #[derive(Debug)]
@@ -93,11 +93,11 @@ where
 ```
 
 Notice, the `L1RetrievalProvider` is used as a trait bound so the
-[`L1Traversal`][traversal] stage can be used seamlessly as the "prev" stage in the pipeline.
+[`IndexedTraversal` or `PollingTraversal`][traversal] stage can be used seamlessly as the "prev" stage in the pipeline.
 Concretely, an instantiation of the `DapRetrieval` stage could be the following.
 
 ```
-DapRetrieval<L1Traversal<..>>
+DapRetrieval<IndexedTraversal<..>>
 ```
 
 
@@ -110,4 +110,4 @@ DapRetrieval<L1Traversal<..>>
 
 [frame-queue]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.FrameQueue.html
 [retrieval]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.L1Retrieval.html
-[traversal]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.L1Traversal.html
+[traversal]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.IndexedTraversal.html
