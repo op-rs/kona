@@ -54,7 +54,7 @@ pub enum OnlinePipeline {
 }
 
 impl OnlinePipeline {
-    /// Constructs a new polled derivation pipeline.
+    /// Constructs a new polled derivation pipeline that is initialized.
     pub async fn new(
         cfg: Arc<RollupConfig>,
         l2_safe_head: L2BlockInfo,
@@ -85,9 +85,13 @@ impl OnlinePipeline {
         Ok(pipeline)
     }
 
-    /// Constructs a new online, polled derivation pipeline.
+    /// Constructs a new polled derivation pipeline that is uninitialized.
     ///
-    /// Before using, a [`ResetSignal`] must be sent to instantiate the pipeline state.
+    /// Uses online providers as specified by the arguments.
+    ///
+    /// Before using the returned pipeline, a [`ResetSignal`] must be sent to
+    /// instantiate the pipeline state. [`Self::new`] is a convenience method that
+    /// constructs a new online pipeline and sends the reset signal.
     pub fn new_polled(
         cfg: Arc<RollupConfig>,
         blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
@@ -113,9 +117,13 @@ impl OnlinePipeline {
         Self::Polled(pipeline)
     }
 
-    /// Constructs a new online, managed derivation pipeline.
+    /// Constructs a new managed derivation pipeline that is uninitialized.
     ///
-    /// Before using, a [`ResetSignal`] must be sent to instantiate the pipeline state.
+    /// Uses online providers as specified by the arguments.
+    ///
+    /// Before using the returned pipeline, a [`ResetSignal`] must be sent to
+    /// instantiate the pipeline state. [`Self::new`] is a convenience method that
+    /// constructs a new online pipeline and sends the reset signal.
     pub fn new_managed(
         cfg: Arc<RollupConfig>,
         blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
