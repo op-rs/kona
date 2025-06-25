@@ -14,11 +14,14 @@ pub use service::{NodeMode, RollupNode, RollupNodeBuilder, RollupNodeError, Roll
 
 mod actors;
 pub use actors::{
-    ActorContext, DerivationActor, DerivationContext, DerivationError, EngineActor, EngineContext,
-    EngineError, EngineLauncher, InboundDerivationMessage, InboundEngineMessage, L1WatcherRpc,
-    L1WatcherRpcContext, L1WatcherRpcError, L2Finalizer, NetworkActor, NetworkActorError,
-    NetworkContext, NodeActor, RpcActor, RpcActorError, RpcContext, RuntimeActor, RuntimeContext,
-    RuntimeLauncher, SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
+    CancellableContext, DerivationActor, DerivationContext, DerivationError,
+    DerivationOutboundChannels, DerivationState, EngineActor, EngineActorState, EngineContext,
+    EngineError, EngineLauncher, EngineOutboundData, InboundDerivationMessage,
+    InboundEngineMessage, L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError,
+    L1WatcherRpcOutboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
+    NetworkContext, NetworkOutboundData, NodeActor, RpcActor, RpcActorError, RpcContext,
+    RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState, SupervisorActor,
+    SupervisorActorContext, SupervisorActorError, SupervisorExt, SupervisorOutboundData,
     SupervisorRpcServerExt,
 };
 

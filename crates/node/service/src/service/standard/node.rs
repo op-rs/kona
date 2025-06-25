@@ -1,17 +1,14 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    EngineLauncher, L1WatcherRpc, NodeActor, NodeMode, RollupNodeBuilder, RollupNodeError,
-    RollupNodeService, RuntimeLauncher, SupervisorRpcServerExt,
+    DerivationActor, EngineActor, EngineLauncher, L1WatcherRpc, NetworkActor, NodeMode,
+    RollupNodeBuilder, RollupNodeError, RollupNodeService, RpcActor, RuntimeActor, SupervisorActor,
+    SupervisorRpcServerExt, actors::RuntimeState,
 };
-use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
-use kona_protocol::BlockInfo;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
-use tokio::sync::{mpsc, watch};
-use tokio_util::sync::CancellationToken;
 
 use kona_genesis::RollupConfig;
 use kona_p2p::{Config, Network, NetworkBuilder};
@@ -19,9 +16,7 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
     OnlinePipeline,
 };
-use kona_rpc::{
-    L1WatcherQueries, NetworkRpc, RpcLauncher, SupervisorRpcConfig, SupervisorRpcServer,
-};
+use kona_rpc::{NetworkRpc, RpcLauncher, SupervisorRpcConfig, SupervisorRpcServer};
 
 /// The size of the cache used in the derivation pipeline's providers.
 const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
@@ -46,8 +41,8 @@ pub struct RollupNode {
     pub(crate) rpc_launcher: RpcLauncher,
     /// The P2P [`Config`] for the node.
     pub(crate) p2p_config: Config,
-    /// The [`RuntimeLauncher`] for the runtime loading service.
-    pub(crate) runtime_launcher: RuntimeLauncher,
+    /// The [`RuntimeState`] for the runtime loading service.
+    pub(crate) runtime_launcher: Option<RuntimeState>,
     /// The supervisor rpc server config.
     pub(crate) supervisor_rpc: SupervisorRpcConfig,
 }
@@ -66,32 +61,23 @@ impl RollupNodeService for RollupNode {
     type SupervisorExt = SupervisorRpcServerExt;
     type Error = RollupNodeError;
 
+    type RuntimeActor = RuntimeActor;
+    type RpcActor = RpcActor;
+    type EngineActor = EngineActor;
+    type NetworkActor = NetworkActor;
+    type DerivationActor = DerivationActor<Self::DerivationPipeline>;
+    type SupervisorActor = SupervisorActor<Self::SupervisorExt>;
+
     fn mode(&self) -> NodeMode {
         self.mode
     }
 
-    fn config(&self) -> &RollupConfig {
-        &self.config
+    fn config(&self) -> Arc<RollupConfig> {
+        self.config.clone()
     }
 
-    fn new_da_watcher(
-        &self,
-        head_updates: watch::Sender<Option<BlockInfo>>,
-        finalized_updates: watch::Sender<Option<BlockInfo>>,
-        block_signer_tx: mpsc::Sender<Address>,
-        cancellation: CancellationToken,
-        l1_watcher_inbound_queries: mpsc::Receiver<L1WatcherQueries>,
-    ) -> (Self::DataAvailabilityWatcher, <Self::DataAvailabilityWatcher as NodeActor>::Context)
-    {
-        L1WatcherRpc::new(
-            self.config.clone(),
-            self.l1_provider.clone(),
-            head_updates,
-            finalized_updates,
-            block_signer_tx,
-            cancellation,
-            l1_watcher_inbound_queries,
-        )
+    fn l1_provider(&self) -> RootProvider {
+        self.l1_provider.clone()
     }
 
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt> {
@@ -112,8 +98,8 @@ impl RollupNodeService for RollupNode {
         Some(SupervisorRpcServerExt::new(handle, events_tx, control_rx))
     }
 
-    fn runtime(&self) -> RuntimeLauncher {
-        self.runtime_launcher.clone()
+    fn runtime(&self) -> Option<&RuntimeState> {
+        self.runtime_launcher.as_ref()
     }
 
     fn engine(&self) -> EngineLauncher {

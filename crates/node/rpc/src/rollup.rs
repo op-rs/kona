@@ -33,8 +33,11 @@ impl RollupRpc {
     pub const RPC_IDENT: &'static str = "rollup_rpc";
 
     /// Constructs a new [`RollupRpc`] given a sender channel.
-    pub const fn new(sender: EngineQuerySender, l1_watcher_sender: L1WatcherQuerySender) -> Self {
-        Self { engine_sender: sender, l1_watcher_sender }
+    pub const fn new(
+        engine_sender: EngineQuerySender,
+        l1_watcher_sender: L1WatcherQuerySender,
+    ) -> Self {
+        Self { engine_sender, l1_watcher_sender }
     }
 
     // Important note: we zero-out the fields that can't be derived yet to follow op-node's

@@ -3,20 +3,21 @@
 //! [NodeActor]: super::NodeActor
 
 mod traits;
-pub use traits::{ActorContext, NodeActor};
+pub use traits::{CancellableContext, NodeActor};
 
 mod runtime;
-pub use runtime::{RuntimeActor, RuntimeContext, RuntimeLauncher};
+pub use runtime::{RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState};
 
 mod engine;
 pub use engine::{
-    EngineActor, EngineContext, EngineError, EngineLauncher, InboundEngineMessage, L2Finalizer,
+    EngineActor, EngineActorState, EngineContext, EngineError, EngineLauncher, EngineOutboundData,
+    InboundEngineMessage, L2Finalizer,
 };
 
 mod supervisor;
 pub use supervisor::{
     SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
-    SupervisorRpcServerExt,
+    SupervisorOutboundData, SupervisorRpcServerExt,
 };
 
 mod rpc;
@@ -24,11 +25,15 @@ pub use rpc::{RpcActor, RpcActorError, RpcContext};
 
 mod derivation;
 pub use derivation::{
-    DerivationActor, DerivationContext, DerivationError, InboundDerivationMessage,
+    DerivationActor, DerivationContext, DerivationError, DerivationOutboundChannels,
+    DerivationState, InboundDerivationMessage,
 };
 
 mod l1_watcher_rpc;
-pub use l1_watcher_rpc::{L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError};
+pub use l1_watcher_rpc::{
+    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError, L1WatcherRpcOutboundChannels,
+    L1WatcherRpcState,
+};
 
 mod network;
-pub use network::{NetworkActor, NetworkActorError, NetworkContext};
+pub use network::{NetworkActor, NetworkActorError, NetworkContext, NetworkOutboundData};
