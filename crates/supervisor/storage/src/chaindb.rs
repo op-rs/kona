@@ -120,17 +120,13 @@ impl DerivationStorageWriter for ChainDb {
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
                     |err| match err {
-                        StorageError::EntryNotFound(_) => StorageError::ConflictError(
-                            "conflict between unsafe block and derived block".to_string(),
-                        ),
+                        StorageError::EntryNotFound(_) => StorageError::ConflictError,
                         other => other, // propagate other errors as-is
                     },
                 )?;
 
                 if block != derived_block {
-                    return Err(StorageError::ConflictError(
-                        "conflict between unsafe block and derived block".to_string(),
-                    ));
+                    return Err(StorageError::ConflictError);
                 }
                 DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
                 SafetyHeadRefProvider::new(ctx)
