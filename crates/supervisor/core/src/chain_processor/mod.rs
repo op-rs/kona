@@ -10,3 +10,6 @@ pub use error::ChainProcessorError;
 
 mod task;
 pub use task::ChainProcessorTask;
+
+mod metrics;
+pub(crate) use metrics::Metrics;

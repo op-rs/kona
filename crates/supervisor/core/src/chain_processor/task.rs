@@ -1,4 +1,5 @@
-use crate::{LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
+use super::Metrics;
+use crate::{ChainProcessorError, LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
@@ -13,6 +14,7 @@ use tracing::{debug, error, info};
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
     chain_id: ChainId,
+    metrics_enabled: Option<bool>,
 
     managed_node: Arc<P>,
 
@@ -42,12 +44,78 @@ where
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
             chain_id,
+            metrics_enabled: None,
             cancel_token,
             managed_node,
             event_rx,
             state_manager,
             log_indexer: Arc::from(log_indexer),
         }
+    }
+
+    /// Enables metrics on the database environment.
+    pub fn with_metrics(mut self) -> Self {
+        self.metrics_enabled = Some(true);
+        self
+    }
+
+    /// Observes an async call, recording metrics and latency for block processing.
+    async fn observe_block_processing<Fut, F>(
+        &self,
+        event_type: &'static str,
+        f: F,
+    ) -> Result<BlockInfo, ChainProcessorError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<BlockInfo, ChainProcessorError>>,
+    {
+        let result = f().await;
+
+        if !self.metrics_enabled.unwrap_or(false) {
+            return result;
+        }
+
+        match &result {
+            Ok(block) => {
+                metrics::counter!(
+                    Metrics::BLOCK_PROCESSING_SUCCESS_TOTAL,
+                    "type" => event_type,
+                    "chain_id" => self.chain_id.to_string()
+                )
+                .increment(1);
+
+                // Calculate elapsed time for block processing
+                let now = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                    Ok(duration) => duration.as_secs_f64(),
+                    Err(e) => {
+                        error!(
+                            target: "chain_processor",
+                            chain_id = self.chain_id,
+                            "SystemTime error when recording block processing latency: {e}"
+                        );
+                        return result;
+                    }
+                };
+
+                let latency = now - block.timestamp as f64;
+                metrics::histogram!(
+                    Metrics::BLOCK_PROCESSING_LATENCY_SECONDS,
+                    "type" => event_type,
+                    "chain_id" => self.chain_id.to_string()
+                )
+                .record(latency);
+            }
+            Err(_err) => {
+                metrics::counter!(
+                    Metrics::BLOCK_PROCESSING_ERROR_TOTAL,
+                    "type" => event_type,
+                    "chain_id" => self.chain_id.to_string()
+                )
+                .increment(1);
+            }
+        }
+
+        result
     }
 
     /// Runs the chain processor task, which listens for events and processes them.
@@ -74,27 +142,89 @@ where
 
     async fn handle_event(&self, event: ChainEvent) {
         match event {
-            ChainEvent::UnsafeBlock { block } => self.handle_unsafe_event(block).await,
+            ChainEvent::UnsafeBlock { block } => {
+                let _ = self
+                    .observe_block_processing("local_unsafe", || async {
+                        self.handle_unsafe_event(block).await.inspect_err(|err| {
+                            error!(
+                                target: "chain_processor",
+                                chain_id = self.chain_id,
+                                block_number = block.number,
+                                %err,
+                                "Failed to process unsafe block"
+                            );
+                        })
+                    })
+                    .await;
+            }
             ChainEvent::DerivedBlock { derived_ref_pair } => {
-                self.handle_safe_event(derived_ref_pair).await
+                let _ = self
+                    .observe_block_processing("local_safe", || async {
+                        self.handle_safe_event(derived_ref_pair).await.inspect_err(|err| {
+                            error!(
+                                target: "chain_processor",
+                                chain_id = self.chain_id,
+                                block_number = derived_ref_pair.derived.number,
+                                %err,
+                                "Failed to process local safe derived block pair"
+                            );
+                        })
+                    })
+                    .await;
             }
             ChainEvent::DerivationOriginUpdate { origin } => {
-                self.handle_derivation_origin_update(origin)
+                let _ = self.handle_derivation_origin_update(origin).inspect_err(|err| {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = origin.number,
+                        %err,
+                        "Failed to update derivation origin"
+                    );
+                });
             }
             ChainEvent::BlockReplaced { replacement } => {
-                self.handle_block_replacement(replacement).await
+                let _ = self.handle_block_replacement(replacement).inspect_err(|err| {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to handle block replacement"
+                    );
+                });
             }
             ChainEvent::FinalizedSourceUpdate { finalized_source_block } => {
-                self.handle_finalized_l1_update(finalized_source_block).await
+                let _ = self
+                    .observe_block_processing("finalized", || async {
+                        self.handle_finalized_l1_update(finalized_source_block).await.inspect_err(
+                            |err| {
+                                error!(
+                                    target: "chain_processor",
+                                    chain_id = self.chain_id,
+                                    block_number = finalized_source_block.number,
+                                    %err,
+                                    "Failed to process finalized source update"
+                                );
+                            },
+                        )
+                    })
+                    .await;
             }
         }
     }
 
-    async fn handle_block_replacement(&self, _replacement: BlockReplacement) {
+    fn handle_block_replacement(
+        &self,
+        _replacement: BlockReplacement,
+    ) -> Result<(), ChainProcessorError> {
         // Logic to handle block replacement
+        Ok(())
     }
 
-    async fn handle_finalized_l1_update(&self, finalized_source_block: BlockInfo) {
+    async fn handle_finalized_l1_update(
+        &self,
+        finalized_source_block: BlockInfo,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
@@ -102,86 +232,52 @@ where
             "Processing finalized L1 update"
         );
         let finalized_derived_block =
-            match self.state_manager.update_finalized_using_source(finalized_source_block) {
-                Ok(finalized_l2) => finalized_l2,
-                Err(err) => {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        block_number = finalized_source_block.number,
-                        %err,
-                        "Failed to update finalized L1 block"
-                    );
-                    return;
-                }
-            };
-
-        if let Err(err) = self.managed_node.update_finalized(finalized_derived_block.id()).await {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = finalized_source_block.number,
-                %err,
-                "Failed to update finalized L2 block on managed node"
-            );
-        }
+            self.state_manager.update_finalized_using_source(finalized_source_block)?;
+        self.managed_node.update_finalized(finalized_derived_block.id()).await?;
+        Ok(finalized_derived_block)
     }
 
-    fn handle_derivation_origin_update(&self, origin: BlockInfo) {
+    fn handle_derivation_origin_update(
+        &self,
+        origin: BlockInfo,
+    ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             block_number = origin.number,
             "Processing derivation origin update"
         );
-        if let Err(err) = self.state_manager.update_current_l1(origin) {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = origin.number,
-                %err,
-                "Failed to update current L1 block"
-            );
-        }
+        self.state_manager.update_current_l1(origin)?;
+        Ok(())
     }
 
-    async fn handle_safe_event(&self, derived_ref_pair: DerivedRefPair) {
+    async fn handle_safe_event(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        if let Err(err) = self.state_manager.save_derived_block_pair(derived_ref_pair) {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = derived_ref_pair.derived.number,
-                %err,
-                "Failed to process safe block"
-            );
-            // TODO: take next action based on the error
-        }
+        self.state_manager.save_derived_block_pair(derived_ref_pair)?;
+        Ok(derived_ref_pair.derived)
     }
 
-    async fn handle_unsafe_event(&self, block_info: BlockInfo) {
+    async fn handle_unsafe_event(
+        &self,
+        block: BlockInfo,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
-            block_number = block_info.number,
+            block_number = block.number,
             "Processing unsafe block"
         );
 
-        if let Err(err) = self.log_indexer.process_and_store_logs(&block_info).await {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block_info.number,
-                %err,
-                "Failed to process unsafe block"
-            );
-            // TODO: take next action based on the error
-        }
+        self.log_indexer.process_and_store_logs(&block).await?;
+        Ok(block)
     }
 }
 

@@ -19,7 +19,11 @@ pub struct ChainProcessor<P, W> {
     // The chainId that this processor is associated with
     chain_id: ChainId,
 
+    // The sender for chain events, used to communicate with the event loop
     event_tx: Option<mpsc::Sender<ChainEvent>>,
+
+    // Whether metrics are enabled for the processor
+    metrics_enabled: Option<bool>,
 
     // The managed node that this processor will handle
     managed_node: Arc<P>,
@@ -47,15 +51,22 @@ where
         cancel_token: CancellationToken,
     ) -> Self {
         // todo: validate chain_id against managed_node
-
         Self {
             chain_id,
             event_tx: None,
+            metrics_enabled: None,
             managed_node,
             state_manager,
             cancel_token,
             task_handle: Mutex::new(None),
         }
+    }
+
+    /// Enables metrics on the database environment.
+    pub fn with_metrics(mut self) -> Self {
+        self.metrics_enabled = Some(true);
+        super::Metrics::init(self.chain_id);
+        self
     }
 
     /// Returns the [`ChainId`] associated with this processor.
@@ -81,13 +92,17 @@ where
         self.event_tx = Some(event_tx.clone());
         self.managed_node.start_subscription(event_tx.clone()).await?;
 
-        let task = ChainProcessorTask::new(
+        let mut task = ChainProcessorTask::new(
             self.chain_id,
             self.managed_node.clone(),
             self.state_manager.clone(),
             self.cancel_token.clone(),
             event_rx,
         );
+        if self.metrics_enabled.unwrap_or(false) {
+            task = task.with_metrics();
+        }
+
         let handle = tokio::spawn(async move {
             task.run().await;
         });

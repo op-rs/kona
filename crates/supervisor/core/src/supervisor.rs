@@ -162,6 +162,9 @@ impl Supervisor {
             let mut processor =
                 ChainProcessor::new(*chain_id, managed_node.clone(), db, self.cancel_token.clone());
 
+            // todo: enable metrics only if configured
+            processor = processor.with_metrics();
+
             // Start the chain processors.
             // Each chain processor will start its own managed nodes and begin processing messages.
             processor.start().await?;
