@@ -323,7 +323,7 @@ where
     ) -> Result<BlockInfo, ManagedNodeError> {
         let client = self.get_ws_client().await?;
         let block_info = observe_rpc_call_managed_mode!(
-            "fetch_receipts",
+            "l2_block_ref_by_timestamp",
             ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await
         )?;
 
