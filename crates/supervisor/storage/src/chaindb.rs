@@ -284,6 +284,48 @@ impl HeadRefStorageWriter for ChainDb {
         })?
     }
 
+    fn update_current_cross_unsafe(&self, block: &BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("update_current_cross_unsafe", || {
+            self.env.update(|tx| {
+                let log_provider = LogProvider::new(tx);
+
+                // Ensure the block exists in log storage and hasn't been pruned due to a re-org.
+                let stored_block = log_provider.get_block(block.number)?;
+                if stored_block.hash != block.hash {
+                    warn!(
+                        target: "supervisor_storage",
+                        incoming_block_hash = %block.hash,
+                        stored_block_hash = %stored_block.hash,
+                        "Hash mismatch while updating CrossUnsafe head",
+                    );
+                    return Err(StorageError::EntryNotFound(
+                        "block hash does not match".to_string(),
+                    ));
+                }
+
+                SafetyHeadRefProvider::new(tx)
+                    .update_safety_head_ref(SafetyLevel::CrossUnsafe, block)?;
+                Ok(())
+            })?
+        })
+    }
+
+    fn update_current_cross_safe(&self, block: &BlockInfo) -> Result<DerivedRefPair, StorageError> {
+        self.observe_call("update_current_cross_safe", || {
+            self.env.update(|tx| {
+                let dp = DerivationProvider::new(tx);
+
+                // Ensure the block exists in derivation storage and hasn't been pruned due to a
+                // re-org.
+                let derived_pair = dp.get_derived_block_pair(block.id())?;
+
+                SafetyHeadRefProvider::new(tx)
+                    .update_safety_head_ref(SafetyLevel::CrossSafe, block)?;
+                Ok(derived_pair.into())
+            })?
+        })
+    }
+
     fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,
@@ -692,5 +734,52 @@ mod tests {
         let block3 = BlockInfo { number: 15, ..Default::default() };
         let err = db.update_current_l1(block3).unwrap_err();
         assert!(matches!(err, StorageError::BlockOutOfOrder));
+    }
+
+    #[test]
+    fn test_update_current_cross_unsafe() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        let source = BlockInfo { number: 1, ..Default::default() };
+        let block1 = BlockInfo { number: 10, ..Default::default() };
+        let block2 = BlockInfo { number: 20, ..Default::default() };
+
+        db.initialise(DerivedRefPair { source, derived: block1 }).unwrap();
+
+        // Update current unsafe block with block1
+        db.update_current_cross_unsafe(&block1).unwrap();
+        let cross_unsafe_block = db.get_safety_head_ref(SafetyLevel::CrossUnsafe).unwrap();
+        assert_eq!(cross_unsafe_block, block1);
+
+        // Update with non-existing block
+        let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::EntryNotFound(_)));
+    }
+
+    #[test]
+    fn test_update_current_cross_safe() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        let source = BlockInfo { number: 1, ..Default::default() };
+        let block1 = BlockInfo { number: 10, ..Default::default() };
+        let block2 = BlockInfo { number: 20, ..Default::default() };
+
+        db.initialise(DerivedRefPair { source, derived: block1 }).unwrap();
+
+        // Update current unsafe block with block1
+        let derived_ref = db.update_current_cross_safe(&block1).unwrap();
+        assert_eq!(derived_ref.source, source);
+        assert_eq!(derived_ref.derived, block1);
+
+        let cross_safe_block = db.get_safety_head_ref(SafetyLevel::CrossSafe).unwrap();
+        assert_eq!(cross_safe_block, block1);
+
+        // Update with non-existing block
+        let err = db.update_current_cross_safe(&block2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::EntryNotFound(_)));
     }
 }

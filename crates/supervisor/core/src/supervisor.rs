@@ -174,12 +174,25 @@ impl Supervisor {
             let db = Arc::clone(&self.database_factory);
             let cancel = self.cancel_token.clone();
 
+            // todo: remove dependency from chain processors to get event txs
+            // initialize event txs independent and pass at the time of initialization
+            let processor = self.chain_processors.get(&chain_id).ok_or_else(|| {
+                error!(target: "supervisor_service", %chain_id, "processor not initialized");
+                SupervisorError::Initialise("processor not initialized".into())
+            })?;
+
+            let event_tx = processor.event_sender().ok_or_else(|| {
+                error!(target: "supervisor_service", %chain_id, "no event tx found in chain processor");
+                SupervisorError::Initialise("event sender not found".into())
+            })?;
+
             let cross_safe_job = CrossSafetyCheckerJob::new(
                 chain_id,
                 db.clone(),
                 cancel.clone(),
                 Duration::from_secs(config.block_time),
                 SafetyLevel::CrossSafe,
+                event_tx.clone(),
             )?;
 
             tokio::spawn(async move {
@@ -192,6 +205,7 @@ impl Supervisor {
                 cancel,
                 Duration::from_secs(config.block_time),
                 SafetyLevel::CrossUnsafe,
+                event_tx,
             )?;
 
             tokio::spawn(async move {

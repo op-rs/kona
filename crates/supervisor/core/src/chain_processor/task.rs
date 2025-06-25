@@ -87,6 +87,8 @@ where
             ChainEvent::FinalizedSourceUpdate { finalized_source_block } => {
                 self.handle_finalized_l1_update(finalized_source_block).await
             }
+            ChainEvent::CrossUnsafeUpdate { block } => self.handle_cross_unsafe_update(block).await,
+            ChainEvent::CrossSafeUpdate { block } => self.handle_cross_safe_update(block).await,
         }
     }
 
@@ -183,6 +185,73 @@ where
             // TODO: take next action based on the error
         }
     }
+
+    async fn handle_cross_unsafe_update(&self, block: BlockInfo) {
+        debug!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = block.number,
+            "Processing cross unsafe update"
+        );
+
+        if let Err(err) = self.state_manager.update_current_cross_unsafe(&block) {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                %err,
+                "Failed to update cross unsafe block"
+            );
+            return;
+        };
+
+        if let Err(err) = self.managed_node.update_cross_unsafe(block.id()).await {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                %err,
+                "Failed to update cross unsafe block on managed node"
+            );
+        }
+    }
+
+    async fn handle_cross_safe_update(&self, block: BlockInfo) {
+        debug!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = block.number,
+            "Processing cross safe update"
+        );
+
+        let derived_ref_pair = match self.state_manager.update_current_cross_safe(&block) {
+            Ok(pair) => pair,
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = block.number,
+                    %err,
+                    "Failed to update cross safe block"
+                );
+                return;
+            }
+        };
+
+        if let Err(err) = self
+            .managed_node
+            .update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id())
+            .await
+        {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                %err,
+                "Failed to update cross safe block on managed node"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -243,6 +312,17 @@ mod tests {
             &self,
             _finalized_block_id: BlockNumHash,
         ) -> Result<(), ManagedNodeError>;
+
+        async fn update_cross_unsafe(
+            &self,
+            cross_unsafe_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError>;
+
+        async fn update_cross_safe(
+            &self,
+            source_block_id: BlockNumHash,
+            derived_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError>;
     }
     );
 
@@ -281,6 +361,16 @@ mod tests {
                 safety_level: SafetyLevel,
                 block_info: &BlockInfo,
             ) -> Result<(), StorageError>;
+
+            fn update_current_cross_unsafe(
+                &self,
+                block: &BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn update_current_cross_safe(
+                &self,
+                block: &BlockInfo,
+            ) -> Result<DerivedRefPair, StorageError>;
         }
     );
 
@@ -476,6 +566,85 @@ mod tests {
 
         // Give it time to process
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_cross_unsafe_update_triggers() {
+        let block =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        mockdb.expect_update_current_cross_unsafe().returning(move |cross_unsafe_block| {
+            assert_eq!(*cross_unsafe_block, block);
+            Ok(())
+        });
+        mocknode.expect_update_cross_unsafe().returning(move |cross_unsafe_block| {
+            assert_eq!(cross_unsafe_block, block.id());
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+
+        // Send derivation origin update event
+        tx.send(ChainEvent::CrossUnsafeUpdate { block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_cross_safe_update_triggers() {
+        let derived =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let source =
+            BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        mockdb.expect_update_current_cross_safe().returning(move |cross_safe_block| {
+            assert_eq!(*cross_safe_block, derived);
+            Ok(DerivedRefPair { source, derived })
+        });
+        mocknode.expect_update_cross_safe().returning(move |source_id, derived_id| {
+            assert_eq!(derived_id, derived.id());
+            assert_eq!(source_id, source.id());
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+
+        // Send derivation origin update event
+        tx.send(ChainEvent::CrossSafeUpdate { block: derived }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
 
         // Stop the task
         cancel_token.cancel();

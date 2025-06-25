@@ -178,6 +178,21 @@ mod tests {
         ) -> Result<(), ManagedNodeError> {
             Ok(())
         }
+
+        async fn update_cross_unsafe(
+            &self,
+            _cross_unsafe_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError> {
+            Ok(())
+        }
+
+        async fn update_cross_safe(
+            &self,
+            _source_block_id: BlockNumHash,
+            _derived_block_id: BlockNumHash,
+        ) -> Result<(), ManagedNodeError> {
+            Ok(())
+        }
     }
 
     mock!(
@@ -215,6 +230,16 @@ mod tests {
                 safety_level: SafetyLevel,
                 block_info: &BlockInfo,
             ) -> Result<(), StorageError>;
+
+            fn update_current_cross_unsafe(
+                &self,
+                block: &BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn update_current_cross_safe(
+                &self,
+                block: &BlockInfo,
+            ) -> Result<DerivedRefPair, StorageError>;
         }
     );
 
