@@ -14,3 +14,12 @@ pub use managed::ManagedTraversal;
 
 mod polling;
 pub use polling::PollingTraversal;
+
+/// The type of traversal stage used in the derivation pipeline.
+#[derive(Debug, Clone)]
+pub enum TraversalStage {
+    /// A passive traversal stage that receives the next block through a signal.
+    Managed,
+    /// An active traversal stage that polls for the next block through its provider.
+    Polling,
+}

@@ -1,4 +1,4 @@
-//! The [`NodeMode`] enum.
+//! Contains enums that configure the mode for the node to operate in.
 
 /// The [`NodeMode`] enum represents the modes of operation for the [`RollupNodeService`].
 ///
@@ -12,4 +12,16 @@ pub enum NodeMode {
     /// Sequencer mode.
     #[display("Sequencer")]
     Sequencer,
+}
+
+/// The [`InteropMode`] enum represents how the node works with interop.
+#[derive(Debug, derive_more::Display, Default, Clone, Copy, PartialEq, Eq)]
+pub enum InteropMode {
+    /// The node is in polled mode which means it is not managed by the supervisor.
+    #[display("Polled")]
+    #[default]
+    Polled,
+    /// The node is in managed mode which means it is managed by the supervisor.
+    #[display("Managed")]
+    Managed,
 }

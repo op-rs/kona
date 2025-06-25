@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineLauncher, NodeMode, RollupNode, actors::RuntimeState};
+use crate::{EngineLauncher, InteropMode, NodeMode, RollupNode, actors::RuntimeState};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -45,6 +45,8 @@ pub struct RollupNodeBuilder {
     runtime_load_interval: Option<std::time::Duration>,
     /// The mode to run the node in.
     mode: NodeMode,
+    /// Whether to run the node in interop mode.
+    interop_mode: InteropMode,
 }
 
 impl RollupNodeBuilder {
@@ -56,6 +58,11 @@ impl RollupNodeBuilder {
     /// Sets the mode on the [`RollupNodeBuilder`].
     pub fn with_mode(self, mode: NodeMode) -> Self {
         Self { mode, ..self }
+    }
+
+    /// Sets the interop mode on the [`RollupNodeBuilder`].
+    pub fn with_interop_mode(self, interop_mode: InteropMode) -> Self {
+        Self { interop_mode, ..self }
     }
 
     /// Appends the [`SupervisorRpcConfig`] to the builder.
@@ -156,6 +163,7 @@ impl RollupNodeBuilder {
         RollupNode {
             mode: self.mode,
             config: rollup_config,
+            interop_mode: self.interop_mode,
             l1_provider,
             l1_beacon,
             l2_provider,

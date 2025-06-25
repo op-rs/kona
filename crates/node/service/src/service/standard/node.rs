@@ -1,9 +1,9 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, L1WatcherRpc, NetworkActor, NodeMode,
-    RollupNodeBuilder, RollupNodeError, RollupNodeService, RpcActor, RuntimeActor, SupervisorActor,
-    SupervisorRpcServerExt, actors::RuntimeState,
+    DerivationActor, EngineActor, EngineLauncher, InteropMode, L1WatcherRpc, NetworkActor,
+    NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService, RpcActor, RuntimeActor,
+    SupervisorActor, SupervisorRpcServerExt, actors::RuntimeState,
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -29,6 +29,8 @@ pub struct RollupNode {
     pub(crate) config: Arc<RollupConfig>,
     /// The mode of operation for the node.
     pub(crate) mode: NodeMode,
+    /// The interop mode for the node.
+    pub(crate) interop_mode: InteropMode,
     /// The L1 EL provider.
     pub(crate) l1_provider: RootProvider,
     /// The L1 beacon API.
@@ -130,12 +132,20 @@ impl RollupNodeService for RollupNode {
             DERIVATION_PROVIDER_CACHE_SIZE,
         );
 
-        let pipeline = OnlinePipeline::new_uninitialized(
-            self.config.clone(),
-            OnlineBlobProvider::init(self.l1_beacon.clone()).await,
-            l1_derivation_provider,
-            l2_derivation_provider,
-        );
+        let pipeline = match self.interop_mode {
+            InteropMode::Polled => OnlinePipeline::new_polled(
+                self.config.clone(),
+                OnlineBlobProvider::init(self.l1_beacon.clone()).await,
+                l1_derivation_provider,
+                l2_derivation_provider,
+            ),
+            InteropMode::Managed => OnlinePipeline::new_managed(
+                self.config.clone(),
+                OnlineBlobProvider::init(self.l1_beacon.clone()).await,
+                l1_derivation_provider,
+                l2_derivation_provider,
+            ),
+        };
 
         Ok(pipeline)
     }

@@ -3,43 +3,20 @@
 use crate::{
     AttributesBuilder, AttributesQueue, BatchProvider, BatchStream, ChainProvider, ChannelProvider,
     ChannelReader, DataAvailabilityProvider, DerivationPipeline, FrameQueue, L1Retrieval,
-    L2ChainProvider, PollingTraversal,
+    L2ChainProvider, ManagedAttributesQueueStage, ManagedTraversal, PolledAttributesQueueStage,
+    PollingTraversal,
 };
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 
-/// Type alias for the [`PollingTraversal`] stage.
-pub type L1TraversalStage<P> = PollingTraversal<P>;
-
-/// Type alias for the [`L1Retrieval`] stage.
-pub type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;
-
-/// Type alias for the [`FrameQueue`] stage.
-pub type FrameQueueStage<DAP, P> = FrameQueue<L1RetrievalStage<DAP, P>>;
-
-/// Type alias for the [`ChannelProvider`] stage.
-pub type ChannelProviderStage<DAP, P> = ChannelProvider<FrameQueueStage<DAP, P>>;
-
-/// Type alias for the [`ChannelReader`] stage.
-pub type ChannelReaderStage<DAP, P> = ChannelReader<ChannelProviderStage<DAP, P>>;
-
-/// Type alias for the [`BatchStream`] stage.
-pub type BatchStreamStage<DAP, P, T> = BatchStream<ChannelReaderStage<DAP, P>, T>;
-
-/// Type alias for the [`BatchProvider`] stage.
-pub type BatchProviderStage<DAP, P, T> = BatchProvider<BatchStreamStage<DAP, P, T>, T>;
-
-/// Type alias for the [`AttributesQueue`] stage.
-pub type AttributesQueueStage<DAP, P, T, B> = AttributesQueue<BatchProviderStage<DAP, P, T>, B>;
-
 /// The `PipelineBuilder` constructs a [`DerivationPipeline`] using a builder pattern.
 #[derive(Debug)]
 pub struct PipelineBuilder<B, P, T, D>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -54,7 +31,7 @@ where
 impl<B, P, T, D> Default for PipelineBuilder<B, P, T, D>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -73,7 +50,7 @@ where
 impl<B, P, T, D> PipelineBuilder<B, P, T, D>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -118,17 +95,22 @@ where
         self
     }
 
-    /// Builds the pipeline.
-    pub fn build(self) -> DerivationPipeline<AttributesQueueStage<D, P, T, B>, T> {
+    /// Builds a derivation pipeline with the [`PolledAttributesQueueStage`].
+    pub fn build_polled(self) -> DerivationPipeline<PolledAttributesQueueStage<D, P, T, B>, T> {
+        self.into()
+    }
+
+    /// Builds a derivation pipeline with the [`ManagedAttributesQueueStage`].
+    pub fn build_managed(self) -> DerivationPipeline<ManagedAttributesQueueStage<D, P, T, B>, T> {
         self.into()
     }
 }
 
 impl<B, P, T, D> From<PipelineBuilder<B, P, T, D>>
-    for DerivationPipeline<AttributesQueueStage<D, P, T, B>, T>
+    for DerivationPipeline<PolledAttributesQueueStage<D, P, T, B>, T>
 where
     B: AttributesBuilder + Send + Debug,
-    P: ChainProvider + Send + Sync + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
     T: L2ChainProvider + Clone + Send + Sync + Debug,
     D: DataAvailabilityProvider + Send + Sync + Debug,
 {
@@ -142,6 +124,41 @@ where
 
         // Compose the stage stack.
         let mut l1_traversal = PollingTraversal::new(chain_provider, Arc::clone(&rollup_config));
+        l1_traversal.block = Some(builder.origin.expect("origin must be set"));
+        let l1_retrieval = L1Retrieval::new(l1_traversal, dap_source);
+        let frame_queue = FrameQueue::new(l1_retrieval, Arc::clone(&rollup_config));
+        let channel_provider = ChannelProvider::new(Arc::clone(&rollup_config), frame_queue);
+        let channel_reader = ChannelReader::new(channel_provider, Arc::clone(&rollup_config));
+        let batch_stream =
+            BatchStream::new(channel_reader, rollup_config.clone(), l2_chain_provider.clone());
+        let batch_provider =
+            BatchProvider::new(rollup_config.clone(), batch_stream, l2_chain_provider.clone());
+        let attributes =
+            AttributesQueue::new(rollup_config.clone(), batch_provider, attributes_builder);
+
+        // Create the pipeline.
+        Self::new(attributes, rollup_config, l2_chain_provider)
+    }
+}
+
+impl<B, P, T, D> From<PipelineBuilder<B, P, T, D>>
+    for DerivationPipeline<ManagedAttributesQueueStage<D, P, T, B>, T>
+where
+    B: AttributesBuilder + Send + Debug,
+    P: ChainProvider + Clone + Send + Sync + Debug,
+    T: L2ChainProvider + Clone + Send + Sync + Debug,
+    D: DataAvailabilityProvider + Send + Sync + Debug,
+{
+    fn from(builder: PipelineBuilder<B, P, T, D>) -> Self {
+        // Extract the builder fields.
+        let rollup_config = builder.rollup_config.expect("rollup_config must be set");
+        let chain_provider = builder.chain_provider.expect("chain_provider must be set");
+        let l2_chain_provider = builder.l2_chain_provider.expect("l2_chain_provider must be set");
+        let dap_source = builder.dap_source.expect("dap_source must be set");
+        let attributes_builder = builder.builder.expect("builder must be set");
+
+        // Compose the stage stack.
+        let mut l1_traversal = ManagedTraversal::new(chain_provider, Arc::clone(&rollup_config));
         l1_traversal.block = Some(builder.origin.expect("origin must be set"));
         let l1_retrieval = L1Retrieval::new(l1_traversal, dap_source);
         let frame_queue = FrameQueue::new(l1_retrieval, Arc::clone(&rollup_config));
