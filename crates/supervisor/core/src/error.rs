@@ -66,7 +66,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SuperchainDAError(err) => err.into(),
-            SupervisorError::StorageError(err) => err.into(),
+            SupervisorError::StorageError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
         }
     }
 }

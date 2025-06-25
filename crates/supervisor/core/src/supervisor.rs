@@ -281,7 +281,7 @@ impl SupervisorService for Supervisor {
 
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
         Ok(self.get_db(chain)?.get_super_head().map_err(|err| {
-            error!(target: "supervisor_service", %err, "Failed to get super head for chain {chain}");
+            error!(target: "supervisor_service", %chain, %err, "Failed to get super head for chain");
             SuperchainDAError::from(err)
         })?)
     }

@@ -1,4 +1,3 @@
-use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use op_alloy_rpc_types::SuperchainDAError;
 use reth_db::DatabaseError;
 use thiserror::Error;
@@ -72,16 +71,11 @@ impl From<StorageError> for SuperchainDAError {
             StorageError::EntryNotFound(_) => Self::MissedData,
             StorageError::DatabaseNotInitialised => Self::UninitializedChainDatabase,
             StorageError::ConflictError(_) => Self::ConflictingData,
-            StorageError::BlockOutOfOrder => Self::OutOfOrder,
-            StorageError::DerivedBlockOutOfOrder => Self::OutOfOrder,
+            StorageError::BlockOutOfOrder | StorageError::DerivedBlockOutOfOrder => {
+                Self::OutOfOrder
+            }
             _ => err.into(),
         }
-    }
-}
-
-impl From<StorageError> for ErrorObjectOwned {
-    fn from(err: StorageError) -> Self {
-        ErrorObjectOwned::owned(ErrorCode::InternalError.code(), err.to_string(), None::<()>)
     }
 }
 

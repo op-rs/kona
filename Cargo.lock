@@ -5078,7 +5078,6 @@ dependencies = [
  "bytes",
  "derive_more",
  "eyre",
- "jsonrpsee",
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-metrics",

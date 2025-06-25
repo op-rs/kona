@@ -27,9 +27,6 @@ alloy-eips = { workspace = true }
 op-alloy-consensus.workspace = true
 op-alloy-rpc-types = { workspace = true, features = ["jsonrpsee"] }
 
-# jsonrpsee
-jsonrpsee = { workspace = true, features = [ "macros", "client" ] }
-
 # Misc
 serde = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
