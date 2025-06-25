@@ -1,4 +1,4 @@
-//! Metrics for the Supervisor RPC service.
+//! Metrics for the Managed Mode RPC client.
 
 /// Container for metrics.
 #[derive(Debug, Clone)]
