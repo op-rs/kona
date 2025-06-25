@@ -293,9 +293,8 @@ mod tests {
         let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 0);
 
         mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
-        let block_clone = block.clone();
         mocknode.expect_fetch_receipts().returning(move |block_hash| {
-            assert!(block_hash == block_clone.hash);
+            assert!(block_hash == block.hash);
             Ok(Receipts::default())
         });
 
@@ -413,10 +412,9 @@ mod tests {
             BlockInfo { number: 5, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
 
         // Expect update_finalized_using_source to be called with finalized_source_block
-        let finalized_source_block_clone = finalized_source_block.clone();
         mockdb.expect_update_finalized_using_source().returning(move |block_info: BlockInfo| {
-            assert_eq!(block_info, finalized_source_block_clone);
-            Ok(finalized_derived_block.clone())
+            assert_eq!(block_info, finalized_source_block);
+            Ok(finalized_derived_block)
         });
 
         // Expect update_finalized to be called with the derived block's id
