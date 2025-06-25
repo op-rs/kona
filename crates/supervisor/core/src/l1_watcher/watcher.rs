@@ -212,7 +212,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_new_finalized_block_storage_error() {
         let (tx, mut rx) = mpsc::channel(1);
-        let event_txs = [(ChainId::from(1u64), tx)].into_iter().collect();
+        let event_txs = [(1, tx)].into_iter().collect();
 
         let mut mock_storage = Mockdb::new();
         mock_storage
