@@ -10,7 +10,7 @@ use alloc::{boxed::Box, vec::Vec};
 use async_trait::async_trait;
 use kona_protocol::{Batch, BlockInfo, L2BlockInfo};
 
-/// A mock provider for the [BatchQueue] stage.
+/// A mock provider for the [`BatchQueue`] stage.
 #[derive(Debug, Default)]
 pub struct TestNextBatchProvider {
     /// The origin of the L1 block.
@@ -24,7 +24,7 @@ pub struct TestNextBatchProvider {
 }
 
 impl TestNextBatchProvider {
-    /// Creates a new [MockBatchQueueProvider] with the given origin and batches.
+    /// Creates a new [`MockBatchQueueProvider`] with the given origin and batches.
     pub fn new(batches: Vec<PipelineResult<Batch>>) -> Self {
         Self { origin: Some(BlockInfo::default()), batches, flushed: false, reset: false }
     }

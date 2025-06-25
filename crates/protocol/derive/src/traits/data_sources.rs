@@ -12,7 +12,7 @@ use kona_protocol::BlockInfo;
 /// The BlobProvider trait specifies the functionality of a data source that can provide blobs.
 #[async_trait]
 pub trait BlobProvider {
-    /// The error type for the [BlobProvider].
+    /// The error type for the [`BlobProvider`].
     type Error: Display + ToString + Into<PipelineErrorKind>;
 
     /// Fetches blobs for a given block ref and the blob hashes.
@@ -29,7 +29,7 @@ pub trait DataAvailabilityProvider {
     /// The item type of the data iterator.
     type Item: Send + Sync + Debug + Into<Bytes>;
 
-    /// Returns the next data for the given [BlockInfo], looking for transactions sent by the
+    /// Returns the next data for the given [`BlockInfo`], looking for transactions sent by the
     /// `batcher_addr`. Returns a `PipelineError::Eof` if there is no more data for the given
     /// block ref.
     async fn next(

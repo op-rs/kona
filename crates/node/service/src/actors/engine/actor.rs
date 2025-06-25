@@ -217,11 +217,61 @@ impl EngineActor {
             }
         })
     }
+
+    async fn process(&mut self, msg: InboundEngineMessage) -> Result<(), EngineError> {
+        match msg {
+            InboundEngineMessage::ResetRequest => {
+                warn!(target: "engine", "Received reset request");
+                self.reset().await?;
+            }
+            InboundEngineMessage::UnsafeBlockReceived(envelope) => {
+                let task = EngineTask::InsertUnsafe(InsertUnsafeTask::new(
+                    Arc::clone(&self.client),
+                    Arc::clone(&self.config),
+                    *envelope,
+                ));
+                self.engine.enqueue(task);
+            }
+            InboundEngineMessage::DerivedAttributesReceived(attributes) => {
+                self.finalizer.enqueue_for_finalization(&attributes);
+
+                let task = EngineTask::Consolidate(ConsolidateTask::new(
+                    Arc::clone(&self.client),
+                    Arc::clone(&self.config),
+                    *attributes,
+                    true,
+                ));
+                self.engine.enqueue(task);
+            }
+            InboundEngineMessage::RuntimeConfigUpdate(config) => {
+                let client = Arc::clone(&self.client);
+                tokio::task::spawn(async move {
+                    debug!(target: "engine", config = ?config, "Received runtime config");
+                    let recommended = config.recommended_protocol_version;
+                    let required = config.required_protocol_version;
+                    match client.signal_superchain_v1(recommended, required).await {
+                        Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
+                        Err(e) => {
+                            // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                            // a warning is logged instead of an error.
+                            warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                        }
+                    }
+                });
+            }
+            InboundEngineMessage::NewFinalizedL1Block => {
+                // Attempt to finalize any L2 blocks that are contained within the finalized L1
+                // chain.
+                self.finalizer.try_finalize_next(&mut self.engine).await;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl NodeActor for EngineActor {
-    type InboundEvent = InboundEngineMessage;
     type Error = EngineError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
@@ -288,57 +338,6 @@ impl NodeActor for EngineActor {
                 }
             }
         }
-    }
-
-    async fn process(&mut self, msg: Self::InboundEvent) -> Result<(), Self::Error> {
-        match msg {
-            InboundEngineMessage::ResetRequest => {
-                warn!(target: "engine", "Received reset request");
-                self.reset().await?;
-            }
-            InboundEngineMessage::UnsafeBlockReceived(envelope) => {
-                let task = EngineTask::InsertUnsafe(InsertUnsafeTask::new(
-                    Arc::clone(&self.client),
-                    Arc::clone(&self.config),
-                    *envelope,
-                ));
-                self.engine.enqueue(task);
-            }
-            InboundEngineMessage::DerivedAttributesReceived(attributes) => {
-                self.finalizer.enqueue_for_finalization(&attributes);
-
-                let task = EngineTask::Consolidate(ConsolidateTask::new(
-                    Arc::clone(&self.client),
-                    Arc::clone(&self.config),
-                    *attributes,
-                    true,
-                ));
-                self.engine.enqueue(task);
-            }
-            InboundEngineMessage::RuntimeConfigUpdate(config) => {
-                let client = Arc::clone(&self.client);
-                tokio::task::spawn(async move {
-                    debug!(target: "engine", config = ?config, "Received runtime config");
-                    let recommended = config.recommended_protocol_version;
-                    let required = config.required_protocol_version;
-                    match client.signal_superchain_v1(recommended, required).await {
-                        Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
-                        Err(e) => {
-                            // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
-                            // a warning is logged instead of an error.
-                            warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
-                        }
-                    }
-                });
-            }
-            InboundEngineMessage::NewFinalizedL1Block => {
-                // Attempt to finalize any L2 blocks that are contained within the finalized L1
-                // chain.
-                self.finalizer.try_finalize_next(&mut self.engine).await;
-            }
-        }
-
-        Ok(())
     }
 }
 

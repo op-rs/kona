@@ -68,26 +68,49 @@ op-alloy-consensus.workspace = true
 [features]
 default = []
 std = [
-  "kona-genesis/std",
-  "op-alloy-consensus/std",
-  "brotli/std",
-  "alloy-consensus/std",
-  "alloy-primitives/std",
-  "alloy-rlp/std",
-  "alloy-serde?/std",
-  "thiserror/std",
-  "unsigned-varint/std"
+	"alloy-consensus/std",
+	"alloy-eips/std",
+	"alloy-primitives/std",
+	"alloy-rlp/std",
+	"alloy-rpc-types-engine/std",
+	"alloy-serde?/std",
+	"brotli/std",
+	"kona-genesis/std",
+	"kona-protocol/std",
+	"miniz_oxide/std",
+	"op-alloy-consensus/std",
+	"rand/std",
+	"serde?/std",
+	"spin?/std",
+	"thiserror/std",
+	"tracing/std",
+	"unsigned-varint/std",
 ]
-test-utils = []
+test-utils = [ "kona-protocol/test-utils" ]
 serde = [
-  "dep:serde",
-  "dep:alloy-serde",
-  "kona-genesis/serde",
-  "op-alloy-consensus/serde",
-  "alloy-consensus/serde",
-  "alloy-eips/serde",
-  "alloy-primitives/serde",
-  "tracing-subscriber?/serde"
+	"alloy-consensus/serde",
+	"alloy-eips/serde",
+	"alloy-primitives/serde",
+	"alloy-rpc-types-engine/serde",
+	"dep:alloy-serde",
+	"dep:serde",
+	"kona-genesis/serde",
+	"kona-protocol/serde",
+	"miniz_oxide/serde",
+	"op-alloy-consensus/serde",
+	"rand/serde",
+	"tracing-subscriber?/serde",
+]
+arbitrary = [
+	"alloy-consensus/arbitrary",
+	"alloy-eips/arbitrary",
+	"alloy-primitives/arbitrary",
+	"alloy-rpc-types-engine/arbitrary",
+	"alloy-serde?/arbitrary",
+	"dep:arbitrary",
+	"kona-genesis/arbitrary",
+	"kona-protocol/arbitrary",
+	"op-alloy-consensus/arbitrary",
 ]
 
 

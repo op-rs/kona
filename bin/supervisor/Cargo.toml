@@ -19,6 +19,7 @@ kona-supervisor-core.workspace = true
 kona-cli.workspace = true
 kona-interop.workspace = true
 kona-genesis.workspace = true
+kona-protocol.workspace = true
 
 alloy-network.workspace = true
 alloy-provider.workspace = true

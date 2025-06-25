@@ -75,4 +75,4 @@ op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-metrics = ["dep:metrics", "libp2p/metrics"]
+metrics = [ "dep:metrics", "libp2p/metrics" ]

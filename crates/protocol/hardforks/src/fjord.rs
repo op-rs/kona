@@ -1,4 +1,4 @@
-//! Module containing a [TxDeposit] builder for the Fjord network upgrade transactions.
+//! Module containing a [`TxDeposit`] builder for the Fjord network upgrade transactions.
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
@@ -63,7 +63,7 @@ impl Fjord {
             .into()
     }
 
-    /// Returns the list of [TxDeposit]s for the Fjord network upgrade.
+    /// Returns the list of [`TxDeposit`]s for the Fjord network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
         ([
             // Deploys the Fjord Gas Price Oracle contract.

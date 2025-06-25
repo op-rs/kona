@@ -40,11 +40,12 @@ criterion = { workspace = true, features = ["html_reports"] }
 pprof = { workspace = true, features = ["criterion", "flamegraph", "frame-pointer"] }
 
 [features]
-default = ["serde"]
+default = [ "serde" ]
 serde = [
-    "dep:serde",
-    "alloy-primitives/serde",
-    "alloy-trie/serde"
+	"alloy-primitives/serde",
+	"alloy-trie/serde",
+	"dep:serde",
+	"op-alloy-rpc-types-engine/serde",
 ]
 
 [[bench]]

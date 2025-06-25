@@ -11,7 +11,7 @@ use core::fmt::Debug;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, Frame};
 
-/// Provides data frames for the [FrameQueue] stage.
+/// Provides data frames for the [`FrameQueue`] stage.
 #[async_trait]
 pub trait FrameQueueProvider {
     /// An item that can be converted into a byte array.
@@ -23,10 +23,10 @@ pub trait FrameQueueProvider {
     async fn next_data(&mut self) -> PipelineResult<Self::Item>;
 }
 
-/// The [FrameQueue] stage of the derivation pipeline.
-/// This stage takes the output of the [L1Retrieval] stage and parses it into frames.
+/// The [`FrameQueue`] stage of the derivation pipeline.
+/// This stage takes the output of the [`L1Retrieval`] stage and parses it into frames.
 ///
-/// [L1Retrieval]: crate::stages::L1Retrieval
+/// [`L1Retrieval`]: crate::stages::L1Retrieval
 #[derive(Debug)]
 pub struct FrameQueue<P>
 where
@@ -44,9 +44,9 @@ impl<P> FrameQueue<P>
 where
     P: FrameQueueProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
-    /// Create a new [FrameQueue] stage with the given previous [L1Retrieval] stage.
+    /// Create a new [`FrameQueue`] stage with the given previous [`L1Retrieval`] stage.
     ///
-    /// [L1Retrieval]: crate::stages::L1Retrieval
+    /// [`L1Retrieval`]: crate::stages::L1Retrieval
     pub const fn new(prev: P, cfg: Arc<RollupConfig>) -> Self {
         Self { prev, queue: VecDeque::new(), rollup_config: cfg }
     }
@@ -105,7 +105,7 @@ where
         }
     }
 
-    /// Loads more frames into the [FrameQueue].
+    /// Loads more frames into the [`FrameQueue`].
     pub async fn load_frames(&mut self) -> PipelineResult<()> {
         // Skip loading frames if the queue is not empty.
         if !self.queue.is_empty() {

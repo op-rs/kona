@@ -14,7 +14,7 @@ use kona_protocol::{
     Batch, BatchValidity, BatchWithInclusionBlock, BlockInfo, L2BlockInfo, SingleBatch,
 };
 
-/// [BatchQueue] is responsible for ordering unordered batches
+/// [`BatchQueue`] is responsible for ordering unordered batches
 /// and generating empty batches when the sequence window has passed.
 ///
 /// It receives batches that are tagged with the L1 Inclusion block of the batch.
@@ -49,9 +49,9 @@ where
     pub(crate) l1_blocks: Vec<BlockInfo>,
     /// A set of batches in order from when we've seen them.
     pub(crate) batches: Vec<BatchWithInclusionBlock>,
-    /// A set of cached [SingleBatch]es derived from [SpanBatch]es.
+    /// A set of cached [`SingleBatch`]es derived from [`SpanBatch`]es.
     ///
-    /// [SpanBatch]: kona_protocol::SpanBatch
+    /// [`SpanBatch`]: kona_protocol::SpanBatch
     pub(crate) next_spans: Vec<SingleBatch>,
     /// Used to validate the batches.
     pub(crate) fetcher: BF,
@@ -62,7 +62,7 @@ where
     P: NextBatchProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
     BF: L2ChainProvider + Debug,
 {
-    /// Creates a new [BatchQueue] stage.
+    /// Creates a new [`BatchQueue`] stage.
     #[allow(clippy::missing_const_for_fn)]
     pub fn new(cfg: Arc<RollupConfig>, prev: P, fetcher: BF) -> Self {
         Self {

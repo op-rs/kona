@@ -35,8 +35,8 @@ mod stages;
 pub use stages::{
     AttributesQueue, BatchProvider, BatchQueue, BatchStream, BatchStreamProvider, BatchValidator,
     ChannelAssembler, ChannelBank, ChannelProvider, ChannelReader, ChannelReaderProvider,
-    FrameQueue, FrameQueueProvider, L1Retrieval, L1RetrievalProvider, L1Traversal,
-    NextBatchProvider, NextFrameProvider,
+    FrameQueue, FrameQueueProvider, L1Retrieval, L1RetrievalProvider, ManagedTraversal,
+    NextBatchProvider, NextFrameProvider, PollingTraversal,
 };
 
 mod traits;
@@ -49,7 +49,7 @@ pub use traits::{
 mod types;
 pub use types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult};
 
-pub mod metrics;
+mod metrics;
 pub use metrics::Metrics;
 
 #[cfg(feature = "test-utils")]

@@ -47,7 +47,6 @@ impl<E> NodeActor for SupervisorActor<E>
 where
     E: SupervisorExt + Send + Sync,
 {
-    type InboundEvent = ();
     type Error = SupervisorActorError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
@@ -74,11 +73,6 @@ where
                 },
             }
         }
-    }
-
-    async fn process(&mut self, _msg: Self::InboundEvent) -> Result<(), Self::Error> {
-        // The supervisor actor does not process any incoming messages.
-        Ok(())
     }
 }
 

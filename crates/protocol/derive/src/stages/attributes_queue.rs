@@ -15,19 +15,19 @@ use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent, SingleBatch};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
-/// [AttributesQueue] accepts batches from the [BatchQueue] stage
-/// and transforms them into [OpPayloadAttributes].
+/// [`AttributesQueue`] accepts batches from the [`BatchQueue`] stage
+/// and transforms them into [`OpPayloadAttributes`].
 ///
 /// The outputted payload attributes cannot be buffered because each batch->attributes
 /// transformation pulls in data about the current L2 safe head.
 ///
-/// [AttributesQueue] also buffers batches that have been output because
+/// [`AttributesQueue`] also buffers batches that have been output because
 /// multiple batches can be created at once.
 ///
 /// This stage can be reset by clearing its batch buffer.
 /// This stage does not need to retain any references to L1 blocks.
 ///
-/// [BatchQueue]: crate::stages::BatchQueue
+/// [`BatchQueue`]: crate::stages::BatchQueue
 #[derive(Debug)]
 pub struct AttributesQueue<P, AB>
 where
@@ -51,12 +51,12 @@ where
     P: AttributesProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
     AB: AttributesBuilder + Debug,
 {
-    /// Create a new [AttributesQueue] stage.
+    /// Create a new [`AttributesQueue`] stage.
     pub const fn new(cfg: Arc<RollupConfig>, prev: P, builder: AB) -> Self {
         Self { cfg, prev, is_last_in_span: false, batch: None, builder }
     }
 
-    /// Loads a [SingleBatch] from the [AttributesProvider] if needed.
+    /// Loads a [`SingleBatch`] from the [`AttributesProvider`] if needed.
     pub async fn load_batch(&mut self, parent: L2BlockInfo) -> PipelineResult<SingleBatch> {
         if self.batch.is_none() {
             let batch = self.prev.next_batch(parent).await?;
@@ -66,7 +66,7 @@ where
         self.batch.as_ref().cloned().ok_or(PipelineError::Eof.temp())
     }
 
-    /// Returns the next [OpAttributesWithParent] from the current batch.
+    /// Returns the next [`OpAttributesWithParent`] from the current batch.
     pub async fn next_attributes(
         &mut self,
         parent: L2BlockInfo,
@@ -102,7 +102,7 @@ where
         Ok(populated_attributes)
     }
 
-    /// Creates the next attributes, transforming a [SingleBatch] into [OpPayloadAttributes].
+    /// Creates the next attributes, transforming a [`SingleBatch`] into [`OpPayloadAttributes`].
     /// This sets `no_tx_pool` and appends the batched txs to the attributes tx list.
     pub async fn create_next_attributes(
         &mut self,

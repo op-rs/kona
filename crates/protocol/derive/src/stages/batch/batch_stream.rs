@@ -12,25 +12,25 @@ use kona_protocol::{
     Batch, BatchValidity, BatchWithInclusionBlock, BlockInfo, L2BlockInfo, SingleBatch, SpanBatch,
 };
 
-/// Provides [Batch]es for the [BatchStream] stage.
+/// Provides [`Batch`]es for the [`BatchStream`] stage.
 #[async_trait]
 pub trait BatchStreamProvider {
-    /// Returns the next [Batch] in the [BatchStream] stage.
+    /// Returns the next [`Batch`] in the [`BatchStream`] stage.
     async fn next_batch(&mut self) -> PipelineResult<Batch>;
 
     /// Drains the recent `Channel` if an invalid span batch is found post-holocene.
     fn flush(&mut self);
 }
 
-/// [BatchStream] stage in the derivation pipeline.
+/// [`BatchStream`] stage in the derivation pipeline.
 ///
-/// This stage is introduced in the [Holocene] hardfork.
-/// It slots in between the [ChannelReader] and [BatchQueue]
+/// This stage is introduced in the [`Holocene`] hardfork.
+/// It slots in between the [`ChannelReader`] and [`BatchQueue`]
 /// stages, buffering span batches until they are validated.
 ///
-/// [Holocene]: https://specs.optimism.io/protocol/holocene/overview.html
-/// [ChannelReader]: crate::stages::ChannelReader
-/// [BatchQueue]: crate::stages::BatchQueue
+/// [`Holocene`]: https://specs.optimism.io/protocol/holocene/overview.html
+/// [`ChannelReader`]: crate::stages::ChannelReader
+/// [`BatchQueue`]: crate::stages::BatchQueue
 #[derive(Debug)]
 pub struct BatchStream<P, BF>
 where
@@ -41,10 +41,10 @@ where
     prev: P,
     /// There can only be a single staged span batch.
     span: Option<SpanBatch>,
-    /// A buffer of single batches derived from the [SpanBatch].
+    /// A buffer of single batches derived from the [`SpanBatch`].
     buffer: VecDeque<SingleBatch>,
     /// A reference to the rollup config, used to check
-    /// if the [BatchStream] stage should be activated.
+    /// if the [`BatchStream`] stage should be activated.
     config: Arc<RollupConfig>,
     /// Used to validate the batches.
     fetcher: BF,
@@ -55,19 +55,19 @@ where
     P: BatchStreamProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
     BF: L2ChainProvider + Debug,
 {
-    /// Create a new [BatchStream] stage.
+    /// Create a new [`BatchStream`] stage.
     pub const fn new(prev: P, config: Arc<RollupConfig>, fetcher: BF) -> Self {
         Self { prev, span: None, buffer: VecDeque::new(), config, fetcher }
     }
 
-    /// Returns if the [BatchStream] stage is active based on the
+    /// Returns if the [`BatchStream`] stage is active based on the
     /// origin timestamp and holocene activation timestamp.
     pub fn is_active(&self) -> PipelineResult<bool> {
         let origin = self.prev.origin().ok_or(PipelineError::MissingOrigin.crit())?;
         Ok(self.config.is_holocene_active(origin.timestamp))
     }
 
-    /// Gets a [SingleBatch] from the in-memory buffer.
+    /// Gets a [`SingleBatch`] from the in-memory buffer.
     pub fn get_single_batch(
         &mut self,
         parent: L2BlockInfo,

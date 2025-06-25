@@ -12,9 +12,9 @@ use alloc::{boxed::Box, vec::Vec};
 use async_trait::async_trait;
 use kona_protocol::{BlockInfo, Frame};
 
-/// A mock [NextFrameProvider] for testing the [ChannelBank] stage.
+/// A mock [`NextFrameProvider`] for testing the [`ChannelBank`] stage.
 ///
-/// [ChannelBank]: crate::stages::ChannelBank
+/// [`ChannelBank`]: crate::stages::ChannelBank
 #[derive(Debug, Default)]
 pub struct TestNextFrameProvider {
     /// The data to return.
@@ -26,7 +26,7 @@ pub struct TestNextFrameProvider {
 }
 
 impl TestNextFrameProvider {
-    /// Creates a new [TestNextFrameProvider] with the given data.
+    /// Creates a new [`TestNextFrameProvider`] with the given data.
     pub fn new(data: Vec<PipelineResult<Frame>>) -> Self {
         Self { data, block_info: Some(BlockInfo::default()), reset: false }
     }

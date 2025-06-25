@@ -3,38 +3,38 @@
 use crate::{
     AttributesBuilder, AttributesQueue, BatchProvider, BatchStream, ChainProvider, ChannelProvider,
     ChannelReader, DataAvailabilityProvider, DerivationPipeline, FrameQueue, L1Retrieval,
-    L1Traversal, L2ChainProvider,
+    L2ChainProvider, PollingTraversal,
 };
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use kona_genesis::RollupConfig;
 use kona_protocol::BlockInfo;
 
-/// Type alias for the [L1Traversal] stage.
-pub type L1TraversalStage<P> = L1Traversal<P>;
+/// Type alias for the [`PollingTraversal`] stage.
+pub type L1TraversalStage<P> = PollingTraversal<P>;
 
-/// Type alias for the [L1Retrieval] stage.
+/// Type alias for the [`L1Retrieval`] stage.
 pub type L1RetrievalStage<DAP, P> = L1Retrieval<DAP, L1TraversalStage<P>>;
 
-/// Type alias for the [FrameQueue] stage.
+/// Type alias for the [`FrameQueue`] stage.
 pub type FrameQueueStage<DAP, P> = FrameQueue<L1RetrievalStage<DAP, P>>;
 
-/// Type alias for the [ChannelProvider] stage.
+/// Type alias for the [`ChannelProvider`] stage.
 pub type ChannelProviderStage<DAP, P> = ChannelProvider<FrameQueueStage<DAP, P>>;
 
-/// Type alias for the [ChannelReader] stage.
+/// Type alias for the [`ChannelReader`] stage.
 pub type ChannelReaderStage<DAP, P> = ChannelReader<ChannelProviderStage<DAP, P>>;
 
-/// Type alias for the [BatchStream] stage.
+/// Type alias for the [`BatchStream`] stage.
 pub type BatchStreamStage<DAP, P, T> = BatchStream<ChannelReaderStage<DAP, P>, T>;
 
-/// Type alias for the [BatchProvider] stage.
+/// Type alias for the [`BatchProvider`] stage.
 pub type BatchProviderStage<DAP, P, T> = BatchProvider<BatchStreamStage<DAP, P, T>, T>;
 
-/// Type alias for the [AttributesQueue] stage.
+/// Type alias for the [`AttributesQueue`] stage.
 pub type AttributesQueueStage<DAP, P, T, B> = AttributesQueue<BatchProviderStage<DAP, P, T>, B>;
 
-/// The `PipelineBuilder` constructs a [DerivationPipeline] using a builder pattern.
+/// The `PipelineBuilder` constructs a [`DerivationPipeline`] using a builder pattern.
 #[derive(Debug)]
 pub struct PipelineBuilder<B, P, T, D>
 where
@@ -141,7 +141,7 @@ where
         let attributes_builder = builder.builder.expect("builder must be set");
 
         // Compose the stage stack.
-        let mut l1_traversal = L1Traversal::new(chain_provider, Arc::clone(&rollup_config));
+        let mut l1_traversal = PollingTraversal::new(chain_provider, Arc::clone(&rollup_config));
         l1_traversal.block = Some(builder.origin.expect("origin must be set"));
         let l1_retrieval = L1Retrieval::new(l1_traversal, dap_source);
         let frame_queue = FrameQueue::new(l1_retrieval, Arc::clone(&rollup_config));

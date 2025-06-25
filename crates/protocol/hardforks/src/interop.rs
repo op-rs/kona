@@ -1,4 +1,4 @@
-//! Module containing a [TxDeposit] builder for the Interop network upgrade transactions.
+//! Module containing a [`TxDeposit`] builder for the Interop network upgrade transactions.
 //!
 //! Interop network upgrade transactions are defined in the [OP Stack Specs][specs].
 //!

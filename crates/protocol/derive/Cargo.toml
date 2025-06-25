@@ -56,18 +56,23 @@ op-alloy-consensus = { workspace = true, features = ["k256"] }
 
 [features]
 default = []
-metrics = ["dep:metrics"]
+metrics = [ "dep:metrics" ]
 serde = [
-  "dep:serde",
-  "kona-protocol/serde",
-  "kona-genesis/serde",
-  "alloy-primitives/serde",
-  "alloy-consensus/serde",
-  "op-alloy-rpc-types-engine/serde",
+	"alloy-consensus/serde",
+	"alloy-eips/serde",
+	"alloy-primitives/serde",
+	"alloy-rpc-types-engine/serde",
+	"dep:serde",
+	"kona-genesis/serde",
+	"kona-protocol/serde",
+	"op-alloy-consensus/serde",
+	"op-alloy-rpc-types-engine/serde",
+	"tracing-subscriber?/serde",
 ]
 test-utils = [
-  "dep:spin",
-  "dep:tracing-subscriber",
+	"dep:spin",
+	"dep:tracing-subscriber",
+	"kona-protocol/test-utils",
 ]
 
 [package.metadata.cargo-udeps.ignore]

@@ -28,8 +28,8 @@ development = ["toml"]
 [features]
 default = []
 std = [
+	"alloy-primitives/serde",
+	"alloy-primitives/std",
 	"serde/std",
 	"serde_json/std",
-	"alloy-primitives/serde",
-	"alloy-primitives/std"
 ]

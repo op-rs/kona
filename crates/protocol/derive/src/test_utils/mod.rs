@@ -7,6 +7,9 @@ pub use pipeline::{
     TestPipeline, new_test_pipeline,
 };
 
+mod traversal;
+pub use traversal::TraversalTestHelper;
+
 mod blob_provider;
 pub use blob_provider::TestBlobProvider;
 

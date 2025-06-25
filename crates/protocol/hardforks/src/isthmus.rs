@@ -1,4 +1,4 @@
-//! Module containing a [TxDeposit] builder for the Isthmus network upgrade transactions.
+//! Module containing a [`TxDeposit`] builder for the Isthmus network upgrade transactions.
 //!
 //! Isthmus network upgrade transactions are defined in the [OP Stack Specs][specs].
 //!
@@ -145,7 +145,7 @@ impl Isthmus {
             .into()
     }
 
-    /// Returns the list of [TxDeposit]s for the network upgrade.
+    /// Returns the list of [`TxDeposit`]s for the network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
         ([
             TxDeposit {

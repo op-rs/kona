@@ -25,7 +25,7 @@ pub struct BlobData {
 
 impl BlobData {
     /// Decodes the blob into raw byte data.
-    /// Returns a [BlobDecodingError] if the blob is invalid.
+    /// Returns a [`BlobDecodingError`] if the blob is invalid.
     pub(crate) fn decode(&self) -> Result<Bytes, BlobDecodingError> {
         let data = self.data.as_ref().ok_or(BlobDecodingError::MissingData)?;
 
@@ -101,7 +101,7 @@ impl BlobData {
 
     /// Decodes the next input field element by writing its lower 31 bytes into its
     /// appropriate place in the output and checking the high order byte is valid.
-    /// Returns a [BlobDecodingError] if a field element is seen with either of its
+    /// Returns a [`BlobDecodingError`] if a field element is seen with either of its
     /// two high order bits set.
     pub(crate) fn decode_field_element(
         &self,

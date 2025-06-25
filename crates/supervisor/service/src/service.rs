@@ -50,6 +50,7 @@ impl Service {
         let database_factory =
             Arc::new(ChainDbFactory::new(self.config.datadir.clone()).with_metrics());
 
+        // todo: run metric worker only if metrics are enabled
         MetricWorker::new(
             Duration::from_secs(30),
             vec![database_factory.clone()],
