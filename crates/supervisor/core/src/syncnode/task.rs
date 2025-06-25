@@ -36,8 +36,6 @@ where
         event_tx: mpsc::Sender<ChainEvent>,
         client: Arc<WsClient>,
     ) -> Self {
-        Metrics::init();
-
         Self { l1_provider, db_provider, event_tx, client: Some(client) }
     }
 
