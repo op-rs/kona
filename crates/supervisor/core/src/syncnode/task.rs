@@ -1,5 +1,5 @@
-use super::ManagedEventTaskError;
-use crate::event::ChainEvent;
+use super::{ManagedEventTaskError, metrics::Metrics};
+use crate::{event::ChainEvent, observe_rpc_call_managed_mode};
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
@@ -30,12 +30,14 @@ where
     DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedEventTask`] instance.
-    pub const fn new(
+    pub fn new(
         l1_provider: RootProvider<Ethereum>,
         db_provider: Arc<DB>,
         event_tx: mpsc::Sender<ChainEvent>,
         client: Arc<WsClient>,
     ) -> Self {
+        Metrics::init();
+
         Self { l1_provider, db_provider, event_tx, client: Some(client) }
     }
 
@@ -163,9 +165,10 @@ where
                 let client =
                     self.client.clone().ok_or(ManagedEventTaskError::ManagedNodeClientMissing)?;
 
-                if let Err(err) =
+                if let Err(err) = observe_rpc_call_managed_mode!(
+                    "provide_l1",
                     ManagedModeApiClient::provide_l1(client.as_ref(), block_info).await
-                {
+                ) {
                     error!(target: "managed_event_task", %err, "Error sending provide_l1 to managed node");
                     Err(ManagedEventTaskError::ManagedNodeAPICallFailed)?
                 }

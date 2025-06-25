@@ -20,9 +20,9 @@ use tracing::{error, info, warn};
 
 use super::{
     AuthenticationError, ManagedEventTask, ManagedNodeApiProvider, ManagedNodeError,
-    NodeSubscriber, ReceiptProvider, SubscriptionError,
+    NodeSubscriber, ReceiptProvider, SubscriptionError, metrics::Metrics,
 };
-use crate::event::ChainEvent;
+use crate::{event::ChainEvent, observe_rpc_call_managed_mode};
 
 /// [`ManagedNodeConfig`] sets the configuration for the managed node.
 #[derive(Debug, Clone)]
@@ -91,6 +91,8 @@ where
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
+        Metrics::init();
+
         Self {
             config,
             chain_id: OnceLock::new(),
@@ -278,8 +280,15 @@ where
 {
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
-        Ok(receipts)
+        observe_rpc_call_managed_mode!(
+            "fetch_receipts",
+            async {
+                let receipts =
+                    ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
+                Ok(receipts)
+            }
+            .await
+        )
     }
 }
 
@@ -290,9 +299,16 @@ where
 {
     async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let output_v0 =
-            ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await?;
-        Ok(output_v0)
+        observe_rpc_call_managed_mode!(
+            "output_v0_at_timestamp",
+            async {
+                let output_v0 =
+                    ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp)
+                        .await?;
+                Ok(output_v0)
+            }
+            .await
+        )
     }
 
     async fn pending_output_v0_at_timestamp(
@@ -300,10 +316,18 @@ where
         timestamp: u64,
     ) -> Result<OutputV0, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let output_v0 =
-            ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp)
+        observe_rpc_call_managed_mode!(
+            "pending_output_v0_at_timestamp",
+            async {
+                let output_v0 = ManagedModeApiClient::pending_output_v0_at_timestamp(
+                    client.as_ref(),
+                    timestamp,
+                )
                 .await?;
-        Ok(output_v0)
+                Ok(output_v0)
+            }
+            .await
+        )
     }
 
     async fn l2_block_ref_by_timestamp(
@@ -311,9 +335,16 @@ where
         timestamp: u64,
     ) -> Result<BlockInfo, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let block_info =
-            ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await?;
-        Ok(block_info)
+        observe_rpc_call_managed_mode!(
+            "fetch_receipts",
+            async {
+                let block_info =
+                    ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp)
+                        .await?;
+                Ok(block_info)
+            }
+            .await
+        )
     }
 }
 
