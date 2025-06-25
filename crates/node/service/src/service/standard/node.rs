@@ -139,7 +139,7 @@ impl RollupNodeService for RollupNode {
                 l1_derivation_provider,
                 l2_derivation_provider,
             ),
-            InteropMode::Managed => OnlinePipeline::new_managed(
+            InteropMode::Indexed => OnlinePipeline::new_indexed(
                 self.config.clone(),
                 OnlineBlobProvider::init(self.l1_beacon.clone()).await,
                 l1_derivation_provider,

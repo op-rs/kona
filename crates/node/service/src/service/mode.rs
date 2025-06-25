@@ -21,7 +21,7 @@ pub enum InteropMode {
     #[display("Polled")]
     #[default]
     Polled,
-    /// The node is in managed mode which means it is managed by the supervisor.
-    #[display("Managed")]
-    Managed,
+    /// The node is in indexed mode which means it is managed by the supervisor.
+    #[display("Indexed")]
+    Indexed,
 }

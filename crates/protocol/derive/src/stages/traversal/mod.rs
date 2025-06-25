@@ -9,8 +9,8 @@
 //! - [`PollingTraversal`]: An active traversal stage that polls for the next block through its
 //!   provider.
 
-mod managed;
-pub use managed::IndexedTraversal;
+mod indexed;
+pub use indexed::IndexedTraversal;
 
 mod polling;
 pub use polling::PollingTraversal;

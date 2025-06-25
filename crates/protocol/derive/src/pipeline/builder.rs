@@ -101,7 +101,7 @@ where
     }
 
     /// Builds a derivation pipeline with the [`IndexedAttributesQueueStage`].
-    pub fn build_managed(self) -> DerivationPipeline<IndexedAttributesQueueStage<D, P, T, B>, T> {
+    pub fn build_indexed(self) -> DerivationPipeline<IndexedAttributesQueueStage<D, P, T, B>, T> {
         self.into()
     }
 }

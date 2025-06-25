@@ -164,7 +164,7 @@ impl RollupNodeBuilder {
 
         let interop_mode = match self.supervisor_rpc_config.is_disabled() {
             true => self.interop_mode,
-            false => InteropMode::Managed,
+            false => InteropMode::Indexed,
         };
 
         RollupNode {
