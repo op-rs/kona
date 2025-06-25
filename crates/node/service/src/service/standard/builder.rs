@@ -40,7 +40,7 @@ pub struct RollupNodeBuilder {
     /// An RPC Configuration.
     rpc_config: Option<RpcConfig>,
     /// An RPC Configuration for the supervisor rpc.
-    supervisor_rpc_config: Option<SupervisorRpcConfig>,
+    supervisor_rpc_config: SupervisorRpcConfig,
     /// An interval to load the runtime config.
     runtime_load_interval: Option<std::time::Duration>,
     /// The mode to run the node in.
@@ -67,7 +67,7 @@ impl RollupNodeBuilder {
 
     /// Appends the [`SupervisorRpcConfig`] to the builder.
     pub fn with_supervisor_rpc_config(self, config: SupervisorRpcConfig) -> Self {
-        Self { supervisor_rpc_config: Some(config), ..self }
+        Self { supervisor_rpc_config: config, ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.
@@ -111,6 +111,9 @@ impl RollupNodeBuilder {
     }
 
     /// Assembles the [`RollupNode`] service.
+    ///
+    /// By default, the supervisor RPC is disabled.
+    /// To enable it, use the [`Self::with_supervisor_rpc_config`] method.
     ///
     /// ## Panics
     ///
@@ -156,14 +159,18 @@ impl RollupNodeBuilder {
             loader: kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
             interval: load_interval,
         });
-        let supervisor_rpc = self.supervisor_rpc_config.unwrap_or_default();
 
         let p2p_config = self.p2p_config.expect("P2P config not set");
+
+        let interop_mode = match self.supervisor_rpc_config.is_disabled() {
+            true => self.interop_mode,
+            false => InteropMode::Managed,
+        };
 
         RollupNode {
             mode: self.mode,
             config: rollup_config,
-            interop_mode: self.interop_mode,
+            interop_mode,
             l1_provider,
             l1_beacon,
             l2_provider,
@@ -171,7 +178,8 @@ impl RollupNodeBuilder {
             rpc_launcher,
             p2p_config,
             runtime_launcher,
-            supervisor_rpc,
+            // By default, the supervisor rpc config is disabled.
+            supervisor_rpc: self.supervisor_rpc_config,
         }
     }
 }
