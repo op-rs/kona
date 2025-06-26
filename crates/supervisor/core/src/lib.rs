@@ -4,7 +4,7 @@ pub mod chain_processor;
 pub use chain_processor::{ChainProcessor, ChainProcessorError};
 
 pub mod error;
-pub use error::SupervisorError;
+pub use error::{SpecError, SupervisorError};
 
 /// Contains the main Supervisor struct and its implementation.
 mod supervisor;
