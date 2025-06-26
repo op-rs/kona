@@ -475,7 +475,7 @@ mod tests {
 
         // Save derived block pair - should error conflict
         let err = db.save_derived_block_pair(derived_pair).unwrap_err();
-        assert!(matches!(err, StorageError::ConflictError(_)));
+        assert!(matches!(err, StorageError::ConflictError));
 
         db.store_block_logs(
             &BlockInfo {
