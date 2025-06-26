@@ -2,7 +2,7 @@ module github.com/op-rs/kona
 
 go 1.24.3
 
-// We're using the "develop" branch of the Optimism repo to include the latest changes to the `devnet-sdk` package.
+// We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
 require github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
 
 require github.com/stretchr/testify v1.10.0
@@ -281,7 +281,7 @@ require (
 
 replace github.com/ethereum-optimism/optimism/op-node => github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
 
-// Patched version of the Optimism repo that includes the latest changes of the `devnet-sdk` package to enable testing for the CL clients.
+// Patched version of the Optimism repo that includes the latest changes of the `devstack` package to enable testing for the CL clients.
 replace github.com/ethereum-optimism/optimism => github.com/theochap/optimism v0.0.0-20250623141542-4850d4353d37
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-dev.1.0.20250608235258-6005dd53e1b5

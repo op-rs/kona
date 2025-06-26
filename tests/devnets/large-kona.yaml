@@ -27,7 +27,7 @@ optimism_package:
           cl:
             type: op-node
             log_level: "info"
-          sequencer: true
+          sequencer: false
         kona-1:
           el:
             type: op-geth
