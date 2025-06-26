@@ -60,7 +60,8 @@ where
     }
 
     /// Observes an async call, recording metrics and latency for block processing.
-    /// The latecy is calculated as the difference between the current system time and the block's timestamp.
+    /// The latecy is calculated as the difference between the current system time and the block's
+    /// timestamp.
     async fn observe_block_processing<Fut, F>(
         &self,
         event_type: &'static str,
