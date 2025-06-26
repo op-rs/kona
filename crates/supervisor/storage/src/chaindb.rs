@@ -47,8 +47,9 @@ impl ChainDb {
     }
 
     /// Enables metrics on the database environment.
-    pub const fn with_metrics(mut self) -> Self {
+    pub fn with_metrics(mut self) -> Self {
         self.metrics_enabled = Some(true);
+        crate::Metrics::init(self.chain_id);
         self
     }
 

@@ -1,3 +1,5 @@
+use alloy_primitives::ChainId;
+
 /// Container for ChainDb metrics.
 #[derive(Debug, Clone)]
 pub(crate) struct Metrics;
@@ -32,9 +34,9 @@ impl Metrics {
         // Add more as needed
     ];
 
-    pub(crate) fn init() {
+    pub(crate) fn init(chain_id: ChainId) {
         Self::describe();
-        Self::zero();
+        Self::zero(chain_id);
     }
 
     fn describe() {
@@ -55,21 +57,24 @@ impl Metrics {
         );
     }
 
-    fn zero() {
+    fn zero(chain_id: ChainId) {
         for method_name in Self::METHODS.iter() {
             metrics::counter!(
                 Self::STORAGE_REQUESTS_SUCCESS_TOTAL,
-                "method" => *method_name
+                "method" => *method_name,
+                "chain_id" => chain_id.to_string()
             )
             .increment(0);
             metrics::counter!(
                 Self::STORAGE_REQUESTS_ERROR_TOTAL,
-                "method" => *method_name
+                "method" => *method_name,
+                "chain_id" => chain_id.to_string()
             )
             .increment(0);
             metrics::histogram!(
                 Self::STORAGE_REQUEST_DURATION_SECONDS,
-                "method" => *method_name
+                "method" => *method_name,
+                "chain_id" => chain_id.to_string()
             )
             .record(0.0);
         }
