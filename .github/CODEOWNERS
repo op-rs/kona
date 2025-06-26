@@ -3,3 +3,7 @@
 bin/supervisor @dhyaniarun1993 @itschaindev @sadiq1971
 crates/supervisor @dhyaniarun1993 @itschaindev @sadiq1971
 crates/protocol/interop/ @dhyaniarun1993 @itschaindev @sadiq1971
+Cargo.toml @dhyaniarun1993 @itschaindev @sadiq1971
+Cargo.lock @dhyaniarun1993 @itschaindev @sadiq1971
+tests/ @dhyaniarun1993 @itschaindev @sadiq1971
+docker/recipes/ @dhyaniarun1993 @itschaindev @sadiq1971
