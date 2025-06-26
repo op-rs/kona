@@ -5002,6 +5002,7 @@ dependencies = [
  "alloy-transport",
  "async-trait",
  "auto_impl",
+ "derive_more",
  "futures",
  "jsonrpsee",
  "kona-genesis",

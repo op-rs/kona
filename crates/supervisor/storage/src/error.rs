@@ -1,4 +1,3 @@
-use op_alloy_rpc_types::SuperchainDAError;
 use reth_db::DatabaseError;
 use thiserror::Error;
 
@@ -59,22 +58,6 @@ impl PartialEq for StorageError {
             (DatabaseNotInitialised, DatabaseNotInitialised) => true,
             (ConflictError(a), ConflictError(b)) => a == b,
             _ => false,
-        }
-    }
-}
-
-impl From<StorageError> for SuperchainDAError {
-    fn from(err: StorageError) -> Self {
-        match err {
-            StorageError::Database(_) => Self::DataCorruption,
-            StorageError::FutureData => Self::FutureData,
-            StorageError::EntryNotFound(_) => Self::MissedData,
-            StorageError::DatabaseNotInitialised => Self::UninitializedChainDatabase,
-            StorageError::ConflictError(_) => Self::ConflictingData,
-            StorageError::BlockOutOfOrder | StorageError::DerivedBlockOutOfOrder => {
-                Self::OutOfOrder
-            }
-            _ => err.into(),
         }
     }
 }
