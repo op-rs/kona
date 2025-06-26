@@ -62,7 +62,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             // todo: handle these errors more gracefully
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
-            SupervisorError::L1BlockMismatch { expected: _, got: _ } |
+            SupervisorError::L1BlockMismatch { .. } |
             SupervisorError::Initialise(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::ManagedNodeError(_) |
