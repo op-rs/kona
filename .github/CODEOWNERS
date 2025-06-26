@@ -1,5 +1,5 @@
 * @clabby @refcell @emhane @theochap
-.github/ @dhyaniarun1993 @itschaindev @sadiq1971
-bin/supervisor @dhyaniarun1993 @itschaindev @sadiq1971
-crates/supervisor @dhyaniarun1993 @itschaindev @sadiq1971
-crates/protocol/interop/ @dhyaniarun1993 @itschaindev @sadiq1971
+.github/ @dhyaniarun1993 @itschaindev @sadiq1971 @refcell @emhane @theochap @clabby
+bin/supervisor @dhyaniarun1993 @itschaindev @sadiq1971 @refcell @emhane @theochap @clabby
+crates/supervisor @dhyaniarun1993 @itschaindev @sadiq1971 @refcell @emhane @theochap @clabby
+crates/protocol/interop/ @dhyaniarun1993 @itschaindev @sadiq1971 @refcell @emhane @theochap @clabby

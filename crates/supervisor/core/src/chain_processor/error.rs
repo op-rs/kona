@@ -1,4 +1,5 @@
-use crate::syncnode::ManagedNodeError;
+use crate::{logindexer::LogIndexerError, syncnode::ManagedNodeError};
+use kona_supervisor_storage::StorageError;
 use thiserror::Error;
 
 /// Errors that may occur while processing chains in the supervisor core.
@@ -7,4 +8,12 @@ pub enum ChainProcessorError {
     /// Represents an error that occurred while interacting with the managed node.
     #[error(transparent)]
     ManagedNode(#[from] ManagedNodeError),
+
+    /// Represents an error that occured while interacting with the storage layer.
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
+
+    /// Represents an error that occured while indexing logs.
+    #[error(transparent)]
+    LogIndexerError(#[from] LogIndexerError),
 }

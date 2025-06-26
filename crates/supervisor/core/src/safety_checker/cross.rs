@@ -76,7 +76,6 @@ mod tests {
             fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
             fn get_block_logs(&self, chain_id: ChainId, block_number: u64) -> Result<Vec<Log>, StorageError>;
-            fn update_safety_head_ref(&self, chain_id: ChainId, safety_level: SafetyLevel, block_number: &BlockInfo) -> Result<(), StorageError>;
         }
     );
 

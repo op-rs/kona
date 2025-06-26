@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::{
-    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, HeadRefStorageWriter,
-    LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
+    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, LogStorageReader, Metrics,
+    chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
@@ -41,9 +41,8 @@ impl ChainDbFactory {
     }
 
     /// Enables metrics on the database environment.
-    pub fn with_metrics(mut self) -> Self {
+    pub const fn with_metrics(mut self) -> Self {
         self.metrics_enabled = Some(true);
-        crate::Metrics::init();
         self
     }
 
@@ -191,15 +190,6 @@ impl CrossChainSafetyProvider for ChainDbFactory {
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError> {
         self.get_db(chain_id)?.get_safety_head_ref(level)
-    }
-
-    fn update_safety_head_ref(
-        &self,
-        chain_id: ChainId,
-        safety_level: SafetyLevel,
-        block: &BlockInfo,
-    ) -> Result<(), StorageError> {
-        self.get_db(chain_id)?.update_safety_head_ref(safety_level, block)
     }
 }
 

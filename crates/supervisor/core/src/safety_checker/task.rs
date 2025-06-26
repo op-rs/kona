@@ -1,12 +1,12 @@
-use std::{sync::Arc, time::Duration};
-
-use crate::{CrossSafetyError, safety_checker::CrossSafetyChecker};
+use crate::{CrossSafetyError, event::ChainEvent, safety_checker::CrossSafetyChecker};
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::CrossChainSafetyProvider;
 use op_alloy_consensus::interop::SafetyLevel;
+use std::{sync::Arc, time::Duration};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 /// A background job that promotes blocks to a target safety level on a given chain.
 ///
@@ -20,6 +20,7 @@ pub struct CrossSafetyCheckerJob<P> {
     interval: Duration,
     target_level: SafetyLevel,
     target_level_lower_bound: SafetyLevel,
+    event_tx: mpsc::Sender<ChainEvent>,
 }
 
 impl<P> CrossSafetyCheckerJob<P>
@@ -33,6 +34,7 @@ where
         cancel_token: CancellationToken,
         interval: Duration,
         target_level: SafetyLevel,
+        event_tx: mpsc::Sender<ChainEvent>,
     ) -> Result<Self, CrossSafetyError> {
         let target_level_lower_bound = match target_level {
             SafetyLevel::CrossUnsafe => SafetyLevel::LocalUnsafe,
@@ -47,6 +49,7 @@ where
             interval,
             target_level,
             target_level_lower_bound,
+            event_tx,
         })
     }
 
@@ -119,7 +122,7 @@ where
 
         // TODO: Add more checks in future
 
-        self.provider.update_safety_head_ref(self.chain_id, self.target_level, &candidate)?;
+        self.broadcast_event(candidate);
 
         Ok(candidate)
     }
@@ -137,6 +140,25 @@ where
         let candidate = self.provider.get_block(self.chain_id, current_head.number + 1)?;
 
         Ok(candidate)
+    }
+
+    fn broadcast_event(&self, block_info: BlockInfo) {
+        let event = match self.target_level {
+            SafetyLevel::CrossUnsafe => Some(ChainEvent::CrossUnsafeUpdate { block: block_info }),
+            SafetyLevel::CrossSafe => Some(ChainEvent::CrossSafeUpdate { block: block_info }),
+            _ => None,
+        };
+
+        if let Some(event) = event {
+            if let Err(err) = self.event_tx.try_send(event) {
+                error!(
+                    target: "safety_checker",
+                    target_level = %self.target_level,
+                    %err,
+                    "Failed to broadcast event",
+                );
+            }
+        }
     }
 }
 
@@ -157,7 +179,6 @@ mod tests {
             fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_block_logs(&self, chain_id: ChainId, block_number: u64) -> Result<Vec<Log>, StorageError>;
             fn get_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
-            fn update_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel, block: &BlockInfo) -> Result<(), StorageError>;
         }
     }
 
@@ -171,10 +192,11 @@ mod tests {
         BlockInfo { number: n, hash: b256(n), parent_hash: b256(n - 1), timestamp: 0 }
     }
 
-    #[test]
-    fn promotes_next_cross_unsafe_successfully() {
+    #[tokio::test]
+    async fn promotes_next_cross_unsafe_successfully() {
         let chain_id = 1;
         let mut mock = MockProvider::default();
+        let (event_tx, mut event_rx) = mpsc::channel::<ChainEvent>(10);
 
         mock.expect_get_safety_head_ref()
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossUnsafe)
@@ -192,18 +214,13 @@ mod tests {
             .withf(move |cid, num| *cid == chain_id && *num == 100)
             .returning(|_, _| Ok(vec![]));
 
-        mock.expect_update_safety_head_ref()
-            .withf(move |cid, lvl, blk| {
-                *cid == chain_id && *lvl == SafetyLevel::CrossUnsafe && blk.number == 100
-            })
-            .returning(|_, _, _| Ok(()));
-
         let job = CrossSafetyCheckerJob::new(
             chain_id,
             Arc::new(mock),
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::CrossUnsafe,
+            event_tx,
         )
         .expect("error initializing cross-safety checker job");
 
@@ -212,12 +229,18 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().number, 100);
+
+        // Receive and assert the correct event
+        let received_event = event_rx.recv().await.expect("expected event not received");
+
+        assert_eq!(received_event, ChainEvent::CrossUnsafeUpdate { block: block(100) });
     }
 
     #[test]
     fn promotes_next_cross_unsafe_failed_with_no_candidates() {
         let chain_id = 1;
         let mut mock = MockProvider::default();
+        let (event_tx, _) = mpsc::channel::<ChainEvent>(10);
 
         mock.expect_get_safety_head_ref()
             .withf(|_, lvl| *lvl == SafetyLevel::CrossSafe)
@@ -233,6 +256,7 @@ mod tests {
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::CrossSafe,
+            event_tx,
         )
         .expect("error initializing cross-safety checker job");
 
@@ -246,6 +270,7 @@ mod tests {
     fn returns_unsupported_target_level_error() {
         let chain_id = 1;
         let mock = MockProvider::default();
+        let (event_tx, _) = mpsc::channel::<ChainEvent>(10);
 
         let err = CrossSafetyCheckerJob::new(
             chain_id,
@@ -253,6 +278,7 @@ mod tests {
             CancellationToken::new(),
             Duration::from_secs(1),
             SafetyLevel::Finalized, // unsupported
+            event_tx,
         )
         .unwrap_err();
         assert!(matches!(err, CrossSafetyError::UnsupportedTargetLevel(_)));
