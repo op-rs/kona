@@ -5,12 +5,21 @@
 //!
 //! ## Types
 //!
-//! - [`ManagedTraversal`]: A passive traversal stage that receives the next block through a signal.
+//! - [`IndexedTraversal`]: A passive traversal stage that receives the next block through a signal.
 //! - [`PollingTraversal`]: An active traversal stage that polls for the next block through its
 //!   provider.
 
-mod managed;
-pub use managed::ManagedTraversal;
+mod indexed;
+pub use indexed::IndexedTraversal;
 
 mod polling;
 pub use polling::PollingTraversal;
+
+/// The type of traversal stage used in the derivation pipeline.
+#[derive(Debug, Clone)]
+pub enum TraversalStage {
+    /// A passive traversal stage that receives the next block through a signal.
+    Managed,
+    /// An active traversal stage that polls for the next block through its provider.
+    Polling,
+}

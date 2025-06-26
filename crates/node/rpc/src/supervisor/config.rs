@@ -16,11 +16,6 @@ pub struct SupervisorRpcConfig {
 }
 
 impl SupervisorRpcConfig {
-    /// Disables the RPC server.
-    pub const fn disable(self) -> Self {
-        Self { rpc_disabled: true, ..self }
-    }
-
     /// Returns if the rpc is disabled.
     pub const fn is_disabled(&self) -> bool {
         self.rpc_disabled
