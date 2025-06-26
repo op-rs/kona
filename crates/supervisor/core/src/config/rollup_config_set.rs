@@ -60,7 +60,10 @@ impl RollupConfig {
         l1_block: BlockInfo,
     ) -> Result<Self, SupervisorError> {
         if config.genesis.l1.number != l1_block.number {
-            return Err(SupervisorError::L1BlockMismatch(config.genesis.l1.number, l1_block.number));
+            return Err(SupervisorError::L1BlockMismatch {
+                expected: config.genesis.l1.number,
+                got: l1_block.number,
+            });
         }
 
         Ok(Self {

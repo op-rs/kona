@@ -47,8 +47,13 @@ pub enum SupervisorError {
     CrossSafetyCheckerError(#[from] CrossSafetyError),
 
     /// Indicates the L1 block does not match the epxected L1 block.
-    #[error("L1 block number mismatch. expected: {0}, but got {1}")]
-    L1BlockMismatch(u64, u64),
+    #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
+    L1BlockMismatch {
+        /// Expected L1 block.
+        expected: u64,
+        /// Received L1 block.
+        got: u64,
+    },
 }
 
 impl From<SupervisorError> for ErrorObjectOwned {
@@ -57,7 +62,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             // todo: handle these errors more gracefully
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
-            SupervisorError::L1BlockMismatch(_, _) |
+            SupervisorError::L1BlockMismatch { expected: _, got: _ } |
             SupervisorError::Initialise(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::ManagedNodeError(_) |
