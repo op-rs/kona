@@ -4,7 +4,9 @@ mod traits;
 pub use traits::SupervisorExt;
 
 mod actor;
-pub use actor::{SupervisorActor, SupervisorActorContext, SupervisorActorError};
+pub use actor::{
+    SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorOutboundData,
+};
 
 mod ext;
 pub use ext::SupervisorRpcServerExt;

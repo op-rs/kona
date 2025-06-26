@@ -173,7 +173,7 @@ impl NetworkBuilder {
         let discovery = self.discovery.build()?;
         let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
-        let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
+        let (_, publish_rx) = tokio::sync::mpsc::channel(256);
 
         Ok(Network {
             gossip,
@@ -181,7 +181,6 @@ impl NetworkBuilder {
             unsafe_block_signer_sender,
             rpc,
             broadcast: Broadcast::new(payload_tx),
-            publish_tx,
             publish_rx,
             local_signer: self.local_signer,
         })

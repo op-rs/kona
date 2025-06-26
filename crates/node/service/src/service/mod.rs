@@ -10,7 +10,7 @@ mod standard;
 pub use standard::{RollupNode, RollupNodeBuilder, RollupNodeError};
 
 mod mode;
-pub use mode::NodeMode;
+pub use mode::{InteropMode, NodeMode};
 
 pub(crate) mod util;
 pub(crate) use util::spawn_and_wait;
