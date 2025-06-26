@@ -3,8 +3,8 @@
 use super::NodeMode;
 use crate::{
     DerivationContext, DerivationState, EngineContext, EngineLauncher, L1WatcherRpcContext,
-    L2Finalizer, NetworkContext, NodeActor, RpcContext, RuntimeContext, SupervisorActorContext,
-    SupervisorExt,
+    L2Finalizer, NetworkContext, NodeActor, RpcContext, RuntimeContext, SequencerActorState,
+    SequencerContext, SequencerOutboundData, SupervisorActorContext, SupervisorExt,
     actors::{
         DerivationOutboundChannels, EngineActorState, EngineOutboundData,
         L1WatcherRpcOutboundChannels, L1WatcherRpcState, NetworkOutboundData, RuntimeOutboundData,
@@ -14,7 +14,7 @@ use crate::{
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
-use kona_derive::{Pipeline, SignalReceiver};
+use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
 use kona_rpc::{
@@ -65,6 +65,9 @@ pub trait RollupNodeService {
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
 
+    /// The type of attributes builder to use for the sequener.
+    type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
+
     /// The type of derivation actor to use for the service.
     type DerivationActor: NodeActor<
             Error: Display,
@@ -108,6 +111,14 @@ pub trait RollupNodeService {
             OutboundData = RuntimeOutboundData,
         >;
 
+    /// The type of sequencer actor to use for the service.
+    type SequencerActor: NodeActor<
+            Error: Display,
+            InboundData = SequencerContext,
+            State = SequencerActorState<Self::AttributesBuilder>,
+            OutboundData = SequencerOutboundData,
+        >;
+
     /// The type of rpc actor to use for the service.
     type RpcActor: NodeActor<Error: Display, InboundData = RpcContext, State = RpcLauncher, OutboundData = ()>;
 
@@ -143,6 +154,9 @@ pub trait RollupNodeService {
 
     /// Returns the [`RpcLauncher`] for the node.
     fn rpc(&self) -> RpcLauncher;
+
+    /// Returns the initial [`SequencerActorState`].
+    fn sequencer_state(&self) -> SequencerActorState<Self::AttributesBuilder>;
 
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), Self::Error> {
@@ -228,6 +242,8 @@ pub trait RollupNodeService {
             (engine_query_recv, l1_watcher_queries_recv, Self::RpcActor::build(rpc_launcher))
         };
 
+        let (_, sequencer) = Self::SequencerActor::build(self.sequencer_state());
+
         let network_context =
             NetworkContext { signer: block_signer_sender, cancellation: cancellation.clone() };
 
@@ -238,7 +254,7 @@ pub trait RollupNodeService {
 
         let derivation_context = DerivationContext {
             l1_head_updates: latest_head,
-            engine_l2_safe_head: engine_l2_safe_head_rx,
+            engine_l2_safe_head: engine_l2_safe_head_rx.clone(),
             el_sync_complete_rx: sync_complete_rx,
             derivation_signal_rx,
             cancellation: cancellation.clone(),
@@ -256,6 +272,12 @@ pub trait RollupNodeService {
 
         let rpc_context = RpcContext { cancellation: cancellation.clone() };
 
+        let sequencer_context = SequencerContext {
+            latest_payload_rx: None,
+            unsafe_head: engine_l2_safe_head_rx,
+            cancellation: cancellation.clone(),
+        };
+
         spawn_and_wait!(
             cancellation,
             actors = [
@@ -265,6 +287,7 @@ pub trait RollupNodeService {
                 Some((derivation, derivation_context)),
                 Some((engine, engine_context)),
                 Some((rpc, rpc_context)),
+                (self.mode() == NodeMode::Sequencer).then_some((sequencer, sequencer_context))
             ]
         );
         Ok(())

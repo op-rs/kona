@@ -1,12 +1,14 @@
 //! Contains the [`RollupNode`] implementation.
 
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, InteropMode, L1WatcherRpc, NetworkActor,
-    NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService, RpcActor, RuntimeActor,
-    SupervisorActor, SupervisorRpcServerExt, actors::RuntimeState,
+    DerivationActor, EngineActor, EngineLauncher, InteropMode, L1OriginSelector, L1WatcherRpc,
+    NetworkActor, NodeMode, RollupNodeBuilder, RollupNodeError, RollupNodeService, RpcActor,
+    RuntimeActor, SequencerActor, SequencerActorState, SupervisorActor, SupervisorRpcServerExt,
+    actors::RuntimeState,
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
+use kona_derive::StatefulAttributesBuilder;
 use op_alloy_network::Optimism;
 use std::sync::Arc;
 
@@ -60,6 +62,7 @@ impl RollupNode {
 impl RollupNodeService for RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
     type DerivationPipeline = OnlinePipeline;
+    type AttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
     type SupervisorExt = SupervisorRpcServerExt;
     type Error = RollupNodeError;
 
@@ -69,6 +72,7 @@ impl RollupNodeService for RollupNode {
     type NetworkActor = NetworkActor;
     type DerivationActor = DerivationActor<Self::DerivationPipeline>;
     type SupervisorActor = SupervisorActor<Self::SupervisorExt>;
+    type SequencerActor = SequencerActor<Self::AttributesBuilder>;
 
     fn mode(&self) -> NodeMode {
         self.mode
@@ -110,6 +114,25 @@ impl RollupNodeService for RollupNode {
 
     fn rpc(&self) -> RpcLauncher {
         self.rpc_launcher.clone()
+    }
+
+    fn sequencer_state(&self) -> SequencerActorState<Self::AttributesBuilder> {
+        let l1_derivation_provider =
+            AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
+        let l2_derivation_provider = AlloyL2ChainProvider::new(
+            self.l2_provider.clone(),
+            self.config.clone(),
+            DERIVATION_PROVIDER_CACHE_SIZE,
+        );
+        let builder = StatefulAttributesBuilder::new(
+            self.config(),
+            l2_derivation_provider,
+            l1_derivation_provider,
+        );
+
+        let origin_selector = L1OriginSelector::new(self.config(), self.l1_provider.clone());
+
+        SequencerActorState { cfg: self.config(), builder, origin_selector }
     }
 
     async fn init_network(&self) -> Result<(Network, NetworkRpc), Self::Error> {

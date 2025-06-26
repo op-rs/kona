@@ -22,9 +22,10 @@ pub use actors::{
     L1OriginSelectorError, L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError,
     L1WatcherRpcOutboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
     NetworkContext, NetworkOutboundData, NodeActor, RpcActor, RpcActorError, RpcContext,
-    RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState, SupervisorActor,
-    SupervisorActorContext, SupervisorActorError, SupervisorExt, SupervisorOutboundData,
-    SupervisorRpcServerExt,
+    RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState, SequencerActor,
+    SequencerActorError, SequencerActorState, SequencerContext, SequencerOutboundData,
+    SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
+    SupervisorOutboundData, SupervisorRpcServerExt,
 };
 
 mod metrics;

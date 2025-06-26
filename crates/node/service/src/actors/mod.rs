@@ -39,4 +39,7 @@ mod network;
 pub use network::{NetworkActor, NetworkActorError, NetworkContext, NetworkOutboundData};
 
 mod sequencer;
-pub use sequencer::{L1OriginSelector, L1OriginSelectorError};
+pub use sequencer::{
+    L1OriginSelector, L1OriginSelectorError, SequencerActor, SequencerActorError,
+    SequencerActorState, SequencerContext, SequencerOutboundData,
+};

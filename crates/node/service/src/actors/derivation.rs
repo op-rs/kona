@@ -310,7 +310,6 @@ where
     P: Pipeline + SignalReceiver,
 {
     /// Creates a new instance of the [DerivationActor].
-    #[allow(clippy::too_many_arguments)]
     pub fn new(state: DerivationState<P>) -> (DerivationOutboundChannels, Self) {
         let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
