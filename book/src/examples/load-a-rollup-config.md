@@ -6,6 +6,9 @@ rollup config for the given L2 Chain ID.
 Let's load the Rollup Config for OP Mainnet which hash chain id 10.
 
 ```rust
+extern crate kona_genesis;
+extern crate kona_protocol;
+
 use kona_registry::ROLLUP_CONFIGS;
 use kona_genesis::OP_MAINNET_CHAIN_ID;
 

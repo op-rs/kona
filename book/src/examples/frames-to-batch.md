@@ -16,7 +16,7 @@ This example walks through transforming [`Frame`][frame]s into the [`Batch`][bat
 
 The high level transformation is the following.
 
-```
+```ignore
 raw bytes[] -> frames[] -> channel -> decompressed channel data -> Batch
 ```
 
@@ -46,7 +46,12 @@ to wind up with the example's desired [`Batch`][batch].
 - Clone the examples repository: `git clone git@github.com:op-rs/kona.git`
 - Run: `cargo run --example frames_to_batch`
 
-```rust
+```rust,ignore
+extern crate alloy_eips;
+extern crate kona_genesis;
+extern crate kona_protocol;
+extern crate alloy_consensus;
+extern crate alloy_primitives;
 {{#include ../../../crates/protocol/protocol/examples/frames_to_batch.rs}}
 ```
 

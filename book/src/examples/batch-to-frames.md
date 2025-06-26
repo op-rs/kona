@@ -19,7 +19,7 @@ serialized bytes that are posted to the data availability layer.
 
 The high level transformation is the following.
 
-```
+```ignore
 Batch -> decompressed batch data -> ChannelOut -> frames[] -> bytes[]
 ```
 
@@ -52,7 +52,7 @@ ready to be batch-submitted to the data-availability layer.
 - Run: `cargo run --example batch_to_frames`
 
 ```rust
-{{#include ../../../crates/protocol/protocol/examples/batch_to_frames.rs}}
+{{#include ../../../crates/protocol/comp/examples/batch_to_frames.rs}}
 ```
 
 <!-- Links -->
