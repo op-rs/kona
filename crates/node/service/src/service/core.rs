@@ -2,21 +2,27 @@
 
 use super::NodeMode;
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
-    RuntimeLauncher, SupervisorExt, service::spawn_and_wait,
+    DerivationContext, DerivationState, EngineContext, EngineLauncher, L1WatcherRpcContext,
+    L2Finalizer, NetworkContext, NodeActor, RpcContext, RuntimeContext, SupervisorActorContext,
+    SupervisorExt,
+    actors::{
+        DerivationOutboundChannels, EngineActorState, EngineOutboundData,
+        L1WatcherRpcOutboundChannels, L1WatcherRpcState, NetworkOutboundData, RuntimeOutboundData,
+        RuntimeState, SupervisorOutboundData,
+    },
+    service::spawn_and_wait,
 };
-use alloy_primitives::Address;
+use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{Pipeline, SignalReceiver};
 use kona_genesis::RollupConfig;
 use kona_p2p::Network;
-use kona_protocol::{BlockInfo, L2BlockInfo};
 use kona_rpc::{
-    L1WatcherQueries, NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher,
-    RpcLauncherError, WsRPC, WsServer,
+    NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher, RpcLauncherError,
+    WsRPC, WsServer,
 };
-use std::fmt::Display;
-use tokio::sync::{mpsc, oneshot, watch};
+use std::{fmt::Display, sync::Arc};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// The [`RollupNodeService`] trait defines the common interface for running a rollup node.
@@ -49,11 +55,62 @@ use tokio_util::sync::CancellationToken;
 #[async_trait]
 pub trait RollupNodeService {
     /// The type of [`NodeActor`] to use for the DA watcher service.
-    type DataAvailabilityWatcher: NodeActor<Error: Display> + Send + Sync + 'static;
+    type DataAvailabilityWatcher: NodeActor<
+            Error: Display,
+            InboundData = L1WatcherRpcContext,
+            State = L1WatcherRpcState,
+            OutboundData = L1WatcherRpcOutboundChannels,
+        >;
+
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
+
+    /// The type of derivation actor to use for the service.
+    type DerivationActor: NodeActor<
+            Error: Display,
+            InboundData = DerivationContext,
+            State = DerivationState<Self::DerivationPipeline>,
+            OutboundData = DerivationOutboundChannels,
+        >;
+
+    /// The type of engine actor to use for the service.
+    type EngineActor: NodeActor<
+            Error: Display,
+            InboundData = EngineContext,
+            State = EngineActorState,
+            OutboundData = EngineOutboundData,
+        >;
+
+    /// The type of network actor to use for the service.
+    type NetworkActor: NodeActor<
+            Error: Display,
+            InboundData = NetworkContext,
+            State = Network,
+            OutboundData = NetworkOutboundData,
+        >;
+
     /// The supervisor ext provider.
     type SupervisorExt: SupervisorExt + Send + Sync + 'static;
+
+    /// The type of supervisor actor to use for the service.
+    type SupervisorActor: NodeActor<
+            Error: Display,
+            InboundData = SupervisorActorContext,
+            State = Self::SupervisorExt,
+            OutboundData = SupervisorOutboundData,
+        >;
+
+    /// The type of runtime actor to use for the service.
+    type RuntimeActor: NodeActor<
+            Error: Display,
+            InboundData = RuntimeContext,
+            State = RuntimeState,
+            OutboundData = RuntimeOutboundData,
+        >;
+
+    /// The type of rpc actor to use for the service.
+    type RpcActor: NodeActor<Error: Display, InboundData = RpcContext, State = RpcLauncher, OutboundData = ()>;
+
     /// The type of error for the service's entrypoint.
     type Error: From<RpcLauncherError>
         + From<jsonrpsee::server::RegisterMethodError>
@@ -63,18 +120,10 @@ pub trait RollupNodeService {
     fn mode(&self) -> NodeMode;
 
     /// Returns a reference to the rollup node's [`RollupConfig`].
-    fn config(&self) -> &RollupConfig;
+    fn config(&self) -> Arc<RollupConfig>;
 
-    /// Creates a new [`NodeActor`] instance that watches the data availability layer. The
-    /// `cancellation` token is used to gracefully shut down the actor.
-    fn new_da_watcher(
-        &self,
-        head_updates: watch::Sender<Option<BlockInfo>>,
-        finalized_updates: watch::Sender<Option<BlockInfo>>,
-        block_signer_tx: mpsc::Sender<Address>,
-        cancellation: CancellationToken,
-        l1_watcher_inbound_queries: mpsc::Receiver<L1WatcherQueries>,
-    ) -> (Self::DataAvailabilityWatcher, <Self::DataAvailabilityWatcher as NodeActor>::Context);
+    /// Returns the [`RootProvider`] for the L1 chain.
+    fn l1_provider(&self) -> RootProvider;
 
     /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
     /// forkchoice state and the initialized derivation pipeline.
@@ -86,8 +135,8 @@ pub trait RollupNodeService {
     /// Creates a new [`Self::SupervisorExt`] to be used in the supervisor rpc actor.
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
-    /// Returns the [`RuntimeLauncher`] for the node.
-    fn runtime(&self) -> RuntimeLauncher;
+    /// Returns the [`RuntimeState`] for the node.
+    fn runtime(&self) -> Option<&RuntimeState>;
 
     /// Returns the [`EngineLauncher`]
     fn engine(&self) -> EngineLauncher;
@@ -110,41 +159,19 @@ pub trait RollupNodeService {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
-        // Create context for communication between actors.
-        let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
-        let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
-        let (runtime_config_tx, runtime_config_rx) = mpsc::channel(16);
-        let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
-        let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
-        let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
-        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
-        let (engine_query_sender, engine_query_recv) = mpsc::channel(1024);
-        let (head_updates_tx, head_updates_rx) = watch::channel(None);
-        let (finalized_updates_tx, finalized_updates_rx) = watch::channel(None);
-        let (engine_l2_safe_tx, engine_l2_safe_rx) = watch::channel(L2BlockInfo::default());
-
         // Create the DA watcher actor.
-        let da_watcher = self.new_da_watcher(
-            head_updates_tx,
-            finalized_updates_tx,
-            block_signer_tx,
-            cancellation.clone(),
-            l1_watcher_queries_recv,
-        );
+        let (
+            L1WatcherRpcOutboundChannels { latest_head, latest_finalized, block_signer_sender },
+            da_watcher,
+        ) = Self::DataAvailabilityWatcher::build(L1WatcherRpcState {
+            rollup: self.config(),
+            l1_provider: self.l1_provider(),
+        });
 
         // Create the derivation actor.
         let derivation_pipeline = self.init_derivation().await?;
-        let derivation = DerivationActor::new(
-            derivation_pipeline,
-            engine_l2_safe_rx,
-            sync_complete_rx,
-            derivation_signal_rx,
-            head_updates_rx,
-            derived_payload_tx,
-            reset_request_tx,
-            cancellation.clone(),
-        );
+        let (DerivationOutboundChannels { attributes_out, reset_request_tx }, derivation) =
+            Self::DerivationActor::build(DerivationState::new(derivation_pipeline));
 
         // TODO: get the supervisor ext.
         // TODO: use the supervisor ext to create the supervisor actor.
@@ -154,47 +181,41 @@ pub trait RollupNodeService {
         // )
 
         // Create the runtime configuration actor.
-        let runtime = self
+        let (runtime_config, runtime) = self
             .runtime()
-            .with_tx(runtime_config_tx)
-            .with_cancellation(cancellation.clone())
-            .launch();
+            .map(|state| {
+                let (RuntimeOutboundData { runtime_config }, runtime) =
+                    Self::RuntimeActor::build(state.clone());
+                (runtime_config, runtime)
+            })
+            .unzip();
 
         // Create the engine actor.
         let engine_launcher = self.engine();
         let client = engine_launcher.client();
         let engine_task_queue = engine_launcher.launch();
-        let engine = EngineActor::new(
-            std::sync::Arc::new(self.config().clone()),
-            client,
-            engine_task_queue,
-            engine_l2_safe_tx,
-            sync_complete_tx,
-            derivation_signal_tx,
-            runtime_config_rx,
-            derived_payload_rx,
-            unsafe_block_rx,
-            reset_request_rx,
-            finalized_updates_rx,
-            Some(engine_query_recv),
-            cancellation.clone(),
-        );
+        let (
+            EngineOutboundData { engine_l2_safe_head_rx, sync_complete_rx, derivation_signal_rx },
+            engine,
+        ) = Self::EngineActor::build(EngineActorState {
+            rollup: self.config(),
+            client: client.clone().into(),
+            engine: engine_task_queue,
+        });
 
         // Create the p2p actor.
-        let (p2p_rpc_module, network) = {
-            let (driver, module) = self.init_network().await?;
-            let actor =
-                NetworkActor::new(driver, unsafe_block_tx, block_signer_rx, cancellation.clone());
-
-            (module, actor)
-        };
+        let (driver, p2p_rpc_module) = self.init_network().await?;
+        let (NetworkOutboundData { unsafe_block }, network) = Self::NetworkActor::build(driver);
 
         // Create the RPC server actor.
-        let rpc = {
+        let (engine_query_recv, l1_watcher_queries_recv, (_, rpc)) = {
             let mut rpc_launcher = self.rpc().with_healthz()?;
 
             rpc_launcher.merge(p2p_rpc_module.into_rpc())?;
 
+            // Create context for communication between actors.
+            let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
+            let (engine_query_sender, engine_query_recv) = mpsc::channel(1024);
             let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
             rpc_launcher.merge(rollup_rpc.into_rpc())?;
 
@@ -204,18 +225,46 @@ pub trait RollupNodeService {
                     .map_err(Self::Error::from)?;
             }
 
-            RpcActor::new(rpc_launcher, cancellation.clone())
+            (engine_query_recv, l1_watcher_queries_recv, Self::RpcActor::build(rpc_launcher))
         };
+
+        let network_context =
+            NetworkContext { signer: block_signer_sender, cancellation: cancellation.clone() };
+
+        let da_watcher_context = L1WatcherRpcContext {
+            inbound_queries: l1_watcher_queries_recv,
+            cancellation: cancellation.clone(),
+        };
+
+        let derivation_context = DerivationContext {
+            l1_head_updates: latest_head,
+            engine_l2_safe_head: engine_l2_safe_head_rx,
+            el_sync_complete_rx: sync_complete_rx,
+            derivation_signal_rx,
+            cancellation: cancellation.clone(),
+        };
+
+        let engine_context = EngineContext {
+            runtime_config_rx: runtime_config,
+            attributes_rx: attributes_out,
+            unsafe_block_rx: unsafe_block,
+            reset_request_rx: reset_request_tx,
+            inbound_queries: engine_query_recv,
+            cancellation: cancellation.clone(),
+            finalizer: L2Finalizer::new(latest_finalized, client.into()),
+        };
+
+        let rpc_context = RpcContext { cancellation: cancellation.clone() };
 
         spawn_and_wait!(
             cancellation,
             actors = [
-                runtime,
-                Some(network),
-                Some(da_watcher),
-                Some(derivation),
-                Some(engine),
-                Some(rpc)
+                runtime.map(|r| (r, RuntimeContext { cancellation: cancellation.clone() })),
+                Some((network, network_context)),
+                Some((da_watcher, da_watcher_context)),
+                Some((derivation, derivation_context)),
+                Some((engine, engine_context)),
+                Some((rpc, rpc_context)),
             ]
         );
         Ok(())

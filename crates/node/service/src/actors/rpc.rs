@@ -1,6 +1,6 @@
 //! RPC Server Actor
 
-use crate::{NodeActor, actors::ActorContext};
+use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use jsonrpsee::core::RegisterMethodError;
 use kona_rpc::{RpcLauncher, RpcLauncherError};
@@ -32,10 +32,8 @@ pub struct RpcActor {
 
 impl RpcActor {
     /// Constructs a new [`RpcActor`] given the [`RpcLauncher`] and [`CancellationToken`].
-    pub const fn new(launcher: RpcLauncher, cancellation: CancellationToken) -> (Self, RpcContext) {
-        let actor = Self { launcher };
-        let context = RpcContext { cancellation };
-        (actor, context)
+    pub const fn new(launcher: RpcLauncher) -> Self {
+        Self { launcher }
     }
 }
 
@@ -43,10 +41,10 @@ impl RpcActor {
 #[derive(Debug)]
 pub struct RpcContext {
     /// The cancellation token, shared between all tasks.
-    cancellation: CancellationToken,
+    pub cancellation: CancellationToken,
 }
 
-impl ActorContext for RpcContext {
+impl CancellableContext for RpcContext {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
@@ -55,11 +53,17 @@ impl ActorContext for RpcContext {
 #[async_trait]
 impl NodeActor for RpcActor {
     type Error = RpcActorError;
-    type Context = RpcContext;
+    type InboundData = RpcContext;
+    type OutboundData = ();
+    type State = RpcLauncher;
+
+    fn build(state: Self::State) -> (Self::OutboundData, Self) {
+        ((), Self { launcher: state })
+    }
 
     async fn start(
         mut self,
-        RpcContext { cancellation }: Self::Context,
+        RpcContext { cancellation }: Self::InboundData,
     ) -> Result<(), Self::Error> {
         let restarts = self.launcher.restart_count();
 
