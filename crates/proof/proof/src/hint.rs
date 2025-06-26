@@ -91,6 +91,8 @@ pub enum HintType {
     L1Receipts,
     /// A hint that specifies a blob in the layer 1 beacon chain.
     L1Blob,
+    /// A hint that specifies a blob from DA proxy.
+    DAProxyBlob,
     /// A hint that specifies a precompile call on layer 1.
     L1Precompile,
     /// A hint that specifies the block header of a layer 2 block.
@@ -135,6 +137,7 @@ impl FromStr for HintType {
             "l1-transactions" => Ok(Self::L1Transactions),
             "l1-receipts" => Ok(Self::L1Receipts),
             "l1-blob" => Ok(Self::L1Blob),
+            "da-proxy-blob" => Ok(Self::DAProxyBlob),
             "l1-precompile" => Ok(Self::L1Precompile),
             "l2-block-header" => Ok(Self::L2BlockHeader),
             "l2-transactions" => Ok(Self::L2Transactions),
@@ -156,6 +159,7 @@ impl From<HintType> for &str {
             HintType::L1Transactions => "l1-transactions",
             HintType::L1Receipts => "l1-receipts",
             HintType::L1Blob => "l1-blob",
+            HintType::DAProxyBlob => "da-proxy-blob",
             HintType::L1Precompile => "l1-precompile",
             HintType::L2BlockHeader => "l2-block-header",
             HintType::L2Transactions => "l2-transactions",

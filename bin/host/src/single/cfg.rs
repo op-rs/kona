@@ -15,7 +15,7 @@ use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
 use kona_proof::HintType;
-use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider};
+use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider, OnlineDaProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use op_alloy_network::Optimism;
 use serde::Serialize;
@@ -49,7 +49,6 @@ pub struct SingleChainHost {
         long,
         visible_alias = "l2",
         requires = "l1_node_address",
-        requires = "l1_beacon_address",
         env
     )]
     pub l2_node_address: Option<String>,
@@ -58,7 +57,6 @@ pub struct SingleChainHost {
         long,
         visible_alias = "l1",
         requires = "l2_node_address",
-        requires = "l1_beacon_address",
         env
     )]
     pub l1_node_address: Option<String>,
@@ -71,12 +69,21 @@ pub struct SingleChainHost {
         env
     )]
     pub l1_beacon_address: Option<String>,
+    /// Address of the DA proxy endpoint to use.
+    #[arg(
+        long,
+        visible_alias = "da-proxy",
+        requires = "l1_node_address",
+        requires = "l2_node_address",
+        env
+    )]
+    pub da_proxy_url: Option<String>,
     /// The Data Directory for preimage data storage. Optional if running in online mode,
     /// required if running in offline mode.
     #[arg(
         long,
         visible_alias = "db",
-        required_unless_present_all = ["l2_node_address", "l1_node_address", "l1_beacon_address"],
+        required_unless_present_all = ["l2_node_address", "l1_node_address", "da_proxy_url"],
         env
     )]
     pub data_dir: Option<PathBuf>,
@@ -270,7 +277,9 @@ impl SingleChainHost {
                 .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
         );
 
-        Ok(SingleChainProviders { l1: l1_provider, blobs: blob_provider, l2: l2_provider })
+        let da_provider = OnlineDaProvider::new(self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
+
+        Ok(SingleChainProviders { l1: l1_provider, blobs: blob_provider, da: da_provider, l2: l2_provider })
     }
 }
 
@@ -286,6 +295,8 @@ pub struct SingleChainProviders {
     pub l1: RootProvider,
     /// The L1 beacon node provider.
     pub blobs: OnlineBlobProvider<OnlineBeaconClient>,
+    /// The DA proxy provider.
+    pub da: OnlineDaProvider,
     /// The L2 EL provider.
     pub l2: RootProvider<Optimism>,
 }

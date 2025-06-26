@@ -22,4 +22,7 @@ mod l2_chain_provider;
 pub use l2_chain_provider::{AlloyL2ChainProvider, AlloyL2ChainProviderError};
 
 mod pipeline;
+mod da_provider;
+pub use da_provider::{DaProvider, OnlineDaProvider, DaProviderError};
+
 pub use pipeline::OnlinePipeline;

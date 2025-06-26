@@ -138,6 +138,16 @@ impl HintHandler for SingleChainHintHandler {
                     sidecar.kzg_proof.to_vec(),
                 )?;
             }
+            HintType::DAProxyBlob => {
+                ensure!(hint.data.len() == 511, "Invalid hint data length for eigen da proxy");
+
+                let key_bytes: [u8; 511] = hint.data.as_ref().try_into()?;
+                let data = providers.da.get_input(key_bytes.to_vec()).await?;
+
+                let mut kv_lock = kv.write().await;
+                let hash: B256 = hint.data.as_ref().try_into()?;
+                kv_lock.set(PreimageKey::new_keccak256(*hash).into(), data.into())?;
+            }
             HintType::L1Precompile => {
                 ensure!(hint.data.len() >= 28, "Invalid hint data length");
 
