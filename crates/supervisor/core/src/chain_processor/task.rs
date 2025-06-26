@@ -54,7 +54,7 @@ where
     }
 
     /// Enables metrics on the database environment.
-    pub fn with_metrics(mut self) -> Self {
+    pub const fn with_metrics(mut self) -> Self {
         self.metrics_enabled = Some(true);
         self
     }
@@ -215,6 +215,7 @@ where
         }
     }
 
+    #[allow(clippy::missing_const_for_fn)]
     fn handle_block_replacement(
         &self,
         _replacement: BlockReplacement,
