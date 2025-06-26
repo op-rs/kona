@@ -11,7 +11,7 @@ pub use runtime::{RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeStat
 mod engine;
 pub use engine::{
     EngineActor, EngineActorState, EngineContext, EngineError, EngineLauncher, EngineOutboundData,
-    InboundEngineMessage, L2Finalizer,
+    L2Finalizer,
 };
 
 mod supervisor;
