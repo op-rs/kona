@@ -1,4 +1,4 @@
-//! Contains the [`ManagedTraversal`] stage of the derivation pipeline.
+//! Contains the [`IndexedTraversal`] stage of the derivation pipeline.
 
 use crate::{
     ActivationSignal, ChainProvider, L1RetrievalProvider, OriginAdvancer, OriginProvider,
@@ -10,15 +10,15 @@ use async_trait::async_trait;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::BlockInfo;
 
-/// The [`ManagedTraversal`] stage of the derivation pipeline.
+/// The [`IndexedTraversal`] stage of the derivation pipeline.
 ///
 /// This stage sits at the bottom of the pipeline, holding a handle to the data source
 /// (a [`ChainProvider`] implementation) and the current L1 [`BlockInfo`] in the pipeline,
-/// which are used to traverse the L1 chain. When the [`ManagedTraversal`] stage is advanced,
+/// which are used to traverse the L1 chain. When the [`IndexedTraversal`] stage is advanced,
 /// it fetches the next L1 [`BlockInfo`] from the data source and updates the [`SystemConfig`]
 /// with the receipts from the block.
 #[derive(Debug, Clone)]
-pub struct ManagedTraversal<Provider: ChainProvider> {
+pub struct IndexedTraversal<Provider: ChainProvider> {
     /// The current block in the traversal stage.
     pub block: Option<BlockInfo>,
     /// The data source for the traversal stage.
@@ -32,7 +32,7 @@ pub struct ManagedTraversal<Provider: ChainProvider> {
 }
 
 #[async_trait]
-impl<F: ChainProvider + Send> L1RetrievalProvider for ManagedTraversal<F> {
+impl<F: ChainProvider + Send> L1RetrievalProvider for IndexedTraversal<F> {
     fn batcher_addr(&self) -> Address {
         self.system_config.batcher_address
     }
@@ -47,8 +47,8 @@ impl<F: ChainProvider + Send> L1RetrievalProvider for ManagedTraversal<F> {
     }
 }
 
-impl<F: ChainProvider> ManagedTraversal<F> {
-    /// Creates a new [`ManagedTraversal`] instance.
+impl<F: ChainProvider> IndexedTraversal<F> {
+    /// Creates a new [`IndexedTraversal`] instance.
     pub fn new(data_source: F, cfg: Arc<RollupConfig>) -> Self {
         Self {
             block: Some(BlockInfo::default()),
@@ -118,7 +118,7 @@ impl<F: ChainProvider> ManagedTraversal<F> {
 }
 
 #[async_trait]
-impl<F: ChainProvider + Send> OriginAdvancer for ManagedTraversal<F> {
+impl<F: ChainProvider + Send> OriginAdvancer for IndexedTraversal<F> {
     async fn advance_origin(&mut self) -> PipelineResult<()> {
         if !self.done {
             debug!(target: "traversal", "Not finished consuming block, ignoring advance call.");
@@ -128,14 +128,14 @@ impl<F: ChainProvider + Send> OriginAdvancer for ManagedTraversal<F> {
     }
 }
 
-impl<F: ChainProvider> OriginProvider for ManagedTraversal<F> {
+impl<F: ChainProvider> OriginProvider for IndexedTraversal<F> {
     fn origin(&self) -> Option<BlockInfo> {
         self.block
     }
 }
 
 #[async_trait]
-impl<F: ChainProvider + Send> SignalReceiver for ManagedTraversal<F> {
+impl<F: ChainProvider + Send> SignalReceiver for IndexedTraversal<F> {
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         match signal {
             Signal::Reset(ResetSignal { l1_origin, system_config, .. }) |
@@ -192,7 +192,7 @@ mod tests {
     fn new_test_managed(
         blocks: alloc::vec::Vec<BlockInfo>,
         receipts: alloc::vec::Vec<Receipt>,
-    ) -> ManagedTraversal<TestChainProvider> {
+    ) -> IndexedTraversal<TestChainProvider> {
         let mut provider = TestChainProvider::default();
         let rollup_config = RollupConfig {
             l1_system_config_address: L1_SYS_CONFIG_ADDR,
@@ -205,10 +205,10 @@ mod tests {
             let hash = blocks.get(i).map(|b| b.hash).unwrap_or_default();
             provider.insert_receipts(hash, vec![receipt.clone()]);
         }
-        ManagedTraversal::new(provider, Arc::new(rollup_config))
+        IndexedTraversal::new(provider, Arc::new(rollup_config))
     }
 
-    fn new_populated_test_managed() -> ManagedTraversal<TestChainProvider> {
+    fn new_populated_test_managed() -> IndexedTraversal<TestChainProvider> {
         let blocks = vec![BlockInfo::default(), BlockInfo::default()];
         let receipts = new_receipts();
         new_test_managed(blocks, receipts)

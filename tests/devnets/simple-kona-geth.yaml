@@ -4,7 +4,6 @@
 optimism_package:
   faucet:
     enabled: true
-    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-faucet:develop
   chains:
     chain0:
       # Chain with only two nodes

@@ -20,8 +20,8 @@ import (
 type L2NodeKind string
 
 const (
-	OpNode   L2NodeKind = "op-node"
-	KonaNode L2NodeKind = "kona-node"
+	OpNode   L2NodeKind = "optimism"
+	KonaNode L2NodeKind = "kona"
 )
 
 type MixedOpKonaPreset struct {
@@ -140,9 +140,6 @@ func NewMixedOpKona(t devtest.T) *MixedOpKonaPreset {
 		Wallet:        dsl.NewHDWallet(t, devkeys.TestMnemonic, 30),
 		Faucet:        dsl.NewFaucet(l2Net.Faucet(match.Assume(t, match.FirstFaucet))),
 	}
-	out.FaucetL1 = dsl.NewFaucet(out.L1Network.Escape().Faucet(match.Assume(t, match.FirstFaucet)))
-	out.FunderL1 = dsl.NewFunder(out.Wallet, out.FaucetL1, out.L1EL)
-	out.Funder = dsl.NewFunder(out.Wallet, out.Faucet, out.L2ELOpNodes[0])
 	return out
 }
 
