@@ -313,7 +313,10 @@ where
         Ok(block)
     }
 
-    async fn handle_cross_unsafe_update(&self, block: BlockInfo) -> Result<BlockInfo, ChainProcessorError> {
+    async fn handle_cross_unsafe_update(
+        &self,
+        block: BlockInfo,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
@@ -326,7 +329,10 @@ where
         Ok(block)
     }
 
-    async fn handle_cross_safe_update(&self, block: BlockInfo) -> Result<BlockInfo, ChainProcessorError> {
+    async fn handle_cross_safe_update(
+        &self,
+        block: BlockInfo,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
@@ -335,7 +341,9 @@ where
         );
 
         let derived_ref_pair = self.state_manager.update_current_cross_safe(&block)?;
-        self.managed_node.update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id()).await?;
+        self.managed_node
+            .update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id())
+            .await?;
         Ok(derived_ref_pair.derived)
     }
 }

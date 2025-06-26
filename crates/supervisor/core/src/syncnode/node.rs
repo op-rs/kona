@@ -363,7 +363,12 @@ where
         let client = self.get_ws_client().await?;
         observe_rpc_call_managed_mode!(
             "update_cross_safe",
-            ManagedModeApiClient::update_cross_safe(client.as_ref(), derived_block_id, source_block_id).await
+            ManagedModeApiClient::update_cross_safe(
+                client.as_ref(),
+                derived_block_id,
+                source_block_id
+            )
+            .await
         )?;
         Ok(())
     }
