@@ -15,15 +15,15 @@ pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder, RollupNo
 mod actors;
 pub use actors::{
     AttributesBuilderConfig, CancellableContext, DerivationActor, DerivationBuilder,
-    DerivationContext, DerivationError, DerivationOutboundChannels, DerivationState, EngineActor,
-    EngineBuilder, EngineContext, EngineError, EngineOutboundData, InboundDerivationMessage,
+    DerivationContext, DerivationError, DerivationInboundChannels, DerivationState, EngineActor,
+    EngineBuilder, EngineContext, EngineError, EngineInboundData, InboundDerivationMessage,
     L1OriginSelector, L1OriginSelectorError, L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError,
-    L1WatcherRpcOutboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
-    NetworkContext, NetworkOutboundData, NodeActor, PipelineBuilder, RpcActor, RpcActorError,
-    RpcContext, RpcOutboundData, RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState,
-    SequencerActor, SequencerActorError, SequencerBuilder, SequencerContext, SequencerOutboundData,
-    SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
-    SupervisorOutboundData, SupervisorRpcServerExt,
+    L1WatcherRpcInboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
+    NetworkContext, NetworkInboundData, NodeActor, PipelineBuilder, RpcActor, RpcActorError,
+    RpcContext, RuntimeActor, RuntimeContext, RuntimeState, SequencerActor, SequencerActorError,
+    SequencerBuilder, SequencerContext, SequencerInboundData, SupervisorActor,
+    SupervisorActorContext, SupervisorActorError, SupervisorExt, SupervisorInboundData,
+    SupervisorRpcServerExt,
 };
 
 mod metrics;

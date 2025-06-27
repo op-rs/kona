@@ -25,12 +25,8 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 pub struct SequencerActor<AB: AttributesBuilderConfig> {
     /// The [`SequencerActorState`].
     builder: AB,
-    /// Sender to request the execution layer to build a payload attributes on top of the
-    /// current unsafe head.
-    build_request_tx:
-        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
-    /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s.
-    gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    /// Watch channel to observe the unsafe head of the engine.
+    pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
 }
 
 /// The state of the [`SequencerActor`].
@@ -96,26 +92,25 @@ impl AttributesBuilderConfig for SequencerBuilder {
     }
 }
 
-/// The outbound channels for the [`SequencerActor`].
+/// The inbound channels for the [`SequencerActor`].
+/// These channels are used by external actors to send messages to the sequencer actor.
 #[derive(Debug)]
-pub struct SequencerOutboundData {
-    /// A receiver that takes requests to build an [`OpAttributesWithParent`], including a channel
-    /// to send back the resulting [`OpExecutionPayloadEnvelope`].
-    pub build_request_rx:
-        mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
-    /// A receiver that streams [`OpExecutionPayloadEnvelope`]s built by the sequencer.
-    pub gossip_payload_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+pub struct SequencerInboundData {
+    /// Watch channel to observe the unsafe head of the engine.
+    pub unsafe_head_tx: watch::Sender<L2BlockInfo>,
 }
 
 /// The communication context used by the [`SequencerActor`].
 #[derive(Debug)]
 pub struct SequencerContext {
-    /// Receiver to get the [`OpExecutionPayloadEnvelope`] for the latest built block.
-    pub latest_payload_rx: Option<mpsc::Receiver<OpExecutionPayloadEnvelope>>,
-    /// Watch channel to observe the unsafe head of the engine.
-    pub unsafe_head: watch::Receiver<L2BlockInfo>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
+    /// Sender to request the execution layer to build a payload attributes on top of the
+    /// current unsafe head.
+    pub build_request_tx:
+        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+    /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s.
+    pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
 impl CancellableContext for SequencerContext {
@@ -140,12 +135,11 @@ pub enum SequencerActorError {
 
 impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
     /// Creates a new instance of the [`SequencerActor`].
-    pub fn new(state: AB) -> (SequencerOutboundData, Self) {
-        let (build_request_tx, build_request_rx) = mpsc::channel(1);
-        let (gossip_payload_tx, gossip_payload_rx) = mpsc::channel(8);
-        let actor = Self { builder: state, build_request_tx, gossip_payload_tx };
+    pub fn new(state: AB) -> (SequencerInboundData, Self) {
+        let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
+        let actor = Self { builder: state, unsafe_head_rx };
 
-        (SequencerOutboundData { build_request_rx, gossip_payload_rx }, actor)
+        (SequencerInboundData { unsafe_head_tx }, actor)
     }
 }
 
@@ -156,17 +150,15 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     async fn start_build(
         &mut self,
         ctx: &mut SequencerContext,
-        build_request_tx: &mpsc::Sender<(
-            OpAttributesWithParent,
-            mpsc::Sender<OpExecutionPayloadEnvelope>,
-        )>,
+        latest_payload_rx: &mut Option<mpsc::Receiver<OpExecutionPayloadEnvelope>>,
+        unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
     ) -> Result<(), SequencerActorError> {
         // If there is currently a block building job in-progress, do not start a new one.
-        if ctx.latest_payload_rx.is_some() {
+        if latest_payload_rx.is_some() {
             return Ok(());
         }
 
-        let unsafe_head = *ctx.unsafe_head.borrow();
+        let unsafe_head = *unsafe_head_rx.borrow();
         let l1_origin = self.origin_selector.next_l1_origin(unsafe_head).await?;
 
         // TODO(clabby): Check for consistent L1 origin
@@ -245,10 +237,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         // Create a new channel to receive the built payload.
         let (payload_tx, payload_rx) = mpsc::channel(1);
-        ctx.latest_payload_rx = Some(payload_rx);
+        *latest_payload_rx = Some(payload_rx);
 
         // Send the built attributes to the engine to be built.
-        if let Err(err) = build_request_tx.send((attrs_with_parent, payload_tx)).await {
+        if let Err(err) = ctx.build_request_tx.send((attrs_with_parent, payload_tx)).await {
             error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
@@ -262,8 +254,9 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     async fn try_wait_for_payload(
         &mut self,
         ctx: &mut SequencerContext,
+        latest_payload_rx: &mut Option<mpsc::Receiver<OpExecutionPayloadEnvelope>>,
     ) -> Result<Option<OpExecutionPayloadEnvelope>, SequencerActorError> {
-        if let Some(mut payload_rx) = ctx.latest_payload_rx.take() {
+        if let Some(mut payload_rx) = latest_payload_rx.take() {
             payload_rx.recv().await.map_or_else(
                 || {
                     error!(target: "sequencer", "Failed to receive built payload");
@@ -282,10 +275,9 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         &mut self,
         ctx: &mut SequencerContext,
         payload: OpExecutionPayloadEnvelope,
-        gossip_payload_tx: &mpsc::Sender<OpExecutionPayloadEnvelope>,
     ) -> Result<(), SequencerActorError> {
         // Send the payload to the P2P layer to be signed and gossipped.
-        if let Err(err) = gossip_payload_tx.send(payload).await {
+        if let Err(err) = ctx.gossip_payload_tx.send(payload).await {
             error!(target: "sequencer", ?err, "Failed to send payload to be signed and gossipped");
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
@@ -298,25 +290,29 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 #[async_trait]
 impl NodeActor for SequencerActor<SequencerBuilder> {
     type Error = SequencerActorError;
-    type InboundData = SequencerContext;
+    type OutboundData = SequencerContext;
     type Builder = SequencerBuilder;
-    type OutboundData = SequencerOutboundData;
+    type InboundData = SequencerInboundData;
 
-    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
         Self::new(config)
     }
 
-    async fn start(mut self, mut ctx: Self::InboundData) -> Result<(), Self::Error> {
+    async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
         let mut build_ticker =
             tokio::time::interval(Duration::from_secs(self.builder.cfg.block_time));
 
         let mut state = SequencerActorState::from(self.builder);
+        // A channel to receive the latest built payload from the engine.
+        let mut latest_payload_rx = None;
 
         loop {
             // Check if we are waiting on a block to be built. If so, we must wait for the response
             // before continuing.
-            if let Some(payload) = state.try_wait_for_payload(&mut ctx).await? {
-                state.schedule_gossip(&mut ctx, payload, &self.gossip_payload_tx).await?;
+            if let Some(payload) =
+                state.try_wait_for_payload(&mut ctx, &mut latest_payload_rx).await?
+            {
+                state.schedule_gossip(&mut ctx, payload).await?;
             }
 
             select! {
@@ -328,7 +324,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                     return Ok(());
                 }
                 _ = build_ticker.tick() => {
-                    state.start_build(&mut ctx, &self.build_request_tx).await?;
+                    state.start_build(&mut ctx, &mut latest_payload_rx, &mut self.unsafe_head_rx).await?;
                 }
             }
         }

@@ -37,40 +37,24 @@ pub enum RpcActorError {
 pub struct RpcActor {
     /// A launcher for the rpc.
     config: RpcBuilder,
-    /// The network rpc sender.
-    network: mpsc::Sender<P2pRpcRequest>,
-    /// The l1 watcher queries sender.
-    l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
-    /// The engine query sender.
-    engine_query: mpsc::Sender<EngineQueries>,
 }
 
 impl RpcActor {
     /// Constructs a new [`RpcActor`] given the [`RpcBuilder`].
-    pub fn new(config: RpcBuilder) -> (RpcOutboundData, Self) {
-        let (network_sender, network_recv) = mpsc::channel(1024);
-        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
-        let (engine_query_sender, engine_query_recv) = mpsc::channel(1024);
-
-        (
-            RpcOutboundData {
-                network: network_recv,
-                l1_watcher_queries: l1_watcher_queries_recv,
-                engine_query: engine_query_recv,
-            },
-            Self {
-                config,
-                network: network_sender,
-                l1_watcher_queries: l1_watcher_queries_sender,
-                engine_query: engine_query_sender,
-            },
-        )
+    pub const fn new(config: RpcBuilder) -> Self {
+        Self { config }
     }
 }
 
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
 pub struct RpcContext {
+    /// The network rpc sender.
+    pub network: mpsc::Sender<P2pRpcRequest>,
+    /// The l1 watcher queries sender.
+    pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
+    /// The engine query sender.
+    pub engine_query: mpsc::Sender<EngineQueries>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
 }
@@ -79,17 +63,6 @@ impl CancellableContext for RpcContext {
     fn cancelled(&self) -> WaitForCancellationFuture<'_> {
         self.cancellation.cancelled()
     }
-}
-
-/// The outbound data for the RPC actor.
-#[derive(Debug)]
-pub struct RpcOutboundData {
-    /// The network rpc receiver.
-    pub network: mpsc::Receiver<P2pRpcRequest>,
-    /// The l1 watcher queries receiver.
-    pub l1_watcher_queries: mpsc::Receiver<L1WatcherQueries>,
-    /// The engine query receiver.
-    pub engine_query: mpsc::Receiver<EngineQueries>,
 }
 
 /// Launches the jsonrpsee [`Server`].
@@ -114,17 +87,17 @@ async fn launch(
 #[async_trait]
 impl NodeActor for RpcActor {
     type Error = RpcActorError;
-    type InboundData = RpcContext;
-    type OutboundData = RpcOutboundData;
+    type OutboundData = RpcContext;
+    type InboundData = ();
     type Builder = RpcBuilder;
 
-    fn build(state: Self::Builder) -> (Self::OutboundData, Self) {
-        Self::new(state)
+    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
+        ((), Self::new(config))
     }
 
     async fn start(
         mut self,
-        RpcContext { cancellation }: Self::InboundData,
+        RpcContext { cancellation, network, l1_watcher_queries, engine_query }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
@@ -133,14 +106,14 @@ impl NodeActor for RpcActor {
             jsonrpsee::core::RpcResult::Ok(response)
         })?;
 
-        modules.merge(NetworkRpc::new(self.network).into_rpc())?;
+        modules.merge(NetworkRpc::new(network).into_rpc())?;
 
         // Create context for communication between actors.
-        let rollup_rpc = RollupRpc::new(self.engine_query.clone(), self.l1_watcher_queries);
+        let rollup_rpc = RollupRpc::new(engine_query.clone(), l1_watcher_queries);
         modules.merge(rollup_rpc.into_rpc())?;
 
         if self.config.ws_enabled() {
-            modules.merge(WsRPC::new(self.engine_query).into_rpc())?;
+            modules.merge(WsRPC::new(engine_query).into_rpc())?;
         }
 
         let restarts = self.config.restart_count();

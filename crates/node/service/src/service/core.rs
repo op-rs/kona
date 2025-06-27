@@ -1,12 +1,11 @@
 //! The core [`RollupNodeService`] trait
 use crate::{
-    AttributesBuilderConfig, DerivationContext, EngineContext, L1WatcherRpcContext, L2Finalizer,
-    NetworkContext, NodeActor, NodeMode, RpcContext, RuntimeContext, SequencerContext,
-    SequencerOutboundData, SupervisorActorContext, SupervisorExt,
+    AttributesBuilderConfig, DerivationContext, EngineContext, L1WatcherRpcContext, NetworkContext,
+    NodeActor, NodeMode, RpcContext, RuntimeContext, SequencerContext, SequencerInboundData,
+    SupervisorActorContext, SupervisorExt,
     actors::{
-        DerivationOutboundChannels, EngineOutboundData, L1WatcherRpcOutboundChannels,
-        NetworkOutboundData, PipelineBuilder, RpcOutboundData, RuntimeOutboundData,
-        SupervisorOutboundData,
+        DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
+        NetworkInboundData, PipelineBuilder, SupervisorInboundData,
     },
     service::spawn_and_wait,
 };
@@ -48,8 +47,8 @@ pub trait RollupNodeService {
     /// The type of [`NodeActor`] to use for the DA watcher service.
     type DataAvailabilityWatcher: NodeActor<
             Error: Display,
-            InboundData = L1WatcherRpcContext,
-            OutboundData = L1WatcherRpcOutboundChannels,
+            OutboundData = L1WatcherRpcContext,
+            InboundData = L1WatcherRpcInboundChannels,
         >;
 
     /// The type of derivation pipeline to use for the service.
@@ -59,15 +58,15 @@ pub trait RollupNodeService {
     type DerivationActor: NodeActor<
             Error: Display,
             Builder: PipelineBuilder<Pipeline = Self::DerivationPipeline>,
-            InboundData = DerivationContext,
-            OutboundData = DerivationOutboundChannels,
+            OutboundData = DerivationContext,
+            InboundData = DerivationInboundChannels,
         >;
 
     /// The type of engine actor to use for the service.
-    type EngineActor: NodeActor<Error: Display, InboundData = EngineContext, OutboundData = EngineOutboundData>;
+    type EngineActor: NodeActor<Error: Display, OutboundData = EngineContext, InboundData = EngineInboundData>;
 
     /// The type of network actor to use for the service.
-    type NetworkActor: NodeActor<Error: Display, InboundData = NetworkContext, OutboundData = NetworkOutboundData>;
+    type NetworkActor: NodeActor<Error: Display, OutboundData = NetworkContext, InboundData = NetworkInboundData>;
 
     /// The supervisor ext provider.
     type SupervisorExt: SupervisorExt + Send + Sync + 'static;
@@ -75,12 +74,12 @@ pub trait RollupNodeService {
     /// The type of supervisor actor to use for the service.
     type SupervisorActor: NodeActor<
             Error: Display,
-            InboundData = SupervisorActorContext,
-            OutboundData = SupervisorOutboundData,
+            OutboundData = SupervisorActorContext,
+            InboundData = SupervisorInboundData,
         >;
 
     /// The type of runtime actor to use for the service.
-    type RuntimeActor: NodeActor<Error: Display, InboundData = RuntimeContext, OutboundData = RuntimeOutboundData>;
+    type RuntimeActor: NodeActor<Error: Display, OutboundData = RuntimeContext, InboundData = ()>;
 
     /// The type of attributes builder to use for the sequener.
     type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
@@ -88,18 +87,13 @@ pub trait RollupNodeService {
     /// The type of sequencer actor to use for the service.
     type SequencerActor: NodeActor<
             Error: Display,
-            InboundData = SequencerContext,
+            OutboundData = SequencerContext,
             Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
-            OutboundData = SequencerOutboundData,
+            InboundData = SequencerInboundData,
         >;
 
     /// The type of rpc actor to use for the service.
-    type RpcActor: NodeActor<
-            Error: Display,
-            InboundData = RpcContext,
-            OutboundData = RpcOutboundData,
-            Builder = RpcBuilder,
-        >;
+    type RpcActor: NodeActor<Error: Display, OutboundData = RpcContext, InboundData = (), Builder = RpcBuilder>;
 
     /// The mode of operation for the node.
     fn mode(&self) -> NodeMode;
@@ -135,15 +129,20 @@ pub trait RollupNodeService {
 
         // Create the DA watcher actor.
         let da_watcher_builder = self.da_watcher_builder();
-        let (
-            L1WatcherRpcOutboundChannels { latest_head, latest_finalized, block_signer_sender },
-            da_watcher,
-        ) = Self::DataAvailabilityWatcher::build(da_watcher_builder);
+        let (L1WatcherRpcInboundChannels { inbound_queries: da_watcher_rpc }, da_watcher) =
+            Self::DataAvailabilityWatcher::build(da_watcher_builder);
 
         // Create the derivation actor.
         let derivation_builder = self.derivation_builder();
-        let (DerivationOutboundChannels { attributes_out }, derivation) =
-            Self::DerivationActor::build(derivation_builder);
+        let (
+            DerivationInboundChannels {
+                derivation_signal_tx,
+                l1_head_updates_tx,
+                engine_l2_safe_head_tx,
+                el_sync_complete_tx,
+            },
+            derivation,
+        ) = Self::DerivationActor::build(derivation_builder);
 
         // TODO: get the supervisor ext.
         // TODO: use the supervisor ext to create the supervisor actor.
@@ -153,87 +152,79 @@ pub trait RollupNodeService {
         // )
 
         // Create the runtime actor.
-        let (runtime_config, runtime) = self
-            .runtime_builder()
-            .map(|builder| {
-                let (RuntimeOutboundData { runtime_config }, runtime) =
-                    Self::RuntimeActor::build(builder);
-                (runtime_config, runtime)
-            })
-            .unzip();
+        let (_, runtime) = self.runtime_builder().map(Self::RuntimeActor::build).unzip();
 
         // Create the engine actor.
         let engine_builder = self.engine_builder();
         let (
-            EngineOutboundData {
+            EngineInboundData {
+                build_request_tx,
+                attributes_tx,
+                unsafe_block_tx,
                 reset_request_tx,
-                engine_l2_safe_head_rx,
-                sync_complete_rx,
-                derivation_signal_rx,
+                inbound_queries_tx: engine_rpc,
+                runtime_config_tx,
+                finalized_l1_block_tx,
             },
             engine,
         ) = Self::EngineActor::build(engine_builder);
 
         // Create the p2p actor.
         let driver = self.network_builder();
-        let (NetworkOutboundData { unsafe_block }, network) = Self::NetworkActor::build(driver);
+        let (NetworkInboundData { signer, rpc: network_rpc }, network) =
+            Self::NetworkActor::build(driver);
 
         // Create the RPC server actor.
         let rpc_builder = self.rpc_builder();
-        let (rpc_outbound_data, rpc) = rpc_builder.map(Self::RpcActor::build).unzip();
+        let (_, rpc) = rpc_builder.map(Self::RpcActor::build).unzip();
 
-        let (network_rpc, da_watcher_rpc, engine_rpc) = rpc_outbound_data
-            .map(|rpc_outbound_data| {
-                (
-                    Some(rpc_outbound_data.network),
-                    Some(rpc_outbound_data.l1_watcher_queries),
-                    Some(rpc_outbound_data.engine_query),
-                )
-            })
-            .unwrap_or_default();
-
-        let network_context = NetworkContext {
-            signer: block_signer_sender,
-            rpc: network_rpc,
-            cancellation: cancellation.clone(),
-        };
+        let network_context =
+            NetworkContext { blocks: unsafe_block_tx.clone(), cancellation: cancellation.clone() };
 
         let (_, sequencer) = Self::SequencerActor::build(self.sequencer_builder());
 
         let da_watcher_context = L1WatcherRpcContext {
-            inbound_queries: da_watcher_rpc,
+            latest_head: l1_head_updates_tx,
+            latest_finalized: finalized_l1_block_tx,
+            block_signer_sender: signer,
             cancellation: cancellation.clone(),
         };
 
         let derivation_context = DerivationContext {
             reset_request_tx,
-            l1_head_updates: latest_head,
-            engine_l2_safe_head: engine_l2_safe_head_rx.clone(),
-            el_sync_complete_rx: sync_complete_rx,
-            derivation_signal_rx,
+            derived_attributes_tx: attributes_tx,
             cancellation: cancellation.clone(),
         };
 
         let engine_context = EngineContext {
-            runtime_config_rx: runtime_config,
-            attributes_rx: attributes_out,
-            unsafe_block_rx: unsafe_block,
-            inbound_queries: engine_rpc,
+            engine_l2_safe_head_tx,
+            sync_complete_tx: el_sync_complete_tx,
+            derivation_signal_tx,
             cancellation: cancellation.clone(),
-            finalizer: L2Finalizer::new(latest_finalized),
         };
 
         let sequencer_context = SequencerContext {
-            latest_payload_rx: None,
-            unsafe_head: engine_l2_safe_head_rx,
+            build_request_tx,
+            gossip_payload_tx: unsafe_block_tx,
             cancellation: cancellation.clone(),
         };
 
         spawn_and_wait!(
             cancellation,
             actors = [
-                runtime.map(|r| (r, RuntimeContext { cancellation: cancellation.clone() })),
-                rpc.map(|r| (r, RpcContext { cancellation: cancellation.clone() })),
+                runtime.map(|r| (
+                    r,
+                    RuntimeContext { cancellation: cancellation.clone(), runtime_config_tx }
+                )),
+                rpc.map(|r| (
+                    r,
+                    RpcContext {
+                        cancellation: cancellation.clone(),
+                        network: network_rpc,
+                        l1_watcher_queries: da_watcher_rpc,
+                        engine_query: engine_rpc,
+                    }
+                )),
                 Some((network, network_context)),
                 Some((da_watcher, da_watcher_context)),
                 Some((derivation, derivation_context)),

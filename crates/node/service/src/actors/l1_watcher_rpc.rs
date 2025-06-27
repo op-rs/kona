@@ -30,12 +30,8 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 #[derive(Debug)]
 pub struct L1WatcherRpc {
     state: L1WatcherRpcState,
-    /// The latest L1 head block.
-    latest_head: watch::Sender<Option<BlockInfo>>,
-    /// The latest L1 finalized block.
-    latest_finalized: watch::Sender<Option<BlockInfo>>,
-    /// The block signer sender.
-    block_signer_sender: mpsc::Sender<Address>,
+    /// The inbound queries to the L1 watcher.
+    pub inbound_queries: tokio::sync::mpsc::Receiver<L1WatcherQueries>,
 }
 
 /// The configuration for the L1 watcher actor.
@@ -48,59 +44,10 @@ pub struct L1WatcherRpcState {
     pub l1_provider: RootProvider,
 }
 
-/// The outbound channels for the L1 watcher actor.
-#[derive(Debug)]
-pub struct L1WatcherRpcOutboundChannels {
-    /// The latest L1 head block.
-    pub latest_head: watch::Receiver<Option<BlockInfo>>,
-    /// The latest L1 finalized block.
-    pub latest_finalized: watch::Receiver<Option<BlockInfo>>,
-    /// The block signer sender.
-    pub block_signer_sender: mpsc::Receiver<Address>,
-}
-
-/// The communication context used by the L1 watcher actor.
-#[derive(Debug)]
-pub struct L1WatcherRpcContext {
-    /// The inbound queries to the L1 watcher.
-    pub inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
-    /// The cancellation token, shared between all tasks.
-    pub cancellation: CancellationToken,
-}
-
-impl CancellableContext for L1WatcherRpcContext {
-    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
-        self.cancellation.cancelled()
-    }
-}
-
-impl L1WatcherRpc {
-    /// Creates a new [`L1WatcherRpc`] instance.
-    pub fn new(config: L1WatcherRpcState) -> (L1WatcherRpcOutboundChannels, Self) {
-        let (head_updates_tx, head_updates_rx) = watch::channel(None);
-        let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
-        let (finalized_updates_tx, finalized_updates_rx) = watch::channel(None);
-
-        let actor = Self {
-            state: config,
-            latest_head: head_updates_tx,
-            latest_finalized: finalized_updates_tx,
-            block_signer_sender: block_signer_tx,
-        };
-        (
-            L1WatcherRpcOutboundChannels {
-                latest_head: head_updates_rx,
-                latest_finalized: finalized_updates_rx,
-                block_signer_sender: block_signer_rx,
-            },
-            actor,
-        )
-    }
-
+impl L1WatcherRpcState {
     /// Fetches logs for the given block hash.
     async fn fetch_logs(&self, block_hash: B256) -> Result<Vec<Log>, L1WatcherRpcError<BlockInfo>> {
         let logs = self
-            .state
             .l1_provider
             .get_logs(&alloy_rpc_types_eth::Filter::new().select(block_hash))
             .await?;
@@ -116,8 +63,8 @@ impl L1WatcherRpc {
     ) -> JoinHandle<()> {
         // Start the inbound query processor in a separate task to avoid blocking the main task.
         // We can cheaply clone the l1 provider here because it is an Arc.
-        let l1_provider = self.state.l1_provider.clone();
-        let rollup_config = self.state.rollup.clone();
+        let l1_provider = self.l1_provider.clone();
+        let rollup_config = self.rollup.clone();
 
         tokio::spawn(async move {
             while let Some(query) = inbound_queries.recv().await {
@@ -131,25 +78,25 @@ impl L1WatcherRpc {
                         let current_l1 = *head_updates_recv.borrow();
 
                         let head_l1 = match l1_provider.get_block(BlockId::latest()).await {
-                            Ok(block) => block,
-                            Err(e) => {
-                                warn!(target: "l1_watcher", error = ?e, "failed to query l1 provider for latest head block");
-                                None
-                            }}.map(|block| block.into_consensus().into());
+                                Ok(block) => block,
+                                Err(e) => {
+                                    warn!(target: "l1_watcher", error = ?e, "failed to query l1 provider for latest head block");
+                                    None
+                                }}.map(|block| block.into_consensus().into());
 
                         let finalized_l1 = match l1_provider.get_block(BlockId::finalized()).await {
-                            Ok(block) => block,
-                            Err(e) => {
-                                warn!(target: "l1_watcher", error = ?e, "failed to query l1 provider for latest finalized block");
-                                None
-                            }}.map(|block| block.into_consensus().into());
+                                Ok(block) => block,
+                                Err(e) => {
+                                    warn!(target: "l1_watcher", error = ?e, "failed to query l1 provider for latest finalized block");
+                                    None
+                                }}.map(|block| block.into_consensus().into());
 
                         let safe_l1 = match l1_provider.get_block(BlockId::safe()).await {
-                            Ok(block) => block,
-                            Err(e) => {
-                                warn!(target: "l1_watcher", error = ?e, "failed to query l1 provider for latest safe block");
-                                None
-                            }}.map(|block| block.into_consensus().into());
+                                Ok(block) => block,
+                                Err(e) => {
+                                    warn!(target: "l1_watcher", error = ?e, "failed to query l1 provider for latest safe block");
+                                    None
+                                }}.map(|block| block.into_consensus().into());
 
                         if let Err(e) = sender.send(L1State {
                             current_l1,
@@ -169,20 +116,56 @@ impl L1WatcherRpc {
     }
 }
 
+/// The inbound channels for the L1 watcher actor.
+#[derive(Debug)]
+pub struct L1WatcherRpcInboundChannels {
+    /// The inbound queries to the L1 watcher.
+    pub inbound_queries: tokio::sync::mpsc::Sender<L1WatcherQueries>,
+}
+
+/// The communication context used by the L1 watcher actor.
+#[derive(Debug)]
+pub struct L1WatcherRpcContext {
+    /// The latest L1 head block.
+    pub latest_head: watch::Sender<Option<BlockInfo>>,
+    /// The latest L1 finalized block.
+    pub latest_finalized: watch::Sender<Option<BlockInfo>>,
+    /// The block signer sender.
+    pub block_signer_sender: mpsc::Sender<Address>,
+    /// The cancellation token, shared between all tasks.
+    pub cancellation: CancellationToken,
+}
+
+impl CancellableContext for L1WatcherRpcContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
+}
+
+impl L1WatcherRpc {
+    /// Creates a new [`L1WatcherRpc`] instance.
+    pub fn new(config: L1WatcherRpcState) -> (L1WatcherRpcInboundChannels, Self) {
+        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
+
+        let actor = Self { state: config, inbound_queries: l1_watcher_queries_recv };
+        (L1WatcherRpcInboundChannels { inbound_queries: l1_watcher_queries_sender }, actor)
+    }
+}
+
 #[async_trait]
 impl NodeActor for L1WatcherRpc {
     type Error = L1WatcherRpcError<BlockInfo>;
-    type InboundData = L1WatcherRpcContext;
-    type OutboundData = L1WatcherRpcOutboundChannels;
+    type InboundData = L1WatcherRpcInboundChannels;
+    type OutboundData = L1WatcherRpcContext;
     type Builder = L1WatcherRpcState;
 
-    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
         Self::new(config)
     }
 
     async fn start(
         mut self,
-        L1WatcherRpcContext { inbound_queries, cancellation }: Self::InboundData,
+        L1WatcherRpcContext { latest_head, latest_finalized, block_signer_sender, cancellation }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut head_stream = BlockStream::new(
             &self.state.l1_provider,
@@ -197,9 +180,8 @@ impl NodeActor for L1WatcherRpc {
         )
         .into_stream();
 
-        let inbound_query_processor = inbound_queries.map(|inbound_queries| {
-            self.start_query_processor(inbound_queries, self.latest_head.subscribe())
-        });
+        let inbound_query_processor =
+            self.state.start_query_processor(self.inbound_queries, latest_head.subscribe());
 
         // Start the main processing loop.
         loop {
@@ -212,9 +194,7 @@ impl NodeActor for L1WatcherRpc {
                     );
 
                     // Kill the inbound query processor.
-                    if let Some(inbound_query_processor) = inbound_query_processor {
-                        inbound_query_processor.abort();
-                    }
+                    inbound_query_processor.abort();
 
                     return Ok(());
                 },
@@ -224,13 +204,13 @@ impl NodeActor for L1WatcherRpc {
                     }
                     Some(head_block_info) => {
                         // Send the head update event to all consumers.
-                        self.latest_head.send_replace(Some(head_block_info));
+                        latest_head.send_replace(Some(head_block_info));
 
                         // For each log, attempt to construct a `SystemConfigLog`.
                         // Build the `SystemConfigUpdate` from the log.
                         // If the update is an Unsafe block signer update, send the address
                         // to the block signer sender.
-                        let logs = self.fetch_logs(head_block_info.hash).await?;
+                        let logs = self.state.fetch_logs(head_block_info.hash).await?;
                         let ecotone_active = self.state.rollup.is_ecotone_active(head_block_info.timestamp);
                         for log in logs {
                             if log.address() != self.state.rollup.l1_system_config_address {
@@ -243,7 +223,7 @@ impl NodeActor for L1WatcherRpc {
                                     target: "l1_watcher",
                                     "Unsafe block signer update: {unsafe_block_signer}"
                                 );
-                                if let Err(e) = self.block_signer_sender.send(unsafe_block_signer).await {
+                                if let Err(e) = block_signer_sender.send(unsafe_block_signer).await {
                                     error!(
                                         target: "l1_watcher",
                                         "Error sending unsafe block signer update: {e}"
@@ -258,7 +238,7 @@ impl NodeActor for L1WatcherRpc {
                         return Err(L1WatcherRpcError::StreamEnded);
                     }
                     Some(finalized_block_info) => {
-                        self.latest_finalized.send_replace(Some(finalized_block_info));
+                        latest_finalized.send_replace(Some(finalized_block_info));
                     }
                 }
             }

@@ -42,23 +42,28 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 pub struct NetworkActor {
     /// Network driver
     config: NetworkBuilder,
-    /// The channel for sending unsafe blocks from the network actor.
-    blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    /// A channel to receive the unsafe block signer address.
+    signer: mpsc::Receiver<Address>,
+    /// Handler for RPC Requests.
+    rpc: tokio::sync::mpsc::Receiver<P2pRpcRequest>,
 }
 
-/// The outbound data for the network actor.
+/// The inbound data for the network actor.
 #[derive(Debug)]
-pub struct NetworkOutboundData {
-    /// The unsafe block received from the network.
-    pub unsafe_block: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+pub struct NetworkInboundData {
+    /// A channel to send the unsafe block signer address to the network actor.
+    pub signer: mpsc::Sender<Address>,
+    /// Handler for RPC Requests sent to the network actor.
+    pub rpc: mpsc::Sender<P2pRpcRequest>,
 }
 
 impl NetworkActor {
     /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
-    pub fn new(driver: NetworkBuilder) -> (NetworkOutboundData, Self) {
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
-        let actor = Self { config: driver, blocks: unsafe_block_tx };
-        let outbound_data = NetworkOutboundData { unsafe_block: unsafe_block_rx };
+    pub fn new(driver: NetworkBuilder) -> (NetworkInboundData, Self) {
+        let (signer_tx, signer_rx) = mpsc::channel(16);
+        let (rpc_tx, rpc_rx) = mpsc::channel(1024);
+        let actor = Self { config: driver, signer: signer_rx, rpc: rpc_rx };
+        let outbound_data = NetworkInboundData { signer: signer_tx, rpc: rpc_tx };
         (outbound_data, actor)
     }
 }
@@ -66,13 +71,8 @@ impl NetworkActor {
 /// The communication context used by the network actor.
 #[derive(Debug)]
 pub struct NetworkContext {
-    /// A channel to receive the unsafe block signer address.
-    pub signer: mpsc::Receiver<Address>,
-    /// Handler for RPC Requests.
-    ///
-    /// This is allowed to be optional since it may not be desirable
-    /// run a networking stack with RPC access.
-    pub rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
+    /// The channel used by the sequencer actor for sending unsafe blocks to the network.
+    pub blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// Cancels the network actor.
     pub cancellation: CancellationToken,
 }
@@ -86,17 +86,17 @@ impl CancellableContext for NetworkContext {
 #[async_trait]
 impl NodeActor for NetworkActor {
     type Error = NetworkActorError;
-    type InboundData = NetworkContext;
-    type OutboundData = NetworkOutboundData;
+    type InboundData = NetworkInboundData;
+    type OutboundData = NetworkContext;
     type Builder = NetworkBuilder;
 
-    fn build(state: Self::Builder) -> (Self::OutboundData, Self) {
+    fn build(state: Self::Builder) -> (Self::InboundData, Self) {
         Self::new(state)
     }
 
     async fn start(
         mut self,
-        NetworkContext { mut signer, rpc, cancellation }: Self::InboundData,
+        NetworkContext { blocks, cancellation }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut driver = self.config.build()?;
 
@@ -107,7 +107,7 @@ impl NodeActor for NetworkActor {
         let unsafe_block_signer = driver.unsafe_block_signer_sender();
 
         // Start the network driver.
-        driver.start(rpc).await?;
+        driver.start(Some(self.rpc)).await?;
 
         loop {
             select! {
@@ -121,7 +121,7 @@ impl NodeActor for NetworkActor {
                 block = unsafe_block_receiver.recv() => {
                     match block {
                         Ok(block) => {
-                            match self.blocks.send(block).await {
+                            match blocks.send(block).await {
                                 Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
                                 Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
                             }
@@ -132,7 +132,7 @@ impl NodeActor for NetworkActor {
                         }
                     }
                 }
-                signer = signer.recv() => {
+                signer = self.signer.recv() => {
                     let Some(signer) = signer else {
                         warn!(
                             target: "network",

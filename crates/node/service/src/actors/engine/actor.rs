@@ -9,7 +9,7 @@ use kona_engine::{
     EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
-use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
+use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_sources::RuntimeConfig;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
@@ -30,30 +30,43 @@ use crate::{NodeActor, actors::CancellableContext};
 pub struct EngineActor {
     /// The [`EngineActorState`] used to build the actor.
     builder: EngineBuilder,
-    /// The receiver for reset requests.
+    /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
+    attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
+    /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
+    unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+    /// A channel to receive reset requests.
     reset_request_rx: mpsc::Receiver<()>,
-    /// The sender for L2 safe head update notifications.
-    engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
-    /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
-    /// start. Because the EL sync state machine within [`InnerEngineState`] can only complete
-    /// once, this channel is consumed after the first successful send. Future cases where EL
-    /// sync is re-triggered can occur, but we will not block derivation on it.
-    sync_complete_tx: oneshot::Sender<()>,
-    /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
-    derivation_signal_tx: mpsc::Sender<Signal>,
+    /// Handler for inbound queries to the engine.
+    inbound_queries: mpsc::Receiver<EngineQueries>,
+    /// A channel to receive [`RuntimeConfig`] from the runtime actor.
+    runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
+    /// A channel to receive build requests from the sequencer actor.
+    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2319>`): plug it in the engine actor.
+    #[allow(dead_code)]
+    build_request_rx:
+        mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+    /// The [`L2Finalizer`], used to finalize L2 blocks.
+    finalizer: L2Finalizer,
 }
 
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
-pub struct EngineOutboundData {
-    /// A channel to request the engine actor to reset.
+pub struct EngineInboundData {
+    /// The channel used by the sequencer actor to send build requests to the engine actor.
+    pub build_request_tx:
+        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+    /// A channel to send [`OpAttributesWithParent`] to the engine actor.
+    pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
+    /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
+    pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    /// A channel to send reset requests.
     pub reset_request_tx: mpsc::Sender<()>,
-    /// A channel to receive L2 safe head update notifications.
-    pub engine_l2_safe_head_rx: watch::Receiver<L2BlockInfo>,
-    /// A channel to receive a signal that EL sync has completed.
-    pub sync_complete_rx: oneshot::Receiver<()>,
-    /// A channel to send a [`Signal`] back to the derivation actor.
-    pub derivation_signal_rx: mpsc::Receiver<Signal>,
+    /// Handler to send inbound queries to the engine.
+    pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
+    /// A channel to send [`RuntimeConfig`] to the engine actor.
+    pub runtime_config_tx: mpsc::Sender<RuntimeConfig>,
+    /// A channel that sends new finalized L1 blocks intermittently.
+    pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
 }
 
 /// Configuration for the Engine Actor.
@@ -112,18 +125,18 @@ pub(super) struct EngineActorState {
 /// The communication context used by the engine actor.
 #[derive(Debug)]
 pub struct EngineContext {
-    /// A channel to receive [`RuntimeConfig`] from the runtime actor.
-    pub runtime_config_rx: Option<mpsc::Receiver<RuntimeConfig>>,
-    /// A channel to receive [`OpAttributesWithParent`] from the derivation actor.
-    pub attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
-    /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
-    pub unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
-    /// Handler for inbound queries to the engine.
-    pub inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
-    /// The [`L2Finalizer`], used to finalize L2 blocks.
-    pub finalizer: L2Finalizer,
+
+    /// The sender for L2 safe head update notifications.
+    pub engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
+    /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
+    /// start. Because the EL sync state machine within [`InnerEngineState`] can only complete
+    /// once, this channel is consumed after the first successful send. Future cases where EL
+    /// sync is re-triggered can occur, but we will not block derivation on it.
+    pub sync_complete_tx: oneshot::Sender<()>,
+    /// A way for the engine actor to send a [`Signal`] back to the derivation actor.
+    pub derivation_signal_tx: mpsc::Sender<Signal>,
 }
 
 impl CancellableContext for EngineContext {
@@ -134,26 +147,34 @@ impl CancellableContext for EngineContext {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(config: EngineBuilder) -> (EngineOutboundData, Self) {
-        let (reset_request_tx, reset_request_rx) = mpsc::channel(1);
-        let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
-        let (engine_l2_safe_head_tx, engine_l2_safe_head_rx) =
-            watch::channel(L2BlockInfo::default());
-        let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
+    pub fn new(config: EngineBuilder) -> (EngineInboundData, Self) {
+        let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
+        let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
+        let (runtime_config_tx, runtime_config_rx) = mpsc::channel(1024);
+        let (attributes_tx, attributes_rx) = mpsc::channel(1024);
+        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
+        let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
+        let (build_request_tx, build_request_rx) = mpsc::channel(1024);
 
         let actor = Self {
             builder: config,
+            attributes_rx,
+            unsafe_block_rx,
             reset_request_rx,
-            engine_l2_safe_head_tx,
-            sync_complete_tx,
-            derivation_signal_tx,
+            inbound_queries: inbound_queries_rx,
+            runtime_config_rx,
+            build_request_rx,
+            finalizer: L2Finalizer::new(finalized_l1_block_rx),
         };
 
-        let outbound_data = EngineOutboundData {
+        let outbound_data = EngineInboundData {
+            build_request_tx,
+            finalized_l1_block_tx,
+            inbound_queries_tx,
+            runtime_config_tx,
+            attributes_tx,
+            unsafe_block_tx,
             reset_request_tx,
-            engine_l2_safe_head_rx,
-            sync_complete_rx,
-            derivation_signal_rx,
         };
 
         (outbound_data, actor)
@@ -332,42 +353,40 @@ impl EngineActorState {
 #[async_trait]
 impl NodeActor for EngineActor {
     type Error = EngineError;
-    type InboundData = EngineContext;
-    type OutboundData = EngineOutboundData;
+    type OutboundData = EngineContext;
+    type InboundData = EngineInboundData;
     type Builder = EngineBuilder;
 
-    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::InboundData, Self) {
         Self::new(config)
     }
 
     async fn start(
         mut self,
         EngineContext {
-            mut finalizer,
-            mut runtime_config_rx,
-            mut attributes_rx,
-            mut unsafe_block_rx,
             cancellation,
-            inbound_queries,
-        }: Self::InboundData,
+            engine_l2_safe_head_tx,
+            sync_complete_tx,
+            derivation_signal_tx,
+        }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state();
 
         // Start the engine query server in a separate task to avoid blocking the main task.
-        let handle = inbound_queries.map(|inbound_queries| state.start_query_task(inbound_queries));
+        let handle = state.start_query_task(self.inbound_queries);
 
         // The sync complete tx is consumed after the first successful send. Hence we need to wrap
         // it in an `Option` to ensure we satisfy the borrow checker.
-        let mut sync_complete_tx = Some(self.sync_complete_tx);
+        let mut sync_complete_tx = Some(sync_complete_tx);
 
         loop {
             // Attempt to drain all outstanding tasks from the engine queue before adding new ones.
             state
                 .drain(
-                    &self.derivation_signal_tx,
+                    &derivation_signal_tx,
                     &mut sync_complete_tx,
-                    &self.engine_l2_safe_head_tx,
-                    &mut finalizer,
+                    &engine_l2_safe_head_tx,
+                    &mut self.finalizer,
                     &cancellation,
                 )
                 .await?;
@@ -376,12 +395,9 @@ impl NodeActor for EngineActor {
                 biased;
 
                 _ = cancellation.cancelled() => {
-                    warn!(target: "engine", "EngineActor received shutdown signal.");
+                    warn!(target: "engine", "EngineActor received shutdown signal. Aborting engine query task.");
 
-                    if let Some(handle) = handle {
-                        warn!(target: "engine", "Aborting engine query task.");
-                        handle.abort();
-                    }
+                    handle.abort();
 
                     return Ok(());
                 }
@@ -393,10 +409,10 @@ impl NodeActor for EngineActor {
                     }
                     warn!(target: "engine", "Received reset request");
                     state
-                        .reset(&self.derivation_signal_tx, &self.engine_l2_safe_head_tx, &mut finalizer, &cancellation)
+                        .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer, &cancellation)
                         .await?;
                 }
-                unsafe_block = unsafe_block_rx.recv() => {
+                unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {
                         error!(target: "engine", "Unsafe block receiver closed unexpectedly");
                         cancellation.cancel();
@@ -409,13 +425,13 @@ impl NodeActor for EngineActor {
                     ));
                     state.engine.enqueue(task);
                 }
-                attributes = attributes_rx.recv() => {
+                attributes = self.attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
                         error!(target: "engine", "Attributes receiver closed unexpectedly");
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    finalizer.enqueue_for_finalization(&attributes);
+                    self.finalizer.enqueue_for_finalization(&attributes);
 
                     let task = EngineTask::Consolidate(ConsolidateTask::new(
                         state.client.clone(),
@@ -425,15 +441,11 @@ impl NodeActor for EngineActor {
                     ));
                     state.engine.enqueue(task);
                 }
-                config = runtime_config_rx.as_mut().map(|rx| rx.recv()).unwrap(), if runtime_config_rx.is_some() => {
-                    let Some(config) = config else {
-                        error!(target: "engine", "Runtime config receiver closed unexpectedly");
-                        cancellation.cancel();
-                        return Err(EngineError::ChannelClosed);
-                    };
+                // Since the runtime actor is optional, we need to check if the channel is closed to ensure we're not immediately resolving the future.
+                Some(config) = self.runtime_config_rx.recv(), if !self.runtime_config_rx.is_closed() => {
                     state.runtime_config_update(config);
                 }
-                msg = finalizer.new_finalized_block() => {
+                msg = self.finalizer.new_finalized_block() => {
                     if let Err(err) = msg {
                         error!(target: "engine", ?err, "L1 finalized block receiver closed unexpectedly");
                         cancellation.cancel();
@@ -441,7 +453,7 @@ impl NodeActor for EngineActor {
                     }
                     // Attempt to finalize any L2 blocks that are contained within the finalized L1
                     // chain.
-                    finalizer.try_finalize_next(&mut state).await;
+                    self.finalizer.try_finalize_next(&mut state).await;
                 }
             }
         }
