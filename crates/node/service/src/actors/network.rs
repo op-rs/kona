@@ -4,7 +4,7 @@ use crate::{NodeActor, actors::CancellableContext};
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use derive_more::Debug;
-use kona_p2p::{NetworkBuilder, NetworkBuilderError};
+use kona_p2p::{NetworkBuilder, NetworkBuilderError, P2pRpcRequest};
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
@@ -68,6 +68,11 @@ impl NetworkActor {
 pub struct NetworkContext {
     /// A channel to receive the unsafe block signer address.
     pub signer: mpsc::Receiver<Address>,
+    /// Handler for RPC Requests.
+    ///
+    /// This is allowed to be optional since it may not be desirable
+    /// run a networking stack with RPC access.
+    pub rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// Cancels the network actor.
     pub cancellation: CancellationToken,
 }
@@ -91,7 +96,7 @@ impl NodeActor for NetworkActor {
 
     async fn start(
         mut self,
-        NetworkContext { mut signer, cancellation }: Self::InboundData,
+        NetworkContext { mut signer, rpc, cancellation }: Self::InboundData,
     ) -> Result<(), Self::Error> {
         let mut driver = self.config.build()?;
 
@@ -102,7 +107,7 @@ impl NodeActor for NetworkActor {
         let unsafe_block_signer = driver.unsafe_block_signer_sender();
 
         // Start the network driver.
-        driver.start().await?;
+        driver.start(rpc).await?;
 
         loop {
             select! {

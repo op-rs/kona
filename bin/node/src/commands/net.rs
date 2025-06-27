@@ -3,8 +3,9 @@
 use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
 use futures::future::OptionFuture;
+use jsonrpsee::{RpcModule, server::Server};
 use kona_p2p::{NetworkBuilder, P2pRpcRequest};
-use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcConfig};
+use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcBuilder};
 use tracing::{debug, info, warn};
 use url::Url;
 
@@ -51,20 +52,22 @@ impl NetCommand {
         let signer = args.genesis_signer()?;
         info!(target: "net", "Genesis block signer: {:?}", signer);
 
-        // Setup the RPC server with the P2P RPC Module
-        let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        let p2p_module = NetworkRpc::new(tx.clone()).into_rpc();
-        let rpc_config = RpcConfig::from(self.rpc);
+        let rpc_config = RpcBuilder::from(self.rpc);
 
-        if rpc_config.disabled {
+        let (handle, tx, rx) = if rpc_config.disabled {
             info!(target: "net", "RPC server disabled");
+            (None, None, None)
         } else {
             info!(target: "net", socket = ?rpc_config.socket, "Starting RPC server");
-        }
+            let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
-        let mut launcher = rpc_config.as_launcher();
-        launcher.merge(p2p_module)?;
-        let handle = launcher.launch().await?;
+            // Setup the RPC server with the P2P RPC Module
+            let mut launcher = RpcModule::new(());
+            launcher.merge(NetworkRpc::new(tx.clone()).into_rpc())?;
+
+            let server = Server::builder().build(rpc_config.socket).await?;
+            (Some(server.start(launcher)), Some(tx), Some(rx))
+        };
 
         // Get the rollup config from the args
         let rollup_config = args
@@ -74,9 +77,9 @@ impl NetCommand {
         // Start the Network Stack
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
-        let mut network = NetworkBuilder::from(p2p_config).with_rpc_receiver(rx).build()?;
+        let mut network = NetworkBuilder::from(p2p_config).build()?;
         let mut recv = network.unsafe_block_recv();
-        network.start().await?;
+        network.start(rx).await?;
         info!(target: "net", "Network started, receiving blocks.");
 
         // On an interval, use the rpc tx to request stats about the p2p network.
@@ -90,9 +93,13 @@ impl NetCommand {
                         Err(e) => debug!(target: "net", "Failed to receive unsafe payload: {:?}", e),
                     }
                 }
-                _ = interval.tick() => {
+                _ = interval.tick(), if tx.is_some() => {
+                    let Some(ref sender) = tx else {
+                        unreachable!("tx must be some (see above)");
+                    };
+
                     let (otx, mut orx) = tokio::sync::oneshot::channel();
-                    if let Err(e) = tx.send(P2pRpcRequest::PeerCount(otx)).await {
+                    if let Err(e) = sender.send(P2pRpcRequest::PeerCount(otx)).await {
                         warn!(target: "net", "Failed to send network rpc request: {:?}", e);
                         continue;
                     }

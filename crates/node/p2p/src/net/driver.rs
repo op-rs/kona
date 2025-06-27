@@ -3,7 +3,7 @@
 use alloy_primitives::{Address, hex};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
-use futures::{AsyncReadExt, AsyncWriteExt, StreamExt};
+use futures::{AsyncReadExt, AsyncWriteExt, StreamExt, future::OptionFuture};
 use libp2p::TransportError;
 use libp2p_stream::IncomingStreams;
 use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
@@ -30,11 +30,6 @@ pub struct Network {
     pub(crate) broadcast: Broadcast,
     /// Channel to send unsafe signer updates.
     pub(crate) unsafe_block_signer_sender: Sender<Address>,
-    /// Handler for RPC Requests.
-    ///
-    /// This is allowed to be optional since it may not be desirable
-    /// run a networking stack with RPC access.
-    pub(crate) rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
     pub(crate) publish_rx: tokio::sync::mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// The swarm instance.
@@ -110,8 +105,10 @@ impl Network {
 
     /// Starts the Discv5 peer discovery & libp2p services
     /// and continually listens for new peers and messages to handle
-    pub async fn start(mut self) -> Result<(), TransportError<std::io::Error>> {
-        let mut rpc = self.rpc.unwrap_or_else(|| tokio::sync::mpsc::channel(1024).1);
+    pub async fn start(
+        mut self,
+        mut rpc: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
+    ) -> Result<(), TransportError<std::io::Error>> {
         let (handler, mut enr_receiver) = self.discovery.start();
         let mut broadcast = self.broadcast;
 
@@ -235,7 +232,9 @@ impl Network {
                             warn!(err = ?send_err, "Impossible to send a request to the discovery handler. The channel connection is dropped.");
                         }
                     },
-                    req = rpc.recv() => {
+                    // Note that we're using `if rpc.is_some()` to ensure that the branch does not always immediately resolve
+                    // to avoid CPU contention.
+                    Some(req) = OptionFuture::from(rpc.as_mut().map(|r| r.recv())), if rpc.is_some() => {
                         let Some(req) = req else {
                             error!(target: "node::p2p", "The rpc receiver channel has closed");
                             return;

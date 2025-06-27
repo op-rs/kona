@@ -20,7 +20,7 @@ pub use supervisor::{
 };
 
 mod rpc;
-pub use rpc::{RpcActor, RpcActorError, RpcContext};
+pub use rpc::{RpcActor, RpcActorError, RpcContext, RpcOutboundData};
 
 mod derivation;
 pub use derivation::{

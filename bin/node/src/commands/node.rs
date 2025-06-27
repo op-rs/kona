@@ -232,8 +232,9 @@ impl NodeCommand {
             .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
             .build()
             .start()
-            .await
-            .map_err(Into::into)
+            .await;
+
+        Ok(())
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.

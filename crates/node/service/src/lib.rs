@@ -10,9 +10,7 @@
 extern crate tracing;
 
 mod service;
-pub use service::{
-    InteropMode, NodeMode, RollupNode, RollupNodeBuilder, RollupNodeError, RollupNodeService,
-};
+pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder, RollupNodeService};
 
 mod actors;
 pub use actors::{
@@ -22,8 +20,8 @@ pub use actors::{
     L1OriginSelector, L1OriginSelectorError, L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError,
     L1WatcherRpcOutboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
     NetworkContext, NetworkOutboundData, NodeActor, PipelineBuilder, RpcActor, RpcActorError,
-    RpcContext, RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState, SequencerActor,
-    SequencerActorError, SequencerBuilder, SequencerContext, SequencerOutboundData,
+    RpcContext, RpcOutboundData, RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState,
+    SequencerActor, SequencerActorError, SequencerBuilder, SequencerContext, SequencerOutboundData,
     SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
     SupervisorOutboundData, SupervisorRpcServerExt,
 };

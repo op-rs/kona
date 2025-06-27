@@ -5,18 +5,15 @@ use crate::{
     SequencerOutboundData, SupervisorActorContext, SupervisorExt,
     actors::{
         DerivationOutboundChannels, EngineOutboundData, L1WatcherRpcOutboundChannels,
-        NetworkOutboundData, PipelineBuilder, RuntimeOutboundData, SupervisorOutboundData,
+        NetworkOutboundData, PipelineBuilder, RpcOutboundData, RuntimeOutboundData,
+        SupervisorOutboundData,
     },
     service::spawn_and_wait,
 };
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
-use kona_rpc::{
-    NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcBuilder, RpcLauncherError,
-    WsRPC, WsServer,
-};
+use kona_rpc::RpcBuilder;
 use std::fmt::Display;
-use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 /// The [`RollupNodeService`] trait defines the common interface for running a rollup node.
@@ -97,12 +94,12 @@ pub trait RollupNodeService {
         >;
 
     /// The type of rpc actor to use for the service.
-    type RpcActor: NodeActor<Error: Display, InboundData = RpcContext, OutboundData = (), Builder = RpcBuilder>;
-
-    /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError>
-        + From<jsonrpsee::server::RegisterMethodError>
-        + std::fmt::Debug;
+    type RpcActor: NodeActor<
+            Error: Display,
+            InboundData = RpcContext,
+            OutboundData = RpcOutboundData,
+            Builder = RpcBuilder,
+        >;
 
     /// The mode of operation for the node.
     fn mode(&self) -> NodeMode;
@@ -113,8 +110,8 @@ pub trait RollupNodeService {
     /// Returns a derivation builder for the node.
     fn derivation_builder(&self) -> <Self::DerivationActor as NodeActor>::Builder;
 
-    /// Creates a network builder and the [`NetworkRpc`] for the node.
-    fn network_builder(&self) -> (<Self::NetworkActor as NodeActor>::Builder, NetworkRpc);
+    /// Creates a network builder for the node.
+    fn network_builder(&self) -> <Self::NetworkActor as NodeActor>::Builder;
 
     /// Returns a runtime builder for the node.
     fn runtime_builder(&self) -> Option<<Self::RuntimeActor as NodeActor>::Builder>;
@@ -122,8 +119,8 @@ pub trait RollupNodeService {
     /// Returns an engine builder for the node.
     fn engine_builder(&self) -> <Self::EngineActor as NodeActor>::Builder;
 
-    /// Returns the [`RpcBuilder`] for the node.
-    fn rpc_builder(&self) -> RpcBuilder;
+    /// Returns an rpc builder for the node.
+    fn rpc_builder(&self) -> Option<<Self::RpcActor as NodeActor>::Builder>;
 
     /// Returns the sequencer builder for the node.
     fn sequencer_builder(&self) -> <Self::SequencerActor as NodeActor>::Builder;
@@ -132,7 +129,7 @@ pub trait RollupNodeService {
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
     /// Starts the rollup node service.
-    async fn start(&self) -> Result<(), Self::Error> {
+    async fn start(&self) {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
@@ -178,38 +175,33 @@ pub trait RollupNodeService {
         ) = Self::EngineActor::build(engine_builder);
 
         // Create the p2p actor.
-        let (network_builder, p2p_rpc_module) = self.network_builder();
-        let (NetworkOutboundData { unsafe_block }, network) =
-            Self::NetworkActor::build(network_builder);
+        let driver = self.network_builder();
+        let (NetworkOutboundData { unsafe_block }, network) = Self::NetworkActor::build(driver);
 
         // Create the RPC server actor.
-        let (engine_query_recv, l1_watcher_queries_recv, (_, rpc)) = {
-            let mut rpc_builder = self.rpc_builder().with_healthz()?;
+        let rpc_builder = self.rpc_builder();
+        let (rpc_outbound_data, rpc) = rpc_builder.map(Self::RpcActor::build).unzip();
 
-            rpc_builder.merge(p2p_rpc_module.into_rpc())?;
+        let (network_rpc, da_watcher_rpc, engine_rpc) = rpc_outbound_data
+            .map(|rpc_outbound_data| {
+                (
+                    Some(rpc_outbound_data.network),
+                    Some(rpc_outbound_data.l1_watcher_queries),
+                    Some(rpc_outbound_data.engine_query),
+                )
+            })
+            .unwrap_or_default();
 
-            // Create context for communication between actors.
-            let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
-            let (engine_query_sender, engine_query_recv) = mpsc::channel(1024);
-            let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
-            rpc_builder.merge(rollup_rpc.into_rpc())?;
-
-            if rpc_builder.ws_enabled() {
-                rpc_builder
-                    .merge(WsRPC::new(engine_query_sender).into_rpc())
-                    .map_err(Self::Error::from)?;
-            }
-
-            (engine_query_recv, l1_watcher_queries_recv, Self::RpcActor::build(rpc_builder))
+        let network_context = NetworkContext {
+            signer: block_signer_sender,
+            rpc: network_rpc,
+            cancellation: cancellation.clone(),
         };
 
         let (_, sequencer) = Self::SequencerActor::build(self.sequencer_builder());
 
-        let network_context =
-            NetworkContext { signer: block_signer_sender, cancellation: cancellation.clone() };
-
         let da_watcher_context = L1WatcherRpcContext {
-            inbound_queries: l1_watcher_queries_recv,
+            inbound_queries: da_watcher_rpc,
             cancellation: cancellation.clone(),
         };
 
@@ -226,12 +218,10 @@ pub trait RollupNodeService {
             runtime_config_rx: runtime_config,
             attributes_rx: attributes_out,
             unsafe_block_rx: unsafe_block,
-            inbound_queries: engine_query_recv,
+            inbound_queries: engine_rpc,
             cancellation: cancellation.clone(),
             finalizer: L2Finalizer::new(latest_finalized),
         };
-
-        let rpc_context = RpcContext { cancellation: cancellation.clone() };
 
         let sequencer_context = SequencerContext {
             latest_payload_rx: None,
@@ -243,14 +233,13 @@ pub trait RollupNodeService {
             cancellation,
             actors = [
                 runtime.map(|r| (r, RuntimeContext { cancellation: cancellation.clone() })),
+                rpc.map(|r| (r, RpcContext { cancellation: cancellation.clone() })),
                 Some((network, network_context)),
                 Some((da_watcher, da_watcher_context)),
                 Some((derivation, derivation_context)),
                 Some((engine, engine_context)),
-                Some((rpc, rpc_context)),
                 (self.mode() == NodeMode::Sequencer).then_some((sequencer, sequencer_context))
             ]
         );
-        Ok(())
     }
 }

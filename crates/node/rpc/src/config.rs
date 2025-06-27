@@ -1,13 +1,10 @@
 //! Contains the RPC Configuration.
 
-use jsonrpsee::RpcModule;
-
-use crate::RpcBuilder;
 use std::{net::SocketAddr, path::PathBuf};
 
 /// The RPC configuration.
 #[derive(Debug, Clone)]
-pub struct RpcConfig {
+pub struct RpcBuilder {
     /// Disable the rpc server.
     pub disabled: bool,
     /// Prevent the rpc server from being restarted.
@@ -23,15 +20,24 @@ pub struct RpcConfig {
     pub ws_enabled: bool,
 }
 
-impl RpcConfig {
-    /// Converts the [`RpcConfig`] into a [`RpcBuilder`].
-    pub fn as_launcher(self) -> RpcBuilder {
-        RpcBuilder { config: self, module: RpcModule::new(()) }
+impl RpcBuilder {
+    /// Returns whether WebSocket RPC endpoint is enabled
+    pub const fn ws_enabled(&self) -> bool {
+        self.ws_enabled
     }
-}
 
-impl From<RpcConfig> for RpcBuilder {
-    fn from(config: RpcConfig) -> Self {
-        config.as_launcher()
+    /// Returns the socket address of the [`RpcBuilder`].
+    pub const fn socket(&self) -> SocketAddr {
+        self.socket
+    }
+
+    /// Returns the number of times the RPC server will attempt to restart if it stops.
+    pub const fn restart_count(&self) -> u32 {
+        if self.no_restart { 0 } else { 3 }
+    }
+
+    /// Sets the given [`SocketAddr`] on the [`RpcBuilder`].
+    pub fn set_addr(self, addr: SocketAddr) -> Self {
+        Self { socket: addr, ..self }
     }
 }

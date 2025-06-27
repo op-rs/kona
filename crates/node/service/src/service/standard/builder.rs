@@ -18,7 +18,7 @@ use url::Url;
 use kona_genesis::RollupConfig;
 use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::{RpcBuilder, RpcConfig, SupervisorRpcConfig};
+use kona_rpc::{RpcBuilder, SupervisorRpcConfig};
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
@@ -38,7 +38,7 @@ pub struct RollupNodeBuilder {
     /// The [`Config`].
     p2p_config: Option<Config>,
     /// An RPC Configuration.
-    rpc_config: Option<RpcConfig>,
+    rpc_config: Option<RpcBuilder>,
     /// An RPC Configuration for the supervisor rpc.
     supervisor_rpc_config: SupervisorRpcConfig,
     /// An interval to load the runtime config.
@@ -95,8 +95,8 @@ impl RollupNodeBuilder {
         Self { p2p_config: Some(config), ..self }
     }
 
-    /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
-    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
+    /// Sets the [`RpcBuilder`] on the [`RollupNodeBuilder`].
+    pub fn with_rpc_config(self, rpc_config: RpcBuilder) -> Self {
         Self { rpc_config: Some(rpc_config), ..self }
     }
 
@@ -138,9 +138,6 @@ impl RollupNodeBuilder {
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
-        let rpc_builder =
-            self.rpc_config.map(|c| c.as_launcher()).unwrap_or(RpcBuilder::new_disabled());
-
         let rollup_config = Arc::new(self.config);
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
@@ -169,7 +166,7 @@ impl RollupNodeBuilder {
             l1_beacon,
             l2_provider,
             engine_builder,
-            rpc_builder,
+            rpc_builder: self.rpc_config,
             runtime_builder,
             p2p_config,
             // By default, the supervisor rpc config is disabled.

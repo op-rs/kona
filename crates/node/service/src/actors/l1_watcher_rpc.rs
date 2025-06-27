@@ -63,7 +63,7 @@ pub struct L1WatcherRpcOutboundChannels {
 #[derive(Debug)]
 pub struct L1WatcherRpcContext {
     /// The inbound queries to the L1 watcher.
-    pub inbound_queries: tokio::sync::mpsc::Receiver<L1WatcherQueries>,
+    pub inbound_queries: Option<tokio::sync::mpsc::Receiver<L1WatcherQueries>>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
 }
@@ -197,8 +197,9 @@ impl NodeActor for L1WatcherRpc {
         )
         .into_stream();
 
-        let inbound_query_processor =
-            self.start_query_processor(inbound_queries, self.latest_head.subscribe());
+        let inbound_query_processor = inbound_queries.map(|inbound_queries| {
+            self.start_query_processor(inbound_queries, self.latest_head.subscribe())
+        });
 
         // Start the main processing loop.
         loop {
@@ -211,7 +212,9 @@ impl NodeActor for L1WatcherRpc {
                     );
 
                     // Kill the inbound query processor.
-                    inbound_query_processor.abort();
+                    if let Some(inbound_query_processor) = inbound_query_processor {
+                        inbound_query_processor.abort();
+                    }
 
                     return Ok(());
                 },

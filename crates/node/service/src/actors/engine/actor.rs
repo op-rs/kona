@@ -119,7 +119,7 @@ pub struct EngineContext {
     /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
     pub unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
     /// Handler for inbound queries to the engine.
-    pub inbound_queries: mpsc::Receiver<EngineQueries>,
+    pub inbound_queries: Option<mpsc::Receiver<EngineQueries>>,
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
@@ -354,7 +354,7 @@ impl NodeActor for EngineActor {
         let mut state = self.builder.build_state();
 
         // Start the engine query server in a separate task to avoid blocking the main task.
-        let handle = state.start_query_task(inbound_queries);
+        let handle = inbound_queries.map(|inbound_queries| state.start_query_task(inbound_queries));
 
         // The sync complete tx is consumed after the first successful send. Hence we need to wrap
         // it in an `Option` to ensure we satisfy the borrow checker.
@@ -376,8 +376,12 @@ impl NodeActor for EngineActor {
                 biased;
 
                 _ = cancellation.cancelled() => {
-                    warn!(target: "engine", "EngineActor received shutdown signal. Shutting down engine query task.");
-                    handle.abort();
+                    warn!(target: "engine", "EngineActor received shutdown signal.");
+
+                    if let Some(handle) = handle {
+                        warn!(target: "engine", "Aborting engine query task.");
+                        handle.abort();
+                    }
 
                     return Ok(());
                 }

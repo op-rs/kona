@@ -12,10 +12,7 @@ extern crate tracing;
 mod admin;
 
 mod config;
-pub use config::RpcConfig;
-
-mod launcher;
-pub use launcher::{HealthzResponse, RpcBuilder, RpcLauncherError};
+pub use config::RpcBuilder;
 
 mod net;
 pub use net::NetworkRpc;
@@ -58,3 +55,10 @@ pub use l1_watcher::{L1State, L1WatcherQueries, L1WatcherQuerySender};
 
 mod ws;
 pub use ws::WsRPC;
+
+/// A healthcheck response for the RPC server.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HealthzResponse {
+    /// The application version.
+    pub version: String,
+}

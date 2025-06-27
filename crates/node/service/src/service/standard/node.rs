@@ -1,8 +1,8 @@
 //! Contains the [`RollupNode`] implementation.
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
-    L1WatcherRpcState, NetworkActor, NodeMode, RollupNodeBuilder, RollupNodeError,
-    RollupNodeService, RpcActor, RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
+    L1WatcherRpcState, NetworkActor, NodeMode, RollupNodeBuilder, RollupNodeService, RpcActor,
+    RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
     actors::{RuntimeState, SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
@@ -16,7 +16,7 @@ use kona_p2p::{Config, NetworkBuilder};
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
 };
-use kona_rpc::{NetworkRpc, RpcBuilder, SupervisorRpcConfig, SupervisorRpcServer};
+use kona_rpc::{RpcBuilder, SupervisorRpcConfig, SupervisorRpcServer};
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.
@@ -37,7 +37,7 @@ pub struct RollupNode {
     /// The [`EngineBuilder`] for the node.
     pub(crate) engine_builder: EngineBuilder,
     /// The [`RpcBuilder`] for the node.
-    pub(crate) rpc_builder: RpcBuilder,
+    pub(crate) rpc_builder: Option<RpcBuilder>,
     /// The P2P [`Config`] for the node.
     pub(crate) p2p_config: Config,
     /// The [`RuntimeState`] for the runtime loading service.
@@ -55,8 +55,6 @@ impl RollupNode {
 
 #[async_trait]
 impl RollupNodeService for RollupNode {
-    type Error = RollupNodeError;
-
     type DataAvailabilityWatcher = L1WatcherRpc;
 
     type AttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
@@ -107,10 +105,6 @@ impl RollupNodeService for RollupNode {
         self.engine_builder.clone()
     }
 
-    fn rpc_builder(&self) -> RpcBuilder {
-        self.rpc_builder.clone()
-    }
-
     fn sequencer_builder(&self) -> SequencerBuilder {
         SequencerBuilder {
             cfg: self.config.clone(),
@@ -119,11 +113,12 @@ impl RollupNodeService for RollupNode {
         }
     }
 
-    fn network_builder(&self) -> (NetworkBuilder, NetworkRpc) {
-        let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        let p2p_module = NetworkRpc::new(tx);
-        let builder = NetworkBuilder::from(self.p2p_config.clone()).with_rpc_receiver(rx);
-        (builder, p2p_module)
+    fn rpc_builder(&self) -> Option<RpcBuilder> {
+        self.rpc_builder.clone()
+    }
+
+    fn network_builder(&self) -> NetworkBuilder {
+        NetworkBuilder::from(self.p2p_config.clone())
     }
 
     fn derivation_builder(&self) -> DerivationBuilder {
