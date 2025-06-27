@@ -2,11 +2,11 @@
 
 Kona brings together a powerful suite of `no-std` and `std` Rust components,
 purpose-built for the OP Stack. At the heart of this ecosystem is the
-`kona-node` — a modern, modular rollup node (L2 consensus node) that you
-can use as a drop-in binary or as a foundation for your own custom services.
+`kona-node` — a modern, modular rollup node (L2 consensus node) that can
+be used as a drop-in binary or as a foundation for custom services.
 
-The `kona-node` is a fully compliant implementation of the "Rollup Node"
-[specifications][rollup-node] and is released as a [binary][package] in
+The `kona-node` is a fully compliant implementation of the ["Rollup Node"
+Specifications][rollup-node] and is released as a [binary][package] in
 the [kona repository][kona]. Whether you're running a production network,
 building new rollup features, or experimenting with the OP Stack,
 `kona-node` is built to be both robust and extensible.
@@ -29,10 +29,11 @@ node is always in sync with the latest state.
 > the rollup node holds a view of the tip of the chain - unsafe, safe, and
 > finalized block info. All data otherwise needed is held in memory.
 
-The architecture of `kona-node` is built around three core pillars:
+There are a few core architectural pieces of the `kona-node`.
+
 - **Derivation Pipeline:** Constructs L2 payload attributes from L1 blocks,
   forming the backbone of rollup logic.
-- **Execution Engine Integration:** Executes L2 payloads via the
+- **Execution Engine Integration:** Executes L2 payload attributes via the
   [Engine API][engine-api], abstracting away different EL clients.
 - **P2P Networking:** Enables block gossip and peer discovery.
 

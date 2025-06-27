@@ -21,7 +21,7 @@
 - [Rollup Node](./node/intro.md)
   - [Run a Node](./node/run-a-node.md)
   - [Docker Support](./node/docker.md)
-  - [Configure Metrics](./node/metrics.md)
+  - [Monitoring](./node/monitoring.md)
   - [CLI Reference](./node/cli.md)
   - [Subcommands](./node/subcommands.md)
   - [Design](./node/design/intro.md)
