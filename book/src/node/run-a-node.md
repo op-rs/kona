@@ -1,5 +1,16 @@
 # Run a Node
 
+> [!NOTE]
+>
+> This tutorial walks through running the `kona-node` as
+> a binary. To use docker, head over to the
+> [Docker Guide](./docker.md) which uses a `docker-compose`
+> setup provided by `kona`. The `docker-compose` setup
+> automatically bootstraps the `kona-node` with `op-reth`,
+> provisioning grafana dashboards and a default Prometheus
+> configuration. It is encouraged to follow the
+> [Docker Guide](./docker.md) to avoid misconfigurations.
+
 Kona aims to make operating a node easy. Below, we will walk
 through building and running the `kona-node` binary.
 
