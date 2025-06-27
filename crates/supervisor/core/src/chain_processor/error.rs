@@ -9,11 +9,11 @@ pub enum ChainProcessorError {
     #[error(transparent)]
     ManagedNode(#[from] ManagedNodeError),
 
-    /// Represents an error that occured while interacting with the storage layer.
+    /// Represents an error that occurred while interacting with the storage layer.
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    /// Represents an error that occured while indexing logs.
+    /// Represents an error that occurred while indexing logs.
     #[error(transparent)]
     LogIndexerError(#[from] LogIndexerError),
 }

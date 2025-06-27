@@ -35,7 +35,7 @@ use thiserror::Error;
 use tower::ServiceBuilder;
 use url::Url;
 
-/// An error that occured in the [`EngineClient`].
+/// An error that occurred in the [`EngineClient`].
 #[derive(Error, Debug)]
 pub enum EngineClientError {
     /// An RPC error occurred

@@ -19,10 +19,10 @@ pub enum RollupNodeError {
     /// An error occurred while initializing the derivation pipeline.
     #[error(transparent)]
     AlloyChainProvider(#[from] AlloyChainProviderError),
-    /// An error occured while initializing the network.
+    /// An error occurred while initializing the network.
     #[error(transparent)]
     Network(#[from] NetworkBuilderError),
-    /// An error occured while launching the RPC server.
+    /// An error occurred while launching the RPC server.
     #[error(transparent)]
     RpcLauncher(#[from] RpcLauncherError),
     /// An error occurred while registering RPC methods.
