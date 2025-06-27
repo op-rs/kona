@@ -191,7 +191,7 @@ pub trait RollupNodeService {
         };
 
         let derivation_context = DerivationContext {
-            reset_request_tx,
+            reset_request_tx: reset_request_tx.clone(),
             derived_attributes_tx: attributes_tx,
             cancellation: cancellation.clone(),
         };
@@ -204,6 +204,7 @@ pub trait RollupNodeService {
         };
 
         let sequencer_context = SequencerContext {
+            reset_request_tx,
             build_request_tx,
             gossip_payload_tx: unsafe_block_tx,
             cancellation: cancellation.clone(),

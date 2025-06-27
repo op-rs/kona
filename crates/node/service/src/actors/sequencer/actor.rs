@@ -1,8 +1,7 @@
 //! The [`SequencerActor`].
 
-use crate::{CancellableContext, NodeActor};
-
 use super::{L1OriginSelector, L1OriginSelectorError};
+use crate::{CancellableContext, NodeActor};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
@@ -105,6 +104,8 @@ pub struct SequencerInboundData {
 pub struct SequencerContext {
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
+    /// Sender to request the engine to reset.
+    pub reset_request_tx: mpsc::Sender<()>,
     /// Sender to request the execution layer to build a payload attributes on top of the
     /// current unsafe head.
     pub build_request_tx:
@@ -179,7 +180,17 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                     // Do nothing and allow a retry.
                 }
                 Err(PipelineErrorKind::Reset(_)) => {
-                    todo!("Reset the engine - need reset request chan")
+                    if let Err(err) = ctx.reset_request_tx.send(()).await {
+                        error!(target: "sequencer", ?err, "Failed to reset engine");
+                        ctx.cancellation.cancel();
+                        return Err(SequencerActorError::ChannelClosed);
+                    }
+
+                    warn!(
+                        target: "sequencer",
+                        "Resetting engine due to pipeline error while preparing payload attributes"
+                    );
+                    return Ok(());
                 }
                 Err(err @ PipelineErrorKind::Critical(_)) => {
                     error!(target: "sequencer", ?err, "Failed to prepare payload attributes");
