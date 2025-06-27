@@ -3,7 +3,7 @@ use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NodeMode, RollupNodeBuilder, RollupNodeError,
     RollupNodeService, RpcActor, RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
-    actors::{L1OriginSelector, RuntimeState, SequencerActor, SequencerActorState},
+    actors::{RuntimeState, SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -60,7 +60,7 @@ impl RollupNodeService for RollupNode {
     type DataAvailabilityWatcher = L1WatcherRpc;
 
     type AttributesBuilder = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
-    type SequencerActor = SequencerActor<Self::AttributesBuilder>;
+    type SequencerActor = SequencerActor<SequencerBuilder>;
 
     type DerivationPipeline = OnlinePipeline;
     type DerivationActor = DerivationActor<DerivationBuilder>;
@@ -111,24 +111,12 @@ impl RollupNodeService for RollupNode {
         self.rpc_builder.clone()
     }
 
-    fn sequencer_state(&self) -> SequencerActorState<Self::AttributesBuilder> {
-        const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
-        let l1_derivation_provider =
-            AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
-        let l2_derivation_provider = AlloyL2ChainProvider::new(
-            self.l2_provider.clone(),
-            self.config.clone(),
-            DERIVATION_PROVIDER_CACHE_SIZE,
-        );
-        let builder = StatefulAttributesBuilder::new(
-            self.config.clone(),
-            l2_derivation_provider,
-            l1_derivation_provider,
-        );
-
-        let origin_selector = L1OriginSelector::new(self.config.clone(), self.l1_provider.clone());
-
-        SequencerActorState { cfg: self.config.clone(), builder, origin_selector }
+    fn sequencer_builder(&self) -> SequencerBuilder {
+        SequencerBuilder {
+            cfg: self.config.clone(),
+            l1_provider: self.l1_provider.clone(),
+            l2_provider: self.l2_provider.clone(),
+        }
     }
 
     fn network_builder(&self) -> (NetworkBuilder, NetworkRpc) {
