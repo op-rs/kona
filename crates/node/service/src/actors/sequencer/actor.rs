@@ -250,10 +250,10 @@ where
 {
     type Error = SequencerActorError;
     type InboundData = SequencerContext;
-    type State = SequencerActorState<AB>;
+    type Builder = SequencerActorState<AB>;
     type OutboundData = SequencerOutboundData;
 
-    fn build(config: Self::State) -> (Self::OutboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
         Self::new(config)
     }
 

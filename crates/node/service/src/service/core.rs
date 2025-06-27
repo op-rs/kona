@@ -1,16 +1,16 @@
 //! The core [`RollupNodeService`] trait
-
 use crate::{
     DerivationContext, EngineContext, L1WatcherRpcContext, L2Finalizer, NetworkContext, NodeActor,
     NodeMode, RpcContext, RuntimeContext, SupervisorActorContext, SupervisorExt,
     actors::{
         DerivationOutboundChannels, EngineOutboundData, L1WatcherRpcOutboundChannels,
-        NetworkOutboundData, PipelineBuilder, RuntimeOutboundData, SupervisorOutboundData,
+        NetworkOutboundData, PipelineBuilder, RuntimeOutboundData, SequencerActorState,
+        SequencerContext, SequencerOutboundData, SupervisorOutboundData,
     },
     service::spawn_and_wait,
 };
 use async_trait::async_trait;
-use kona_derive::{Pipeline, SignalReceiver};
+use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
 use kona_rpc::{
     NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcBuilder, RpcLauncherError,
     WsRPC, WsServer,
@@ -92,7 +92,7 @@ pub trait RollupNodeService {
     type SequencerActor: NodeActor<
             Error: Display,
             InboundData = SequencerContext,
-            State = SequencerActorState<Self::AttributesBuilder>,
+            Builder = SequencerActorState<Self::AttributesBuilder>,
             OutboundData = SequencerOutboundData,
         >;
 

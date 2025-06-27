@@ -1,10 +1,9 @@
 //! Contains the [`RollupNode`] implementation.
-
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NodeMode, RollupNodeBuilder, RollupNodeError,
     RollupNodeService, RpcActor, RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
-    actors::RuntimeState,
+    actors::{L1OriginSelector, RuntimeState, SequencerActor, SequencerActorState},
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -14,7 +13,9 @@ use std::sync::Arc;
 
 use kona_genesis::RollupConfig;
 use kona_p2p::{Config, NetworkBuilder};
-use kona_providers_alloy::{OnlineBeaconClient, OnlinePipeline};
+use kona_providers_alloy::{
+    AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
+};
 use kona_rpc::{NetworkRpc, RpcBuilder, SupervisorRpcConfig, SupervisorRpcServer};
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
@@ -111,6 +112,7 @@ impl RollupNodeService for RollupNode {
     }
 
     fn sequencer_state(&self) -> SequencerActorState<Self::AttributesBuilder> {
+        const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
         let l1_derivation_provider =
             AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
         let l2_derivation_provider = AlloyL2ChainProvider::new(
@@ -119,14 +121,14 @@ impl RollupNodeService for RollupNode {
             DERIVATION_PROVIDER_CACHE_SIZE,
         );
         let builder = StatefulAttributesBuilder::new(
-            self.config(),
+            self.config.clone(),
             l2_derivation_provider,
             l1_derivation_provider,
         );
 
-        let origin_selector = L1OriginSelector::new(self.config(), self.l1_provider.clone());
+        let origin_selector = L1OriginSelector::new(self.config.clone(), self.l1_provider.clone());
 
-        SequencerActorState { cfg: self.config(), builder, origin_selector }
+        SequencerActorState { cfg: self.config.clone(), builder, origin_selector }
     }
 
     fn network_builder(&self) -> (NetworkBuilder, NetworkRpc) {
