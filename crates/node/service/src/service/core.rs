@@ -145,7 +145,7 @@ pub trait RollupNodeService {
 
         // Create the derivation actor.
         let derivation_builder = self.derivation_builder();
-        let (DerivationOutboundChannels { attributes_out, reset_request_tx }, derivation) =
+        let (DerivationOutboundChannels { attributes_out }, derivation) =
             Self::DerivationActor::build(derivation_builder);
 
         // TODO: get the supervisor ext.
@@ -168,7 +168,12 @@ pub trait RollupNodeService {
         // Create the engine actor.
         let engine_builder = self.engine_builder();
         let (
-            EngineOutboundData { engine_l2_safe_head_rx, sync_complete_rx, derivation_signal_rx },
+            EngineOutboundData {
+                reset_request_tx,
+                engine_l2_safe_head_rx,
+                sync_complete_rx,
+                derivation_signal_rx,
+            },
             engine,
         ) = Self::EngineActor::build(engine_builder);
 
@@ -209,6 +214,7 @@ pub trait RollupNodeService {
         };
 
         let derivation_context = DerivationContext {
+            reset_request_tx,
             l1_head_updates: latest_head,
             engine_l2_safe_head: engine_l2_safe_head_rx.clone(),
             el_sync_complete_rx: sync_complete_rx,
@@ -220,7 +226,6 @@ pub trait RollupNodeService {
             runtime_config_rx: runtime_config,
             attributes_rx: attributes_out,
             unsafe_block_rx: unsafe_block,
-            reset_request_rx: reset_request_tx,
             inbound_queries: engine_query_recv,
             cancellation: cancellation.clone(),
             finalizer: L2Finalizer::new(latest_finalized),

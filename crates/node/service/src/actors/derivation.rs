@@ -37,9 +37,6 @@ where
     state: B,
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
     attributes_out: mpsc::Sender<OpAttributesWithParent>,
-    /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
-    /// them to the engine.
-    reset_request_tx: mpsc::Sender<()>,
 }
 
 /// The state for the derivation actor.
@@ -124,14 +121,14 @@ impl PipelineBuilder for DerivationBuilder {
 pub struct DerivationOutboundChannels {
     /// The receiver for derived [`OpAttributesWithParent`]s produced by the actor.
     pub attributes_out: mpsc::Receiver<OpAttributesWithParent>,
-    /// The receiver for reset requests, used to handle [`PipelineErrorKind::Reset`] events and
-    /// forward them to the engine.
-    pub reset_request_tx: mpsc::Receiver<()>,
 }
 
 /// The communication context used by the derivation actor.
 #[derive(Debug)]
 pub struct DerivationContext {
+    /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
+    /// them to the engine.
+    pub reset_request_tx: mpsc::Sender<()>,
     /// The receiver for L1 head update notifications.
     pub l1_head_updates: watch::Receiver<Option<BlockInfo>>,
     /// The receiver for L2 safe head update notifications.
@@ -382,16 +379,9 @@ where
     /// Creates a new instance of the [DerivationActor].
     pub fn new(state: B) -> (DerivationOutboundChannels, Self) {
         let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
-        let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
-        let actor = Self { state, attributes_out: derived_payload_tx, reset_request_tx };
+        let actor = Self { state, attributes_out: derived_payload_tx };
 
-        (
-            DerivationOutboundChannels {
-                attributes_out: derived_payload_rx,
-                reset_request_tx: reset_request_rx,
-            },
-            actor,
-        )
+        (DerivationOutboundChannels { attributes_out: derived_payload_rx }, actor)
     }
 }
 
@@ -416,6 +406,7 @@ where
             mut engine_l2_safe_head,
             mut el_sync_complete_rx,
             mut derivation_signal_rx,
+            reset_request_tx,
             cancellation,
         }: Self::InboundData,
     ) -> Result<(), Self::Error> {
@@ -455,15 +446,15 @@ where
                         return Ok(());
                     }
 
-                    state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &reset_request_tx).await?;
                 }
                 _ = engine_l2_safe_head.changed() => {
-                    state.process(InboundDerivationMessage::SafeHeadUpdated, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::SafeHeadUpdated, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &reset_request_tx).await?;
                 }
                 _ = &mut el_sync_complete_rx, if !el_sync_complete_rx.is_terminated() => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
                     // Optimistically process the first message.
-                    state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &reset_request_tx).await?;
                 }
             }
         }

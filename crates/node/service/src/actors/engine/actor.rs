@@ -30,7 +30,9 @@ use crate::{NodeActor, actors::CancellableContext};
 pub struct EngineActor {
     /// The [`EngineActorState`] used to build the actor.
     builder: EngineBuilder,
-    /// The receiver for L2 safe head update notifications.
+    /// The receiver for reset requests.
+    reset_request_rx: mpsc::Receiver<()>,
+    /// The sender for L2 safe head update notifications.
     engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
     /// start. Because the EL sync state machine within [`InnerEngineState`] can only complete
@@ -44,6 +46,8 @@ pub struct EngineActor {
 /// The outbound data for the [`EngineActor`].
 #[derive(Debug)]
 pub struct EngineOutboundData {
+    /// A channel to request the engine actor to reset.
+    pub reset_request_tx: mpsc::Sender<()>,
     /// A channel to receive L2 safe head update notifications.
     pub engine_l2_safe_head_rx: watch::Receiver<L2BlockInfo>,
     /// A channel to receive a signal that EL sync has completed.
@@ -114,8 +118,6 @@ pub struct EngineContext {
     pub attributes_rx: mpsc::Receiver<OpAttributesWithParent>,
     /// A channel to receive [`OpExecutionPayloadEnvelope`] from the network actor.
     pub unsafe_block_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
-    /// A channel to receive reset requests.
-    pub reset_request_rx: mpsc::Receiver<()>,
     /// Handler for inbound queries to the engine.
     pub inbound_queries: mpsc::Receiver<EngineQueries>,
     /// The cancellation token, shared between all tasks.
@@ -133,6 +135,7 @@ impl CancellableContext for EngineContext {
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
     pub fn new(config: EngineBuilder) -> (EngineOutboundData, Self) {
+        let (reset_request_tx, reset_request_rx) = mpsc::channel(1);
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
         let (engine_l2_safe_head_tx, engine_l2_safe_head_rx) =
             watch::channel(L2BlockInfo::default());
@@ -140,13 +143,18 @@ impl EngineActor {
 
         let actor = Self {
             builder: config,
+            reset_request_rx,
             engine_l2_safe_head_tx,
             sync_complete_tx,
             derivation_signal_tx,
         };
 
-        let outbound_data =
-            EngineOutboundData { engine_l2_safe_head_rx, sync_complete_rx, derivation_signal_rx };
+        let outbound_data = EngineOutboundData {
+            reset_request_tx,
+            engine_l2_safe_head_rx,
+            sync_complete_rx,
+            derivation_signal_rx,
+        };
 
         (outbound_data, actor)
     }
@@ -339,7 +347,6 @@ impl NodeActor for EngineActor {
             mut runtime_config_rx,
             mut attributes_rx,
             mut unsafe_block_rx,
-            mut reset_request_rx,
             cancellation,
             inbound_queries,
         }: Self::InboundData,
@@ -374,7 +381,7 @@ impl NodeActor for EngineActor {
 
                     return Ok(());
                 }
-                reset = reset_request_rx.recv() => {
+                reset = self.reset_request_rx.recv() => {
                     if reset.is_none() {
                         error!(target: "engine", "Reset request receiver closed unexpectedly");
                         cancellation.cancel();
