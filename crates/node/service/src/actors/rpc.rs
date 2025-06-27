@@ -3,7 +3,7 @@
 use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use jsonrpsee::core::RegisterMethodError;
-use kona_rpc::{RpcLauncher, RpcLauncherError};
+use kona_rpc::{RpcBuilder, RpcLauncherError};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 /// An error returned by the [`RpcActor`].
@@ -27,12 +27,12 @@ pub enum RpcActorError {
 #[derive(Debug)]
 pub struct RpcActor {
     /// A launcher for the rpc.
-    launcher: RpcLauncher,
+    launcher: RpcBuilder,
 }
 
 impl RpcActor {
-    /// Constructs a new [`RpcActor`] given the [`RpcLauncher`] and [`CancellationToken`].
-    pub const fn new(launcher: RpcLauncher) -> Self {
+    /// Constructs a new [`RpcActor`] given the [`RpcBuilder`] and [`CancellationToken`].
+    pub const fn new(launcher: RpcBuilder) -> Self {
         Self { launcher }
     }
 }
@@ -55,9 +55,9 @@ impl NodeActor for RpcActor {
     type Error = RpcActorError;
     type InboundData = RpcContext;
     type OutboundData = ();
-    type State = RpcLauncher;
+    type Builder = RpcBuilder;
 
-    fn build(state: Self::State) -> (Self::OutboundData, Self) {
+    fn build(state: Self::Builder) -> (Self::OutboundData, Self) {
         ((), Self { launcher: state })
     }
 

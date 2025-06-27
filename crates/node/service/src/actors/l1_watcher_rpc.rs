@@ -174,9 +174,9 @@ impl NodeActor for L1WatcherRpc {
     type Error = L1WatcherRpcError<BlockInfo>;
     type InboundData = L1WatcherRpcContext;
     type OutboundData = L1WatcherRpcOutboundChannels;
-    type State = L1WatcherRpcState;
+    type Builder = L1WatcherRpcState;
 
-    fn build(config: Self::State) -> (Self::OutboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
         Self::new(config)
     }
 

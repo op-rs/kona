@@ -29,7 +29,7 @@ use crate::{NodeActor, actors::CancellableContext};
 #[derive(Debug)]
 pub struct EngineActor {
     /// The [`EngineActorState`] used to build the actor.
-    state: EngineActorState,
+    builder: EngineBuilder,
     /// The receiver for L2 safe head update notifications.
     engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
@@ -52,15 +52,57 @@ pub struct EngineOutboundData {
     pub derivation_signal_rx: mpsc::Receiver<Signal>,
 }
 
+/// Configuration for the Engine Actor.
+#[derive(Debug, Clone)]
+pub struct EngineBuilder {
+    /// The [`RollupConfig`].
+    pub config: Arc<RollupConfig>,
+    /// The engine rpc url.
+    pub engine_url: Url,
+    /// The L2 rpc url.
+    pub l2_rpc_url: Url,
+    /// The L1 rpc url.
+    pub l1_rpc_url: Url,
+    /// The engine jwt secret.
+    pub jwt_secret: JwtSecret,
+}
+
+impl EngineBuilder {
+    /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
+    /// updates.
+    fn build_state(self) -> EngineActorState {
+        let client = self.client();
+        let state = InnerEngineState::default();
+        let (engine_state_send, _) = tokio::sync::watch::channel(state);
+        EngineActorState {
+            rollup: self.config,
+            client,
+            engine: Engine::new(state, engine_state_send),
+        }
+    }
+
+    /// Returns the [`EngineClient`].
+    pub fn client(&self) -> Arc<EngineClient> {
+        EngineClient::new_http(
+            self.engine_url.clone(),
+            self.l2_rpc_url.clone(),
+            self.l1_rpc_url.clone(),
+            self.config.clone(),
+            self.jwt_secret,
+        )
+        .into()
+    }
+}
+
 /// The configuration for the [`EngineActor`].
 #[derive(Debug)]
-pub struct EngineActorState {
+pub(super) struct EngineActorState {
     /// The [`RollupConfig`] used to build tasks.
-    pub rollup: Arc<RollupConfig>,
+    rollup: Arc<RollupConfig>,
     /// An [`EngineClient`] used for creating engine tasks.
-    pub client: Arc<EngineClient>,
+    pub(super) client: Arc<EngineClient>,
     /// The [`Engine`] task queue.
-    pub engine: Engine,
+    pub(super) engine: Engine,
 }
 
 /// The communication context used by the engine actor.
@@ -90,14 +132,14 @@ impl CancellableContext for EngineContext {
 
 impl EngineActor {
     /// Constructs a new [`EngineActor`] from the params.
-    pub fn new(initial_state: EngineActorState) -> (EngineOutboundData, Self) {
+    pub fn new(config: EngineBuilder) -> (EngineOutboundData, Self) {
         let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
         let (engine_l2_safe_head_tx, engine_l2_safe_head_rx) =
             watch::channel(L2BlockInfo::default());
         let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
 
         let actor = Self {
-            state: initial_state,
+            builder: config,
             engine_l2_safe_head_tx,
             sync_complete_tx,
             derivation_signal_tx,
@@ -108,15 +150,17 @@ impl EngineActor {
 
         (outbound_data, actor)
     }
+}
 
+impl EngineActorState {
     /// Starts a task to handle engine queries.
     fn start_query_task(
         &self,
         mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
     ) -> JoinHandle<()> {
-        let state_recv = self.state.engine.subscribe();
-        let engine_client = self.state.client.clone();
-        let rollup_config = self.state.rollup.clone();
+        let state_recv = self.engine.subscribe();
+        let engine_client = self.client.clone();
+        let rollup_config = self.rollup.clone();
 
         tokio::spawn(async move {
             while let Some(req) = inbound_query_channel.recv().await {
@@ -130,11 +174,9 @@ impl EngineActor {
             }
         })
     }
-}
 
-impl EngineActorState {
     /// Resets the inner [`Engine`] and propagates the reset to the derivation actor.
-    pub async fn reset(
+    pub(super) async fn reset(
         &mut self,
         derivation_signal_tx: &mpsc::Sender<Signal>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
@@ -284,10 +326,10 @@ impl NodeActor for EngineActor {
     type Error = EngineError;
     type InboundData = EngineContext;
     type OutboundData = EngineOutboundData;
-    type State = EngineActorState;
+    type Builder = EngineBuilder;
 
-    fn build(initial_state: Self::State) -> (Self::OutboundData, Self) {
-        Self::new(initial_state)
+    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
+        Self::new(config)
     }
 
     async fn start(
@@ -302,8 +344,10 @@ impl NodeActor for EngineActor {
             inbound_queries,
         }: Self::InboundData,
     ) -> Result<(), Self::Error> {
+        let mut state = self.builder.build_state();
+
         // Start the engine query server in a separate task to avoid blocking the main task.
-        let handle = self.start_query_task(inbound_queries);
+        let handle = state.start_query_task(inbound_queries);
 
         // The sync complete tx is consumed after the first successful send. Hence we need to wrap
         // it in an `Option` to ensure we satisfy the borrow checker.
@@ -311,7 +355,7 @@ impl NodeActor for EngineActor {
 
         loop {
             // Attempt to drain all outstanding tasks from the engine queue before adding new ones.
-            self.state
+            state
                 .drain(
                     &self.derivation_signal_tx,
                     &mut sync_complete_tx,
@@ -337,7 +381,7 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     }
                     warn!(target: "engine", "Received reset request");
-                    self.state
+                    state
                         .reset(&self.derivation_signal_tx, &self.engine_l2_safe_head_tx, &mut finalizer, &cancellation)
                         .await?;
                 }
@@ -348,11 +392,11 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     };
                     let task = EngineTask::InsertUnsafe(InsertUnsafeTask::new(
-                        self.state.client.clone(),
-                        self.state.rollup.clone(),
+                        state.client.clone(),
+                        state.rollup.clone(),
                         envelope,
                     ));
-                    self.state.engine.enqueue(task);
+                    state.engine.enqueue(task);
                 }
                 attributes = attributes_rx.recv() => {
                     let Some(attributes) = attributes else {
@@ -363,12 +407,12 @@ impl NodeActor for EngineActor {
                     finalizer.enqueue_for_finalization(&attributes);
 
                     let task = EngineTask::Consolidate(ConsolidateTask::new(
-                        self.state.client.clone(),
-                        Arc::clone(&self.state.rollup),
+                        state.client.clone(),
+                        state.rollup.clone(),
                         attributes,
                         true,
                     ));
-                    self.state.engine.enqueue(task);
+                    state.engine.enqueue(task);
                 }
                 config = runtime_config_rx.as_mut().map(|rx| rx.recv()).unwrap(), if runtime_config_rx.is_some() => {
                     let Some(config) = config else {
@@ -376,7 +420,7 @@ impl NodeActor for EngineActor {
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    self.state.runtime_config_update(config);
+                    state.runtime_config_update(config);
                 }
                 msg = finalizer.new_finalized_block() => {
                     if let Err(err) = msg {
@@ -386,45 +430,9 @@ impl NodeActor for EngineActor {
                     }
                     // Attempt to finalize any L2 blocks that are contained within the finalized L1
                     // chain.
-                    finalizer.try_finalize_next(&mut self.state.engine).await;
+                    finalizer.try_finalize_next(&mut state).await;
                 }
             }
         }
-    }
-}
-
-/// Configuration for the Engine Actor.
-#[derive(Debug, Clone)]
-pub struct EngineLauncher {
-    /// The [`RollupConfig`].
-    pub config: Arc<RollupConfig>,
-    /// The engine rpc url.
-    pub engine_url: Url,
-    /// The L2 rpc url.
-    pub l2_rpc_url: Url,
-    /// The L1 rpc url.
-    pub l1_rpc_url: Url,
-    /// The engine jwt secret.
-    pub jwt_secret: JwtSecret,
-}
-
-impl EngineLauncher {
-    /// Launches the [`Engine`]. Returns the [`Engine`] and a channel to receive engine state
-    /// updates.
-    pub fn launch(self) -> Engine {
-        let state = InnerEngineState::default();
-        let (engine_state_send, _) = tokio::sync::watch::channel(state);
-        Engine::new(state, engine_state_send)
-    }
-
-    /// Returns the [`EngineClient`].
-    pub fn client(&self) -> EngineClient {
-        EngineClient::new_http(
-            self.engine_url.clone(),
-            self.l2_rpc_url.clone(),
-            self.l1_rpc_url.clone(),
-            self.config.clone(),
-            self.jwt_secret,
-        )
     }
 }

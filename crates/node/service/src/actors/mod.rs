@@ -10,8 +10,7 @@ pub use runtime::{RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeStat
 
 mod engine;
 pub use engine::{
-    EngineActor, EngineActorState, EngineContext, EngineError, EngineLauncher, EngineOutboundData,
-    L2Finalizer,
+    EngineActor, EngineBuilder, EngineContext, EngineError, EngineOutboundData, L2Finalizer,
 };
 
 mod supervisor;
@@ -25,8 +24,8 @@ pub use rpc::{RpcActor, RpcActorError, RpcContext};
 
 mod derivation;
 pub use derivation::{
-    DerivationActor, DerivationContext, DerivationError, DerivationOutboundChannels,
-    DerivationState, InboundDerivationMessage,
+    DerivationActor, DerivationBuilder, DerivationContext, DerivationError,
+    DerivationOutboundChannels, DerivationState, InboundDerivationMessage, PipelineBuilder,
 };
 
 mod l1_watcher_rpc;

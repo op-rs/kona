@@ -25,11 +25,11 @@ pub trait NodeActor: Send + 'static {
     /// The outbound communication channels used by the actor.
     /// These are the channels that the actor will use to send messages to other actors.
     type OutboundData: Sized;
-    /// The inner state for the actor.
-    type State;
+    /// The configuration needed to build the actor.
+    type Builder;
 
     /// Builds the actor.
-    fn build(initial_state: Self::State) -> (Self::OutboundData, Self);
+    fn build(builder: Self::Builder) -> (Self::OutboundData, Self);
 
     /// Starts the actor.
     async fn start(self, inbound_context: Self::InboundData) -> Result<(), Self::Error>;

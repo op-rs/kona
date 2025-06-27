@@ -2,7 +2,7 @@
 
 use jsonrpsee::RpcModule;
 
-use crate::RpcLauncher;
+use crate::RpcBuilder;
 use std::{net::SocketAddr, path::PathBuf};
 
 /// The RPC configuration.
@@ -24,13 +24,13 @@ pub struct RpcConfig {
 }
 
 impl RpcConfig {
-    /// Converts the [`RpcConfig`] into a [`RpcLauncher`].
-    pub fn as_launcher(self) -> RpcLauncher {
-        RpcLauncher { config: self, module: RpcModule::new(()) }
+    /// Converts the [`RpcConfig`] into a [`RpcBuilder`].
+    pub fn as_launcher(self) -> RpcBuilder {
+        RpcBuilder { config: self, module: RpcModule::new(()) }
     }
 }
 
-impl From<RpcConfig> for RpcLauncher {
+impl From<RpcConfig> for RpcBuilder {
     fn from(config: RpcConfig) -> Self {
         config.as_launcher()
     }

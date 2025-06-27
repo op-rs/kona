@@ -16,14 +16,12 @@ pub use service::{
 
 mod actors;
 pub use actors::{
-    CancellableContext, DerivationActor, DerivationContext, DerivationError,
-    DerivationOutboundChannels, DerivationState, EngineActor, EngineActorState, EngineContext,
-    EngineError, EngineLauncher, EngineOutboundData, InboundDerivationMessage, L1OriginSelector,
-    L1OriginSelectorError, L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError,
-    L1WatcherRpcOutboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
-    NetworkContext, NetworkOutboundData, NodeActor, RpcActor, RpcActorError, RpcContext,
-    RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState, SequencerActor,
-    SequencerActorError, SequencerActorState, SequencerContext, SequencerOutboundData,
+    CancellableContext, DerivationActor, DerivationBuilder, DerivationContext, DerivationError,
+    DerivationOutboundChannels, DerivationState, EngineActor, EngineBuilder, EngineContext,
+    EngineError, EngineOutboundData, InboundDerivationMessage, L1WatcherRpc, L1WatcherRpcContext,
+    L1WatcherRpcError, L1WatcherRpcOutboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor,
+    NetworkActorError, NetworkContext, NetworkOutboundData, NodeActor, PipelineBuilder, RpcActor,
+    RpcActorError, RpcContext, RuntimeActor, RuntimeContext, RuntimeOutboundData, RuntimeState,
     SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
     SupervisorOutboundData, SupervisorRpcServerExt,
 };

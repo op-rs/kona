@@ -1,12 +1,21 @@
 //! [NodeActor] implementation for the derivation sub-routine.
 
-use crate::{Metrics, NodeActor, actors::CancellableContext};
+use std::sync::Arc;
+
+use crate::{InteropMode, Metrics, NodeActor, actors::CancellableContext};
+use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{
     ActivationSignal, Pipeline, PipelineError, PipelineErrorKind, ResetError, ResetSignal, Signal,
     SignalReceiver, StepResult,
 };
+use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
+use kona_providers_alloy::{
+    AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlineBlobProvider,
+    OnlinePipeline,
+};
+use op_alloy_network::Optimism;
 use thiserror::Error;
 use tokio::{
     select,
@@ -20,12 +29,12 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 /// derivation pipeline forward to produce new payload attributes. The actor then sends the payload
 /// to the [NodeActor] responsible for the execution sub-routine.
 #[derive(Debug)]
-pub struct DerivationActor<P>
+pub struct DerivationActor<B>
 where
-    P: Pipeline + SignalReceiver,
+    B: PipelineBuilder,
 {
     /// The state for the derivation actor.
-    state: DerivationState<P>,
+    state: B,
     /// The sender for derived [`OpAttributesWithParent`]s produced by the actor.
     attributes_out: mpsc::Sender<OpAttributesWithParent>,
     /// The reset request sender, used to handle [`PipelineErrorKind::Reset`] events and forward
@@ -47,6 +56,67 @@ where
     /// A flag indicating whether or not derivation is waiting for a signal. When waiting for a
     /// signal, derivation cannot process any incoming events.
     pub waiting_for_signal: bool,
+}
+
+/// The size of the cache used in the derivation pipeline's providers.
+const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
+
+/// A trait for building derivation pipelines.
+#[async_trait]
+pub trait PipelineBuilder: Send + Sync + 'static {
+    /// The type of pipeline to build.
+    type Pipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
+
+    /// Builds the derivation pipeline.
+    async fn build(self) -> DerivationState<Self::Pipeline>;
+}
+
+/// The configuration necessary to build the derivation actor.
+#[derive(Debug)]
+pub struct DerivationBuilder {
+    /// The L1 provider.
+    pub l1_provider: RootProvider,
+    /// The L1 beacon client.
+    pub l1_beacon: OnlineBeaconClient,
+    /// The L2 provider.
+    pub l2_provider: RootProvider<Optimism>,
+    /// The rollup config.
+    pub rollup_config: Arc<RollupConfig>,
+    /// The interop mode.
+    pub interop_mode: InteropMode,
+}
+
+#[async_trait]
+impl PipelineBuilder for DerivationBuilder {
+    type Pipeline = OnlinePipeline;
+
+    async fn build(self) -> DerivationState<OnlinePipeline> {
+        // Create the caching L1/L2 EL providers for derivation.
+        let l1_derivation_provider =
+            AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
+        let l2_derivation_provider = AlloyL2ChainProvider::new(
+            self.l2_provider.clone(),
+            self.rollup_config.clone(),
+            DERIVATION_PROVIDER_CACHE_SIZE,
+        );
+
+        let pipeline = match self.interop_mode {
+            InteropMode::Polled => OnlinePipeline::new_polled(
+                self.rollup_config.clone(),
+                OnlineBlobProvider::init(self.l1_beacon.clone()).await,
+                l1_derivation_provider,
+                l2_derivation_provider,
+            ),
+            InteropMode::Indexed => OnlinePipeline::new_indexed(
+                self.rollup_config.clone(),
+                OnlineBlobProvider::init(self.l1_beacon.clone()).await,
+                l1_derivation_provider,
+                l2_derivation_provider,
+            ),
+        };
+
+        DerivationState::new(pipeline)
+    }
 }
 
 /// The outbound channels for the derivation actor.
@@ -305,12 +375,12 @@ where
     }
 }
 
-impl<P> DerivationActor<P>
+impl<B> DerivationActor<B>
 where
-    P: Pipeline + SignalReceiver,
+    B: PipelineBuilder,
 {
     /// Creates a new instance of the [DerivationActor].
-    pub fn new(state: DerivationState<P>) -> (DerivationOutboundChannels, Self) {
+    pub fn new(state: B) -> (DerivationOutboundChannels, Self) {
         let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
         let actor = Self { state, attributes_out: derived_payload_tx, reset_request_tx };
@@ -326,16 +396,16 @@ where
 }
 
 #[async_trait]
-impl<P> NodeActor for DerivationActor<P>
+impl<B> NodeActor for DerivationActor<B>
 where
-    P: Pipeline + SignalReceiver + Send + Sync + 'static,
+    B: PipelineBuilder,
 {
     type Error = DerivationError;
     type InboundData = DerivationContext;
-    type State = DerivationState<P>;
+    type Builder = B;
     type OutboundData = DerivationOutboundChannels;
 
-    fn build(config: Self::State) -> (Self::OutboundData, Self) {
+    fn build(config: Self::Builder) -> (Self::OutboundData, Self) {
         Self::new(config)
     }
 
@@ -349,6 +419,8 @@ where
             cancellation,
         }: Self::InboundData,
     ) -> Result<(), Self::Error> {
+        let mut state = self.state.build().await;
+
         loop {
             select! {
                 biased;
@@ -370,8 +442,8 @@ where
                         return Err(DerivationError::SignalReceiveFailed);
                     };
 
-                    self.state.signal(signal).await;
-                    self.state.waiting_for_signal = false;
+                    state.signal(signal).await;
+                    state.waiting_for_signal = false;
                 }
                 msg = l1_head_updates.changed() => {
                     if let Err(err) = msg {
@@ -383,15 +455,15 @@ where
                         return Ok(());
                     }
 
-                    self.state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
                 }
                 _ = engine_l2_safe_head.changed() => {
-                    self.state.process(InboundDerivationMessage::SafeHeadUpdated, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::SafeHeadUpdated, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
                 }
                 _ = &mut el_sync_complete_rx, if !el_sync_complete_rx.is_terminated() => {
                     info!(target: "derivation", "Engine finished syncing, starting derivation.");
                     // Optimistically process the first message.
-                    self.state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
+                    state.process(InboundDerivationMessage::NewDataAvailable, &mut engine_l2_safe_head, &el_sync_complete_rx, &self.attributes_out, &self.reset_request_tx).await?;
                 }
             }
         }

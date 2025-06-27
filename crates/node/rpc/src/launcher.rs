@@ -1,11 +1,11 @@
-//! Contains the [`RpcLauncher`] service.
+//! Contains the [`RpcBuilder`] service.
 
 use jsonrpsee::server::{RegisterMethodError, RpcModule, Server, ServerHandle};
 use std::net::SocketAddr;
 
 use crate::RpcConfig;
 
-/// An error that can occur when using the [`RpcLauncher`].
+/// An error that can occur when using the [`RpcBuilder`].
 #[derive(Debug, thiserror::Error)]
 pub enum RpcLauncherError {
     /// An error occurred while starting the [`Server`].
@@ -34,20 +34,20 @@ pub struct HealthzResponse {
 
 /// Launches a [`Server`] using a set of [`RpcModule`]s.
 #[derive(Debug, Clone)]
-pub struct RpcLauncher {
-    /// The RPC configuration associated with the [`RpcLauncher`].
+pub struct RpcBuilder {
+    /// The RPC configuration associated with the [`RpcBuilder`].
     pub(crate) config: RpcConfig,
     /// The modules to register on the RPC server.
     pub(crate) module: RpcModule<()>,
 }
 
-impl RpcLauncher {
-    /// Creates a new [`RpcLauncher`].
+impl RpcBuilder {
+    /// Creates a new [`RpcBuilder`].
     pub fn new(config: RpcConfig) -> Self {
         Self { config, module: RpcModule::new(()) }
     }
 
-    /// Creates a new [`RpcLauncher`] that is disabled.
+    /// Creates a new [`RpcBuilder`] that is disabled.
     pub fn new_disabled() -> Self {
         Self {
             config: RpcConfig {
@@ -68,14 +68,14 @@ impl RpcLauncher {
         self.config.ws_enabled
     }
 
-    /// Merges a given [`RpcModule`] into the [`RpcLauncher`].
+    /// Merges a given [`RpcModule`] into the [`RpcBuilder`].
     pub fn merge<CTX>(&mut self, other: RpcModule<CTX>) -> Result<(), RegisterMethodError> {
         self.module.merge(other)?;
 
         Ok(())
     }
 
-    /// Returns the socket address of the [`RpcLauncher`].
+    /// Returns the socket address of the [`RpcBuilder`].
     pub const fn socket(&self) -> SocketAddr {
         self.config.socket
     }
@@ -85,14 +85,14 @@ impl RpcLauncher {
         if self.config.no_restart { 0 } else { 3 }
     }
 
-    /// Sets the given [`SocketAddr`] on the [`RpcLauncher`].
+    /// Sets the given [`SocketAddr`] on the [`RpcBuilder`].
     pub const fn set_addr(mut self, addr: SocketAddr) -> Self {
         self.config.socket = addr;
 
         self
     }
 
-    /// Registers the healthz endpoint on the [`RpcLauncher`].
+    /// Registers the healthz endpoint on the [`RpcBuilder`].
     pub fn with_healthz(mut self) -> Result<Self, RegisterMethodError> {
         self.module.register_method("healthz", |_, _, _| {
             let response = HealthzResponse { version: std::env!("CARGO_PKG_VERSION").to_string() };
@@ -125,7 +125,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_launch_no_modules() {
-        let launcher = RpcLauncher::new(RpcConfig {
+        let launcher = RpcBuilder::new(RpcConfig {
             disabled: false,
             socket: SocketAddr::from(([127, 0, 0, 1], 8080)),
             no_restart: false,
@@ -139,7 +139,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_launch_with_modules() {
-        let mut launcher = RpcLauncher::new(RpcConfig {
+        let mut launcher = RpcBuilder::new(RpcConfig {
             disabled: false,
             socket: SocketAddr::from(([127, 0, 0, 1], 8081)),
             no_restart: false,

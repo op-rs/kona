@@ -4,7 +4,7 @@ use crate::{NodeActor, actors::CancellableContext};
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use derive_more::Debug;
-use kona_p2p::Network;
+use kona_p2p::{NetworkBuilder, NetworkBuilderError};
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
@@ -15,7 +15,7 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 /// - *discovery*: Peer discovery over UDP using discv5.
 /// - *gossip*: Block gossip over TCP using libp2p.
 ///
-/// The network actor itself is a light wrapper around the [`Network`].
+/// The network actor itself is a light wrapper around the [`NetworkBuilder`].
 ///
 /// ## Example
 ///
@@ -41,7 +41,7 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 #[derive(Debug)]
 pub struct NetworkActor {
     /// Network driver
-    driver: Network,
+    config: NetworkBuilder,
     /// The channel for sending unsafe blocks from the network actor.
     blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
@@ -54,10 +54,10 @@ pub struct NetworkOutboundData {
 }
 
 impl NetworkActor {
-    /// Constructs a new [`NetworkActor`] given the [`Network`]
-    pub fn new(driver: Network) -> (NetworkOutboundData, Self) {
+    /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
+    pub fn new(driver: NetworkBuilder) -> (NetworkOutboundData, Self) {
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
-        let actor = Self { driver, blocks: unsafe_block_tx };
+        let actor = Self { config: driver, blocks: unsafe_block_tx };
         let outbound_data = NetworkOutboundData { unsafe_block: unsafe_block_rx };
         (outbound_data, actor)
     }
@@ -83,9 +83,9 @@ impl NodeActor for NetworkActor {
     type Error = NetworkActorError;
     type InboundData = NetworkContext;
     type OutboundData = NetworkOutboundData;
-    type State = Network;
+    type Builder = NetworkBuilder;
 
-    fn build(state: Self::State) -> (Self::OutboundData, Self) {
+    fn build(state: Self::Builder) -> (Self::OutboundData, Self) {
         Self::new(state)
     }
 
@@ -93,14 +93,16 @@ impl NodeActor for NetworkActor {
         mut self,
         NetworkContext { mut signer, cancellation }: Self::InboundData,
     ) -> Result<(), Self::Error> {
+        let mut driver = self.config.build()?;
+
         // Take the unsafe block receiver
-        let mut unsafe_block_receiver = self.driver.unsafe_block_recv();
+        let mut unsafe_block_receiver = driver.unsafe_block_recv();
 
         // Take the unsafe block signer sender.
-        let unsafe_block_signer = self.driver.unsafe_block_signer_sender();
+        let unsafe_block_signer = driver.unsafe_block_signer_sender();
 
         // Start the network driver.
-        self.driver.start().await?;
+        driver.start().await?;
 
         loop {
             select! {
@@ -148,6 +150,9 @@ impl NodeActor for NetworkActor {
 /// An error from the network actor.
 #[derive(Debug, Error)]
 pub enum NetworkActorError {
+    /// Network builder error.
+    #[error(transparent)]
+    NetworkBuilder(#[from] NetworkBuilderError),
     /// Driver startup failed.
     #[error(transparent)]
     DriverStartup(#[from] TransportError<std::io::Error>),

@@ -62,9 +62,9 @@ impl NodeActor for RuntimeActor {
     type Error = RuntimeLoaderError;
     type InboundData = RuntimeContext;
     type OutboundData = RuntimeOutboundData;
-    type State = RuntimeState;
+    type Builder = RuntimeState;
 
-    fn build(state: Self::State) -> (Self::OutboundData, Self) {
+    fn build(state: Self::Builder) -> (Self::OutboundData, Self) {
         Self::new(state)
     }
 

@@ -68,9 +68,9 @@ where
     type Error = SupervisorActorError;
     type InboundData = SupervisorActorContext;
     type OutboundData = SupervisorOutboundData;
-    type State = E;
+    type Builder = E;
 
-    fn build(state: Self::State) -> (Self::OutboundData, Self) {
+    fn build(state: Self::Builder) -> (Self::OutboundData, Self) {
         Self::new(state)
     }
 
