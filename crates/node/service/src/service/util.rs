@@ -31,11 +31,15 @@ macro_rules! spawn_and_wait {
                     tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
                     // Cancel all tasks and gracefully shutdown.
                     $cancellation.cancel();
+                    return Err(e);
                 }
                 Err(e) => {
+                    let error_msg = format!("Task join error: {e}");
+                    // Log the error and cancel all tasks.
                     tracing::error!(target: "rollup_node", "Task join error: {e}");
                     // Cancel all tasks and gracefully shutdown.
                     $cancellation.cancel();
+                    return Err(error_msg);
                 }
             }
         }

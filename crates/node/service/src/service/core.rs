@@ -123,7 +123,7 @@ pub trait RollupNodeService {
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
     /// Starts the rollup node service.
-    async fn start(&self) {
+    async fn start(&self) -> Result<(), String> {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
@@ -233,5 +233,6 @@ pub trait RollupNodeService {
                 (self.mode() == NodeMode::Sequencer).then_some((sequencer, sequencer_context))
             ]
         );
+        Ok(())
     }
 }
