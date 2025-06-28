@@ -1,6 +1,7 @@
 //! Contains the chain config type.
 
 use alloc::string::String;
+use alloy_chains::NamedChain;
 use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
@@ -138,7 +139,7 @@ impl ChainConfig {
         RollupConfig {
             genesis: self.genesis,
             l1_chain_id: self.l1_chain_id,
-            l2_chain_id: self.chain_id,
+            l2_chain_id: NamedChain::try_from(self.chain_id).expect("Invalid Chain ID"),
             block_time: self.block_time,
             seq_window_size: self.seq_window_size,
             max_sequencer_drift: self.max_sequencer_drift,

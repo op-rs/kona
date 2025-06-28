@@ -135,7 +135,7 @@ impl SupervisorArgs {
 
             rollup_config_set
                 .add_from_rollup_config(
-                    chain_id,
+                    chain_id.into(),
                     rollup_config,
                     BlockInfo::new(
                         l1_genesis.header.hash,

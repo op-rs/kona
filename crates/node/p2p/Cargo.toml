@@ -64,6 +64,7 @@ tempfile.workspace = true
 kona-cli.workspace = true
 multihash.workspace = true
 alloy-eips.workspace = true
+alloy-chains.workspace = true
 serde_json.workspace = true
 
 rand = { workspace = true, features = ["thread_rng"] }
