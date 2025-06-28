@@ -336,7 +336,10 @@ where
         finalized_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        ManagedModeApiClient::update_finalized(client.as_ref(), finalized_block_id).await?;
+        observe_rpc_call_managed_mode!(
+            "update_finalized",
+            ManagedModeApiClient::update_finalized(client.as_ref(), finalized_block_id).await
+        )?;
         Ok(())
     }
 
@@ -345,7 +348,10 @@ where
         cross_unsafe_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        ManagedModeApiClient::update_cross_unsafe(client.as_ref(), cross_unsafe_block_id).await?;
+        observe_rpc_call_managed_mode!(
+            "update_cross_unsafe",
+            ManagedModeApiClient::update_cross_unsafe(client.as_ref(), cross_unsafe_block_id).await
+        )?;
         Ok(())
     }
 
@@ -355,8 +361,15 @@ where
         derived_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        ManagedModeApiClient::update_cross_safe(client.as_ref(), derived_block_id, source_block_id)
-            .await?;
+        observe_rpc_call_managed_mode!(
+            "update_cross_safe",
+            ManagedModeApiClient::update_cross_safe(
+                client.as_ref(),
+                derived_block_id,
+                source_block_id
+            )
+            .await
+        )?;
         Ok(())
     }
 }

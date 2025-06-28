@@ -212,8 +212,36 @@ where
                     })
                     .await;
             }
-            ChainEvent::CrossUnsafeUpdate { block } => self.handle_cross_unsafe_update(block).await,
-            ChainEvent::CrossSafeUpdate { block } => self.handle_cross_safe_update(block).await,
+            ChainEvent::CrossUnsafeUpdate { block } => {
+                let _ = self
+                    .observe_block_processing("cross_unsafe", || async {
+                        self.handle_cross_unsafe_update(block).await.inspect_err(|err| {
+                            error!(
+                                target: "chain_processor",
+                                chain_id = self.chain_id,
+                                block_number = block.number,
+                                %err,
+                                "Failed to process cross unsafe update"
+                            );
+                        })
+                    })
+                    .await;
+            }
+            ChainEvent::CrossSafeUpdate { block } => {
+                let _ = self
+                    .observe_block_processing("cross_safe", || async {
+                        self.handle_cross_safe_update(block).await.inspect_err(|err| {
+                            error!(
+                                target: "chain_processor",
+                                chain_id = self.chain_id,
+                                block_number = block.number,
+                                %err,
+                                "Failed to process cross safe update"
+                            );
+                        })
+                    })
+                    .await;
+            }
         }
     }
 
@@ -285,7 +313,10 @@ where
         Ok(block)
     }
 
-    async fn handle_cross_unsafe_update(&self, block: BlockInfo) {
+    async fn handle_cross_unsafe_update(
+        &self,
+        block: BlockInfo,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
@@ -293,29 +324,15 @@ where
             "Processing cross unsafe update"
         );
 
-        if let Err(err) = self.state_manager.update_current_cross_unsafe(&block) {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block.number,
-                %err,
-                "Failed to update cross unsafe block"
-            );
-            return;
-        };
-
-        if let Err(err) = self.managed_node.update_cross_unsafe(block.id()).await {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block.number,
-                %err,
-                "Failed to update cross unsafe block on managed node"
-            );
-        }
+        self.state_manager.update_current_cross_unsafe(&block)?;
+        self.managed_node.update_cross_unsafe(block.id()).await?;
+        Ok(block)
     }
 
-    async fn handle_cross_safe_update(&self, block: BlockInfo) {
+    async fn handle_cross_safe_update(
+        &self,
+        block: BlockInfo,
+    ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
@@ -323,33 +340,11 @@ where
             "Processing cross safe update"
         );
 
-        let derived_ref_pair = match self.state_manager.update_current_cross_safe(&block) {
-            Ok(pair) => pair,
-            Err(err) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = block.number,
-                    %err,
-                    "Failed to update cross safe block"
-                );
-                return;
-            }
-        };
-
-        if let Err(err) = self
-            .managed_node
+        let derived_ref_pair = self.state_manager.update_current_cross_safe(&block)?;
+        self.managed_node
             .update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id())
-            .await
-        {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block.number,
-                %err,
-                "Failed to update cross safe block on managed node"
-            );
-        }
+            .await?;
+        Ok(derived_ref_pair.derived)
     }
 }
 
