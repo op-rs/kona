@@ -4,7 +4,7 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
 use jsonrpsee::ws_client::WsClient;
-use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
+use kona_interop::{DerivedRefPair, ManagedEvent, ResetEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
@@ -188,7 +188,7 @@ where
     }
 
     // todo: refactor
-    async fn handle_reset(&self, reset_id: &str) {
+    async fn handle_reset(&self, reset_id: &ResetEvent) {
         info!(target: "managed_event_task", %reset_id, "Reset event received");
 
         let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {

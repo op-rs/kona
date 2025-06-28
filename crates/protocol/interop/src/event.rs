@@ -1,9 +1,26 @@
 //! Contains the managed node event.
 
 use crate::{BlockReplacement, DerivedRefPair};
-use alloc::{format, string::String, vec::Vec};
-use derive_more::Constructor;
+use alloc::{format, vec::Vec};
+use derive_more::{Constructor, Display};
 use kona_protocol::BlockInfo;
+
+/// Represents reset events that are emitted.
+/// See: https://specs.optimism.io/protocol/derivation.html?highlight=reset#resetting-the-pipeline
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum ResetEvent {
+    /// Recover the pipeline when the L1 chain reorganizes.
+    L1Reorg,
+    /// Initialize the pipeline without starting from 0.
+    RestartEngine,
+    /// Recover the pipeline if it becomes inconsistent with the execution engine chain.
+    SyncMismatch,
+    /// Initialize the pipeline to derive a disputed L2 block with prior L1 and L2 history inside a
+    /// fault-proof program.
+    DisputedBlock,
+}
 
 /// Event sent by the node to the supervisor to share updates.
 ///
@@ -18,7 +35,7 @@ pub struct ManagedEvent {
     /// This is emitted when the node has determined that it needs a reset.
     /// It tells the supervisor to send the interop_reset event with the
     /// required parameters.
-    pub reset: Option<String>,
+    pub reset: Option<ResetEvent>,
 
     /// New L2 unsafe block was processed, updating local-unsafe head.
     pub unsafe_block: Option<BlockInfo>,
