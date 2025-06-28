@@ -1,6 +1,7 @@
 //! Rollup Config Types
 
 use crate::{AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG};
+use alloy_chains::NamedChain;
 use alloy_hardforks::{EthereumHardfork, EthereumHardforks, ForkCondition};
 use alloy_op_hardforks::{OpHardfork, OpHardforks};
 use alloy_primitives::Address;
@@ -57,7 +58,7 @@ pub struct RollupConfig {
     /// The L1 chain ID
     pub l1_chain_id: u64,
     /// The L2 chain ID
-    pub l2_chain_id: u64,
+    pub l2_chain_id: NamedChain,
     /// Hardfork timestamps.
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub hardforks: HardForkConfig,
@@ -115,7 +116,9 @@ impl<'a> arbitrary::Arbitrary<'a> for RollupConfig {
             channel_timeout: u.arbitrary()?,
             granite_channel_timeout: u.arbitrary()?,
             l1_chain_id: u.arbitrary()?,
-            l2_chain_id: u.arbitrary()?,
+            l2_chain_id: alloy_chains::Chain::arbitrary(u)?
+                .named()
+                .expect("NamedChain arbitrary failed"),
             hardforks: HardForkConfig::arbitrary(u)?,
             batch_inbox_address: Address::arbitrary(u)?,
             deposit_contract_address: Address::arbitrary(u)?,
@@ -142,7 +145,7 @@ impl Default for RollupConfig {
             channel_timeout: 0,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 0,
-            l2_chain_id: 0,
+            l2_chain_id: NamedChain::default(),
             hardforks: HardForkConfig::default(),
             batch_inbox_address: Address::ZERO,
             deposit_contract_address: Address::ZERO,
@@ -753,7 +756,7 @@ mod tests {
           "seq_window_size": 3600,
           "channel_timeout": 300,
           "l1_chain_id": 3151908,
-          "l2_chain_id": 1337,
+          "l2_chain_id": "dev",
           "regolith_time": 0,
           "canyon_time": 0,
           "delta_time": 0,
@@ -802,7 +805,7 @@ mod tests {
             channel_timeout: 300,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 3151908,
-            l2_chain_id: 1337,
+            l2_chain_id: NamedChain::Dev,
             hardforks: HardForkConfig {
                 regolith_time: Some(0),
                 canyon_time: Some(0),
@@ -828,6 +831,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde")]
     fn test_rollup_config_unknown_field() {
         let raw: &str = r#"
         {
@@ -853,7 +857,7 @@ mod tests {
           "seq_window_size": 3600,
           "channel_timeout": 300,
           "l1_chain_id": 3151908,
-          "l2_chain_id": 1337,
+          "l2_chain_id": "dev",
           "regolith_time": 0,
           "canyon_time": 0,
           "delta_time": 0,
