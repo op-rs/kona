@@ -11,7 +11,7 @@ use clap::Parser;
 use kona_cli::metrics_args::MetricsArgs;
 use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
-use kona_node_service::{RollupNode, RollupNodeService};
+use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -27,6 +27,14 @@ use url::Url;
 #[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
+    /// The mode to run the node in.
+    #[arg(
+        long = "mode",
+        default_value_t = NodeMode::Validator,
+        env = "KONA_NODE_MODE",
+        help = "The mode to run the node in. Supported modes are: [\"validator\", \"sequencer\"]"
+    )]
+    pub node_mode: NodeMode,
     /// URL of the L1 execution client RPC API.
     #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
@@ -90,6 +98,7 @@ impl Default for NodeCommand {
             l2_engine_jwt_secret: None,
             l2_config_file: None,
             l1_runtime_config_reload_interval: 600,
+            node_mode: NodeMode::Validator,
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
@@ -221,6 +230,7 @@ impl NodeCommand {
         }
 
         RollupNode::builder(cfg)
+            .with_mode(self.node_mode)
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)

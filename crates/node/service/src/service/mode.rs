@@ -3,7 +3,9 @@
 /// The [`NodeMode`] enum represents the modes of operation for the [`RollupNodeService`].
 ///
 /// [`RollupNodeService`]: crate::RollupNodeService
-#[derive(Debug, derive_more::Display, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, derive_more::Display, derive_more::FromStr, Default, Clone, Copy, PartialEq, Eq,
+)]
 pub enum NodeMode {
     /// Validator mode.
     #[display("Validator")]

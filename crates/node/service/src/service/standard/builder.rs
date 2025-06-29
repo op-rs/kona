@@ -60,6 +60,11 @@ impl RollupNodeBuilder {
         Self { interop_mode, ..self }
     }
 
+    /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
+    pub fn with_mode(self, mode: NodeMode) -> Self {
+        Self { mode, ..self }
+    }
+
     /// Appends the [`SupervisorRpcConfig`] to the builder.
     pub fn with_supervisor_rpc_config(self, config: SupervisorRpcConfig) -> Self {
         Self { supervisor_rpc_config: config, ..self }
@@ -160,6 +165,7 @@ impl RollupNodeBuilder {
         };
 
         RollupNode {
+            mode: self.mode,
             config: rollup_config,
             interop_mode,
             l1_provider,
@@ -171,7 +177,6 @@ impl RollupNodeBuilder {
             p2p_config,
             // By default, the supervisor rpc config is disabled.
             supervisor_rpc: self.supervisor_rpc_config,
-            mode: self.mode,
         }
     }
 }
