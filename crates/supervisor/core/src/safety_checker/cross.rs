@@ -27,12 +27,22 @@ where
         block: BlockInfo,
         required_level: SafetyLevel,
     ) -> Result<(), CrossSafetyError> {
+        let head = self.provider.get_safety_head_ref(chain_id, required_level)?;
+
+        // Check the candidate block is valid
+        if head.number + 1 == block.number && block.is_parent_of(&head) {
+            return Err(CrossSafetyError::DependencyNotSafe {
+                chain_id,
+                block_number: block.number,
+            });
+        }
+
         // Retrieve logs emitted in this block
         let executing_logs = self.provider.get_block_logs(chain_id, block.number)?;
 
         for log in executing_logs {
             if let Some(message) = log.executing_message {
-                self.verify_message_dependency(&message, required_level)?;
+                self.verify_message_dependency(&message, &head)?;
             }
         }
 
@@ -43,10 +53,9 @@ where
     fn verify_message_dependency(
         &self,
         message: &ExecutingMessage,
-        required_level: SafetyLevel,
+        head: &BlockInfo,
     ) -> Result<(), CrossSafetyError> {
         let block = self.provider.get_block(message.chain_id, message.block_number)?;
-        let head = self.provider.get_safety_head_ref(message.chain_id, required_level)?;
 
         if head.number < block.number {
             return Err(CrossSafetyError::DependencyNotSafe {
@@ -109,13 +118,8 @@ mod tests {
             .withf(move |cid, num| *cid == chain_id && *num == 100)
             .returning(move |_, _| Ok(block_info));
 
-        provider
-            .expect_get_safety_head_ref()
-            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
-            .returning(move |_, _| Ok(head_info));
-
         let checker = CrossSafetyChecker::new(&provider);
-        let result = checker.verify_message_dependency(&msg, SafetyLevel::CrossSafe);
+        let result = checker.verify_message_dependency(&msg, &head_info);
         assert!(result.is_ok());
     }
 
@@ -147,13 +151,8 @@ mod tests {
             .withf(move |cid, num| *cid == chain_id && *num == 105)
             .returning(move |_, _| Ok(dep_block));
 
-        provider
-            .expect_get_safety_head_ref()
-            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
-            .returning(move |_, _| Ok(head_block));
-
         let checker = CrossSafetyChecker::new(&provider);
-        let result = checker.verify_message_dependency(&msg, SafetyLevel::CrossSafe);
+        let result = checker.verify_message_dependency(&msg, &head_block);
 
         assert!(
             matches!(result, Err(CrossSafetyError::DependencyNotSafe { .. })),

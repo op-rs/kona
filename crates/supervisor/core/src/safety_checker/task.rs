@@ -4,7 +4,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::CrossChainSafetyProvider;
 use op_alloy_consensus::interop::SafetyLevel;
 use std::{sync::Arc, time::Duration};
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
@@ -21,6 +21,7 @@ pub struct CrossSafetyCheckerJob<P> {
     target_level: SafetyLevel,
     target_level_lower_bound: SafetyLevel,
     event_tx: mpsc::Sender<ChainEvent>,
+    current_head: Mutex<Option<BlockInfo>>,
 }
 
 impl<P> CrossSafetyCheckerJob<P>
@@ -50,6 +51,7 @@ where
             target_level,
             target_level_lower_bound,
             event_tx,
+            current_head: Mutex::new(None),
         })
     }
 
@@ -59,7 +61,7 @@ where
     /// - Tries to promote the next eligible block
     /// - Waits for configured interval if promotion fails
     /// - Exits when [`CancellationToken`] is triggered
-    pub async fn run(self) {
+    pub async fn run(&self) {
         info!(
             target: "safety_checker",
             chain_id = self.chain_id,
@@ -76,7 +78,7 @@ where
                 }
 
                 _ = async {
-                    match self.promote_next_block(&checker) {
+                    match self.promote_next_block(&checker).await {
                         Ok(block_info) => {
                             info!(
                                 target: "safety_checker",
@@ -85,6 +87,8 @@ where
                                 %block_info,
                                 "Promoted next candidate block"
                             );
+                            // Update the local head in case of success
+                            self.update_current_head(Option::from(block_info)).await;
                         }
                         Err(err) => {
                             match err {
@@ -101,6 +105,9 @@ where
                                 }
                             }
                             tokio::time::sleep(self.interval).await;
+
+                            // Reset the current head in case of error - this will prevent re-org inconsistency.
+                            self.update_current_head(None).await;
                         }
                     }
                 } => {}
@@ -110,13 +117,23 @@ where
         info!(target: "safety_checker", chain_id = self.chain_id, target_level = %self.target_level, "Stopped safety checker");
     }
 
+    async fn update_current_head(&self, head: Option<BlockInfo>) {
+        let mut current_head = self.current_head.lock().await;
+        *current_head = head;
+    }
+
+    async fn get_current_head(&self) -> Option<BlockInfo> {
+        let current_head = self.current_head.lock().await;
+        *current_head
+    }
+
     // Attempts to promote the next block at the target safety level,
     // after validating cross-chain dependencies.
-    fn promote_next_block(
+    async fn promote_next_block(
         &self,
         checker: &CrossSafetyChecker<'_, P>,
     ) -> Result<BlockInfo, CrossSafetyError> {
-        let candidate = self.find_next_promotable_block()?;
+        let candidate = self.find_next_promotable_block().await?;
 
         checker.verify_block_dependencies(self.chain_id, candidate, self.target_level)?;
 
@@ -128,8 +145,12 @@ where
     }
 
     // Finds the next block that is eligible for promotion at the configured target level.
-    fn find_next_promotable_block(&self) -> Result<BlockInfo, CrossSafetyError> {
-        let current_head = self.provider.get_safety_head_ref(self.chain_id, self.target_level)?;
+    async fn find_next_promotable_block(&self) -> Result<BlockInfo, CrossSafetyError> {
+        let current_head = match self.get_current_head().await {
+            Some(head) => head,
+            None => self.provider.get_safety_head_ref(self.chain_id, self.target_level)?,
+        };
+
         let upper_head =
             self.provider.get_safety_head_ref(self.chain_id, self.target_level_lower_bound)?;
 
@@ -225,7 +246,7 @@ mod tests {
         .expect("error initializing cross-safety checker job");
 
         let checker = CrossSafetyChecker::new(&*job.provider);
-        let result = job.promote_next_block(&checker);
+        let result = job.promote_next_block(&checker).await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().number, 100);
@@ -236,8 +257,8 @@ mod tests {
         assert_eq!(received_event, ChainEvent::CrossUnsafeUpdate { block: block(100) });
     }
 
-    #[test]
-    fn promotes_next_cross_unsafe_failed_with_no_candidates() {
+    #[tokio::test]
+    async fn promotes_next_cross_unsafe_failed_with_no_candidates() {
         let chain_id = 1;
         let mut mock = MockProvider::default();
         let (event_tx, _) = mpsc::channel::<ChainEvent>(10);
@@ -261,7 +282,7 @@ mod tests {
         .expect("error initializing cross-safety checker job");
 
         let checker = CrossSafetyChecker::new(&*job.provider);
-        let result = job.promote_next_block(&checker);
+        let result = job.promote_next_block(&checker).await;
 
         assert!(matches!(result, Err(CrossSafetyError::NoBlockToPromote)));
     }
