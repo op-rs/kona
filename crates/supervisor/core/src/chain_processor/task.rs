@@ -227,14 +227,14 @@ where
                     })
                     .await;
             }
-            ChainEvent::CrossSafeUpdate { block } => {
+            ChainEvent::CrossSafeUpdate { derived_ref_pair } => {
                 let _ = self
                     .observe_block_processing("cross_safe", || async {
-                        self.handle_cross_safe_update(block).await.inspect_err(|err| {
+                        self.handle_cross_safe_update(derived_ref_pair).await.inspect_err(|err| {
                             error!(
                                 target: "chain_processor",
                                 chain_id = self.chain_id,
-                                block_number = block.number,
+                                block_number = derived_ref_pair.derived.number,
                                 %err,
                                 "Failed to process cross safe update"
                             );
@@ -324,23 +324,21 @@ where
             "Processing cross unsafe update"
         );
 
-        self.state_manager.update_current_cross_unsafe(&block)?;
         self.managed_node.update_cross_unsafe(block.id()).await?;
         Ok(block)
     }
 
     async fn handle_cross_safe_update(
         &self,
-        block: BlockInfo,
+        derived_ref_pair: DerivedRefPair,
     ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
-            block_number = block.number,
+            block_number = derived_ref_pair.derived.number,
             "Processing cross safe update"
         );
 
-        let derived_ref_pair = self.state_manager.update_current_cross_safe(&block)?;
         self.managed_node
             .update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id())
             .await?;
@@ -671,13 +669,9 @@ mod tests {
         let block =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
-        let mut mockdb = MockDb::new();
+        let mockdb = MockDb::new();
         let mut mocknode = MockNode::new();
 
-        mockdb.expect_update_current_cross_unsafe().returning(move |cross_unsafe_block| {
-            assert_eq!(*cross_unsafe_block, block);
-            Ok(())
-        });
         mocknode.expect_update_cross_unsafe().returning(move |cross_unsafe_block| {
             assert_eq!(cross_unsafe_block, block.id());
             Ok(())
@@ -711,13 +705,9 @@ mod tests {
         let source =
             BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
-        let mut mockdb = MockDb::new();
+        let mockdb = MockDb::new();
         let mut mocknode = MockNode::new();
 
-        mockdb.expect_update_current_cross_safe().returning(move |cross_safe_block| {
-            assert_eq!(*cross_safe_block, derived);
-            Ok(DerivedRefPair { source, derived })
-        });
         mocknode.expect_update_cross_safe().returning(move |source_id, derived_id| {
             assert_eq!(derived_id, derived.id());
             assert_eq!(source_id, source.id());
@@ -733,7 +723,11 @@ mod tests {
         let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send derivation origin update event
-        tx.send(ChainEvent::CrossSafeUpdate { block: derived }).await.unwrap();
+        tx.send(ChainEvent::CrossSafeUpdate {
+            derived_ref_pair: DerivedRefPair { source, derived },
+        })
+        .await
+        .unwrap();
 
         let task_handle = tokio::spawn(task.run());
 

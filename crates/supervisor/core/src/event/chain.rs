@@ -47,7 +47,7 @@ pub enum ChainEvent {
 
     /// A cross safe update event, indicating that a cross safe block has been promoted.
     CrossSafeUpdate {
-        /// The [`BlockInfo`] of the new cross safe block
-        block: BlockInfo,
+        /// The [`DerivedRefPair`] containing the derived block and its source block.
+        derived_ref_pair: DerivedRefPair,
     },
 }

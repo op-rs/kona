@@ -330,4 +330,38 @@ pub trait CrossChainSafetyProvider {
         chain_id: ChainId,
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError>;
+
+    /// Updates the current [`CrossUnsafe`](SafetyLevel::CrossUnsafe) head reference in storage.
+    ///
+    /// Ensures the provided block still exists in log storage and was not removed due to a re-org.
+    /// If the stored block's hash does not match the provided block, the update is aborted.
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block` - The [`BlockInfo`] to set as the head reference
+    ///
+    /// # Returns
+    /// * `Ok(())` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_current_cross_unsafe(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError>;
+
+    /// Updates the current [`CrossSafe`](SafetyLevel::CrossSafe) head reference in storage and
+    /// returns the corresponding derived pair.
+    ///
+    /// Ensures the provided block still exists in derivation storage and was not removed due to a
+    /// re-org. # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block` - The [`BlockInfo`] to set as the head reference
+    ///
+    /// # Returns
+    /// * `Ok(DerivedRefPair)` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_current_cross_safe(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+    ) -> Result<DerivedRefPair, StorageError>;
 }

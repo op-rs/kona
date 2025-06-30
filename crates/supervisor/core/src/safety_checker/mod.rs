@@ -10,6 +10,11 @@ mod cross;
 pub use cross::CrossSafetyChecker;
 mod error;
 mod task;
+mod traits;
+pub use traits::SafetyPromoter;
+mod promoter;
+pub use promoter::{CrossSafePromoter, CrossUnsafePromoter};
+
 pub use task::CrossSafetyCheckerJob;
 
 pub use error::CrossSafetyError;

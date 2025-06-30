@@ -5,10 +5,11 @@ use std::{
 };
 
 use crate::{
-    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, LogStorageReader, Metrics,
-    chaindb::ChainDb, error::StorageError,
+    CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, HeadRefStorageWriter,
+    LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
+use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_metrics::{MetricsReporter, observe_metrics_for_result};
 use kona_supervisor_types::Log;
@@ -190,6 +191,22 @@ impl CrossChainSafetyProvider for ChainDbFactory {
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError> {
         self.get_db(chain_id)?.get_safety_head_ref(level)
+    }
+
+    fn update_current_cross_unsafe(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+    ) -> Result<(), StorageError> {
+        self.get_db(chain_id)?.update_current_cross_unsafe(block)
+    }
+
+    fn update_current_cross_safe(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+    ) -> Result<DerivedRefPair, StorageError> {
+        self.get_db(chain_id)?.update_current_cross_safe(block)
     }
 }
 

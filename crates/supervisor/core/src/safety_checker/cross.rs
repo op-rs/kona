@@ -63,6 +63,7 @@ where
 mod tests {
     use super::*;
     use alloy_primitives::B256;
+    use kona_interop::DerivedRefPair;
     use kona_supervisor_storage::StorageError;
     use kona_supervisor_types::Log;
     use mockall::mock;
@@ -74,8 +75,10 @@ mod tests {
 
         impl CrossChainSafetyProvider for Provider {
             fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
-            fn get_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
             fn get_block_logs(&self, chain_id: ChainId, block_number: u64) -> Result<Vec<Log>, StorageError>;
+            fn get_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
+            fn update_current_cross_unsafe(&self, chain_id: ChainId, block: &BlockInfo) -> Result<(), StorageError>;
+            fn update_current_cross_safe(&self, chain_id: ChainId, block: &BlockInfo) -> Result<DerivedRefPair, StorageError>;
         }
     );
 

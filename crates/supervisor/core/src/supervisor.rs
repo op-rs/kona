@@ -27,6 +27,7 @@ use crate::{
     config::Config,
     event::ChainEvent,
     l1_watcher::L1Watcher,
+    safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
     syncnode::{ManagedNode, ManagedNodeApiProvider},
 };
 
@@ -194,9 +195,9 @@ impl Supervisor {
                 db.clone(),
                 cancel.clone(),
                 Duration::from_secs(config.block_time),
-                SafetyLevel::CrossSafe,
+                CrossSafePromoter,
                 event_tx.clone(),
-            )?;
+            );
 
             tokio::spawn(async move {
                 cross_safe_job.run().await;
@@ -207,9 +208,9 @@ impl Supervisor {
                 db,
                 cancel,
                 Duration::from_secs(config.block_time),
-                SafetyLevel::CrossUnsafe,
+                CrossUnsafePromoter,
                 event_tx,
-            )?;
+            );
 
             tokio::spawn(async move {
                 cross_unsafe_job.run().await;

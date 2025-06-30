@@ -60,7 +60,7 @@ func TestLocalUnsafeHeadAdvancing(gt *testing.T) {
 }
 
 func TestCrossUnsafeHeadAdvancing(gt *testing.T) {
-	gt.Skip("Feature not implemented yet")
+// 	gt.Skip("Feature not implemented yet")
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
@@ -128,7 +128,7 @@ func TestLocalSafeHeadAdvancing(gt *testing.T) {
 }
 
 func TestCrossSafeHeadAdvancing(gt *testing.T) {
-	gt.Skip("Feature not implemented yet")
+// 	gt.Skip("Feature not implemented yet")
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
@@ -191,7 +191,7 @@ func TestMinSyncedL1Advancing(gt *testing.T) {
 }
 
 func TestFinalizedHeadAdvancing(gt *testing.T) {
-	gt.Skip("Feature not implemented yet")
+// 	gt.Skip("Feature not implemented yet")
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)

@@ -49,6 +49,7 @@ tokio-util.workspace = true
 auto_impl.workspace = true
 reqwest = { workspace = true }
 futures = { workspace = true }
+derive_more = {workspace = true}
 
 # `metrics` feature
 metrics = { workspace = true }
