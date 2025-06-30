@@ -5086,7 +5086,6 @@ dependencies = [
  "metrics",
  "modular-bitfield",
  "op-alloy-consensus 0.18.1",
- "op-alloy-rpc-types",
  "reth-codecs",
  "reth-db",
  "reth-db-api",
