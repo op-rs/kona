@@ -221,6 +221,58 @@ mod tests {
         assert_eq!(received_event, ChainEvent::CrossUnsafeUpdate { block: block(100) });
     }
 
+    #[tokio::test]
+    async fn promotes_next_cross_safe_successfully() {
+        let chain_id = 1;
+        let mut mock = MockProvider::default();
+        let (event_tx, mut event_rx) = mpsc::channel::<ChainEvent>(10);
+
+        mock.expect_get_safety_head_ref()
+            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
+            .returning(|_, _| Ok(block(99)));
+
+        mock.expect_get_safety_head_ref()
+            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::LocalSafe)
+            .returning(|_, _| Ok(block(100)));
+
+        mock.expect_get_block()
+            .withf(move |cid, num| *cid == chain_id && *num == 100)
+            .returning(|_, _| Ok(block(100)));
+
+        mock.expect_get_block_logs()
+            .withf(move |cid, num| *cid == chain_id && *num == 100)
+            .returning(|_, _| Ok(vec![]));
+
+        mock.expect_update_current_cross_safe()
+            .withf(move |cid, blk| *cid == chain_id && blk.number == 100)
+            .returning(|_, _| Ok(DerivedRefPair { derived: block(100), source: block(1) }));
+
+        let job = CrossSafetyCheckerJob::new(
+            chain_id,
+            Arc::new(mock),
+            CancellationToken::new(),
+            Duration::from_secs(1),
+            CrossSafePromoter,
+            event_tx,
+        );
+
+        let checker = CrossSafetyChecker::new(&*job.provider);
+        let result = job.promote_next_block(&checker);
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().number, 100);
+
+        // Receive and assert the correct event
+        let received_event = event_rx.recv().await.expect("expected event not received");
+
+        assert_eq!(
+            received_event,
+            ChainEvent::CrossSafeUpdate {
+                derived_ref_pair: DerivedRefPair { derived: block(100), source: block(1) }
+            }
+        );
+    }
+
     #[test]
     fn promotes_next_cross_unsafe_failed_with_no_candidates() {
         let chain_id = 1;
