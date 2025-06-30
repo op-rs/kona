@@ -13,7 +13,7 @@
         "query": "label_values(supervisor_block_processing_success_total, chain_id)",
         "hide": 0,
         "label": "Chain ID",
-        "multi": false,
+        "multi": true,
         "includeAll": true
       }
     ]
