@@ -1,0 +1,373 @@
+{
+  "title": "Kona Supervisor Dashboard",
+  "schemaVersion": 37,
+  "version": 1,
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "chain_id",
+        "type": "query",
+        "datasource": "Prometheus",
+        "refresh": 2,
+        "query": "label_values(supervisor_block_processing_success_total, chain_id)",
+        "hide": 0,
+        "label": "Chain ID",
+        "multi": true,
+        "includeAll": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Block Processing",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Processing Speed: local_safe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_block_processing_success_total{type=\"local_safe\",chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Processing Speed: local_unsafe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_block_processing_success_total{type=\"local_unsafe\",chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Processing Speed: finalized",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_block_processing_success_total{type=\"finalized\",chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Processing Speed: cross_safe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_block_processing_success_total{type=\"cross_safe\",chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Processing Speed: cross_unsafe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_block_processing_success_total{type=\"cross_unsafe\",chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Latency p95: local_safe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_safe\",chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Latency p95: local_unsafe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_unsafe\",chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Latency p95: finalized",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"finalized\",chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Latency p95: cross_safe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"cross_safe\",chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Block Latency p95: cross_unsafe",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"cross_unsafe\",chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{chain_id}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 }
+    },
+    {
+      "type": "row",
+      "title": "Storage",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Storage Success Rate (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(kona_supervisor_storage_success_total{chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Storage Error Rate (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(kona_supervisor_storage_error_total{chain_id=~\"$chain_id\"}[5m])",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Derivation Storage Latency p95",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"derived_to_source|latest_derived_block_at_source|latest_derived_block_pair|save_derived_block_pair\"}",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 50 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Log Storage Latency p95",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_latest_block|get_block|get_log|get_logs|store_block_logs\"}",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 50 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ref Storage Latency p95",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_current_l1|get_safety_head_ref|get_super_head|update_current_l1|update_finalized_using_source|update_current_cross_unsafe|update_current_cross_safe\"}",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 58 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Finalized Storage Latency p95",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"update_finalized_l1|get_finalized_l1\"}",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 58 }
+    },
+    {
+      "type": "bargauge",
+      "title": "Storage Table Entries (Bar Gauge, per Chain)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kona_supervisor_storage_table_entries{chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{table}} - {{chain_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 66 }
+    },
+    {
+      "type": "bargauge",
+      "title": "Storage Table Size (Bar Gauge, per Chain)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "kona_supervisor_storage_table_size{chain_id=~\"$chain_id\"}",
+          "legendFormat": "{{table}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 74 }
+    },
+    {
+      "type": "row",
+      "title": "Supervisor RPC",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 82 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Supervisor RPC Success Rate (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_rpc_requests_success_total[5m])",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 83 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Supervisor RPC Error Rate (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(supervisor_rpc_requests_error_total[5m])",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 83 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Supervisor RPC Latency p95 (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "supervisor_rpc_request_duration_seconds{quantile=\"0.95\"}",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 91 }
+    },
+    {
+      "type": "row",
+      "title": "Managed Node RPC",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 99 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Managed Node RPC Success Rate (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(managed_mode_rpc_requests_success_total[5m])",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 100 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Managed Node RPC Error Rate (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(managed_mode_rpc_requests_error_total[5m])",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 100 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Managed Node RPC Latency p95 (per Method)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "managed_mode_rpc_request_duration_seconds{quantile=\"0.95\"}",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 108 }
+    }
+  ]
+}

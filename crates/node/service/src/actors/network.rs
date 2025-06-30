@@ -4,7 +4,7 @@ use crate::{NodeActor, actors::CancellableContext};
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use derive_more::Debug;
-use kona_p2p::Network;
+use kona_p2p::{NetworkBuilder, NetworkBuilderError, P2pRpcRequest};
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
@@ -15,7 +15,7 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 /// - *discovery*: Peer discovery over UDP using discv5.
 /// - *gossip*: Block gossip over TCP using libp2p.
 ///
-/// The network actor itself is a light wrapper around the [`Network`].
+/// The network actor itself is a light wrapper around the [`NetworkBuilder`].
 ///
 /// ## Example
 ///
@@ -41,24 +41,29 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 #[derive(Debug)]
 pub struct NetworkActor {
     /// Network driver
-    driver: Network,
-    /// The channel for sending unsafe blocks from the network actor.
-    blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    config: NetworkBuilder,
+    /// A channel to receive the unsafe block signer address.
+    signer: mpsc::Receiver<Address>,
+    /// Handler for RPC Requests.
+    rpc: tokio::sync::mpsc::Receiver<P2pRpcRequest>,
 }
 
-/// The outbound data for the network actor.
+/// The inbound data for the network actor.
 #[derive(Debug)]
-pub struct NetworkOutboundData {
-    /// The unsafe block received from the network.
-    pub unsafe_block: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+pub struct NetworkInboundData {
+    /// A channel to send the unsafe block signer address to the network actor.
+    pub signer: mpsc::Sender<Address>,
+    /// Handler for RPC Requests sent to the network actor.
+    pub rpc: mpsc::Sender<P2pRpcRequest>,
 }
 
 impl NetworkActor {
-    /// Constructs a new [`NetworkActor`] given the [`Network`]
-    pub fn new(driver: Network) -> (NetworkOutboundData, Self) {
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
-        let actor = Self { driver, blocks: unsafe_block_tx };
-        let outbound_data = NetworkOutboundData { unsafe_block: unsafe_block_rx };
+    /// Constructs a new [`NetworkActor`] given the [`NetworkBuilder`]
+    pub fn new(driver: NetworkBuilder) -> (NetworkInboundData, Self) {
+        let (signer_tx, signer_rx) = mpsc::channel(16);
+        let (rpc_tx, rpc_rx) = mpsc::channel(1024);
+        let actor = Self { config: driver, signer: signer_rx, rpc: rpc_rx };
+        let outbound_data = NetworkInboundData { signer: signer_tx, rpc: rpc_tx };
         (outbound_data, actor)
     }
 }
@@ -66,8 +71,8 @@ impl NetworkActor {
 /// The communication context used by the network actor.
 #[derive(Debug)]
 pub struct NetworkContext {
-    /// A channel to receive the unsafe block signer address.
-    pub signer: mpsc::Receiver<Address>,
+    /// The channel used by the sequencer actor for sending unsafe blocks to the network.
+    pub blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// Cancels the network actor.
     pub cancellation: CancellationToken,
 }
@@ -81,26 +86,28 @@ impl CancellableContext for NetworkContext {
 #[async_trait]
 impl NodeActor for NetworkActor {
     type Error = NetworkActorError;
-    type InboundData = NetworkContext;
-    type OutboundData = NetworkOutboundData;
-    type State = Network;
+    type InboundData = NetworkInboundData;
+    type OutboundData = NetworkContext;
+    type Builder = NetworkBuilder;
 
-    fn build(state: Self::State) -> (Self::OutboundData, Self) {
+    fn build(state: Self::Builder) -> (Self::InboundData, Self) {
         Self::new(state)
     }
 
     async fn start(
         mut self,
-        NetworkContext { mut signer, cancellation }: Self::InboundData,
+        NetworkContext { blocks, cancellation }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
+        let mut driver = self.config.build()?;
+
         // Take the unsafe block receiver
-        let mut unsafe_block_receiver = self.driver.unsafe_block_recv();
+        let mut unsafe_block_receiver = driver.unsafe_block_recv();
 
         // Take the unsafe block signer sender.
-        let unsafe_block_signer = self.driver.unsafe_block_signer_sender();
+        let unsafe_block_signer = driver.unsafe_block_signer_sender();
 
         // Start the network driver.
-        self.driver.start().await?;
+        driver.start(Some(self.rpc)).await?;
 
         loop {
             select! {
@@ -114,7 +121,7 @@ impl NodeActor for NetworkActor {
                 block = unsafe_block_receiver.recv() => {
                     match block {
                         Ok(block) => {
-                            match self.blocks.send(block).await {
+                            match blocks.send(block).await {
                                 Ok(_) => debug!(target: "network", "Forwarded unsafe block"),
                                 Err(_) => warn!(target: "network", "Failed to forward unsafe block"),
                             }
@@ -125,7 +132,7 @@ impl NodeActor for NetworkActor {
                         }
                     }
                 }
-                signer = signer.recv() => {
+                signer = self.signer.recv() => {
                     let Some(signer) = signer else {
                         warn!(
                             target: "network",
@@ -148,6 +155,9 @@ impl NodeActor for NetworkActor {
 /// An error from the network actor.
 #[derive(Debug, Error)]
 pub enum NetworkActorError {
+    /// Network builder error.
+    #[error(transparent)]
+    NetworkBuilder(#[from] NetworkBuilderError),
     /// Driver startup failed.
     #[error(transparent)]
     DriverStartup(#[from] TransportError<std::io::Error>),

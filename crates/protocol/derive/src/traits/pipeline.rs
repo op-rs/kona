@@ -6,7 +6,7 @@ use core::iter::Iterator;
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
 
-use crate::{errors::PipelineErrorKind, traits::OriginProvider, types::StepResult};
+use crate::{OriginProvider, PipelineErrorKind, StepResult};
 
 /// This trait defines the interface for interacting with the derivation pipeline.
 #[async_trait]

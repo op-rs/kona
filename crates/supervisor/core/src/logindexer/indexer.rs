@@ -79,7 +79,7 @@ where
 }
 
 /// Error type for the [`LogIndexer`].
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum LogIndexerError {
     /// Failed to write processed logs for a block to the state manager.
     #[error(transparent)]

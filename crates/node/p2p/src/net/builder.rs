@@ -12,7 +12,7 @@ use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
     Broadcast, Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError,
-    P2pRpcRequest, discv5::LocalNode, gossip::GaterConfig,
+    discv5::LocalNode, gossip::GaterConfig,
 };
 
 /// Constructs a [`Network`] for the OP Stack Consensus Layer.
@@ -22,8 +22,6 @@ pub struct NetworkBuilder {
     discovery: Discv5Builder,
     /// The gossip driver.
     gossip: GossipDriverBuilder,
-    /// A receiver for network RPC requests.
-    rpc_recv: Option<tokio::sync::mpsc::Receiver<P2pRpcRequest>>,
     /// A broadcast sender for the unsafe block payloads.
     payload_tx: Option<BroadcastSender<OpExecutionPayloadEnvelope>>,
     /// A local signer for payloads.
@@ -75,7 +73,6 @@ impl NetworkBuilder {
                 gossip_addr,
                 keypair,
             ),
-            rpc_recv: None,
             payload_tx: None,
             local_signer: None,
         }
@@ -139,11 +136,6 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_config(config), ..self }
     }
 
-    /// Sets the rpc receiver for the [`crate::Network`].
-    pub fn with_rpc_receiver(self, rpc_recv: tokio::sync::mpsc::Receiver<P2pRpcRequest>) -> Self {
-        Self { rpc_recv: Some(rpc_recv), ..self }
-    }
-
     /// Sets the [`Discv5Config`] for the [`crate::Discv5Driver`].
     pub fn with_discovery_config(self, config: Discv5Config) -> Self {
         Self { discovery: self.discovery.with_discovery_config(config), ..self }
@@ -168,10 +160,9 @@ impl NetworkBuilder {
     }
 
     /// Builds the [`Network`].
-    pub fn build(mut self) -> Result<Network, NetworkBuilderError> {
+    pub fn build(self) -> Result<Network, NetworkBuilderError> {
         let (gossip, unsafe_block_signer_sender) = self.gossip.build()?;
         let discovery = self.discovery.build()?;
-        let rpc = self.rpc_recv.take();
         let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
         let (_, publish_rx) = tokio::sync::mpsc::channel(256);
 
@@ -179,7 +170,6 @@ impl NetworkBuilder {
             gossip,
             discovery,
             unsafe_block_signer_sender,
-            rpc,
             broadcast: Broadcast::new(payload_tx),
             publish_rx,
             local_signer: self.local_signer,
@@ -250,7 +240,6 @@ mod tests {
             rollup_config: RollupConfig { l2_chain_id: 10, ..Default::default() },
             signer,
         })
-        .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
         .with_gossip_address(gossip_addr.clone())
         .with_discovery_address(disc_enr)
         .with_discovery_config(ConfigBuilder::new(disc_listen.into()).build())
@@ -293,7 +282,6 @@ mod tests {
             .with_gossip_address(gossip_addr)
             .with_discovery_address(disc)
             .with_discovery_config(discovery_config)
-            .with_rpc_receiver(tokio::sync::mpsc::channel(1).1)
             .build()
             .unwrap();
 

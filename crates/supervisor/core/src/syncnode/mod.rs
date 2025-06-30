@@ -12,3 +12,5 @@ mod traits;
 pub use traits::{ManagedNodeApiProvider, ManagedNodeProvider, NodeSubscriber, ReceiptProvider};
 
 pub use task::ManagedEventTask;
+
+pub(crate) mod metrics;

@@ -1,9 +1,8 @@
 //! The [`AttributesBuilder`] and it's default implementation.
 
 use crate::{
-    errors::{BuilderError, PipelineEncodingError, PipelineError, PipelineErrorKind},
-    traits::{AttributesBuilder, ChainProvider, L2ChainProvider},
-    types::PipelineResult,
+    AttributesBuilder, BuilderError, ChainProvider, L2ChainProvider, PipelineEncodingError,
+    PipelineError, PipelineErrorKind, PipelineResult,
 };
 use alloc::{boxed::Box, fmt::Debug, string::ToString, sync::Arc, vec, vec::Vec};
 use alloy_consensus::{Eip658Value, Receipt};

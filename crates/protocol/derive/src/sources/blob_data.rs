@@ -1,6 +1,6 @@
 //! Contains the `BlobData` struct.
 
-use crate::errors::BlobDecodingError;
+use crate::BlobDecodingError;
 use alloc::{boxed::Box, vec};
 use alloy_eips::eip4844::{BYTES_PER_BLOB, Blob, VERSIONED_HASH_VERSION_KZG};
 use alloy_primitives::Bytes;

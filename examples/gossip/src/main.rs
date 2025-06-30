@@ -107,7 +107,7 @@ impl GossipCommand {
         .build()?;
 
         let mut recv = network.unsafe_block_recv();
-        network.start().await?;
+        network.start(None).await?;
         tracing::info!("Gossip driver started, receiving blocks.");
         loop {
             match recv.recv().await {

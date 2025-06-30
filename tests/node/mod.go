@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/ethereum-optimism/optimism/devnet-sdk/testing/systest"
+	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
+	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
+	"github.com/ethereum-optimism/optimism/op-service/apis"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/gorilla/websocket"
+	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,6 +59,58 @@ func websocketRPC(clRPC string) string {
 const (
 	DEFAULT_TIMEOUT = 10 * time.Second
 )
+
+// GetCPUStats executes shell commands to get CPU usage statistics from a service
+func rpcEndpoint(ctx context.Context, serviceName string) (string, error) {
+	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
+	if err != nil {
+		return "", err
+	}
+
+	enclaves, err := kurtosisCtx.GetEnclaves(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	for enclave := range enclaves.GetEnclavesByName() {
+		enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, enclave)
+		if err != nil {
+			return "", err
+		}
+
+		serviceCtx, err := enclaveCtx.GetServiceContext(serviceName)
+		if err != nil {
+			return "", err
+		}
+
+		publicPorts := serviceCtx.GetPublicPorts()
+
+		// Get the port for the RPC endpoint
+		rpcPort, ok := publicPorts["rpc"]
+		if !ok {
+			return "", fmt.Errorf("rpc port not found")
+		}
+
+		// Get the RPC endpoint
+		applicationProtocol := rpcPort.GetMaybeApplicationProtocol()
+		if applicationProtocol == "" {
+			applicationProtocol = "http"
+		}
+
+		publicIPAddress := serviceCtx.GetMaybePublicIPAddress()
+		if publicIPAddress == "" {
+			return "", fmt.Errorf("public IP address not found")
+		}
+
+		return fmt.Sprintf("%s://%s:%d", applicationProtocol, publicIPAddress, rpcPort.GetNumber()), nil
+	}
+
+	return "", fmt.Errorf("no enclaves found")
+}
+
+func GetNodeRPCEndpoint(ctx context.Context, node *dsl.L2CLNode) (string, error) {
+	return rpcEndpoint(ctx, node.Escape().ID().Key())
+}
 
 func SendRPCRequest[T any](addr string, method string, resOutput *T, params ...any) error {
 	// 1. Build the payload.
@@ -119,8 +175,8 @@ func SendRPCRequest[T any](addr string, method string, resOutput *T, params ...a
 
 }
 
-func GetKonaWS[T any](t systest.T, wsRPC string, method string, runUntil <-chan T) []eth.L2BlockRef {
-	conn, _, err := websocket.DefaultDialer.DialContext(t.Context(), wsRPC, nil)
+func GetKonaWS[T any](t devtest.T, wsRPC string, method string, runUntil <-chan T) []eth.L2BlockRef {
+	conn, _, err := websocket.DefaultDialer.DialContext(t.Ctx(), wsRPC, nil)
 	require.NoError(t, err, "dial: %v", err)
 	defer conn.Close()
 
@@ -161,7 +217,7 @@ outer_loop:
 			// Clean‑up if necessary, then exit
 			t.Log(method, "subscriber", "stopping: runUntil condition met")
 			break outer_loop
-		case <-t.Context().Done():
+		case <-t.Ctx().Done():
 			// Clean‑up if necessary, then exit
 			t.Log("unsafe head subscriber", "stopping: context cancelled")
 			break outer_loop
@@ -186,4 +242,17 @@ outer_loop:
 	t.Log("gracefully closed websocket connection")
 
 	return output
+}
+
+func isKonaNode(t devtest.T, clRPC string, clName string) bool {
+	peerInfo := &apis.PeerInfo{}
+
+	require.NoError(t, SendRPCRequest(clRPC, "opp2p_self", peerInfo), "failed to send RPC request to node %s: %s", clName)
+
+	// For now, the ws endpoint is only supported by kona nodes.
+	if !strings.Contains(strings.ToLower(peerInfo.UserAgent), "kona") {
+		return false
+	}
+
+	return true
 }

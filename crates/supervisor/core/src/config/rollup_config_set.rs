@@ -4,6 +4,8 @@ use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use std::collections::HashMap;
 
+use crate::SupervisorError;
+
 /// Genesis provides the genesis information relevant for Interop.
 #[derive(Debug, Clone)]
 pub struct Genesis {
@@ -53,14 +55,22 @@ impl RollupConfig {
     }
 
     /// Creates a new [`RollupConfig`] with the given genesis and block time.
-    pub fn new_from_rollup_config(config: kona_genesis::RollupConfig, l1_block: BlockInfo) -> Self {
-        // todo: cross check the l1_block with the config
-        // issue: https://github.com/op-rs/kona/issues/2254
-        Self {
+    pub fn new_from_rollup_config(
+        config: kona_genesis::RollupConfig,
+        l1_block: BlockInfo,
+    ) -> Result<Self, SupervisorError> {
+        if config.genesis.l1.number != l1_block.number {
+            return Err(SupervisorError::L1BlockMismatch {
+                expected: config.genesis.l1.number,
+                got: l1_block.number,
+            });
+        }
+
+        Ok(Self {
             genesis: Genesis::new_from_rollup_genesis(config.genesis, l1_block),
             block_time: config.block_time,
             interop_time: config.hardforks.interop_time,
-        }
+        })
     }
 
     /// Returns `true` if the timestamp is strictly after the interop activation block.
@@ -99,9 +109,10 @@ impl RollupConfigSet {
         chain_id: u64,
         config: kona_genesis::RollupConfig,
         l1_block: BlockInfo,
-    ) {
-        let rollup_config = RollupConfig::new_from_rollup_config(config, l1_block);
+    ) -> Result<(), SupervisorError> {
+        let rollup_config = RollupConfig::new_from_rollup_config(config, l1_block)?;
         self.rollups.insert(chain_id, rollup_config);
+        Ok(())
     }
 
     /// returns whether interop is enabled for a chain at given timestamp

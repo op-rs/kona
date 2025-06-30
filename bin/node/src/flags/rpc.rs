@@ -3,7 +3,7 @@
 //! Flags for configuring the RPC server.
 
 use clap::Parser;
-use kona_rpc::RpcConfig;
+use kona_rpc::RpcBuilder;
 use std::{
     net::{IpAddr, SocketAddr},
     path::PathBuf,
@@ -44,7 +44,7 @@ impl Default for RpcArgs {
     }
 }
 
-impl From<RpcArgs> for RpcConfig {
+impl From<RpcArgs> for RpcBuilder {
     fn from(args: RpcArgs) -> Self {
         Self {
             disabled: args.rpc_disabled,

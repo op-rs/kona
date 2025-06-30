@@ -10,12 +10,12 @@ pub enum PublishError {
     /// An error occurred publishing the payload.
     #[error("Failed to publish payload: {0}")]
     PublishError(#[from] libp2p::gossipsub::PublishError),
-    /// An error occured when encoding the payload.
+    /// An error occurred when encoding the payload.
     #[error("Failed to encode payload: {0}")]
     EncodeError(#[from] HandlerEncodeError),
 }
 
-/// An error occured when encoding the payload from the block handler.
+/// An error occurred when encoding the payload from the block handler.
 #[derive(Debug, Error)]
 pub enum HandlerEncodeError {
     /// Failed to encode the payload envelope.

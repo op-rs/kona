@@ -94,7 +94,7 @@ as all [the pipeline stages][stages].
 #### An Example
 
 Let's create a new [`Signal`][signal] variant that updates the `RollupConfig`
-in the [`L1Traversal`][traversal] stage. Let's call it `SetConfig`.
+in the [`IndexedTraversal` or `PollingTraversal`][traversal] stage. Let's call it `SetConfig`.
 The [`signal`][signal] type would look like the following with this new
 variant.
 
@@ -109,7 +109,7 @@ pub enum Signal {
     Activation(ActivationSignal),
     /// Flush the currently active channel.
     FlushChannel,
-    /// Updates the rollup config in the L1Traversal stage.
+    /// Updates the rollup config in the IndexedTraversal or PollingTraversal stage.
     UpdateConfig(ConfigUpdateSignal),
 }
 
@@ -120,11 +120,11 @@ pub struct ConfigUpdateSignal(Arc<RollupConfig>);
 
 Next, all handling of the [`Signal`][signal] type needs to be updated for
 the new `UpdateConfig` variant. For the sake of this example, we'll just
-focus on updating the [`L1Traversal`][traversal] stage.
+focus on updating the [`IndexedTraversal` or `PollingTraversal`][traversal] stage.
 
 ```rust
 #[async_trait]
-impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
+impl<F: ChainProvider + Send> SignalReceiver for IndexedTraversal<F> {
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
         match signal {
             Signal::Reset(ResetSignal { l1_origin, system_config, .. }) |
@@ -147,7 +147,7 @@ impl<F: ChainProvider + Send> SignalReceiver for L1Traversal<F> {
 
 <!-- Links -->
 
-[traversal]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.L1Traversal.html
+[traversal]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.IndexedTraversal.html
 [dp]: https://docs.rs/kona-derive/latest/kona_derive/pipeline/struct.DerivationPipeline.html
 [stages]: https://docs.rs/kona-derive/latest/kona_derive/stages/index.html
 [receiver]: https://docs.rs/kona-derive/latest/kona_derive/traits/trait.SignalReceiver.html

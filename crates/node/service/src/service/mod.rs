@@ -7,7 +7,7 @@ mod core;
 pub use core::RollupNodeService;
 
 mod standard;
-pub use standard::{RollupNode, RollupNodeBuilder, RollupNodeError};
+pub use standard::{RollupNode, RollupNodeBuilder};
 
 mod mode;
 pub use mode::{InteropMode, NodeMode};

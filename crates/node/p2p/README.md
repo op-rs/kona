@@ -44,7 +44,8 @@ async fn main() {
     // Starting the network spawns gossip and discovery service
     // handling in a new thread so this is a non-blocking,
     // synchronous operation that does not need to be awaited.
-    network.start().await.expect("Failed to start network driver");
+    // If running an RPC server, you'd pass a channel to handle RPC requests as an input to the `start` method
+    network.start(None).await.expect("Failed to start network driver");
 }
 ```
 

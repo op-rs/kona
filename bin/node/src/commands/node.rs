@@ -15,7 +15,7 @@ use kona_node_service::{RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use url::Url;
 
 /// The Node subcommand.
@@ -211,6 +211,15 @@ impl NodeCommand {
         let runtime_interval =
             std::time::Duration::from_secs(self.l1_runtime_config_reload_interval);
 
+        info!(
+            target: "rollup_node",
+            chain_id = cfg.l2_chain_id,
+            "Starting rollup node services"
+        );
+        for hf in cfg.hardforks.to_string().lines() {
+            info!(target: "rollup_node", "{hf}");
+        }
+
         RollupNode::builder(cfg)
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
@@ -223,8 +232,9 @@ impl NodeCommand {
             .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
             .build()
             .start()
-            .await
-            .map_err(Into::into)
+            .await;
+
+        Ok(())
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.

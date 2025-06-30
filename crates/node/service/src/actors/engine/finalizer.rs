@@ -1,9 +1,11 @@
 //! The [`L2Finalizer`].
 
-use kona_engine::{Engine, EngineClient, EngineTask, FinalizeTask};
+use kona_engine::{EngineTask, FinalizeTask};
 use kona_protocol::{BlockInfo, OpAttributesWithParent};
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 use tokio::sync::watch;
+
+use crate::actors::engine::actor::EngineActorState;
 
 /// An internal type alias for L1 block numbers.
 type L1BlockNumber = u64;
@@ -18,8 +20,6 @@ type L2BlockNumber = u64;
 pub struct L2Finalizer {
     /// A channel that receives new finalized L1 blocks intermittently.
     finalized_l1_block_rx: watch::Receiver<Option<BlockInfo>>,
-    /// An [`EngineClient`], used to create [`FinalizeTask`]s.
-    client: Arc<EngineClient>,
     /// A map of `L1 block number -> highest derived L2 block number` within the L1 epoch, used to
     /// track derived [`OpAttributesWithParent`] awaiting finalization. When a new finalized L1
     /// block is received, the highest L2 block whose inputs are contained within the finalized
@@ -29,11 +29,8 @@ pub struct L2Finalizer {
 
 impl L2Finalizer {
     /// Creates a new [`L2Finalizer`] with the given channel receiver for finalized L1 blocks.
-    pub const fn new(
-        finalized_l1_block_rx: watch::Receiver<Option<BlockInfo>>,
-        client: Arc<EngineClient>,
-    ) -> Self {
-        Self { finalized_l1_block_rx, client, awaiting_finalization: BTreeMap::new() }
+    pub const fn new(finalized_l1_block_rx: watch::Receiver<Option<BlockInfo>>) -> Self {
+        Self { finalized_l1_block_rx, awaiting_finalization: BTreeMap::new() }
     }
 
     /// Enqueues a derived [`OpAttributesWithParent`] for finalization. When a new finalized L1
@@ -58,7 +55,7 @@ impl L2Finalizer {
 
     /// Attempts to finalize any L2 blocks that the finalizer knows about and are contained within
     /// the new finalized L1 chain.
-    pub async fn try_finalize_next(&mut self, engine: &mut Engine) {
+    pub(super) async fn try_finalize_next(&mut self, engine_state: &mut EngineActorState) {
         // If there is no finalized L1 block available in the watch channel, do nothing.
         let Some(new_finalized_l1) = *self.finalized_l1_block_rx.borrow() else {
             return;
@@ -71,9 +68,11 @@ impl L2Finalizer {
         // If the highest safe block is found, enqueue a finalization task and drain the
         // queue of all L1 blocks not contained in the finalized L1 chain.
         if let Some((_, highest_safe_number)) = highest_safe {
-            let task =
-                EngineTask::Finalize(FinalizeTask::new(self.client.clone(), *highest_safe_number));
-            engine.enqueue(task);
+            let task = EngineTask::Finalize(FinalizeTask::new(
+                engine_state.client.clone(),
+                *highest_safe_number,
+            ));
+            engine_state.engine.enqueue(task);
 
             self.awaiting_finalization.retain(|&number, _| number > new_finalized_l1.number);
         }

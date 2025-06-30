@@ -47,8 +47,9 @@ impl ChainDb {
     }
 
     /// Enables metrics on the database environment.
-    pub const fn with_metrics(mut self) -> Self {
+    pub fn with_metrics(mut self) -> Self {
         self.metrics_enabled = Some(true);
+        crate::Metrics::init(self.chain_id);
         self
     }
 
@@ -282,6 +283,67 @@ impl HeadRefStorageWriter for ChainDb {
             sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)?;
             Ok(latest_derived)
         })?
+    }
+
+    fn update_current_cross_unsafe(&self, block: &BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("update_current_cross_unsafe", || {
+            self.env.update(|tx| {
+                let lp = LogProvider::new(tx);
+                let sp = SafetyHeadRefProvider::new(tx);
+
+                // Check parent-child relationship with current CrossUnsafe head, if it exists.
+                let parent = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+                if !parent.is_parent_of(block) {
+                    return Err(StorageError::ConflictError(
+                        "candidate block is not the child of the current cross-unsafe head"
+                            .to_string(),
+                    ));
+                }
+
+                // Ensure the block exists in log storage and hasn't been pruned due to a re-org.
+                let stored_block = lp.get_block(block.number)?;
+                if stored_block.hash != block.hash {
+                    warn!(
+                        target: "supervisor_storage",
+                        incoming_block_hash = %block.hash,
+                        stored_block_hash = %stored_block.hash,
+                        "Hash mismatch while updating CrossUnsafe head",
+                    );
+                    return Err(StorageError::EntryNotFound(
+                        "block hash does not match".to_string(),
+                    ));
+                }
+
+                sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, block)?;
+
+                Ok(())
+            })?
+        })
+    }
+
+    fn update_current_cross_safe(&self, block: &BlockInfo) -> Result<DerivedRefPair, StorageError> {
+        self.observe_call("update_current_cross_safe", || {
+            self.env.update(|tx| {
+                let dp = DerivationProvider::new(tx);
+                let sp = SafetyHeadRefProvider::new(tx);
+
+                // Check parent-child relationship with current CrossUnsafe head, if it exists.
+                let parent = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+                if !parent.is_parent_of(block) {
+                    return Err(StorageError::ConflictError(
+                        "candidate block is not the child of the current cross-safe head"
+                            .to_string(),
+                    ));
+                }
+
+                // Ensure the block exists in derivation storage and hasn't been pruned due to a
+                // re-org.
+                let derived_pair = dp.get_derived_block_pair(block.id())?;
+                sp.update_safety_head_ref(SafetyLevel::CrossSafe, block)?;
+
+                Ok(derived_pair.into())
+            })?
+        })
     }
 
     fn update_safety_head_ref(
@@ -692,5 +754,89 @@ mod tests {
         let block3 = BlockInfo { number: 15, ..Default::default() };
         let err = db.update_current_l1(block3).unwrap_err();
         assert!(matches!(err, StorageError::BlockOutOfOrder));
+    }
+
+    #[test]
+    fn test_update_current_cross_unsafe() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        let source = BlockInfo { number: 1, ..Default::default() };
+        let block1 = BlockInfo {
+            number: 10,
+            hash: B256::random(),
+            parent_hash: B256::random(),
+            timestamp: 1,
+        };
+        let mut block2 = BlockInfo {
+            number: 11,
+            hash: B256::random(),
+            parent_hash: B256::random(),
+            timestamp: 1,
+        };
+
+        db.initialise(DerivedRefPair { source, derived: block1 }).unwrap();
+
+        // should error as block2 must be child of block1
+        let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::ConflictError(_)));
+
+        // make block2 as child of block1
+        block2.parent_hash = block1.hash;
+
+        // block2 doesn't exist in log storage - should return not found error
+        let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::EntryNotFound(_)));
+
+        db.store_block_logs(&block2, vec![]).unwrap();
+        db.update_current_cross_unsafe(&block2).unwrap();
+
+        let cross_unsafe_block = db.get_safety_head_ref(SafetyLevel::CrossUnsafe).unwrap();
+        assert_eq!(cross_unsafe_block, block2);
+    }
+
+    #[test]
+    fn test_update_current_cross_safe() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        let source = BlockInfo { number: 1, ..Default::default() };
+        let block1 = BlockInfo {
+            number: 10,
+            hash: B256::random(),
+            parent_hash: B256::random(),
+            timestamp: 1,
+        };
+        let mut block2 = BlockInfo {
+            number: 11,
+            hash: B256::random(),
+            parent_hash: B256::random(),
+            timestamp: 1,
+        };
+
+        db.initialise(DerivedRefPair { source, derived: block1 }).unwrap();
+
+        // should error as block2 must be child of block1
+        let err = db.update_current_cross_safe(&block2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::ConflictError(_)));
+
+        // make block2 as child of block1
+        block2.parent_hash = block1.hash;
+
+        // block2 doesn't exist in derivation storage - should return not found error
+        let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::EntryNotFound(_)));
+
+        db.store_block_logs(&block2, vec![]).unwrap();
+        db.save_derived_block_pair(DerivedRefPair { source, derived: block2 }).unwrap();
+
+        let ref_pair = db.update_current_cross_safe(&block2).unwrap();
+        assert_eq!(ref_pair.source, source);
+        assert_eq!(ref_pair.derived, block2);
+
+        let cross_safe_block = db.get_safety_head_ref(SafetyLevel::CrossSafe).unwrap();
+        assert_eq!(cross_safe_block, block2);
     }
 }

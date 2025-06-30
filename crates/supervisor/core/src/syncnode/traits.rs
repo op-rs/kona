@@ -97,6 +97,34 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
         &self,
         finalized_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError>;
+
+    /// Update the cross unsafe block head using the given [`BlockNumHash`].
+    ///
+    /// # Arguments
+    /// * `cross_unsafe_block_id` - The block number and hash of the cross unsafe block
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the update fails
+    async fn update_cross_unsafe(
+        &self,
+        cross_unsafe_block_id: BlockNumHash,
+    ) -> Result<(), ManagedNodeError>;
+
+    /// Update the cross safe block head using the given [`BlockNumHash`].
+    ///
+    /// # Arguments
+    /// * `source_block_id` - The block number and hash of the L1 block
+    /// * `derived_block_id` - The block number and hash of the new cross safe block
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the update fails
+    async fn update_cross_safe(
+        &self,
+        source_block_id: BlockNumHash,
+        derived_block_id: BlockNumHash,
+    ) -> Result<(), ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:

@@ -52,6 +52,15 @@ pub enum SupervisorError {
     /// Indicated the error occurred while initializing the safety checker jobs
     #[error(transparent)]
     CrossSafetyCheckerError(#[from] CrossSafetyError),
+
+    /// Indicates the L1 block does not match the epxected L1 block.
+    #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
+    L1BlockMismatch {
+        /// Expected L1 block.
+        expected: u64,
+        /// Received L1 block.
+        got: u64,
+    },
 }
 
 /// Extending the [`SuperchainDAError`] to include errors not in the spec.
@@ -92,6 +101,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
             SupervisorError::InteropNotEnabled |
+            SupervisorError::L1BlockMismatch { .. } |
             SupervisorError::Initialise(_) |
             SupervisorError::ManagedNodeError(_) |
             SupervisorError::ChainProcessorError(_) |

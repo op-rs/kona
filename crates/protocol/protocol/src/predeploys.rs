@@ -85,7 +85,7 @@ impl Predeploys {
     pub const GAS_PRICE_ORACLE: Address = address!("0x420000000000000000000000000000000000000F");
 
     /// The governance token proxy address.
-    /// <https://specs.optimism.io/protocol/predeploys.html>
+    /// <https://specs.optimism.io/governance/gov-token.html>
     pub const GOVERNANCE_TOKEN: Address = address!("0x4200000000000000000000000000000000000042");
 
     /// The L1 block information proxy address.

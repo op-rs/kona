@@ -54,10 +54,10 @@ the [`DerivationPipeline`][dp].
             - [`ChannelProvider`][channel-provider]
                - [`FrameQueue`][frame-queue]
                   - [`L1Retrieval`][retrieval]
-                     - [`L1Traversal`][traversal]
+                     - [`IndexedTraversal` or `PollingTraversal`][traversal]
 
 Notice, from top to bottom, each stage owns the stage nested below it.
-Where the [`L1Traversal`][traversal] stage iterates over L1 data, the
+Where the [`IndexedTraversal` or `PollingTraversal`][traversal] stage iterates over L1 data, the
 [`AttributesQueue`][attributes-queue] stage produces
 [`OpAttributesWithParent`][attributes], creating a function that transforms
 L1 data into payload attributes.
@@ -311,4 +311,4 @@ So, [@clabby][clabby] and [@refcell][refcell] stood up [kona][kona] in a few mon
 [channel-provider]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.ChannelProvider.html
 [frame-queue]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.FrameQueue.html
 [retrieval]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.L1Retrieval.html
-[traversal]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.L1Traversal.html
+[traversal]: https://docs.rs/kona-derive/latest/kona_derive/stages/struct.IndexedTraversal.html

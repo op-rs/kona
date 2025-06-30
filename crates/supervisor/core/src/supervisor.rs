@@ -27,6 +27,7 @@ use crate::{
     config::Config,
     event::ChainEvent,
     l1_watcher::L1Watcher,
+    safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
     syncnode::{ManagedNode, ManagedNodeApiProvider},
 };
 
@@ -162,6 +163,9 @@ impl Supervisor {
             let mut processor =
                 ChainProcessor::new(*chain_id, managed_node.clone(), db, self.cancel_token.clone());
 
+            // todo: enable metrics only if configured
+            processor = processor.with_metrics();
+
             // Start the chain processors.
             // Each chain processor will start its own managed nodes and begin processing messages.
             processor.start().await?;
@@ -174,13 +178,26 @@ impl Supervisor {
             let db = Arc::clone(&self.database_factory);
             let cancel = self.cancel_token.clone();
 
+            // todo: remove dependency from chain processors to get event txs
+            // initialize event txs independently and pass at the time of initialization
+            let processor = self.chain_processors.get(&chain_id).ok_or_else(|| {
+                error!(target: "supervisor_service", %chain_id, "processor not initialized");
+                SupervisorError::Initialise("processor not initialized".into())
+            })?;
+
+            let event_tx = processor.event_sender().ok_or_else(|| {
+                error!(target: "supervisor_service", %chain_id, "no event tx found in chain processor");
+                SupervisorError::Initialise("event sender not found".into())
+            })?;
+
             let cross_safe_job = CrossSafetyCheckerJob::new(
                 chain_id,
                 db.clone(),
                 cancel.clone(),
                 Duration::from_secs(config.block_time),
-                SafetyLevel::CrossSafe,
-            )?;
+                CrossSafePromoter,
+                event_tx.clone(),
+            );
 
             tokio::spawn(async move {
                 cross_safe_job.run().await;
@@ -191,8 +208,9 @@ impl Supervisor {
                 db,
                 cancel,
                 Duration::from_secs(config.block_time),
-                SafetyLevel::CrossUnsafe,
-            )?;
+                CrossUnsafePromoter,
+                event_tx,
+            );
 
             tokio::spawn(async move {
                 cross_unsafe_job.run().await;

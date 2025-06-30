@@ -1,4 +1,4 @@
-package nodedevstack
+package node
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package nodedevstack
+package node
 
 import (
 	"testing"
@@ -14,7 +14,7 @@ func TestL2SafeSync(gt *testing.T) {
 
 	out := NewMixedOpKona(t)
 
-	nodes := out.L2CLNodes()
+	nodes := out.L2CLKonaNodes
 
 	checkFuns := make([]dsl.CheckFunc, 0, 2*len(nodes))
 
@@ -32,7 +32,7 @@ func TestL2UnsafeSync(gt *testing.T) {
 
 	out := NewMixedOpKona(t)
 
-	nodes := out.L2CLNodes()
+	nodes := out.L2CLKonaNodes
 
 	checkFuns := make([]dsl.CheckFunc, 0, 2*len(nodes))
 

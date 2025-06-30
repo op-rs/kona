@@ -4,7 +4,9 @@ use crate::EngineTaskError;
 use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
+use tokio::sync::mpsc;
 
 /// An error that occurs when running the [crate::ForkchoiceTask].
 #[derive(Debug, Error)]
@@ -52,6 +54,9 @@ pub enum BuildTaskError {
     /// [`L2BlockInfo`]: kona_protocol::L2BlockInfo
     #[error(transparent)]
     FromBlock(#[from] FromBlockError),
+    /// Error sending the built payload envelope.
+    #[error(transparent)]
+    MpscSend(#[from] mpsc::error::SendError<OpExecutionPayloadEnvelope>),
 }
 
 impl From<BuildTaskError> for EngineTaskError {
@@ -70,6 +75,7 @@ impl From<BuildTaskError> for EngineTaskError {
             BuildTaskError::FinalizedAheadOfUnsafe(_, _) => Self::Critical(Box::new(value)),
             BuildTaskError::DepositOnlyPayloadFailed => Self::Critical(Box::new(value)),
             BuildTaskError::FromBlock(_) => Self::Critical(Box::new(value)),
+            BuildTaskError::MpscSend(_) => Self::Critical(Box::new(value)),
         }
     }
 }

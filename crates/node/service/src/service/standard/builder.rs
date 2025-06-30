@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineLauncher, InteropMode, NodeMode, RollupNode, actors::RuntimeState};
+use crate::{EngineBuilder, InteropMode, NodeMode, RollupNode, actors::RuntimeState};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -18,7 +18,7 @@ use url::Url;
 use kona_genesis::RollupConfig;
 use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::{RpcConfig, RpcLauncher, SupervisorRpcConfig};
+use kona_rpc::{RpcBuilder, SupervisorRpcConfig};
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
@@ -38,7 +38,7 @@ pub struct RollupNodeBuilder {
     /// The [`Config`].
     p2p_config: Option<Config>,
     /// An RPC Configuration.
-    rpc_config: Option<RpcConfig>,
+    rpc_config: Option<RpcBuilder>,
     /// An RPC Configuration for the supervisor rpc.
     supervisor_rpc_config: SupervisorRpcConfig,
     /// An interval to load the runtime config.
@@ -53,11 +53,6 @@ impl RollupNodeBuilder {
     /// Creates a new [`RollupNodeBuilder`] with the given [`RollupConfig`].
     pub fn new(config: RollupConfig) -> Self {
         Self { config, ..Self::default() }
-    }
-
-    /// Sets the mode on the [`RollupNodeBuilder`].
-    pub fn with_mode(self, mode: NodeMode) -> Self {
-        Self { mode, ..self }
     }
 
     /// Sets the interop mode on the [`RollupNodeBuilder`].
@@ -100,8 +95,8 @@ impl RollupNodeBuilder {
         Self { p2p_config: Some(config), ..self }
     }
 
-    /// Sets the [`RpcConfig`] on the [`RollupNodeBuilder`].
-    pub fn with_rpc_config(self, rpc_config: RpcConfig) -> Self {
+    /// Sets the [`RpcBuilder`] on the [`RollupNodeBuilder`].
+    pub fn with_rpc_config(self, rpc_config: RpcBuilder) -> Self {
         Self { rpc_config: Some(rpc_config), ..self }
     }
 
@@ -143,11 +138,8 @@ impl RollupNodeBuilder {
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
-        let rpc_launcher =
-            self.rpc_config.map(|c| c.as_launcher()).unwrap_or(RpcLauncher::new_disabled());
-
         let rollup_config = Arc::new(self.config);
-        let engine_launcher = EngineLauncher {
+        let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
             l2_rpc_url,
             l1_rpc_url: l1_rpc_url.clone(),
@@ -155,7 +147,7 @@ impl RollupNodeBuilder {
             jwt_secret,
         };
 
-        let runtime_launcher = self.runtime_load_interval.map(|load_interval| RuntimeState {
+        let runtime_builder = self.runtime_load_interval.map(|load_interval| RuntimeState {
             loader: kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
             interval: load_interval,
         });
@@ -168,18 +160,18 @@ impl RollupNodeBuilder {
         };
 
         RollupNode {
-            mode: self.mode,
             config: rollup_config,
             interop_mode,
             l1_provider,
             l1_beacon,
             l2_provider,
-            engine_launcher,
-            rpc_launcher,
+            engine_builder,
+            rpc_builder: self.rpc_config,
+            runtime_builder,
             p2p_config,
-            runtime_launcher,
             // By default, the supervisor rpc config is disabled.
             supervisor_rpc: self.supervisor_rpc_config,
+            mode: self.mode,
         }
     }
 }

@@ -21,9 +21,9 @@ use tracing::{error, info, warn};
 
 use super::{
     AuthenticationError, ManagedEventTask, ManagedNodeApiProvider, ManagedNodeError,
-    NodeSubscriber, ReceiptProvider, SubscriptionError,
+    NodeSubscriber, ReceiptProvider, SubscriptionError, metrics::Metrics,
 };
-use crate::event::ChainEvent;
+use crate::{event::ChainEvent, observe_rpc_call_managed_mode};
 
 /// [`ManagedNodeConfig`] sets the configuration for the managed node.
 #[derive(Debug, Clone)]
@@ -92,6 +92,8 @@ where
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
+        Metrics::init();
+
         Self {
             config,
             chain_id: OnceLock::new(),
@@ -279,7 +281,11 @@ where
 {
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let receipts = ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await?;
+        let receipts = observe_rpc_call_managed_mode!(
+            "fetch_receipts",
+            ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await
+        )?;
+
         Ok(receipts)
     }
 }
@@ -291,8 +297,11 @@ where
 {
     async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let output_v0 =
-            ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await?;
+        let output_v0 = observe_rpc_call_managed_mode!(
+            "output_v0_at_timestamp",
+            ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await
+        )?;
+
         Ok(output_v0)
     }
 
@@ -301,9 +310,11 @@ where
         timestamp: u64,
     ) -> Result<OutputV0, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let output_v0 =
-            ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp)
-                .await?;
+        let output_v0 = observe_rpc_call_managed_mode!(
+            "pending_output_v0_at_timestamp",
+            ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp,).await
+        )?;
+
         Ok(output_v0)
     }
 
@@ -312,8 +323,11 @@ where
         timestamp: u64,
     ) -> Result<BlockInfo, ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        let block_info =
-            ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await?;
+        let block_info = observe_rpc_call_managed_mode!(
+            "l2_block_ref_by_timestamp",
+            ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await
+        )?;
+
         Ok(block_info)
     }
 
@@ -322,7 +336,40 @@ where
         finalized_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError> {
         let client = self.get_ws_client().await?;
-        ManagedModeApiClient::update_finalized(client.as_ref(), finalized_block_id).await?;
+        observe_rpc_call_managed_mode!(
+            "update_finalized",
+            ManagedModeApiClient::update_finalized(client.as_ref(), finalized_block_id).await
+        )?;
+        Ok(())
+    }
+
+    async fn update_cross_unsafe(
+        &self,
+        cross_unsafe_block_id: BlockNumHash,
+    ) -> Result<(), ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        observe_rpc_call_managed_mode!(
+            "update_cross_unsafe",
+            ManagedModeApiClient::update_cross_unsafe(client.as_ref(), cross_unsafe_block_id).await
+        )?;
+        Ok(())
+    }
+
+    async fn update_cross_safe(
+        &self,
+        source_block_id: BlockNumHash,
+        derived_block_id: BlockNumHash,
+    ) -> Result<(), ManagedNodeError> {
+        let client = self.get_ws_client().await?;
+        observe_rpc_call_managed_mode!(
+            "update_cross_safe",
+            ManagedModeApiClient::update_cross_safe(
+                client.as_ref(),
+                derived_block_id,
+                source_block_id
+            )
+            .await
+        )?;
         Ok(())
     }
 }

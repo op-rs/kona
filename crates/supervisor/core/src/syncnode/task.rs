@@ -1,5 +1,5 @@
 use super::ManagedEventTaskError;
-use crate::event::ChainEvent;
+use crate::{event::ChainEvent, observe_rpc_call_managed_mode};
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
@@ -163,9 +163,10 @@ where
                 let client =
                     self.client.clone().ok_or(ManagedEventTaskError::ManagedNodeClientMissing)?;
 
-                if let Err(err) =
+                if let Err(err) = observe_rpc_call_managed_mode!(
+                    "provide_l1",
                     ManagedModeApiClient::provide_l1(client.as_ref(), block_info).await
-                {
+                ) {
                     error!(target: "managed_event_task", %err, "Error sending provide_l1 to managed node");
                     Err(ManagedEventTaskError::ManagedNodeAPICallFailed)?
                 }

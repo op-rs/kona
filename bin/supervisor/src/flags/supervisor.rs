@@ -1,6 +1,6 @@
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
-use anyhow::{Context as _, Ok, Result};
+use anyhow::{Context as _, Ok, Result, anyhow};
 use clap::Args;
 use glob::glob;
 use kona_genesis::RollupConfig;
@@ -133,16 +133,18 @@ impl SupervisorArgs {
                 )
             })?;
 
-            rollup_config_set.add_from_rollup_config(
-                chain_id,
-                rollup_config,
-                BlockInfo::new(
-                    l1_genesis.header.hash,
-                    l1_genesis.header.number,
-                    l1_genesis.header.parent_hash,
-                    l1_genesis.header.timestamp,
-                ),
-            );
+            rollup_config_set
+                .add_from_rollup_config(
+                    chain_id,
+                    rollup_config,
+                    BlockInfo::new(
+                        l1_genesis.header.hash,
+                        l1_genesis.header.number,
+                        l1_genesis.header.parent_hash,
+                        l1_genesis.header.timestamp,
+                    ),
+                )
+                .map_err(|err| anyhow!(err))?;
         }
 
         Ok(rollup_config_set)
