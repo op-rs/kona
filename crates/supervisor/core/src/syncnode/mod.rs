@@ -2,7 +2,7 @@
 //! This module provides the core functionality for managing nodes in the supervisor environment.
 
 mod node;
-pub use node::{ManagedNode, ManagedNodeConfig};
+pub use node::ManagedNode;
 
 mod error;
 pub use error::{AuthenticationError, ManagedEventTaskError, ManagedNodeError, SubscriptionError};
@@ -13,4 +13,7 @@ pub use traits::{ManagedNodeApiProvider, ManagedNodeProvider, NodeSubscriber, Re
 
 pub use task::ManagedEventTask;
 
-pub(crate) mod metrics;
+mod client;
+pub use client::{Client, ClientConfig, ManagedNodeClient};
+
+pub(super) mod metrics;

@@ -61,6 +61,16 @@ optimism_package:
   global_node_selectors: {}
   global_tolerations: []
   persistent: false
+  observability:
+    enabled: true
+    grafana_params:
+      dashboard_sources:
+        - github.com/ethereum-optimism/grafana-dashboards-public/resources
+        - github.com/op-rs/kona/docker/recipes/kona-node/grafana
+        - github.com/paradigmxyz/reth/etc/grafana
+        - github.com/geoknee/grafana-dashboards/
+        - github.com/nonsense/op-stack-grafana-dashboards/resources
+      image: grafana:local
 ethereum_package:
   participants:
     - el_type: geth

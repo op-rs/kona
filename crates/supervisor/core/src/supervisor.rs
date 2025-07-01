@@ -28,7 +28,7 @@ use crate::{
     event::ChainEvent,
     l1_watcher::L1Watcher,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{ManagedNode, ManagedNodeApiProvider},
+    syncnode::{Client, ManagedNode, ManagedNodeApiProvider},
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -105,8 +105,8 @@ pub struct Supervisor {
 
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
-    managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb>>>,
-    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb>, ChainDb>>,
+    managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
+    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb>>,
 
     cancel_token: CancellationToken,
 }
@@ -227,11 +227,9 @@ impl Supervisor {
                 SupervisorError::Initialise("invalid l1 rpc url".to_string())
             })?;
             let provider = RootProvider::<Ethereum>::new_http(url);
-            let mut managed_node = ManagedNode::<ChainDb>::new(
-                Arc::new(config.clone()),
-                self.cancel_token.clone(),
-                provider,
-            );
+            let client = Arc::new(Client::new(config.clone()));
+            let mut managed_node =
+                ManagedNode::<ChainDb, Client>::new(client, self.cancel_token.clone(), provider);
 
             let chain_id = managed_node.chain_id().await?;
             let db = self.database_factory.get_db(chain_id)?;

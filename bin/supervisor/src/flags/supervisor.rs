@@ -8,7 +8,7 @@ use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
 use kona_supervisor_core::{
     config::{Config, RollupConfigSet},
-    syncnode::ManagedNodeConfig,
+    syncnode::ClientConfig,
 };
 use serde::de::DeserializeOwned;
 use std::{
@@ -151,7 +151,7 @@ impl SupervisorArgs {
     }
 
     /// initialise and return the managed nodes configuration.
-    pub fn init_managed_nodes_config(&self) -> Result<Vec<ManagedNodeConfig>> {
+    pub fn init_managed_nodes_config(&self) -> Result<Vec<ClientConfig>> {
         let mut managed_nodes = Vec::new();
         let default_secret = self
             .l2_consensus_jwt_secret
@@ -160,8 +160,7 @@ impl SupervisorArgs {
         for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
             let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
 
-            managed_nodes
-                .push(ManagedNodeConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
+            managed_nodes.push(ClientConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
         }
         Ok(managed_nodes)
     }

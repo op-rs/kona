@@ -1,12 +1,10 @@
-use super::ManagedEventTaskError;
-use crate::{event::ChainEvent, observe_rpc_call_managed_mode};
+use super::{ManagedEventTaskError, ManagedNodeClient};
+use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
-use jsonrpsee::ws_client::WsClient;
 use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
 use kona_protocol::BlockInfo;
-use kona_supervisor_rpc::ManagedModeApiClient;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -14,29 +12,30 @@ use tracing::{debug, error, info, warn};
 
 /// [`ManagedEventTask`] sorts and processes individual events coming from a subscription.
 #[derive(Debug)]
-pub struct ManagedEventTask<DB> {
+pub struct ManagedEventTask<DB, C> {
+    /// The client to use for connecting to managed node (optional for testing)
+    client: Arc<C>,
     /// The URL of the L1 RPC endpoint to use for fetching L1 data
     l1_provider: RootProvider<Ethereum>,
     /// The database provider for fetching information
     db_provider: Arc<DB>,
     /// The channel to send the events to which require further processing e.g. db updates
     event_tx: mpsc::Sender<ChainEvent>,
-    /// The WebSocket client to use for connecting to managed node (optional for testing)
-    client: Option<Arc<WsClient>>,
 }
 
-impl<DB> ManagedEventTask<DB>
+impl<DB, C> ManagedEventTask<DB, C>
 where
     DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
+    C: ManagedNodeClient + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedEventTask`] instance.
     pub const fn new(
+        client: Arc<C>,
         l1_provider: RootProvider<Ethereum>,
         db_provider: Arc<DB>,
         event_tx: mpsc::Sender<ChainEvent>,
-        client: Arc<WsClient>,
     ) -> Self {
-        Self { l1_provider, db_provider, event_tx, client: Some(client) }
+        Self { client, l1_provider, db_provider, event_tx }
     }
 
     /// Processes a managed event received from the subscription.
@@ -50,7 +49,8 @@ where
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    self.handle_reset(reset_id).await;
+                    info!(target: "managed_event_task", %reset_id, "Reset event received");
+                    self.reset_node().await;
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
@@ -67,7 +67,6 @@ where
                 if let Some(derived_ref_pair) = &event.derivation_update {
                     info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received");
 
-                    // todo: check any pre processing needed
                     if let Err(err) = self
                         .event_tx
                         .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
@@ -136,60 +135,62 @@ where
         &self,
         derived_ref_pair: &DerivedRefPair,
     ) -> Result<(), ManagedEventTaskError> {
+        let next_block_number = derived_ref_pair.source.number + 1;
         let next_block = self
             .l1_provider
-            .get_block_by_number(BlockNumberOrTag::Number(derived_ref_pair.source.number + 1))
-            .await;
-        match next_block {
-            Ok(Some(block)) => {
-                if block.header.parent_hash != derived_ref_pair.source.hash {
-                    // this could happen due to a reorg.
-                    // this case should be handled by the reorg manager
-                    error!(target: "managed_event_task", "L1 Block parent hash mismatch");
-                    Err(ManagedEventTaskError::BlockHashMismatch {
-                        current: derived_ref_pair.source.hash,
-                        parent: block.header.parent_hash,
-                    })?
-                }
-                self.check_node_consistency(derived_ref_pair).await?;
+            .get_block_by_number(BlockNumberOrTag::Number(next_block_number))
+            .await
+            .map_err(|err| {
+                error!(target: "managed_event_task", %err, "Failed to fetch next L1 block");
+                ManagedEventTaskError::GetBlockByNumberFailed(next_block_number)
+            })?;
 
-                let block_info = BlockInfo {
-                    hash: block.header.hash,
-                    number: block.header.number,
-                    parent_hash: block.header.parent_hash,
-                    timestamp: block.header.timestamp,
-                };
-
-                let client =
-                    self.client.clone().ok_or(ManagedEventTaskError::ManagedNodeClientMissing)?;
-
-                if let Err(err) = observe_rpc_call_managed_mode!(
-                    "provide_l1",
-                    ManagedModeApiClient::provide_l1(client.as_ref(), block_info).await
-                ) {
-                    error!(target: "managed_event_task", %err, "Error sending provide_l1 to managed node");
-                    Err(ManagedEventTaskError::ManagedNodeAPICallFailed)?
-                }
-
-                info!(target: "managed_event_task", "Sent next L1 block to managed node using provide_l1");
-                Ok(())
+        let block = match next_block {
+            Some(block) => block,
+            None => {
+                warn!(
+                    target: "managed_event_task",
+                    block_number = next_block_number,
+                    "Next block is either empty or unavailable"
+                );
+                return Ok(());
             }
-            Ok(None) => {
-                error!(target: "managed_event_task", "Next block is either empty or unavailable");
-                Err(ManagedEventTaskError::NextBlockNotFound(derived_ref_pair.source.number + 1))?
-            }
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Error fetching next L1 block");
-                Err(ManagedEventTaskError::GetBlockByNumberFailed(
-                    derived_ref_pair.source.number + 1,
-                ))?
-            }
+        };
+
+        if block.header.parent_hash != derived_ref_pair.source.hash {
+            // this could happen due to a reorg.
+            // this case should be handled by the reorg manager
+            error!(target: "managed_event_task", "L1 Block parent hash mismatch");
+            Err(ManagedEventTaskError::BlockHashMismatch {
+                current: derived_ref_pair.source.hash,
+                parent: block.header.parent_hash,
+            })?
         }
+
+        if !self.is_node_consistent(derived_ref_pair).await? {
+            self.reset_node().await;
+            return Ok(());
+        }
+
+        let block_info = BlockInfo {
+            hash: block.header.hash,
+            number: block.header.number,
+            parent_hash: block.header.parent_hash,
+            timestamp: block.header.timestamp,
+        };
+
+        if let Err(err) = self.client.provide_l1(block_info).await {
+            error!(target: "managed_event_task", %err, "Error sending provide_l1 to managed node");
+            Err(ManagedEventTaskError::ManagedNodeAPICallFailed)?
+        }
+
+        info!(target: "managed_event_task", "Sent next L1 block to managed node using provide_l1");
+        Ok(())
     }
 
     // todo: refactor
-    async fn handle_reset(&self, reset_id: &str) {
-        info!(target: "managed_event_task", %reset_id, "Reset event received");
+    async fn reset_node(&self) {
+        info!(target: "managed_event_task", "Resetting the node");
 
         let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
             Ok(val) => val,
@@ -232,15 +233,7 @@ where
             }
         };
 
-        let client = match self.client.as_ref() {
-            Some(client) => client.clone(),
-            None => {
-                error!(target: "managed_event_task", "Client is not initialized");
-                return;
-            }
-        };
-
-        let node_safe_ref = match client.block_ref_by_number(local_safe_ref.number).await {
+        let node_safe_ref = match self.client.block_ref_by_number(local_safe_ref.number).await {
             Ok(block) => block,
             Err(err) => {
                 // todo: it's possible that supervisor is ahead of the op-node
@@ -266,7 +259,8 @@ where
             "Resetting managed node with latest information",
         );
 
-        if let Err(err) = client
+        if let Err(err) = self
+            .client
             .reset(
                 unsafe_ref.id(),
                 cross_unsafe_ref.id(),
@@ -280,68 +274,47 @@ where
         }
     }
 
-    async fn check_node_consistency(
+    async fn is_node_consistent(
         &self,
         derived_ref_pair: &DerivedRefPair,
-    ) -> Result<(), ManagedEventTaskError> {
-        // check if the derived block is already stored and is consistent with the incoming derived
-        // block
+    ) -> Result<bool, ManagedEventTaskError> {
         let derived_block = derived_ref_pair.derived;
-        let source_block = derived_ref_pair.source;
+        let stored_pair = self.db_provider.latest_derived_block_pair()
+            .inspect_err(|err| error!(target: "managed_event_task", %err, "Failed to get latest derived block pair"))?;
 
-        match self.db_provider.latest_derived_block_pair() {
-            Ok(stored_pair) => {
-                // only checking the derived block number here due to https://github.com/op-rs/kona/issues/2086 issue
-                if stored_pair.derived != derived_block {
-                    error!(
-                        target: "managed_event_task",
-                        incoming_pair = %derived_ref_pair,
-                        stored_pair = %stored_pair,
-                        "Incoming derived block pair does not match stored block pair",
-                    );
-                    self.handle_reset(
-                        "incoming derived block pair does not match stored block pair",
-                    )
-                    .await;
-                    return Err(ManagedEventTaskError::BlockNumberMismatch {
-                        incoming: derived_block.number,
-                        stored: stored_pair.derived.number,
-                    })
-                }
-                Ok(())
-            }
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get latest derived block pair");
-                Err(ManagedEventTaskError::DerivedBlockPairNotFound {
-                    derived_block_number: derived_block.number,
-                    source_block_number: source_block.number,
-                })
-            }
+        if stored_pair.derived.number < derived_block.number {
+            // this could happen since the events are being processed in async
+            // this case should be handled at the processing stage
+            return Ok(true);
         }
-    }
 
-    /// Creates a new [`ManagedEventTask`] instance for testing without a WebSocket client.
-    #[cfg(test)]
-    const fn new_for_testing(
-        l1_provider: RootProvider<Ethereum>,
-        db_provider: Arc<DB>,
-        event_tx: mpsc::Sender<ChainEvent>,
-    ) -> Self {
-        Self { l1_provider, db_provider, event_tx, client: None }
+        if stored_pair.derived != derived_block {
+            error!(
+                target: "managed_event_task",
+                incoming_pair = %derived_ref_pair,
+                stored_pair = %stored_pair,
+                "Node is inconsistent with the supervisor state"
+            );
+            return Ok(false);
+        }
+        Ok(true)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syncnode::ManagedNodeError;
     use alloy_eips::BlockNumHash;
-    use alloy_primitives::B256;
+    use alloy_primitives::{B256, ChainId};
     use alloy_rpc_client::RpcClient;
     use alloy_transport::mock::*;
+    use async_trait::async_trait;
+    use jsonrpsee::core::client::Subscription;
     use kona_interop::{BlockReplacement, DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{DerivationStorageReader, LogStorageReader, StorageError};
-    use kona_supervisor_types::{Log, SuperHead};
+    use kona_supervisor_types::{Log, OutputV0, Receipts, SubscriptionEvent, SuperHead};
     use mockall::mock;
 
     mock! {
@@ -367,6 +340,27 @@ mod tests {
         }
     }
 
+    mock! {
+        #[derive(Debug)]
+        pub ManagedNodeClient {}
+
+        #[async_trait]
+        impl ManagedNodeClient for ManagedNodeClient {
+            async fn chain_id(&self) -> Result<ChainId, ManagedNodeError>;
+            async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ManagedNodeError>;
+            async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+            async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
+            async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
+            async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ManagedNodeError>;
+            async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ManagedNodeError>;
+            async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ManagedNodeError>;
+            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+        }
+    }
+
     #[tokio::test]
     async fn test_handle_managed_event_sends_unsafe_block() {
         // 1. Set up channel
@@ -389,10 +383,12 @@ mod tests {
         };
 
         let db = Arc::new(MockDb::new());
+        let client = MockManagedNodeClient::new();
+
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new_for_testing(provider, db, tx);
+        let task = ManagedEventTask::new(Arc::new(client), provider, db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -433,10 +429,12 @@ mod tests {
         };
 
         let db = Arc::new(MockDb::new());
+        let client = MockManagedNodeClient::new();
+
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new_for_testing(provider, db, tx);
+        let task = ManagedEventTask::new(Arc::new(client), provider, db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -474,10 +472,12 @@ mod tests {
         };
 
         let db = Arc::new(MockDb::new());
+        let client = MockManagedNodeClient::new();
+
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new_for_testing(provider, db, tx);
+        let task = ManagedEventTask::new(Arc::new(client), provider, db, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -540,6 +540,7 @@ mod tests {
         }"#;
 
         let mut db = MockDb::new();
+        let client = MockManagedNodeClient::new();
 
         // need to expect because it gets called indirectly in handle_reset()
         db.expect_get_safety_head_ref().returning(|_| {
@@ -555,7 +556,7 @@ mod tests {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new_for_testing(provider, Arc::new(db), tx);
+        let task = ManagedEventTask::new(Arc::new(client), provider, Arc::new(db), tx);
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
