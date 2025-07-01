@@ -8,13 +8,13 @@ impl Metrics {
     // --- Metric Names ---
     /// Identifier for the counter of successful RPC requests. Labels: `method`.
     pub(crate) const MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL: &'static str =
-        "managed_mode_rpc_requests_success_total";
+        "managed_node_rpc_requests_success_total";
     /// Identifier for the counter of failed RPC requests. Labels: `method`.
     pub(crate) const MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL: &'static str =
-        "managed_mode_rpc_requests_error_total";
+        "managed_node_rpc_requests_error_total";
     /// Identifier for the histogram of RPC request durations. Labels: `method`.
     pub(crate) const MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS: &'static str =
-        "managed_mode_rpc_request_duration_seconds";
+        "managed_node_rpc_request_duration_seconds";
 
     // --- RPC Method Names (for zeroing) ---
     /// Lists all managed mode RPC methods here to ensure they are pre-registered.
