@@ -5,6 +5,7 @@
 //! in rollup contexts, such as linking an L2 block to its originating L1 block.
 
 use super::BlockRef;
+use super::U64List;
 use kona_interop::DerivedRefPair;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
@@ -68,6 +69,47 @@ impl StoredDerivedBlockPair {
     /// * `derived` - The derived block reference.
     pub const fn new(source: BlockRef, derived: BlockRef) -> Self {
         Self { source, derived }
+    }
+}
+
+/// Represents a traversal of source blocks and their derived blocks.
+///
+/// This structure is used to track the lineage of blocks where L2 blocks are derived from L1
+/// blocks. It stores the [`BlockRef`] information for the source block and the list of derived
+/// block numbers. It is stored as value in the [`BlockTraversal`](`crate::models::BlockTraversal`)
+/// table.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SourceBlockTraversal {
+    /// The source block reference.
+    pub source: BlockRef,
+    /// The list of derived block numbers.
+    pub derived_block_numbers: U64List,
+}
+
+impl Compact for SourceBlockTraversal {
+    fn to_compact<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) -> usize {
+        let mut bytes_written = 0;
+        bytes_written += self.source.to_compact(buf);
+        bytes_written += self.derived_block_numbers.to_compact(buf);
+        bytes_written
+    }
+
+    fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
+        let (source, remaining_buf) = BlockRef::from_compact(buf, buf.len());
+        let (derived_block_numbers, final_remaining_buf) = U64List::from_compact(remaining_buf, remaining_buf.len());
+        (Self { source, derived_block_numbers: derived_block_numbers }, final_remaining_buf)
+    }
+}
+
+impl SourceBlockTraversal {
+    /// Creates a new [`SourceBlockTraversal`] from the given [`BlockRef`] and [`U64List`].
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The source block reference.
+    /// * `derived_block_numbers` - The list of derived block numbers.
+    pub const fn new(source: BlockRef, derived_block_numbers: U64List) -> Self {
+        Self { source, derived_block_numbers }
     }
 }
 

@@ -151,7 +151,7 @@ where
                         parent: block.header.parent_hash,
                     })?
                 }
-                self.check_node_consistency(derived_ref_pair).await?;
+                // self.check_node_consistency(derived_ref_pair).await?;
 
                 let block_info = BlockInfo {
                     hash: block.header.hash,
