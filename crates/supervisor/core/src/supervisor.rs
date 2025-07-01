@@ -23,7 +23,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use crate::{
-    ChainProcessor, CrossSafetyCheckerJob, SupervisorError,
+    ChainProcessor, CrossSafetyCheckerJob, SpecError, SupervisorError,
     config::Config,
     event::ChainEvent,
     l1_watcher::L1Watcher,
@@ -222,8 +222,8 @@ impl Supervisor {
 
     async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
-            let url = Url::parse(&self.config.l1_rpc).map_err(|e| {
-                error!(target: "supervisor_service", %e, "Failed to parse L1 RPC URL");
+            let url = Url::parse(&self.config.l1_rpc).map_err(|err| {
+                error!(target: "supervisor_service", %err, "Failed to parse L1 RPC URL");
                 SupervisorError::Initialise("invalid l1 rpc url".to_string())
             })?;
             let provider = RootProvider::<Ethereum>::new_http(url);
@@ -238,7 +238,7 @@ impl Supervisor {
             managed_node.set_db_provider(db);
 
             if self.managed_nodes.contains_key(&chain_id) {
-                warn!(target: "supervisor_service", "Managed node for chain {chain_id} already exists, skipping initialization");
+                warn!(target: "supervisor_service", %chain_id, "Managed node for chain already exists, skipping initialization");
                 continue;
             }
             self.managed_nodes.insert(chain_id, Arc::new(managed_node));
@@ -293,10 +293,17 @@ impl Supervisor {
         let head_ref = self.database_factory.get_db(chain_id)?.get_safety_head_ref(safety)?;
 
         if head_ref.number < block.number {
-            return Err(SupervisorError::from(SuperchainDAError::ConflictingData));
+            return Err(SpecError::SuperchainDAError(SuperchainDAError::ConflictingData).into());
         }
 
         Ok(())
+    }
+
+    fn get_db(&self, chain: ChainId) -> Result<Arc<ChainDb>, SupervisorError> {
+        self.database_factory.get_db(chain).map_err(|err| {
+            error!(target: "supervisor_service", %chain, %err, "Failed to get database for chain");
+            SpecError::from(err).into()
+        })
     }
 }
 
@@ -311,8 +318,10 @@ impl SupervisorService for Supervisor {
     }
 
     fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
-        let db = self.database_factory.get_db(chain)?;
-        Ok(db.get_super_head()?)
+        Ok(self.get_db(chain)?.get_super_head().map_err(|err| {
+            error!(target: "supervisor_service", %chain, %err, "Failed to get super head for chain");
+            SpecError::from(err)
+        })?)
     }
 
     fn latest_block_from(
@@ -320,7 +329,14 @@ impl SupervisorService for Supervisor {
         l1_block: BlockNumHash,
         chain: ChainId,
     ) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.latest_derived_block_at_source(l1_block)?)
+        Ok(self
+            .get_db(chain)?
+            .latest_derived_block_at_source(l1_block)
+            .map_err(|err| {
+                error!(target: "supervisor_service", %chain, %err, "Failed to get latest derived block at source for chain");
+                SpecError::from(err)
+            })?
+        )
     }
 
     fn derived_to_source_block(
@@ -328,23 +344,38 @@ impl SupervisorService for Supervisor {
         chain: ChainId,
         derived: BlockNumHash,
     ) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.derived_to_source(derived)?)
+        Ok(self.get_db(chain)?.derived_to_source(derived).map_err(|err| {
+            error!(target: "supervisor_service", %chain, %err, "Failed to get derived to source block for chain");
+            SpecError::from(err)
+        })?)
     }
 
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe)?)
+        Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe).map_err(|err| {
+            error!(target: "supervisor_service", %chain, %err, "Failed to get local unsafe head ref for chain");
+            SpecError::from(err)
+        })?)
     }
 
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe)?)
+        Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe).map_err(|err| {
+            error!(target: "supervisor_service", %chain, %err, "Failed to get cross safe head ref for chain");
+            SpecError::from(err)
+        })?)
     }
 
     fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized)?)
+        Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::Finalized).map_err(|err| {
+            error!(target: "supervisor_service", %chain, %err, "Failed to get finalized head ref for chain");
+            SpecError::from(err)
+        })?)
     }
 
     fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
-        Ok(self.database_factory.get_finalized_l1()?)
+        Ok(self.database_factory.get_finalized_l1().map_err(|err| {
+            error!(target: "supervisor_service", %err, "Failed to get finalized L1");
+            SpecError::from(err)
+        })?)
     }
 
     async fn super_root_at_timestamp(
@@ -361,21 +392,11 @@ impl SupervisorService for Supervisor {
 
         for id in chain_ids {
             let managed_node = self.managed_nodes.get(id).unwrap();
-            let output_v0 = managed_node
-                .output_v0_at_timestamp(timestamp)
-                .await
-                .inspect_err(|e| {
-                    error!(target: "supervisor_service", %e, "Failed to get output v0 at timestamp {timestamp} for chain {id}");
-                })?;
+            let output_v0 = managed_node.output_v0_at_timestamp(timestamp).await?;
             let output_v0_string = serde_json::to_string(&output_v0).unwrap();
             let canonical_root = keccak256(output_v0_string.as_bytes());
 
-            let pending_output_v0 = managed_node
-                .pending_output_v0_at_timestamp(timestamp)
-                .await
-                .inspect_err(|e| {
-                    error!(target: "supervisor_service", %e, "Failed to get pending output v0 at timestamp {timestamp} for chain {id}");
-                })?;
+            let pending_output_v0 = managed_node.pending_output_v0_at_timestamp(timestamp).await?;
             let pending_output_v0_bytes = Bytes::copy_from_slice(
                 serde_json::to_string(&pending_output_v0).unwrap().as_bytes(),
             );
@@ -389,19 +410,14 @@ impl SupervisorService for Supervisor {
             super_root_chains
                 .push(OutputRootWithChain { chain_id: *id, output_root: canonical_root });
 
-            let l2_block = managed_node
-                .l2_block_ref_by_timestamp(timestamp)
-                .await
-                .inspect_err(|e| {
-                    error!(target: "supervisor_service", %e, "Failed to get L2 block ref at timestamp {timestamp} for chain {id}");
-                })?;
+            let l2_block = managed_node.l2_block_ref_by_timestamp(timestamp).await?;
             let source = self
-                .database_factory
-                .get_db(*id)
-                .inspect_err(|e| {
-                    error!(target: "supervisor_service", %e, "Failed to get database for chain {id}");
-                })?
-                .derived_to_source(l2_block.id())?;
+                .get_db(*id)?
+                .derived_to_source(l2_block.id())
+                .map_err(|err| {
+                    error!(target: "supervisor_service", %id, %err, "Failed to get derived to source block for chain");
+                    SpecError::from(err)
+                })?;
 
             if cross_safe_source.number == 0 || cross_safe_source.number < source.number {
                 cross_safe_source = source.id();
@@ -459,18 +475,26 @@ impl SupervisorService for Supervisor {
                 .is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
                 !rollup_config.is_interop_enabled(executing_chain_id, access.timestamp)
             {
-                return Err(SupervisorError::from(SuperchainDAError::ConflictingData)); // todo: replace with better error
+                return Err(SupervisorError::InteropNotEnabled);
             }
 
             // Verify the initiating message exists and valid for corresponding executing message.
-            let db = self.database_factory.get_db(initiating_chain_id)?;
+            let db = self.get_db(initiating_chain_id)?;
 
-            let block = db.get_block(access.block_number)?;
+            let block = db.get_block(access.block_number).map_err(|err| {
+                error!(target: "supervisor_service", %initiating_chain_id, %err, "Failed to get block for chain");
+                SpecError::from(err)
+            })?;
             if block.timestamp != access.timestamp {
-                return Err(SupervisorError::from(SuperchainDAError::ConflictingData))
+                return Err(SupervisorError::from(SpecError::SuperchainDAError(
+                    SuperchainDAError::ConflictingData,
+                )))
             }
 
-            let log = db.get_log(access.block_number, access.log_index)?;
+            let log = db.get_log(access.block_number, access.log_index).map_err(|err| {
+                error!(target: "supervisor_service", %initiating_chain_id, %err, "Failed to get log for chain");
+                SpecError::from(err)
+            })?;
             access.verify_checksum(&log.hash)?;
 
             // The message must be included in a block that is at least as safe as required

@@ -107,9 +107,7 @@ impl ChainDbFactory {
     /// * `Err(StorageError)` if the database does not exist.
     pub fn get_db(&self, chain_id: ChainId) -> Result<Arc<ChainDb>, StorageError> {
         let dbs = self.dbs.read().unwrap_or_else(|e| e.into_inner());
-        dbs.get(&chain_id)
-            .cloned()
-            .ok_or_else(|| StorageError::EntryNotFound("chain not found".to_string()))
+        dbs.get(&chain_id).cloned().ok_or_else(|| StorageError::DatabaseNotInitialised)
     }
 }
 
@@ -240,7 +238,7 @@ mod tests {
     fn test_get_db_returns_error_if_not_exists() {
         let (_tmp, factory) = temp_factory();
         let err = factory.get_db(999).unwrap_err();
-        assert!(matches!(err, StorageError::EntryNotFound(_)));
+        assert!(matches!(err, StorageError::DatabaseNotInitialised));
     }
 
     #[test]
