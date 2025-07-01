@@ -154,6 +154,7 @@ where
                         parent: block.header.parent_hash,
                     })?
                 }
+
                 // self.check_node_consistency(derived_ref_pair).await?;
 
                 let block_info = BlockInfo {
@@ -283,6 +284,8 @@ where
         }
     }
 
+    // todo: remove this once #2330 is merged
+    #[allow(dead_code)]
     async fn check_node_consistency(
         &self,
         derived_ref_pair: &DerivedRefPair,

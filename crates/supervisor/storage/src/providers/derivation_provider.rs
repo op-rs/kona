@@ -139,7 +139,16 @@ where
     ) -> Result<BlockInfo, StorageError> {
         let mut block_traversal = self.get_block_traversal(source_block_id.number)?;
 
-        while block_traversal.derived_block_numbers.len() == 0 {
+        if block_traversal.source.hash != source_block_id.hash {
+            warn!(
+                target: "supervisor_storage",
+                source_block_hash = %source_block_id.hash,
+                "Source block hash mismatch"
+            );
+            return Err(StorageError::EntryNotFound("source block hash mismatch".to_string()));
+        }
+
+        while block_traversal.derived_block_numbers.is_empty() {
             let prev_block_traversal =
                 self.get_block_traversal(block_traversal.source.number - 1)?;
             block_traversal = prev_block_traversal;
@@ -180,20 +189,24 @@ where
             error!(target: "supervisor_storage", %err, "Failed to get latest source block");
         })?;
 
-        Ok(DerivedRefPair { source: latest_source_block.into(), derived: block.derived.into() })
+        Ok(DerivedRefPair { source: latest_source_block, derived: block.derived.into() })
     }
 
+    /// Gets the latest source block, even if it has no derived blocks.
     pub(crate) fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
         let mut cursor = self.tx.cursor_read::<BlockTraversal>().inspect_err(|err| {
             error!(target: "supervisor_storage", %err, "Failed to get cursor for BlockTraversal");
         })?;
+
         let result = cursor.last().inspect_err(|err| {
             error!(target: "supervisor_storage", %err, "Failed to seek to last source block");
         })?;
+
         let (_, block) = result.ok_or_else(|| {
             error!(target: "supervisor_storage", "No source blocks found in storage");
             StorageError::EntryNotFound("no source blocks found".to_string())
         })?;
+
         Ok(block.source.into())
     }
 }
@@ -219,7 +232,7 @@ where
     }
 
     /// Saves a [`StoredDerivedBlockPair`] to [`DerivedBlocks`](`crate::models::DerivedBlocks`)
-    /// table and [`U64List`] to [`SourceToDerivedBlockNumbers`](`SourceToDerivedBlockNumbers`)
+    /// table and [`SourceBlockTraversal`] to [`BlockTraversal`](`crate::models::BlockTraversal`)
     /// table in the database.
     pub(crate) fn save_derived_block_pair(
         &self,
@@ -232,6 +245,7 @@ where
             Err(e) => return Err(e),
         };
 
+        // 0th block number check to progress the chain initially
         if !latest_block_pair.derived.is_parent_of(&incoming_pair.derived) &&
             incoming_pair.derived.number != 0
         {
@@ -243,6 +257,7 @@ where
             );
             return Err(StorageError::DerivedBlockOutOfOrder);
         }
+
         self.save_derived_block_pair_internal(incoming_pair)
     }
 
@@ -294,12 +309,17 @@ where
                 "Failed to save derived block numbers for source block"
             );
         })?;
+
         Ok(())
     }
 
+    /// Saves a source block to the database.
+    /// If the source block already exists, it does nothing.
+    /// If the source block does not exist, it creates a new [`SourceBlockTraversal`] and saves it
+    /// to the database.
     pub(crate) fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError> {
         match self.get_block_traversal(source.number) {
-            Ok(_) => return Ok(()),
+            Ok(_) => Ok(()),
             Err(StorageError::EntryNotFound(_)) => {
                 let block_traversal = SourceBlockTraversal {
                     source: source.into(),
@@ -310,7 +330,8 @@ where
                     .inspect_err(|err| {
                         error!(target: "supervisor_storage", %err, "Failed to save block traversal");
                     })?;
-                return Ok(())
+
+                Ok(())
             }
             Err(err) => {
                 error!(
@@ -319,9 +340,10 @@ where
                   %err,
                   "Failed to get block traversal"
                 );
-                return Err(err);
+
+                Err(err)
             }
-        };
+        }
     }
 }
 
