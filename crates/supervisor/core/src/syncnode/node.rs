@@ -27,10 +27,10 @@ use crate::event::ChainEvent;
 /// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
 pub struct ManagedNode<DB, C> {
-    /// The database provider for fetching information
-    db_provider: Option<Arc<DB>>,
     /// The attached web socket client
     client: Arc<C>,
+    /// The database provider for fetching information
+    db_provider: Arc<DB>,
     // Cancellation token to stop the processor
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
@@ -47,15 +47,11 @@ where
     /// Creates a new [`ManagedNode`] with the specified client.
     pub fn new(
         client: Arc<C>,
+        db_provider: Arc<DB>,
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
-        Self { db_provider: None, client, cancel_token, task_handle: Mutex::new(None), l1_provider }
-    }
-
-    /// Sets the database provider for the managed node.
-    pub fn set_db_provider(&mut self, db_provider: Arc<DB>) {
-        self.db_provider = Some(db_provider);
+        Self { client, db_provider, cancel_token, task_handle: Mutex::new(None), l1_provider }
     }
 
     /// Returns the [`ChainId`] of the [`ManagedNode`].
@@ -95,13 +91,11 @@ where
 
         let cancel_token = self.cancel_token.clone();
 
-        let db_provider =
-            self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
         // Creates a task instance to sort and process the events from the subscription
         let task = ManagedEventTask::new(
             self.client.clone(),
             self.l1_provider.clone(),
-            db_provider.clone(),
+            self.db_provider.clone(),
             event_tx,
         );
         // Start background task to handle events

@@ -28,7 +28,7 @@ use crate::{
     event::ChainEvent,
     l1_watcher::L1Watcher,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{Client, ManagedNode, ManagedNodeApiProvider},
+    syncnode::{Client, ManagedNode, ManagedNodeApiProvider, ManagedNodeClient},
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -228,12 +228,16 @@ impl Supervisor {
             })?;
             let provider = RootProvider::<Ethereum>::new_http(url);
             let client = Arc::new(Client::new(config.clone()));
-            let mut managed_node =
-                ManagedNode::<ChainDb, Client>::new(client, self.cancel_token.clone(), provider);
 
-            let chain_id = managed_node.chain_id().await?;
+            let chain_id = client.chain_id().await?;
             let db = self.database_factory.get_db(chain_id)?;
-            managed_node.set_db_provider(db);
+
+            let managed_node = ManagedNode::<ChainDb, Client>::new(
+                client,
+                db,
+                self.cancel_token.clone(),
+                provider,
+            );
 
             if self.managed_nodes.contains_key(&chain_id) {
                 warn!(target: "supervisor_service", %chain_id, "Managed node for chain already exists, skipping initialization");
