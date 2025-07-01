@@ -67,13 +67,16 @@ where
                 if let Some(derived_ref_pair) = &event.derivation_update {
                     info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received");
 
+                    if event.derivation_origin_update.is_none() {
+                        info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received but no origin update");
                     // todo: check any pre processing needed
-                    if let Err(err) = self
-                        .event_tx
-                        .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
-                        .await
-                    {
-                        warn!(target: "managed_event_task", %err, "Failed to derivation update event, channel closed or receiver dropped");
+                        if let Err(err) = self
+                            .event_tx
+                            .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
+                            .await
+                        {
+                            warn!(target: "managed_event_task", %err, "Failed to derivation update event, channel closed or receiver dropped");
+                        }
                     }
                 }
 
