@@ -1,4 +1,5 @@
 use super::ManagedNodeClient;
+use kona_interop::SafetyLevel;
 use kona_supervisor_storage::HeadRefStorageReader;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -25,49 +26,83 @@ where
     pub(crate) async fn reset(&self) {
         let _guard = self.reset_guard.lock().await;
 
-        info!(target: "resetter", "Resetting the node");
-        let super_head = match self.db_provider.get_super_head() {
-            Ok(head) => head,
+        info!(target: "managed_event_task", "Resetting the node");
+
+        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
+            Ok(val) => val,
             Err(err) => {
-                error!(target: "resetter", %err, "Failed to get super head");
+                error!(target: "managed_event_task", %err, "Failed to get unsafe head ref");
                 return;
             }
         };
 
-        let block = match self.client.block_ref_by_number(super_head.local_safe.number).await {
+        let cross_unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossUnsafe)
+        {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get cross unsafe head ref");
+                return;
+            }
+        };
+
+        let local_safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalSafe) {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get local safe head ref");
+                return;
+            }
+        };
+
+        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossSafe) {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get safe head ref");
+                return;
+            }
+        };
+
+        let finalised_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Finalized) {
+            Ok(val) => val,
+            Err(err) => {
+                error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
+                return;
+            }
+        };
+
+        let node_safe_ref = match self.client.block_ref_by_number(local_safe_ref.number).await {
             Ok(block) => block,
             Err(err) => {
                 // todo: it's possible that supervisor is ahead of the op-node
                 // in this case we should handle the error gracefully
-                error!(target: "resetter", %err, "Failed to get block by number");
+                error!(target: "managed_event_task", %err, "Failed to get block by number");
                 return;
             }
         };
 
         // check with consistency with the op-node
-        if block != super_head.local_safe {
+        if node_safe_ref.hash != local_safe_ref.hash {
             // todo: handle this case
-            error!(target: "resetter", "Local safe ref does not match node block ref");
+            error!(target: "managed_event_task", "Local safe ref hash does not match node safe ref hash");
             return;
         }
 
         info!(target: "managed_event_task",
-            local_unsafe = %super_head.local_unsafe,
-            cross_unsafe = %super_head.cross_unsafe,
-            local_safe = %super_head.local_safe,
-            cross_safe = %super_head.cross_safe,
-            finalized = %super_head.finalized,
+            %unsafe_ref,
+            %cross_unsafe_ref,
+            %local_safe_ref,
+            %safe_ref,
+            %finalised_ref,
             "Resetting managed node with latest information",
         );
 
         if let Err(err) = self
             .client
             .reset(
-                super_head.local_unsafe.id(),
-                super_head.cross_unsafe.id(),
-                super_head.local_safe.id(),
-                super_head.cross_safe.id(),
-                super_head.finalized.id(),
+                unsafe_ref.id(),
+                cross_unsafe_ref.id(),
+                local_safe_ref.id(),
+                safe_ref.id(),
+                finalised_ref.id(),
             )
             .await
         {
