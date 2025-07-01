@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    ManagedEventTask, ManagedNodeApiProvider, ManagedNodeClient, ManagedNodeError, NodeSubscriber,
-    ReceiptProvider, SubscriptionError,
+    ManagedNodeApiProvider, ManagedNodeClient, ManagedNodeError, NodeSubscriber, ReceiptProvider,
+    SubscriptionError, resetter::Resetter, task::ManagedEventTask,
 };
 use crate::event::ChainEvent;
 
@@ -27,21 +27,23 @@ use crate::event::ChainEvent;
 /// It manages the WebSocket connection lifecycle and processes incoming events.
 #[derive(Debug)]
 pub struct ManagedNode<DB, C> {
-    /// The database provider for fetching information
-    db_provider: Option<Arc<DB>>,
     /// The attached web socket client
     client: Arc<C>,
-    // Cancellation token to stop the processor
+    /// The database provider for fetching information
+    db_provider: Option<Arc<DB>>,
+    /// Shared L1 provider for fetching receipts
+    l1_provider: RootProvider<Ethereum>,
+    /// Resetter for handling node resets
+    resetter: Option<Arc<Resetter<DB, C>>>,
+    /// Cancellation token to stop the processor
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
     task_handle: Mutex<Option<JoinHandle<()>>>,
-    /// Shared L1 provider for fetching receipts
-    l1_provider: RootProvider<Ethereum>,
 }
 
 impl<DB, C> ManagedNode<DB, C>
 where
-    DB: LogStorageReader + DerivationStorageReader + Send + Sync + 'static,
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
     C: ManagedNodeClient + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedNode`] with the specified client.
@@ -50,11 +52,19 @@ where
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
-        Self { db_provider: None, client, cancel_token, task_handle: Mutex::new(None), l1_provider }
+        Self {
+            db_provider: None,
+            client,
+            resetter: None,
+            cancel_token,
+            task_handle: Mutex::new(None),
+            l1_provider,
+        }
     }
 
-    /// Sets the database provider for the managed node.
-    pub fn set_db_provider(&mut self, db_provider: Arc<DB>) {
+    /// initialize the database provider for the managed node.
+    pub fn initialize_db_provider(&mut self, db_provider: Arc<DB>) {
+        self.resetter = Some(Arc::new(Resetter::new(self.client.clone(), db_provider.clone())));
         self.db_provider = Some(db_provider);
     }
 
@@ -96,12 +106,16 @@ where
         let cancel_token = self.cancel_token.clone();
 
         let db_provider =
-            self.db_provider.as_ref().ok_or_else(|| SubscriptionError::DatabaseProviderNotFound)?;
+            self.db_provider.as_ref().ok_or_else(|| ManagedNodeError::DatabaseNotInitialised)?;
+        let resetter =
+            self.resetter.as_ref().ok_or_else(|| ManagedNodeError::DatabaseNotInitialised)?;
+
         // Creates a task instance to sort and process the events from the subscription
         let task = ManagedEventTask::new(
             self.client.clone(),
             self.l1_provider.clone(),
             db_provider.clone(),
+            resetter.clone(),
             event_tx,
         );
         // Start background task to handle events

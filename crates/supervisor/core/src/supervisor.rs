@@ -233,7 +233,7 @@ impl Supervisor {
 
             let chain_id = managed_node.chain_id().await?;
             let db = self.database_factory.get_db(chain_id)?;
-            managed_node.set_db_provider(db);
+            managed_node.initialize_db_provider(db);
 
             if self.managed_nodes.contains_key(&chain_id) {
                 warn!(target: "supervisor_service", %chain_id, "Managed node for chain already exists, skipping initialization");
