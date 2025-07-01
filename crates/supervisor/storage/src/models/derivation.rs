@@ -4,8 +4,7 @@
 //! how blocks are derived from source. This is particularly relevant
 //! in rollup contexts, such as linking an L2 block to its originating L1 block.
 
-use super::BlockRef;
-use super::U64List;
+use super::{BlockRef, U64List};
 use kona_interop::DerivedRefPair;
 use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
@@ -96,8 +95,9 @@ impl Compact for SourceBlockTraversal {
 
     fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
         let (source, remaining_buf) = BlockRef::from_compact(buf, buf.len());
-        let (derived_block_numbers, final_remaining_buf) = U64List::from_compact(remaining_buf, remaining_buf.len());
-        (Self { source, derived_block_numbers: derived_block_numbers }, final_remaining_buf)
+        let (derived_block_numbers, final_remaining_buf) =
+            U64List::from_compact(remaining_buf, remaining_buf.len());
+        (Self { source, derived_block_numbers }, final_remaining_buf)
     }
 }
 

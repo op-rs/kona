@@ -281,6 +281,7 @@ where
             "Processing derivation origin update"
         );
         self.state_manager.update_current_l1(origin)?;
+        self.state_manager.save_source_block(origin)?;
         Ok(())
     }
 
@@ -434,6 +435,11 @@ mod tests {
             fn save_derived_block_pair(
                 &self,
                 incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
+
+            fn save_source_block(
+                &self,
+                source: BlockInfo,
             ) -> Result<(), StorageError>;
         }
 

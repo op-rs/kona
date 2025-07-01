@@ -60,7 +60,13 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockRef, LogEntry, StoredDerivedBlockPair, U64List, SourceBlockTraversal);
+impl_compression_for_compact!(
+    BlockRef,
+    LogEntry,
+    StoredDerivedBlockPair,
+    U64List,
+    SourceBlockTraversal
+);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.

@@ -68,8 +68,8 @@ where
                     info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received");
 
                     if event.derivation_origin_update.is_none() {
-                        info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received but no origin update");
-                    // todo: check any pre processing needed
+                        info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received, no origin update");
+                        // todo: check any pre processing needed
                         if let Err(err) = self
                             .event_tx
                             .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
@@ -361,6 +361,7 @@ mod tests {
             fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_at_source(&self, _source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+            fn latest_source_block(&self) -> Result<BlockInfo, StorageError>;
         }
 
         impl HeadRefStorageReader for Db {

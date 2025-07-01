@@ -111,6 +111,12 @@ impl DerivationStorageReader for ChainDb {
             self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())
         })?
     }
+
+    fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
+        self.observe_call("latest_source_block", || {
+            self.env.view(|tx| DerivationProvider::new(tx).latest_source_block())
+        })?
+    }
 }
 
 impl DerivationStorageWriter for ChainDb {
@@ -136,6 +142,21 @@ impl DerivationStorageWriter for ChainDb {
                 DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
                 SafetyHeadRefProvider::new(ctx)
                     .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
+            })
+        })?
+    }
+
+    fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("save_block_traversal", || {
+            self.env.update(|ctx| {
+                let last_source = DerivationProvider::new(ctx).latest_source_block()?;
+                if last_source.number >= source.number {
+                    return Err(StorageError::ConflictError(
+                        "incoming source block number is less than last source block number"
+                            .to_string(),
+                    ));
+                }
+                DerivationProvider::new(ctx).save_source_block(source)
             })
         })?
     }
@@ -203,7 +224,7 @@ impl HeadRefStorageReader for ChainDb {
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
         self.observe_call("get_super_head", || {
-            let l1_source = self.get_current_l1()?;
+            let l1_source = self.latest_source_block()?;
 
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx);

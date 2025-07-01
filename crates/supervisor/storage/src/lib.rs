@@ -20,6 +20,7 @@
 //! - Track sealed blocks and ancestry metadata
 
 pub mod models;
+pub use models::SourceBlockTraversal;
 
 mod error;
 pub use error::StorageError;

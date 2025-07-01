@@ -227,6 +227,11 @@ mod tests {
                 &self,
                 incoming_pair: DerivedRefPair,
             ) -> Result<(), StorageError>;
+
+            fn save_source_block(
+                &self,
+                source: BlockInfo,
+            ) -> Result<(), StorageError>;
         }
 
         impl HeadRefStorageWriter for Db {
