@@ -35,7 +35,6 @@
           "legendFormat": "{{chain_id}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "bps" } },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 }
     },
     {
@@ -48,7 +47,6 @@
           "legendFormat": "{{chain_id}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "bps" } },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 }
     },
     {
@@ -61,7 +59,6 @@
           "legendFormat": "{{chain_id}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "bps" } },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 }
     },
     {
@@ -74,7 +71,6 @@
           "legendFormat": "{{chain_id}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "bps" } },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 }
     },
     {
@@ -87,7 +83,6 @@
           "legendFormat": "{{chain_id}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "bps" } },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 }
     },
     {
@@ -336,7 +331,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "rate(managed_mode_rpc_requests_success_total[5m])",
+          "expr": "rate(managed_node_rpc_requests_success_total[5m])",
           "legendFormat": "{{method}}"
         }
       ],
@@ -349,7 +344,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "rate(managed_mode_rpc_requests_error_total[5m])",
+          "expr": "rate(managed_node_rpc_requests_error_total[5m])",
           "legendFormat": "{{method}}"
         }
       ],
@@ -362,7 +357,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "managed_mode_rpc_request_duration_seconds{quantile=\"0.95\"}",
+          "expr": "managed_node_rpc_request_duration_seconds{quantile=\"0.95\"}",
           "legendFormat": "{{method}}"
         }
       ],
