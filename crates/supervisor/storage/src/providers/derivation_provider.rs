@@ -211,10 +211,6 @@ where
             Err(e) => return Err(e),
         };
 
-        if latest_block_pair.derived.number == incoming_pair.derived.number {
-            return Ok(());
-        };
-
         if !latest_block_pair.derived.is_parent_of(&incoming_pair.derived) {
             warn!(
               target: "supervisor_storage",
