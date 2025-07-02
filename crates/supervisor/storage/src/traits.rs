@@ -236,22 +236,6 @@ pub trait HeadRefStorageWriter: Debug {
     /// * `Ok(DerivedRefPair)` if the reference was successfully updated.
     /// * `Err(StorageError)` if there is an issue updating the reference.
     fn update_current_cross_safe(&self, block: &BlockInfo) -> Result<DerivedRefPair, StorageError>;
-
-    // TODO: Deprecated, remove it
-    /// Updates the safety head reference for a given [`SafetyLevel`].
-    ///
-    /// # Arguments
-    /// * `safety_level` - The safety level for which to update the head reference.
-    /// * `block` - The new [`BlockInfo`] to set as the safety head reference.
-    ///
-    /// # Returns
-    /// * `Ok(())` if the reference was successfully updated.
-    /// * `Err(StorageError)` if there is an issue updating the reference.
-    fn update_safety_head_ref(
-        &self,
-        safety_level: SafetyLevel,
-        block: &BlockInfo,
-    ) -> Result<(), StorageError>;
 }
 
 /// Combines both reading and writing capabilities for safety head ref storage.

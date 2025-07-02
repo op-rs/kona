@@ -164,7 +164,7 @@ mod tests {
             cross_unsafe: BlockInfo::new(B256::from([1u8; 32]), 4, B256::ZERO, 0),
             local_safe: BlockInfo::new(B256::from([2u8; 32]), 3, B256::ZERO, 0),
             cross_safe: BlockInfo::new(B256::from([3u8; 32]), 2, B256::ZERO, 0),
-            finalized: BlockInfo::new(B256::from([04u8; 32]), 1, B256::ZERO, 0),
+            finalized: BlockInfo::new(B256::from([4u8; 32]), 1, B256::ZERO, 0),
             l1_source: BlockInfo::new(B256::from([54u8; 32]), 100, B256::ZERO, 0),
         }
     }
@@ -174,10 +174,10 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
-        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe.clone()));
+        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
 
         client.expect_reset().returning(|_, _, _, _, _| Ok(()));
 
@@ -205,7 +205,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
         client
@@ -223,7 +223,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
         // Return a block that does not match local_safe
@@ -242,10 +242,10 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
-        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe.clone()));
+        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
         client
             .expect_reset()
             .returning(|_, _, _, _, _| Err(ManagedNodeError::DatabaseNotInitialised));

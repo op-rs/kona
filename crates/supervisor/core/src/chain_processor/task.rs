@@ -356,7 +356,7 @@ mod tests {
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
     use async_trait::async_trait;
-    use kona_interop::{DerivedRefPair, SafetyLevel};
+    use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
         DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
@@ -447,12 +447,6 @@ mod tests {
                 &self,
                 block_info: BlockInfo,
             ) -> Result<BlockInfo, StorageError>;
-
-            fn update_safety_head_ref(
-                &self,
-                safety_level: SafetyLevel,
-                block_info: &BlockInfo,
-            ) -> Result<(), StorageError>;
 
             fn update_current_cross_unsafe(
                 &self,
