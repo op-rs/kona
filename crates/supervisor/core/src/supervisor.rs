@@ -287,11 +287,6 @@ impl Supervisor {
         block: &BlockInfo,
         safety: SafetyLevel,
     ) -> Result<(), SupervisorError> {
-        // check block exists on the derivation storage
-        self.database_factory
-            .get_db(chain_id)?
-            .derived_to_source(BlockNumHash { number: block.number, hash: block.hash })?;
-
         let head_ref = self.database_factory.get_db(chain_id)?.get_safety_head_ref(safety)?;
 
         if head_ref.number < block.number {
@@ -459,9 +454,7 @@ impl SupervisorService for Supervisor {
             let initiating_chain_id =
                 u64::from_be_bytes(access.chain_id[24..32].try_into().unwrap());
 
-            // TODO: Extend the `ExecutingDescriptor` to accept chain_id.
-            // And set executing_chain_id as initiating_chain_id only for backward compat.
-            let executing_chain_id = initiating_chain_id;
+            let executing_chain_id = executing_descriptor.chain_id;
 
             // Message must be valid at the time of execution.
             access.validate_message_lifetime(
