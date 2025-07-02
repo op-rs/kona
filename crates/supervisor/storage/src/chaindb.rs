@@ -146,17 +146,10 @@ impl DerivationStorageWriter for ChainDb {
         })?
     }
 
-    fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError> {
+    fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
         self.observe_call("save_block_traversal", || {
             self.env.update(|ctx| {
-                let last_source = DerivationProvider::new(ctx).latest_source_block()?;
-                if last_source.number >= source.number {
-                    return Err(StorageError::ConflictError(
-                        "incoming source block number is less than last source block number"
-                            .to_string(),
-                    ));
-                }
-                DerivationProvider::new(ctx).save_source_block(source)
+                DerivationProvider::new(ctx).save_source_block(incoming_source)
             })
         })?
     }

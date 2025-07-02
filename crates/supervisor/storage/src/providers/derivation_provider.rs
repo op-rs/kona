@@ -166,9 +166,10 @@ where
     /// Gets the latest [`DerivedRefPair`].
     pub(crate) fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().inspect_err(|err| {
-            error!(target: "supervisor_storage",
-              %err,
-              "Failed to get cursor for DerivedBlocks"
+            error!(
+                target: "supervisor_storage",
+                %err,
+                "Failed to get cursor for DerivedBlocks"
             );
         })?;
 
@@ -181,12 +182,19 @@ where
         })?;
 
         let (_, block) = result.ok_or_else(|| {
-            error!(target: "supervisor_storage", "No blocks found in storage");
+            error!(
+                target: "supervisor_storage",
+                "No blocks found in storage"
+            );
             StorageError::EntryNotFound("no blocks found".to_string())
         })?;
 
         let latest_source_block = self.latest_source_block().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to get latest source block");
+            error!(
+                target: "supervisor_storage",
+                %err,
+                "Failed to get latest source block"
+            );
         })?;
 
         Ok(DerivedRefPair { source: latest_source_block, derived: block.derived.into() })
@@ -195,15 +203,26 @@ where
     /// Gets the latest source block, even if it has no derived blocks.
     pub(crate) fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
         let mut cursor = self.tx.cursor_read::<BlockTraversal>().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to get cursor for BlockTraversal");
+            error!(
+                target: "supervisor_storage",
+                %err,
+                "Failed to get cursor for BlockTraversal"
+            );
         })?;
 
         let result = cursor.last().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to seek to last source block");
+            error!(
+                target: "supervisor_storage",
+                %err,
+                "Failed to seek the last source block"
+            );
         })?;
 
         let (_, block) = result.ok_or_else(|| {
-            error!(target: "supervisor_storage", "No source blocks found in storage");
+            error!(
+                target: "supervisor_storage",
+                "No source blocks found in storage"
+            );
             StorageError::EntryNotFound("no source blocks found".to_string())
         })?;
 
@@ -321,10 +340,27 @@ where
         match self.get_block_traversal(source.number) {
             Ok(_) => Ok(()),
             Err(StorageError::EntryNotFound(_)) => {
+                // Check if this would create a gap by looking at the last source block
+                if let Ok(last_source) = self.latest_source_block() {
+                    if last_source.number > source.number {
+                        warn!(
+                            target: "supervisor_storage",
+                            last_source = %last_source,
+                            source = %source,
+                            "Incoming source block number is less than last stored source block number"
+                        );
+
+                        return Err(StorageError::ConflictError(
+                            "incoming source block number is less than last stored source block number".to_string(),
+                        ));
+                    }
+                }
+
                 let block_traversal = SourceBlockTraversal {
                     source: source.into(),
                     derived_block_numbers: U64List::default(),
                 };
+
                 self.tx
                     .put::<BlockTraversal>(source.number, block_traversal)
                     .inspect_err(|err| {
