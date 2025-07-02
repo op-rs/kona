@@ -26,12 +26,12 @@ where
     pub(crate) async fn reset(&self) {
         let _guard = self.reset_guard.lock().await;
 
-        info!(target: "managed_event_task", "Resetting the node");
+        info!(target: "resetter", "Resetting the node");
 
         let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
             Ok(val) => val,
             Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get unsafe head ref");
+                error!(target: "resetter", %err, "Failed to get unsafe head ref");
                 return;
             }
         };
@@ -40,7 +40,7 @@ where
         {
             Ok(val) => val,
             Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get cross unsafe head ref");
+                error!(target: "resetter", %err, "Failed to get cross unsafe head ref");
                 return;
             }
         };
@@ -48,7 +48,7 @@ where
         let local_safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalSafe) {
             Ok(val) => val,
             Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get local safe head ref");
+                error!(target: "resetter", %err, "Failed to get local safe head ref");
                 return;
             }
         };
@@ -56,7 +56,7 @@ where
         let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossSafe) {
             Ok(val) => val,
             Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get safe head ref");
+                error!(target: "resetter", %err, "Failed to get safe head ref");
                 return;
             }
         };
@@ -64,7 +64,7 @@ where
         let finalised_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Finalized) {
             Ok(val) => val,
             Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
+                error!(target: "resetter", %err, "Failed to get finalised head ref");
                 return;
             }
         };
@@ -74,7 +74,7 @@ where
             Err(err) => {
                 // todo: it's possible that supervisor is ahead of the op-node
                 // in this case we should handle the error gracefully
-                error!(target: "managed_event_task", %err, "Failed to get block by number");
+                error!(target: "resetter", %err, "Failed to get block by number");
                 return;
             }
         };
@@ -82,11 +82,11 @@ where
         // check with consistency with the op-node
         if node_safe_ref.hash != local_safe_ref.hash {
             // todo: handle this case
-            error!(target: "managed_event_task", "Local safe ref hash does not match node safe ref hash");
+            error!(target: "resetter", "Local safe ref hash does not match node safe ref hash");
             return;
         }
 
-        info!(target: "managed_event_task",
+        info!(target: "resetter",
             %unsafe_ref,
             %cross_unsafe_ref,
             %local_safe_ref,
@@ -106,7 +106,7 @@ where
             )
             .await
         {
-            error!(target: "managed_event_task", %err, "Failed to reset managed node");
+            error!(target: "resetter", %err, "Failed to reset managed node");
         }
     }
 }
