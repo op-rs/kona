@@ -454,7 +454,7 @@ impl SupervisorService for Supervisor {
             let initiating_chain_id =
                 u64::from_be_bytes(access.chain_id[24..32].try_into().unwrap());
 
-            let executing_chain_id = executing_descriptor.chain_id;
+            let executing_chain_id = executing_descriptor.chain_id.unwrap_or(initiating_chain_id);
 
             // Message must be valid at the time of execution.
             access.validate_message_lifetime(
