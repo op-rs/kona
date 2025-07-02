@@ -207,7 +207,7 @@ mod tests {
         db.expect_get_safety_head_ref()
             .withf(|level| *level == SafetyLevel::LocalUnsafe)
             .returning(move |_| Err(StorageError::DatabaseNotInitialised));
-        
+
         let client = MockClient::new();
 
         let resetter = Resetter::new(Arc::new(client), Arc::new(db));
