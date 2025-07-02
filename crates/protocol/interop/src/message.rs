@@ -158,10 +158,13 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn test_serialize_executing_descriptor() {
-        let descriptor =
-            ExecutingDescriptor { timestamp: 1234567890, timeout: Some(3600), chain_id: 1000 };
+        let descriptor = ExecutingDescriptor {
+            timestamp: 1234567890,
+            timeout: Some(3600),
+            chain_id: 1000u64.into(),
+        };
         let serialized = serde_json::to_string(&descriptor).unwrap();
-        let expected = r#"{"timestamp":1234567890,"timeout":3600,"chain_id":"0x3e8"}"#;
+        let expected = r#"{"timestamp":"0x499602d2","timeout":"0xe10","chainID":"0x3e8"}"#;
         assert_eq!(serialized, expected);
 
         let deserialized: ExecutingDescriptor = serde_json::from_str(&serialized).unwrap();
