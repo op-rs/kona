@@ -82,7 +82,10 @@ pub struct ExecutingDescriptor {
     pub timestamp: u64,
     /// The timeout that requests verification to still hold at `timestamp+timeout`
     /// (message expiry may drop previously valid messages).
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none", with = "alloy_serde::quantity::opt"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Option::is_none", with = "alloy_serde::quantity::opt")
+    )]
     pub timeout: Option<u64>,
     /// Chain ID of the chain that the message was executed on.
     #[cfg_attr(feature = "serde", serde(rename = "chainID", with = "alloy_serde::quantity"))]
