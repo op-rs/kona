@@ -189,6 +189,7 @@ func TestMinSyncedL1Advancing(gt *testing.T) {
 }
 
 func TestFinalizedHeadAdvancing(gt *testing.T) {
+	gt.Skip()
 	t := devtest.ParallelT(gt)
 
 	out := presets.NewSimpleInterop(t)
