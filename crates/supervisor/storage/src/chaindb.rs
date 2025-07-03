@@ -3,6 +3,7 @@
 use crate::{
     Metrics,
     error::StorageError,
+    models::SourceBlockTraversal,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
     traits::{
         DerivationStorageReader, DerivationStorageWriter, HeadRefStorageReader,
@@ -146,11 +147,12 @@ impl DerivationStorageWriter for ChainDb {
         })?
     }
 
-    fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
+    fn save_source_block(
+        &self,
+        incoming_source: BlockInfo,
+    ) -> Result<SourceBlockTraversal, StorageError> {
         self.observe_call("save_block_traversal", || {
-            self.env.update(|ctx| {
-                DerivationProvider::new(ctx).save_source_block(incoming_source)
-            })
+            self.env.update(|ctx| DerivationProvider::new(ctx).save_source_block(incoming_source))
         })?
     }
 }
@@ -695,5 +697,43 @@ mod tests {
 
         let cross_safe_block = db.get_safety_head_ref(SafetyLevel::CrossSafe).unwrap();
         assert_eq!(cross_safe_block, block2);
+    }
+
+    #[test]
+    fn test_source_block_storage() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_source_block");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        let source1 = BlockInfo {
+            hash: B256::from([0u8; 32]),
+            number: 100,
+            parent_hash: B256::from([1u8; 32]),
+            timestamp: 1234,
+        };
+        let source2 = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 101,
+            parent_hash: source1.hash,
+            timestamp: 5678,
+        };
+
+        // Save first source block
+        let traversal1 = db.save_source_block(source1).expect("save source1");
+        assert_eq!(traversal1.source.number, 100);
+        assert!(traversal1.derived_block_numbers.is_empty());
+
+        // Save second source block
+        let traversal2 = db.save_source_block(source2).expect("save source2");
+        assert_eq!(traversal2.source.number, 101);
+        assert!(traversal2.derived_block_numbers.is_empty());
+
+        // Idempotency: saving the same block again should succeed
+        let traversal2b = db.save_source_block(source2).expect("idempotent save source2");
+        assert_eq!(traversal2b, traversal2);
+
+        // Retrieve latest source block
+        let latest = db.latest_source_block().expect("get latest source block");
+        assert_eq!(latest, source2);
     }
 }

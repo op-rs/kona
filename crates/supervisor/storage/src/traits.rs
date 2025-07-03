@@ -1,4 +1,4 @@
-use crate::StorageError;
+use crate::{StorageError, models::SourceBlockTraversal};
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
@@ -86,7 +86,7 @@ pub trait DerivationStorageWriter: Debug {
     /// # Returns
     /// * `Ok(())` if the source block was successfully saved.
     /// * `Err(StorageError)` if there is an issue saving the source block.
-    fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError>;
+    fn save_source_block(&self, source: BlockInfo) -> Result<SourceBlockTraversal, StorageError>;
 }
 
 /// Combines both reading and writing capabilities for derivation storage.

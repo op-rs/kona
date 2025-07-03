@@ -194,4 +194,27 @@ mod tests {
         assert_eq!(BlockRef::from(source_info), stored.source);
         assert_eq!(BlockRef::from(derived_info), stored.derived);
     }
+
+    #[test]
+    fn test_source_block_traversal_compact_roundtrip() {
+        let source_ref = BlockRef {
+            number: 123,
+            hash: test_b256(10),
+            parent_hash: test_b256(11),
+            timestamp: 1111,
+        };
+        let derived_block_numbers = U64List(vec![1, 2, 3, 4, 5]);
+        let original = SourceBlockTraversal { source: source_ref, derived_block_numbers };
+
+        let mut buffer = Vec::new();
+        let bytes_written = original.to_compact(&mut buffer);
+        assert_eq!(bytes_written, buffer.len(), "Bytes written should match buffer length");
+        let (deserialized, remaining_buf) =
+            SourceBlockTraversal::from_compact(&buffer, bytes_written);
+        assert_eq!(
+            original, deserialized,
+            "Original and deserialized SourceBlockTraversal should be equal"
+        );
+        assert!(remaining_buf.is_empty(), "Remaining buffer should be empty after deserialization");
+    }
 }
