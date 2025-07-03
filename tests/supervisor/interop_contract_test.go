@@ -1,4 +1,4 @@
-package contract
+package supervisor
 
 import (
 	"math/rand"

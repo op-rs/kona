@@ -1,4 +1,4 @@
-package msg
+package interop
 
 import (
 	"math/rand"
