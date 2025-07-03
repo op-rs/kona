@@ -5008,6 +5008,7 @@ dependencies = [
  "kona-genesis",
  "kona-interop",
  "kona-protocol",
+ "kona-supervisor-metrics",
  "kona-supervisor-rpc",
  "kona-supervisor-storage",
  "kona-supervisor-types",

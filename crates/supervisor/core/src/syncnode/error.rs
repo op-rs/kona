@@ -1,4 +1,5 @@
 use alloy_primitives::B256;
+use kona_supervisor_storage::StorageError;
 use thiserror::Error;
 
 /// Represents various errors that can occur during node management,
@@ -20,9 +21,9 @@ pub enum ManagedNodeError {
     #[error("failed to authenticate: {0}")]
     Authentication(#[from] AuthenticationError),
 
-    /// Represents an error that occurred when L1 provider is uninitialized.
-    #[error("L1 provider is not initialized")]
-    L1ProviderUninitialized,
+    /// Database provider is not set for the managed node.
+    #[error("database not initialised for managed node")]
+    DatabaseNotInitialised,
 }
 
 impl PartialEq for ManagedNodeError {
@@ -57,21 +58,6 @@ pub enum SubscriptionError {
     /// Subscription is already exists.
     #[error("subscription already active")]
     AlreadyActive,
-    /// Failure sending stop signal to managed mode daemon.
-    #[error("failed to send stop signal")]
-    SendStopSignalFailed,
-    /// No channel found for sending stop signal.
-    #[error("no active stop channel")]
-    MissingStopChannel,
-    /// Failure shutting down managed mode daemon.
-    #[error("failed to join task")]
-    ShutdownDaemonFailed,
-    /// Subscription has already been stopped or wasn't active.
-    #[error("subscription not active or already stopped")]
-    SubscriptionNotFound,
-    /// Database provider is missing for managed node which is required for subscription startup.
-    #[error("database provider missing for managed node")]
-    DatabaseProviderNotFound,
 }
 
 /// Error handling managed event task.
@@ -80,6 +66,7 @@ pub enum ManagedEventTaskError {
     /// Unable to successfully fetch next L1 block.
     #[error("failed to get block by number, number: {0}")]
     GetBlockByNumberFailed(u64),
+
     /// Current block hash and parent block hash of next block do not match.
     #[error(
         "current block hash and parent hash of next block mismatch, current: {current}, parent: {parent}"
@@ -90,33 +77,16 @@ pub enum ManagedEventTaskError {
         /// Parent block hash of next block (which should be current block hash)
         parent: B256,
     },
+
     /// This should never happen, new() always sets the rpc client when creating the task.
     #[error("rpc client for managed node is not set")]
     ManagedNodeClientMissing,
+
     /// Managed node api call failed.
     #[error("managed node api call failed")]
     ManagedNodeAPICallFailed,
-    /// Next block is either empty or unavailable.
-    #[error("next block is either empty or unavailable, number: {0}")]
-    NextBlockNotFound(u64),
-    /// Block not found in database.
-    #[error(
-        "derived block pair not found in database, derived: {derived_block_number}, source: {source_block_number}"
-    )]
-    DerivedBlockPairNotFound {
-        /// Derived block number.
-        derived_block_number: u64,
-        /// Source block number.
-        source_block_number: u64,
-    },
-    /// Incoming derived block does not match stored block.
-    #[error(
-        "incoming derived block number does not match stored block number, incoming: {incoming}, stored: {stored}"
-    )]
-    BlockNumberMismatch {
-        /// Incoming derived block number.
-        incoming: u64,
-        /// Stored derived block number.
-        stored: u64,
-    },
+
+    /// Error fetching data from the storage.
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
 }

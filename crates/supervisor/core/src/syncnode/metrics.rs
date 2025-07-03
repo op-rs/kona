@@ -7,14 +7,14 @@ pub(super) struct Metrics;
 impl Metrics {
     // --- Metric Names ---
     /// Identifier for the counter of successful RPC requests. Labels: `method`.
-    pub(crate) const MANAGED_MODE_RPC_REQUESTS_SUCCESS_TOTAL: &'static str =
-        "managed_mode_rpc_requests_success_total";
+    pub(crate) const MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL: &'static str =
+        "managed_node_rpc_requests_success_total";
     /// Identifier for the counter of failed RPC requests. Labels: `method`.
-    pub(crate) const MANAGED_MODE_RPC_REQUESTS_ERROR_TOTAL: &'static str =
-        "managed_mode_rpc_requests_error_total";
+    pub(crate) const MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL: &'static str =
+        "managed_node_rpc_requests_error_total";
     /// Identifier for the histogram of RPC request durations. Labels: `method`.
-    pub(crate) const MANAGED_MODE_RPC_REQUEST_DURATION_SECONDS: &'static str =
-        "managed_mode_rpc_request_duration_seconds";
+    pub(crate) const MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS: &'static str =
+        "managed_node_rpc_request_duration_seconds";
 
     // --- RPC Method Names (for zeroing) ---
     /// Lists all managed mode RPC methods here to ensure they are pre-registered.
@@ -31,67 +31,51 @@ impl Metrics {
     /// This does two things:
     /// * Describes various metrics.
     /// * Initializes metrics with their labels to 0 so they can be queried immediately.
-    pub(crate) fn init() {
+    pub(crate) fn init(node: &str) {
         Self::describe();
-        Self::zero();
+        Self::zero(node);
     }
 
     /// Describes metrics used in the Supervisor RPC service.
     fn describe() {
         metrics::describe_counter!(
-            Self::MANAGED_MODE_RPC_REQUESTS_SUCCESS_TOTAL,
+            Self::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             metrics::Unit::Count,
             "Total number of successful RPC requests processed by the managed mode client"
         );
         metrics::describe_counter!(
-            Self::MANAGED_MODE_RPC_REQUESTS_ERROR_TOTAL,
+            Self::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             metrics::Unit::Count,
             "Total number of failed RPC requests processed by the managed mode client"
         );
         metrics::describe_histogram!(
-            Self::MANAGED_MODE_RPC_REQUEST_DURATION_SECONDS,
+            Self::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
             metrics::Unit::Seconds,
             "Duration of RPC requests processed by the managed mode client"
         );
     }
 
     /// Initializes metrics with their labels to `0` so they appear in Prometheus from the start.
-    fn zero() {
+    fn zero(node: &str) {
         for method_name in Self::RPC_METHODS.iter() {
             metrics::counter!(
-                Self::MANAGED_MODE_RPC_REQUESTS_SUCCESS_TOTAL,
-                "method" => *method_name
+                Self::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
+                "method" => *method_name,
+                "node" => node.to_string()
             )
             .increment(0);
             metrics::counter!(
-                Self::MANAGED_MODE_RPC_REQUESTS_ERROR_TOTAL,
-                "method" => *method_name
+                Self::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
+                "method" => *method_name,
+                "node" => node.to_string()
             )
             .increment(0);
             metrics::histogram!(
-                Self::MANAGED_MODE_RPC_REQUEST_DURATION_SECONDS,
-                "method" => *method_name
+                Self::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
+                "method" => *method_name,
+                "node" => node.to_string()
             )
             .record(0.0); // Record a zero value to ensure the label combination is present
         }
     }
-}
-
-/// See [`observe_rpc_call`](crate::observe_rpc_call).
-#[macro_export]
-macro_rules! observe_rpc_call_managed_mode {
-    ($method_name:expr, $block:expr) => {{
-        let start_time = std::time::Instant::now();
-        let result = $block; // Execute the provided code block
-        let duration = start_time.elapsed().as_secs_f64();
-
-        if result.is_ok() {
-            metrics::counter!($crate::syncnode::metrics::Metrics::MANAGED_MODE_RPC_REQUESTS_SUCCESS_TOTAL, "method" => $method_name).increment(1);
-        } else {
-            metrics::counter!($crate::syncnode::metrics::Metrics::MANAGED_MODE_RPC_REQUESTS_ERROR_TOTAL, "method" => $method_name).increment(1);
-        }
-
-        metrics::histogram!($crate::syncnode::metrics::Metrics::MANAGED_MODE_RPC_REQUEST_DURATION_SECONDS, "method" => $method_name).record(duration);
-        result
-    }};
 }

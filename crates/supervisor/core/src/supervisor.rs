@@ -28,7 +28,7 @@ use crate::{
     event::ChainEvent,
     l1_watcher::L1Watcher,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{ManagedNode, ManagedNodeApiProvider},
+    syncnode::{Client, ManagedNode, ManagedNodeApiProvider, ManagedNodeClient},
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -105,8 +105,8 @@ pub struct Supervisor {
 
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
-    managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb>>>,
-    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb>, ChainDb>>,
+    managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
+    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb>>,
 
     cancel_token: CancellationToken,
 }
@@ -227,15 +227,17 @@ impl Supervisor {
                 SupervisorError::Initialise("invalid l1 rpc url".to_string())
             })?;
             let provider = RootProvider::<Ethereum>::new_http(url);
-            let mut managed_node = ManagedNode::<ChainDb>::new(
-                Arc::new(config.clone()),
+            let client = Arc::new(Client::new(config.clone()));
+
+            let chain_id = client.chain_id().await?;
+            let db = self.database_factory.get_db(chain_id)?;
+
+            let managed_node = ManagedNode::<ChainDb, Client>::new(
+                client,
+                db,
                 self.cancel_token.clone(),
                 provider,
             );
-
-            let chain_id = managed_node.chain_id().await?;
-            let db = self.database_factory.get_db(chain_id)?;
-            managed_node.set_db_provider(db);
 
             if self.managed_nodes.contains_key(&chain_id) {
                 warn!(target: "supervisor_service", %chain_id, "Managed node for chain already exists, skipping initialization");
@@ -285,11 +287,6 @@ impl Supervisor {
         block: &BlockInfo,
         safety: SafetyLevel,
     ) -> Result<(), SupervisorError> {
-        // check block exists on the derivation storage
-        self.database_factory
-            .get_db(chain_id)?
-            .derived_to_source(BlockNumHash { number: block.number, hash: block.hash })?;
-
         let head_ref = self.database_factory.get_db(chain_id)?.get_safety_head_ref(safety)?;
 
         if head_ref.number < block.number {
@@ -457,9 +454,7 @@ impl SupervisorService for Supervisor {
             let initiating_chain_id =
                 u64::from_be_bytes(access.chain_id[24..32].try_into().unwrap());
 
-            // TODO: Extend the `ExecutingDescriptor` to accept chain_id.
-            // And set executing_chain_id as initiating_chain_id only for backward compat.
-            let executing_chain_id = initiating_chain_id;
+            let executing_chain_id = executing_descriptor.chain_id.unwrap_or(initiating_chain_id);
 
             // Message must be valid at the time of execution.
             access.validate_message_lifetime(
