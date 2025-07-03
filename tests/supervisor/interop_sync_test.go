@@ -1,4 +1,4 @@
-package interop
+package supervisor
 
 import (
 	"testing"
