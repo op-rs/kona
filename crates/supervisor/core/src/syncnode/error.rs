@@ -21,9 +21,9 @@ pub enum ManagedNodeError {
     #[error("failed to authenticate: {0}")]
     Authentication(#[from] AuthenticationError),
 
-    /// Represents an error that occurred when L1 provider is uninitialized.
-    #[error("L1 provider is not initialized")]
-    L1ProviderUninitialized,
+    /// Database provider is not set for the managed node.
+    #[error("database not initialised for managed node")]
+    DatabaseNotInitialised,
 }
 
 impl PartialEq for ManagedNodeError {
@@ -58,21 +58,6 @@ pub enum SubscriptionError {
     /// Subscription is already exists.
     #[error("subscription already active")]
     AlreadyActive,
-    /// Failure sending stop signal to managed mode daemon.
-    #[error("failed to send stop signal")]
-    SendStopSignalFailed,
-    /// No channel found for sending stop signal.
-    #[error("no active stop channel")]
-    MissingStopChannel,
-    /// Failure shutting down managed mode daemon.
-    #[error("failed to join task")]
-    ShutdownDaemonFailed,
-    /// Subscription has already been stopped or wasn't active.
-    #[error("subscription not active or already stopped")]
-    SubscriptionNotFound,
-    /// Database provider is missing for managed node which is required for subscription startup.
-    #[error("database provider missing for managed node")]
-    DatabaseProviderNotFound,
 }
 
 /// Error handling managed event task.

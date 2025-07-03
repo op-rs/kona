@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    ManagedEventTask, ManagedNodeApiProvider, ManagedNodeClient, ManagedNodeError, NodeSubscriber,
-    ReceiptProvider, SubscriptionError,
+    ManagedNodeApiProvider, ManagedNodeClient, ManagedNodeError, NodeSubscriber, ReceiptProvider,
+    SubscriptionError, resetter::Resetter, task::ManagedEventTask,
 };
 use crate::event::ChainEvent;
 
@@ -31,17 +31,19 @@ pub struct ManagedNode<DB, C> {
     client: Arc<C>,
     /// The database provider for fetching information
     db_provider: Arc<DB>,
-    // Cancellation token to stop the processor
+    /// Shared L1 provider for fetching receipts
+    l1_provider: RootProvider<Ethereum>,
+    /// Resetter for handling node resets
+    resetter: Arc<Resetter<DB, C>>,
+    /// Cancellation token to stop the processor
     cancel_token: CancellationToken,
     /// Handle to the async subscription task
     task_handle: Mutex<Option<JoinHandle<()>>>,
-    /// Shared L1 provider for fetching receipts
-    l1_provider: RootProvider<Ethereum>,
 }
 
 impl<DB, C> ManagedNode<DB, C>
 where
-    DB: LogStorageReader + DerivationStorageReader + Send + Sync + 'static,
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
     C: ManagedNodeClient + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedNode`] with the specified client.
@@ -51,7 +53,16 @@ where
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
-        Self { client, db_provider, cancel_token, task_handle: Mutex::new(None), l1_provider }
+        let resetter = Arc::new(Resetter::new(client.clone(), db_provider.clone()));
+
+        Self {
+            client,
+            db_provider,
+            resetter,
+            cancel_token,
+            task_handle: Mutex::new(None),
+            l1_provider,
+        }
     }
 
     /// Returns the [`ChainId`] of the [`ManagedNode`].
@@ -96,6 +107,7 @@ where
             self.client.clone(),
             self.l1_provider.clone(),
             self.db_provider.clone(),
+            self.resetter.clone(),
             event_tx,
         );
         // Start background task to handle events

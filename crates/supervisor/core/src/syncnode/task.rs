@@ -1,9 +1,9 @@
-use super::{ManagedEventTaskError, ManagedNodeClient};
+use super::{ManagedEventTaskError, ManagedNodeClient, resetter::Resetter};
 use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
-use kona_interop::{DerivedRefPair, ManagedEvent, SafetyLevel};
+use kona_interop::{DerivedRefPair, ManagedEvent};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use std::sync::Arc;
@@ -12,13 +12,15 @@ use tracing::{debug, error, info, warn};
 
 /// [`ManagedEventTask`] sorts and processes individual events coming from a subscription.
 #[derive(Debug)]
-pub struct ManagedEventTask<DB, C> {
+pub(super) struct ManagedEventTask<DB, C> {
     /// The client to use for connecting to managed node (optional for testing)
     client: Arc<C>,
     /// The URL of the L1 RPC endpoint to use for fetching L1 data
     l1_provider: RootProvider<Ethereum>,
     /// The database provider for fetching information
     db_provider: Arc<DB>,
+    /// The resetter for handling node resets
+    resetter: Arc<Resetter<DB, C>>,
     /// The channel to send the events to which require further processing e.g. db updates
     event_tx: mpsc::Sender<ChainEvent>,
 }
@@ -29,20 +31,21 @@ where
     C: ManagedNodeClient + Send + Sync + 'static,
 {
     /// Creates a new [`ManagedEventTask`] instance.
-    pub const fn new(
+    pub(super) const fn new(
         client: Arc<C>,
         l1_provider: RootProvider<Ethereum>,
         db_provider: Arc<DB>,
+        resetter: Arc<Resetter<DB, C>>,
         event_tx: mpsc::Sender<ChainEvent>,
     ) -> Self {
-        Self { client, l1_provider, db_provider, event_tx }
+        Self { client, l1_provider, db_provider, resetter, event_tx }
     }
 
     /// Processes a managed event received from the subscription.
     ///
     /// Analyzes the event content and takes appropriate actions based on the
     /// event fields.
-    pub async fn handle_managed_event(&self, incoming_event: Option<ManagedEvent>) {
+    pub(super) async fn handle_managed_event(&self, incoming_event: Option<ManagedEvent>) {
         match incoming_event {
             Some(event) => {
                 debug!(target: "managed_event_task", %event, "Handling ManagedEvent");
@@ -50,7 +53,7 @@ where
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
                     info!(target: "managed_event_task", %reset_id, "Reset event received");
-                    self.reset_node().await;
+                    self.resetter.reset().await;
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
@@ -168,7 +171,7 @@ where
         }
 
         if !self.is_node_consistent(derived_ref_pair).await? {
-            self.reset_node().await;
+            self.resetter.reset().await;
             return Ok(());
         }
 
@@ -186,92 +189,6 @@ where
 
         info!(target: "managed_event_task", "Sent next L1 block to managed node using provide_l1");
         Ok(())
-    }
-
-    // todo: refactor
-    async fn reset_node(&self) {
-        info!(target: "managed_event_task", "Resetting the node");
-
-        let unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
-            Ok(val) => val,
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get unsafe head ref");
-                return;
-            }
-        };
-
-        let cross_unsafe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossUnsafe)
-        {
-            Ok(val) => val,
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get cross unsafe head ref");
-                return;
-            }
-        };
-
-        let local_safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::LocalSafe) {
-            Ok(val) => val,
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get local safe head ref");
-                return;
-            }
-        };
-
-        let safe_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::CrossSafe) {
-            Ok(val) => val,
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get safe head ref");
-                return;
-            }
-        };
-
-        let finalised_ref = match self.db_provider.get_safety_head_ref(SafetyLevel::Finalized) {
-            Ok(val) => val,
-            Err(err) => {
-                error!(target: "managed_event_task", %err, "Failed to get finalised head ref");
-                return;
-            }
-        };
-
-        let node_safe_ref = match self.client.block_ref_by_number(local_safe_ref.number).await {
-            Ok(block) => block,
-            Err(err) => {
-                // todo: it's possible that supervisor is ahead of the op-node
-                // in this case we should handle the error gracefully
-                error!(target: "managed_event_task", %err, "Failed to get block by number");
-                return;
-            }
-        };
-
-        // check with consistency with the op-node
-        if node_safe_ref.hash != local_safe_ref.hash {
-            // todo: handle this case
-            error!(target: "managed_event_task", "Local safe ref hash does not match node safe ref hash");
-            return;
-        }
-
-        info!(target: "managed_event_task",
-            %unsafe_ref,
-            %cross_unsafe_ref,
-            %local_safe_ref,
-            %safe_ref,
-            %finalised_ref,
-            "Resetting managed node with latest information",
-        );
-
-        if let Err(err) = self
-            .client
-            .reset(
-                unsafe_ref.id(),
-                cross_unsafe_ref.id(),
-                local_safe_ref.id(),
-                safe_ref.id(),
-                finalised_ref.id(),
-            )
-            .await
-        {
-            error!(target: "managed_event_task", %err, "Failed to reset managed node");
-        }
     }
 
     async fn is_node_consistent(
@@ -382,13 +299,17 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let db = Arc::new(MockDb::new());
-        let client = MockManagedNodeClient::new();
+        let mockdb = MockDb::new();
+        let mockclient = MockManagedNodeClient::new();
+
+        let db = Arc::new(mockdb);
+        let client = Arc::new(mockclient);
 
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new(Arc::new(client), provider, db, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
+        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -428,13 +349,17 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let db = Arc::new(MockDb::new());
-        let client = MockManagedNodeClient::new();
+        let mockdb = MockDb::new();
+        let mockclient = MockManagedNodeClient::new();
+
+        let db = Arc::new(mockdb);
+        let client = Arc::new(mockclient);
 
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new(Arc::new(client), provider, db, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
+        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -471,13 +396,17 @@ mod tests {
             derivation_origin_update: None,
         };
 
-        let db = Arc::new(MockDb::new());
-        let client = MockManagedNodeClient::new();
+        let mockdb = MockDb::new();
+        let mockclient = MockManagedNodeClient::new();
+
+        let db = Arc::new(mockdb);
+        let client = Arc::new(mockclient);
 
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new(Arc::new(client), provider, db, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
+        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -539,11 +468,11 @@ mod tests {
             "parentBeaconBlockRoot": "0x95c4dbd5b19f6fe3cbc3183be85ff4e85ebe75c5b4fc911f1c91e5b7a554a685"
         }"#;
 
-        let mut db = MockDb::new();
-        let client = MockManagedNodeClient::new();
+        let mut mockdb = MockDb::new();
+        let mockclient = MockManagedNodeClient::new();
 
         // need to expect because it gets called indirectly in handle_reset()
-        db.expect_get_safety_head_ref().returning(|_| {
+        mockdb.expect_get_safety_head_ref().returning(|_| {
             Ok(BlockInfo {
                 hash: B256::from([0u8; 32]),
                 number: 1,
@@ -552,11 +481,15 @@ mod tests {
             })
         });
 
+        let db = Arc::new(mockdb);
+        let client = Arc::new(mockclient);
+
         // Use mock provider to test exhaust_l1
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let task = ManagedEventTask::new(Arc::new(client), provider, Arc::new(db), tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
+        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
