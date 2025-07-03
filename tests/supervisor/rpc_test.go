@@ -2,6 +2,8 @@ package supervisor
 
 import (
 	"context"
+	"testing"
+
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/presets"
 	"github.com/ethereum-optimism/optimism/op-devstack/shim"
@@ -10,7 +12,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func initSupervisorRPCClient(t devtest.T) stack.Supervisor {
