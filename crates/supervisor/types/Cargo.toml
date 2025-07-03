@@ -24,6 +24,7 @@ kona-protocol = { workspace = true, features = ["serde"] }
 # alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-serde = { workspace = true }
 
 # op-alloy
 op-alloy-consensus.workspace = true
@@ -32,3 +33,6 @@ op-alloy-consensus.workspace = true
 serde.workspace = true
 derive_more = { workspace = true, default-features = false, features = ["constructor"] }
 thiserror = {workspace = true}
+
+[dev-dependencies]
+serde_json.workspace = true

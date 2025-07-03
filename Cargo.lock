@@ -5103,11 +5103,13 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
+ "alloy-serde",
  "derive_more",
  "kona-interop",
  "kona-protocol",
  "op-alloy-consensus 0.18.1",
  "serde",
+ "serde_json",
  "thiserror 2.0.12",
 ]
 
