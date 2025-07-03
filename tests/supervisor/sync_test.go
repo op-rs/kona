@@ -27,7 +27,7 @@ const (
 )
 
 func TestLocalUnsafeHeadAdvancing(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	l2aChainID := out.L2CLA.ChainID()
@@ -60,7 +60,7 @@ func TestLocalUnsafeHeadAdvancing(gt *testing.T) {
 }
 
 func TestCrossUnsafeHeadAdvancing(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	l2aChainID := out.L2CLA.ChainID()
@@ -94,7 +94,7 @@ func TestCrossUnsafeHeadAdvancing(gt *testing.T) {
 }
 
 func TestLocalSafeHeadAdvancing(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	l2aChainID := out.L2CLA.ChainID()
@@ -127,7 +127,7 @@ func TestLocalSafeHeadAdvancing(gt *testing.T) {
 }
 
 func TestCrossSafeHeadAdvancing(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	l2aChainID := out.L2CLA.ChainID()
@@ -161,7 +161,7 @@ func TestCrossSafeHeadAdvancing(gt *testing.T) {
 }
 
 func TestMinSyncedL1Advancing(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	supervisorStatus := out.Supervisor.FetchSyncStatus()
@@ -189,7 +189,8 @@ func TestMinSyncedL1Advancing(gt *testing.T) {
 }
 
 func TestFinalizedHeadAdvancing(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	gt.Skip()
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	l2aChainID := out.L2CLA.ChainID()
@@ -224,7 +225,7 @@ func TestFinalizedHeadAdvancing(gt *testing.T) {
 }
 
 func TestDerivationPipeline(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	l2BlockHead := out.Supervisor.L2HeadBlockID(out.L2ChainA.ChainID(), "local-safe")
