@@ -697,7 +697,7 @@ mod tests {
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
         let pair1 = derived_pair(genesis_block(), derived0);
         assert!(initialize_db(&db, &pair1).is_ok());
-        
+
         let source1 = block_info(1, genesis_block().hash, 200);
         assert!(insert_source_block(&db, &source1).is_ok());
     }
