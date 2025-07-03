@@ -360,8 +360,7 @@ mod tests {
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, SourceBlockTraversal,
-        StorageError, models::U64List,
+        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{Log, OutputV0, Receipts};
     use mockall::mock;
@@ -441,7 +440,7 @@ mod tests {
             fn save_source_block(
                 &self,
                 source: BlockInfo,
-            ) -> Result<SourceBlockTraversal, StorageError>;
+            ) -> Result<(), StorageError>;
         }
 
         impl HeadRefStorageWriter for Db {
@@ -558,10 +557,7 @@ mod tests {
         let origin_clone = origin;
         mockdb.expect_save_source_block().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);
-            Ok(SourceBlockTraversal {
-                source: origin_clone.into(),
-                derived_block_numbers: U64List::default(),
-            })
+            Ok(())
         });
         mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);

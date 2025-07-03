@@ -252,7 +252,6 @@ mod tests {
             fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_at_source(&self, _source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
-            fn latest_source_block(&self) -> Result<BlockInfo, StorageError>;
         }
 
         impl HeadRefStorageReader for Db {

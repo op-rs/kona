@@ -1,4 +1,4 @@
-use crate::{StorageError, models::SourceBlockTraversal};
+use crate::StorageError;
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
@@ -50,13 +50,6 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
     fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
-
-    /// Gets the latest source block from the storage.
-    ///
-    /// # Returns
-    /// * `Ok(BlockInfo)` containing the latest source block if it exists.
-    /// * `Err(StorageError)` if there is an issue retrieving the source block.
-    fn latest_source_block(&self) -> Result<BlockInfo, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
@@ -86,7 +79,7 @@ pub trait DerivationStorageWriter: Debug {
     /// # Returns
     /// * `Ok(())` if the source block was successfully saved.
     /// * `Err(StorageError)` if there is an issue saving the source block.
-    fn save_source_block(&self, source: BlockInfo) -> Result<SourceBlockTraversal, StorageError>;
+    fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError>;
 }
 
 /// Combines both reading and writing capabilities for derivation storage.

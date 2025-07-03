@@ -3,7 +3,6 @@
 use crate::{
     Metrics,
     error::StorageError,
-    models::SourceBlockTraversal,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
     traits::{
         DerivationStorageReader, DerivationStorageWriter, HeadRefStorageReader,
@@ -112,12 +111,6 @@ impl DerivationStorageReader for ChainDb {
             self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())
         })?
     }
-
-    fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
-        self.observe_call("latest_source_block", || {
-            self.env.view(|tx| DerivationProvider::new(tx).latest_source_block())
-        })?
-    }
 }
 
 impl DerivationStorageWriter for ChainDb {
@@ -147,10 +140,7 @@ impl DerivationStorageWriter for ChainDb {
         })?
     }
 
-    fn save_source_block(
-        &self,
-        incoming_source: BlockInfo,
-    ) -> Result<SourceBlockTraversal, StorageError> {
+    fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
         self.observe_call("save_block_traversal", || {
             self.env.update(|ctx| DerivationProvider::new(ctx).save_source_block(incoming_source))
         })?
@@ -219,7 +209,7 @@ impl HeadRefStorageReader for ChainDb {
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
         self.observe_call("get_super_head", || {
-            let l1_source = self.latest_source_block()?;
+            let l1_source = self.latest_derived_block_pair()?.source;
 
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx);
@@ -529,7 +519,7 @@ mod tests {
             source: BlockInfo {
                 hash: B256::from([4u8; 32]),
                 number: 101,
-                parent_hash: B256::from([5u8; 32]),
+                parent_hash: anchor.source.hash,
                 timestamp: 0,
             },
             derived: BlockInfo {
@@ -559,6 +549,7 @@ mod tests {
         .expect("storing logs failed");
 
         // Save derived block pair
+        db.save_source_block(derived_pair.source).expect("save source block");
         db.save_derived_block_pair(derived_pair).expect("save derived pair");
 
         // Retrieve latest derived block pair
@@ -717,23 +708,21 @@ mod tests {
             parent_hash: source1.hash,
             timestamp: 5678,
         };
+        let derived1 = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 1,
+            parent_hash: source1.hash,
+            timestamp: 9101,
+        };
 
-        // Save first source block
-        let traversal1 = db.save_source_block(source1).expect("save source1");
-        assert_eq!(traversal1.source.number, 100);
-        assert!(traversal1.derived_block_numbers.is_empty());
+        assert!(db.initialise(DerivedRefPair { source: source1, derived: derived1 }).is_ok());
+        assert!(db.save_source_block(source2).is_ok());
 
-        // Save second source block
-        let traversal2 = db.save_source_block(source2).expect("save source2");
-        assert_eq!(traversal2.source.number, 101);
-        assert!(traversal2.derived_block_numbers.is_empty());
-
-        // Idempotency: saving the same block again should succeed
-        let traversal2b = db.save_source_block(source2).expect("idempotent save source2");
-        assert_eq!(traversal2b, traversal2);
+        let err = db.save_source_block(source2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::BlockOutOfOrder));
 
         // Retrieve latest source block
-        let latest = db.latest_source_block().expect("get latest source block");
-        assert_eq!(latest, source2);
+        let latest = db.latest_derived_block_pair().expect("get latest source block");
+        assert_eq!(latest.source, source2);
     }
 }

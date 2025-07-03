@@ -125,8 +125,7 @@ mod tests {
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, SourceBlockTraversal,
-        StorageError,
+        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{Log, OutputV0, Receipts};
     use mockall::mock;
@@ -232,7 +231,7 @@ mod tests {
             fn save_source_block(
                 &self,
                 source: BlockInfo,
-            ) -> Result<SourceBlockTraversal, StorageError>;
+            ) -> Result<(), StorageError>;
         }
 
         impl HeadRefStorageWriter for Db {
