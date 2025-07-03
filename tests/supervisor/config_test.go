@@ -13,7 +13,7 @@ const (
 )
 
 func TestNetworkConfig(gt *testing.T) {
-	t := devtest.ParallelT(gt)
+	t := devtest.SerialT(gt)
 
 	out := presets.NewSimpleInterop(t)
 	t.Require().Equal(out.L2CLA.ChainID().String(), L2A_CHAIN_ID)
