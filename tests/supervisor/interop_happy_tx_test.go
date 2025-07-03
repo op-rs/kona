@@ -14,9 +14,12 @@ import (
 	stypes "github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 )
 
+// TODO: Run the test directly from the https://github.com/ethereum-optimism/optimism/tree/develop/op-acceptance-tests
+
 // TestInteropHappyTx is testing that a valid init message, followed by a valid exec message are correctly
 // included in two L2 chains and that the cross-safe ref for both of them progresses as expected beyond
 // the block number where the messages were included
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_happy_tx_test.go
 func TestInteropHappyTx(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)

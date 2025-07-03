@@ -14,7 +14,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// TODO: Run the test directly from the https://github.com/ethereum-optimism/optimism/tree/develop/op-acceptance-tests
+
 // TestRegularMessage checks that messages can be sent and relayed via L2ToL2CrossDomainMessenger
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/contract/interop_contract_test.go
 func TestRegularMessage(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)

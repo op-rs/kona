@@ -29,7 +29,10 @@ import (
 	suptypes "github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 )
 
+// TODO: Run the test directly from the https://github.com/ethereum-optimism/optimism/tree/develop/op-acceptance-tests
+
 // TestInitExecMsg tests basic interop messaging
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L33
 func TestInitExecMsg(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -47,6 +50,7 @@ func TestInitExecMsg(gt *testing.T) {
 }
 
 // TestInitExecMsgWithDSL tests basic interop messaging with contract DSL
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L50
 func TestInitExecMsgWithDSL(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -122,6 +126,7 @@ func TestInitExecMsgWithDSL(gt *testing.T) {
 
 // TestRandomDirectedGraph tests below scenario:
 // Construct random directed graph of messages.
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L125
 func TestRandomDirectedGraph(gt *testing.T) {
 	t := devtest.SerialT(gt)
 
@@ -244,6 +249,7 @@ func TestRandomDirectedGraph(gt *testing.T) {
 
 // TestInitExecMultipleMsg tests below scenario:
 // Transaction initiates and executes multiple messages of self
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L247
 func TestInitExecMultipleMsg(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -289,6 +295,7 @@ func TestInitExecMultipleMsg(gt *testing.T) {
 
 // TestExecSameMsgTwice tests below scenario:
 // Transaction that executes the same message twice.
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L292
 func TestExecSameMsgTwice(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -333,6 +340,7 @@ func TestExecSameMsgTwice(gt *testing.T) {
 
 // TestExecDifferentTopicCount tests below scenario:
 // Execute message that links with initiating message with: 0, 1, 2, 3, or 4 topics in it
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L336
 func TestExecDifferentTopicCount(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -383,6 +391,7 @@ func TestExecDifferentTopicCount(gt *testing.T) {
 
 // TestExecMsgOpaqueData tests below scenario:
 // Execute message that links with initiating message with: 0, 10KB of opaque event data in it
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L386
 func TestExecMsgOpaqueData(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -433,6 +442,7 @@ func TestExecMsgOpaqueData(gt *testing.T) {
 
 // TestExecMsgDifferEventIndexInSingleTx tests below scenario:
 // Execute message that links with initiating message with: first, random or last event of a tx.
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L436
 func TestExecMsgDifferEventIndexInSingleTx(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
@@ -551,6 +561,7 @@ func executeIndexedFault(
 
 // TestExecMessageInvalidAttributes tests below scenario:
 // Execute message, but with one or more invalid attributes inside identifiers
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/message/interop_msg_test.go#L554
 func TestExecMessageInvalidAttributes(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	sys := presets.NewSimpleInterop(t)
