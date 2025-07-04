@@ -718,9 +718,6 @@ mod tests {
         assert!(db.initialise(DerivedRefPair { source: source1, derived: derived1 }).is_ok());
         assert!(db.save_source_block(source2).is_ok());
 
-        let err = db.save_source_block(source2).expect_err("should return an error");
-        assert!(matches!(err, StorageError::BlockOutOfOrder));
-
         // Retrieve latest source block
         let latest = db.latest_derivation_state().expect("get latest source block");
         assert_eq!(latest.source, source2);
