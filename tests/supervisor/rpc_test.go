@@ -2,6 +2,7 @@ package supervisor
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
@@ -14,51 +15,82 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func initSupervisorRPCClient(t devtest.T) stack.Supervisor {
+func setupTestClient(t devtest.T) (stack.Supervisor, []eth.ChainID) {
 	system := shim.NewSystem(t)
 	orch := presets.Orchestrator()
 	orch.Hydrate(system)
-	return system.Supervisor(match.Assume(t, match.FirstSupervisor))
+
+	ids := system.L2NetworkIDs()
+	require.GreaterOrEqual(t, len(ids), 2, "at least 2 L2 networks required")
+
+	var chainIDs []eth.ChainID
+	for _, id := range ids {
+		chainIDs = append(chainIDs, id.ChainID())
+	}
+
+	client := system.Supervisor(match.Assume(t, match.FirstSupervisor))
+	return client, chainIDs
 }
 
 func TestRPCLocalUnsafe(gt *testing.T) {
-	t := devtest.SerialT(gt)
+	t := devtest.ParallelT(gt)
 
-	client := initSupervisorRPCClient(t)
+	client, chainIDs := setupTestClient(t)
 
-	safe, err := client.QueryAPI().LocalUnsafe(context.Background(), eth.ChainIDFromUInt64(2151900)) // todo: avoid hardcoded chain id
-	require.Error(t, err, "expected LocalUnsafe to failed for invalid chain")
+	t.Run("fails with invalid chain ID", func(gt devtest.T) {
+		_, err := client.QueryAPI().LocalUnsafe(context.Background(), eth.ChainIDFromUInt64(100))
+		require.Error(t, err, "expected LocalUnsafe to fail with raw chain ID")
+	})
 
-	safe, err = client.QueryAPI().LocalUnsafe(context.Background(), eth.ChainIDFromUInt64(2151908))
-	require.NoError(t, err, "expected LocalUnsafe to succeed for valid chain")
-	assert.Greater(t, safe.Number, uint64(0), "block number should be greater than 0")
-	assert.Len(t, safe.Hash, 32, "block hash should be 42 characters (0x-prefixed)")
+	for _, chainID := range chainIDs {
+		t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainID), func(gt devtest.T) {
+			safe, err := client.QueryAPI().LocalUnsafe(context.Background(), chainID)
+			require.NoError(t, err)
+			assert.Greater(t, safe.Number, uint64(0))
+			assert.Len(t, safe.Hash, 32)
+		})
+	}
 }
 
 func TestRPCCrossSafe(gt *testing.T) {
-	t := devtest.SerialT(gt)
+	t := devtest.ParallelT(gt)
 
-	client := initSupervisorRPCClient(t)
+	client, chainIDs := setupTestClient(t)
 
-	safe, err := client.QueryAPI().CrossSafe(context.Background(), eth.ChainIDFromUInt64(2151900)) // todo: avoid hardcoded chain id
-	require.Error(t, err, "expected CrossSafe to failed for invalid chain")
+	t.Run("fails with invalid chain ID", func(gt devtest.T) {
+		_, err := client.QueryAPI().CrossSafe(context.Background(), eth.ChainIDFromUInt64(100))
+		require.Error(t, err, "expected CrossSafe to fail with invalid chain")
+	})
 
-	safe, err = client.QueryAPI().CrossSafe(context.Background(), eth.ChainIDFromUInt64(2151908))
-	require.NoError(t, err, "expected CrossSafe to succeed for valid chain")
-	assert.Greater(t, safe.Derived, uint64(0), "block number should be greater than 0")
-	assert.Len(t, safe.Derived, 32, "block hash should be 42 characters (0x-prefixed)")
+	for _, chainID := range chainIDs {
+		t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainID), func(gt devtest.T) {
+			blockPair, err := client.QueryAPI().CrossSafe(context.Background(), chainID)
+			require.NoError(t, err)
+			assert.Greater(t, blockPair.Derived.Number, uint64(0))
+			assert.Len(t, blockPair.Derived.Hash, 32)
+
+			assert.Greater(t, blockPair.Source.Number, uint64(0))
+			assert.Len(t, blockPair.Source.Hash, 32)
+		})
+	}
 }
 
 func TestRPCFinalized(gt *testing.T) {
-	t := devtest.SerialT(gt)
+	t := devtest.ParallelT(gt)
 
-	client := initSupervisorRPCClient(t)
+	client, chainIDs := setupTestClient(t)
 
-	safe, err := client.QueryAPI().Finalized(context.Background(), eth.ChainIDFromUInt64(2151900)) // todo: avoid hardcoded chain id
-	require.Error(t, err, "expected Finalized to failed for invalid chain")
+	t.Run("fails with invalid chain ID", func(gt devtest.T) {
+		_, err := client.QueryAPI().Finalized(context.Background(), eth.ChainIDFromUInt64(100))
+		require.Error(t, err, "expected Finalized to fail with invalid chain")
+	})
 
-	safe, err = client.QueryAPI().Finalized(context.Background(), eth.ChainIDFromUInt64(2151908))
-	require.NoError(t, err, "expected Finalized to succeed for valid chain")
-	assert.Greater(t, safe, uint64(0), "block number should be greater than 0")
-	assert.Len(t, safe, 32, "block hash should be 42 characters (0x-prefixed)")
+	for _, chainID := range chainIDs {
+		t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainID), func(gt devtest.T) {
+			safe, err := client.QueryAPI().Finalized(context.Background(), chainID)
+			require.NoError(t, err)
+			assert.Greater(t, safe.Number, uint64(0))
+			assert.Len(t, safe.Hash, 32)
+		})
+	}
 }
