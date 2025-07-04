@@ -761,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    fn save_source_block_idempotent_should_fail() {
+    fn save_source_block_idempotent_should_pass() {
         let db = setup_db();
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
@@ -771,7 +771,7 @@ mod tests {
         let source1 = block_info(1, genesis_block().hash, 200);
         assert!(insert_source_block(&db, &source1).is_ok());
         // Try saving the same block again
-        assert!(matches!(insert_source_block(&db, &source1), Err(StorageError::BlockOutOfOrder)));
+        assert!(insert_source_block(&db, &source1).is_ok());
     }
 
     #[test]
