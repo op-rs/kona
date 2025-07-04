@@ -295,7 +295,7 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        self.state_manager.save_derived_block_pair(derived_ref_pair)?;
+        self.state_manager.save_derived_block(derived_ref_pair)?;
         Ok(derived_ref_pair.derived)
     }
 
@@ -432,7 +432,7 @@ mod tests {
         }
 
         impl DerivationStorageWriter for Db {
-            fn save_derived_block_pair(
+            fn save_derived_block(
                 &self,
                 incoming_pair: DerivedRefPair,
             ) -> Result<(), StorageError>;
@@ -520,7 +520,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mocknode = MockNode::new();
 
-        mockdb.expect_save_derived_block_pair().returning(move |_pair: DerivedRefPair| {
+        mockdb.expect_save_derived_block().returning(move |_pair: DerivedRefPair| {
             assert_eq!(_pair, block_pair);
             Ok(())
         });

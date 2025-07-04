@@ -155,11 +155,8 @@ where
         let block = match next_block {
             Some(block) => block,
             None => {
-                warn!(
-                    target: "managed_event_task",
-                    block_number = next_block_number,
-                    "Next block is either empty or unavailable"
-                );
+                // If the block is None, it means the block is either empty or unavailable.
+                // ignore this case
                 return Ok(());
             }
         };
@@ -200,20 +197,20 @@ where
         derived_ref_pair: &DerivedRefPair,
     ) -> Result<bool, ManagedEventTaskError> {
         let derived_block = derived_ref_pair.derived;
-        let stored_pair = self.db_provider.latest_derived_block_pair()
+        let derivation_state = self.db_provider.latest_derivation_state()
             .inspect_err(|err| error!(target: "managed_event_task", %err, "Failed to get latest derived block pair"))?;
 
-        if stored_pair.derived.number < derived_block.number {
+        if derivation_state.derived.number < derived_block.number {
             // this could happen since the events are being processed in async
             // this case should be handled at the processing stage
             return Ok(true);
         }
 
-        if stored_pair.derived != derived_block {
+        if derivation_state.derived != derived_block {
             error!(
                 target: "managed_event_task",
                 incoming_pair = %derived_ref_pair,
-                stored_pair = %stored_pair,
+                %derivation_state,
                 "Node is inconsistent with the supervisor state"
             );
             return Ok(false);
@@ -251,7 +248,7 @@ mod tests {
         impl DerivationStorageReader for Db {
             fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_at_source(&self, _source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
-            fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+            fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
         impl HeadRefStorageReader for Db {
