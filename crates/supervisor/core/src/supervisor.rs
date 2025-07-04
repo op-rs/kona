@@ -28,7 +28,7 @@ use crate::{
     event::ChainEvent,
     l1_watcher::L1Watcher,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{Client, ManagedNode, ManagedNodeApiProvider, ManagedNodeClient},
+    syncnode::{Client, ManagedNode, ManagedNodeClient, ManagedNodeDataProvider},
 };
 
 /// Defines the service for the Supervisor core logic.

@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    ManagedNodeApiProvider, ManagedNodeClient, ManagedNodeError, NodeSubscriber, ReceiptProvider,
-    SubscriptionError, resetter::Resetter, task::ManagedEventTask,
+    ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
+    NodeSubscriber, ReceiptProvider, SubscriptionError, resetter::Resetter, task::ManagedEventTask,
 };
 use crate::event::ChainEvent;
 
@@ -178,7 +178,7 @@ where
 }
 
 #[async_trait]
-impl<DB, C> ManagedNodeApiProvider for ManagedNode<DB, C>
+impl<DB, C> ManagedNodeDataProvider for ManagedNode<DB, C>
 where
     DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
     C: ManagedNodeClient + Send + Sync + 'static,
@@ -200,7 +200,14 @@ where
     ) -> Result<BlockInfo, ManagedNodeError> {
         self.client.l2_block_ref_by_timestamp(timestamp).await
     }
+}
 
+#[async_trait]
+impl<DB, C> ManagedNodeController for ManagedNode<DB, C>
+where
+    DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
+    C: ManagedNodeClient + Send + Sync + 'static,
+{
     async fn update_finalized(
         &self,
         finalized_block_id: BlockNumHash,
@@ -221,5 +228,9 @@ where
         derived_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError> {
         self.client.update_cross_safe(source_block_id, derived_block_id).await
+    }
+
+    async fn reset(&self) -> Result<(), ManagedNodeError> {
+        self.resetter.reset().await
     }
 }

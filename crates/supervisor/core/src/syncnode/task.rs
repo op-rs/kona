@@ -53,7 +53,9 @@ where
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
                     info!(target: "managed_event_task", %reset_id, "Reset event received");
-                    self.resetter.reset().await;
+                    if let Err(err) = self.resetter.reset().await {
+                        error!(target: "managed_event_task", %err, "Failed to reset node");
+                    }
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
@@ -175,8 +177,10 @@ where
         }
 
         if !self.is_node_consistent(derived_ref_pair).await? {
-            self.resetter.reset().await;
-            return Ok(());
+            if let Err(err) = self.resetter.reset().await {
+                error!(target: "managed_event_task", %err, "Failed to reset node after inconsistency check");
+            }
+            return Ok(())
         }
 
         let block_info = BlockInfo {
