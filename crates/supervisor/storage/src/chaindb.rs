@@ -139,6 +139,12 @@ impl DerivationStorageWriter for ChainDb {
             })
         })?
     }
+
+    fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("save_block_traversal", || {
+            self.env.update(|ctx| DerivationProvider::new(ctx).save_source_block(incoming_source))
+        })?
+    }
 }
 
 impl LogStorageReader for ChainDb {
@@ -203,7 +209,7 @@ impl HeadRefStorageReader for ChainDb {
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
         self.observe_call("get_super_head", || {
-            let l1_source = self.get_current_l1()?;
+            let l1_source = self.latest_derived_block_pair()?.source;
 
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx);
@@ -513,7 +519,7 @@ mod tests {
             source: BlockInfo {
                 hash: B256::from([4u8; 32]),
                 number: 101,
-                parent_hash: B256::from([5u8; 32]),
+                parent_hash: anchor.source.hash,
                 timestamp: 0,
             },
             derived: BlockInfo {
@@ -543,6 +549,7 @@ mod tests {
         .expect("storing logs failed");
 
         // Save derived block pair
+        db.save_source_block(derived_pair.source).expect("save source block");
         db.save_derived_block_pair(derived_pair).expect("save derived pair");
 
         // Retrieve latest derived block pair
@@ -681,5 +688,130 @@ mod tests {
 
         let cross_safe_block = db.get_safety_head_ref(SafetyLevel::CrossSafe).unwrap();
         assert_eq!(cross_safe_block, block2);
+    }
+
+    #[test]
+    fn test_source_block_storage() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_source_block");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        let source1 = BlockInfo {
+            hash: B256::from([0u8; 32]),
+            number: 100,
+            parent_hash: B256::from([1u8; 32]),
+            timestamp: 1234,
+        };
+        let source2 = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 101,
+            parent_hash: source1.hash,
+            timestamp: 5678,
+        };
+        let derived1 = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 1,
+            parent_hash: source1.hash,
+            timestamp: 9101,
+        };
+
+        assert!(db.initialise(DerivedRefPair { source: source1, derived: derived1 }).is_ok());
+        assert!(db.save_source_block(source2).is_ok());
+
+        let err = db.save_source_block(source2).expect_err("should return an error");
+        assert!(matches!(err, StorageError::BlockOutOfOrder));
+
+        // Retrieve latest source block
+        let latest = db.latest_derived_block_pair().expect("get latest source block");
+        assert_eq!(latest.source, source2);
+    }
+
+    #[test]
+    fn test_all_safe_derived() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_source_block");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 1234,
+            },
+            derived: BlockInfo {
+                hash: B256::from([1u8; 32]),
+                number: 1,
+                parent_hash: B256::from([2u8; 32]),
+                timestamp: 1234,
+            },
+        };
+        assert!(db.initialise(anchor).is_ok());
+
+        let source1 = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 101,
+            parent_hash: anchor.source.hash,
+            timestamp: 1234,
+        };
+        let source2 = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 102,
+            parent_hash: source1.hash,
+            timestamp: 1234,
+        };
+        let derived1 = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 2,
+            parent_hash: anchor.derived.hash,
+            timestamp: 1234,
+        };
+        let derived2 = BlockInfo {
+            hash: B256::from([5u8; 32]),
+            number: 3,
+            parent_hash: derived1.hash,
+            timestamp: 1234,
+        };
+        let derived3 = BlockInfo {
+            hash: B256::from([7u8; 32]),
+            number: 4,
+            parent_hash: derived2.hash,
+            timestamp: 1234,
+        };
+
+        assert!(db.save_source_block(source1).is_ok());
+        db.store_block_logs(&derived1, vec![]).expect("storing logs failed");
+        db.store_block_logs(&derived2, vec![]).expect("storing logs failed");
+        db.store_block_logs(&derived3, vec![]).expect("storing logs failed");
+
+        assert!(
+            db.save_derived_block_pair(DerivedRefPair { source: source1, derived: derived1 })
+                .is_ok()
+        );
+
+        assert!(db.save_source_block(source2).is_ok());
+        assert!(
+            db.save_derived_block_pair(DerivedRefPair { source: source2, derived: derived2 })
+                .is_ok()
+        );
+        assert!(
+            db.save_derived_block_pair(DerivedRefPair { source: source2, derived: derived3 })
+                .is_ok()
+        );
+
+        let safe_derived = db.latest_derived_block_at_source(source1.id()).expect("should exist");
+        assert_eq!(safe_derived, derived1);
+
+        let safe_derived = db.latest_derived_block_at_source(source2.id()).expect("should exist");
+        assert_eq!(safe_derived, derived3);
+
+        let source = db.derived_to_source(derived2.id()).expect("should exist");
+        assert_eq!(source, source2);
+
+        let source = db.derived_to_source(derived3.id()).expect("should exist");
+        assert_eq!(source, source2);
+
+        let latest_derived_pair = db.latest_derived_block_pair().expect("should exist");
+        assert_eq!(latest_derived_pair, DerivedRefPair { source: source2, derived: derived3 });
     }
 }

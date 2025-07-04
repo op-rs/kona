@@ -70,6 +70,16 @@ pub trait DerivationStorageWriter: Debug {
     /// * `Ok(())` if the pair was successfully saved.
     /// * `Err(StorageError)` if there is an issue saving the pair.
     fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
+
+    /// Saves the latest incoming source block to the storage.
+    ///
+    /// # Arguments
+    /// * `source` - The source block to save.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the source block was successfully saved.
+    /// * `Err(StorageError)` if there is an issue saving the source block.
+    fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError>;
 }
 
 /// Combines both reading and writing capabilities for derivation storage.

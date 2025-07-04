@@ -281,6 +281,7 @@ where
             "Processing derivation origin update"
         );
         self.state_manager.update_current_l1(origin)?;
+        self.state_manager.save_source_block(origin)?;
         Ok(())
     }
 
@@ -435,6 +436,11 @@ mod tests {
                 &self,
                 incoming_pair: DerivedRefPair,
             ) -> Result<(), StorageError>;
+
+            fn save_source_block(
+                &self,
+                source: BlockInfo,
+            ) -> Result<(), StorageError>;
         }
 
         impl HeadRefStorageWriter for Db {
@@ -549,6 +555,10 @@ mod tests {
         let mocknode = MockNode::new();
 
         let origin_clone = origin;
+        mockdb.expect_save_source_block().returning(move |block_info: BlockInfo| {
+            assert_eq!(block_info, origin_clone);
+            Ok(())
+        });
         mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);
             Ok(())
