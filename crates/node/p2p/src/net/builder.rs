@@ -64,7 +64,7 @@ impl NetworkBuilder {
         Self {
             discovery: Discv5Builder::new(
                 discovery_address,
-                rollup_config.l2_chain_id,
+                rollup_config.l2_chain_id as u64,
                 discovery_config,
             ),
             gossip: GossipDriverBuilder::new(
@@ -180,6 +180,7 @@ impl NetworkBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_chains::NamedChain;
     use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
     use libp2p::gossipsub::IdentTopic;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -237,7 +238,7 @@ mod tests {
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
 
         let driver = network_builder(NetworkBuilderParams {
-            rollup_config: RollupConfig { l2_chain_id: 10, ..Default::default() },
+            rollup_config: RollupConfig { l2_chain_id: NamedChain::Optimism, ..Default::default() },
             signer,
         })
         .with_gossip_address(gossip_addr.clone())
