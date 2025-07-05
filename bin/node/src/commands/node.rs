@@ -232,7 +232,11 @@ impl NodeCommand {
             .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
             .build()
             .start()
-            .await;
+            .await
+            .map_err(|e| {
+                error!(target: "rollup_node", "Failed to start rollup node service: {e}");
+                anyhow::anyhow!("{}", e)
+            })?;
 
         Ok(())
     }
