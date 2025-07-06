@@ -10,7 +10,7 @@ use op_revm::{
 };
 use revm::{
     Context, Inspector,
-    context::{Evm as RevmEvm, TxEnv, result::EVMError},
+    context::{Evm as RevmEvm, FrameStack, TxEnv, result::EVMError},
     handler::instructions::EthInstructions,
     inspector::NoOpInspector,
 };
@@ -75,6 +75,7 @@ where
                 self.hint_writer.clone(),
                 self.oracle_reader.clone(),
             ),
+            frame_stack: FrameStack::new(),
         });
 
         OpEvm::new(revm_evm, false)
@@ -97,6 +98,7 @@ where
                 self.hint_writer.clone(),
                 self.oracle_reader.clone(),
             ),
+            frame_stack: FrameStack::new(),
         });
 
         OpEvm::new(revm_evm, true)

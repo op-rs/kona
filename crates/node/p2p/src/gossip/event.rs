@@ -9,9 +9,9 @@ pub enum Event {
     #[allow(dead_code)]
     Ping(ping::Event),
     /// Represents a [gossipsub::Event]
-    Gossipsub(gossipsub::Event),
+    Gossipsub(Box<gossipsub::Event>),
     /// Represents a [identify::Event]
-    Identify(identify::Event),
+    Identify(Box<identify::Event>),
     /// Stream event
     Stream,
 }
@@ -26,14 +26,14 @@ impl From<ping::Event> for Event {
 impl From<gossipsub::Event> for Event {
     /// Converts [gossipsub::Event] to [Event]
     fn from(value: gossipsub::Event) -> Self {
-        Self::Gossipsub(value)
+        Self::Gossipsub(Box::new(value))
     }
 }
 
 impl From<identify::Event> for Event {
     /// Converts [identify::Event] to [Event]
     fn from(value: identify::Event) -> Self {
-        Self::Identify(value)
+        Self::Identify(Box::new(value))
     }
 }
 
@@ -62,7 +62,11 @@ mod tests {
         };
         let event = Event::from(gossipsub_event);
         match event {
-            Event::Gossipsub(libp2p::gossipsub::Event::Message { .. }) => {}
+            Event::Gossipsub(e) => {
+                if !matches!(*e, libp2p::gossipsub::Event::Message { .. }) {
+                    panic!("Event conversion failed");
+                }
+            }
             _ => panic!("Event conversion failed"),
         }
     }

@@ -224,7 +224,7 @@ where
 
     fn handle_gossip_event(&mut self, event: Event) -> Option<OpNetworkPayloadEnvelope> {
         match event {
-            Event::Gossipsub(e) => return self.handle_gossipsub_event(e),
+            Event::Gossipsub(e) => return self.handle_gossipsub_event(*e),
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!(target: "gossip", ?peer, ?result, "Ping received");
 
@@ -256,7 +256,7 @@ where
                     }
                 });
             }
-            Event::Identify(e) => self.handle_identify_event(e),
+            Event::Identify(e) => self.handle_identify_event(*e),
             // Don't do anything with stream events as this should be unreachable code.
             Event::Stream => {
                 error!(target: "gossip", "Stream events should not be emitted!");
