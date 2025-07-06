@@ -15,6 +15,7 @@ use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
+use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use url::Url;
 
@@ -32,7 +33,13 @@ pub struct NodeCommand {
         long = "mode",
         default_value_t = NodeMode::Validator,
         env = "KONA_NODE_MODE",
-        help = "The mode to run the node in. Supported modes are: [\"validator\", \"sequencer\"]"
+        help = format!(
+            "The mode to run the node in. Supported modes are: {}",
+            NodeMode::iter()
+                .map(|mode| format!("\"{}\"", mode.to_string()))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     )]
     pub node_mode: NodeMode,
     /// URL of the L1 execution client RPC API.

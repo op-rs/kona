@@ -230,7 +230,7 @@ pub trait RollupNodeService {
                 Some((da_watcher, da_watcher_context)),
                 Some((derivation, derivation_context)),
                 Some((engine, engine_context)),
-                (self.mode() == NodeMode::Sequencer).then_some((sequencer, sequencer_context))
+                self.mode().is_sequencer().then_some((sequencer, sequencer_context))
             ]
         );
     }
