@@ -209,6 +209,10 @@ pub struct P2PArgs {
     /// This is useful for discovering a wider set of peers.
     #[arg(long = "p2p.discovery.randomize", env = "KONA_NODE_P2P_DISCOVERY_RANDOMIZE")]
     pub discovery_randomize: Option<u64>,
+
+    /// An optional flag to specify the private key of the sequencer, used to sign unsafe blocks.
+    #[arg(long = "p2p.sequencer.key", env = "KONA_NODE_P2P_SEQUENCER_KEY")]
+    pub sequencer_key: Option<B256>,
 }
 
 impl Default for P2PArgs {
@@ -395,8 +399,12 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
-        let local_signer = self.private_key();
-        let local_signer = local_signer.map(|s| s.with_chain_id(Some(args.l2_chain_id)));
+        let local_signer = self
+            .sequencer_key
+            .as_ref()
+            .map(PrivateKeySigner::from_bytes)
+            .transpose()?
+            .map(|s| s.with_chain_id(Some(args.l2_chain_id)));
 
         Ok(Config {
             discovery_config,
@@ -421,7 +429,7 @@ impl P2PArgs {
         })
     }
 
-    /// Returns the [Keypair] from the cli inputs.
+    /// Returns the [`Keypair`] from the cli inputs.
     ///
     /// If the raw private key is empty and the specified file is empty,
     /// this method will generate a new private key and write it out to the file.
@@ -528,6 +536,17 @@ mod tests {
         ]);
         let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
         assert_eq!(args.p2p.private_key, Some(key));
+    }
+
+    #[test]
+    fn test_p2p_args_sequencer_key() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.sequencer.key",
+            "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a",
+        ]);
+        let key = b256!("bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a");
+        assert_eq!(args.p2p.sequencer_key, Some(key));
     }
 
     #[test]
