@@ -138,7 +138,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
@@ -167,7 +167,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(|_| {
@@ -184,7 +184,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
         // Return a block that does not match local_safe
@@ -202,7 +202,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
+        db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
