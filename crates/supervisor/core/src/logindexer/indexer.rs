@@ -9,7 +9,7 @@ use kona_supervisor_types::{ExecutingMessage, Log};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::debug;
+use tracing::{debug, info};
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
@@ -76,6 +76,7 @@ where
             self.process_and_store_logs(&current_block).await?;
             current_number += 1;
         }
+        self.process_and_store_logs(&block).await?;
 
         Ok(())
     }
