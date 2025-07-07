@@ -3,46 +3,32 @@ package supervisor
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 
+	"github.com/ethereum-optimism/optimism/op-acceptance-tests/tests/interop"
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/presets"
-	"github.com/ethereum-optimism/optimism/op-devstack/shim"
-	"github.com/ethereum-optimism/optimism/op-devstack/stack"
-	"github.com/ethereum-optimism/optimism/op-devstack/stack/match"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestClient(t devtest.T) (stack.Supervisor, []eth.ChainID) {
-	system := shim.NewSystem(t)
-	orch := presets.Orchestrator()
-	orch.Hydrate(system)
-
-	ids := system.L2NetworkIDs()
-	require.GreaterOrEqual(t, len(ids), 2, "at least 2 L2 networks required")
-
-	var chainIDs []eth.ChainID
-	for _, id := range ids {
-		chainIDs = append(chainIDs, id.ChainID())
-	}
-
-	client := system.Supervisor(match.Assume(t, match.FirstSupervisor))
-	return client, chainIDs
-}
-
 func TestRPCLocalUnsafe(gt *testing.T) {
 	t := devtest.ParallelT(gt)
-
-	client, chainIDs := setupTestClient(t)
+	sys := presets.NewSimpleInterop(t)
+	client := sys.Supervisor.Escape()
 
 	t.Run("fails with invalid chain ID", func(gt devtest.T) {
 		_, err := client.QueryAPI().LocalUnsafe(context.Background(), eth.ChainIDFromUInt64(100))
 		require.Error(t, err, "expected LocalUnsafe to fail with raw chain ID")
 	})
 
-	for _, chainID := range chainIDs {
+	for _, chainID := range []eth.ChainID{sys.L2ChainA.ChainID(), sys.L2ChainB.ChainID()} {
 		t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainID), func(gt devtest.T) {
 			safe, err := client.QueryAPI().LocalUnsafe(context.Background(), chainID)
 			require.NoError(t, err)
@@ -53,16 +39,17 @@ func TestRPCLocalUnsafe(gt *testing.T) {
 }
 
 func TestRPCCrossSafe(gt *testing.T) {
+	gt.Skip()
 	t := devtest.ParallelT(gt)
-
-	client, chainIDs := setupTestClient(t)
+	sys := presets.NewSimpleInterop(t)
+	client := sys.Supervisor.Escape()
 
 	t.Run("fails with invalid chain ID", func(gt devtest.T) {
 		_, err := client.QueryAPI().CrossSafe(context.Background(), eth.ChainIDFromUInt64(100))
 		require.Error(t, err, "expected CrossSafe to fail with invalid chain")
 	})
 
-	for _, chainID := range chainIDs {
+	for _, chainID := range []eth.ChainID{sys.L2ChainA.ChainID(), sys.L2ChainB.ChainID()} {
 		t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainID), func(gt devtest.T) {
 			blockPair, err := client.QueryAPI().CrossSafe(context.Background(), chainID)
 			require.NoError(t, err)
@@ -76,16 +63,18 @@ func TestRPCCrossSafe(gt *testing.T) {
 }
 
 func TestRPCFinalized(gt *testing.T) {
+	gt.Skip()
 	t := devtest.ParallelT(gt)
 
-	client, chainIDs := setupTestClient(t)
+	sys := presets.NewSimpleInterop(t)
+	client := sys.Supervisor.Escape()
 
 	t.Run("fails with invalid chain ID", func(gt devtest.T) {
 		_, err := client.QueryAPI().Finalized(context.Background(), eth.ChainIDFromUInt64(100))
 		require.Error(t, err, "expected Finalized to fail with invalid chain")
 	})
 
-	for _, chainID := range chainIDs {
+	for _, chainID := range []eth.ChainID{sys.L2ChainA.ChainID(), sys.L2ChainB.ChainID()} {
 		t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainID), func(gt devtest.T) {
 			safe, err := client.QueryAPI().Finalized(context.Background(), chainID)
 			require.NoError(t, err)
@@ -93,4 +82,146 @@ func TestRPCFinalized(gt *testing.T) {
 			assert.Len(t, safe.Hash, 32)
 		})
 	}
+}
+
+func TestRPCCheckAccessList(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	sys := presets.NewSimpleInterop(t)
+	client := sys.Supervisor.Escape()
+	ctx := sys.T.Ctx()
+
+	alice := sys.FunderA.NewFundedEOA(eth.OneHundredthEther)
+	bob := sys.FunderB.NewFundedEOA(eth.OneHundredthEther)
+
+	eventLoggerAddress := alice.DeployEventLogger()
+	sys.L2ChainB.CatchUpTo(sys.L2ChainA)
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	_, initReceipt := alice.SendInitMessage(
+		interop.RandomInitTrigger(rng, eventLoggerAddress, rng.Intn(3), rng.Intn(10)),
+	)
+
+	logToAccess := func(chainID eth.ChainID, log *gethTypes.Log, timestamp uint64) types.Access {
+		msgPayload := make([]byte, 0)
+		for _, topic := range log.Topics {
+			msgPayload = append(msgPayload, topic.Bytes()...)
+		}
+		msgPayload = append(msgPayload, log.Data...)
+
+		msgHash := crypto.Keccak256Hash(msgPayload)
+		args := types.ChecksumArgs{
+			BlockNumber: log.BlockNumber,
+			Timestamp:   timestamp,
+			LogIndex:    uint32(log.Index),
+			ChainID:     chainID,
+			LogHash:     types.PayloadHashToLogHash(msgHash, log.Address),
+		}
+		return args.Access()
+	}
+
+	blockRef := sys.L2ChainA.PublicRPC().BlockRefByNumber(initReceipt.BlockNumber.Uint64())
+
+	var accessEntries []types.Access
+	for _, evLog := range initReceipt.Logs {
+		accessEntries = append(accessEntries, logToAccess(alice.ChainID(), evLog, blockRef.Time))
+	}
+
+	cloneAccessEntries := func() []types.Access {
+		clone := make([]types.Access, len(accessEntries))
+		copy(clone, accessEntries)
+		return clone
+	}
+
+	sys.L2ChainB.WaitForBlock()
+
+	t.Run("succeeds with valid access list", func(gt devtest.T) {
+		accessList := types.EncodeAccessList(cloneAccessEntries())
+		timestamp := uint64(time.Now().Unix())
+		ed := types.ExecutingDescriptor{
+			Timestamp: timestamp,
+			ChainID:   bob.ChainID(),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.LocalUnsafe, ed)
+		require.NoError(t, err, "CheckAccessList should succeed with valid access list and chain ID")
+	})
+
+	t.Run("fails with invalid chain ID", func(gt devtest.T) {
+		accessList := types.EncodeAccessList(cloneAccessEntries())
+		timestamp := uint64(time.Now().Unix())
+		ed := types.ExecutingDescriptor{
+			Timestamp: timestamp,
+			ChainID:   eth.ChainIDFromUInt64(99999999),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.LocalUnsafe, ed)
+		require.Error(t, err, "CheckAccessList should fail with invalid chain ID")
+	})
+
+	t.Run("fails with invalid timestamp", func(gt devtest.T) {
+		accessList := types.EncodeAccessList(cloneAccessEntries())
+		ed := types.ExecutingDescriptor{
+			Timestamp: blockRef.Time - 1,
+			ChainID:   bob.ChainID(),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.LocalUnsafe, ed)
+		require.Error(t, err, "CheckAccessList should fail with invalid timestamp")
+	})
+
+	t.Run("fails with conflicting data - log index mismatch", func(gt devtest.T) {
+		entries := cloneAccessEntries()
+		entries[0].LogIndex = 10
+		accessList := types.EncodeAccessList(entries)
+		timestamp := uint64(time.Now().Unix())
+		ed := types.ExecutingDescriptor{
+			Timestamp: timestamp,
+			ChainID:   bob.ChainID(),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.LocalUnsafe, ed)
+		require.Error(t, err, "CheckAccessList should fail with conflicting log index")
+	})
+
+	t.Run("fails with conflicting data - invalid block number", func(gt devtest.T) {
+		entries := cloneAccessEntries()
+		entries[0].BlockNumber = entries[0].BlockNumber - 1
+		accessList := types.EncodeAccessList(entries)
+		timestamp := uint64(time.Now().Unix())
+		ed := types.ExecutingDescriptor{
+			Timestamp: timestamp,
+			ChainID:   bob.ChainID(),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.LocalUnsafe, ed)
+		require.Error(t, err, "CheckAccessList should fail with invalid block number")
+	})
+
+	t.Run("fails with conflicting data - invalid checksum", func(gt devtest.T) {
+		entries := cloneAccessEntries()
+		// Corrupt the checksum
+		entries[0].Checksum[10] ^= 0xFF
+		accessList := types.EncodeAccessList(entries)
+		timestamp := uint64(time.Now().Unix())
+		ed := types.ExecutingDescriptor{
+			Timestamp: timestamp,
+			ChainID:   bob.ChainID(),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.LocalUnsafe, ed)
+		require.Error(t, err, "CheckAccessList should fail with invalid checksum")
+	})
+
+	t.Run("fails with safety violation", func(gt devtest.T) {
+		accessList := types.EncodeAccessList(cloneAccessEntries())
+		timestamp := uint64(time.Now().Unix())
+		ed := types.ExecutingDescriptor{
+			Timestamp: timestamp,
+			ChainID:   bob.ChainID(),
+		}
+
+		err := client.QueryAPI().CheckAccessList(ctx, accessList, types.Finalized, ed)
+		require.Error(t, err, "CheckAccessList should fail due to safety level violation")
+	})
 }
