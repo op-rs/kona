@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/stack"
 	"github.com/ethereum-optimism/optimism/op-devstack/stack/match"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,4 +94,66 @@ func TestRPCFinalized(gt *testing.T) {
 			assert.Len(t, safe.Hash, 32)
 		})
 	}
+}
+
+func TestRPCAllSafeDerivedAt(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	client, chainIDs := setupTestClient(t)
+
+	t.Run("fails with invalid L1 block hash", func(gt devtest.T) {
+		_, err := client.QueryAPI().AllSafeDerivedAt(context.Background(), eth.BlockID{
+			Number: 100,
+			Hash:   common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("succeeds with valid synced L1 block hash", func(gt devtest.T) {
+		sync, err := client.QueryAPI().SyncStatus(context.Background())
+		require.NoError(t, err)
+
+		allSafe, err := client.QueryAPI().AllSafeDerivedAt(context.Background(), eth.BlockID{
+			Number: sync.MinSyncedL1.Number,
+			Hash:   sync.MinSyncedL1.Hash,
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, len(chainIDs), len(allSafe))
+		for key, value := range allSafe {
+			require.Contains(t, chainIDs, key)
+			require.Len(t, value.Hash, 32)
+		}
+	})
+}
+
+func TestRPCCrossDerivedToSource(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	client, chainIDs := setupTestClient(t)
+
+	t.Run("fails with invalid chain ID", func(gt devtest.T) {
+		_, err := client.QueryAPI().CrossDerivedToSource(context.Background(), eth.ChainIDFromUInt64(100), eth.BlockID{Number: 25})
+		require.Error(t, err, "expected CrossDerivedToSource to fail with invalid chain")
+	})
+
+	safe, err := client.QueryAPI().CrossSafe(context.Background(), chainIDs[0])
+	require.NoError(t, err)
+
+	t.Run(fmt.Sprintf("succeeds with valid chain ID %d", chainIDs[0]), func(gt devtest.T) {
+		source, err := client.QueryAPI().CrossDerivedToSource(
+			context.Background(),
+			chainIDs[0],
+			eth.BlockID{
+				Number: safe.Derived.Number,
+				Hash:   safe.Derived.Hash,
+			},
+		)
+		require.NoError(t, err)
+		assert.Greater(t, source.Number, uint64(0))
+		assert.Len(t, source.Hash, 32)
+		assert.Equal(t, source.Number, safe.Source.Number)
+		assert.Equal(t, source.Hash, safe.Source.Hash)
+	})
+
 }
