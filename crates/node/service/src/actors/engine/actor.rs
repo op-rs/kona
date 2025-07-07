@@ -5,8 +5,8 @@ use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineState as InnerEngineState,
-    EngineTask, EngineTaskError, InsertUnsafeTask,
+    BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
+    EngineState as InnerEngineState, EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -41,8 +41,6 @@ pub struct EngineActor {
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive build requests from the sequencer actor.
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2319>`): plug it in the engine actor.
-    #[allow(dead_code)]
     build_request_rx:
         mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
@@ -411,6 +409,19 @@ impl NodeActor for EngineActor {
                     state
                         .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer, &cancellation)
                         .await?;
+                }
+                // Note: the sequencer actor may not exist (if the node is not in sequencer mode). Hence we add a check to ensure the channel is not closed before
+                // attempting to receive a build request.
+                Some((attributes, response_tx)) = self.build_request_rx.recv(), if !self.build_request_rx.is_closed() => {
+                    let task = EngineTask::BuildBlock(BuildTask::new(
+                        state.client.clone(),
+                        state.rollup.clone(),
+                        attributes,
+                        // The payload is not derived in this case.
+                        false,
+                        Some(response_tx),
+                    ));
+                    state.engine.enqueue(task);
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {
