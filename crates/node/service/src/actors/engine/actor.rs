@@ -210,7 +210,6 @@ impl EngineActorState {
         derivation_signal_tx: &mpsc::Sender<Signal>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         finalizer: &mut L2Finalizer,
-        cancellation: &CancellationToken,
     ) -> Result<(), EngineError> {
         // Reset the engine.
         let (l2_safe_head, l1_origin, system_config) =
@@ -222,7 +221,6 @@ impl EngineActorState {
             Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
             Err(err) => {
                 error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
-                cancellation.cancel();
                 return Err(EngineError::ChannelClosed);
             }
         }
@@ -243,7 +241,6 @@ impl EngineActorState {
         sync_complete_tx: &mut Option<oneshot::Sender<()>>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         finalizer: &mut L2Finalizer,
-        cancellation: &CancellationToken,
     ) -> Result<(), EngineError> {
         match self.engine.drain().await {
             Ok(_) => {
@@ -251,8 +248,7 @@ impl EngineActorState {
             }
             Err(EngineTaskError::Reset(err)) => {
                 warn!(target: "engine", ?err, "Received reset request");
-                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer, cancellation)
-                    .await?;
+                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
             }
             Err(EngineTaskError::Flush(err)) => {
                 // This error is encountered when the payload is marked INVALID
@@ -266,14 +262,12 @@ impl EngineActorState {
                     }
                     Err(err) => {
                         error!(target: "engine", ?err, "Failed to send flush signal to the derivation actor.");
-                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     }
                 }
             }
             Err(err @ EngineTaskError::Critical(_)) => {
                 error!(target: "engine", ?err, "Critical error draining engine tasks");
-                cancellation.cancel();
                 return Err(err.into());
             }
             Err(EngineTaskError::Temporary(err)) => {
@@ -287,7 +281,6 @@ impl EngineActorState {
             engine_l2_safe_head_tx,
             sync_complete_tx,
             finalizer,
-            cancellation,
         )
         .await?;
 
@@ -301,7 +294,6 @@ impl EngineActorState {
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         sync_complete_tx: &mut Option<oneshot::Sender<()>>,
         finalizer: &mut L2Finalizer,
-        cancellation: &CancellationToken,
     ) -> Result<(), EngineError> {
         if self.engine.state().el_sync_finished {
             let Some(sync_complete_tx) = std::mem::take(sync_complete_tx) else {
@@ -310,8 +302,7 @@ impl EngineActorState {
 
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
-            self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer, cancellation)
-                .await?;
+            self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
             sync_complete_tx.send(()).ok();
         }
 
@@ -387,7 +378,6 @@ impl NodeActor for EngineActor {
                     &mut sync_complete_tx,
                     &engine_l2_safe_head_tx,
                     &mut self.finalizer,
-                    &cancellation,
                 )
                 .await?;
 
@@ -409,7 +399,7 @@ impl NodeActor for EngineActor {
                     }
                     warn!(target: "engine", "Received reset request");
                     state
-                        .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer, &cancellation)
+                        .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
                         .await?;
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {

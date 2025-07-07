@@ -64,6 +64,7 @@ impl NodeActor for RuntimeActor {
         RuntimeContext { cancellation, runtime_config_tx }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut interval = tokio::time::interval(self.state.interval);
+
         loop {
             tokio::select! {
                 _ = cancellation.cancelled() => {
