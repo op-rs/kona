@@ -9,7 +9,7 @@ use kona_supervisor_types::{ExecutingMessage, Log};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tracing::debug;
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
@@ -76,7 +76,7 @@ where
             self.process_and_store_logs(&current_block).await?;
             current_number += 1;
         }
-        self.process_and_store_logs(&block).await?;
+        self.process_and_store_logs(block).await?;
 
         Ok(())
     }
@@ -177,6 +177,13 @@ mod tests {
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
     );
+
+    fn hash_for_number(n: u64) -> B256 {
+        let mut bytes = [0u8; 32];
+        bytes[24..].copy_from_slice(&n.to_be_bytes());
+        B256::from(bytes)
+    }
+
     async fn build_receipts() -> Receipts {
         let mut builder = SuperchainBuilder::new();
         builder
@@ -274,5 +281,45 @@ mod tests {
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_sync_logs_stores_all_blocks_in_range() {
+        let target_block = BlockInfo {
+            number: 5,
+            hash: B256::random(),
+            timestamp: 123456789,
+            ..Default::default()
+        };
+
+        // BlockProvider mock
+        let mut mock_provider = MockBlockProvider::new();
+        mock_provider.expect_block_by_number().withf(|n| *n >= 1 && *n <= 5).returning(|n| {
+            Ok(BlockInfo {
+                number: n,
+                hash: hash_for_number(n),
+                timestamp: 0,
+                ..Default::default()
+            })
+        });
+
+        mock_provider.expect_fetch_receipts().times(5).returning(move |_| {
+            Ok(vec![]) // Empty receipts
+        });
+
+        // Db mock
+        let mut mock_db = MockDb::new();
+        mock_db
+            .expect_get_latest_block()
+            .returning(|| Ok(BlockInfo { number: 1, ..Default::default() }));
+
+        mock_db.expect_store_block_logs().times(5).returning(move |_, _| Ok(()));
+
+        let indexer = Arc::new(LogIndexer::new(Arc::new(mock_provider), Arc::new(mock_db)));
+
+        indexer.clone().sync_logs(target_block);
+
+        // Let the background task complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
     }
 }
