@@ -10,7 +10,7 @@ use kona_interop::{
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
-use kona_supervisor_types::SuperHead;
+use kona_supervisor_types::{HexChainId, SuperHead};
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -39,9 +39,10 @@ where
 {
     async fn cross_derived_to_source(
         &self,
-        chain_id: ChainId,
+        chain_id_hex: HexChainId,
         derived: BlockNumHash,
     ) -> RpcResult<BlockInfo> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "cross_derived_to_source",
             async {
@@ -70,7 +71,8 @@ where
         )
     }
 
-    async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
+    async fn local_unsafe(&self, chain_id_hex: HexChainId) -> RpcResult<BlockNumHash> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "local_unsafe",
             async {
@@ -99,7 +101,8 @@ where
         )
     }
 
-    async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair> {
+    async fn cross_safe(&self, chain_id_hex: HexChainId) -> RpcResult<DerivedIdPair> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "cross_safe",
             async {
@@ -117,7 +120,8 @@ where
         )
     }
 
-    async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
+    async fn finalized(&self, chain_id_hex: HexChainId) -> RpcResult<BlockNumHash> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "finalized",
             async {

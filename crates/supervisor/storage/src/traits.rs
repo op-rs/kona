@@ -43,13 +43,14 @@ pub trait DerivationStorageReader: Debug {
         source_block_id: BlockNumHash,
     ) -> Result<BlockInfo, StorageError>;
 
-    /// Gets the latest [`DerivedRefPair`] from the storage.
+    /// Gets the latest derivation state [`DerivedRefPair`] from the storage, which includes the
+    /// latest source block and the latest derived block.
     ///
     /// # Returns
     ///
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
-    fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+    fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
@@ -69,7 +70,7 @@ pub trait DerivationStorageWriter: Debug {
     /// # Returns
     /// * `Ok(())` if the pair was successfully saved.
     /// * `Err(StorageError)` if there is an issue saving the pair.
-    fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
+    fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 
     /// Saves the latest incoming source block to the storage.
     ///

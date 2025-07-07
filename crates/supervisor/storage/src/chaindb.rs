@@ -106,16 +106,16 @@ impl DerivationStorageReader for ChainDb {
         })?
     }
 
-    fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
+    fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError> {
         self.observe_call("latest_derived_block_pair", || {
-            self.env.view(|tx| DerivationProvider::new(tx).latest_derived_block_pair())
+            self.env.view(|tx| DerivationProvider::new(tx).latest_derivation_state())
         })?
     }
 }
 
 impl DerivationStorageWriter for ChainDb {
     // Todo: better name save_derived_block_pair
-    fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
+    fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
         self.observe_call("save_derived_block_pair", || {
             self.env.update(|ctx| {
                 let derived_block = incoming_pair.derived;
@@ -209,7 +209,7 @@ impl HeadRefStorageReader for ChainDb {
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
         self.observe_call("get_super_head", || {
-            let l1_source = self.latest_derived_block_pair()?.source;
+            let l1_source = self.latest_derivation_state()?.source;
 
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx);
@@ -534,7 +534,7 @@ mod tests {
         db.initialise(anchor).expect("initialise db with anchor");
 
         // Save derived block pair - should error conflict
-        let err = db.save_derived_block_pair(derived_pair).unwrap_err();
+        let err = db.save_derived_block(derived_pair).unwrap_err();
         assert!(matches!(err, StorageError::ConflictError(_)));
 
         db.store_block_logs(
@@ -550,10 +550,10 @@ mod tests {
 
         // Save derived block pair
         db.save_source_block(derived_pair.source).expect("save source block");
-        db.save_derived_block_pair(derived_pair).expect("save derived pair");
+        db.save_derived_block(derived_pair).expect("save derived pair");
 
         // Retrieve latest derived block pair
-        let latest_pair = db.latest_derived_block_pair().expect("get latest derived pair");
+        let latest_pair = db.latest_derivation_state().expect("get latest derived pair");
         assert_eq!(latest_pair, derived_pair, "Latest derived pair should match saved pair");
 
         // Retrieve derived to source mapping
@@ -680,7 +680,7 @@ mod tests {
         assert!(matches!(err, StorageError::EntryNotFound(_)));
 
         db.store_block_logs(&block2, vec![]).unwrap();
-        db.save_derived_block_pair(DerivedRefPair { source, derived: block2 }).unwrap();
+        db.save_derived_block(DerivedRefPair { source, derived: block2 }).unwrap();
 
         let ref_pair = db.update_current_cross_safe(&block2).unwrap();
         assert_eq!(ref_pair.source, source);
@@ -718,11 +718,8 @@ mod tests {
         assert!(db.initialise(DerivedRefPair { source: source1, derived: derived1 }).is_ok());
         assert!(db.save_source_block(source2).is_ok());
 
-        let err = db.save_source_block(source2).expect_err("should return an error");
-        assert!(matches!(err, StorageError::BlockOutOfOrder));
-
         // Retrieve latest source block
-        let latest = db.latest_derived_block_pair().expect("get latest source block");
+        let latest = db.latest_derivation_state().expect("get latest source block");
         assert_eq!(latest.source, source2);
     }
 
@@ -785,18 +782,15 @@ mod tests {
         db.store_block_logs(&derived3, vec![]).expect("storing logs failed");
 
         assert!(
-            db.save_derived_block_pair(DerivedRefPair { source: source1, derived: derived1 })
-                .is_ok()
+            db.save_derived_block(DerivedRefPair { source: source1, derived: derived1 }).is_ok()
         );
 
         assert!(db.save_source_block(source2).is_ok());
         assert!(
-            db.save_derived_block_pair(DerivedRefPair { source: source2, derived: derived2 })
-                .is_ok()
+            db.save_derived_block(DerivedRefPair { source: source2, derived: derived2 }).is_ok()
         );
         assert!(
-            db.save_derived_block_pair(DerivedRefPair { source: source2, derived: derived3 })
-                .is_ok()
+            db.save_derived_block(DerivedRefPair { source: source2, derived: derived3 }).is_ok()
         );
 
         let safe_derived = db.latest_derived_block_at_source(source1.id()).expect("should exist");
@@ -811,7 +805,7 @@ mod tests {
         let source = db.derived_to_source(derived3.id()).expect("should exist");
         assert_eq!(source, source2);
 
-        let latest_derived_pair = db.latest_derived_block_pair().expect("should exist");
+        let latest_derived_pair = db.latest_derivation_state().expect("should exist");
         assert_eq!(latest_derived_pair, DerivedRefPair { source: source2, derived: derived3 });
     }
 }

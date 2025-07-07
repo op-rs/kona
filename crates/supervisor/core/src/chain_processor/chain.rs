@@ -233,7 +233,7 @@ mod tests {
         }
 
         impl DerivationStorageWriter for Db {
-            fn save_derived_block_pair(
+            fn save_derived_block(
                 &self,
                 incoming_pair: DerivedRefPair,
             ) -> Result<(), StorageError>;

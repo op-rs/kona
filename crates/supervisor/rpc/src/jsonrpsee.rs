@@ -14,7 +14,7 @@ use kona_interop::{
     SuperRootOutput,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, OutputV0, Receipts, SubscriptionEvent};
+use kona_supervisor_types::{BlockSeal, HexChainId, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
@@ -28,7 +28,7 @@ pub trait SupervisorApi {
     #[method(name = "crossDerivedToSource")]
     async fn cross_derived_to_source(
         &self,
-        chain_id: ChainId,
+        chain_id: HexChainId,
         block_id: BlockNumHash,
     ) -> RpcResult<BlockInfo>;
 
@@ -38,7 +38,7 @@ pub trait SupervisorApi {
     ///
     /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     #[method(name = "localUnsafe")]
-    async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
+    async fn local_unsafe(&self, chain_id: HexChainId) -> RpcResult<BlockNumHash>;
 
     /// Returns the [`CrossSafe`] block for given chain.
     ///
@@ -46,7 +46,7 @@ pub trait SupervisorApi {
     ///
     /// [`CrossSafe`]: SafetyLevel::CrossSafe
     #[method(name = "crossSafe")]
-    async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair>;
+    async fn cross_safe(&self, chain_id: HexChainId) -> RpcResult<DerivedIdPair>;
 
     /// Returns the [`Finalized`] block for the given chain.
     ///
@@ -54,7 +54,7 @@ pub trait SupervisorApi {
     ///
     /// [`Finalized`]: SafetyLevel::Finalized
     #[method(name = "finalized")]
-    async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash>;
+    async fn finalized(&self, chain_id: HexChainId) -> RpcResult<BlockNumHash>;
 
     /// Returns the finalized L1 block that the supervisor is synced to.
     ///

@@ -162,8 +162,12 @@ where
         Ok(derived_block_pair.derived.into())
     }
 
-    /// Gets the latest [`DerivedRefPair`].
-    pub(crate) fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError> {
+    /// Gets the latest derivation state [`DerivedRefPair`], which includes the latest source block
+    /// and the latest derived block.
+    ///
+    /// # Returns
+    /// A [`DerivedRefPair`] containing the latest source block and latest derived block.
+    pub(crate) fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
@@ -199,30 +203,26 @@ where
         Ok(DerivedRefPair { source: latest_source_block, derived: block.derived.into() })
     }
 
+    /// Gets the latest [`SourceBlockTraversal`].
+    ///
+    /// # Returns
+    /// The latest [`SourceBlockTraversal`] in the database.
+    fn latest_source_block_traversal(&self) -> Result<SourceBlockTraversal, StorageError> {
+        let mut cursor = self.tx.cursor_read::<BlockTraversal>()?;
+        let result = cursor.last()?;
+
+        let (_, block_traversal) = result.ok_or_else(|| StorageError::DatabaseNotInitialised)?;
+        Ok(block_traversal)
+    }
+
     /// Gets the latest source block, even if it has no derived blocks.
     pub(crate) fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
-        let mut cursor = self.tx.cursor_read::<BlockTraversal>().inspect_err(|err| {
+        let block = self.latest_source_block_traversal().inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
                 %err,
-                "Failed to get cursor for BlockTraversal"
+                "Failed to get latest source block traversal"
             );
-        })?;
-
-        let result = cursor.last().inspect_err(|err| {
-            error!(
-                target: "supervisor_storage",
-                %err,
-                "Failed to seek the last source block"
-            );
-        })?;
-
-        let (_, block) = result.ok_or_else(|| {
-            error!(
-                target: "supervisor_storage",
-                "No source blocks found in storage"
-            );
-            StorageError::EntryNotFound("no source blocks found".to_string())
         })?;
 
         Ok(block.source.into())
@@ -261,16 +261,27 @@ where
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
         // todo: use cursor to get the last block(performance improvement)
-        let latest_block_pair = match self.latest_derived_block_pair() {
+        let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
             Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
             Err(e) => return Err(e),
         };
 
-        if !latest_block_pair.derived.is_parent_of(&incoming_pair.derived) {
+        // Latest source block must be same as the incoming source block
+        if latest_derivation_state.source != incoming_pair.source {
+            warn!(
+                target: "supervisor_storage",
+                latest_source_block = %latest_derivation_state.source,
+                incoming_source = %incoming_pair.source,
+                "Latest source block does not match the incoming derived block source"
+            );
+            return Err(StorageError::BlockOutOfOrder);
+        }
+
+        if !latest_derivation_state.derived.is_parent_of(&incoming_pair.derived) {
             warn!(
               target: "supervisor_storage",
-              latest_derived_block_pair = %latest_block_pair,
+              latest_derived_block_pair = %latest_derivation_state,
               incoming_derived_block_pair = %incoming_pair,
               "Latest stored derived block is not parent of the incoming derived block"
             );
@@ -281,17 +292,35 @@ where
     }
 
     /// Internal function to save a derived block pair.
-    /// This function does not perform any checks on the incoming pair,
+    /// This function does not perform checks on the incoming derived pair,
     /// it assumes that the pair is valid and the latest derived block is its parent.
     fn save_derived_block_pair_internal(
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
-        // assuming that the source block is already saved.
-        let mut block = self.get_block_traversal(incoming_pair.source.number)?;
+        // the derived block must be derived from the latest source block
+        let mut block_traversal = self.latest_source_block_traversal().inspect_err(|err| {
+            error!(
+                target: "supervisor_storage",
+                incoming_derived_block_pair = %incoming_pair,
+                %err,
+                "Failed to get latest source block traversal"
+            );
+        })?;
+
+        let latest_source_block = block_traversal.clone().source.into();
+        if incoming_pair.source != latest_source_block {
+            warn!(
+                target: "supervisor_storage",
+                latest_source_block = %latest_source_block,
+                incoming_source = %incoming_pair.source,
+                "Latest source block does not match the incoming derived block source"
+            );
+            return Err(StorageError::BlockOutOfOrder);
+        }
 
         // Add the derived block number to the list
-        block.derived_block_numbers.push(incoming_pair.derived.number);
+        block_traversal.derived_block_numbers.push(incoming_pair.derived.number);
 
         // Save the derived block pair to the database
         self.tx
@@ -306,14 +335,16 @@ where
             })?;
 
         // Save the SourceBlockTraversal to the database
-        self.tx.put::<BlockTraversal>(incoming_pair.source.number, block).inspect_err(|err| {
-            error!(
-                target: "supervisor_storage",
-                incoming_derived_block_pair = %incoming_pair,
-                %err,
-                "Failed to save derived block numbers for source block"
-            );
-        })?;
+        self.tx.put::<BlockTraversal>(incoming_pair.source.number, block_traversal).inspect_err(
+            |err| {
+                error!(
+                    target: "supervisor_storage",
+                    incoming_derived_block_pair = %incoming_pair,
+                    %err,
+                    "Failed to save derived block numbers for source block"
+                );
+            },
+        )?;
 
         Ok(())
     }
@@ -328,6 +359,11 @@ where
             Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
             Err(err) => return Err(err),
         };
+
+        // idempotent check: if the source block already exists, do nothing
+        if latest_source_block == incoming_source {
+            return Ok(());
+        }
 
         if !latest_source_block.is_parent_of(&incoming_source) {
             error!(
@@ -628,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    fn test_latest_derived_block_pair_returns_latest() {
+    fn test_latest_derivation_state() {
         let db = setup_db();
 
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
@@ -643,22 +679,44 @@ mod tests {
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
 
-        let latest = provider.latest_derived_block_pair().expect("should exist");
+        let latest = provider.latest_derivation_state().expect("should exist");
         assert_eq!(latest, pair2);
     }
 
     #[test]
-    fn test_latest_derived_block_pair_empty_returns_error() {
+    fn test_latest_derivation_state_empty_source() {
+        let db = setup_db();
+
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived1 = block_info(1, genesis_block().hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let source2 = block_info(101, source1.hash, 300);
+        let derived2 = block_info(2, derived1.hash, 300);
+        let pair2 = derived_pair(source2, derived2);
+        assert!(insert_source_block(&db, &source2).is_ok());
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        let source3 = block_info(102, source2.hash, 400);
+        assert!(insert_source_block(&db, &source3).is_ok());
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+
+        let latest = provider.latest_derivation_state().expect("should exist");
+        let expected_derivation_state = DerivedRefPair { source: source3, derived: derived2 };
+        assert_eq!(latest, expected_derivation_state);
+    }
+
+    #[test]
+    fn test_latest_derivation_state_empty_returns_error() {
         let temp_dir = TempDir::new().expect("Could not create temp dir");
         let db = init_db_for::<_, Tables>(temp_dir.path(), DatabaseArguments::default())
             .expect("Failed to init database");
 
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
-        assert!(matches!(
-            provider.latest_derived_block_pair(),
-            Err(StorageError::EntryNotFound(_))
-        ));
+        assert!(matches!(provider.latest_derivation_state(), Err(StorageError::EntryNotFound(_))));
     }
 
     #[test]
@@ -703,7 +761,7 @@ mod tests {
     }
 
     #[test]
-    fn save_source_block_idempotent_should_fail() {
+    fn save_source_block_idempotent_should_pass() {
         let db = setup_db();
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
@@ -713,7 +771,7 @@ mod tests {
         let source1 = block_info(1, genesis_block().hash, 200);
         assert!(insert_source_block(&db, &source1).is_ok());
         // Try saving the same block again
-        assert!(matches!(insert_source_block(&db, &source1), Err(StorageError::BlockOutOfOrder)));
+        assert!(insert_source_block(&db, &source1).is_ok());
     }
 
     #[test]
