@@ -1,6 +1,6 @@
 use super::{ManagedNodeClient, ManagedNodeError};
-use kona_interop::SafetyLevel;
 use kona_supervisor_storage::HeadRefStorageReader;
+use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info};
@@ -28,40 +28,22 @@ where
 
         info!(target: "resetter", "Resetting the node");
 
-        let unsafe_ref =
-            self.db_provider.get_safety_head_ref(SafetyLevel::LocalUnsafe).inspect_err(|err| {
-                error!(target: "resetter", %err, "Failed to get local unsafe head ref");
-            })?;
+        let super_head = self.db_provider.get_super_head().inspect_err(|err| {
+            error!(target: "resetter", %err, "Failed to get super head");
+        })?;
 
-        let cross_unsafe_ref =
-            self.db_provider.get_safety_head_ref(SafetyLevel::CrossUnsafe).inspect_err(|err| {
-                error!(target: "resetter", %err, "Failed to get cross unsafe head ref");
-            })?;
-
-        let local_safe_ref =
-            self.db_provider.get_safety_head_ref(SafetyLevel::LocalSafe).inspect_err(|err| {
-                error!(target: "resetter", %err, "Failed to get local safe head ref");
-            })?;
-
-        let safe_ref =
-            self.db_provider.get_safety_head_ref(SafetyLevel::CrossSafe).inspect_err(|err| {
-                error!(target: "resetter", %err, "Failed to get cross safe head ref");
-            })?;
-
-        let finalised_ref =
-            self.db_provider.get_safety_head_ref(SafetyLevel::Finalized).inspect_err(|err| {
-                error!(target: "resetter", %err, "Failed to get finalised head ref");
-            })?;
+        let SuperHead { local_unsafe, cross_unsafe, local_safe, cross_safe, finalized, .. } =
+            super_head;
 
         let node_safe_ref =
-            self.client.block_ref_by_number(local_safe_ref.number).await.inspect_err(|err| {
+            self.client.block_ref_by_number(local_safe.number).await.inspect_err(|err| {
                 // todo: it's possible that supervisor is ahead of the op-node
                 // in this case we should handle the error gracefully
                 error!(target: "resetter", %err, "Failed to get block by number");
             })?;
 
         // check with consistency with the op-node
-        if node_safe_ref.hash != local_safe_ref.hash {
+        if node_safe_ref.hash != local_safe.hash {
             // todo: handle this case
             error!(target: "resetter", "Local safe ref hash does not match node safe ref hash");
             // returning ok here for now since this case should be handled
@@ -69,21 +51,21 @@ where
         }
 
         info!(target: "resetter",
-            %unsafe_ref,
-            %cross_unsafe_ref,
-            %local_safe_ref,
-            %safe_ref,
-            %finalised_ref,
+            %local_unsafe,
+            %cross_unsafe,
+            %local_safe,
+            %cross_safe,
+            %finalized,
             "Resetting managed node with latest information",
         );
 
         self.client
             .reset(
-                unsafe_ref.id(),
-                cross_unsafe_ref.id(),
-                local_safe_ref.id(),
-                safe_ref.id(),
-                finalised_ref.id(),
+                local_unsafe.id(),
+                cross_unsafe.id(),
+                local_safe.id(),
+                cross_safe.id(),
+                finalized.id(),
             )
             .await
             .inspect_err(|err| {
@@ -114,7 +96,6 @@ mod tests {
         pub Db {}
 
         impl HeadRefStorageReader for Db {
-            fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
             fn get_super_head(&self) -> Result<SuperHead, StorageError>;
         }
@@ -157,21 +138,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalUnsafe)
-            .returning(move |_| Ok(super_head.local_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossUnsafe)
-            .returning(move |_| Ok(super_head.cross_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalSafe)
-            .returning(move |_| Ok(super_head.local_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossSafe)
-            .returning(move |_| Ok(super_head.cross_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::Finalized)
-            .returning(move |_| Ok(super_head.finalized));
+        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
 
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
@@ -186,9 +153,7 @@ mod tests {
     #[tokio::test]
     async fn test_reset_db_error() {
         let mut db = MockDb::new();
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalUnsafe)
-            .returning(move |_| Err(StorageError::DatabaseNotInitialised));
+        db.expect_get_super_head().returning(|| Err(StorageError::DatabaseNotInitialised));
 
         let client = MockClient::new();
 
@@ -202,21 +167,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalUnsafe)
-            .returning(move |_| Ok(super_head.local_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossUnsafe)
-            .returning(move |_| Ok(super_head.cross_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalSafe)
-            .returning(move |_| Ok(super_head.local_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossSafe)
-            .returning(move |_| Ok(super_head.cross_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::Finalized)
-            .returning(move |_| Ok(super_head.finalized));
+        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
 
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(|_| {
@@ -233,21 +184,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalUnsafe)
-            .returning(move |_| Ok(super_head.local_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossUnsafe)
-            .returning(move |_| Ok(super_head.cross_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalSafe)
-            .returning(move |_| Ok(super_head.local_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossSafe)
-            .returning(move |_| Ok(super_head.cross_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::Finalized)
-            .returning(move |_| Ok(super_head.finalized));
+        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
 
         let mut client = MockClient::new();
         // Return a block that does not match local_safe
@@ -265,21 +202,7 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalUnsafe)
-            .returning(move |_| Ok(super_head.local_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossUnsafe)
-            .returning(move |_| Ok(super_head.cross_unsafe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::LocalSafe)
-            .returning(move |_| Ok(super_head.local_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::CrossSafe)
-            .returning(move |_| Ok(super_head.cross_safe));
-        db.expect_get_safety_head_ref()
-            .withf(|level| *level == SafetyLevel::Finalized)
-            .returning(move |_| Ok(super_head.finalized));
+        db.expect_get_super_head().returning(move || Ok(super_head.clone()));
 
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));

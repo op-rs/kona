@@ -245,11 +245,6 @@ mod tests {
         }
 
         impl HeadRefStorageWriter for Db {
-            fn update_current_l1(
-                &self,
-                block_info: BlockInfo,
-            ) -> Result<(), StorageError>;
-
             fn update_finalized_using_source(
                 &self,
                 block_info: BlockInfo,

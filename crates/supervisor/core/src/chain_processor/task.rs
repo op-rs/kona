@@ -283,10 +283,7 @@ where
             "Processing derivation origin update"
         );
         match self.state_manager.save_source_block(origin) {
-            Ok(_) => {
-                self.state_manager.update_current_l1(origin)?;
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder) => {
                 error!(
                     target: "chain_processor",
@@ -505,11 +502,6 @@ mod tests {
         }
 
         impl HeadRefStorageWriter for Db {
-            fn update_current_l1(
-                &self,
-                block_info: BlockInfo,
-            ) -> Result<(), StorageError>;
-
             fn update_finalized_using_source(
                 &self,
                 block_info: BlockInfo,
@@ -617,10 +609,6 @@ mod tests {
 
         let origin_clone = origin;
         mockdb.expect_save_source_block().returning(move |block_info: BlockInfo| {
-            assert_eq!(block_info, origin_clone);
-            Ok(())
-        });
-        mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);
             Ok(())
         });
