@@ -8,6 +8,7 @@ use alloy_evm::{
     block::{BlockExecutionResult, BlockExecutor, BlockExecutorFactory},
 };
 use alloy_op_evm::{OpBlockExecutionCtx, OpBlockExecutorFactory, block::OpAlloyReceiptBuilder};
+use core::fmt::Debug;
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_consensus::{OpReceiptEnvelope, OpTxEnvelope};
@@ -35,8 +36,8 @@ where
 
 impl<'a, P, H, Evm> StatelessL2Builder<'a, P, H, Evm>
 where
-    P: TrieDBProvider,
-    H: TrieHinter,
+    P: TrieDBProvider + Debug,
+    H: TrieHinter + Debug,
     Evm: EvmFactory<Spec = OpSpecId> + 'static,
     <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
@@ -85,8 +86,8 @@ where
 
         info!(
             target: "block_builder",
-            block_number = block_env.number,
-            block_timestamp = block_env.timestamp,
+            block_number = %block_env.number,
+            block_timestamp = %block_env.timestamp,
             block_gas_limit = block_env.gas_limit,
             transactions = attrs.transactions.as_ref().map_or(0, |txs| txs.len()),
             "Beginning block building."

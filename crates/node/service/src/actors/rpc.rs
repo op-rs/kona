@@ -75,13 +75,9 @@ impl CancellableContext for RpcContext {
 async fn launch(
     config: &RpcBuilder,
     module: RpcModule<()>,
-) -> Result<Option<ServerHandle>, std::io::Error> {
-    if config.disabled {
-        return Ok(None);
-    }
-
+) -> Result<ServerHandle, std::io::Error> {
     let server = Server::builder().build(config.socket).await?;
-    Ok(Some(server.start(module)))
+    Ok(server.start(module))
 }
 
 #[async_trait]
@@ -118,20 +114,13 @@ impl NodeActor for RpcActor {
 
         let restarts = self.config.restart_count();
 
-        let Some(mut handle) = launch(&self.config, modules.clone()).await? else {
-            // The RPC server is disabled, so we can return Ok.
-            return Ok(());
-        };
+        let mut handle = launch(&self.config, modules.clone()).await?;
 
         for _ in 0..=restarts {
             tokio::select! {
                 _ = handle.clone().stopped() => {
                     match launch(&self.config, modules.clone()).await {
-                        Ok(Some(h)) => handle = h,
-                        Ok(None) => {
-                            // The RPC server is disabled, so we can return Ok.
-                            return Ok(());
-                        }
+                        Ok(h) => handle = h,
                         Err(err) => {
                             error!(target: "rpc", ?err, "Failed to launch rpc server");
                             cancellation.cancel();
@@ -163,7 +152,6 @@ mod tests {
     #[tokio::test]
     async fn test_launch_no_modules() {
         let launcher = RpcBuilder {
-            disabled: false,
             socket: SocketAddr::from(([127, 0, 0, 1], 8080)),
             no_restart: false,
             enable_admin: false,
@@ -177,7 +165,6 @@ mod tests {
     #[tokio::test]
     async fn test_launch_with_modules() {
         let launcher = RpcBuilder {
-            disabled: false,
             socket: SocketAddr::from(([127, 0, 0, 1], 8081)),
             no_restart: false,
             enable_admin: false,

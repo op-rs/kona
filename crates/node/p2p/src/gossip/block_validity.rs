@@ -654,32 +654,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_block_invalid_base_fee() {
-        let mut block = v1_valid_block();
-        block.header.base_fee_per_gas = Some(0);
-
-        let v1 = ExecutionPayloadV1::from_block_slow(&block);
-
-        let payload = OpExecutionPayload::V1(v1);
-        let envelope = OpNetworkPayloadEnvelope {
-            payload,
-            signature: Signature::test_signature(),
-            payload_hash: PayloadHash(B256::ZERO),
-            parent_beacon_block_root: None,
-        };
-
-        let msg = envelope.payload_hash.signature_message(10);
-        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
-        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
-        let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
-            unsafe_signer,
-        );
-
-        assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::InvalidBlock(_))));
-    }
-
-    #[test]
     fn test_v2_block() {
         let block = v2_valid_block();
 

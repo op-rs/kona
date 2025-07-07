@@ -15,7 +15,16 @@ macro_rules! spawn_and_wait {
         // Check if the actor is present, and spawn it if it is.
         $(
             if let Some((actor, context)) = $actor {
+                let cancellation = $cancellation.clone();
                 task_handles.spawn(async move {
+                    // This guard ensures that the cancellation token is cancelled when the actor is
+                    // dropped. This ensures that the actor is properly shut down.
+                    // Note the underscore prefix: this is to signal that we don't use the guard anywhere, but
+                    // *the compiler shouldn't optimize it away*.
+                    // Note that using a simple `_` would not work here because it gets optimized away in
+                    // release mode.
+                    let _guard = cancellation.drop_guard();
+
                     if let Err(e) = actor.start(context).await {
                         return Err(format!("{e:?}"));
                     }
@@ -31,11 +40,15 @@ macro_rules! spawn_and_wait {
                     tracing::error!(target: "rollup_node", "Critical error in sub-routine: {e}");
                     // Cancel all tasks and gracefully shutdown.
                     $cancellation.cancel();
+                    return Err(e);
                 }
                 Err(e) => {
+                    let error_msg = format!("Task join error: {e}");
+                    // Log the error and cancel all tasks.
                     tracing::error!(target: "rollup_node", "Task join error: {e}");
                     // Cancel all tasks and gracefully shutdown.
                     $cancellation.cancel();
+                    return Err(error_msg);
                 }
             }
         }

@@ -14,6 +14,9 @@ pub enum TrieNodeError {
     /// Invalid trie node type encountered.
     #[error("Invalid trie node type encountered")]
     InvalidNodeType,
+    /// The path was too short to index.
+    #[error("Path too short")]
+    PathTooShort,
     /// Failed to decode trie node.
     #[error("Failed to decode trie node: {0}")]
     RLPError(alloy_rlp::Error),

@@ -10,15 +10,6 @@ use std::{net::SocketAddr, num::ParseIntError, time::Duration};
 /// Sequencer CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
 pub struct SequencerArgs {
-    /// Enable sequencing of new L2 blocks. A separate batch submitter has to be deployed to
-    /// publish the data for verifiers.
-    #[arg(
-        long = "sequencer.enabled",
-        default_value = "false",
-        env = "KONA_NODE_SEQUENCER_ENABLED"
-    )]
-    pub enabled: bool,
-
     /// Initialize the sequencer in a stopped state. The sequencer can be started using the
     /// admin_startSequencer RPC.
     #[arg(

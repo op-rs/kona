@@ -5,8 +5,6 @@ use std::{net::SocketAddr, path::PathBuf};
 /// The RPC configuration.
 #[derive(Debug, Clone)]
 pub struct RpcBuilder {
-    /// Disable the rpc server.
-    pub disabled: bool,
     /// Prevent the rpc server from being restarted.
     pub no_restart: bool,
     /// The RPC socket address.

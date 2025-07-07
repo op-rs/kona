@@ -24,8 +24,6 @@ use kona_rpc::{RpcBuilder, SupervisorRpcConfig, SupervisorRpcServer};
 pub struct RollupNode {
     /// The rollup configuration.
     pub(crate) config: Arc<RollupConfig>,
-    /// The mode of operation for the node.
-    pub(crate) mode: NodeMode,
     /// The interop mode for the node.
     pub(crate) interop_mode: InteropMode,
     /// The L1 EL provider.
@@ -72,7 +70,7 @@ impl RollupNodeService for RollupNode {
     type NetworkActor = NetworkActor;
 
     fn mode(&self) -> NodeMode {
-        self.mode
+        self.engine_builder.mode
     }
 
     fn da_watcher_builder(&self) -> L1WatcherRpcState {

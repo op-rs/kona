@@ -11,7 +11,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
-use kona_rpc::RpcBuilder;
 use std::fmt::Display;
 use tokio_util::sync::CancellationToken;
 
@@ -93,7 +92,7 @@ pub trait RollupNodeService {
         >;
 
     /// The type of rpc actor to use for the service.
-    type RpcActor: NodeActor<Error: Display, OutboundData = RpcContext, InboundData = (), Builder = RpcBuilder>;
+    type RpcActor: NodeActor<Error: Display, OutboundData = RpcContext, InboundData = ()>;
 
     /// The mode of operation for the node.
     fn mode(&self) -> NodeMode;
@@ -123,17 +122,15 @@ pub trait RollupNodeService {
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
     /// Starts the rollup node service.
-    async fn start(&self) {
+    async fn start(&self) -> Result<(), String> {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
         // Create the DA watcher actor.
-        let da_watcher_builder = self.da_watcher_builder();
         let (L1WatcherRpcInboundChannels { inbound_queries: da_watcher_rpc }, da_watcher) =
-            Self::DataAvailabilityWatcher::build(da_watcher_builder);
+            Self::DataAvailabilityWatcher::build(self.da_watcher_builder());
 
         // Create the derivation actor.
-        let derivation_builder = self.derivation_builder();
         let (
             DerivationInboundChannels {
                 derivation_signal_tx,
@@ -142,7 +139,7 @@ pub trait RollupNodeService {
                 el_sync_complete_tx,
             },
             derivation,
-        ) = Self::DerivationActor::build(derivation_builder);
+        ) = Self::DerivationActor::build(self.derivation_builder());
 
         // TODO: get the supervisor ext.
         // TODO: use the supervisor ext to create the supervisor actor.
@@ -155,7 +152,6 @@ pub trait RollupNodeService {
         let (_, runtime) = self.runtime_builder().map(Self::RuntimeActor::build).unzip();
 
         // Create the engine actor.
-        let engine_builder = self.engine_builder();
         let (
             EngineInboundData {
                 build_request_tx,
@@ -167,48 +163,20 @@ pub trait RollupNodeService {
                 finalized_l1_block_tx,
             },
             engine,
-        ) = Self::EngineActor::build(engine_builder);
+        ) = Self::EngineActor::build(self.engine_builder());
 
         // Create the p2p actor.
-        let driver = self.network_builder();
         let (NetworkInboundData { signer, rpc: network_rpc }, network) =
-            Self::NetworkActor::build(driver);
+            Self::NetworkActor::build(self.network_builder());
 
         // Create the RPC server actor.
-        let rpc_builder = self.rpc_builder();
-        let (_, rpc) = rpc_builder.map(Self::RpcActor::build).unzip();
+        let (_, rpc) = self.rpc_builder().map(Self::RpcActor::build).unzip();
 
-        let network_context =
-            NetworkContext { blocks: unsafe_block_tx.clone(), cancellation: cancellation.clone() };
-
-        let (_, sequencer) = Self::SequencerActor::build(self.sequencer_builder());
-
-        let da_watcher_context = L1WatcherRpcContext {
-            latest_head: l1_head_updates_tx,
-            latest_finalized: finalized_l1_block_tx,
-            block_signer_sender: signer,
-            cancellation: cancellation.clone(),
-        };
-
-        let derivation_context = DerivationContext {
-            reset_request_tx: reset_request_tx.clone(),
-            derived_attributes_tx: attributes_tx,
-            cancellation: cancellation.clone(),
-        };
-
-        let engine_context = EngineContext {
-            engine_l2_safe_head_tx,
-            sync_complete_tx: el_sync_complete_tx,
-            derivation_signal_tx,
-            cancellation: cancellation.clone(),
-        };
-
-        let sequencer_context = SequencerContext {
-            reset_request_tx,
-            build_request_tx,
-            gossip_payload_tx: unsafe_block_tx,
-            cancellation: cancellation.clone(),
-        };
+        let (_, sequencer) = self
+            .mode()
+            .is_sequencer()
+            .then_some(Self::SequencerActor::build(self.sequencer_builder()))
+            .unzip();
 
         spawn_and_wait!(
             cancellation,
@@ -226,12 +194,47 @@ pub trait RollupNodeService {
                         engine_query: engine_rpc,
                     }
                 )),
-                Some((network, network_context)),
-                Some((da_watcher, da_watcher_context)),
-                Some((derivation, derivation_context)),
-                Some((engine, engine_context)),
-                (self.mode() == NodeMode::Sequencer).then_some((sequencer, sequencer_context))
+                sequencer.map(|s| (
+                    s,
+                    SequencerContext {
+                        reset_request_tx: reset_request_tx.clone(),
+                        build_request_tx: build_request_tx.expect(
+                            "`build_request_tx` not set while in sequencer mode. This should never happen.",
+                        ),
+                        gossip_payload_tx: unsafe_block_tx.clone(),
+                        cancellation: cancellation.clone(),
+                    })
+                ),
+                Some((
+                    network,
+                    NetworkContext { blocks: unsafe_block_tx, cancellation: cancellation.clone() }
+                )),
+                Some((
+                    da_watcher,
+                    L1WatcherRpcContext {
+                        latest_head: l1_head_updates_tx,
+                        latest_finalized: finalized_l1_block_tx,
+                        block_signer_sender: signer,
+                        cancellation: cancellation.clone(),
+                    })
+                ),
+                Some((
+                    derivation,
+                    DerivationContext {
+                        reset_request_tx: reset_request_tx.clone(),
+                        derived_attributes_tx: attributes_tx,
+                        cancellation: cancellation.clone(),
+                })),
+                Some((engine,
+                    EngineContext {
+                        engine_l2_safe_head_tx,
+                        sync_complete_tx: el_sync_complete_tx,
+                        derivation_signal_tx,
+                        cancellation: cancellation.clone(),
+                    })
+                ),
             ]
         );
+        Ok(())
     }
 }
