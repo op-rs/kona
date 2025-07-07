@@ -634,7 +634,7 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_derived_block_number_should_fail() {
+    fn duplicate_derived_block_number_should_pass() {
         let db = setup_db();
 
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
@@ -644,7 +644,25 @@ mod tests {
 
         // Try to insert the same derived block again
         let result = insert_pair(&db, &pair1);
-        assert!(matches!(result, Err(StorageError::DerivedBlockOutOfOrder)));
+        assert!(result.is_ok(), "Should allow inserting the same derived block again");
+    }
+
+    #[test]
+    fn save_old_block_should_pass() {
+        let db = setup_db();
+
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived1 = block_info(1, genesis_block().hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let derived2 = block_info(2, derived1.hash, 300);
+        let pair2 = derived_pair(source1, derived2);
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        // Try to insert a block with a lower number than the latest
+        let result = insert_pair(&db, &pair1);
+        assert!(result.is_ok(), "Should allow inserting an old derived block");
     }
 
     #[test]
@@ -664,7 +682,7 @@ mod tests {
         let derived_non_monotonic = block_info(1, derived2.hash, 400);
         let pair_non_monotonic = derived_pair(source1, derived_non_monotonic);
         let result = insert_pair(&db, &pair_non_monotonic);
-        assert!(matches!(result, Err(StorageError::DerivedBlockOutOfOrder)));
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]
@@ -842,20 +860,55 @@ mod tests {
     }
 
     #[test]
-    fn save_source_block_lower_number_should_fail() {
+    fn save_source_invalid_parent_should_fail() {
         let db = setup_db();
 
-        let derived0 = block_info(10, B256::from([10u8; 32]), 200);
-        let pair1 = derived_pair(genesis_block(), derived0);
+        let source0 = block_info(10, B256::from([10u8; 32]), 200);
+        let derived0 = genesis_block();
+        let pair1 = derived_pair(source0, derived0);
         assert!(initialize_db(&db, &pair1).is_ok());
 
-        let source1 = block_info(1, genesis_block().hash, 400);
+        let source1 = block_info(11, B256::from([1u8; 32]), 200);
+        let result = insert_source_block(&db, &source1);
+        assert!(
+            matches!(result, Err(StorageError::BlockOutOfOrder)),
+            "Should fail with BlockOutOfOrder error"
+        );
+    }
+
+    #[test]
+    fn save_source_block_lower_number_should_pass() {
+        let db = setup_db();
+
+        let source0 = block_info(10, B256::from([10u8; 32]), 200);
+        let derived0 = genesis_block();
+        let pair1 = derived_pair(source0, derived0);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let source1 = block_info(11, source0.hash, 400);
         assert!(insert_source_block(&db, &source1).is_ok());
 
-        let source2 = block_info(0, source1.hash, 400);
         // Try to save a block with a lower number
-        let result = insert_source_block(&db, &source2);
-        assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
+        let result = insert_source_block(&db, &source0);
+        assert!(result.is_ok(), "Should allow saving a old source block");
+    }
+
+    #[test]
+    fn save_inconsistent_source_block_lower_number_should_fail() {
+        let db = setup_db();
+
+        let source0 = block_info(10, B256::from([10u8; 32]), 200);
+        let derived0 = genesis_block();
+        let pair1 = derived_pair(source0, derived0);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let source1 = block_info(11, source0.hash, 400);
+        assert!(insert_source_block(&db, &source1).is_ok());
+
+        let old_source = block_info(source0.number, B256::from([1u8; 32]), 400);
+        // Try to save a block with a lower number
+        let result = insert_source_block(&db, &old_source);
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]

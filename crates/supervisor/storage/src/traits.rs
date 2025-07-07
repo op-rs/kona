@@ -65,8 +65,8 @@ pub trait DerivationStorageWriter: Debug {
     /// This method is **append-only**: it does not overwrite existing pairs.
     /// - If a pair with the same block number already exists and is identical to the incoming pair,
     ///   the request is silently ignored (idempotent).
-    /// - If a pair with the same block number exists but differs from the incoming pair,
-    ///   an error is returned to indicate a data inconsistency.
+    /// - If a pair with the same block number exists but differs from the incoming pair, an error
+    ///   is returned to indicate a data inconsistency.
     /// - If the pair is new and consistent, it is appended to the storage.
     ///
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
@@ -82,14 +82,15 @@ pub trait DerivationStorageWriter: Debug {
     /// Saves the latest incoming source [`BlockInfo`] to the storage.
     ///
     /// This method is **append-only**: it does not overwrite existing source blocks.
-    /// - If a source block with the same number already exists and is identical to the incoming block,
-    ///   the request is silently ignored (idempotent).
-    /// - If a source block with the same number exists but differs from the incoming block,
-    ///   an error is returned to indicate a data inconsistency.
+    /// - If a source block with the same number already exists and is identical to the incoming
+    ///   block, the request is silently ignored (idempotent).
+    /// - If a source block with the same number exists but differs from the incoming block, an
+    ///   error is returned to indicate a data inconsistency.
     /// - If the block is new and consistent, it is appended to the storage.
     ///
-    /// Ensures that the latest stored source block is the parent of the incoming block before saving.
-    /// 
+    /// Ensures that the latest stored source block is the parent of the incoming block before
+    /// saving.
+    ///
     /// # Arguments
     /// * `source` - The source block to save.
     ///
