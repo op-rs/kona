@@ -71,7 +71,7 @@ where
     async fn index_log_upto(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
         let mut current_number = self.log_storage.get_latest_block()?.number + 1;
 
-        while current_number <= block.number {
+        while current_number < block.number {
             let current_block = self.block_provider.block_by_number(current_number).await?;
             self.process_and_store_logs(&current_block).await?;
             current_number += 1;
@@ -311,7 +311,7 @@ mod tests {
         let mut mock_db = MockDb::new();
         mock_db
             .expect_get_latest_block()
-            .returning(|| Ok(BlockInfo { number: 1, ..Default::default() }));
+            .returning(|| Ok(BlockInfo { number: 0, ..Default::default() }));
 
         mock_db.expect_store_block_logs().times(5).returning(move |_, _| Ok(()));
 
