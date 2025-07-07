@@ -61,7 +61,14 @@ pub trait DerivationStorageReader: Debug {
 /// Implementations are expected to provide persistent and thread-safe access to block data.
 pub trait DerivationStorageWriter: Debug {
     /// Saves a [`DerivedRefPair`] to the storage.
-    /// This method is append only and does not overwrite existing pairs.
+    ///
+    /// This method is **append-only**: it does not overwrite existing pairs.
+    /// - If a pair with the same block number already exists and is identical to the incoming pair,
+    ///   the request is silently ignored (idempotent).
+    /// - If a pair with the same block number exists but differs from the incoming pair,
+    ///   an error is returned to indicate a data inconsistency.
+    /// - If the pair is new and consistent, it is appended to the storage.
+    ///
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
     ///
     /// # Arguments
@@ -72,8 +79,17 @@ pub trait DerivationStorageWriter: Debug {
     /// * `Err(StorageError)` if there is an issue saving the pair.
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 
-    /// Saves the latest incoming source block to the storage.
+    /// Saves the latest incoming source [`BlockInfo`] to the storage.
     ///
+    /// This method is **append-only**: it does not overwrite existing source blocks.
+    /// - If a source block with the same number already exists and is identical to the incoming block,
+    ///   the request is silently ignored (idempotent).
+    /// - If a source block with the same number exists but differs from the incoming block,
+    ///   an error is returned to indicate a data inconsistency.
+    /// - If the block is new and consistent, it is appended to the storage.
+    ///
+    /// Ensures that the latest stored source block is the parent of the incoming block before saving.
+    /// 
     /// # Arguments
     /// * `source` - The source block to save.
     ///
