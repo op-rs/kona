@@ -150,6 +150,7 @@ impl RollupNodeBuilder {
             l1_rpc_url: l1_rpc_url.clone(),
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,
+            mode: self.mode,
         };
 
         let runtime_builder = self.runtime_load_interval.map(|load_interval| RuntimeState {
@@ -165,7 +166,6 @@ impl RollupNodeBuilder {
         };
 
         RollupNode {
-            mode: self.mode,
             config: rollup_config,
             interop_mode,
             l1_provider,
