@@ -101,8 +101,8 @@ impl RollupNodeBuilder {
     }
 
     /// Sets the [`RpcBuilder`] on the [`RollupNodeBuilder`].
-    pub fn with_rpc_config(self, rpc_config: RpcBuilder) -> Self {
-        Self { rpc_config: Some(rpc_config), ..self }
+    pub fn with_rpc_config(self, rpc_config: Option<RpcBuilder>) -> Self {
+        Self { rpc_config, ..self }
     }
 
     /// Sets the runtime load interval on the [`RollupNodeBuilder`].

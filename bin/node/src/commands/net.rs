@@ -52,21 +52,21 @@ impl NetCommand {
         let signer = args.genesis_signer()?;
         info!(target: "net", "Genesis block signer: {:?}", signer);
 
-        let rpc_config = RpcBuilder::from(self.rpc);
+        let rpc_config = Option::<RpcBuilder>::from(self.rpc);
 
-        let (handle, tx, rx) = if rpc_config.disabled {
-            info!(target: "net", "RPC server disabled");
-            (None, None, None)
-        } else {
-            info!(target: "net", socket = ?rpc_config.socket, "Starting RPC server");
+        let (handle, tx, rx) = if let Some(config) = rpc_config {
+            info!(target: "net", socket = ?config.socket, "Starting RPC server");
             let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
             // Setup the RPC server with the P2P RPC Module
             let mut launcher = RpcModule::new(());
             launcher.merge(NetworkRpc::new(tx.clone()).into_rpc())?;
 
-            let server = Server::builder().build(rpc_config.socket).await?;
+            let server = Server::builder().build(config.socket).await?;
             (Some(server.start(launcher)), Some(tx), Some(rx))
+        } else {
+            info!(target: "net", "RPC server disabled");
+            (None, None, None)
         };
 
         // Get the rollup config from the args

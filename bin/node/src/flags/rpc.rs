@@ -44,15 +44,18 @@ impl Default for RpcArgs {
     }
 }
 
-impl From<RpcArgs> for RpcBuilder {
+impl From<RpcArgs> for Option<RpcBuilder> {
     fn from(args: RpcArgs) -> Self {
-        Self {
-            disabled: args.rpc_disabled,
-            no_restart: args.no_restart,
-            socket: SocketAddr::from((args.listen_addr, args.listen_port)),
-            enable_admin: args.enable_admin,
-            admin_persistence: args.admin_persistence.clone(),
-            ws_enabled: args.ws_enabled,
+        if args.rpc_disabled {
+            None
+        } else {
+            Some(RpcBuilder {
+                no_restart: args.no_restart,
+                socket: SocketAddr::from((args.listen_addr, args.listen_port)),
+                enable_admin: args.enable_admin,
+                admin_persistence: args.admin_persistence.clone(),
+                ws_enabled: args.ws_enabled,
+            })
         }
     }
 }

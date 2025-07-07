@@ -11,7 +11,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
-use kona_rpc::RpcBuilder;
 use std::fmt::Display;
 use tokio_util::sync::CancellationToken;
 
@@ -93,7 +92,7 @@ pub trait RollupNodeService {
         >;
 
     /// The type of rpc actor to use for the service.
-    type RpcActor: NodeActor<Error: Display, OutboundData = RpcContext, InboundData = (), Builder = RpcBuilder>;
+    type RpcActor: NodeActor<Error: Display, OutboundData = RpcContext, InboundData = ()>;
 
     /// The mode of operation for the node.
     fn mode(&self) -> NodeMode;
