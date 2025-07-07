@@ -1,10 +1,9 @@
 //! Error types for the proof program.
 
 use alloc::string::{String, ToString};
-use kona_derive::errors::{PipelineError, PipelineErrorKind};
+use soon_derive::errors::{PipelineError, PipelineErrorKind};
 use kona_mpt::{OrderedListWalkerError, TrieNodeError};
 use kona_preimage::errors::PreimageOracleError;
-use kona_protocol::{FromBlockError, OpBlockConversionError};
 use thiserror::Error;
 
 /// Error from an oracle-backed provider.
@@ -22,12 +21,6 @@ pub enum OracleProviderError {
     /// Trie node error.
     #[error("Trie node error: {0}")]
     TrieNode(#[from] TrieNodeError),
-    /// BlockInfo error.
-    #[error("From block error: {0}")]
-    BlockInfo(FromBlockError),
-    /// Op Block conversion error.
-    #[error("Op block conversion error: {0}")]
-    OpBlockConversion(OpBlockConversionError),
     /// Error decoding or encoding RLP.
     #[error("RLP error: {0}")]
     Rlp(alloy_rlp::Error),

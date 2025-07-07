@@ -8,5 +8,4 @@
 extern crate alloc;
 
 pub mod fpvm_evm;
-pub mod interop;
 pub mod single;

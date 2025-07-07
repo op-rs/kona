@@ -2,19 +2,19 @@
 
 use crate::{DriverError, DriverPipeline, DriverResult, Executor, PipelineCursor, TipCursor};
 use alloc::{sync::Arc, vec::Vec};
-use alloy_consensus::BlockBody;
-use alloy_primitives::{B256, Bytes};
+use alloy_consensus::{BlockBody, Header};
+use alloy_primitives::{B256, Bytes, Sealable};
 use alloy_rlp::Decodable;
 use core::fmt::Debug;
-use kona_derive::{
+use core::default::Default;
+use soon_derive::{
     errors::{PipelineError, PipelineErrorKind},
     traits::{Pipeline, SignalReceiver},
-    types::Signal,
 };
-use kona_executor::BlockBuildingOutcome;
-use kona_genesis::RollupConfig;
-use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
-use op_alloy_consensus::{OpBlock, OpTxEnvelope, OpTxType};
+use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_primitives::derive::OpAttributesWithParent;
+use soon_primitives::blocks::L2BlockInfo;
+use op_alloy_consensus::{OpBlock, OpTxEnvelope};
 use spin::RwLock;
 
 /// The Rollup Driver entrypoint.
@@ -34,7 +34,7 @@ where
     /// A pipeline abstraction.
     pub pipeline: DP,
     /// The safe head's execution artifacts + Transactions
-    pub safe_head_artifacts: Option<(BlockBuildingOutcome, Vec<Bytes>)>,
+    pub safe_head_artifacts: Option<((), Vec<Bytes>)>,
 }
 
 impl<E, DP, P> Driver<E, DP, P>
@@ -71,7 +71,7 @@ where
     /// - `Err(e)` - An error if the block could not be produced.
     pub async fn advance_to_target(
         &mut self,
-        cfg: &RollupConfig,
+        _cfg: &SoonRollupConfig,
         mut target: Option<u64>,
     ) -> DriverResult<(L2BlockInfo, B256), E::Error> {
         loop {
@@ -85,7 +85,7 @@ where
                 }
             }
 
-            let OpAttributesWithParent { mut attributes, .. } = match self
+            let OpAttributesWithParent { attributes, .. } = match self
                 .pipeline
                 .produce_payload(tip_cursor.l2_safe_head)
                 .await
@@ -100,13 +100,7 @@ where
                         target = Some(tip_cursor.l2_safe_head.block_info.number);
                     };
 
-                    // If we are in interop mode, this error must be handled by the caller.
-                    // Otherwise, we continue the loop to halt derivation on the next iteration.
-                    if cfg.is_interop_active(self.cursor.read().l2_safe_head().block_info.number) {
-                        return Err(PipelineError::EndOfSource.crit().into());
-                    } else {
-                        continue;
-                    }
+                    continue;
                 }
                 Err(e) => {
                     error!(target: "client", "Failed to produce payload: {:?}", e);
@@ -119,46 +113,13 @@ where
                 Ok(outcome) => outcome,
                 Err(e) => {
                     error!(target: "client", "Failed to execute L2 block: {}", e);
-
-                    if cfg.is_holocene_active(attributes.payload_attributes.timestamp) {
-                        // Retry with a deposit-only block.
-                        warn!(target: "client", "Flushing current channel and retrying deposit only block");
-
-                        // Flush the current batch and channel - if a block was replaced with a
-                        // deposit-only block due to execution failure, the
-                        // batch and channel it is contained in is forwards
-                        // invalidated.
-                        self.pipeline.signal(Signal::FlushChannel).await?;
-
-                        // Strip out all transactions that are not deposits.
-                        attributes.transactions = attributes.transactions.map(|txs| {
-                            txs.into_iter()
-                                .filter(|tx| (!tx.is_empty() && tx[0] == OpTxType::Deposit as u8))
-                                .collect::<Vec<_>>()
-                        });
-
-                        // Retry the execution.
-                        self.executor.update_safe_head(tip_cursor.l2_safe_head_header.clone());
-                        match self.executor.execute_payload(attributes.clone()).await {
-                            Ok(header) => header,
-                            Err(e) => {
-                                error!(
-                                    target: "client",
-                                    "Critical - Failed to execute deposit-only block: {e}",
-                                );
-                                return Err(DriverError::Executor(e));
-                            }
-                        }
-                    } else {
-                        // Pre-Holocene, discard the block if execution fails.
-                        continue;
-                    }
+                    continue;
                 }
             };
 
             // Construct the block.
-            let block = OpBlock {
-                header: outcome.header.inner().clone(),
+            let _block = OpBlock {
+                header: Default::default(),//outcome.header.inner().clone(),
                 body: BlockBody {
                     transactions: attributes
                         .transactions
@@ -174,13 +135,11 @@ where
 
             // Get the pipeline origin and update the tip cursor.
             let origin = self.pipeline.origin().ok_or(PipelineError::MissingOrigin.crit())?;
-            let l2_info = L2BlockInfo::from_block_and_genesis(
-                &block,
-                &self.pipeline.rollup_config().genesis,
-            )?;
+            //TODO construct L2BlockInfo
+            let l2_info = L2BlockInfo::default();
             let tip_cursor = TipCursor::new(
                 l2_info,
-                outcome.header.clone(),
+                Header::default().seal_slow(),
                 self.executor.compute_output_root().map_err(DriverError::Executor)?,
             );
 

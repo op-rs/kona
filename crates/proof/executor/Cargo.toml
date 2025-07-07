@@ -14,8 +14,9 @@ workspace = true
 [dependencies]
 # Workspace
 kona-mpt.workspace = true
-kona-genesis = { workspace = true, features = ["revm"] }
-kona-protocol.workspace = true
+
+# Soon
+soon-primitives.workspace = true
 
 # Alloy
 alloy-consensus = { workspace = true, features = ["k256"] }
@@ -47,7 +48,6 @@ serde_json = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 tokio = { workspace = true, features = ["full"], optional = true }
 rstest = { workspace = true, optional = true }
-kona-registry = { workspace = true, optional = true }
 rocksdb = { workspace = true, features = ["snappy"], optional = true }
 tempfile = { workspace = true, optional = true }
 alloy-rpc-types-engine = { workspace = true, optional = true }
@@ -66,7 +66,6 @@ test-utils = [
   "dep:serde",
   "dep:tokio",
   "dep:rstest",
-  "dep:kona-registry",
   "dep:rocksdb",
   "dep:tempfile",
   "dep:alloy-rpc-types-engine",

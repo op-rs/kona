@@ -16,7 +16,7 @@
 fn main() {
     use alloy_primitives::BlockHash;
     use kona_comp::{ChannelOut, CompressionAlgo, VariantCompressor};
-    use kona_genesis::RollupConfig;
+    use soon_primitives::rollup_config::SoonRollupConfig;
     use kona_protocol::{Batch, ChannelId, SingleBatch};
 
     // Use the example transaction
@@ -32,7 +32,7 @@ fn main() {
 
     // Create a new channel.
     let id = ChannelId::default();
-    let config = RollupConfig::default();
+    let config = SoonRollupConfig::default();
     let compressor: VariantCompressor = CompressionAlgo::Brotli10.into();
     let mut channel_out = ChannelOut::new(id, &config, compressor);
 

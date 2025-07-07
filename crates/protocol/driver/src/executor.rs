@@ -5,7 +5,6 @@ use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use core::error::Error;
-use kona_executor::BlockBuildingOutcome;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
 /// Executor
@@ -20,13 +19,13 @@ pub trait Executor {
     async fn wait_until_ready(&mut self);
 
     /// Updates the safe header.
-    fn update_safe_head(&mut self, header: Sealed<Header>);
+    fn update_safe_head(&mut self, safe_head: Sealed<Header>);
 
     /// Execute the gicen [OpPayloadAttributes].
     async fn execute_payload(
         &mut self,
         attributes: OpPayloadAttributes,
-    ) -> Result<BlockBuildingOutcome, Self::Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Computes the output root.
     /// Expected to be called after the payload has been executed.

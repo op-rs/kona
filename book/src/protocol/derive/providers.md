@@ -23,9 +23,9 @@ required trait implementations are the providers stubbed with `todo!()`.
 
 ```rust
 use std::sync::Arc;
-use kona_genesis::RollupConfig;
-use kona_derive::pipeline::PipelineBuilder;
-use kona_derive::attributes::StatefulAttributesBuilder;
+use soon_primitives::rollup_config::SoonRollupConfig;
+use soon_derive::pipeline::PipelineBuilder;
+use soon_derive::attributes::StatefulAttributesBuilder;
 
 // The rollup config for your chain.
 let cfg = Arc::new(RollupConfig::default());
@@ -67,9 +67,9 @@ let pipeline = PipelineBuilder::new()
 ```rust
 use async_trait::async_trait;
 use alloy_primitives::Bytes;
-use kona_protocol::BlockInfo;
-use kona_derive::traits::DataAvailabilityProvider;
-use kona_derive::errors::PipelineResult;
+use soon_primitives::blocks::BlockInfo;
+use soon_derive::traits::DataAvailabilityProvider;
+use soon_derive::errors::PipelineResult;
 
 /// ExampleAvail
 ///

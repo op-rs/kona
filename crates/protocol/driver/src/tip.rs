@@ -2,7 +2,7 @@
 
 use alloy_consensus::{Header, Sealed};
 use alloy_primitives::B256;
-use kona_protocol::L2BlockInfo;
+use soon_primitives::blocks::L2BlockInfo;
 
 /// A cursor that keeps track of the L2 tip block.
 #[derive(Debug, Clone)]

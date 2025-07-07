@@ -14,17 +14,12 @@ kona-mpt.workspace = true
 kona-preimage.workspace = true
 kona-executor.workspace = true
 kona-proof.workspace = true
-kona-proof-interop.workspace = true
 kona-std-fpvm.workspace = true
 kona-std-fpvm-proc.workspace = true
 
 # Protocol
-kona-derive.workspace = true
+soon-derive.workspace = true
 kona-driver.workspace = true
-kona-interop.workspace = true
-kona-registry.workspace = true
-kona-protocol.workspace = true
-kona-genesis = { workspace = true, features = ["serde"] }
 
 # Alloy
 alloy-rlp.workspace = true
@@ -65,7 +60,3 @@ client-tracing = ["kona-std-fpvm/tracing"]
 [[bin]]
 name = "kona"
 path = "src/kona.rs"
-
-[[bin]]
-name = "kona-int"
-path = "src/kona_interop.rs"

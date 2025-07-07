@@ -1,9 +1,9 @@
 //! Contains the cursor for the derivation pipeline.
 
 use alloc::collections::{btree_map::BTreeMap, vec_deque::VecDeque};
-use alloy_consensus::{Header, Sealed};
 use alloy_primitives::{B256, map::HashMap};
-use kona_protocol::{BlockInfo, L2BlockInfo};
+use soon_primitives::blocks::BlockInfo;
+use soon_primitives::blocks::L2BlockInfo;
 
 use crate::TipCursor;
 
@@ -49,11 +49,6 @@ impl PipelineCursor {
     /// Returns the current L2 safe head.
     pub fn l2_safe_head(&self) -> &L2BlockInfo {
         &self.tip().l2_safe_head
-    }
-
-    /// Returns the header of the L2 safe head.
-    pub fn l2_safe_head_header(&self) -> &Sealed<Header> {
-        &self.tip().l2_safe_head_header
     }
 
     /// Returns the output root of the L2 safe head.

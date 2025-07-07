@@ -16,8 +16,6 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-protocol.workspace = true
-kona-genesis.workspace = true
 
 # OP Alloy
 op-alloy-consensus.workspace = true
@@ -68,7 +66,6 @@ op-alloy-consensus.workspace = true
 [features]
 default = []
 std = [
-  "kona-genesis/std",
   "op-alloy-consensus/std",
   "brotli/std",
   "alloy-consensus/std",
@@ -82,7 +79,6 @@ test-utils = []
 serde = [
   "dep:serde",
   "dep:alloy-serde",
-  "kona-genesis/serde",
   "op-alloy-consensus/serde",
   "alloy-consensus/serde",
   "alloy-eips/serde",

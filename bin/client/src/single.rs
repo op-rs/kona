@@ -1,19 +1,17 @@
 //! Single-chain fault proof program entrypoint.
 
-use crate::fpvm_evm::FpvmOpEvmFactory;
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
 use alloy_primitives::B256;
 use core::fmt::Debug;
-use kona_derive::{errors::PipelineErrorKind, prelude::EthereumDataSource};
-use kona_driver::{Driver, DriverError};
+use soon_derive::errors::PipelineErrorKind;
+use kona_driver::DriverError;
 use kona_executor::{ExecutorError, TrieDBProvider};
 use kona_preimage::{CommsClient, HintWriterClient, PreimageKey, PreimageOracleClient};
 use kona_proof::{
     BootInfo, CachingOracle, HintType,
     errors::OracleProviderError,
-    executor::KonaExecutor,
-    l1::{OracleBlobProvider, OracleL1ChainProvider, OraclePipeline},
+    l1::{OracleBlobProvider, OracleL1ChainProvider},
     l2::OracleL2ChainProvider,
     sync::new_oracle_pipeline_cursor,
 };
@@ -59,7 +57,7 @@ where
     let mut l1_provider = OracleL1ChainProvider::new(boot.l1_head, oracle.clone());
     let mut l2_provider =
         OracleL2ChainProvider::new(safe_head_hash, rollup_config.clone(), oracle.clone());
-    let beacon = OracleBlobProvider::new(oracle.clone());
+    let _beacon = OracleBlobProvider::new(oracle.clone());
 
     // Fetch the safe head's block header.
     let safe_head = l2_provider
@@ -104,54 +102,6 @@ where
     )
     .await?;
     l2_provider.set_cursor(cursor.clone());
-
-    let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
-    let da_provider =
-        EthereumDataSource::new_from_parts(l1_provider.clone(), beacon, &rollup_config);
-    let pipeline = OraclePipeline::new(
-        rollup_config.clone(),
-        cursor.clone(),
-        oracle.clone(),
-        da_provider,
-        l1_provider.clone(),
-        l2_provider.clone(),
-    )
-    .await?;
-    let executor = KonaExecutor::new(
-        rollup_config.as_ref(),
-        l2_provider.clone(),
-        l2_provider,
-        evm_factory,
-        None,
-    );
-    let mut driver = Driver::new(cursor, executor, pipeline);
-
-    // Run the derivation pipeline until we are able to produce the output root of the claimed
-    // L2 block.
-    let (safe_head, output_root) = driver
-        .advance_to_target(rollup_config.as_ref(), Some(boot.claimed_l2_block_number))
-        .await?;
-
-    ////////////////////////////////////////////////////////////////
-    //                          EPILOGUE                          //
-    ////////////////////////////////////////////////////////////////
-
-    if output_root != boot.claimed_l2_output_root {
-        error!(
-            target: "client",
-            number = safe_head.block_info.number,
-            output_root = ?output_root,
-            "Failed to validate L2 block",
-        );
-        return Err(FaultProofProgramError::InvalidClaim(output_root, boot.claimed_l2_output_root));
-    }
-
-    info!(
-        target: "client",
-        number = safe_head.block_info.number,
-        output_root = ?output_root,
-        "Successfully validated L2 block",
-    );
 
     Ok(())
 }

@@ -4,7 +4,7 @@ use crate::{
     BrotliCompressor, ChannelCompressor, CompressionAlgo, CompressorResult, CompressorWriter,
     ZlibCompressor,
 };
-use kona_genesis::RollupConfig;
+use soon_primitives::rollup_config::SoonRollupConfig;
 
 /// The channel compressor wraps the brotli and zlib compressor types,
 /// implementing the [ChannelCompressor] trait itself.
@@ -17,8 +17,8 @@ pub enum VariantCompressor {
 }
 
 impl VariantCompressor {
-    /// Constructs a [VariantCompressor] using the given [RollupConfig] and timestamp.
-    pub fn from_timestamp(config: &RollupConfig, timestamp: u64) -> Self {
+    /// Constructs a [VariantCompressor] using the given [SoonRollupConfig] and timestamp.
+    pub fn from_timestamp(config: &SoonRollupConfig, timestamp: u64) -> Self {
         if config.is_fjord_active(timestamp) {
             Self::Brotli(BrotliCompressor::new(CompressionAlgo::Brotli10))
         } else {

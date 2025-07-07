@@ -4,7 +4,7 @@ use crate::FlushableCache;
 use alloc::{boxed::Box, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
-use kona_derive::{
+use soon_derive::{
     errors::PipelineErrorKind,
     pipeline::{DerivationPipeline, PipelineBuilder},
     prelude::{AttributesQueueStage, StatefulAttributesBuilder},
@@ -15,9 +15,11 @@ use kona_derive::{
     types::{PipelineResult, ResetSignal, Signal, StepResult},
 };
 use kona_driver::{DriverPipeline, PipelineCursor};
-use kona_genesis::{RollupConfig, SystemConfig};
+use soon_primitives::system_config::SystemConfig;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::CommsClient;
-use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
+use soon_primitives::blocks::{BlockInfo, L2BlockInfo};
+use soon_primitives::derive::OpAttributesWithParent;
 use spin::RwLock;
 
 /// An oracle-backed derivation pipeline.
@@ -52,7 +54,7 @@ where
 {
     /// Constructs a new oracle-backed derivation pipeline.
     pub async fn new(
-        cfg: Arc<RollupConfig>,
+        cfg: Arc<SoonRollupConfig>,
         sync_start: Arc<RwLock<PipelineCursor>>,
         caching_oracle: Arc<O>,
         da_provider: DA,
@@ -82,7 +84,7 @@ where
                     l2_safe_head,
                     l1_origin: sync_start.read().origin(),
                     system_config: l2_chain_provider
-                        .system_config_by_number(l2_safe_head.block_info.number, cfg.clone())
+                        .system_config_by_number(l2_safe_head.block_info.number)
                         .await
                         .ok(),
                 }
@@ -168,7 +170,7 @@ where
     }
 
     /// Returns the rollup config.
-    fn rollup_config(&self) -> &RollupConfig {
+    fn rollup_config(&self) -> &SoonRollupConfig {
         self.pipeline.rollup_config()
     }
 

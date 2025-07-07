@@ -13,10 +13,8 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-derive.workspace = true
-kona-executor.workspace = true
-kona-genesis.workspace = true
-kona-protocol.workspace = true
+soon-derive.workspace = true
+soon-primitives.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true

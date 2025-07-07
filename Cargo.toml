@@ -14,18 +14,12 @@ resolver = "2"
 members = [
   "bin/*",
   "crates/proof/*",
-  "crates/node/*",
-  "crates/supervisor/*",
   "crates/protocol/*",
-  "crates/providers/*",
   "crates/utilities/*",
-  "examples/*",
 ]
 default-members = [
   "bin/host",
   "bin/client",
-  "bin/node",
-  "bin/supervisor",
 ]
 
 [workspace.metadata.cargo-udeps.ignore]
@@ -74,28 +68,6 @@ kona-client = { path = "bin/client", version = "1.0.1", default-features = false
 # Protocol
 kona-comp = { path = "crates/protocol/comp", version = "0.3.0", default-features = false }
 kona-driver = { path = "crates/protocol/driver", version = "0.3.0", default-features = false }
-kona-derive = { path = "crates/protocol/derive", version = "0.3.0", default-features = false }
-kona-interop = { path = "crates/protocol/interop", version = "0.3.0", default-features = false }
-kona-genesis = { path = "crates/protocol/genesis", version = "0.3.0", default-features = false }
-kona-protocol = { path = "crates/protocol/protocol", version = "0.3.0", default-features = false }
-kona-registry = { path = "crates/protocol/registry", version = "0.3.0", default-features = false }
-kona-hardforks = { path = "crates/protocol/hardforks", version = "0.3.0", default-features = false }
-
-# Node
-kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
-kona-rpc = { path = "crates/node/rpc", version = "0.2.0", default-features = false }
-kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
-kona-macros = { path = "crates/node/macros", version = "0.1.0", default-features = false }
-kona-sources = { path = "crates/node/sources", version = "0.1.0", default-features = false }
-kona-node-service = { path = "crates/node/service", version = "0.1.0", default-features = false }
-
-# Supervisor
-kona-supervisor-core = { path = "crates/supervisor/core", version = "0.1.0", default-features = false }
-kona-supervisor-rpc = { path = "crates/supervisor/rpc", version = "0.1.0", default-features = false }
-kona-supervisor-service = { path = "crates/supervisor/service", version = "0.1.0", default-features = false }
-
-# Providers
-kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.2.0", default-features = false }
 
 # Proof
 kona-mpt = { path = "crates/proof/mpt", version = "0.2.0", default-features = false }
@@ -104,7 +76,6 @@ kona-executor = { path = "crates/proof/executor", version = "0.3.0", default-fea
 kona-std-fpvm = { path = "crates/proof/std-fpvm", version = "0.2.0", default-features = false }
 kona-preimage = { path = "crates/proof/preimage", version = "0.3.0", default-features = false }
 kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.2.0", default-features = false }
-kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.2.0", default-features = false }
 
 # Utilities
 kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
@@ -134,8 +105,8 @@ alloy-hardforks = { version = "0.2.0", default-features = false }
 
 # OP Alloy
 op-alloy-network = { version = "0.15.2", default-features = false }
-op-alloy-provider = { version = "0.15.2", default-features = false }
-op-alloy-consensus = { version = "0.15.2", default-features = false }
+op-alloy-provider = { version = "=0.15.4", default-features = false }
+op-alloy-consensus = { version = "=0.15.4", default-features = false }
 op-alloy-rpc-types = { version = "0.15.2", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.15.2", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.15.2", default-features = false }
@@ -229,3 +200,18 @@ c-kzg = { version = "2.0.0", default-features = false }
 ark-ff = { version = "0.5.0", default-features = false }
 secp256k1 = { version = "0.31.0", default-features = false }
 ark-bls12-381 = { version = "0.5.0", default-features = false }
+
+
+# Soon
+soon-derive = { path = '../../Work/soon/node/derive' }
+soon-l1-chain-provider = { path = '../../Work/soon/node/l1provider' }
+soon-primitives = { path = '../../Work/soon/node/primitives' }
+
+# solana
+solana-transaction-status = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+
+[patch.crates-io]
+solana-curve25519 = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-program = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-zk-sdk = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }
+solana-zk-token-sdk = { git = "https://github.com/soonlabs/agave", branch = "upgrade_curve25519" }

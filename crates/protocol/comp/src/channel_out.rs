@@ -2,7 +2,7 @@
 
 use crate::{ChannelCompressor, CompressorError};
 use alloc::{vec, vec::Vec};
-use kona_genesis::RollupConfig;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_protocol::{Batch, ChannelId, Frame};
 use rand::{RngCore, SeedableRng, rngs::SmallRng};
 
@@ -40,10 +40,10 @@ where
 {
     /// The unique identifier for the channel.
     pub id: ChannelId,
-    /// A reference to the [RollupConfig] used to
+    /// A reference to the [SoonRollupConfig] used to
     /// check the max RLP bytes per channel when
     /// encoding and accepting the
-    pub config: &'a RollupConfig,
+    pub config: &'a SoonRollupConfig,
     /// The rlp length of the channel.
     pub rlp_length: u64,
     /// Whether the channel is closed.
@@ -59,7 +59,7 @@ where
     C: ChannelCompressor,
 {
     /// Creates a new [ChannelOut] with the given [ChannelId].
-    pub const fn new(id: ChannelId, config: &'a RollupConfig, compressor: C) -> Self {
+    pub const fn new(id: ChannelId, config: &'a SoonRollupConfig, compressor: C) -> Self {
         Self { id, config, rlp_length: 0, frame_number: 0, closed: false, compressor }
     }
 
@@ -153,14 +153,14 @@ mod tests {
 
     #[test]
     fn test_output_frame_max_size_too_small() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
         assert_eq!(channel.output_frame(0), Err(ChannelOutError::MaxFrameSizeTooSmall));
     }
 
     #[test]
     fn test_channel_out_output_frame_no_data() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(
             ChannelId::default(),
             &config,
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_output() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(
             ChannelId::default(),
             &config,
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_reset() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut {
             id: ChannelId::default(),
             config: &config,
@@ -207,14 +207,14 @@ mod tests {
 
     #[test]
     fn test_channel_out_ready_bytes_empty() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
         assert_eq!(channel.ready_bytes(), 0);
     }
 
     #[test]
     fn test_channel_out_ready_bytes_some() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
         channel.compressor.write(&[1, 2, 3]).unwrap();
         assert_eq!(channel.ready_bytes(), 3);
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_close() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
         assert!(!channel.closed);
 
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_add_batch_closed() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
         channel.close();
 
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_empty_span_batch_decode_error() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
 
         let batch = Batch::Span(SpanBatch::default());
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_max_rlp_bytes_per_channel() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
 
         let batch = Batch::Single(SingleBatch::default());
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_channel_out_add_batch() {
-        let config = RollupConfig::default();
+        let config = SoonRollupConfig::default();
         let mut channel = ChannelOut::new(ChannelId::default(), &config, MockCompressor::default());
 
         let batch = Batch::Single(SingleBatch::default());

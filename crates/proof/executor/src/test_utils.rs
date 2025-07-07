@@ -9,7 +9,7 @@ use alloy_rlp::Decodable;
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::PayloadAttributes;
 use alloy_transport_http::{Client, Http};
-use kona_genesis::RollupConfig;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_mpt::{NoopTrieHinter, TrieNode, TrieProvider};
 use kona_registry::ROLLUP_CONFIGS;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -64,7 +64,7 @@ pub async fn run_test_fixture(fixture_path: PathBuf) {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExecutorTestFixture {
     /// The rollup configuration for the executing chain.
-    pub rollup_config: RollupConfig,
+    pub rollup_config: SoonRollupConfig,
     /// The parent block header.
     pub parent_header: Header,
     /// The executing payload attributes.

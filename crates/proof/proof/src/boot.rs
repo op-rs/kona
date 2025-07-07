@@ -3,9 +3,8 @@
 
 use crate::errors::OracleProviderError;
 use alloy_primitives::{B256, U256};
-use kona_genesis::RollupConfig;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::{PreimageKey, PreimageOracleClient};
-use kona_registry::ROLLUP_CONFIGS;
 use serde::{Deserialize, Serialize};
 
 /// The local key ident for the L1 head hash.
@@ -50,7 +49,7 @@ pub struct BootInfo {
     /// The L2 chain ID.
     pub chain_id: u64,
     /// The rollup config for the L2 chain.
-    pub rollup_config: RollupConfig,
+    pub rollup_config: SoonRollupConfig,
 }
 
 impl BootInfo {
@@ -103,22 +102,8 @@ impl BootInfo {
                 .map_err(OracleProviderError::SliceConversion)?,
         );
 
-        // Attempt to load the rollup config from the chain ID. If there is no config for the chain,
-        // fall back to loading the config from the preimage oracle.
-        let rollup_config = if let Some(config) = ROLLUP_CONFIGS.get(&chain_id) {
-            config.clone()
-        } else {
-            warn!(
-                target: "boot_loader",
-                "No rollup config found for chain ID {}, falling back to preimage oracle. This is insecure in production without additional validation!",
-                chain_id
-            );
-            let ser_cfg = oracle
-                .get(PreimageKey::new_local(L2_ROLLUP_CONFIG_KEY.to()))
-                .await
-                .map_err(OracleProviderError::Preimage)?;
-            serde_json::from_slice(&ser_cfg).map_err(OracleProviderError::Serde)?
-        };
+        //TODO get right rollup_config
+        let rollup_config = SoonRollupConfig::default();
 
         Ok(Self {
             l1_head,

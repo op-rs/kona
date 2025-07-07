@@ -2,9 +2,9 @@
 
 use alloc::boxed::Box;
 use async_trait::async_trait;
-use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
+use soon_primitives::{derive::OpAttributesWithParent, blocks::L2BlockInfo};
 
-use kona_derive::{
+use soon_derive::{
     errors::{PipelineError, PipelineErrorKind, ResetError},
     traits::{Pipeline, SignalReceiver},
     types::{ActivationSignal, ResetSignal, StepResult},

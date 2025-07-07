@@ -10,12 +10,12 @@ use alloy_primitives::B256;
 use alloy_provider::RootProvider;
 use clap::Parser;
 use kona_cli::cli_styles;
-use kona_genesis::RollupConfig;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_preimage::{
     BidirectionalChannel, Channel, HintReader, HintWriter, OracleReader, OracleServer,
 };
 use kona_proof::HintType;
-use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider, OnlineDaProvider};
+//use kona_providers_alloy::{OnlineBeaconClient, OnlineBlobProvider, OnlineDaProvider};
 use kona_std_fpvm::{FileChannel, FileDescriptor};
 use op_alloy_network::Optimism;
 use serde::Serialize;
@@ -129,7 +129,7 @@ pub enum SingleChainHostError {
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),
     /// A JSON parse error.
-    #[error("Failed deserializing RollupConfig: {0}")]
+    #[error("Failed deserializing SoonRollupConfig: {0}")]
     ParseError(#[from] serde_json::Error),
     /// Task failed to execute to completion.
     #[error("Join error: {0}")]
@@ -226,8 +226,8 @@ impl SingleChainHost {
             self.data_dir.is_some()
     }
 
-    /// Reads the [RollupConfig] from the file system and returns it as a string.
-    pub fn read_rollup_config(&self) -> Result<RollupConfig, SingleChainHostError> {
+    /// Reads the [SoonRollupConfig] from the file system and returns it as a string.
+    pub fn read_rollup_config(&self) -> Result<SoonRollupConfig, SingleChainHostError> {
         let path = self.rollup_config_path.as_ref().ok_or_else(|| {
             SingleChainHostError::Other(
                 "No rollup config path provided. Please provide a path to the rollup config.",
@@ -265,21 +265,21 @@ impl SingleChainHost {
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("Provider must be set"))?,
         );
-        let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
-            self.l1_beacon_address
-                .clone()
-                .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
-        ))
-        .await;
+        // let blob_provider = OnlineBlobProvider::init(OnlineBeaconClient::new_http(
+        //     self.l1_beacon_address
+        //         .clone()
+        //         .ok_or(SingleChainHostError::Other("Beacon API URL must be set"))?,
+        // ))
+        // .await;
         let l2_provider = http_provider::<Optimism>(
             self.l2_node_address
                 .as_ref()
                 .ok_or(SingleChainHostError::Other("L2 node address must be set"))?,
         );
 
-        let da_provider = OnlineDaProvider::new(self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
+       // let da_provider = OnlineDaProvider::new(self.da_proxy_url.clone().ok_or(SingleChainHostError::Other("DA proxy URL must be set"))?);
 
-        Ok(SingleChainProviders { l1: l1_provider, blobs: blob_provider, da: da_provider, l2: l2_provider })
+        Ok(SingleChainProviders { l1: l1_provider, l2: l2_provider })
     }
 }
 
@@ -293,10 +293,10 @@ impl OnlineHostBackendCfg for SingleChainHost {
 pub struct SingleChainProviders {
     /// The L1 EL provider.
     pub l1: RootProvider,
-    /// The L1 beacon node provider.
-    pub blobs: OnlineBlobProvider<OnlineBeaconClient>,
-    /// The DA proxy provider.
-    pub da: OnlineDaProvider,
+    // /// The L1 beacon node provider.
+    // pub blobs: OnlineBlobProvider<OnlineBeaconClient>,
+    // /// The DA proxy provider.
+    // pub da: OnlineDaProvider,
     /// The L2 EL provider.
     pub l2: RootProvider<Optimism>,
 }

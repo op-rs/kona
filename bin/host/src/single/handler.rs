@@ -4,21 +4,16 @@ use crate::{
     HintHandler, OnlineHostBackendCfg, backend::util::store_ordered_trie, kv::SharedKeyValueStore,
     single::cfg::SingleChainHost,
 };
-use alloy_consensus::Header;
 use alloy_eips::{
     eip2718::Encodable2718,
-    eip4844::{FIELD_ELEMENTS_PER_BLOB, IndexedBlobHash},
 };
 use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
-use alloy_rlp::Decodable;
 use alloy_rpc_types::{Block, debug::ExecutionWitness};
 use anyhow::{Result, anyhow, ensure};
-use ark_ff::{BigInteger, PrimeField};
 use async_trait::async_trait;
 use kona_preimage::{PreimageKey, PreimageKeyType};
-use kona_proof::{Hint, HintType, l1::ROOTS_OF_UNITY};
-use kona_protocol::{BlockInfo, OutputRoot, Predeploys};
+use kona_proof::{Hint, HintType};
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use tracing::warn;
 
@@ -74,79 +69,8 @@ impl HintHandler for SingleChainHintHandler {
                 store_ordered_trie(kv.as_ref(), raw_receipts.as_slice()).await?;
             }
             HintType::L1Blob => {
-                ensure!(hint.data.len() == 48, "Invalid hint data length");
-
-                let hash_data_bytes: [u8; 32] = hint.data[0..32].try_into()?;
-                let index_data_bytes: [u8; 8] = hint.data[32..40].try_into()?;
-                let timestamp_data_bytes: [u8; 8] = hint.data[40..48].try_into()?;
-
-                let hash: B256 = hash_data_bytes.into();
-                let index = u64::from_be_bytes(index_data_bytes);
-                let timestamp = u64::from_be_bytes(timestamp_data_bytes);
-
-                let partial_block_ref = BlockInfo { timestamp, ..Default::default() };
-                let indexed_hash = IndexedBlobHash { index, hash };
-
-                // Fetch the blob sidecar from the blob provider.
-                let mut sidecars = providers
-                    .blobs
-                    .fetch_filtered_sidecars(&partial_block_ref, &[indexed_hash])
-                    .await
-                    .map_err(|e| anyhow!("Failed to fetch blob sidecars: {e}"))?;
-                if sidecars.len() != 1 {
-                    anyhow::bail!("Expected 1 sidecar, got {}", sidecars.len());
-                }
-                let sidecar = sidecars.remove(0);
-
-                // Acquire a lock on the key-value store and set the preimages.
-                let mut kv_lock = kv.write().await;
-
-                // Set the preimage for the blob commitment.
-                kv_lock.set(
-                    PreimageKey::new(*hash, PreimageKeyType::Sha256).into(),
-                    sidecar.kzg_commitment.to_vec(),
-                )?;
-
-                // Write all the field elements to the key-value store. There should be 4096.
-                // The preimage oracle key for each field element is the keccak256 hash of
-                // `abi.encodePacked(sidecar.KZGCommitment, bytes32(ROOTS_OF_UNITY[i]))`.
-                let mut blob_key = [0u8; 80];
-                blob_key[..48].copy_from_slice(sidecar.kzg_commitment.as_ref());
-                for i in 0..FIELD_ELEMENTS_PER_BLOB {
-                    blob_key[48..].copy_from_slice(
-                        ROOTS_OF_UNITY[i as usize].into_bigint().to_bytes_be().as_ref(),
-                    );
-                    let blob_key_hash = keccak256(blob_key.as_ref());
-
-                    kv_lock
-                        .set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
-                    kv_lock.set(
-                        PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                        sidecar.blob[(i as usize) << 5..(i as usize + 1) << 5].to_vec(),
-                    )?;
-                }
-
-                // Write the KZG Proof as the 4096th element.
-                // Note: This is not associated with a root of unity, as to be backwards compatible
-                // with ZK users of kona that use this proof for the overall blob.
-                blob_key[72..].copy_from_slice(FIELD_ELEMENTS_PER_BLOB.to_be_bytes().as_ref());
-                let blob_key_hash = keccak256(blob_key.as_ref());
-
-                kv_lock.set(PreimageKey::new_keccak256(*blob_key_hash).into(), blob_key.into())?;
-                kv_lock.set(
-                    PreimageKey::new(*blob_key_hash, PreimageKeyType::Blob).into(),
-                    sidecar.kzg_proof.to_vec(),
-                )?;
             }
             HintType::DAProxyBlob => {
-                ensure!(hint.data.len() == 511, "Invalid hint data length for eigen da proxy");
-
-                let key_bytes: [u8; 511] = hint.data.as_ref().try_into()?;
-                let data = providers.da.get_input(key_bytes.to_vec()).await?;
-
-                let mut kv_lock = kv.write().await;
-                let hash: B256 = hint.data.as_ref().try_into()?;
-                kv_lock.set(PreimageKey::new_keccak256(*hash).into(), data.into())?;
             }
             HintType::L1Precompile => {
                 ensure!(hint.data.len() >= 28, "Invalid hint data length");
@@ -203,40 +127,6 @@ impl HintHandler for SingleChainHintHandler {
                 store_ordered_trie(kv.as_ref(), encoded_transactions.as_slice()).await?;
             }
             HintType::StartingL2Output => {
-                ensure!(hint.data.len() == 32, "Invalid hint data length");
-
-                // Fetch the header for the L2 head block.
-                let raw_header: Bytes = providers
-                    .l2
-                    .client()
-                    .request("debug_getRawHeader", &[cfg.agreed_l2_head_hash])
-                    .await?;
-                let header = Header::decode(&mut raw_header.as_ref())?;
-
-                // Fetch the storage root for the L2 head block.
-                let l2_to_l1_message_passer = providers
-                    .l2
-                    .get_proof(Predeploys::L2_TO_L1_MESSAGE_PASSER, Default::default())
-                    .block_id(cfg.agreed_l2_head_hash.into())
-                    .await?;
-
-                let output_root = OutputRoot::from_parts(
-                    header.state_root,
-                    l2_to_l1_message_passer.storage_hash,
-                    cfg.agreed_l2_head_hash,
-                );
-                let output_root_hash = output_root.hash();
-
-                ensure!(
-                    output_root_hash == cfg.agreed_l2_output_root,
-                    "Output root does not match L2 head."
-                );
-
-                let mut kv_write_lock = kv.write().await;
-                kv_write_lock.set(
-                    PreimageKey::new_keccak256(*output_root_hash).into(),
-                    output_root.encode().into(),
-                )?;
             }
             HintType::L2Code => {
                 // geth hashdb scheme code hash key prefix

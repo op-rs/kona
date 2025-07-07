@@ -93,8 +93,8 @@ the [`PipelineBuilder`][builder] to instantiate a [`DerivationPipeline`][dp].
 ```rust,ignore
 // Imports
 use std::sync::Arc;
-use kona_protocol::BlockInfo;
-use kona_genesis::RollupConfig;
+use soon_primitives::blocks::BlockInfo;
+use soon_primitives::rollup_config::SoonRollupConfig;
 use kona_providers_alloy::*;
 
 // Use a default rollup config.
