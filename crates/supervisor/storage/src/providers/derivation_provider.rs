@@ -215,6 +215,12 @@ where
         Ok(block_traversal)
     }
 
+    /// Gets the source block for the given source block number.
+    fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError> {
+        let block_traversal = self.get_block_traversal(source_block_number)?;
+        Ok(block_traversal.source.into())
+    }
+
     /// Gets the latest source block, even if it has no derived blocks.
     pub(crate) fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
         let block = self.latest_source_block_traversal().inspect_err(|err| {
@@ -266,6 +272,37 @@ where
             Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
             Err(e) => return Err(e),
         };
+
+        // If the incoming derived block is not newer than the latest stored derived block,
+        // we do not save it, check if it is consistent with the saved state.
+        // If it is not consistent, we return an error.
+        if latest_derivation_state.derived.number >= incoming_pair.derived.number {
+            let stored_pair = self
+                .get_derived_block_pair_by_number(incoming_pair.derived.number)
+                .inspect_err(|err| {
+                error!(
+                    target: "supervisor_storage",
+                    incoming_derived_block_pair = %incoming_pair,
+                    %err,
+                    "Failed to get derived block pair"
+                );
+            })?;
+
+            if incoming_pair == stored_pair.into() {
+                return Ok(());
+            } else {
+                error!(
+                    target: "supervisor_storage",
+                    latest_derived_block_pair = %latest_derivation_state,
+                    incoming_derived_block_pair = %incoming_pair,
+                    "Incoming derived block is not consistent with the latest stored derived block"
+                );
+                return Err(StorageError::ConflictError(
+                    "incoming derived block is not consistent with the stored derived block"
+                        .to_string(),
+                ));
+            }
+        }
 
         // Latest source block must be same as the incoming source block
         if latest_derivation_state.source != incoming_pair.source {
@@ -363,6 +400,36 @@ where
         // idempotent check: if the source block already exists, do nothing
         if latest_source_block == incoming_source {
             return Ok(());
+        }
+
+        // If the incoming source block is not newer than the latest source block,
+        // we do not save it, check if it is consistent with the saved state.
+        // If it is not consistent, we return an error.
+        if latest_source_block.number > incoming_source.number {
+            let source_block =
+                self.get_source_block(incoming_source.number).inspect_err(|err| {
+                    error!(
+                        target: "supervisor_storage",
+                        incoming_source = %incoming_source,
+                        %err,
+                        "Failed to get source block"
+                    );
+                })?;
+
+            if source_block == incoming_source {
+                return Ok(());
+            } else {
+                error!(
+                    target: "supervisor_storage",
+                    latest_source_block = %latest_source_block,
+                    incoming_source = %incoming_source,
+                    "Incoming source block is not consistent with the latest source block"
+                );
+                return Err(StorageError::ConflictError(
+                    "incoming source block is not consistent with the stored source block"
+                        .to_string(),
+                ));
+            }
         }
 
         if !latest_source_block.is_parent_of(&incoming_source) {

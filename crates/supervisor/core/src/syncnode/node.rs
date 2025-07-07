@@ -29,8 +29,6 @@ use crate::event::ChainEvent;
 pub struct ManagedNode<DB, C> {
     /// The attached web socket client
     client: Arc<C>,
-    /// The database provider for fetching information
-    db_provider: Arc<DB>,
     /// Shared L1 provider for fetching receipts
     l1_provider: RootProvider<Ethereum>,
     /// Resetter for handling node resets
@@ -53,16 +51,9 @@ where
         cancel_token: CancellationToken,
         l1_provider: RootProvider<Ethereum>,
     ) -> Self {
-        let resetter = Arc::new(Resetter::new(client.clone(), db_provider.clone()));
+        let resetter = Arc::new(Resetter::new(client.clone(), db_provider));
 
-        Self {
-            client,
-            db_provider,
-            resetter,
-            cancel_token,
-            task_handle: Mutex::new(None),
-            l1_provider,
-        }
+        Self { client, resetter, cancel_token, task_handle: Mutex::new(None), l1_provider }
     }
 
     /// Returns the [`ChainId`] of the [`ManagedNode`].
@@ -106,7 +97,6 @@ where
         let task = ManagedEventTask::new(
             self.client.clone(),
             self.l1_provider.clone(),
-            self.db_provider.clone(),
             self.resetter.clone(),
             event_tx,
         );

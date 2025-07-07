@@ -1,10 +1,11 @@
 use super::Metrics;
 use crate::{ChainProcessorError, LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
-use jsonrpsee::core::error;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError};
+use kona_supervisor_storage::{
+    DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
+};
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -176,7 +177,7 @@ where
                     .await;
             }
             ChainEvent::DerivationOriginUpdate { origin } => {
-                let _ = self.handle_derivation_origin_update(origin).inspect_err(|err| {
+                let _ = self.handle_derivation_origin_update(origin).await.inspect_err(|err| {
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
@@ -271,7 +272,7 @@ where
         Ok(finalized_derived_block)
     }
 
-    fn handle_derivation_origin_update(
+    async fn handle_derivation_origin_update(
         &self,
         origin: BlockInfo,
     ) -> Result<(), ChainProcessorError> {
@@ -281,9 +282,31 @@ where
             block_number = origin.number,
             "Processing derivation origin update"
         );
-        self.state_manager.update_current_l1(origin)?;
-        self.state_manager.save_source_block(origin)?;
-        Ok(())
+        match self.state_manager.save_source_block(origin) {
+            Ok(_) => {
+                self.state_manager.update_current_l1(origin)?;
+                Ok(())
+            }
+            Err(StorageError::BlockOutOfOrder) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = origin.number,
+                    "Source block out of order detected, resetting managed node"
+                );
+
+                if let Err(err) = self.managed_node.reset().await {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to reset managed node after block out of order"
+                    );
+                }
+                Err(StorageError::BlockOutOfOrder.into())
+            }
+            Err(err) => Err(err.into()),
+        }
     }
 
     async fn handle_safe_event(
@@ -305,7 +328,7 @@ where
                     block_number = derived_ref_pair.derived.number,
                     "Block out of order detected, resetting managed node"
                 );
-                
+
                 if let Err(err) = self.managed_node.reset().await {
                     error!(
                         target: "chain_processor",
@@ -316,7 +339,16 @@ where
                 }
                 Err(StorageError::BlockOutOfOrder.into())
             }
-            Err(err) => Err(err.into()),
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Failed to save derived block pair"
+                );
+                Err(err.into())
+            }
         }
     }
 
