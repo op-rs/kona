@@ -3,7 +3,9 @@ use crate::{ChainProcessorError, LogIndexer, event::ChainEvent, syncnode::Manage
 use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
+use kona_supervisor_storage::{
+    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
+};
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -31,7 +33,11 @@ pub struct ChainProcessorTask<P, W> {
 impl<P, W> ChainProcessorTask<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter + DerivationStorageWriter + HeadRefStorageWriter + 'static,
+    W: LogStorageWriter
+        + LogStorageReader
+        + DerivationStorageWriter
+        + HeadRefStorageWriter
+        + 'static,
 {
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
@@ -310,7 +316,8 @@ where
             "Processing unsafe block"
         );
 
-        self.log_indexer.process_and_store_logs(&block).await?;
+        self.log_indexer.clone().sync_logs(block);
+
         Ok(block)
     }
 
@@ -352,7 +359,7 @@ mod tests {
     use super::*;
     use crate::{
         event::ChainEvent,
-        syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
+        syncnode::{BlockProvider, ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber},
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -380,8 +387,9 @@ mod tests {
     }
 
     #[async_trait]
-    impl ReceiptProvider for Node {
+    impl BlockProvider for Node {
         async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+        async fn block_by_number(&self, _number: u64) -> Result<BlockInfo, ManagedNodeError>;
     }
 
     #[async_trait]
@@ -429,6 +437,13 @@ mod tests {
                 block: &BlockInfo,
                 logs: Vec<Log>,
             ) -> Result<(), StorageError>;
+        }
+
+        impl LogStorageReader for Db {
+            fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
+            fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
+            fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
+            fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {

@@ -8,7 +8,7 @@ mod error;
 pub use error::{AuthenticationError, ManagedEventTaskError, ManagedNodeError, SubscriptionError};
 
 mod traits;
-pub use traits::{ManagedNodeApiProvider, ManagedNodeProvider, NodeSubscriber, ReceiptProvider};
+pub use traits::{BlockProvider, ManagedNodeApiProvider, ManagedNodeProvider, NodeSubscriber};
 
 mod client;
 pub use client::{Client, ClientConfig, ManagedNodeClient};
