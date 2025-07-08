@@ -4,32 +4,29 @@ use alloy_primitives::Address;
 use alloy_signer_local::PrivateKeySigner;
 use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
+use kona_p2p::{Discv5Builder, GaterConfig, GossipDriverBuilder, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{Multiaddr, identity::Keypair};
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{path::PathBuf, time::Duration};
-use tokio::sync::broadcast::Sender as BroadcastSender;
 
 use crate::{
-    Broadcast, Config, Discv5Builder, GossipDriverBuilder, Network, NetworkBuilderError,
-    discv5::LocalNode, gossip::GaterConfig,
+    NetworkBuilderError,
+    actors::network::{NetworkConfig, NetworkDriver},
 };
 
-/// Constructs a [`Network`] for the OP Stack Consensus Layer.
+/// Constructs a [`NetworkDriver`] for the OP Stack Consensus Layer.
 #[derive(Debug)]
 pub struct NetworkBuilder {
     /// The discovery driver.
-    discovery: Discv5Builder,
+    pub(super) discovery: Discv5Builder,
     /// The gossip driver.
-    gossip: GossipDriverBuilder,
-    /// A broadcast sender for the unsafe block payloads.
-    payload_tx: Option<BroadcastSender<OpExecutionPayloadEnvelope>>,
+    pub(super) gossip: GossipDriverBuilder,
     /// A local signer for payloads.
-    local_signer: Option<PrivateKeySigner>,
+    pub(super) local_signer: Option<PrivateKeySigner>,
 }
 
-impl From<Config> for NetworkBuilder {
-    fn from(config: Config) -> Self {
+impl From<NetworkConfig> for NetworkBuilder {
+    fn from(config: NetworkConfig) -> Self {
         Self::new(
             config.rollup_config,
             config.unsafe_block_signer,
@@ -73,7 +70,6 @@ impl NetworkBuilder {
                 gossip_addr,
                 keypair,
             ),
-            payload_tx: None,
             local_signer: None,
         }
     }
@@ -83,12 +79,12 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_gater_config(config), ..self }
     }
 
-    /// Sets the local signer for the [`Network`].
+    /// Sets the local signer for the [`NetworkBuilder`].
     pub fn with_local_signer(self, local_signer: Option<PrivateKeySigner>) -> Self {
         Self { local_signer, ..self }
     }
 
-    /// Sets the bootstore path for the [`crate::Discv5Driver`].
+    /// Sets the bootstore path for the [`Discv5Builder`].
     pub fn with_bootstore(self, bootstore: Option<PathBuf>) -> Self {
         if let Some(bootstore) = bootstore {
             return Self { discovery: self.discovery.with_bootstore(bootstore), ..self };
@@ -111,69 +107,52 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_peer_scoring(level), ..self }
     }
 
-    /// Sets topic scoring for the [`crate::GossipDriver`].
+    /// Sets topic scoring for the [`GossipDriverBuilder`].
     pub fn with_topic_scoring(self, topic_scoring: bool) -> Self {
         Self { gossip: self.gossip.with_topic_scoring(topic_scoring), ..self }
     }
 
-    /// Sets the peer monitoring for the [`crate::GossipDriver`].
+    /// Sets the peer monitoring for the [`GossipDriverBuilder`].
     pub fn with_peer_monitoring(self, peer_monitoring: Option<PeerMonitoring>) -> Self {
         Self { gossip: self.gossip.with_peer_monitoring(peer_monitoring), ..self }
     }
 
-    /// Sets the discovery interval for the [`crate::Discv5Driver`].
+    /// Sets the discovery interval for the [`Discv5Builder`].
     pub fn with_discovery_interval(self, interval: tokio::time::Duration) -> Self {
         Self { discovery: self.discovery.with_interval(interval), ..self }
     }
 
-    /// Sets the address for the [`crate::Discv5Driver`].
+    /// Sets the address for the [`Discv5Builder`].
     pub fn with_discovery_address(self, address: LocalNode) -> Self {
         Self { discovery: self.discovery.with_local_node(address), ..self }
     }
 
-    /// Sets the gossipsub config for the [`crate::GossipDriver`].
+    /// Sets the gossipsub config for the [`GossipDriverBuilder`].
     pub fn with_gossip_config(self, config: libp2p::gossipsub::Config) -> Self {
         Self { gossip: self.gossip.with_config(config), ..self }
     }
 
-    /// Sets the [`Discv5Config`] for the [`crate::Discv5Driver`].
+    /// Sets the [`Discv5Config`] for the [`Discv5Builder`].
     pub fn with_discovery_config(self, config: Discv5Config) -> Self {
         Self { discovery: self.discovery.with_discovery_config(config), ..self }
     }
 
-    /// Sets the gossip address for the [`crate::GossipDriver`].
+    /// Sets the gossip address for the [`GossipDriverBuilder`].
     pub fn with_gossip_address(self, addr: Multiaddr) -> Self {
         Self { gossip: self.gossip.with_address(addr), ..self }
     }
 
-    /// Sets the timeout for the [`crate::GossipDriver`].
+    /// Sets the timeout for the [`GossipDriverBuilder`].
     pub fn with_timeout(self, timeout: Duration) -> Self {
         Self { gossip: self.gossip.with_timeout(timeout), ..self }
     }
 
-    /// Sets the unsafe block sender for the [`crate::Network`].
-    pub fn with_unsafe_block_sender(
-        self,
-        sender: BroadcastSender<OpExecutionPayloadEnvelope>,
-    ) -> Self {
-        Self { payload_tx: Some(sender), ..self }
-    }
-
-    /// Builds the [`Network`].
-    pub fn build(self) -> Result<Network, NetworkBuilderError> {
+    /// Builds the [`NetworkDriver`].
+    pub fn build(self) -> Result<NetworkDriver, NetworkBuilderError> {
         let (gossip, unsafe_block_signer_sender) = self.gossip.build()?;
         let discovery = self.discovery.build()?;
-        let payload_tx = self.payload_tx.unwrap_or(tokio::sync::broadcast::channel(256).0);
-        let (_, publish_rx) = tokio::sync::mpsc::channel(256);
 
-        Ok(Network {
-            gossip,
-            discovery,
-            unsafe_block_signer_sender,
-            broadcast: Broadcast::new(payload_tx),
-            publish_rx,
-            local_signer: self.local_signer,
-        })
+        Ok(NetworkDriver { gossip, discovery, unsafe_block_signer_sender })
     }
 }
 

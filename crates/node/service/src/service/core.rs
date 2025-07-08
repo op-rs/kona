@@ -166,7 +166,7 @@ pub trait RollupNodeService {
         ) = Self::EngineActor::build(self.engine_builder());
 
         // Create the p2p actor.
-        let (NetworkInboundData { signer, rpc: network_rpc }, network) =
+        let (NetworkInboundData { signer, rpc: network_rpc, unsafe_blocks: _ }, network) =
             Self::NetworkActor::build(self.network_builder());
 
         // Create the RPC server actor.

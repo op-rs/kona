@@ -12,7 +12,8 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, GaterConfig, LocalNode};
+use kona_node_service::NetworkConfig;
+use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
@@ -336,7 +337,7 @@ impl P2PArgs {
         })
     }
 
-    /// Constructs kona's P2P network [`Config`] from CLI arguments.
+    /// Constructs kona's P2P network [`NetworkConfig`] from CLI arguments.
     ///
     /// ## Parameters
     ///
@@ -348,7 +349,7 @@ impl P2PArgs {
         config: &RollupConfig,
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
-    ) -> anyhow::Result<Config> {
+    ) -> anyhow::Result<NetworkConfig> {
         // Note: the advertised address is contained in the ENR for external peers from the
         // discovery layer to use.
 
@@ -406,7 +407,7 @@ impl P2PArgs {
             .transpose()?
             .map(|s| s.with_chain_id(Some(args.l2_chain_id)));
 
-        Ok(Config {
+        Ok(NetworkConfig {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address,
