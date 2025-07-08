@@ -52,6 +52,7 @@ anyhow.workspace = true
 futures.workspace = true
 metrics.workspace = true
 tracing.workspace = true
+thiserror.workspace = true
 tokio-stream.workspace = true
 serde_json = { workspace = true, features = ["std"] }
 jsonrpsee = { workspace = true, features = ["server"] }

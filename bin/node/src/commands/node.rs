@@ -25,6 +25,14 @@ use url::Url;
 /// of the [op-node] CLI.
 ///
 /// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
+#[derive(Debug, thiserror::Error)]
+pub enum JwtValidationError {
+    #[error("JWT signature is invalid")]
+    InvalidSignature,
+    #[error("Failed to exchange capabilities with engine: {0}")]
+    CapabilityExchange(String),
+}
+
 #[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
@@ -166,6 +174,24 @@ impl NodeCommand {
         Ok(())
     }
 
+    /// Check if the error is related to JWT signature validation
+    fn is_jwt_signature_error(error: &(dyn std::error::Error)) -> bool {
+        let mut source = Some(error);
+        while let Some(err) = source {
+            let err_str = err.to_string().to_lowercase();
+            if err_str.contains("signature invalid") || (err_str.contains("jwt") && err_str.contains("invalid")) || err_str.contains("unauthorized") || err_str.contains("authentication failed") {
+                return true;
+            }
+            source = err.source();
+        }
+        false
+    }
+    
+    /// Helper to check JWT signature error from anyhow::Error (for retry condition)
+    fn is_jwt_signature_error_from_anyhow(error: &anyhow::Error) -> bool {
+        Self::is_jwt_signature_error(error.as_ref() as &dyn std::error::Error)
+    }
+
     /// Validate the jwt secret if specified by exchanging capabilities with the engine.
     /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
     /// that the jwt token passed as a cli arg is correct.
@@ -186,22 +212,23 @@ impl NodeCommand {
                     Ok(jwt_secret)
                 }
                 Err(e) => {
-                    if e.to_string().contains("signature invalid") {
+                    if Self::is_jwt_signature_error(&e) {
                         error!(
                             "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
                         );
                         error!(
                             "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
                         );
+                        return Err(JwtValidationError::InvalidSignature.into())
                     }
-                    bail!("Failed to exchange capabilities with engine: {}", e);
+                    Err(JwtValidationError::CapabilityExchange(e.to_string()).into())
                 }
             }
         };
 
         exchange
             .retry(ExponentialBuilder::default())
-            .when(|e| !e.to_string().contains("signature invalid"))
+            .when(|e| !Self::is_jwt_signature_error_from_anyhow(e))
             .notify(|_, duration| {
                 debug!("Retrying engine capability handshake after {duration:?}");
             })
