@@ -45,10 +45,10 @@ pub trait BlockProvider: Send + Sync + Debug {
     async fn block_by_number(&self, number: u64) -> Result<BlockInfo, ManagedNodeError>;
 }
 
-/// [`ManagedNodeApiProvider`] abstracts the managed node APIs that supervisor uses to fetch info
-/// from the managed node.
+/// [`ManagedNodeDataProvider`] abstracts the managed node data APIs that supervisor uses to fetch
+/// info from the managed node.
 #[async_trait]
-pub trait ManagedNodeApiProvider: Send + Sync + Debug {
+pub trait ManagedNodeDataProvider: Send + Sync + Debug {
     /// Fetch the output v0 at a given timestamp.
     ///
     /// # Arguments
@@ -83,7 +83,12 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
         &self,
         timestamp: u64,
     ) -> Result<BlockInfo, ManagedNodeError>;
+}
 
+/// [`ManagedNodeController`] abstracts the managed node control APIs that supervisor uses to
+/// control the managed node state.
+#[async_trait]
+pub trait ManagedNodeController: Send + Sync + Debug {
     /// Update the finalized block head using the given [`BlockNumHash`].
     ///
     /// # Arguments
@@ -124,6 +129,15 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
         source_block_id: BlockNumHash,
         derived_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError>;
+
+    /// Reset the managed node based on the supervisor's state.
+    /// This is typically used to reset the node's state
+    /// when the supervisor detects a misalignment
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the reset fails
+    async fn reset(&self) -> Result<(), ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:
@@ -135,12 +149,24 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
 /// within the supervisor context.
 #[async_trait]
 pub trait ManagedNodeProvider:
-    NodeSubscriber + BlockProvider + ManagedNodeApiProvider + Send + Sync + Debug
+    NodeSubscriber
+    + BlockProvider
+    + ManagedNodeDataProvider
+    + ManagedNodeController
+    + Send
+    + Sync
+    + Debug
 {
 }
 
 #[async_trait]
 impl<T> ManagedNodeProvider for T where
-    T: NodeSubscriber + BlockProvider + ManagedNodeApiProvider + Send + Sync + Debug
+    T: NodeSubscriber
+        + BlockProvider
+        + ManagedNodeDataProvider
+        + ManagedNodeController
+        + Send
+        + Sync
+        + Debug
 {
 }

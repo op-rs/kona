@@ -17,8 +17,6 @@ pub(super) struct ManagedEventTask<DB, C> {
     client: Arc<C>,
     /// The URL of the L1 RPC endpoint to use for fetching L1 data
     l1_provider: RootProvider<Ethereum>,
-    /// The database provider for fetching information
-    db_provider: Arc<DB>,
     /// The resetter for handling node resets
     resetter: Arc<Resetter<DB, C>>,
     /// The channel to send the events to which require further processing e.g. db updates
@@ -34,11 +32,10 @@ where
     pub(super) const fn new(
         client: Arc<C>,
         l1_provider: RootProvider<Ethereum>,
-        db_provider: Arc<DB>,
         resetter: Arc<Resetter<DB, C>>,
         event_tx: mpsc::Sender<ChainEvent>,
     ) -> Self {
-        Self { client, l1_provider, db_provider, resetter, event_tx }
+        Self { client, l1_provider, resetter, event_tx }
     }
 
     /// Processes a managed event received from the subscription.
@@ -53,7 +50,9 @@ where
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
                     info!(target: "managed_event_task", %reset_id, "Reset event received");
-                    self.resetter.reset().await;
+                    if let Err(err) = self.resetter.reset().await {
+                        error!(target: "managed_event_task", %err, "Failed to reset node");
+                    }
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
@@ -68,10 +67,8 @@ where
                 }
 
                 if let Some(derived_ref_pair) = &event.derivation_update {
-                    info!(target: "managed_event_task", %derived_ref_pair, "Derivation update received");
-
                     if event.derivation_origin_update.is_none() {
-                        info!(target: "managed_event_task", "Derivation update received without origin update");
+                        info!(target: "managed_event_task", %event, "Derivation update received without origin update");
 
                         if let Err(err) = self
                             .event_tx
@@ -171,11 +168,6 @@ where
             })?
         }
 
-        if !self.is_node_consistent(derived_ref_pair).await? {
-            self.resetter.reset().await;
-            return Ok(());
-        }
-
         let block_info = BlockInfo {
             hash: block.header.hash,
             number: block.header.number,
@@ -190,32 +182,6 @@ where
 
         info!(target: "managed_event_task", "Sent next L1 block to managed node using provide_l1");
         Ok(())
-    }
-
-    async fn is_node_consistent(
-        &self,
-        derived_ref_pair: &DerivedRefPair,
-    ) -> Result<bool, ManagedEventTaskError> {
-        let derived_block = derived_ref_pair.derived;
-        let derivation_state = self.db_provider.latest_derivation_state()
-            .inspect_err(|err| error!(target: "managed_event_task", %err, "Failed to get latest derived block pair"))?;
-
-        if derivation_state.derived.number < derived_block.number {
-            // this could happen since the events are being processed in async
-            // this case should be handled at the processing stage
-            return Ok(true);
-        }
-
-        if derivation_state.derived != derived_block {
-            error!(
-                target: "managed_event_task",
-                incoming_pair = %derived_ref_pair,
-                %derivation_state,
-                "Node is inconsistent with the supervisor state"
-            );
-            return Ok(false);
-        }
-        Ok(true)
     }
 }
 
@@ -252,7 +218,6 @@ mod tests {
         }
 
         impl HeadRefStorageReader for Db {
-            fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
             fn get_safety_head_ref(&self, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
             fn get_super_head(&self) -> Result<SuperHead, StorageError>;
         }
@@ -309,8 +274,8 @@ mod tests {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
-        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db));
+        let task = ManagedEventTask::new(client, provider, resetter, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -359,8 +324,8 @@ mod tests {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
-        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db));
+        let task = ManagedEventTask::new(client, provider, resetter, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -406,8 +371,8 @@ mod tests {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
-        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db));
+        let task = ManagedEventTask::new(client, provider, resetter, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -489,8 +454,8 @@ mod tests {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
-        let resetter = Arc::new(Resetter::new(client.clone(), db.clone()));
-        let task = ManagedEventTask::new(client, provider, db, resetter, tx);
+        let resetter = Arc::new(Resetter::new(client.clone(), db));
+        let task = ManagedEventTask::new(client, provider, resetter, tx);
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));

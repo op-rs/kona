@@ -17,7 +17,7 @@ pub trait DerivationStorageReader: Debug {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
     /// NOTE: [`LocalUnsafe`] block is not pushed to L1 yet, hence it cannot be part of derivation
-    /// storage. For reading latest L1 block in memory use [`HeadRefStorageReader::get_current_l1`].
+    /// storage.
     ///
     /// # Arguments
     /// * `derived_block_id` - The identifier (number and hash) of the derived (L2) block.
@@ -61,7 +61,14 @@ pub trait DerivationStorageReader: Debug {
 /// Implementations are expected to provide persistent and thread-safe access to block data.
 pub trait DerivationStorageWriter: Debug {
     /// Saves a [`DerivedRefPair`] to the storage.
-    /// This method is append only and does not overwrite existing pairs.
+    ///
+    /// This method is **append-only**: it does not overwrite existing pairs.
+    /// - If a pair with the same block number already exists and is identical to the incoming pair,
+    ///   the request is silently ignored (idempotent).
+    /// - If a pair with the same block number exists but differs from the incoming pair, an error
+    ///   is returned to indicate a data inconsistency.
+    /// - If the pair is new and consistent, it is appended to the storage.
+    ///
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
     ///
     /// # Arguments
@@ -72,7 +79,17 @@ pub trait DerivationStorageWriter: Debug {
     /// * `Err(StorageError)` if there is an issue saving the pair.
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 
-    /// Saves the latest incoming source block to the storage.
+    /// Saves the latest incoming source [`BlockInfo`] to the storage.
+    ///
+    /// This method is **append-only**: it does not overwrite existing source blocks.
+    /// - If a source block with the same number already exists and is identical to the incoming
+    ///   block, the request is silently ignored (idempotent).
+    /// - If a source block with the same number exists but differs from the incoming block, an
+    ///   error is returned to indicate a data inconsistency.
+    /// - If the block is new and consistent, it is appended to the storage.
+    ///
+    /// Ensures that the latest stored source block is the parent of the incoming block before
+    /// saving.
     ///
     /// # Arguments
     /// * `source` - The source block to save.
@@ -168,13 +185,6 @@ impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
 pub trait HeadRefStorageReader: Debug {
-    /// Retrieves the current L1 block reference from the storage.
-    ///
-    /// # Returns
-    /// * `Ok(BlockInfo)` containing the current L1 block reference.
-    /// * `Err(StorageError)` if there is an issue retrieving the reference.
-    fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
-
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -201,16 +211,6 @@ pub trait HeadRefStorageReader: Debug {
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
 pub trait HeadRefStorageWriter: Debug {
-    /// Updates the current L1 block reference in the storage.
-    ///
-    /// # Arguments
-    /// * `block` - The new [`BlockInfo`] to set as the current L1 block reference.
-    ///
-    /// # Returns
-    /// * `Ok(())` if the reference was successfully updated.
-    /// * `Err(StorageError)` if there is an issue updating the reference.
-    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
-
     /// Updates the finalized head reference using a finalized source(l1) block.
     ///
     /// # Arguments
