@@ -11,8 +11,8 @@ use kona_interop::{
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
-    LogStorageReader,
+    ChainDb, ChainDbFactory, DerivationStorageReader, DerivationStorageWriter, FinalizedL1Storage,
+    HeadRefStorageReader, LogStorageReader, LogStorageWriter,
 };
 use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
@@ -142,7 +142,9 @@ impl Supervisor {
         for (chain_id, config) in self.config.rollup_config_set.rollups.iter() {
             // Initialise the database for each chain.
             let db = self.database_factory.get_or_create_db(*chain_id)?;
-            db.initialise(config.genesis.get_anchor())?;
+            let anchor = config.genesis.get_anchor();
+            db.initialise_log_storage(anchor.derived)?;
+            db.initialise_derivation_storage(anchor)?;
             info!(target: "supervisor_service", chain_id, "Database initialized successfully");
         }
         Ok(())

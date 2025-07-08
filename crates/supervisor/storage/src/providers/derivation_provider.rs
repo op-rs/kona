@@ -239,6 +239,26 @@ impl<TX> DerivationProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
+    /// initialises the database with a derived block pair anchor.
+    pub(crate) fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
+        match self.get_derived_block_pair_by_number(0) {
+            Ok(pair)
+                if pair.derived.hash == anchor.derived.hash &&
+                    pair.source.hash == anchor.source.hash =>
+            {
+                // Anchor matches, nothing to do
+                Ok(())
+            }
+            Ok(_) => Err(StorageError::InvalidAnchor),
+            Err(StorageError::EntryNotFound(_)) => {
+                self.save_source_block_internal(anchor.source)?;
+                self.save_derived_block_pair_internal(anchor)?;
+                Ok(())
+            }
+            Err(err) => Err(err),
+        }
+    }
+
     /// Saves a [`StoredDerivedBlockPair`] to [`DerivedBlocks`](`crate::models::DerivedBlocks`)
     /// table and [`SourceBlockTraversal`] to [`BlockTraversal`](`crate::models::BlockTraversal`)
     /// table in the database.
@@ -249,13 +269,7 @@ where
         // todo: use cursor to get the last block(performance improvement)
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
-            Err(StorageError::EntryNotFound(_)) => {
-                // in this case the database is not initialised, so we need to save the source block
-                // first
-                self.save_source_block_internal(incoming_pair.source)?;
-                self.save_derived_block_pair_internal(incoming_pair)?;
-                return Ok(());
-            }
+            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
             Err(e) => return Err(e),
         };
 
@@ -485,6 +499,17 @@ mod tests {
             .expect("Failed to init database")
     }
 
+    /// Helper to initialize database in a new transaction, committing if successful.
+    fn initialize_db(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
+        let tx = db.tx_mut().expect("Could not get mutable tx");
+        let provider = DerivationProvider::new(&tx);
+        let res = provider.initialise(*pair);
+        if res.is_ok() {
+            tx.commit().expect("Failed to commit transaction");
+        }
+        res
+    }
+
     /// Helper to insert a pair in a new transaction, committing if successful.
     fn insert_pair(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
@@ -516,7 +541,7 @@ mod tests {
         let anchor = derived_pair(source, derived);
 
         // Should succeed and insert the anchor
-        assert!(insert_pair(&db, &anchor).is_ok());
+        assert!(initialize_db(&db, &anchor).is_ok());
 
         // Check that the anchor is present
         let tx = db.tx().expect("Could not get tx");
@@ -534,7 +559,7 @@ mod tests {
         let anchor = derived_pair(source, genesis_block());
 
         // First initialise
-        assert!(insert_pair(&db, &anchor).is_ok());
+        assert!(initialize_db(&db, &anchor).is_ok());
         // Second initialise with the same anchor should succeed (idempotent)
         assert!(insert_pair(&db, &anchor).is_ok());
     }
@@ -547,7 +572,7 @@ mod tests {
         let anchor = derived_pair(source, genesis_block());
 
         // Insert the genesis
-        assert!(insert_pair(&db, &anchor).is_ok());
+        assert!(initialize_db(&db, &anchor).is_ok());
 
         // Try to initialise with a different anchor (different hash)
         let wrong_derived = block_info(0, B256::from([42u8; 32]), 200);
@@ -564,7 +589,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let derived2 = block_info(2, derived1.hash, 300);
         let pair2 = derived_pair(source1, derived2);
@@ -584,7 +609,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let wrong_parent_hash = B256::from([99u8; 32]);
         let derived2 = block_info(2, wrong_parent_hash, 300);
@@ -600,7 +625,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let derived2 = block_info(4, derived1.hash, 400); // should be 2, not 4
         let pair2 = derived_pair(source1, derived2);
@@ -615,7 +640,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         // Try to insert the same derived block again
         let result = insert_pair(&db, &pair1);
@@ -629,7 +654,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let derived2 = block_info(2, derived1.hash, 300);
         let pair2 = derived_pair(source1, derived2);
@@ -647,7 +672,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let derived2 = block_info(2, derived1.hash, 300);
         let pair2 = derived_pair(source1, derived2);
@@ -667,7 +692,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let derived2 = block_info(2, derived1.hash, 300);
         let pair2 = derived_pair(source1, derived2);
@@ -712,7 +737,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         // Use correct number but wrong hash
         let tx = db.tx().expect("Could not get tx");
@@ -730,7 +755,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let derived2 = block_info(2, derived1.hash, 300);
         let pair2 = derived_pair(source1, derived2);
@@ -765,7 +790,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source2 = block_info(101, source1.hash, 300);
         let derived2 = block_info(2, derived1.hash, 300);
@@ -791,7 +816,10 @@ mod tests {
 
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
-        assert!(matches!(provider.latest_derivation_state(), Err(StorageError::EntryNotFound(_))));
+        assert!(matches!(
+            provider.latest_derivation_state(),
+            Err(StorageError::DatabaseNotInitialised)
+        ));
     }
 
     #[test]
@@ -801,7 +829,7 @@ mod tests {
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
         let derived1 = block_info(1, genesis_block().hash, 200);
         let pair1 = derived_pair(source1, derived1);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
@@ -829,7 +857,7 @@ mod tests {
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
         let pair1 = derived_pair(genesis_block(), derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(1, genesis_block().hash, 200);
         assert!(insert_source_block(&db, &source1).is_ok());
@@ -841,7 +869,7 @@ mod tests {
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
         let pair1 = derived_pair(genesis_block(), derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(1, genesis_block().hash, 200);
         assert!(insert_source_block(&db, &source1).is_ok());
@@ -856,7 +884,7 @@ mod tests {
         let source0 = block_info(10, B256::from([10u8; 32]), 200);
         let derived0 = genesis_block();
         let pair1 = derived_pair(source0, derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(11, B256::from([1u8; 32]), 200);
         let result = insert_source_block(&db, &source1);
@@ -873,7 +901,7 @@ mod tests {
         let source0 = block_info(10, B256::from([10u8; 32]), 200);
         let derived0 = genesis_block();
         let pair1 = derived_pair(source0, derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(11, source0.hash, 400);
         assert!(insert_source_block(&db, &source1).is_ok());
@@ -890,7 +918,7 @@ mod tests {
         let source0 = block_info(10, B256::from([10u8; 32]), 200);
         let derived0 = genesis_block();
         let pair1 = derived_pair(source0, derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(11, source0.hash, 400);
         assert!(insert_source_block(&db, &source1).is_ok());
@@ -907,7 +935,7 @@ mod tests {
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
         let pair1 = derived_pair(genesis_block(), derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(2, genesis_block().hash, 400);
         // Try to skip a block
@@ -921,7 +949,7 @@ mod tests {
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
         let pair1 = derived_pair(genesis_block(), derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(1, genesis_block().hash, 200);
         let source2 = block_info(2, source1.hash, 400);
@@ -935,7 +963,7 @@ mod tests {
 
         let derived0 = block_info(10, B256::from([10u8; 32]), 200);
         let pair1 = derived_pair(genesis_block(), derived0);
-        assert!(insert_pair(&db, &pair1).is_ok());
+        assert!(initialize_db(&db, &pair1).is_ok());
 
         let source1 = block_info(1, genesis_block().hash, 200);
         assert!(insert_source_block(&db, &source1).is_ok());

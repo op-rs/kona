@@ -18,7 +18,7 @@ use tracing::{debug, error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
-    rollup_config: RollupConfig,
+    _rollup_config: RollupConfig,
     chain_id: ChainId,
     metrics_enabled: Option<bool>,
 
@@ -50,7 +50,7 @@ where
     ) -> Self {
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
-            rollup_config,
+            _rollup_config: rollup_config,
             chain_id,
             metrics_enabled: None,
             cancel_token,
@@ -488,6 +488,11 @@ mod tests {
         pub Db {}
 
         impl LogStorageWriter for Db {
+            fn initialise_log_storage(
+                &self,
+                block: BlockInfo,
+            ) -> Result<(), StorageError>;
+
             fn store_block_logs(
                 &self,
                 block: &BlockInfo,
@@ -496,6 +501,11 @@ mod tests {
         }
 
         impl DerivationStorageWriter for Db {
+            fn initialise_derivation_storage(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
+
             fn save_derived_block(
                 &self,
                 incoming_pair: DerivedRefPair,

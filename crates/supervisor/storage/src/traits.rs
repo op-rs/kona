@@ -60,6 +60,20 @@ pub trait DerivationStorageReader: Debug {
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
 pub trait DerivationStorageWriter: Debug {
+    /// Initializes the derivation storage with a given [`DerivedRefPair`].
+    /// This method is typically called once to set up the storage with the initial pair.
+    ///
+    /// # Arguments
+    /// * `incoming_pair` - The derived block pair to initialize the storage with.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the storage was successfully initialized.
+    /// * `Err(StorageError)` if there is an issue initializing the storage.
+    fn initialise_derivation_storage(
+        &self,
+        incoming_pair: DerivedRefPair,
+    ) -> Result<(), StorageError>;
+
     /// Saves a [`DerivedRefPair`] to the storage.
     ///
     /// This method is **append-only**: it does not overwrite existing pairs.
@@ -155,6 +169,17 @@ pub trait LogStorageReader: Debug {
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
 pub trait LogStorageWriter: Send + Sync + Debug {
+    /// Initializes the log storage with a given [`BlockInfo`].
+    /// This method is typically called once to set up the storage with the initial block.
+    ///
+    /// # Arguments
+    /// * `block` - The [`BlockInfo`] to initialize the storage with.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the storage was successfully initialized.
+    /// * `Err(StorageError)` if there is an issue initializing the storage.
+    fn initialise_log_storage(&self, block: BlockInfo) -> Result<(), StorageError>;
+
     /// Stores [`BlockInfo`] and [`Log`]s in the storage.
     /// This method is append-only and does not overwrite existing logs.
     /// Ensures that the latest stored block is the parent of the incoming block before saving.
