@@ -34,7 +34,7 @@ where
         ex_result: &BlockExecutionResult<OpReceiptEnvelope>,
         bundle: BundleState,
     ) -> ExecutorResult<Sealed<Header>> {
-        let timestamp = block_env.timestamp;
+        let timestamp = block_env.timestamp.saturating_to::<u64>();
 
         // Compute the roots for the block header.
         let state_root = self.trie_db.state_root(&bundle)?;
@@ -48,7 +48,7 @@ where
         .root();
         let receipts_root = compute_receipts_root(&ex_result.receipts, self.config, timestamp);
         let withdrawals_root = if self.config.is_isthmus_active(timestamp) {
-            Some(self.message_passer_account(block_env.number)?)
+            Some(self.message_passer_account(block_env.number.saturating_to::<u64>())?)
         } else if self.config.is_canyon_active(timestamp) {
             Some(EMPTY_ROOT_HASH)
         } else {
@@ -92,7 +92,7 @@ where
             requests_hash,
             logs_bloom,
             difficulty: U256::ZERO,
-            number: block_env.number,
+            number: block_env.number.saturating_to::<u64>(),
             gas_limit: attrs.gas_limit.ok_or(ExecutorError::MissingGasLimit)?,
             gas_used: ex_result.gas_used,
             timestamp,

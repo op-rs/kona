@@ -3,10 +3,11 @@
 use super::{EngineError, L2Finalizer};
 use alloy_rpc_types_engine::JwtSecret;
 use async_trait::async_trait;
+use futures::future::OptionFuture;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
-    ConsolidateTask, Engine, EngineClient, EngineQueries, EngineState as InnerEngineState,
-    EngineTask, EngineTaskError, InsertUnsafeTask,
+    BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
+    EngineState as InnerEngineState, EngineTask, EngineTaskError, InsertUnsafeTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -21,7 +22,7 @@ use tokio::{
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 use url::Url;
 
-use crate::{NodeActor, actors::CancellableContext};
+use crate::{NodeActor, NodeMode, actors::CancellableContext};
 
 /// The [`EngineActor`] is responsible for managing the operations sent to the execution layer's
 /// Engine API. To accomplish this, it uses the [`Engine`] task queue to order Engine API
@@ -41,10 +42,12 @@ pub struct EngineActor {
     /// A channel to receive [`RuntimeConfig`] from the runtime actor.
     runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive build requests from the sequencer actor.
-    /// TODO(@theochap, `<https://github.com/op-rs/kona/issues/2319>`): plug it in the engine actor.
-    #[allow(dead_code)]
+    ///
+    /// ## Note
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
     build_request_rx:
-        mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+        Option<mpsc::Receiver<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>>,
     /// The [`L2Finalizer`], used to finalize L2 blocks.
     finalizer: L2Finalizer,
 }
@@ -53,8 +56,12 @@ pub struct EngineActor {
 #[derive(Debug)]
 pub struct EngineInboundData {
     /// The channel used by the sequencer actor to send build requests to the engine actor.
+    ///
+    /// ## Note
+    /// This is `Some` when the node is in sequencer mode, and `None` when the node is in validator
+    /// mode.
     pub build_request_tx:
-        mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
+        Option<mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>>,
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
@@ -82,6 +89,10 @@ pub struct EngineBuilder {
     pub l1_rpc_url: Url,
     /// The engine jwt secret.
     pub jwt_secret: JwtSecret,
+    /// The mode of operation for the node.
+    /// When the node is in sequencer mode, the engine actor will receive requests to build blocks
+    /// from the sequencer actor.
+    pub mode: NodeMode,
 }
 
 impl EngineBuilder {
@@ -154,7 +165,13 @@ impl EngineActor {
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
-        let (build_request_tx, build_request_rx) = mpsc::channel(1024);
+
+        let (build_request_tx, build_request_rx) = if config.mode.is_sequencer() {
+            let (tx, rx) = mpsc::channel(1024);
+            (Some(tx), Some(rx))
+        } else {
+            (None, None)
+        };
 
         let actor = Self {
             builder: config,
@@ -210,7 +227,6 @@ impl EngineActorState {
         derivation_signal_tx: &mpsc::Sender<Signal>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         finalizer: &mut L2Finalizer,
-        cancellation: &CancellationToken,
     ) -> Result<(), EngineError> {
         // Reset the engine.
         let (l2_safe_head, l1_origin, system_config) =
@@ -222,7 +238,6 @@ impl EngineActorState {
             Ok(_) => debug!(target: "engine", "Sent reset signal to derivation actor"),
             Err(err) => {
                 error!(target: "engine", ?err, "Failed to send reset signal to the derivation actor");
-                cancellation.cancel();
                 return Err(EngineError::ChannelClosed);
             }
         }
@@ -243,7 +258,6 @@ impl EngineActorState {
         sync_complete_tx: &mut Option<oneshot::Sender<()>>,
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         finalizer: &mut L2Finalizer,
-        cancellation: &CancellationToken,
     ) -> Result<(), EngineError> {
         match self.engine.drain().await {
             Ok(_) => {
@@ -251,8 +265,7 @@ impl EngineActorState {
             }
             Err(EngineTaskError::Reset(err)) => {
                 warn!(target: "engine", ?err, "Received reset request");
-                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer, cancellation)
-                    .await?;
+                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
             }
             Err(EngineTaskError::Flush(err)) => {
                 // This error is encountered when the payload is marked INVALID
@@ -266,14 +279,12 @@ impl EngineActorState {
                     }
                     Err(err) => {
                         error!(target: "engine", ?err, "Failed to send flush signal to the derivation actor.");
-                        cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     }
                 }
             }
             Err(err @ EngineTaskError::Critical(_)) => {
                 error!(target: "engine", ?err, "Critical error draining engine tasks");
-                cancellation.cancel();
                 return Err(err.into());
             }
             Err(EngineTaskError::Temporary(err)) => {
@@ -287,7 +298,6 @@ impl EngineActorState {
             engine_l2_safe_head_tx,
             sync_complete_tx,
             finalizer,
-            cancellation,
         )
         .await?;
 
@@ -301,7 +311,6 @@ impl EngineActorState {
         engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>,
         sync_complete_tx: &mut Option<oneshot::Sender<()>>,
         finalizer: &mut L2Finalizer,
-        cancellation: &CancellationToken,
     ) -> Result<(), EngineError> {
         if self.engine.state().el_sync_finished {
             let Some(sync_complete_tx) = std::mem::take(sync_complete_tx) else {
@@ -310,8 +319,7 @@ impl EngineActorState {
 
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
-            self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer, cancellation)
-                .await?;
+            self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
             sync_complete_tx.send(()).ok();
         }
 
@@ -387,7 +395,6 @@ impl NodeActor for EngineActor {
                     &mut sync_complete_tx,
                     &engine_l2_safe_head_tx,
                     &mut self.finalizer,
-                    &cancellation,
                 )
                 .await?;
 
@@ -409,8 +416,25 @@ impl NodeActor for EngineActor {
                     }
                     warn!(target: "engine", "Received reset request");
                     state
-                        .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer, &cancellation)
+                        .reset(&derivation_signal_tx, &engine_l2_safe_head_tx, &mut self.finalizer)
                         .await?;
+                }
+                Some(res) = OptionFuture::from(self.build_request_rx.as_mut().map(|rx| rx.recv())), if self.build_request_rx.is_some() => {
+                    let Some((attributes, response_tx)) = res else {
+                        error!(target: "engine", "Build request receiver closed unexpectedly while in sequencer mode");
+                        cancellation.cancel();
+                        return Err(EngineError::ChannelClosed);
+                    };
+
+                    let task = EngineTask::BuildBlock(BuildTask::new(
+                        state.client.clone(),
+                        state.rollup.clone(),
+                        attributes,
+                        // The payload is not derived in this case.
+                        false,
+                        Some(response_tx),
+                    ));
+                    state.engine.enqueue(task);
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
                     let Some(envelope) = unsafe_block else {

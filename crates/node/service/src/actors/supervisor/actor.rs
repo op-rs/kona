@@ -81,6 +81,7 @@ where
         SupervisorActorContext { engine_control, cancellation }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut control_events = Box::pin(self.supervisor_ext.subscribe_control_events());
+
         loop {
             tokio::select! {
                 _ = cancellation.cancelled() => {

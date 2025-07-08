@@ -60,6 +60,11 @@ impl RollupNodeBuilder {
         Self { interop_mode, ..self }
     }
 
+    /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
+    pub fn with_mode(self, mode: NodeMode) -> Self {
+        Self { mode, ..self }
+    }
+
     /// Appends the [`SupervisorRpcConfig`] to the builder.
     pub fn with_supervisor_rpc_config(self, config: SupervisorRpcConfig) -> Self {
         Self { supervisor_rpc_config: config, ..self }
@@ -96,8 +101,8 @@ impl RollupNodeBuilder {
     }
 
     /// Sets the [`RpcBuilder`] on the [`RollupNodeBuilder`].
-    pub fn with_rpc_config(self, rpc_config: RpcBuilder) -> Self {
-        Self { rpc_config: Some(rpc_config), ..self }
+    pub fn with_rpc_config(self, rpc_config: Option<RpcBuilder>) -> Self {
+        Self { rpc_config, ..self }
     }
 
     /// Sets the runtime load interval on the [`RollupNodeBuilder`].
@@ -145,6 +150,7 @@ impl RollupNodeBuilder {
             l1_rpc_url: l1_rpc_url.clone(),
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,
+            mode: self.mode,
         };
 
         let runtime_builder = self.runtime_load_interval.map(|load_interval| RuntimeState {
@@ -171,7 +177,6 @@ impl RollupNodeBuilder {
             p2p_config,
             // By default, the supervisor rpc config is disabled.
             supervisor_rpc: self.supervisor_rpc_config,
-            mode: self.mode,
         }
     }
 }
