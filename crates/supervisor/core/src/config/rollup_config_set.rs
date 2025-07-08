@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use crate::SupervisorError;
 
 /// Genesis provides the genesis information relevant for Interop.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Genesis {
     /// The L1 [`BlockInfo`] that the rollup starts after.
     pub l1: BlockInfo,
@@ -36,7 +36,7 @@ impl Genesis {
 }
 
 /// RollupConfig contains the configuration for the Optimism rollup.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct RollupConfig {
     /// Genesis anchor information for the rollup.
     pub genesis: Genesis,

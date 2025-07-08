@@ -1,5 +1,5 @@
 use super::Metrics;
-use crate::{ChainProcessorError, LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
+use crate::{config::RollupConfig, event::ChainEvent, syncnode::ManagedNodeProvider, ChainProcessorError, LogIndexer};
 use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
@@ -15,6 +15,7 @@ use tracing::{debug, error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
+    rollup_config: RollupConfig,
     chain_id: ChainId,
     metrics_enabled: Option<bool>,
 
@@ -37,6 +38,7 @@ where
 {
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
+        rollup_config: RollupConfig,
         chain_id: u64,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
@@ -45,6 +47,7 @@ where
     ) -> Self {
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
+            rollup_config,
             chain_id,
             metrics_enabled: None,
             cancel_token,
@@ -539,7 +542,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 
@@ -584,7 +588,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send unsafe block event
         tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
@@ -619,7 +624,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send derivation origin update event
         tx.send(ChainEvent::DerivationOriginUpdate { origin }).await.unwrap();
@@ -665,7 +671,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send FinalizedSourceUpdate event
         tx.send(ChainEvent::FinalizedSourceUpdate { finalized_source_block }).await.unwrap();
@@ -702,7 +709,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send FinalizedSourceUpdate event
         tx.send(ChainEvent::FinalizedSourceUpdate { finalized_source_block }).await.unwrap();
@@ -736,7 +744,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send derivation origin update event
         tx.send(ChainEvent::CrossUnsafeUpdate { block }).await.unwrap();
@@ -773,7 +782,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(rollup_config, 1, managed_node, writer, cancel_token.clone(), rx);
 
         // Send derivation origin update event
         tx.send(ChainEvent::CrossSafeUpdate {

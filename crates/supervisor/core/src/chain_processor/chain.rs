@@ -1,5 +1,5 @@
 use super::{ChainProcessorError, ChainProcessorTask};
-use crate::{event::ChainEvent, syncnode::ManagedNodeProvider};
+use crate::{config::RollupConfig, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
 use std::sync::Arc;
@@ -16,6 +16,9 @@ use tracing::warn;
 // chain processor will support multiple managed nodes in the future.
 #[derive(Debug)]
 pub struct ChainProcessor<P, W> {
+    // The rollup configuration for the chain
+    rollup_config: RollupConfig,
+
     // The chainId that this processor is associated with
     chain_id: ChainId,
 
@@ -45,6 +48,7 @@ where
 {
     /// Creates a new instance of [`ChainProcessor`].
     pub fn new(
+        rollup_config: RollupConfig,
         chain_id: ChainId,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
@@ -52,6 +56,7 @@ where
     ) -> Self {
         // todo: validate chain_id against managed_node
         Self {
+            rollup_config,
             chain_id,
             event_tx: None,
             metrics_enabled: None,
@@ -93,6 +98,7 @@ where
         self.managed_node.start_subscription(event_tx.clone()).await?;
 
         let mut task = ChainProcessorTask::new(
+            self.rollup_config.clone(),
             self.chain_id,
             self.managed_node.clone(),
             self.state_manager.clone(),
@@ -268,8 +274,9 @@ mod tests {
         let storage = Arc::new(MockDb::new());
         let cancel_token = CancellationToken::new();
 
+        let rollup_config = RollupConfig::default();
         let mut processor =
-            ChainProcessor::new(1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
+            ChainProcessor::new(rollup_config, 1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
 
         assert!(processor.start().await.is_ok());
 

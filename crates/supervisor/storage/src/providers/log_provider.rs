@@ -43,18 +43,6 @@ impl<TX> LogProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    pub(crate) fn initialise(&self, anchor: BlockInfo) -> Result<(), StorageError> {
-        match self.get_block(0) {
-            Ok(block) if block.hash == anchor.hash => Ok(()),
-            Ok(_) => Err(StorageError::InvalidAnchor),
-            Err(StorageError::EntryNotFound(_)) => {
-                self.store_block_logs_internal(&anchor, Vec::new())
-            }
-
-            Err(err) => Err(err),
-        }
-    }
-
     pub(crate) fn store_block_logs(
         &self,
         block: &BlockInfo,
@@ -64,9 +52,15 @@ where
 
         let latest_block = match self.get_latest_block() {
             Ok(block) => block,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                // If no blocks are found, this is the first block being stored.
+                self.store_block_logs_internal(block, logs)?;
+                return Ok(());
+            },
             Err(e) => return Err(e),
         };
+
+        // todo: handle idempotency
 
         if !latest_block.is_parent_of(block) {
             warn!(
@@ -283,7 +277,7 @@ mod tests {
     fn initialize_db(db: &DatabaseEnv, block: &BlockInfo) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = LogProvider::new(&tx);
-        let res = provider.initialise(*block);
+        let res = provider.store_block_logs(block, Vec::new());
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
         } else {

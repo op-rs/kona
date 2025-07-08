@@ -71,8 +71,8 @@ impl ChainDb {
     /// initialises the database with a given anchor derived block pair.
     pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
         self.env.update(|tx| {
-            DerivationProvider::new(tx).initialise(anchor)?;
-            LogProvider::new(tx).initialise(anchor.derived)?;
+            DerivationProvider::new(tx).save_derived_block_pair(anchor)?;
+            LogProvider::new(tx).store_block_logs(&anchor.derived, Vec::new())?;
 
             let sp = SafetyHeadRefProvider::new(tx);
             // todo: cross check if we can consider following safety head ref update
@@ -110,7 +110,6 @@ impl DerivationStorageReader for ChainDb {
 }
 
 impl DerivationStorageWriter for ChainDb {
-    // Todo: better name save_derived_block_pair
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
         self.observe_call("save_derived_block_pair", || {
             self.env.update(|ctx| {
