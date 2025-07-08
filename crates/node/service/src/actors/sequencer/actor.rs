@@ -162,7 +162,23 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         let unsafe_head = *unsafe_head_rx.borrow();
         let l1_origin = self.origin_selector.next_l1_origin(unsafe_head).await?;
 
-        // TODO(clabby): Check for consistent L1 origin
+        if unsafe_head.l1_origin.hash != l1_origin.parent_hash &&
+            unsafe_head.l1_origin.hash != l1_origin.hash
+        {
+            warn!(
+                target: "sequencer",
+                l1_origin = ?l1_origin,
+                unsafe_head_hash = %unsafe_head.l1_origin.hash,
+                unsafe_head_l1_origin = ?unsafe_head.l1_origin,
+                "Cannot build new L2 block on inconsistent L1 origin, resetting engine"
+            );
+            if let Err(err) = ctx.reset_request_tx.send(()).await {
+                error!(target: "sequencer", ?err, "Failed to reset engine");
+                ctx.cancellation.cancel();
+                return Err(SequencerActorError::ChannelClosed);
+            }
+            return Ok(());
+        }
 
         info!(
             target: "sequencer",
