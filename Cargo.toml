@@ -79,7 +79,7 @@ kona-client = { path = "bin/client", version = "1.0.2", default-features = false
 # Protocol
 kona-comp = { path = "crates/protocol/comp", version = "0.3.0", default-features = false }
 kona-driver = { path = "crates/protocol/driver", version = "0.3.0", default-features = false }
-kona-derive = { path = "crates/protocol/derive", version = "0.3.0", default-features = false }
+kona-derive = { path = "crates/protocol/derive", version = "0.4.0", default-features = false }
 kona-interop = { path = "crates/protocol/interop", version = "0.3.0", default-features = false }
 kona-genesis = { path = "crates/protocol/genesis", version = "0.3.0", default-features = false }
 kona-protocol = { path = "crates/protocol/protocol", version = "0.3.0", default-features = false }

@@ -10,6 +10,12 @@ target/
 # Monorepo workspace
 monorepo/
 
+# Release artifacts
+dist/
+
+# vocs node_modules
+docs/node_modules
+
 # `optimism-package` workspace
 optimism-package/
 
