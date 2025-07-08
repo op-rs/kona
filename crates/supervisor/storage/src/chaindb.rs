@@ -22,8 +22,8 @@ use reth_db::{
     mdbx::{DatabaseArguments, init_db_for},
 };
 use reth_db_api::database::Database;
-use std::{path::Path, sync::RwLock};
-use tracing::{error, warn};
+use std::path::Path;
+use tracing::warn;
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -33,17 +33,13 @@ pub struct ChainDb {
     metrics_enabled: Option<bool>,
 
     env: DatabaseEnv,
-
-    /// Current L1 block reference, used for tracking the latest L1 block processed.
-    /// In-memory only, not persisted.
-    current_l1: RwLock<Option<BlockInfo>>,
 }
 
 impl ChainDb {
     /// Creates or opens a database environment at the given path.
     pub fn new(chain_id: ChainId, path: &Path) -> Result<Self, StorageError> {
         let env = init_db_for::<_, crate::models::Tables>(path, DatabaseArguments::default())?;
-        Ok(Self { chain_id, metrics_enabled: None, env, current_l1: RwLock::new(None) })
+        Ok(Self { chain_id, metrics_enabled: None, env })
     }
 
     /// Enables metrics on the database environment.
@@ -187,19 +183,6 @@ impl LogStorageWriter for ChainDb {
 }
 
 impl HeadRefStorageReader for ChainDb {
-    fn get_current_l1(&self) -> Result<BlockInfo, StorageError> {
-        self.observe_call(
-            "get_current_l1",
-            || {
-                let guard = self.current_l1.read().map_err(|err| {
-                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on current_l1");
-                    StorageError::LockPoisoned
-                })?;
-                guard.as_ref().cloned().ok_or(StorageError::FutureData)
-            }
-        )
-    }
-
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
         self.observe_call("get_safety_head_ref", || {
             self.env.view(|tx| SafetyHeadRefProvider::new(tx).get_safety_head_ref(safety_level))
@@ -233,35 +216,6 @@ impl HeadRefStorageReader for ChainDb {
 }
 
 impl HeadRefStorageWriter for ChainDb {
-    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
-        self.observe_call(
-            "update_current_l1", 
-            || {
-                let mut guard = self
-                    .current_l1
-                    .write()
-                    .map_err(|err| {
-                        error!(target: "supervisor_storage", %err, "Failed to acquire write lock on current_l1" );
-                        StorageError::LockPoisoned
-                    })?;
-
-                // Check if the new block number is greater than the current L1 block
-                if let Some(ref current) = *guard {
-                    if block.number <= current.number {
-                        error!(target: "supervisor_storage",
-                            current_block_number = current.number,
-                            new_block_number = block.number,
-                            "New L1 block number is not greater than current L1 block number",
-                        );
-                        return Err(StorageError::BlockOutOfOrder);
-                    }
-                }
-                *guard = Some(block);
-                Ok(())
-            },
-        )
-    }
-
     fn update_finalized_using_source(
         &self,
         finalized_source_block: BlockInfo,
@@ -575,35 +529,6 @@ mod tests {
             latest_derived, derived_pair.derived,
             "Latest derived block at source should match derived pair derived"
         );
-    }
-
-    #[test]
-    fn test_update_and_get_current_l1() {
-        let tmp_dir = tempfile::TempDir::new().unwrap();
-        let db_path = tmp_dir.path().join("chaindb_current_l1");
-        let db = ChainDb::new(1, &db_path).unwrap();
-
-        let block1 = BlockInfo { number: 10, ..Default::default() };
-        let block2 = BlockInfo { number: 20, ..Default::default() };
-
-        // Initially, get_current_l1 should return FutureData error
-        let err = db.get_current_l1().unwrap_err();
-        assert!(matches!(err, StorageError::FutureData));
-
-        // Update current_l1 with block1
-        db.update_current_l1(block1).unwrap();
-        let got = db.get_current_l1().unwrap();
-        assert_eq!(got, block1);
-
-        // Update with a higher block number
-        db.update_current_l1(block2).unwrap();
-        let got = db.get_current_l1().unwrap();
-        assert_eq!(got, block2);
-
-        // Update with a lower block number should error
-        let block3 = BlockInfo { number: 15, ..Default::default() };
-        let err = db.update_current_l1(block3).unwrap_err();
-        assert!(matches!(err, StorageError::BlockOutOfOrder));
     }
 
     #[test]

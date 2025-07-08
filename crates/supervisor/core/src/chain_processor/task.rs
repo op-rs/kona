@@ -3,7 +3,9 @@ use crate::{ChainProcessorError, LogIndexer, event::ChainEvent, syncnode::Manage
 use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter};
+use kona_supervisor_storage::{
+    DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
+};
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -175,7 +177,7 @@ where
                     .await;
             }
             ChainEvent::DerivationOriginUpdate { origin } => {
-                let _ = self.handle_derivation_origin_update(origin).inspect_err(|err| {
+                let _ = self.handle_derivation_origin_update(origin).await.inspect_err(|err| {
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
@@ -270,7 +272,7 @@ where
         Ok(finalized_derived_block)
     }
 
-    fn handle_derivation_origin_update(
+    async fn handle_derivation_origin_update(
         &self,
         origin: BlockInfo,
     ) -> Result<(), ChainProcessorError> {
@@ -280,9 +282,28 @@ where
             block_number = origin.number,
             "Processing derivation origin update"
         );
-        self.state_manager.update_current_l1(origin)?;
-        self.state_manager.save_source_block(origin)?;
-        Ok(())
+        match self.state_manager.save_source_block(origin) {
+            Ok(_) => Ok(()),
+            Err(StorageError::BlockOutOfOrder) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = origin.number,
+                    "Source block out of order detected, resetting managed node"
+                );
+
+                if let Err(err) = self.managed_node.reset().await {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to reset managed node after block out of order"
+                    );
+                }
+                Err(StorageError::BlockOutOfOrder.into())
+            }
+            Err(err) => Err(err.into()),
+        }
     }
 
     async fn handle_safe_event(
@@ -295,8 +316,37 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        self.state_manager.save_derived_block(derived_ref_pair)?;
-        Ok(derived_ref_pair.derived)
+        match self.state_manager.save_derived_block(derived_ref_pair) {
+            Ok(_) => Ok(derived_ref_pair.derived),
+            Err(StorageError::BlockOutOfOrder) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    "Block out of order detected, resetting managed node"
+                );
+
+                if let Err(err) = self.managed_node.reset().await {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to reset managed node after block out of order"
+                    );
+                }
+                Err(StorageError::BlockOutOfOrder.into())
+            }
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Failed to save derived block pair"
+                );
+                Err(err.into())
+            }
+        }
     }
 
     async fn handle_unsafe_event(
@@ -352,7 +402,10 @@ mod tests {
     use super::*;
     use crate::{
         event::ChainEvent,
-        syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
+        syncnode::{
+            ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber,
+            ReceiptProvider,
+        },
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -377,46 +430,51 @@ mod tests {
                 &self,
                 _event_tx: mpsc::Sender<ChainEvent>,
             ) -> Result<(), ManagedNodeError>;
-    }
+        }
 
-    #[async_trait]
-    impl ReceiptProvider for Node {
-        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
-    }
+        #[async_trait]
+        impl ReceiptProvider for Node {
+            async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+        }
 
-    #[async_trait]
-    impl ManagedNodeApiProvider for Node {
-        async fn output_v0_at_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<OutputV0, ManagedNodeError>;
+        #[async_trait]
+        impl ManagedNodeDataProvider for Node {
+            async fn output_v0_at_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<OutputV0, ManagedNodeError>;
 
-        async fn pending_output_v0_at_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<OutputV0, ManagedNodeError>;
+            async fn pending_output_v0_at_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<OutputV0, ManagedNodeError>;
 
-        async fn l2_block_ref_by_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<BlockInfo, ManagedNodeError>;
+            async fn l2_block_ref_by_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<BlockInfo, ManagedNodeError>;
+        }
 
-        async fn update_finalized(
-            &self,
-            _finalized_block_id: BlockNumHash,
-        ) -> Result<(), ManagedNodeError>;
+        #[async_trait]
+        impl ManagedNodeController for Node {
+            async fn update_finalized(
+                &self,
+                _finalized_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
 
-        async fn update_cross_unsafe(
-            &self,
-            cross_unsafe_block_id: BlockNumHash,
-        ) -> Result<(), ManagedNodeError>;
+            async fn update_cross_unsafe(
+                &self,
+                cross_unsafe_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
 
-        async fn update_cross_safe(
-            &self,
-            source_block_id: BlockNumHash,
-            derived_block_id: BlockNumHash,
-        ) -> Result<(), ManagedNodeError>;
-    }
+            async fn update_cross_safe(
+                &self,
+                source_block_id: BlockNumHash,
+                derived_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn reset(&self) -> Result<(), ManagedNodeError>;
+        }
     );
 
     mock!(
@@ -444,11 +502,6 @@ mod tests {
         }
 
         impl HeadRefStorageWriter for Db {
-            fn update_current_l1(
-                &self,
-                block_info: BlockInfo,
-            ) -> Result<(), StorageError>;
-
             fn update_finalized_using_source(
                 &self,
                 block_info: BlockInfo,
@@ -556,10 +609,6 @@ mod tests {
 
         let origin_clone = origin;
         mockdb.expect_save_source_block().returning(move |block_info: BlockInfo| {
-            assert_eq!(block_info, origin_clone);
-            Ok(())
-        });
-        mockdb.expect_update_current_l1().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, origin_clone);
             Ok(())
         });

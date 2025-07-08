@@ -117,7 +117,10 @@ mod tests {
     use super::*;
     use crate::{
         event::ChainEvent,
-        syncnode::{ManagedNodeApiProvider, ManagedNodeError, NodeSubscriber, ReceiptProvider},
+        syncnode::{
+            ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber,
+            ReceiptProvider,
+        },
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -165,7 +168,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl ManagedNodeApiProvider for MockNode {
+    impl ManagedNodeDataProvider for MockNode {
         async fn output_v0_at_timestamp(
             &self,
             _timestamp: u64,
@@ -186,7 +189,10 @@ mod tests {
         ) -> Result<BlockInfo, ManagedNodeError> {
             Ok(BlockInfo::default())
         }
+    }
 
+    #[async_trait]
+    impl ManagedNodeController for MockNode {
         async fn update_finalized(
             &self,
             _finalized_block_id: BlockNumHash,
@@ -206,6 +212,10 @@ mod tests {
             _source_block_id: BlockNumHash,
             _derived_block_id: BlockNumHash,
         ) -> Result<(), ManagedNodeError> {
+            Ok(())
+        }
+
+        async fn reset(&self) -> Result<(), ManagedNodeError> {
             Ok(())
         }
     }
@@ -235,11 +245,6 @@ mod tests {
         }
 
         impl HeadRefStorageWriter for Db {
-            fn update_current_l1(
-                &self,
-                block_info: BlockInfo,
-            ) -> Result<(), StorageError>;
-
             fn update_finalized_using_source(
                 &self,
                 block_info: BlockInfo,

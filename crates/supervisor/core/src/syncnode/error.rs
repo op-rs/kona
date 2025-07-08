@@ -21,9 +21,9 @@ pub enum ManagedNodeError {
     #[error("failed to authenticate: {0}")]
     Authentication(#[from] AuthenticationError),
 
-    /// Database provider is not set for the managed node.
-    #[error("database not initialised for managed node")]
-    DatabaseNotInitialised,
+    /// Represents an error that occurred while fetching data from the storage.
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
 }
 
 impl PartialEq for ManagedNodeError {
