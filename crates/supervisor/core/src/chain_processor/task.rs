@@ -18,7 +18,7 @@ use tracing::{debug, error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
-    _rollup_config: RollupConfig,
+    rollup_config: RollupConfig,
     chain_id: ChainId,
     metrics_enabled: Option<bool>,
 
@@ -50,7 +50,7 @@ where
     ) -> Self {
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
-            _rollup_config: rollup_config,
+            rollup_config,
             chain_id,
             metrics_enabled: None,
             cancel_token,
@@ -322,37 +322,52 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        match self.state_manager.save_derived_block(derived_ref_pair) {
-            Ok(_) => Ok(derived_ref_pair.derived),
-            Err(StorageError::BlockOutOfOrder) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = derived_ref_pair.derived.number,
-                    "Block out of order detected, resetting managed node"
-                );
 
-                if let Err(err) = self.managed_node.reset().await {
+        if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Initialising derivation storage for interop activation block"
+            );
+            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
+            return Ok(derived_ref_pair.derived);
+        }
+
+        if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
+            match self.state_manager.save_derived_block(derived_ref_pair) {
+                Ok(_) => return Ok(derived_ref_pair.derived),
+                Err(StorageError::BlockOutOfOrder) => {
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
-                        %err,
-                        "Failed to reset managed node after block out of order"
+                        block_number = derived_ref_pair.derived.number,
+                        "Block out of order detected, resetting managed node"
                     );
+
+                    if let Err(err) = self.managed_node.reset().await {
+                        error!(
+                            target: "chain_processor",
+                            chain_id = self.chain_id,
+                            %err,
+                            "Failed to reset managed node after block out of order"
+                        );
+                    }
+                    return Err(StorageError::BlockOutOfOrder.into());
                 }
-                Err(StorageError::BlockOutOfOrder.into())
-            }
-            Err(err) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = derived_ref_pair.derived.number,
-                    %err,
-                    "Failed to save derived block pair"
-                );
-                Err(err.into())
+                Err(err) => {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = derived_ref_pair.derived.number,
+                        %err,
+                        "Failed to save derived block pair"
+                    );
+                    return Err(err.into());
+                }
             }
         }
+        Ok(derived_ref_pair.derived)
     }
 
     async fn handle_unsafe_event(
@@ -366,7 +381,22 @@ where
             "Processing unsafe block"
         );
 
-        self.log_indexer.process_and_store_logs(&block).await?;
+        if self.rollup_config.is_interop_activation_block(block) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                "Initialising log storage for interop activation block"
+            );
+            self.state_manager.initialise_log_storage(block)?;
+            return Ok(block);
+        }
+
+        if self.rollup_config.is_post_interop(block.timestamp) {
+            self.log_indexer.process_and_store_logs(&block).await?;
+            return Ok(block);
+        }
+
         Ok(block)
     }
 

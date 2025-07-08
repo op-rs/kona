@@ -142,9 +142,13 @@ impl Supervisor {
         for (chain_id, config) in self.config.rollup_config_set.rollups.iter() {
             // Initialise the database for each chain.
             let db = self.database_factory.get_or_create_db(*chain_id)?;
-            let anchor = config.genesis.get_anchor();
-            db.initialise_log_storage(anchor.derived)?;
-            db.initialise_derivation_storage(anchor)?;
+            let interop_time = config.interop_time;
+            let derived_pair = config.genesis.get_derived_pair();
+            if config.is_interop_activation_block(derived_pair.derived) {
+                info!(target: "supervisor_service", chain_id, interop_time, %derived_pair, "Initialising database for interop activation block");
+                db.initialise_log_storage(derived_pair.derived)?;
+                db.initialise_derivation_storage(derived_pair)?;
+            }
             info!(target: "supervisor_service", chain_id, "Database initialized successfully");
         }
         Ok(())
