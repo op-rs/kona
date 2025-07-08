@@ -67,21 +67,6 @@ impl ChainDb {
             f()
         }
     }
-
-    /// initialises the database with a given anchor derived block pair.
-    pub fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
-        self.env.update(|tx| {
-            DerivationProvider::new(tx).save_derived_block_pair(anchor)?;
-            LogProvider::new(tx).store_block_logs(&anchor.derived, Vec::new())?;
-
-            let sp = SafetyHeadRefProvider::new(tx);
-            // todo: cross check if we can consider following safety head ref update
-            sp.update_safety_head_ref(SafetyLevel::LocalUnsafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor.derived)
-        })?
-    }
 }
 
 // todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
@@ -104,15 +89,30 @@ impl DerivationStorageReader for ChainDb {
     }
 
     fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError> {
-        self.observe_call("latest_derived_block_pair", || {
+        self.observe_call("latest_derivation_state", || {
             self.env.view(|tx| DerivationProvider::new(tx).latest_derivation_state())
         })?
     }
 }
 
 impl DerivationStorageWriter for ChainDb {
+    fn initialise_derivation_storage(
+        &self,
+        incoming_pair: DerivedRefPair,
+    ) -> Result<(), StorageError> {
+        self.observe_call("initialise_derivation_storage", || {
+            self.env.update(|ctx| {
+                DerivationProvider::new(ctx).initialise(incoming_pair)?;
+                SafetyHeadRefProvider::new(ctx)
+                    .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)?;
+                SafetyHeadRefProvider::new(ctx)
+                    .update_safety_head_ref(SafetyLevel::CrossSafe, &incoming_pair.derived)
+            })
+        })?
+    }
+
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        self.observe_call("save_derived_block_pair", || {
+        self.observe_call("save_derived_block", || {
             self.env.update(|ctx| {
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
@@ -137,7 +137,7 @@ impl DerivationStorageWriter for ChainDb {
     }
 
     fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
-        self.observe_call("save_block_traversal", || {
+        self.observe_call("save_source_block", || {
             self.env.update(|ctx| DerivationProvider::new(ctx).save_source_block(incoming_source))
         })?
     }
@@ -171,6 +171,18 @@ impl LogStorageReader for ChainDb {
 }
 
 impl LogStorageWriter for ChainDb {
+    fn initialise_log_storage(&self, block: BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("initialise_log_storage", || {
+            self.env.update(|ctx| {
+                LogProvider::new(ctx).initialise(block)?;
+                SafetyHeadRefProvider::new(ctx)
+                    .update_safety_head_ref(SafetyLevel::LocalUnsafe, &block)?;
+                SafetyHeadRefProvider::new(ctx)
+                    .update_safety_head_ref(SafetyLevel::CrossUnsafe, &block)
+            })
+        })?
+    }
+
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
         self.observe_call("store_block_logs", || {
             self.env.update(|ctx| {
@@ -421,7 +433,8 @@ mod tests {
             },
         };
 
-        db.initialise(anchor).expect("initialise db");
+        db.initialise_log_storage(anchor.derived).expect("initialise log storage");
+        db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
 
         let block = BlockInfo {
             hash: B256::from([4u8; 32]),
@@ -519,7 +532,8 @@ mod tests {
         };
 
         // Initialise the database with the anchor derived block pair
-        db.initialise(anchor).expect("initialise db with anchor");
+        db.initialise_log_storage(anchor.derived).expect("initialise log storage");
+        db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
 
         // Save derived block pair - should error conflict
         let err = db.save_derived_block(derived_pair).unwrap_err();
@@ -585,7 +599,9 @@ mod tests {
             timestamp: 1,
         };
 
-        db.initialise(DerivedRefPair { source, derived: block1 }).unwrap();
+        db.initialise_log_storage(block1).expect("initialise log storage");
+        db.initialise_derivation_storage(DerivedRefPair { source, derived: block1 })
+            .expect("initialise derivation storage");
 
         // should error as block2 must be child of block1
         let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
@@ -625,7 +641,9 @@ mod tests {
             timestamp: 1,
         };
 
-        db.initialise(DerivedRefPair { source, derived: block1 }).unwrap();
+        db.initialise_log_storage(block1).expect("initialise log storage");
+        db.initialise_derivation_storage(DerivedRefPair { source, derived: block1 })
+            .expect("initialise derivation storage");
 
         // should error as block2 must be child of block1
         let err = db.update_current_cross_safe(&block2).expect_err("should return an error");
@@ -674,7 +692,10 @@ mod tests {
             timestamp: 9101,
         };
 
-        assert!(db.initialise(DerivedRefPair { source: source1, derived: derived1 }).is_ok());
+        db.initialise_log_storage(derived1).expect("initialise log storage");
+        db.initialise_derivation_storage(DerivedRefPair { source: source1, derived: derived1 })
+            .expect("initialise derivation storage");
+
         assert!(db.save_source_block(source2).is_ok());
 
         // Retrieve latest source block
@@ -702,7 +723,9 @@ mod tests {
                 timestamp: 1234,
             },
         };
-        assert!(db.initialise(anchor).is_ok());
+
+        db.initialise_log_storage(anchor.derived).expect("initialise log storage");
+        db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
 
         let source1 = BlockInfo {
             hash: B256::from([2u8; 32]),

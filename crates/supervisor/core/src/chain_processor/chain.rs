@@ -231,6 +231,11 @@ mod tests {
         pub Db {}
 
         impl LogStorageWriter for Db {
+            fn initialise_log_storage(
+                &self,
+                block: BlockInfo,
+            ) -> Result<(), StorageError>;
+
             fn store_block_logs(
                 &self,
                 block: &BlockInfo,
@@ -239,6 +244,11 @@ mod tests {
         }
 
         impl DerivationStorageWriter for Db {
+            fn initialise_derivation_storage(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
+
             fn save_derived_block(
                 &self,
                 incoming_pair: DerivedRefPair,

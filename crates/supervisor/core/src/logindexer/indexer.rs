@@ -139,6 +139,10 @@ mod tests {
     }
 
     impl LogStorageWriter for MockLogStorage {
+        fn initialise_log_storage(&self, _block: BlockInfo) -> Result<(), StorageError> {
+            Ok(())
+        }
+
         fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
             self.blocks.lock().unwrap().push(*block);
             self.logs.lock().unwrap().extend(logs);
