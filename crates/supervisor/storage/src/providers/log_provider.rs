@@ -56,7 +56,7 @@ where
                 // If no blocks are found, this is the first block being stored.
                 self.store_block_logs_internal(block, logs)?;
                 return Ok(());
-            },
+            }
             Err(e) => return Err(e),
         };
 
@@ -138,7 +138,7 @@ where
 
         let (_, block) = result.ok_or_else(|| {
             warn!(target: "supervisor_storage", "No blocks found in storage");
-            StorageError::EntryNotFound("no blocks found".to_string())
+            StorageError::DatabaseNotInitialised
         })?;
         Ok(block.into())
     }
@@ -342,6 +342,17 @@ mod tests {
 
         let result = initialize_db(&db, &wrong_genesis);
         assert!(matches!(result, Err(StorageError::InvalidAnchor)));
+    }
+
+    #[test]
+    fn test_get_latest_block_empty() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Failed to start RO tx");
+        let log_reader = LogProvider::new(&tx);
+
+        let result = log_reader.get_latest_block();
+        assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
     }
 
     #[test]

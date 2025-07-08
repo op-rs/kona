@@ -159,13 +159,19 @@ impl Supervisor {
                     chain_id
                 )))?;
 
-            let rollup_config = self.config.rollup_config_set.get(*chain_id).ok_or(
-                SupervisorError::Initialise(format!("no rollup config found for chain {}", chain_id))
-            )?;
+            let rollup_config =
+                self.config.rollup_config_set.get(*chain_id).ok_or(SupervisorError::Initialise(
+                    format!("no rollup config found for chain {}", chain_id),
+                ))?;
 
             // initialise chain processor for the chain.
-            let mut processor =
-                ChainProcessor::new(rollup_config.clone(), *chain_id, managed_node.clone(), db, self.cancel_token.clone());
+            let mut processor = ChainProcessor::new(
+                rollup_config.clone(),
+                *chain_id,
+                managed_node.clone(),
+                db,
+                self.cancel_token.clone(),
+            );
 
             // todo: enable metrics only if configured
             processor = processor.with_metrics();

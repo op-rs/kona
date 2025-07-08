@@ -84,6 +84,7 @@ impl ChainDb {
     }
 }
 
+// todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
 impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
         self.observe_call("derived_to_source", || {
@@ -142,6 +143,7 @@ impl DerivationStorageWriter for ChainDb {
     }
 }
 
+// todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
 impl LogStorageReader for ChainDb {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
         self.observe_call("get_latest_block", || {
@@ -444,6 +446,39 @@ mod tests {
 
         let log = db.get_log(block.number, 1).expect("get block by log");
         assert_eq!(log, logs[1], "Block by log should match stored block");
+    }
+
+    #[test]
+    fn test_super_head_empty() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_super_head_empty");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        // Get super head when no blocks are stored
+        let err = db.get_super_head().unwrap_err();
+        assert!(matches!(err, StorageError::DatabaseNotInitialised));
+    }
+
+    #[test]
+    fn test_latest_derivation_state_empty() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_latest_derivation_empty");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        // Get latest derivation state when no blocks are stored
+        let err = db.latest_derivation_state().unwrap_err();
+        assert!(matches!(err, StorageError::DatabaseNotInitialised));
+    }
+
+    #[test]
+    fn test_get_latest_block_empty() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_latest_block_empty");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        // Get latest block when no blocks are stored
+        let err = db.get_latest_block().unwrap_err();
+        assert!(matches!(err, StorageError::DatabaseNotInitialised));
     }
 
     #[test]
