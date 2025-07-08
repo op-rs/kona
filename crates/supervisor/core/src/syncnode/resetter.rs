@@ -114,6 +114,7 @@ mod tests {
             async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
             async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ManagedNodeError>;
             async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ManagedNodeError>;
+            async fn reset_pre_interop(&self) -> Result<(), ManagedNodeError>;
             async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ManagedNodeError>;
             async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ManagedNodeError>;
             async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;

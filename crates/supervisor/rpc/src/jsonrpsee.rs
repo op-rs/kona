@@ -170,6 +170,10 @@ pub trait ManagedModeApi {
     #[method(name = "anchorPoint")]
     async fn anchor_point(&self) -> RpcResult<DerivedRefPair>;
 
+    /// Reset the managed node to the pre-interop state
+    #[method(name = "resetPreInterop")]
+    async fn reset_pre_interop(&self) -> RpcResult<()>;
+
     /// Reset the managed node to the specified block heads
     #[method(name = "reset")]
     async fn reset(
