@@ -189,7 +189,7 @@ where
                 target: "supervisor_storage",
                 "No blocks found in storage"
             );
-            StorageError::EntryNotFound("no blocks found".to_string())
+            StorageError::DatabaseNotInitialised
         })?;
 
         let latest_source_block = self.latest_source_block().inspect_err(|err| {
@@ -250,11 +250,12 @@ where
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
             Err(StorageError::EntryNotFound(_)) => {
-                // in this case the database is not initialised, so we need to save the source block first
+                // in this case the database is not initialised, so we need to save the source block
+                // first
                 self.save_source_block_internal(incoming_pair.source)?;
                 self.save_derived_block_pair_internal(incoming_pair)?;
                 return Ok(());
-            },
+            }
             Err(e) => return Err(e),
         };
 
@@ -740,6 +741,21 @@ mod tests {
 
         let latest = provider.latest_derivation_state().expect("should exist");
         assert_eq!(latest, pair2);
+    }
+
+    #[test]
+    fn test_latest_derivation_state_enpty_storage() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+
+        let result = provider.latest_derivation_state();
+        print!("{:?}", result);
+        assert!(
+            matches!(result, Err(StorageError::DatabaseNotInitialised)),
+            "Should return DatabaseNotInitialised error when no derivation state exists"
+        );
     }
 
     #[test]

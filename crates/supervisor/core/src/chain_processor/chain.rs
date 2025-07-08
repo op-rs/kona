@@ -275,8 +275,13 @@ mod tests {
         let cancel_token = CancellationToken::new();
 
         let rollup_config = RollupConfig::default();
-        let mut processor =
-            ChainProcessor::new(rollup_config, 1, Arc::clone(&mock_node), Arc::clone(&storage), cancel_token);
+        let mut processor = ChainProcessor::new(
+            rollup_config,
+            1,
+            Arc::clone(&mock_node),
+            Arc::clone(&storage),
+            cancel_token,
+        );
 
         assert!(processor.start().await.is_ok());
 
