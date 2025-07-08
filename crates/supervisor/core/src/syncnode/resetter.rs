@@ -1,5 +1,5 @@
 use super::{ManagedNodeClient, ManagedNodeError};
-use kona_supervisor_storage::HeadRefStorageReader;
+use kona_supervisor_storage::{HeadRefStorageReader, StorageError};
 use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -28,9 +28,30 @@ where
 
         info!(target: "resetter", "Resetting the node");
 
-        let super_head = self.db_provider.get_super_head().inspect_err(|err| {
-            error!(target: "resetter", %err, "Failed to get super head");
+        match self.db_provider.get_super_head() {
+            Ok(super_head) => {
+                info!(target: "resetter", "Super head fetched successfully: {:?}", super_head);
+                self.reset_post_interop(super_head).await
+            }
+            Err(StorageError::DatabaseNotInitialised) => self.reset_pre_interop().await,
+            Err(err) => {
+                error!(target: "resetter", %err, "Failed to get super head from storage");
+                return Err(ManagedNodeError::StorageError(err));
+            }
+        }
+    }
+
+    async fn reset_pre_interop(&self) -> Result<(), ManagedNodeError> {
+        info!(target: "resetter", "Resetting the node to pre-interop state");
+
+        self.client.reset_pre_interop().await.inspect_err(|err| {
+            error!(target: "resetter", %err, "Failed to reset managed node to pre-interop state");
         })?;
+        Ok(())
+    }
+
+    async fn reset_post_interop(&self, super_head: SuperHead) -> Result<(), ManagedNodeError> {
+        info!(target: "resetter", "Resetting the node to post-interop state");
 
         let SuperHead { local_unsafe, cross_unsafe, local_safe, cross_safe, finalized, .. } =
             super_head;
@@ -71,7 +92,6 @@ where
             .inspect_err(|err| {
                 error!(target: "resetter", %err, "Failed to reset managed node");
             })?;
-
         Ok(())
     }
 }
