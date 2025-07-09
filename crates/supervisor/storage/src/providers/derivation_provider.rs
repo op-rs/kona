@@ -252,7 +252,7 @@ where
             Ok(_) => Err(StorageError::InvalidAnchor),
             Err(StorageError::EntryNotFound(_)) => {
                 self.save_source_block_internal(anchor.source)?;
-                self.save_derived_block_pair_internal(anchor)?;
+                self.save_derived_block_internal(anchor)?;
                 Ok(())
             }
             Err(err) => Err(err),
@@ -262,7 +262,7 @@ where
     /// Saves a [`StoredDerivedBlockPair`] to [`DerivedBlocks`](`crate::models::DerivedBlocks`)
     /// table and [`SourceBlockTraversal`] to [`BlockTraversal`](`crate::models::BlockTraversal`)
     /// table in the database.
-    pub(crate) fn save_derived_block_pair(
+    pub(crate) fn save_derived_block(
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
@@ -293,7 +293,7 @@ where
             } else {
                 error!(
                     target: "supervisor_storage",
-                    latest_derived_block_pair = %latest_derivation_state,
+                    %latest_derivation_state,
                     incoming_derived_block_pair = %incoming_pair,
                     "Incoming derived block is not consistent with the latest stored derived block"
                 );
@@ -318,20 +318,20 @@ where
         if !latest_derivation_state.derived.is_parent_of(&incoming_pair.derived) {
             warn!(
               target: "supervisor_storage",
-              latest_derived_block_pair = %latest_derivation_state,
+              %latest_derivation_state,
               incoming_derived_block_pair = %incoming_pair,
               "Latest stored derived block is not parent of the incoming derived block"
             );
             return Err(StorageError::DerivedBlockOutOfOrder);
         }
 
-        self.save_derived_block_pair_internal(incoming_pair)
+        self.save_derived_block_internal(incoming_pair)
     }
 
     /// Internal function to save a derived block pair.
     /// This function does not perform checks on the incoming derived pair,
     /// it assumes that the pair is valid and the latest derived block is its parent.
-    fn save_derived_block_pair_internal(
+    fn save_derived_block_internal(
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
@@ -514,7 +514,7 @@ mod tests {
     fn insert_pair(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = DerivationProvider::new(&tx);
-        let res = provider.save_derived_block_pair(*pair);
+        let res = provider.save_derived_block(*pair);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
         }
@@ -583,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn save_derived_block_pair_positive() {
+    fn save_derived_block_positive() {
         let db = setup_db();
 
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
@@ -603,7 +603,7 @@ mod tests {
     }
 
     #[test]
-    fn save_derived_block_pair_wrong_parent_should_fail() {
+    fn save_derived_block_wrong_parent_should_fail() {
         let db = setup_db();
 
         let source1 = block_info(100, B256::from([100u8; 32]), 200);
@@ -619,7 +619,7 @@ mod tests {
     }
 
     #[test]
-    fn save_derived_block_pair_gap_in_number_should_fail() {
+    fn save_derived_block_gap_in_number_should_fail() {
         let db = setup_db();
 
         let source1 = block_info(100, B256::from([100u8; 32]), 200);

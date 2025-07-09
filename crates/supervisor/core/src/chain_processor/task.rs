@@ -294,7 +294,7 @@ where
         );
         match self.state_manager.save_source_block(origin) {
             Ok(_) => Ok(()),
-            Err(StorageError::BlockOutOfOrder) => {
+            Err(StorageError::BlockOutOfOrder | StorageError::ConflictError(_)) => {
                 error!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
@@ -328,7 +328,7 @@ where
         );
         match self.state_manager.save_derived_block(derived_ref_pair) {
             Ok(_) => Ok(derived_ref_pair.derived),
-            Err(StorageError::BlockOutOfOrder) => {
+            Err(StorageError::BlockOutOfOrder | StorageError::ConflictError(_)) => {
                 error!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
