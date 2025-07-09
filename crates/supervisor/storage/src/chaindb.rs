@@ -233,28 +233,31 @@ impl HeadRefStorageWriter for ChainDb {
         &self,
         finalized_source_block: BlockInfo,
     ) -> Result<BlockInfo, StorageError> {
-        self.env.update(|tx| {
-            let sp = SafetyHeadRefProvider::new(tx);
-            let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
+        self.observe_call("update_finalized_using_source", || {
+            self.env.update(|tx| {
+                let sp = SafetyHeadRefProvider::new(tx);
+                let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
 
-            let dp = DerivationProvider::new(tx);
-            let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
+                let dp = DerivationProvider::new(tx);
+                let safe_block_pair = dp.get_derived_block_pair(safe.id())?;
 
-            if finalized_source_block.number >= safe_block_pair.source.number {
-                // this could happen during initial sync
-                warn!(
-                    target: "supervisor_storage",
-                    l1_finalized_block_number = finalized_source_block.number,
-                    safe_source_block_number = safe_block_pair.source.number,
-                    "L1 finalized block is greater than safe block",
-                );
-                sp.update_safety_head_ref(SafetyLevel::Finalized, &safe)?;
-                return Ok(safe);
-            }
+                if finalized_source_block.number >= safe_block_pair.source.number {
+                    // this could happen during initial sync
+                    warn!(
+                        target: "supervisor_storage",
+                        l1_finalized_block_number = finalized_source_block.number,
+                        safe_source_block_number = safe_block_pair.source.number,
+                        "L1 finalized block is greater than safe block",
+                    );
+                    sp.update_safety_head_ref(SafetyLevel::Finalized, &safe)?;
+                    return Ok(safe);
+                }
 
-            let latest_derived = dp.latest_derived_block_at_source(finalized_source_block.id())?;
-            sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)?;
-            Ok(latest_derived)
+                let latest_derived =
+                    dp.latest_derived_block_at_source(finalized_source_block.id())?;
+                sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)?;
+                Ok(latest_derived)
+            })
         })?
     }
 
