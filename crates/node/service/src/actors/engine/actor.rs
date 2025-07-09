@@ -65,6 +65,12 @@ pub struct EngineInboundData {
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
+    ///
+    /// ## Note
+    /// The sequencer actor should not need to send [`OpExecutionPayloadEnvelope`]s to the engine
+    /// actor through that channel. Instead, it should use the `build_request_tx` channel to
+    /// trigger [`BuildTask`] tasks which should insert the block newly built to the engine
+    /// state upon completion.
     pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to send reset requests.
     pub reset_request_tx: mpsc::Sender<()>,

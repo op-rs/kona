@@ -62,7 +62,9 @@ pub struct NetworkInboundData {
     /// Handler for RPC Requests sent to the network actor.
     pub rpc: mpsc::Sender<P2pRpcRequest>,
     /// A channel to send unsafe blocks to the network actor.
-    pub unsafe_blocks: mpsc::Sender<OpExecutionPayloadEnvelope>,
+    /// This channel should only be used by the sequencer actor/admin RPC api to forward their
+    /// newly produced unsafe blocks to the network actor.
+    pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
 impl NetworkActor {
@@ -73,7 +75,7 @@ impl NetworkActor {
         let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
         let actor = Self { builder: driver, signer: signer_rx, rpc: rpc_rx, publish_rx };
         let outbound_data =
-            NetworkInboundData { signer: signer_tx, rpc: rpc_tx, unsafe_blocks: publish_tx };
+            NetworkInboundData { signer: signer_tx, rpc: rpc_tx, gossip_payload_tx: publish_tx };
         (outbound_data, actor)
     }
 }

@@ -110,7 +110,8 @@ pub struct SequencerContext {
     /// current unsafe head.
     pub build_request_tx:
         mpsc::Sender<(OpAttributesWithParent, mpsc::Sender<OpExecutionPayloadEnvelope>)>,
-    /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s.
+    /// A sender to asynchronously sign and gossip built [`OpExecutionPayloadEnvelope`]s to the
+    /// network actor.
     pub gossip_payload_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
 }
 
