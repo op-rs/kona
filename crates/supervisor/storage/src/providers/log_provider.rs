@@ -497,7 +497,7 @@ mod tests {
 
         // Try storing the same block again (should skip and succeed)
         assert!(insert_block_logs(&db, &block1, logs1.clone()).is_ok());
-       
+
         // Try storing genesis block again (should skip and succeed)
         assert!(insert_block_logs(&db, &genesis, Vec::new()).is_ok());
 
@@ -525,7 +525,7 @@ mod tests {
 
         let result = insert_block_logs(&db, &block1_conflict, logs1_conflict);
         assert!(matches!(result, Err(StorageError::ConflictError(_))));
-        
+
         // Try storing genesis block again with a different hash (simulate conflict)
         let mut genesis_conflict = genesis;
         genesis_conflict.hash = B256::from([0x33; 32]);
