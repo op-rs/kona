@@ -769,7 +769,7 @@ mod tests {
     }
 
     #[test]
-    fn test_latest_derivation_state_enpty_storage() {
+    fn test_latest_derivation_state_empty_storage() {
         let db = setup_db();
 
         let tx = db.tx().expect("Could not get tx");
