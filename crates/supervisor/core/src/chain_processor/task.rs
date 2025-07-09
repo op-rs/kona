@@ -1,5 +1,8 @@
 use super::Metrics;
-use crate::{ChainProcessorError, LogIndexer, event::ChainEvent, syncnode::ManagedNodeProvider};
+use crate::{
+    ChainProcessorError, LogIndexer, config::RollupConfig, event::ChainEvent,
+    syncnode::ManagedNodeProvider,
+};
 use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
@@ -15,6 +18,7 @@ use tracing::{debug, error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
+    rollup_config: RollupConfig,
     chain_id: ChainId,
     metrics_enabled: Option<bool>,
 
@@ -41,6 +45,7 @@ where
 {
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
+        rollup_config: RollupConfig,
         chain_id: u64,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
@@ -49,6 +54,7 @@ where
     ) -> Self {
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
+            rollup_config,
             chain_id,
             metrics_enabled: None,
             cancel_token,
@@ -320,37 +326,52 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        match self.state_manager.save_derived_block(derived_ref_pair) {
-            Ok(_) => Ok(derived_ref_pair.derived),
-            Err(StorageError::BlockOutOfOrder) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = derived_ref_pair.derived.number,
-                    "Block out of order detected, resetting managed node"
-                );
 
-                if let Err(err) = self.managed_node.reset().await {
+        if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Initialising derivation storage for interop activation block"
+            );
+            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
+            return Ok(derived_ref_pair.derived);
+        }
+
+        if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
+            match self.state_manager.save_derived_block(derived_ref_pair) {
+                Ok(_) => return Ok(derived_ref_pair.derived),
+                Err(StorageError::BlockOutOfOrder) => {
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
-                        %err,
-                        "Failed to reset managed node after block out of order"
+                        block_number = derived_ref_pair.derived.number,
+                        "Block out of order detected, resetting managed node"
                     );
+
+                    if let Err(err) = self.managed_node.reset().await {
+                        error!(
+                            target: "chain_processor",
+                            chain_id = self.chain_id,
+                            %err,
+                            "Failed to reset managed node after block out of order"
+                        );
+                    }
+                    return Err(StorageError::BlockOutOfOrder.into());
                 }
-                Err(StorageError::BlockOutOfOrder.into())
-            }
-            Err(err) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = derived_ref_pair.derived.number,
-                    %err,
-                    "Failed to save derived block pair"
-                );
-                Err(err.into())
+                Err(err) => {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = derived_ref_pair.derived.number,
+                        %err,
+                        "Failed to save derived block pair"
+                    );
+                    return Err(err.into());
+                }
             }
         }
+        Ok(derived_ref_pair.derived)
     }
 
     async fn handle_unsafe_event(
@@ -364,7 +385,21 @@ where
             "Processing unsafe block"
         );
 
-        self.log_indexer.clone().sync_logs(block);
+        if self.rollup_config.is_interop_activation_block(block) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                "Initialising log storage for interop activation block"
+            );
+            self.state_manager.initialise_log_storage(block)?;
+            return Ok(block);
+        }
+
+        if self.rollup_config.is_post_interop(block.timestamp) {
+            self.log_indexer.clone().sync_logs(block);
+            return Ok(block);
+        }
 
         Ok(block)
     }
@@ -488,6 +523,11 @@ mod tests {
         pub Db {}
 
         impl LogStorageWriter for Db {
+            fn initialise_log_storage(
+                &self,
+                block: BlockInfo,
+            ) -> Result<(), StorageError>;
+
             fn store_block_logs(
                 &self,
                 block: &BlockInfo,
@@ -503,6 +543,11 @@ mod tests {
         }
 
         impl DerivationStorageWriter for Db {
+            fn initialise_derivation_storage(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
+
             fn save_derived_block(
                 &self,
                 incoming_pair: DerivedRefPair,
@@ -552,7 +597,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
 
@@ -597,7 +650,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         // Send unsafe block event
         tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
@@ -632,7 +693,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         // Send derivation origin update event
         tx.send(ChainEvent::DerivationOriginUpdate { origin }).await.unwrap();
@@ -678,7 +747,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         // Send FinalizedSourceUpdate event
         tx.send(ChainEvent::FinalizedSourceUpdate { finalized_source_block }).await.unwrap();
@@ -715,7 +792,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         // Send FinalizedSourceUpdate event
         tx.send(ChainEvent::FinalizedSourceUpdate { finalized_source_block }).await.unwrap();
@@ -749,7 +834,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         // Send derivation origin update event
         tx.send(ChainEvent::CrossUnsafeUpdate { block }).await.unwrap();
@@ -786,7 +879,15 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let task = ChainProcessorTask::new(1, managed_node, writer, cancel_token.clone(), rx);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
 
         // Send derivation origin update event
         tx.send(ChainEvent::CrossSafeUpdate {

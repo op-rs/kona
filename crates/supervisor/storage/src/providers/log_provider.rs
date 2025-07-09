@@ -68,6 +68,24 @@ where
             Err(e) => return Err(e),
         };
 
+        if latest_block.number >= block.number {
+            // If the latest block is ahead of the incoming block, it means
+            // the incoming block is old block, check if it is same as the stored block.
+            let stored_block = self.get_block(block.number)?;
+            if stored_block == *block {
+                return Ok(());
+            }
+            error!(
+                target: "supervisor_storage",
+                %stored_block,
+                incoming_block = %block,
+                "Incoming log block is not consistent with the stored log block",
+            );
+            return Err(StorageError::ConflictError(
+                "incoming log block is not consistent with the stored log block".to_string(),
+            ))
+        }
+
         if !latest_block.is_parent_of(block) {
             warn!(
                 target: "supervisor_storage",
@@ -144,7 +162,7 @@ where
 
         let (_, block) = result.ok_or_else(|| {
             warn!(target: "supervisor_storage", "No blocks found in storage");
-            StorageError::EntryNotFound("no blocks found".to_string())
+            StorageError::DatabaseNotInitialised
         })?;
         Ok(block.into())
     }
@@ -351,6 +369,17 @@ mod tests {
     }
 
     #[test]
+    fn test_get_latest_block_empty() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Failed to start RO tx");
+        let log_reader = LogProvider::new(&tx);
+
+        let result = log_reader.get_latest_block();
+        assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
+    }
+
+    #[test]
     fn test_storage_read_write_success() {
         let db = setup_db();
 
@@ -411,7 +440,7 @@ mod tests {
         let log_reader = LogProvider::new(&tx);
 
         let result = log_reader.get_latest_block();
-        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
+        assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
 
         // Initialize with genesis block
         let genesis = genesis_block();
@@ -452,5 +481,55 @@ mod tests {
 
         let result = insert_block_logs(&db, &block2, logs2);
         assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
+    }
+
+    #[test]
+    fn store_block_logs_skips_if_block_already_exists() {
+        let db = setup_db();
+        let genesis = genesis_block();
+        initialize_db(&db, &genesis).expect("Failed to initialize DB with genesis block");
+
+        let block1 = sample_block_info(1, genesis.hash);
+        let logs1 = vec![sample_log(0, false)];
+
+        // Store block1 for the first time
+        assert!(insert_block_logs(&db, &block1, logs1.clone()).is_ok());
+
+        // Try storing the same block again (should skip and succeed)
+        assert!(insert_block_logs(&db, &block1, logs1.clone()).is_ok());
+
+        // Try storing genesis block again (should skip and succeed)
+        assert!(insert_block_logs(&db, &genesis, Vec::new()).is_ok());
+
+        // Check that the logs are still present and correct
+        let tx = db.tx().expect("Failed to start RO tx");
+        let log_reader = LogProvider::new(&tx);
+        let logs = log_reader.get_logs(block1.number).expect("Should get logs");
+        assert_eq!(logs, logs1);
+    }
+
+    #[test]
+    fn store_block_logs_returns_conflict_if_block_exists_with_different_data() {
+        let db = setup_db();
+        let genesis = genesis_block();
+        initialize_db(&db, &genesis).expect("Failed to initialize DB with genesis block");
+
+        let block1 = sample_block_info(1, genesis.hash);
+        let logs1 = vec![sample_log(0, false)];
+        assert!(insert_block_logs(&db, &block1, logs1).is_ok());
+
+        // Try storing block1 again with a different hash (simulate conflict)
+        let mut block1_conflict = block1;
+        block1_conflict.hash = B256::from([0x22; 32]);
+        let logs1_conflict = vec![sample_log(0, false)];
+
+        let result = insert_block_logs(&db, &block1_conflict, logs1_conflict);
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+
+        // Try storing genesis block again with a different hash (simulate conflict)
+        let mut genesis_conflict = genesis;
+        genesis_conflict.hash = B256::from([0x33; 32]);
+        let result = insert_block_logs(&db, &genesis_conflict, Vec::new());
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 }

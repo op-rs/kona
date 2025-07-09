@@ -189,7 +189,7 @@ where
                 target: "supervisor_storage",
                 "No blocks found in storage"
             );
-            StorageError::EntryNotFound("no blocks found".to_string())
+            StorageError::DatabaseNotInitialised
         })?;
 
         let latest_source_block = self.latest_source_block().inspect_err(|err| {
@@ -561,7 +561,7 @@ mod tests {
         // First initialise
         assert!(initialize_db(&db, &anchor).is_ok());
         // Second initialise with the same anchor should succeed (idempotent)
-        assert!(initialize_db(&db, &anchor).is_ok());
+        assert!(insert_pair(&db, &anchor).is_ok());
     }
 
     #[test]
@@ -575,11 +575,11 @@ mod tests {
         assert!(initialize_db(&db, &anchor).is_ok());
 
         // Try to initialise with a different anchor (different hash)
-        let wrong_derived = block_info(1, B256::from([42u8; 32]), 200);
+        let wrong_derived = block_info(0, B256::from([42u8; 32]), 200);
         let wrong_anchor = derived_pair(source, wrong_derived);
 
-        let result = initialize_db(&db, &wrong_anchor);
-        assert!(matches!(result, Err(StorageError::InvalidAnchor)));
+        let result = insert_pair(&db, &wrong_anchor);
+        assert!(matches!(result, Err(StorageError::ConflictError(_))));
     }
 
     #[test]
@@ -769,6 +769,21 @@ mod tests {
     }
 
     #[test]
+    fn test_latest_derivation_state_empty_storage() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx);
+
+        let result = provider.latest_derivation_state();
+        print!("{:?}", result);
+        assert!(
+            matches!(result, Err(StorageError::DatabaseNotInitialised)),
+            "Should return DatabaseNotInitialised error when no derivation state exists"
+        );
+    }
+
+    #[test]
     fn test_latest_derivation_state_empty_source() {
         let db = setup_db();
 
@@ -801,7 +816,10 @@ mod tests {
 
         let tx = db.tx().expect("Could not get tx");
         let provider = DerivationProvider::new(&tx);
-        assert!(matches!(provider.latest_derivation_state(), Err(StorageError::EntryNotFound(_))));
+        assert!(matches!(
+            provider.latest_derivation_state(),
+            Err(StorageError::DatabaseNotInitialised)
+        ));
     }
 
     #[test]

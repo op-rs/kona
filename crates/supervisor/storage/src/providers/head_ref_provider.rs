@@ -45,33 +45,40 @@ impl<Tx> SafetyHeadRefProvider<'_, Tx>
 where
     Tx: DbTxMut + DbTx,
 {
-    pub(crate) fn initialise(&self, anchor: BlockInfo) -> Result<(), StorageError> {
-        match self.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
-            Ok(_) => Ok(()), // if it is set already, skip.
-            Err(StorageError::EntryNotFound(_)) => {
-                self.update_safety_head_ref(SafetyLevel::LocalUnsafe, &anchor)?;
-                self.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor)?;
-                self.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor)?;
-                self.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor)
-            }
-            Err(err) => Err(err),
-        }
-    }
+    /// Updates the safety head reference with the provided block info.
+    /// If the block info's number is less than the current head reference's number,
+    /// it will not update the head reference and will log a warning.
     pub(crate) fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,
-        block_info: &BlockInfo,
+        incoming_head_ref: &BlockInfo,
     ) -> Result<(), StorageError> {
-        self.tx.put::<SafetyHeadRefs>(safety_level.into(), (*block_info).into()).inspect_err(
-            |err| {
+        // Ensure the block_info.number is greater than the stored head reference
+        // If the head reference is not set, this check will be skipped.
+        if let Ok(current_head_ref) = self.get_safety_head_ref(safety_level) {
+            if current_head_ref.number > incoming_head_ref.number {
+                warn!(
+                    target: "supervisor_storage",
+                    %current_head_ref,
+                    %incoming_head_ref,
+                    %safety_level,
+                    "Attempting to update head reference with a block that has a lower number than the current head reference",
+                );
+                return Ok(());
+            }
+        }
+
+        self.tx
+            .put::<SafetyHeadRefs>(safety_level.into(), (*incoming_head_ref).into())
+            .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
+                    %incoming_head_ref,
                     %safety_level,
                     %err,
                     "Failed to store head reference"
                 )
-            },
-        )?;
+            })?;
         Ok(())
     }
 }

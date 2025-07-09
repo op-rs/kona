@@ -167,6 +167,7 @@ mod tests {
         pub Db {}
 
         impl LogStorageWriter for Db {
+            fn initialise_log_storage(&self, _block: BlockInfo) -> Result<(), StorageError>;
             fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError>;
         }
 
