@@ -13,9 +13,6 @@ extern crate tracing;
 mod metrics;
 pub use metrics::Metrics;
 
-mod net;
-pub use net::{Broadcast, Config, Network, NetworkBuilder, NetworkBuilderError};
-
 mod rpc;
 pub use rpc::{
     Connectedness, Direction, GossipScores, P2pRpcRequest, PeerCount, PeerDump, PeerInfo,

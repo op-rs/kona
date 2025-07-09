@@ -9,8 +9,8 @@ pub use error::{AuthenticationError, ManagedEventTaskError, ManagedNodeError, Su
 
 mod traits;
 pub use traits::{
-    ManagedNodeController, ManagedNodeDataProvider, ManagedNodeProvider, NodeSubscriber,
-    ReceiptProvider,
+    BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeProvider,
+    NodeSubscriber,
 };
 
 mod client;

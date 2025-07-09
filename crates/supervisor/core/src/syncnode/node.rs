@@ -17,8 +17,9 @@ use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
 use super::{
-    ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
-    NodeSubscriber, ReceiptProvider, SubscriptionError, resetter::Resetter, task::ManagedEventTask,
+    BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
+    ManagedNodeError, NodeSubscriber, SubscriptionError, resetter::Resetter,
+    task::ManagedEventTask,
 };
 use crate::event::ChainEvent;
 
@@ -154,14 +155,17 @@ where
     }
 }
 
-/// Implements [`ReceiptProvider`] for [`ManagedNode`] by delegating to the underlying WebSocket
+/// Implements [`BlockProvider`] for [`ManagedNode`] by delegating to the underlying WebSocket
 /// client.
 #[async_trait]
-impl<DB, C> ReceiptProvider for ManagedNode<DB, C>
+impl<DB, C> BlockProvider for ManagedNode<DB, C>
 where
     DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync + 'static,
     C: ManagedNodeClient + Send + Sync + 'static,
 {
+    async fn block_by_number(&self, number: u64) -> Result<BlockInfo, ManagedNodeError> {
+        self.client.block_ref_by_number(number).await
+    }
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
         self.client.fetch_receipts(block_hash).await
     }
