@@ -516,7 +516,7 @@ mod tests {
 
         let block1 = sample_block_info(1, genesis.hash);
         let logs1 = vec![sample_log(0, false)];
-        assert!(insert_block_logs(&db, &block1, logs1.clone()).is_ok());
+        assert!(insert_block_logs(&db, &block1, logs1).is_ok());
 
         // Try storing block1 again with a different hash (simulate conflict)
         let mut block1_conflict = block1;
