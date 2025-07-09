@@ -15,7 +15,7 @@ Kona now has a [monorepo](../archives/monorepo.md) structure that merged
 directories that hold a variety of crates themselves. As of the time at which
 this document was written the `kona` repository loosely looks like the following.
 
-```
+```ignore
 bins/
   -> client/
   -> host/

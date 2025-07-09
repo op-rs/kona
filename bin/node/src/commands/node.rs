@@ -9,7 +9,6 @@ use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_cli::metrics_args::MetricsArgs;
-use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -62,15 +61,6 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
-    /// Engine kind.
-    #[arg(
-        long,
-        visible_alias = "l2.enginekind",
-        default_value = "geth",
-        env = "KONA_NODE_L2_ENGINE_KIND",
-        help = "DEPRECATED. The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
-    )]
-    pub l2_engine_kind: EngineKind,
     /// Poll interval (in seconds) for reloading the runtime config.
     /// Provides a backup for when config events are not being picked up.
     /// Disabled if `0`.
@@ -109,7 +99,6 @@ impl Default for NodeCommand {
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
-            l2_engine_kind: EngineKind::Geth,
             supervisor_flags: SupervisorArgs::default(),
         }
     }
@@ -373,7 +362,6 @@ mod tests {
     #[test]
     fn test_node_cli_defaults() {
         let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
-        assert_eq!(args.l2_engine_kind, EngineKind::Geth);
         assert_eq!(args.l1_runtime_config_reload_interval, 600);
     }
 
@@ -386,13 +374,5 @@ mod tests {
                 .copied(),
         );
         assert_eq!(args.l1_runtime_config_reload_interval, 0);
-    }
-
-    #[test]
-    fn test_node_cli_engine_kind() {
-        let args = NodeCommand::parse_from(
-            ["node", "--l2.enginekind", "reth"].iter().chain(default_flags().iter()).copied(),
-        );
-        assert_eq!(args.l2_engine_kind, EngineKind::Reth);
     }
 }

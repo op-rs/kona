@@ -1,10 +1,10 @@
 //! Configuration for the `Network`.
 
-use crate::{discv5::LocalNode, gossip::GaterConfig};
 use alloy_primitives::Address;
 use alloy_signer_local::PrivateKeySigner;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
+use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use libp2p::{Multiaddr, identity::Keypair};
 use std::path::PathBuf;
@@ -12,7 +12,7 @@ use tokio::time::Duration;
 
 /// Configuration for kona's P2P stack.
 #[derive(Debug, Clone)]
-pub struct Config {
+pub struct NetworkConfig {
     /// Discovery Config.
     pub discovery_config: discv5::Config,
     /// The local node's advertised address to external peers.
@@ -48,12 +48,12 @@ pub struct Config {
     pub local_signer: Option<PrivateKeySigner>,
 }
 
-impl Config {
+impl NetworkConfig {
     const DEFAULT_DISCOVERY_INTERVAL: Duration = Duration::from_secs(5);
     const DEFAULT_DISCOVERY_RANDOMIZE: Option<Duration> = None;
 
-    /// Creates a new [`Config`] with the given [`RollupConfig`] with the minimum required fields.
-    /// Generates a random keypair for the node.
+    /// Creates a new [`NetworkConfig`] with the given [`RollupConfig`] with the minimum required
+    /// fields. Generates a random keypair for the node.
     pub fn new(
         rollup_config: RollupConfig,
         discovery_listen: LocalNode,

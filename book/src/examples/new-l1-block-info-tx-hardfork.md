@@ -18,7 +18,7 @@ types, namely the [`RollupConfig`][rc] and [`HardForkConfig`][hfc].
 First, add a timestamp field to the [`RollupConfig`][rc]. Let's use the
 hardfork name "Glacier" as an example.
 
-```rust
+```rust,ignore
 pub struct RollupConfig {
    ...
    /// `glacier_time` sets the activation time for the Glacier network upgrade.
@@ -34,7 +34,7 @@ Add an accessor on the [`RollupConfig`][rc] to provide a way of checking whether
 "Glacier" hardfork is active for a given timestamp. Also update the prior hardfork
 accessor to call this method (let's use "Isthmus" as the prior hardfork).
 
-```rust
+```rust,ignore
     /// Returns true if Isthmus is active at the given timestamp.
     pub fn is_isthmus_active(&self, timestamp: u64) -> bool {
         self.isthmus_time.map_or(false, |t| timestamp >= t) || self.is_glacier_active(timestamp)
@@ -48,7 +48,7 @@ accessor to call this method (let's use "Isthmus" as the prior hardfork).
 
 Lastly, add the "Glacier" timestamp to the [`HardForkConfig`][hfc].
 
-```rust
+```rust,ignore
 pub struct HardForkConfig {
     ...
     /// Glacier hardfork activation time
@@ -64,7 +64,7 @@ in [`kona_genesis::info` module][info-mod].
 
 This should include a few methods used in the `L1BlockInfoTx` later.
 
-```rust
+```rust,ignore
     pub fn encode_calldata(&self) -> Bytes { ... }
 
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> { ... }
@@ -75,7 +75,7 @@ for reference.
 
 Next, add the new "Glacier" variant to the [`L1BlockInfoTx`][info-tx].
 
-```rust
+```rust,ignore
 pub enum L1BlockInfoTx {
    ...
    Glacier(L1BlockInfoGlacier)

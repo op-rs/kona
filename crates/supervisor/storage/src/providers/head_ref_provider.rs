@@ -43,8 +43,20 @@ where
 
 impl<Tx> SafetyHeadRefProvider<'_, Tx>
 where
-    Tx: DbTxMut,
+    Tx: DbTxMut + DbTx,
 {
+    pub(crate) fn initialise(&self, anchor: BlockInfo) -> Result<(), StorageError> {
+        match self.get_safety_head_ref(SafetyLevel::LocalUnsafe) {
+            Ok(_) => Ok(()), // if it is set already, skip.
+            Err(StorageError::EntryNotFound(_)) => {
+                self.update_safety_head_ref(SafetyLevel::LocalUnsafe, &anchor)?;
+                self.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor)?;
+                self.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor)?;
+                self.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor)
+            }
+            Err(err) => Err(err),
+        }
+    }
     pub(crate) fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,

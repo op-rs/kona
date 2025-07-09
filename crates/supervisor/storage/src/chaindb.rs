@@ -73,13 +73,7 @@ impl ChainDb {
         self.env.update(|tx| {
             DerivationProvider::new(tx).initialise(anchor)?;
             LogProvider::new(tx).initialise(anchor.derived)?;
-
-            let sp = SafetyHeadRefProvider::new(tx);
-            // todo: cross check if we can consider following safety head ref update
-            sp.update_safety_head_ref(SafetyLevel::LocalUnsafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::CrossUnsafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::LocalSafe, &anchor.derived)?;
-            sp.update_safety_head_ref(SafetyLevel::CrossSafe, &anchor.derived)
+            SafetyHeadRefProvider::new(tx).initialise(anchor.derived)
         })?
     }
 }

@@ -35,7 +35,10 @@ pub use l1_watcher_rpc::{
 };
 
 mod network;
-pub use network::{NetworkActor, NetworkActorError, NetworkContext, NetworkInboundData};
+pub use network::{
+    NetworkActor, NetworkActorError, NetworkBuilder, NetworkBuilderError, NetworkConfig,
+    NetworkContext, NetworkDriver, NetworkDriverError, NetworkHandler, NetworkInboundData,
+};
 
 mod sequencer;
 pub use sequencer::{
