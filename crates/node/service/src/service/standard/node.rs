@@ -1,8 +1,8 @@
 //! Contains the [`RollupNode`] implementation.
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
-    L1WatcherRpcState, NetworkActor, NodeMode, RollupNodeBuilder, RollupNodeService, RpcActor,
-    RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
+    L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
+    RollupNodeService, RpcActor, RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
     actors::{RuntimeState, SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
@@ -12,7 +12,6 @@ use op_alloy_network::Optimism;
 use std::sync::Arc;
 
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, NetworkBuilder};
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
 };
@@ -36,8 +35,8 @@ pub struct RollupNode {
     pub(crate) engine_builder: EngineBuilder,
     /// The [`RpcBuilder`] for the node.
     pub(crate) rpc_builder: Option<RpcBuilder>,
-    /// The P2P [`Config`] for the node.
-    pub(crate) p2p_config: Config,
+    /// The P2P [`NetworkConfig`] for the node.
+    pub(crate) p2p_config: NetworkConfig,
     /// The [`RuntimeState`] for the runtime loading service.
     pub(crate) runtime_builder: Option<RuntimeState>,
     /// The supervisor rpc server config.

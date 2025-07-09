@@ -19,9 +19,10 @@ pub use actors::{
     EngineBuilder, EngineContext, EngineError, EngineInboundData, InboundDerivationMessage,
     L1OriginSelector, L1OriginSelectorError, L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError,
     L1WatcherRpcInboundChannels, L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError,
-    NetworkContext, NetworkInboundData, NodeActor, PipelineBuilder, RpcActor, RpcActorError,
-    RpcContext, RuntimeActor, RuntimeContext, RuntimeState, SequencerActor, SequencerActorError,
-    SequencerBuilder, SequencerContext, SequencerInboundData, SupervisorActor,
+    NetworkBuilder, NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver,
+    NetworkDriverError, NetworkHandler, NetworkInboundData, NodeActor, PipelineBuilder, RpcActor,
+    RpcActorError, RpcContext, RuntimeActor, RuntimeContext, RuntimeState, SequencerActor,
+    SequencerActorError, SequencerBuilder, SequencerContext, SequencerInboundData, SupervisorActor,
     SupervisorActorContext, SupervisorActorError, SupervisorExt, SupervisorInboundData,
     SupervisorRpcServerExt,
 };

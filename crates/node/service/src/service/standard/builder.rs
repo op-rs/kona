@@ -1,6 +1,8 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineBuilder, InteropMode, NodeMode, RollupNode, actors::RuntimeState};
+use crate::{
+    EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, actors::RuntimeState,
+};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -16,7 +18,6 @@ use tower::ServiceBuilder;
 use url::Url;
 
 use kona_genesis::RollupConfig;
-use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
 use kona_rpc::{RpcBuilder, SupervisorRpcConfig};
 
@@ -35,8 +36,8 @@ pub struct RollupNodeBuilder {
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
     jwt_secret: Option<JwtSecret>,
-    /// The [`Config`].
-    p2p_config: Option<Config>,
+    /// The [`NetworkConfig`].
+    p2p_config: Option<NetworkConfig>,
     /// An RPC Configuration.
     rpc_config: Option<RpcBuilder>,
     /// An RPC Configuration for the supervisor rpc.
@@ -95,8 +96,8 @@ impl RollupNodeBuilder {
         Self { jwt_secret: Some(jwt_secret), ..self }
     }
 
-    /// Appends the P2P [`Config`] to the builder.
-    pub fn with_p2p_config(self, config: Config) -> Self {
+    /// Appends the P2P [`NetworkConfig`] to the builder.
+    pub fn with_p2p_config(self, config: NetworkConfig) -> Self {
         Self { p2p_config: Some(config), ..self }
     }
 

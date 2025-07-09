@@ -84,7 +84,7 @@ naming consistent is discussed below.
 
 The new repository structure would look as follows.
 
-```
+```ignore
 crates/
   proof/
     mpt/
@@ -130,7 +130,7 @@ This crate will have a `Cargo.toml` that defines itself as `kona-genesis`.
 
 The contents of the `crates/protocol/genesis` directory will be
 
-```
+```ignore
 ../genesis/
   README.md
   Cargo.toml  <-- package.name = "kona-genesis"
