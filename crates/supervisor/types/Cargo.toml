@@ -33,9 +33,6 @@ op-alloy-consensus.workspace = true
 serde.workspace = true
 derive_more = { workspace = true, default-features = false, features = ["constructor"] }
 thiserror = {workspace = true}
-tokio = { workspace = true, features = ["sync", "macros", "time", "rt"] }
-tokio-util.workspace = true
-tracing.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
