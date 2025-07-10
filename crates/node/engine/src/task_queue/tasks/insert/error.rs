@@ -13,18 +13,12 @@ use op_alloy_rpc_types_engine::OpPayloadError;
 /// [InsertUnsafeTask]: crate::InsertUnsafeTask
 #[derive(Debug, thiserror::Error)]
 pub enum InsertUnsafeTaskError {
-    /// Could not fetch the finalized L2 block.
-    #[error("Could not fetch the finalized L2 block")]
-    FinalizedBlockFetch,
     /// Error converting a payload into a block.
     #[error(transparent)]
     FromBlockError(#[from] OpPayloadError),
     /// Failed to insert new payload.
     #[error("Failed to insert new payload: {0}")]
     InsertFailed(RpcError<TransportErrorKind>),
-    /// Failed to update the forkchoice.
-    #[error("Failed to update the forkchoice: {0}")]
-    ForkchoiceUpdateFailed(RpcError<TransportErrorKind>),
     /// Unexpected payload status
     #[error("Unexpected payload status: {0}")]
     UnexpectedPayloadStatus(PayloadStatusEnum),
@@ -39,11 +33,9 @@ pub enum InsertUnsafeTaskError {
 impl From<InsertUnsafeTaskError> for EngineTaskError {
     fn from(value: InsertUnsafeTaskError) -> Self {
         match value {
-            InsertUnsafeTaskError::FinalizedBlockFetch => Self::Temporary(Box::new(value)),
             InsertUnsafeTaskError::FromBlockError(_) => Self::Critical(Box::new(value)),
             InsertUnsafeTaskError::InsertFailed(_) => Self::Temporary(Box::new(value)),
-            InsertUnsafeTaskError::ForkchoiceUpdateFailed(_) => Self::Temporary(Box::new(value)),
-            InsertUnsafeTaskError::UnexpectedPayloadStatus(_) => Self::Temporary(Box::new(value)),
+            InsertUnsafeTaskError::UnexpectedPayloadStatus(_) => Self::Critical(Box::new(value)),
             InsertUnsafeTaskError::L2BlockInfoConstruction(_) => Self::Critical(Box::new(value)),
             InsertUnsafeTaskError::InconsistentForkchoiceState => Self::Reset(Box::new(value)),
         }

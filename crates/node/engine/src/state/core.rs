@@ -1,66 +1,26 @@
 //! The internal state of the engine controller.
 
-use crate::Metrics;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 
-/// The chain state viewed by the engine controller.
+/// The sync state of the engine.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct EngineState {
+pub struct EngineSyncState {
     /// Most recent block found on the p2p network
-    pub(crate) unsafe_head: L2BlockInfo,
+    unsafe_head: L2BlockInfo,
     /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
-    pub(crate) cross_unsafe_head: L2BlockInfo,
+    cross_unsafe_head: L2BlockInfo,
     /// Derived from L1, and known to be a completed span-batch,
     /// but not cross-verified yet.
-    pub(crate) local_safe_head: L2BlockInfo,
+    local_safe_head: L2BlockInfo,
     /// Derived from L1 and cross-verified to have cross-safe dependencies.
-    pub(crate) safe_head: L2BlockInfo,
+    safe_head: L2BlockInfo,
     /// Derived from finalized L1 data,
     /// and cross-verified to only have finalized dependencies.
-    pub(crate) finalized_head: L2BlockInfo,
-
-    /// Whether or not the EL has finished syncing.
-    pub el_sync_finished: bool,
-
-    /// If a forkchoice update call is needed.
-    pub forkchoice_update_needed: bool,
-
-    /// Track when the rollup node changes the forkchoice to restore previous
-    /// known unsafe chain. e.g. Unsafe Reorg caused by Invalid span batch.
-    /// This update does not retry except engine returns non-input error
-    /// because engine may forgot backupUnsafeHead or backupUnsafeHead is not part
-    /// of the chain.
-    pub need_fcu_call_backup_unsafe_reorg: bool,
+    finalized_head: L2BlockInfo,
 }
 
-impl EngineState {
-    /// Creates a `ForkchoiceState`
-    ///
-    /// - `head_block` = `unsafe_head`
-    /// - `safe_block` = `safe_head`
-    /// - `finalized_block` = `finalized_head`
-    ///
-    /// If the block info is not yet available, the default values are used.
-    pub const fn create_forkchoice_state(&self) -> ForkchoiceState {
-        ForkchoiceState {
-            head_block_hash: self.unsafe_head.block_info.hash,
-            safe_block_hash: self.safe_head.block_info.hash,
-            finalized_block_hash: self.finalized_head.block_info.hash,
-        }
-    }
-
-    /// Returns if consolidation is needed.
-    ///
-    /// [Consolidation] is only performed by a rollup node when the unsafe head
-    /// is ahead of the safe head. When the two are equal, consolidation isn't
-    /// required and the [`crate::BuildTask`] can be used to build the block.
-    ///
-    /// [Consolidation]: https://specs.optimism.io/protocol/derivation.html#l1-consolidation-payload-attributes-matching
-    pub fn needs_consolidation(&self) -> bool {
-        self.safe_head() != self.unsafe_head()
-    }
-
+impl EngineSyncState {
     /// Returns the current unsafe head.
     pub const fn unsafe_head(&self) -> L2BlockInfo {
         self.unsafe_head
@@ -86,60 +46,139 @@ impl EngineState {
         self.finalized_head
     }
 
-    /// Set the unsafe head.
-    pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
-        self.unsafe_head = unsafe_head;
-        self.forkchoice_update_needed = true;
-        Self::update_block_label_metric(Metrics::UNSAFE_BLOCK_LABEL, unsafe_head.block_info.number);
+    /// Creates a `ForkchoiceState`
+    ///
+    /// - `head_block` = `unsafe_head`
+    /// - `safe_block` = `safe_head`
+    /// - `finalized_block` = `finalized_head`
+    ///
+    /// If the block info is not yet available, the default values are used.
+    pub const fn create_forkchoice_state(&self) -> ForkchoiceState {
+        ForkchoiceState {
+            head_block_hash: self.unsafe_head.hash(),
+            safe_block_hash: self.safe_head.hash(),
+            finalized_block_hash: self.finalized_head.hash(),
+        }
     }
 
-    /// Set the cross-verified unsafe head.
-    pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
-        self.cross_unsafe_head = cross_unsafe_head;
-        Self::update_block_label_metric(
-            Metrics::CROSS_UNSAFE_BLOCK_LABEL,
-            cross_unsafe_head.block_info.number,
-        );
+    /// Applies the update to the provided sync state, using the current state values if the update
+    /// is not specified. Returns the new sync state.
+    pub fn apply_update(self, sync_state_update: EngineSyncStateUpdate) -> Self {
+        Self {
+            unsafe_head: sync_state_update.unsafe_head.unwrap_or(self.unsafe_head),
+            cross_unsafe_head: sync_state_update
+                .cross_unsafe_head
+                .unwrap_or(self.cross_unsafe_head),
+            local_safe_head: sync_state_update.local_safe_head.unwrap_or(self.local_safe_head),
+            safe_head: sync_state_update.safe_head.unwrap_or(self.safe_head),
+            finalized_head: sync_state_update.finalized_head.unwrap_or(self.finalized_head),
+        }
     }
+}
 
-    /// Set the local safe head.
-    pub fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
-        self.local_safe_head = local_safe_head;
-        Self::update_block_label_metric(
-            Metrics::LOCAL_SAFE_BLOCK_LABEL,
-            local_safe_head.block_info.number,
-        );
-    }
+/// Specifies how to update the sync state of the engine.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EngineSyncStateUpdate {
+    /// Most recent block found on the p2p network
+    pub unsafe_head: Option<L2BlockInfo>,
+    /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
+    pub cross_unsafe_head: Option<L2BlockInfo>,
+    /// Derived from L1, and known to be a completed span-batch,
+    /// but not cross-verified yet.
+    pub local_safe_head: Option<L2BlockInfo>,
+    /// Derived from L1 and cross-verified to have cross-safe dependencies.
+    pub safe_head: Option<L2BlockInfo>,
+    /// Derived from finalized L1 data,
+    /// and cross-verified to only have finalized dependencies.
+    pub finalized_head: Option<L2BlockInfo>,
+}
 
-    /// Set the safe head.
-    pub fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
-        self.safe_head = safe_head;
-        self.forkchoice_update_needed = true;
-        Self::update_block_label_metric(Metrics::SAFE_BLOCK_LABEL, safe_head.block_info.number);
-    }
+/// The chain state viewed by the engine controller.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EngineState {
+    /// The sync state of the engine.
+    pub sync_state: EngineSyncState,
 
-    /// Set the finalized head.
-    pub fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
-        self.finalized_head = finalized_head;
-        self.forkchoice_update_needed = true;
-        Self::update_block_label_metric(
-            Metrics::FINALIZED_BLOCK_LABEL,
-            finalized_head.block_info.number,
-        );
-    }
+    /// Whether or not the EL has finished syncing.
+    pub el_sync_finished: bool,
 
-    /// Updates a block label metric, keyed by the label.
-    fn update_block_label_metric(label: &'static str, number: u64) {
-        kona_macros::set!(gauge, Metrics::BLOCK_LABELS, "label", label, number as f64);
+    /// Track when the rollup node changes the forkchoice to restore previous
+    /// known unsafe chain. e.g. Unsafe Reorg caused by Invalid span batch.
+    /// This update does not retry except engine returns non-input error
+    /// because engine may forgot backupUnsafeHead or backupUnsafeHead is not part
+    /// of the chain.
+    pub need_fcu_call_backup_unsafe_reorg: bool,
+}
+
+impl EngineState {
+    /// Returns if consolidation is needed.
+    ///
+    /// [Consolidation] is only performed by a rollup node when the unsafe head
+    /// is ahead of the safe head. When the two are equal, consolidation isn't
+    /// required and the [`crate::BuildTask`] can be used to build the block.
+    ///
+    /// [Consolidation]: https://specs.optimism.io/protocol/derivation.html#l1-consolidation-payload-attributes-matching
+    pub fn needs_consolidation(&self) -> bool {
+        self.sync_state.safe_head() != self.sync_state.unsafe_head()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Metrics;
     use kona_protocol::BlockInfo;
     use metrics_exporter_prometheus::PrometheusBuilder;
     use rstest::rstest;
+
+    impl EngineState {
+        /// Set the unsafe head.
+        pub fn set_unsafe_head(&mut self, unsafe_head: L2BlockInfo) {
+            self.sync_state.unsafe_head = unsafe_head;
+            Self::update_block_label_metric(
+                Metrics::UNSAFE_BLOCK_LABEL,
+                unsafe_head.block_info.number,
+            );
+        }
+
+        /// Set the cross-verified unsafe head.
+        pub fn set_cross_unsafe_head(&mut self, cross_unsafe_head: L2BlockInfo) {
+            self.sync_state.cross_unsafe_head = cross_unsafe_head;
+            Self::update_block_label_metric(
+                Metrics::CROSS_UNSAFE_BLOCK_LABEL,
+                cross_unsafe_head.block_info.number,
+            );
+        }
+
+        /// Set the local safe head.
+        pub fn set_local_safe_head(&mut self, local_safe_head: L2BlockInfo) {
+            self.sync_state.local_safe_head = local_safe_head;
+            Self::update_block_label_metric(
+                Metrics::LOCAL_SAFE_BLOCK_LABEL,
+                local_safe_head.block_info.number,
+            );
+        }
+
+        /// Set the safe head.
+        pub fn set_safe_head(&mut self, safe_head: L2BlockInfo) {
+            self.sync_state.safe_head = safe_head;
+            Self::update_block_label_metric(Metrics::SAFE_BLOCK_LABEL, safe_head.block_info.number);
+        }
+
+        /// Set the finalized head.
+        pub fn set_finalized_head(&mut self, finalized_head: L2BlockInfo) {
+            self.sync_state.finalized_head = finalized_head;
+            Self::update_block_label_metric(
+                Metrics::FINALIZED_BLOCK_LABEL,
+                finalized_head.block_info.number,
+            );
+        }
+
+        /// Updates a block label metric, keyed by the label.
+        fn update_block_label_metric(label: &'static str, number: u64) {
+            kona_macros::set!(gauge, Metrics::BLOCK_LABELS, "label", label, number as f64);
+        }
+    }
 
     #[rstest]
     #[case::set_unsafe(EngineState::set_unsafe_head, Metrics::UNSAFE_BLOCK_LABEL, 1)]

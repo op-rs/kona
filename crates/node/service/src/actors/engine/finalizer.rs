@@ -70,6 +70,7 @@ impl L2Finalizer {
         if let Some((_, highest_safe_number)) = highest_safe {
             let task = EngineTask::Finalize(FinalizeTask::new(
                 engine_state.client.clone(),
+                engine_state.rollup.clone(),
                 *highest_safe_number,
             ));
             engine_state.engine.enqueue(task);
