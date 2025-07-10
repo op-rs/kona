@@ -1,5 +1,5 @@
 use super::{ManagedNodeClient, ManagedNodeError};
-use kona_protocol::BlockInfo;
+use alloy_eips::BlockNumHash;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader};
 use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
@@ -80,7 +80,7 @@ where
                 |err| error!(target: "resetter", %err, "Failed to get block by number"),
             )?;
 
-            // If the local safe ref hash matches the node safe ref hash, we can return the super
+            // If the local safe block matches the node block, we can return the super
             // head right away
             if node_block == local_safe {
                 super_head.local_unsafe = local_safe;
@@ -98,21 +98,31 @@ where
                 return Ok(super_head);
             }
 
-            // walk back the source blocks and check if latest derived block matches node block
+            // Get the source block for the current local safe, this helps to skip empty source
+            // blocks
             let source_block = self
                 .db_provider
                 .derived_to_source(local_safe.id())
                 .inspect_err(|err| error!(target: "resetter", %err, "Failed to get source block for the local safe head ref"))?;
 
-            let prev_source_block = BlockInfo {
-                number: source_block.number - 1,
-                hash: source_block.parent_hash,
-                ..source_block
-            };
+            // Get the previous source block id
+            let prev_source_id =
+                BlockNumHash { number: source_block.number - 1, hash: source_block.parent_hash };
 
+            // If the previous source block id is 0, we cannot reset further. This should not happen
+            // in prod, added for safety during dev environment.
+            if prev_source_id.number == 0 {
+                error!(target: "resetter", "Source block number is 0, cannot reset further");
+                return Err(ManagedNodeError::ResetFailed);
+            }
+
+            // Get the latest derived block at the previous source block, this helps to skip derived
+            // blocks. If this loop is executed, it means there is something wrong with
+            // derivation. Faster to go back source blocks than to go back derived
+            // blocks.
             local_safe = self
                 .db_provider
-                .latest_derived_block_at_source(prev_source_block.id())
+                .latest_derived_block_at_source(prev_source_id)
                 .inspect_err(|err| {
                     error!(target: "resetter", %err, "Failed to get latest derived block for the previous source block")
                 })?;
