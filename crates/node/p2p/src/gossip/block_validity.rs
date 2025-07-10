@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::SystemTime};
+use std::time::SystemTime;
 
 use alloy_consensus::Block;
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
