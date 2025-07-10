@@ -141,9 +141,9 @@ pub enum LogIndexerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syncnode::{AuthenticationError, ClientError};
     use alloy_primitives::{Address, B256, Bytes};
     use async_trait::async_trait;
-    use jsonrpsee::core::ClientError;
     use kona_interop::{ExecutingMessageBuilder, InteropProvider, SuperchainBuilder};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
@@ -271,7 +271,11 @@ mod tests {
 
         let mut mock_provider = MockBlockProvider::new();
         mock_provider.expect_fetch_receipts().withf(move |hash| *hash == block_hash).returning(
-            |_| Err(ManagedNodeError::Client(ClientError::Custom("forced error".to_string()))),
+            |_| {
+                Err(ManagedNodeError::Client(ClientError::Authentication(
+                    AuthenticationError::InvalidHeader,
+                )))
+            },
         );
 
         mock_provider.expect_block_by_number().returning(|_| Ok(BlockInfo::default())); // Not used

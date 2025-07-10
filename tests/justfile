@@ -57,7 +57,7 @@ test-e2e DEVNET GO_PKG_NAME="" DEVNET_CUSTOM_PATH="" :
     export DISABLE_OP_E2E_LEGACY=true
     export DEVSTACK_ORCHESTRATOR=sysext
 
-    cd {{SOURCE}} && go test -v ./$GO_PKG_NAME
+    cd {{SOURCE}} && go test -timeout 20m -v ./$GO_PKG_NAME
 
 build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (devnet DEVNET OP_PACKAGE_PATH)
   

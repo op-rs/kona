@@ -1,4 +1,4 @@
-use super::{AuthenticationError, ManagedNodeError, metrics::Metrics};
+use super::{AuthenticationError, ClientError, metrics::Metrics};
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_types_engine::{Claims, JwtSecret};
 use alloy_rpc_types_eth::BlockNumHash;
@@ -21,31 +21,26 @@ use tracing::{error, info};
 #[async_trait]
 pub trait ManagedNodeClient: Debug {
     /// Returns the [`ChainId`] of the managed node.
-    async fn chain_id(&self) -> Result<ChainId, ManagedNodeError>;
+    async fn chain_id(&self) -> Result<ChainId, ClientError>;
 
     /// Subscribes to [`SubscriptionEvent`] from the managed node.
-    async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ManagedNodeError>;
+    async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ClientError>;
 
     /// Fetches [`Receipts`] for a given block hash.
-    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError>;
 
     /// Fetches the [`OutputV0`] at a specific timestamp.
-    async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
+    async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
 
     /// Fetches the pending [`OutputV0`] at a specific timestamp.
-    async fn pending_output_v0_at_timestamp(
-        &self,
-        timestamp: u64,
-    ) -> Result<OutputV0, ManagedNodeError>;
+    async fn pending_output_v0_at_timestamp(&self, timestamp: u64)
+    -> Result<OutputV0, ClientError>;
 
     /// Fetches the L2 [`BlockInfo`] by timestamp.
-    async fn l2_block_ref_by_timestamp(
-        &self,
-        timestamp: u64,
-    ) -> Result<BlockInfo, ManagedNodeError>;
+    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ClientError>;
 
     /// Fetches the [`BlockInfo`] by block number.
-    async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ManagedNodeError>;
+    async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError>;
 
     /// Resets the node state with the provided block IDs.
     async fn reset(
@@ -55,29 +50,29 @@ pub trait ManagedNodeClient: Debug {
         local_safe_id: BlockNumHash,
         cross_safe_id: BlockNumHash,
         finalised_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError>;
+    ) -> Result<(), ClientError>;
 
     /// Provides L1 [`BlockInfo`] to the managed node.
-    async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ManagedNodeError>;
+    async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError>;
 
     /// Updates the finalized block ID in the managed node.
-    async fn update_finalized(
-        &self,
-        finalized_block_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError>;
+    async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ClientError>;
 
     /// Updates the cross-unsafe block ID in the managed node.
     async fn update_cross_unsafe(
         &self,
         cross_unsafe_block_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError>;
+    ) -> Result<(), ClientError>;
 
     /// Updates the cross-safe block ID in the managed node.
     async fn update_cross_safe(
         &self,
         source_block_id: BlockNumHash,
         derived_block_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError>;
+    ) -> Result<(), ClientError>;
+
+    /// Resets the ws-client to None when server disconnects
+    async fn reset_ws_client(&self);
 }
 
 /// [`ClientConfig`] sets the configuration for the managed node client.
@@ -134,7 +129,7 @@ impl Client {
     }
 
     /// Creates authentication headers using JWT secret.
-    fn create_auth_headers(&self) -> Result<HeaderMap, ManagedNodeError> {
+    fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
             return Err(AuthenticationError::InvalidJwt.into())
@@ -163,7 +158,7 @@ impl Client {
 
     /// Returns a reference to the WebSocket client, creating it if it doesn't exist.
     // todo: support http client as well
-    pub async fn get_ws_client(&self) -> Result<Arc<WsClient>, ManagedNodeError> {
+    pub async fn get_ws_client(&self) -> Result<Arc<WsClient>, ClientError> {
         let mut ws_client_guard = self.ws_client.lock().await;
         if ws_client_guard.is_none() {
             let headers = self.create_auth_headers().inspect_err(|err| {
@@ -182,7 +177,13 @@ impl Client {
 
 #[async_trait]
 impl ManagedNodeClient for Client {
-    async fn chain_id(&self) -> Result<ChainId, ManagedNodeError> {
+    async fn reset_ws_client(&self) {
+        let mut ws_client_guard = self.ws_client.lock().await;
+        if ws_client_guard.is_some() {
+            *ws_client_guard = None;
+        };
+    }
+    async fn chain_id(&self) -> Result<ChainId, ClientError> {
         if let Some(chain_id) = self.chain_id.get() {
             return Ok(*chain_id);
         }
@@ -210,7 +211,7 @@ impl ManagedNodeClient for Client {
         Ok(chain_id)
     }
 
-    async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ManagedNodeError> {
+    async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ClientError> {
         let client = self.get_ws_client().await?; // This returns ManagedNodeError, handled by your function
         let subscription = observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -226,7 +227,7 @@ impl ManagedNodeClient for Client {
         Ok(subscription)
     }
 
-    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError> {
+    async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError> {
         let client = self.get_ws_client().await?; // This returns ManagedNodeError, handled by your function
         let receipts = observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -242,7 +243,7 @@ impl ManagedNodeClient for Client {
         Ok(receipts)
     }
 
-    async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError> {
+    async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError> {
         let client = self.get_ws_client().await?;
         let output_v0 = observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -261,7 +262,7 @@ impl ManagedNodeClient for Client {
     async fn pending_output_v0_at_timestamp(
         &self,
         timestamp: u64,
-    ) -> Result<OutputV0, ManagedNodeError> {
+    ) -> Result<OutputV0, ClientError> {
         let client = self.get_ws_client().await?;
         let output_v0 = observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -277,10 +278,7 @@ impl ManagedNodeClient for Client {
         Ok(output_v0)
     }
 
-    async fn l2_block_ref_by_timestamp(
-        &self,
-        timestamp: u64,
-    ) -> Result<BlockInfo, ManagedNodeError> {
+    async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ClientError> {
         let client = self.get_ws_client().await?;
         let block_info = observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -296,7 +294,7 @@ impl ManagedNodeClient for Client {
         Ok(block_info)
     }
 
-    async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ManagedNodeError> {
+    async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError> {
         let client = self.get_ws_client().await?;
         let block_info = observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -319,7 +317,7 @@ impl ManagedNodeClient for Client {
         local_safe_id: BlockNumHash,
         cross_safe_id: BlockNumHash,
         finalised_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError> {
+    ) -> Result<(), ClientError> {
         let client = self.get_ws_client().await?;
         observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -334,7 +332,7 @@ impl ManagedNodeClient for Client {
         Ok(())
     }
 
-    async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ManagedNodeError> {
+    async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError> {
         let client = self.get_ws_client().await?;
         observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -349,10 +347,7 @@ impl ManagedNodeClient for Client {
         Ok(())
     }
 
-    async fn update_finalized(
-        &self,
-        finalized_block_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError> {
+    async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ClientError> {
         let client = self.get_ws_client().await?;
         observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -370,7 +365,7 @@ impl ManagedNodeClient for Client {
     async fn update_cross_unsafe(
         &self,
         cross_unsafe_block_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError> {
+    ) -> Result<(), ClientError> {
         let client = self.get_ws_client().await?;
         observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
@@ -389,7 +384,7 @@ impl ManagedNodeClient for Client {
         &self,
         source_block_id: BlockNumHash,
         derived_block_id: BlockNumHash,
-    ) -> Result<(), ManagedNodeError> {
+    ) -> Result<(), ClientError> {
         let client = self.get_ws_client().await?;
         observe_metrics_for_result_async!(
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,

@@ -8,6 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 /// [`ManagedEventTask`] sorts and processes individual events coming from a subscription.
@@ -17,6 +18,8 @@ pub(super) struct ManagedEventTask<DB, C> {
     client: Arc<C>,
     /// The URL of the L1 RPC endpoint to use for fetching L1 data
     l1_provider: RootProvider<Ethereum>,
+    /// Cancellation token to stop the task gracefully
+    cancel_token: CancellationToken,
     /// The resetter for handling node resets
     resetter: Arc<Resetter<DB, C>>,
     /// The channel to send the events to which require further processing e.g. db updates
@@ -33,9 +36,65 @@ where
         client: Arc<C>,
         l1_provider: RootProvider<Ethereum>,
         resetter: Arc<Resetter<DB, C>>,
+        cancel_token: CancellationToken,
         event_tx: mpsc::Sender<ChainEvent>,
     ) -> Self {
-        Self { client, l1_provider, resetter, event_tx }
+        Self { client, l1_provider, resetter, cancel_token, event_tx }
+    }
+
+    pub(super) async fn run(&self) -> Result<(), ManagedEventTaskError> {
+        let chain_id = self.client.chain_id().await?;
+
+        let mut subscription = self.client.subscribe_events().await.inspect_err(|err| {
+            error!(
+                target: "managed_event_task",
+                %chain_id,
+                %err,
+                "Failed to subscribe to events"
+            );
+        })?;
+
+        info!(target: "managed_event_task", %chain_id, "Subscription task started");
+        loop {
+            tokio::select! {
+                _ = self.cancel_token.cancelled() => {
+                    info!(target: "managed_event_task", %chain_id, "Cancellation token triggered, shutting down subscription");
+                    break;
+                }
+                incoming_event = subscription.next() => {
+                    match incoming_event {
+                        Some(Ok(subscription_event)) => {
+                            self.handle_managed_event(subscription_event.data).await;
+                        }
+                        Some(Err(err)) => {
+                            error!(
+                                target: "managed_event_task",
+                                %chain_id,
+                                %err,
+                                "Error in event deserialization"
+                            );
+                        }
+                        None => {
+                            warn!(target: "managed_event_task", %chain_id, "Subscription closed by server");
+                            self.client.reset_ws_client().await;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Err(err) = subscription.unsubscribe().await {
+            warn!(
+                target: "managed_event_task",
+                %chain_id,
+                %err,
+                "Failed to unsubscribe gracefully"
+            );
+        }
+
+        info!(target: "managed_event_task", %chain_id, "Subscription task finished");
+        Ok(())
     }
 
     /// Processes a managed event received from the subscription.
@@ -188,7 +247,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::ManagedNodeError;
+    use crate::syncnode::ClientError;
     use alloy_eips::BlockNumHash;
     use alloy_primitives::{B256, ChainId};
     use alloy_rpc_client::RpcClient;
@@ -229,18 +288,19 @@ mod tests {
 
         #[async_trait]
         impl ManagedNodeClient for ManagedNodeClient {
-            async fn chain_id(&self) -> Result<ChainId, ManagedNodeError>;
-            async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ManagedNodeError>;
-            async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
-            async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
-            async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
-            async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ManagedNodeError>;
-            async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ManagedNodeError>;
-            async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ManagedNodeError>;
-            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn chain_id(&self) -> Result<ChainId, ClientError>;
+            async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ClientError>;
+            async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError>;
+            async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
+            async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
+            async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ClientError>;
+            async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError>;
+            async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError>;
+            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn reset_ws_client(&self);
         }
     }
 
@@ -275,7 +335,8 @@ mod tests {
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let resetter = Arc::new(Resetter::new(client.clone(), db));
-        let task = ManagedEventTask::new(client, provider, resetter, tx);
+        let cancel_token = CancellationToken::new();
+        let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -325,7 +386,8 @@ mod tests {
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let resetter = Arc::new(Resetter::new(client.clone(), db));
-        let task = ManagedEventTask::new(client, provider, resetter, tx);
+        let cancel_token = CancellationToken::new();
+        let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -372,7 +434,8 @@ mod tests {
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let resetter = Arc::new(Resetter::new(client.clone(), db));
-        let task = ManagedEventTask::new(client, provider, resetter, tx);
+        let cancel_token = CancellationToken::new();
+        let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
         task.handle_managed_event(Some(managed_event)).await;
 
@@ -455,7 +518,8 @@ mod tests {
         let transport = MockTransport::new(asserter.clone());
         let provider = RootProvider::<Ethereum>::new(RpcClient::new(transport, false));
         let resetter = Arc::new(Resetter::new(client.clone(), db));
-        let task = ManagedEventTask::new(client, provider, resetter, tx);
+        let cancel_token = CancellationToken::new();
+        let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));

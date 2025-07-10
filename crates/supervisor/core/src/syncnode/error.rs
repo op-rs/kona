@@ -3,23 +3,15 @@ use kona_supervisor_storage::StorageError;
 use thiserror::Error;
 
 /// Represents various errors that can occur during node management,
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ManagedNodeError {
     /// Represents an error that occurred while starting the managed node.
     #[error(transparent)]
-    Client(#[from] jsonrpsee::core::ClientError),
-
-    /// Represents an error that occurred while parsing a chain ID from a string.
-    #[error(transparent)]
-    ChainIdParseError(#[from] std::num::ParseIntError),
+    Client(#[from] ClientError),
 
     /// Represents an error that occurred while subscribing to the managed node.
     #[error("subscription error: {0}")]
     Subscription(#[from] SubscriptionError),
-
-    /// Represents an error that occurred while authenticating to the managed node.
-    #[error("failed to authenticate: {0}")]
-    Authentication(#[from] AuthenticationError),
 
     /// Represents an error that occurred while fetching data from the storage.
     #[error(transparent)]
@@ -29,21 +21,6 @@ pub enum ManagedNodeError {
     #[error("failed to reset the managed node")]
     ResetFailed,
 }
-
-impl PartialEq for ManagedNodeError {
-    fn eq(&self, other: &Self) -> bool {
-        use ManagedNodeError::*;
-        match (self, other) {
-            (Client(a), Client(b)) => a.to_string() == b.to_string(),
-            (ChainIdParseError(a), ChainIdParseError(b)) => a == b,
-            (Subscription(a), Subscription(b)) => a == b,
-            (Authentication(a), Authentication(b)) => a == b,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for ManagedNodeError {}
 
 /// Error establishing authenticated connection to managed node.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -65,8 +42,12 @@ pub enum SubscriptionError {
 }
 
 /// Error handling managed event task.
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ManagedEventTaskError {
+    /// Represents an error that occurred while starting the managed node.
+    #[error(transparent)]
+    Client(#[from] ClientError),
+
     /// Unable to successfully fetch next L1 block.
     #[error("failed to get block by number, number: {0}")]
     GetBlockByNumberFailed(u64),
@@ -82,10 +63,6 @@ pub enum ManagedEventTaskError {
         parent: B256,
     },
 
-    /// This should never happen, new() always sets the rpc client when creating the task.
-    #[error("rpc client for managed node is not set")]
-    ManagedNodeClientMissing,
-
     /// Managed node api call failed.
     #[error("managed node api call failed")]
     ManagedNodeAPICallFailed,
@@ -94,3 +71,33 @@ pub enum ManagedEventTaskError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 }
+
+/// Represents errors that can occur while interacting with the managed node client.
+#[derive(Debug, Error)]
+pub enum ClientError {
+    /// Represents an error that occurred while starting the managed node.
+    #[error(transparent)]
+    Client(#[from] jsonrpsee::core::ClientError),
+
+    /// Represents an error that occurred while authenticating to the managed node.
+    #[error("failed to authenticate: {0}")]
+    Authentication(#[from] AuthenticationError),
+
+    /// Represents an error that occurred while parsing a chain ID from a string.
+    #[error(transparent)]
+    ChainIdParseError(#[from] std::num::ParseIntError),
+}
+
+impl PartialEq for ClientError {
+    fn eq(&self, other: &Self) -> bool {
+        use ClientError::*;
+        match (self, other) {
+            (Client(a), Client(b)) => a.to_string() == b.to_string(),
+            (Authentication(a), Authentication(b)) => a == b,
+            (ChainIdParseError(a), ChainIdParseError(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ClientError {}

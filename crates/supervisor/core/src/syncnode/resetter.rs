@@ -133,7 +133,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::{AuthenticationError, ManagedNodeError};
+    use crate::syncnode::{AuthenticationError, ClientError};
     use alloy_eips::BlockNumHash;
     use alloy_primitives::{B256, ChainId};
     use async_trait::async_trait;
@@ -167,18 +167,19 @@ mod tests {
 
         #[async_trait]
         impl ManagedNodeClient for Client {
-            async fn chain_id(&self) -> Result<ChainId, ManagedNodeError>;
-            async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ManagedNodeError>;
-            async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
-            async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
-            async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ManagedNodeError>;
-            async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ManagedNodeError>;
-            async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ManagedNodeError>;
-            async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ManagedNodeError>;
-            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn chain_id(&self) -> Result<ChainId, ClientError>;
+            async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ClientError>;
+            async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError>;
+            async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
+            async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
+            async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ClientError>;
+            async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError>;
+            async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError>;
+            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn reset_ws_client(&self);
         }
     }
 
@@ -230,9 +231,9 @@ mod tests {
         db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
-        client.expect_block_ref_by_number().returning(|_| {
-            Err(ManagedNodeError::Authentication(AuthenticationError::InvalidHeader))
-        });
+        client
+            .expect_block_ref_by_number()
+            .returning(|_| Err(ClientError::Authentication(AuthenticationError::InvalidHeader)));
 
         let resetter = Resetter::new(Arc::new(client), Arc::new(db));
 
@@ -300,7 +301,7 @@ mod tests {
         let mut client = MockClient::new();
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
         client.expect_reset().returning(|_, _, _, _, _| {
-            Err(ManagedNodeError::Authentication(AuthenticationError::InvalidJwt))
+            Err(ClientError::Authentication(AuthenticationError::InvalidJwt))
         });
 
         let resetter = Resetter::new(Arc::new(client), Arc::new(db));

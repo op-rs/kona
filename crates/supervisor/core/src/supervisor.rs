@@ -241,7 +241,10 @@ impl Supervisor {
             let provider = RootProvider::<Ethereum>::new_http(url);
             let client = Arc::new(Client::new(config.clone()));
 
-            let chain_id = client.chain_id().await?;
+            let chain_id = client.chain_id().await.map_err(|err| {
+                error!(target: "supervisor_service", %err, "Failed to get chain ID from client");
+                SupervisorError::Initialise("failed to get chain id from client".to_string())
+            })?;
             let db = self.database_factory.get_db(chain_id)?;
 
             let managed_node = ManagedNode::<ChainDb, Client>::new(

@@ -20,6 +20,7 @@ pub use access_list::{Access, AccessListError, parse_access_list};
 
 mod chain_id;
 mod types;
+
 pub use chain_id::HexChainId;
 
 pub use types::{BlockSeal, OutputV0, SubscriptionEvent};
