@@ -75,66 +75,47 @@ where
 
         let mut local_safe = super_head.local_safe;
 
-        let node_safe_ref =
-            self.client.block_ref_by_number(local_safe.number).await.inspect_err(
+        loop {
+            let node_block = self.client.block_ref_by_number(local_safe.number).await.inspect_err(
                 |err| error!(target: "resetter", %err, "Failed to get block by number"),
             )?;
 
-        // If the local safe ref hash matches the node safe ref hash, we can return the super head
-        // right away
-        if node_safe_ref.hash == local_safe.hash {
-            Ok(super_head)
-        } else {
-            error!(target: "resetter", "Local safe ref hash does not match node safe ref hash");
+            // If the local safe ref hash matches the node safe ref hash, we can return the super
+            // head right away
+            if node_block == local_safe {
+                super_head.local_unsafe = local_safe;
+                super_head.local_safe = local_safe;
+
+                for ref_block in [
+                    &mut super_head.finalized,
+                    &mut super_head.cross_safe,
+                    &mut super_head.cross_unsafe,
+                ] {
+                    if ref_block.number > local_safe.number {
+                        *ref_block = local_safe;
+                    }
+                }
+                return Ok(super_head);
+            }
 
             // walk back the source blocks and check if latest derived block matches node block
-            loop {
-                let source_block = self
-                    .db_provider
-                    .derived_to_source(local_safe.id())
-                    .inspect_err(|err| error!(target: "resetter", %err, "Failed to get source block for the local safe head ref"))?;
+            let source_block = self
+                .db_provider
+                .derived_to_source(local_safe.id())
+                .inspect_err(|err| error!(target: "resetter", %err, "Failed to get source block for the local safe head ref"))?;
 
-                let prev_source_block = BlockInfo {
-                    number: source_block.number - 1,
-                    hash: source_block.parent_hash,
-                    ..source_block
-                };
+            let prev_source_block = BlockInfo {
+                number: source_block.number - 1,
+                hash: source_block.parent_hash,
+                ..source_block
+            };
 
-                let prev_source_latest_derived = self
-                    .db_provider
-                    .latest_derived_block_at_source(prev_source_block.id())
-                    .inspect_err(|err| {
-                        error!(target: "resetter", %err, "Failed to get latest derived block for the previous source block")
-                    })?;
-
-                let node_block = self
-                    .client
-                    .block_ref_by_number(prev_source_latest_derived.number)
-                    .await
-                    .inspect_err(
-                        |err| error!(target: "resetter", %err, "Failed to get block by number"),
-                    )?;
-
-                // When we found a valid derived block, return super head with these modifications
-                if node_block.hash == prev_source_latest_derived.hash {
-                    super_head.local_unsafe = prev_source_latest_derived;
-                    super_head.local_safe = prev_source_latest_derived;
-
-                    for ref_block in [
-                        &mut super_head.finalized,
-                        &mut super_head.cross_safe,
-                        &mut super_head.cross_unsafe,
-                    ] {
-                        if ref_block.number > local_safe.number {
-                            *ref_block = prev_source_latest_derived;
-                        }
-                    }
-
-                    return Ok(super_head);
-                } else {
-                    local_safe = prev_source_latest_derived;
-                }
-            }
+            local_safe = self
+                .db_provider
+                .latest_derived_block_at_source(prev_source_block.id())
+                .inspect_err(|err| {
+                    error!(target: "resetter", %err, "Failed to get latest derived block for the previous source block")
+                })?;
         }
     }
 }
