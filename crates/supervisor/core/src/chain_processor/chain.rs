@@ -101,7 +101,7 @@ where
         // todo: figure out value for buffer size
         let (event_tx, event_rx) = mpsc::channel::<ChainEvent>(1000);
         self.event_tx = Some(event_tx.clone());
-        self.managed_node.clone().start_subscription(event_tx.clone()).await?;
+        self.managed_node.start_subscription(event_tx.clone()).await?;
 
         let mut task = ChainProcessorTask::new(
             self.rollup_config.clone(),
