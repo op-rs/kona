@@ -138,7 +138,7 @@ impl ChainConfig {
         RollupConfig {
             genesis: self.genesis,
             l1_chain_id: self.l1_chain_id,
-            l2_chain_id: self.chain_id,
+            l2_chain_id: self.chain_id.into(),
             block_time: self.block_time,
             seq_window_size: self.seq_window_size,
             max_sequencer_drift: self.max_sequencer_drift,

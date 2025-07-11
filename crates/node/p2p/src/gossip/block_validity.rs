@@ -170,7 +170,7 @@ impl BlockHandler {
         }
 
         // CHECK: The signature is valid.
-        let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id);
+        let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id.into());
         let block_signer = *self.signer_recv.borrow();
 
         // The block has a valid signature.
@@ -256,7 +256,9 @@ impl BlockHandler {
 
 #[cfg(test)]
 pub(crate) mod tests {
+
     use super::*;
+    use alloy_chains::Chain;
     use alloy_consensus::{Block, EMPTY_OMMER_ROOT_HASH};
     use alloy_eips::{eip2718::Encodable2718, eip4895::Withdrawal};
     use alloy_primitives::{Address, B256, Bytes, Signature};
@@ -377,7 +379,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -405,7 +407,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -433,7 +435,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -461,7 +463,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -486,7 +488,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -514,7 +516,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -568,7 +570,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -596,7 +598,7 @@ pub(crate) mod tests {
 
         let (_, unsafe_signer) = tokio::sync::watch::channel(Address::default());
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -624,7 +626,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -646,7 +648,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -671,7 +673,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -701,7 +703,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -731,7 +733,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -763,7 +765,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -794,7 +796,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -842,7 +844,7 @@ pub(crate) mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 

@@ -22,6 +22,7 @@ alloy-consensus.workspace = true
 alloy-eips.workspace = true
 alloy-hardforks.workspace = true
 alloy-op-hardforks.workspace = true
+alloy-chains = { workspace = true, features = ["serde", "arbitrary"] }
 
 # Misc
 thiserror.workspace = true

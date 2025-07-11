@@ -218,7 +218,7 @@ impl NodeCommand {
 
         info!(
             target: "rollup_node",
-            chain_id = cfg.l2_chain_id,
+            chain_id = cfg.l2_chain_id.id(),
             "Starting rollup node services"
         );
         for hf in cfg.hardforks.to_string().lines() {
