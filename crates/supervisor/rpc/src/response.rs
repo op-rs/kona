@@ -92,7 +92,7 @@ impl From<SuperHead> for SupervisorChainSyncStatus {
 pub struct ChainRootInfoRpc {
     /// The chain ID.
     #[serde(rename = "chainID", with = "alloy_serde::quantity")]
-    pub chain_id: u64,
+    pub chain_id: ChainId,
     /// The canonical output root of the latest canonical block at a particular timestamp.
     pub canonical: B256,
     /// The pending output root.
