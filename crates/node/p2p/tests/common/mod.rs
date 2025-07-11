@@ -1,5 +1,6 @@
 //! Shared code for integration tests.
 
+use alloy_chains::Chain;
 use alloy_primitives::Address;
 use kona_genesis::RollupConfig;
 use kona_p2p::{Behaviour, BlockHandler, ConnectionGater, GaterConfig, GossipDriver};
@@ -22,7 +23,7 @@ pub(crate) fn gossip_driver(port: u16) -> GossipDriver<ConnectionGater> {
     let unsafe_block_signer = Address::default();
     let (_, unsafe_block_signer_recv) = tokio::sync::watch::channel(unsafe_block_signer);
     let handler = BlockHandler::new(
-        RollupConfig { l2_chain_id: 10, ..Default::default() },
+        RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
         unsafe_block_signer_recv,
     );
     let behaviour = Behaviour::new(keypair.public(), config, &[Box::new(handler.clone())])
