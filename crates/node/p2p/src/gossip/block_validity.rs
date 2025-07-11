@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::SystemTime};
+use std::time::SystemTime;
 
 use alloy_consensus::Block;
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
@@ -160,14 +160,12 @@ impl BlockHandler {
                     block_hash: envelope.payload.block_hash(),
                 });
             }
-
-            seen_hashes_at_height.insert(envelope.payload.block_hash());
-        } else {
-            self.seen_hashes.insert(
-                envelope.payload.block_number(),
-                HashSet::from([envelope.payload.block_hash()]),
-            );
         }
+
+        self.seen_hashes
+            .entry(envelope.payload.block_number())
+            .or_default()
+            .insert(envelope.payload.block_hash());
 
         // CHECK: The signature is valid.
         let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id);
