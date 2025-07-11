@@ -1,12 +1,12 @@
 [package]
 name = "kona-cli"
 version = "0.2.0"
+description = "Shared CLI utilities for Kona crates"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-publish = false
 
 [lints]
 workspace = true
