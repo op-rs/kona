@@ -1,8 +1,9 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
-use super::{EngineTaskError, EngineTaskExt};
+use super::EngineTaskExt;
 use crate::{
     EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, ForkchoiceTask, Metrics,
+    task_queue::EngineTaskErrors,
 };
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
@@ -88,7 +89,8 @@ impl Engine {
             None,
         )
         .execute(&mut self.state)
-        .await?;
+        .await
+        .map_err(EngineTaskErrors::Forkchoice)?;
 
         // Find the new safe head's L1 origin and SystemConfig.
         let origin_block = start
@@ -128,7 +130,7 @@ impl Engine {
     /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
     /// an error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
-    pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
+    pub async fn drain(&mut self) -> Result<(), EngineTaskErrors> {
         // Drain tasks in order of priority, halting on errors for a retry to be attempted.
         while let Some(task) = self.tasks.peek() {
             // Execute the task
@@ -148,9 +150,9 @@ impl Engine {
 /// An error occurred while attempting to reset the [`Engine`].
 #[derive(Debug, Error)]
 pub enum EngineResetError {
-    /// An error that originated from within the engine task.
+    /// An error that originated from within an engine task.
     #[error(transparent)]
-    Task(#[from] EngineTaskError),
+    Task(#[from] EngineTaskErrors),
     /// An error occurred while traversing the L1 for the sync starting point.
     #[error(transparent)]
     SyncStart(#[from] SyncStartError),

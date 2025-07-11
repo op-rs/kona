@@ -2,11 +2,83 @@
 //!
 //! [`Engine`]: crate::Engine
 
-use super::{BuildTask, ConsolidateTask, FinalizeTask, ForkchoiceTask, InsertUnsafeTask};
-use crate::EngineState;
+use super::{BuildTask, ConsolidateTask, FinalizeTask, ForkchoiceTask, InsertTask};
+use crate::{
+    BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, ForkchoiceTaskError,
+    InsertTaskError,
+};
 use async_trait::async_trait;
 use std::cmp::Ordering;
 use thiserror::Error;
+
+/// The severity of an engine task error.
+///
+/// This is used to determine how to handle the error when draining the engine task queue.
+#[derive(Debug, PartialEq, Eq)]
+pub enum EngineTaskErrorSeverity {
+    /// The error is temporary and the task is retried.
+    Temporary,
+    /// The error is critical and is propagated to the engine actor.
+    Critical,
+    /// The error indicates that the engine should be reset.
+    Reset,
+    /// The error indicates that the engine should be flushed.
+    Flush,
+}
+
+/// The interface for an engine task error.
+///
+/// An engine task error should have an associated severity level to specify how to handle the error
+/// when draining the engine task queue.
+pub trait EngineTaskError {
+    /// The severity of the error.
+    fn severity(&self) -> EngineTaskErrorSeverity;
+}
+
+/// The interface for an engine task.
+#[async_trait]
+pub trait EngineTaskExt {
+    /// The output type of the task.
+    type Output;
+
+    /// The error type of the task.
+    type Error: EngineTaskError;
+
+    /// Executes the task, taking a shared lock on the engine state and `self`.
+    async fn execute(&self, state: &mut EngineState) -> Result<Self::Output, Self::Error>;
+}
+
+/// An error that may occur during an [`EngineTask`]'s execution.
+#[derive(Error, Debug)]
+pub enum EngineTaskErrors {
+    /// An error that occurred while updating the forkchoice state.
+    #[error(transparent)]
+    Forkchoice(#[from] ForkchoiceTaskError),
+    /// An error that occurred while inserting a block into the engine.
+    #[error(transparent)]
+    Insert(#[from] InsertTaskError),
+    /// An error that occurred while building a block.
+    #[error(transparent)]
+    Build(#[from] BuildTaskError),
+    /// An error that occurred while consolidating the engine state.
+    #[error(transparent)]
+    Consolidate(#[from] ConsolidateTaskError),
+    /// An error that occurred while finalizing an L2 block.
+    #[error(transparent)]
+    Finalize(#[from] FinalizeTaskError),
+}
+
+impl EngineTaskError for EngineTaskErrors {
+    fn severity(&self) -> EngineTaskErrorSeverity {
+        match self {
+            Self::Forkchoice(inner) => inner.severity(),
+            Self::Insert(inner) => inner.severity(),
+            Self::Build(inner) => inner.severity(),
+            Self::Consolidate(inner) => inner.severity(),
+            Self::Finalize(inner) => inner.severity(),
+        }
+    }
+}
 
 /// Tasks that may be inserted into and executed by the [`Engine`].
 ///
@@ -16,10 +88,10 @@ pub enum EngineTask {
     /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
     /// and no payload attributes.
     ForkchoiceUpdate(ForkchoiceTask),
-    /// Inserts an unsafe payload into the execution engine.
-    InsertUnsafe(InsertUnsafeTask),
+    /// Inserts a payload into the execution engine.
+    Insert(InsertTask),
     /// Builds a new block with the given attributes, and inserts it into the execution engine.
-    BuildBlock(BuildTask),
+    Build(BuildTask),
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
     Consolidate(ConsolidateTask),
@@ -29,14 +101,16 @@ pub enum EngineTask {
 
 impl EngineTask {
     /// Executes the task without consuming it.
-    async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskErrors> {
         match self.clone() {
-            Self::ForkchoiceUpdate(task) => task.execute(state).await.map(|_| ()),
-            Self::InsertUnsafe(task) => task.execute(state).await,
-            Self::BuildBlock(task) => task.execute(state).await,
-            Self::Consolidate(task) => task.execute(state).await,
-            Self::Finalize(task) => task.execute(state).await,
-        }
+            Self::ForkchoiceUpdate(task) => task.execute(state).await.map(|_| ())?,
+            Self::Insert(task) => task.execute(state).await?,
+            Self::Build(task) => task.execute(state).await?,
+            Self::Consolidate(task) => task.execute(state).await?,
+            Self::Finalize(task) => task.execute(state).await?,
+        };
+
+        Ok(())
     }
 }
 
@@ -45,8 +119,8 @@ impl PartialEq for EngineTask {
         matches!(
             (self, other),
             (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) |
-                (Self::InsertUnsafe(_), Self::InsertUnsafe(_)) |
-                (Self::BuildBlock(_), Self::BuildBlock(_)) |
+                (Self::Insert(_), Self::Insert(_)) |
+                (Self::Build(_), Self::Build(_)) |
                 (Self::Consolidate(_), Self::Consolidate(_)) |
                 (Self::Finalize(_), Self::Finalize(_))
         )
@@ -76,9 +150,9 @@ impl Ord for EngineTask {
         //   chain via derivation.
         match (self, other) {
             // Same variant cases
-            (Self::InsertUnsafe(_), Self::InsertUnsafe(_)) => Ordering::Equal,
+            (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,
             (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
-            (Self::BuildBlock(_), Self::BuildBlock(_)) => Ordering::Equal,
+            (Self::Build(_), Self::Build(_)) => Ordering::Equal,
             (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) => Ordering::Equal,
             (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
 
@@ -87,12 +161,12 @@ impl Ord for EngineTask {
             (_, Self::ForkchoiceUpdate(_)) => Ordering::Less,
 
             // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
-            (Self::BuildBlock(_), _) => Ordering::Greater,
-            (_, Self::BuildBlock(_)) => Ordering::Less,
+            (Self::Build(_), _) => Ordering::Greater,
+            (_, Self::Build(_)) => Ordering::Less,
 
             // InsertUnsafe tasks are prioritized over Consolidate and Finalize tasks
-            (Self::InsertUnsafe(_), _) => Ordering::Greater,
-            (_, Self::InsertUnsafe(_)) => Ordering::Less,
+            (Self::Insert(_), _) => Ordering::Greater,
+            (_, Self::Insert(_)) => Ordering::Less,
 
             // Consolidate tasks are prioritized over Finalize tasks
             (Self::Consolidate(_), _) => Ordering::Greater,
@@ -105,56 +179,31 @@ impl Ord for EngineTask {
 impl EngineTaskExt for EngineTask {
     type Output = ();
 
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    type Error = EngineTaskErrors;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), Self::Error> {
         // Retry the task until it succeeds or a critical error occurs.
         while let Err(e) = self.execute_inner(state).await {
-            match e {
-                EngineTaskError::Temporary(e) => {
+            match e.severity() {
+                EngineTaskErrorSeverity::Temporary => {
                     trace!(target: "engine", "{e}");
                     continue;
                 }
-                EngineTaskError::Critical(e) => {
+                EngineTaskErrorSeverity::Critical => {
                     error!(target: "engine", "{e}");
-                    return Err(EngineTaskError::Critical(e));
+                    return Err(e);
                 }
-                EngineTaskError::Reset(e) => {
+                EngineTaskErrorSeverity::Reset => {
                     warn!(target: "engine", "Engine requested derivation reset");
-                    return Err(EngineTaskError::Reset(e));
+                    return Err(e);
                 }
-                EngineTaskError::Flush(e) => {
+                EngineTaskErrorSeverity::Flush => {
                     warn!(target: "engine", "Engine requested derivation flush");
-                    return Err(EngineTaskError::Flush(e));
+                    return Err(e);
                 }
             }
         }
 
         Ok(())
     }
-}
-
-/// The interface for an engine task.
-#[async_trait]
-pub trait EngineTaskExt {
-    /// The output type of the task.
-    type Output;
-
-    /// Executes the task, taking a shared lock on the engine state and `self`.
-    async fn execute(&self, state: &mut EngineState) -> Result<Self::Output, EngineTaskError>;
-}
-
-/// An error that may occur during an [`EngineTask`]'s execution.
-#[derive(Error, Debug)]
-pub enum EngineTaskError {
-    /// A temporary error within the engine.
-    #[error("Temporary engine task error: {0}")]
-    Temporary(Box<dyn std::error::Error + Send + Sync>),
-    /// A critical error within the engine.
-    #[error("Critical engine task error: {0}")]
-    Critical(Box<dyn std::error::Error + Send + Sync>),
-    /// An error that requires a derivation pipeline reset.
-    #[error("Derivation pipeline reset required: {0}")]
-    Reset(Box<dyn std::error::Error + Send + Sync>),
-    /// An error that requires the derivation pipeline to be flushed.
-    #[error("Derivation pipeline flush required: {0}")]
-    Flush(Box<dyn std::error::Error + Send + Sync>),
 }
