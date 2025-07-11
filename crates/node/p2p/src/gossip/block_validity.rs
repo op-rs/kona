@@ -143,6 +143,13 @@ impl BlockHandler {
         // CHECK: The payload is valid for the specific version of this block.
         Self::validate_version_specific_payload(envelope)?;
 
+        // Validate signature first
+        let msg = envelope.payload_hash.signature_message(self.rollup_config.l1_chain_id);
+        let _msg_signer = envelope
+            .signature
+            .recover_address_from_msg(&msg)
+            .map_err(|_| BlockInvalidError::Signature)?;
+
         if let Some(seen_hashes_at_height) =
             self.seen_hashes.get_mut(&envelope.payload.block_number())
         {
