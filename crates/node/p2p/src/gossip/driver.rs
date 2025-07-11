@@ -232,7 +232,7 @@ where
         let validation =
             EnrValidation::validate(&enr, self.handler.rollup_config.l2_chain_id.into());
         if validation.is_invalid() {
-            trace!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.rollup_config.l2_chain_id, validation);
+            trace!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.rollup_config.l2_chain_id.id(), validation);
             return;
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
