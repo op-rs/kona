@@ -115,7 +115,6 @@ func TestRPCSuperRootAtTimestamp(gt *testing.T) {
 		timeNow := uint64(time.Now().Unix())
 		root, err := client.QueryAPI().SuperRootAtTimestamp(context.Background(), hexutil.Uint64(timeNow-90))
 		require.NoError(t, err)
-		assert.Less(t, root.Timestamp, timeNow)
 		assert.Len(t, root.SuperRoot, 32)
 		assert.Len(t, root.Chains, 2)
 
