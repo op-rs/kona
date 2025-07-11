@@ -1,8 +1,8 @@
 //! A task for the `engine_forkchoiceUpdated` method, with no attributes.
 
 use crate::{
-    EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskError, EngineTaskExt,
-    ForkchoiceTaskError, Metrics, state::EngineSyncStateUpdate,
+    EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskExt, ForkchoiceTaskError,
+    Metrics, state::EngineSyncStateUpdate,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{INVALID_FORK_CHOICE_STATE_ERROR, PayloadId, PayloadStatusEnum};
@@ -79,8 +79,9 @@ impl ForkchoiceTask {
 #[async_trait]
 impl EngineTaskExt for ForkchoiceTask {
     type Output = Option<PayloadId>;
+    type Error = ForkchoiceTaskError;
 
-    async fn execute(&self, state: &mut EngineState) -> Result<Self::Output, EngineTaskError> {
+    async fn execute(&self, state: &mut EngineState) -> Result<Self::Output, ForkchoiceTaskError> {
         // Apply the sync state update to the engine state.
         let new_sync_state = state.sync_state.apply_update(self.state_update);
 
@@ -93,7 +94,7 @@ impl EngineTaskExt for ForkchoiceTask {
             state.sync_state == new_sync_state &&
             self.envelope.is_none()
         {
-            return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded.into());
+            return Err(ForkchoiceTaskError::NoForkchoiceUpdateNeeded);
         }
 
         // Check if the head is behind the finalized head.
@@ -103,8 +104,7 @@ impl EngineTaskExt for ForkchoiceTask {
             return Err(ForkchoiceTaskError::FinalizedAheadOfUnsafe(
                 new_sync_state.unsafe_head().block_info.number,
                 new_sync_state.finalized_head().block_info.number,
-            )
-            .into());
+            ));
         }
 
         let fcu_time_start = Instant::now();

@@ -1,6 +1,9 @@
 //! Contains error types for the [`crate::ConsolidateTask`].
 
-use crate::EngineTaskError;
+use crate::{
+    BuildTaskError, EngineTaskError, ForkchoiceTaskError,
+    task_queue::tasks::task::EngineTaskErrorSeverity,
+};
 use thiserror::Error;
 
 /// An error that occurs when running the [`crate::ConsolidateTask`].
@@ -12,13 +15,21 @@ pub enum ConsolidateTaskError {
     /// Failed to fetch the unsafe L2 block.
     #[error("Failed to fetch the unsafe L2 block")]
     FailedToFetchUnsafeL2Block,
+    /// The build task failed.
+    #[error(transparent)]
+    BuildTaskFailed(#[from] BuildTaskError),
+    /// The consolidation forkchoice update call to the engine api failed.
+    #[error(transparent)]
+    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
 }
 
-impl From<ConsolidateTaskError> for EngineTaskError {
-    fn from(value: ConsolidateTaskError) -> Self {
-        match value {
-            ConsolidateTaskError::MissingUnsafeL2Block(_) => Self::Reset(Box::new(value)),
-            ConsolidateTaskError::FailedToFetchUnsafeL2Block => Self::Temporary(Box::new(value)),
+impl EngineTaskError for ConsolidateTaskError {
+    fn severity(&self) -> EngineTaskErrorSeverity {
+        match self {
+            Self::MissingUnsafeL2Block(_) => EngineTaskErrorSeverity::Reset,
+            Self::FailedToFetchUnsafeL2Block => EngineTaskErrorSeverity::Temporary,
+            Self::BuildTaskFailed(inner) => inner.severity(),
+            Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
         }
     }
 }

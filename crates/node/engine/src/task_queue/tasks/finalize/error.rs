@@ -1,6 +1,8 @@
 //! Contains error types for the [crate::FinalizeTask].
 
-use crate::EngineTaskError;
+use crate::{
+    EngineTaskError, ForkchoiceTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
+};
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
 use thiserror::Error;
@@ -22,15 +24,19 @@ pub enum FinalizeTaskError {
     /// A temporary RPC failure.
     #[error(transparent)]
     TransportError(#[from] RpcError<TransportErrorKind>),
+    /// The forkchoice update call to finalize the block failed.
+    #[error(transparent)]
+    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
 }
 
-impl From<FinalizeTaskError> for EngineTaskError {
-    fn from(value: FinalizeTaskError) -> Self {
-        match value {
-            FinalizeTaskError::BlockNotSafe => Self::Critical(Box::new(value)),
-            FinalizeTaskError::BlockNotFound(_) => Self::Critical(Box::new(value)),
-            FinalizeTaskError::FromBlock(_) => Self::Critical(Box::new(value)),
-            FinalizeTaskError::TransportError(_) => Self::Temporary(Box::new(value)),
+impl EngineTaskError for FinalizeTaskError {
+    fn severity(&self) -> EngineTaskErrorSeverity {
+        match self {
+            Self::BlockNotSafe => EngineTaskErrorSeverity::Critical,
+            Self::BlockNotFound(_) => EngineTaskErrorSeverity::Critical,
+            Self::FromBlock(_) => EngineTaskErrorSeverity::Critical,
+            Self::TransportError(_) => EngineTaskErrorSeverity::Temporary,
+            Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
         }
     }
 }

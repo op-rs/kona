@@ -1,8 +1,8 @@
 //! A task for finalizing an L2 block.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskError, EngineTaskExt, FinalizeTaskError, ForkchoiceTask,
-    Metrics, state::EngineSyncStateUpdate,
+    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, ForkchoiceTask, Metrics,
+    state::EngineSyncStateUpdate,
 };
 use alloy_provider::Provider;
 use async_trait::async_trait;
@@ -33,10 +33,12 @@ impl FinalizeTask {
 impl EngineTaskExt for FinalizeTask {
     type Output = ();
 
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    type Error = FinalizeTaskError;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), FinalizeTaskError> {
         // Sanity check that the block that is being finalized is at least safe.
         if state.sync_state.safe_head().block_info.number < self.block_number {
-            return Err(FinalizeTaskError::BlockNotSafe.into());
+            return Err(FinalizeTaskError::BlockNotSafe);
         }
 
         let block_fetch_start = Instant::now();

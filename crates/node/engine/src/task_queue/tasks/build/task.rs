@@ -1,15 +1,13 @@
 //! A task for building a new block and importing it.
-
 use super::BuildTaskError;
 use crate::{
-    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskError, EngineTaskExt,
-    ForkchoiceTask, Metrics, state::EngineSyncStateUpdate,
+    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, ForkchoiceTask,
+    ForkchoiceTaskError, InsertTask,
+    InsertTaskError::{self},
+    Metrics,
+    state::EngineSyncStateUpdate,
 };
-use alloy_provider::ext::EngineApi;
-use alloy_rpc_types_engine::{
-    ExecutionPayloadFieldV2, ExecutionPayloadInputV2, PayloadId, PayloadStatusEnum,
-};
-use alloy_transport::RpcError;
+use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
@@ -46,8 +44,7 @@ impl BuildTask {
         Self { engine, cfg, attributes, is_attributes_derived, payload_tx }
     }
 
-    /// Fetches the execution payload from the EL and imports it into the engine via
-    /// `engine_newPayload`.
+    /// Fetches the execution payload from the EL.
     ///
     /// ## Engine Method Selection
     /// The method used to fetch the payload from the EL is determined by the payload timestamp. The
@@ -56,14 +53,13 @@ impl BuildTask {
     /// - `engine_getPayloadV2` is used for payloads with a timestamp before the Ecotone fork.
     /// - `engine_getPayloadV3` is used for payloads with a timestamp after the Ecotone fork.
     /// - `engine_getPayloadV4` is used for payloads with a timestamp after the Isthmus fork.
-    async fn fetch_and_import_payload(
+    async fn fetch_payload(
         &self,
-        state: &mut EngineState,
         cfg: &RollupConfig,
         engine: &EngineClient,
         payload_id: PayloadId,
         payload_attrs: OpAttributesWithParent,
-    ) -> Result<(OpExecutionPayloadEnvelope, L2BlockInfo), BuildTaskError> {
+    ) -> Result<OpExecutionPayloadEnvelope, BuildTaskError> {
         let payload_timestamp = payload_attrs.inner().payload_attributes.timestamp;
 
         debug!(
@@ -74,148 +70,47 @@ impl BuildTask {
         );
 
         let get_payload_version = EngineGetPayloadVersion::from_cfg(cfg, payload_timestamp);
-        let (payload_envelope, response) = match get_payload_version {
+        let payload_envelope = match get_payload_version {
             EngineGetPayloadVersion::V4 => {
                 let payload = engine.get_payload_v4(payload_id).await.map_err(|e| {
                     error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
-                let response = engine
-                    .new_payload_v4(
-                        payload.execution_payload.clone(),
-                        payload.parent_beacon_block_root,
-                    )
-                    .await
-                    .map_err(|e| {
-                        error!(target: "engine_builder", "Payload import failed: {e}");
-                        BuildTaskError::NewPayloadFailed(e)
-                    })?;
 
-                (
-                    OpExecutionPayloadEnvelope {
-                        parent_beacon_block_root: Some(payload.parent_beacon_block_root),
-                        payload: OpExecutionPayload::V4(payload.execution_payload),
-                    },
-                    response,
-                )
+                OpExecutionPayloadEnvelope {
+                    parent_beacon_block_root: Some(payload.parent_beacon_block_root),
+                    payload: OpExecutionPayload::V4(payload.execution_payload),
+                }
             }
             EngineGetPayloadVersion::V3 => {
                 let payload = engine.get_payload_v3(payload_id).await.map_err(|e| {
                     error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
-                let response = engine
-                    .new_payload_v3(
-                        payload.execution_payload.clone(),
-                        payload.parent_beacon_block_root,
-                    )
-                    .await
-                    .map_err(|e| {
-                        error!(target: "engine_builder", "Payload import failed: {e}");
-                        BuildTaskError::NewPayloadFailed(e)
-                    })?;
 
-                (
-                    OpExecutionPayloadEnvelope {
-                        parent_beacon_block_root: Some(payload.parent_beacon_block_root),
-                        payload: OpExecutionPayload::V3(payload.execution_payload),
-                    },
-                    response,
-                )
+                OpExecutionPayloadEnvelope {
+                    parent_beacon_block_root: Some(payload.parent_beacon_block_root),
+                    payload: OpExecutionPayload::V3(payload.execution_payload),
+                }
             }
             EngineGetPayloadVersion::V2 => {
                 let payload = engine.get_payload_v2(payload_id).await.map_err(|e| {
                     error!(target: "engine_builder", "Payload fetch failed: {e}");
                     BuildTaskError::GetPayloadFailed(e)
                 })?;
-                match payload.execution_payload {
-                    ExecutionPayloadFieldV2::V2(payload) => {
-                        let payload_input = ExecutionPayloadInputV2 {
-                            execution_payload: payload.payload_inner.clone(),
-                            withdrawals: Some(payload.withdrawals.clone()),
-                        };
-                        let response = engine.new_payload_v2(payload_input).await.map_err(|e| {
-                            error!(target: "engine_builder", "Payload import failed: {e}");
-                            BuildTaskError::NewPayloadFailed(e)
-                        })?;
 
-                        (
-                            OpExecutionPayloadEnvelope {
-                                parent_beacon_block_root: None,
-                                payload: OpExecutionPayload::V2(payload),
-                            },
-                            response,
-                        )
-                    }
-                    ExecutionPayloadFieldV2::V1(payload) => {
-                        let response =
-                            engine.new_payload_v1(payload.clone()).await.map_err(|e| {
-                                error!(target: "engine_builder", "Payload import failed: {e}");
-                                BuildTaskError::NewPayloadFailed(e)
-                            })?;
-
-                        (
-                            OpExecutionPayloadEnvelope {
-                                parent_beacon_block_root: None,
-                                payload: OpExecutionPayload::V1(payload),
-                            },
-                            response,
-                        )
-                    }
+                OpExecutionPayloadEnvelope {
+                    parent_beacon_block_root: None,
+                    payload: match payload.execution_payload.into_payload() {
+                        ExecutionPayload::V1(payload) => OpExecutionPayload::V1(payload),
+                        ExecutionPayload::V2(payload) => OpExecutionPayload::V2(payload),
+                        _ => unreachable!("the response should be a V1 or V2 payload"),
+                    },
                 }
             }
         };
 
-        match response.status {
-            PayloadStatusEnum::Valid | PayloadStatusEnum::Syncing => {
-                debug!(target: "engine_builder", "Payload import successful");
-
-                Ok((
-                    payload_envelope.clone(),
-                    L2BlockInfo::from_payload_and_genesis(
-                        payload_envelope.payload,
-                        payload_attrs.inner().payload_attributes.parent_beacon_block_root,
-                        &cfg.genesis,
-                    )?,
-                ))
-            }
-            PayloadStatusEnum::Invalid { validation_error } => {
-                if payload_attrs.is_deposits_only() {
-                    error!(target: "engine_builder", "Critical: Deposit-only payload import failed: {validation_error}");
-                    Err(BuildTaskError::DepositOnlyPayloadFailed)
-                } else if cfg.is_holocene_active(payload_attrs.inner().payload_attributes.timestamp)
-                {
-                    warn!(target: "engine_builder", "Payload import failed: {validation_error}");
-                    warn!(target: "engine_builder", "Re-attempting payload import with deposits only.");
-                    // HOLOCENE: Re-attempt payload import with deposits only
-                    match Self::new(
-                        self.engine.clone(),
-                        self.cfg.clone(),
-                        self.attributes.as_deposits_only(),
-                        self.is_attributes_derived,
-                        self.payload_tx.clone(),
-                    )
-                    .execute(state)
-                    .await
-                    {
-                        Ok(_) => {
-                            info!(target: "engine_builder", "Successfully imported deposits-only payload")
-                        }
-                        Err(_) => return Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
-                    }
-                    Err(BuildTaskError::HoloceneInvalidFlush)
-                } else {
-                    error!(target: "engine_builder", "Payload import failed: {validation_error}");
-                    Err(BuildTaskError::NewPayloadFailed(RpcError::local_usage_str(
-                        &validation_error,
-                    )))
-                }
-            }
-            s => {
-                // Other codes are never returned by `engine_newPayload`
-                Err(BuildTaskError::UnexpectedPayloadStatus(s))
-            }
-        }
+        Ok(payload_envelope)
     }
 }
 
@@ -223,7 +118,9 @@ impl BuildTask {
 impl EngineTaskExt for BuildTask {
     type Output = ();
 
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    type Error = BuildTaskError;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), BuildTaskError> {
         debug!(
             target: "engine_builder",
             txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
@@ -247,34 +144,71 @@ impl EngineTaskExt for BuildTask {
         .ok_or(BuildTaskError::MissingPayloadId)?;
         let fcu_duration = fcu_start_time.elapsed();
 
-        // Fetch the payload from the EL and import it into the engine.
+        // Fetch the payload just inserted from the EL and import it into the engine.
         let block_import_start_time = Instant::now();
-        let (new_payload, new_block_ref) = self
-            .fetch_and_import_payload(
-                state,
-                &self.cfg,
-                &self.engine,
-                payload_id,
-                self.attributes.clone(),
-            )
+        let new_payload = self
+            .fetch_payload(&self.cfg, &self.engine, payload_id, self.attributes.clone())
             .await?;
-        let block_import_duration = block_import_start_time.elapsed();
 
-        // Send a FCU to canonicalize the imported block.
-        ForkchoiceTask::new(
+        let new_block_ref = L2BlockInfo::from_payload_and_genesis(
+            new_payload.payload.clone(),
+            self.attributes.inner().payload_attributes.parent_beacon_block_root,
+            &self.cfg.genesis,
+        )
+        .map_err(BuildTaskError::FromBlock)?;
+
+        // Insert the new block into the engine.
+        match InsertTask::new(
             Arc::clone(&self.engine),
             self.cfg.clone(),
-            EngineSyncStateUpdate {
-                unsafe_head: Some(new_block_ref),
-                cross_unsafe_head: Some(new_block_ref),
-                local_safe_head: self.is_attributes_derived.then_some(new_block_ref),
-                safe_head: self.is_attributes_derived.then_some(new_block_ref),
-                ..Default::default()
-            },
-            None,
+            new_payload.clone(),
+            self.is_attributes_derived,
         )
         .execute(state)
-        .await?;
+        .await
+        {
+            Err(InsertTaskError::ForkchoiceUpdateFailed(
+                ForkchoiceTaskError::InvalidPayloadStatus(e),
+            )) if self.attributes.is_deposits_only() => {
+                error!(target: "engine_builder", error = ?e, "Critical: Deposit-only payload import failed");
+                return Err(BuildTaskError::DepositOnlyPayloadFailed)
+            }
+            // HOLOCENE: Re-attempt payload import with deposits only
+            Err(InsertTaskError::ForkchoiceUpdateFailed(
+                ForkchoiceTaskError::InvalidPayloadStatus(e),
+            )) if self
+                .cfg
+                .is_holocene_active(self.attributes.inner().payload_attributes.timestamp) =>
+            {
+                warn!(target: "engine_builder", error = ?e, "Re-attempting payload import with deposits only.");
+                // HOLOCENE: Re-attempt payload import with deposits only
+                match Self::new(
+                    self.engine.clone(),
+                    self.cfg.clone(),
+                    self.attributes.as_deposits_only(),
+                    self.is_attributes_derived,
+                    self.payload_tx.clone(),
+                )
+                .execute(state)
+                .await
+                {
+                    Ok(_) => {
+                        info!(target: "engine_builder", "Successfully imported deposits-only payload")
+                    }
+                    Err(_) => return Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
+                }
+                return Err(BuildTaskError::HoloceneInvalidFlush)
+            }
+            Err(e) => {
+                error!(target: "engine_builder", "Payload import failed: {e}");
+                return Err(e.into())
+            }
+            Ok(_) => {
+                info!(target: "engine_builder", "Successfully imported payload")
+            }
+        }
+
+        let block_import_duration = block_import_start_time.elapsed();
 
         // If a channel was provided, send the built payload envelope to it.
         if let Some(tx) = &self.payload_tx {

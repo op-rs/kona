@@ -1,8 +1,8 @@
 //! A task to insert an unsafe payload into the execution engine.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskError, EngineTaskExt, ForkchoiceTask,
-    InsertUnsafeTaskError, Metrics, state::EngineSyncStateUpdate,
+    EngineClient, EngineState, EngineTaskExt, ForkchoiceTask, InsertTaskError, Metrics,
+    state::EngineSyncStateUpdate,
 };
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
 use alloy_provider::ext::EngineApi;
@@ -19,25 +19,29 @@ use op_alloy_rpc_types_engine::{
 };
 use std::{sync::Arc, time::Instant};
 
-/// The task to insert an unsafe payload into the execution engine.
+/// The task to insert a payload into the execution engine.
 #[derive(Debug, Clone)]
-pub struct InsertUnsafeTask {
+pub struct InsertTask {
     /// The engine client.
     client: Arc<EngineClient>,
     /// The rollup config.
     rollup_config: Arc<RollupConfig>,
     /// The network payload envelope.
     envelope: OpExecutionPayloadEnvelope,
+    /// If the payload is safe this is true.
+    /// A payload is safe if it is derived from a safe block.
+    is_payload_safe: bool,
 }
 
-impl InsertUnsafeTask {
+impl InsertTask {
     /// Creates a new insert task.
     pub const fn new(
         client: Arc<EngineClient>,
         rollup_config: Arc<RollupConfig>,
         envelope: OpExecutionPayloadEnvelope,
+        is_attributes_derived: bool,
     ) -> Self {
-        Self { client, rollup_config, envelope }
+        Self { client, rollup_config, envelope, is_payload_safe: is_attributes_derived }
     }
 
     /// Checks the response of the `engine_newPayload` call.
@@ -47,10 +51,12 @@ impl InsertUnsafeTask {
 }
 
 #[async_trait]
-impl EngineTaskExt for InsertUnsafeTask {
+impl EngineTaskExt for InsertTask {
     type Output = ();
 
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    type Error = InsertTaskError;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), InsertTaskError> {
         let time_start = Instant::now();
 
         // Insert the new payload.
@@ -64,7 +70,7 @@ impl EngineTaskExt for InsertUnsafeTask {
                     .payload
                     .clone()
                     .try_into_block()
-                    .map_err(InsertUnsafeTaskError::FromBlockError)?,
+                    .map_err(InsertTaskError::FromBlockError)?,
             ),
             OpExecutionPayload::V2(payload) => {
                 let payload_input = ExecutionPayloadInputV2 {
@@ -77,7 +83,7 @@ impl EngineTaskExt for InsertUnsafeTask {
                         .payload
                         .clone()
                         .try_into_block()
-                        .map_err(InsertUnsafeTaskError::FromBlockError)?,
+                        .map_err(InsertTaskError::FromBlockError)?,
                 )
             }
             OpExecutionPayload::V3(payload) => (
@@ -88,7 +94,7 @@ impl EngineTaskExt for InsertUnsafeTask {
                     .try_into_block_with_sidecar(&OpExecutionPayloadSidecar::v3(
                         CancunPayloadFields::new(parent_beacon_block_root, vec![]),
                     ))
-                    .map_err(InsertUnsafeTaskError::FromBlockError)?,
+                    .map_err(InsertTaskError::FromBlockError)?,
             ),
             OpExecutionPayload::V4(payload) => (
                 self.client.new_payload_v4(payload, parent_beacon_block_root).await,
@@ -99,23 +105,23 @@ impl EngineTaskExt for InsertUnsafeTask {
                         CancunPayloadFields::new(parent_beacon_block_root, vec![]),
                         PraguePayloadFields::new(EMPTY_REQUESTS_HASH),
                     ))
-                    .map_err(InsertUnsafeTaskError::FromBlockError)?,
+                    .map_err(InsertTaskError::FromBlockError)?,
             ),
         };
 
         // Check the `engine_newPayload` response.
         let response = match response {
             Ok(resp) => resp,
-            Err(e) => return Err(InsertUnsafeTaskError::InsertFailed(e).into()),
+            Err(e) => return Err(InsertTaskError::InsertFailed(e)),
         };
         if !self.check_new_payload_status(&response.status) {
-            return Err(InsertUnsafeTaskError::UnexpectedPayloadStatus(response.status).into());
+            return Err(InsertTaskError::UnexpectedPayloadStatus(response.status));
         }
         let insert_duration = insert_time_start.elapsed();
 
         let new_unsafe_ref =
             L2BlockInfo::from_block_and_genesis(&block, &self.rollup_config.genesis)
-                .map_err(InsertUnsafeTaskError::L2BlockInfoConstruction)?;
+                .map_err(InsertTaskError::L2BlockInfoConstruction)?;
 
         // Send a FCU to canonicalize the imported block.
         ForkchoiceTask::new(
@@ -124,6 +130,8 @@ impl EngineTaskExt for InsertUnsafeTask {
             EngineSyncStateUpdate {
                 cross_unsafe_head: Some(new_unsafe_ref),
                 unsafe_head: Some(new_unsafe_ref),
+                local_safe_head: self.is_payload_safe.then_some(new_unsafe_ref),
+                safe_head: self.is_payload_safe.then_some(new_unsafe_ref),
                 ..Default::default()
             },
             None,

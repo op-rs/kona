@@ -1,6 +1,6 @@
 //! Contains error types for the [crate::ForkchoiceTask].
 
-use crate::EngineTaskError;
+use crate::{EngineTaskError, task_queue::tasks::task::EngineTaskErrorSeverity};
 use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
 use thiserror::Error;
@@ -31,16 +31,16 @@ pub enum ForkchoiceTaskError {
     UnexpectedPayloadStatus(PayloadStatusEnum),
 }
 
-impl From<ForkchoiceTaskError> for EngineTaskError {
-    fn from(value: ForkchoiceTaskError) -> Self {
-        match value {
-            ForkchoiceTaskError::NoForkchoiceUpdateNeeded => Self::Temporary(Box::new(value)),
-            ForkchoiceTaskError::EngineSyncing => Self::Temporary(Box::new(value)),
-            ForkchoiceTaskError::ForkchoiceUpdateFailed(_) => Self::Temporary(Box::new(value)),
-            ForkchoiceTaskError::FinalizedAheadOfUnsafe(_, _) => Self::Critical(Box::new(value)),
-            ForkchoiceTaskError::UnexpectedPayloadStatus(_) => Self::Critical(Box::new(value)),
-            ForkchoiceTaskError::InvalidForkchoiceState => Self::Reset(Box::new(value)),
-            ForkchoiceTaskError::InvalidPayloadStatus(_) => Self::Reset(Box::new(value)),
+impl EngineTaskError for ForkchoiceTaskError {
+    fn severity(&self) -> EngineTaskErrorSeverity {
+        match self {
+            Self::NoForkchoiceUpdateNeeded => EngineTaskErrorSeverity::Temporary,
+            Self::EngineSyncing => EngineTaskErrorSeverity::Temporary,
+            Self::ForkchoiceUpdateFailed(_) => EngineTaskErrorSeverity::Temporary,
+            Self::FinalizedAheadOfUnsafe(_, _) => EngineTaskErrorSeverity::Critical,
+            Self::UnexpectedPayloadStatus(_) => EngineTaskErrorSeverity::Critical,
+            Self::InvalidForkchoiceState => EngineTaskErrorSeverity::Reset,
+            Self::InvalidPayloadStatus(_) => EngineTaskErrorSeverity::Reset,
         }
     }
 }
