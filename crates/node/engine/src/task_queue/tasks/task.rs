@@ -31,7 +31,7 @@ impl EngineTask {
     /// Executes the task without consuming it.
     async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         match self.clone() {
-            Self::ForkchoiceUpdate(task) => task.execute(state).await,
+            Self::ForkchoiceUpdate(task) => task.execute(state).await.map(|_| ()),
             Self::InsertUnsafe(task) => task.execute(state).await,
             Self::BuildBlock(task) => task.execute(state).await,
             Self::Consolidate(task) => task.execute(state).await,
@@ -103,6 +103,8 @@ impl Ord for EngineTask {
 
 #[async_trait]
 impl EngineTaskExt for EngineTask {
+    type Output = ();
+
     async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
         // Retry the task until it succeeds or a critical error occurs.
         while let Err(e) = self.execute_inner(state).await {
@@ -133,8 +135,11 @@ impl EngineTaskExt for EngineTask {
 /// The interface for an engine task.
 #[async_trait]
 pub trait EngineTaskExt {
+    /// The output type of the task.
+    type Output;
+
     /// Executes the task, taking a shared lock on the engine state and `self`.
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError>;
+    async fn execute(&self, state: &mut EngineState) -> Result<Self::Output, EngineTaskError>;
 }
 
 /// An error that may occur during an [`EngineTask`]'s execution.

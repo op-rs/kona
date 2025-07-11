@@ -106,6 +106,13 @@ pub struct L2BlockInfo {
     pub seq_num: u64,
 }
 
+impl L2BlockInfo {
+    /// Returns the block hash.
+    pub const fn hash(&self) -> B256 {
+        self.block_info.hash
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 impl arbitrary::Arbitrary<'_> for L2BlockInfo {
     fn arbitrary(g: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<Self> {
