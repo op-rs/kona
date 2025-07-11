@@ -36,7 +36,7 @@ struct SequencerActorState<AB: AttributesBuilder> {
     /// The [`AttributesBuilder`].
     pub builder: AB,
     /// The [`L1OriginSelector`].
-    pub origin_selector: L1OriginSelector,
+    pub origin_selector: L1OriginSelector<RootProvider>,
 }
 
 /// A trait for building [`AttributesBuilder`]s.
@@ -161,7 +161,17 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         }
 
         let unsafe_head = *unsafe_head_rx.borrow();
-        let l1_origin = self.origin_selector.next_l1_origin(unsafe_head).await?;
+        let l1_origin = match self.origin_selector.next_l1_origin(unsafe_head).await {
+            Ok(l1_origin) => l1_origin,
+            Err(err) => {
+                warn!(
+                    target: "sequencer",
+                    ?err,
+                    "Temporary error occurred while selecting next L1 origin. Re-attempting on next tick."
+                );
+                return Ok(())
+            }
+        };
 
         if unsafe_head.l1_origin.hash != l1_origin.parent_hash &&
             unsafe_head.l1_origin.hash != l1_origin.hash

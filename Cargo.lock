@@ -4671,6 +4671,7 @@ dependencies = [
  "op-alloy-network",
  "op-alloy-provider",
  "op-alloy-rpc-types-engine",
+ "rstest",
  "strum",
  "thiserror 2.0.12",
  "tokio",
