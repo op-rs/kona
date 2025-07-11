@@ -90,7 +90,7 @@ impl BlockHandler {
     ///
     /// Requires the chain ID and a receiver channel for the unsafe block signer.
     pub fn new(rollup_config: RollupConfig, signer_recv: Receiver<Address>) -> Self {
-        let chain_id = rollup_config.l2_chain_id;
+        let chain_id = rollup_config.l2_chain_id.id();
         Self {
             rollup_config,
             signer_recv,

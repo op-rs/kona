@@ -238,6 +238,7 @@ mod tests {
         // Block Handler Assertions
         assert_eq!(driver.gossip.handler.rollup_config.l2_chain_id, id);
         let v1 = IdentTopic::new(format!("/optimism/{}/0/blocks", id));
+        println!("{:?}", driver.gossip.handler.blocks_v1_topic);
         assert_eq!(driver.gossip.handler.blocks_v1_topic.hash(), v1.hash());
         let v2 = IdentTopic::new(format!("/optimism/{}/1/blocks", id));
         assert_eq!(driver.gossip.handler.blocks_v2_topic.hash(), v2.hash());
