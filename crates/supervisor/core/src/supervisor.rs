@@ -15,7 +15,7 @@ use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, DerivationStorageWriter, FinalizedL1Storage,
     HeadRefStorageReader, LogStorageReader, LogStorageWriter,
 };
-use kona_supervisor_types::{HexStringU64, SuperHead, parse_access_list};
+use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use reqwest::Url;
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -415,7 +415,7 @@ impl SupervisorService for Supervisor {
             );
 
             chain_infos.push(ChainRootInfoRpc {
-                chain_id: HexStringU64::from(*id),
+                chain_id: *id,
                 canonical: canonical_root,
                 pending: pending_output_v0_bytes,
             });
@@ -440,7 +440,7 @@ impl SupervisorService for Supervisor {
 
         Ok(SuperRootOutputRpc {
             cross_safe_derived_from: cross_safe_source,
-            timestamp: timestamp.into(),
+            timestamp,
             super_root: super_root_hash,
             chains: chain_infos,
             version: SUPER_ROOT_VERSION,
