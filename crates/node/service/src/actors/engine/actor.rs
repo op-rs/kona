@@ -144,7 +144,9 @@ pub(super) struct EngineActorState {
 pub struct EngineContext {
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
-
+    /// A sender for L2 unsafe head update notifications.
+    /// Is optional because it is only used in sequencer mode.
+    pub engine_unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
     /// The sender for L2 safe head update notifications.
     pub engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
@@ -382,6 +384,7 @@ impl NodeActor for EngineActor {
             engine_l2_safe_head_tx,
             sync_complete_tx,
             derivation_signal_tx,
+            mut engine_unsafe_head_tx,
         }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state();
@@ -403,6 +406,14 @@ impl NodeActor for EngineActor {
                     &mut self.finalizer,
                 )
                 .await?;
+
+            // If the unsafe head has updated, propagate it to the outbound channels.
+            if let Some(unsafe_head_tx) = engine_unsafe_head_tx.as_mut() {
+                unsafe_head_tx.send_if_modified(|val| {
+                    let new_head = state.engine.state().sync_state.unsafe_head();
+                    (*val != new_head).then(|| *val = new_head).is_some()
+                });
+            }
 
             tokio::select! {
                 biased;
