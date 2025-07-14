@@ -441,6 +441,7 @@ where
 mod tests {
     use super::*;
     use crate::{
+        config::Genesis,
         event::ChainEvent,
         syncnode::{
             BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
@@ -577,19 +578,23 @@ mod tests {
         }
     );
 
+    fn genesis() -> Genesis {
+        let l2 = BlockInfo::new(B256::from([1u8; 32]), 0, B256::ZERO, 50);
+        let l1 = BlockInfo::new(B256::from([2u8; 32]), 10, B256::ZERO, 1000);
+        Genesis::new(l1, l2)
+    }
+
+    fn get_rollup_config(interop_time: u64) -> RollupConfig {
+        RollupConfig::new(genesis(), 2, Some(interop_time))
+    }
+
     #[tokio::test]
-    async fn test_handle_unsafe_event_triggers() {
-        let mut mockdb = MockDb::new();
-        let mut mocknode = MockNode::new();
+    async fn test_handle_unsafe_event_pre_interop() {
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
 
         // Send unsafe block event
-        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 0);
-
-        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
-        mocknode.expect_fetch_receipts().returning(move |block_hash| {
-            assert!(block_hash == block.hash);
-            Ok(Receipts::default())
-        });
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 10);
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
@@ -597,7 +602,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let rollup_config = RollupConfig::default();
+        let rollup_config = get_rollup_config(1000);
+
         let task = ChainProcessorTask::new(
             rollup_config,
             1,
@@ -620,7 +626,88 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_derived_event_triggers() {
+    async fn test_handle_unsafe_event_post_interop() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Send unsafe block event
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 1003);
+
+        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
+        mocknode.expect_fetch_receipts().returning(move |block_hash| {
+            assert!(block_hash == block.hash);
+            Ok(Receipts::default())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_unsafe_event_interop_activation() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        // Block that triggers interop activation
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 1001); // Use timestamp/number that triggers activation
+
+        let rollup_config = get_rollup_config(1000);
+
+        mockdb.expect_initialise_log_storage().returning(move |b| {
+            assert_eq!(b, block);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_pre_interop() {
         let block_pair = DerivedRefPair {
             source: BlockInfo {
                 number: 123,
@@ -632,7 +719,56 @@ mod tests {
                 number: 1234,
                 hash: B256::ZERO,
                 parent_hash: B256::ZERO,
+                timestamp: 999,
+            },
+        };
+
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        // Send unsafe block event
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_post_interop() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
                 timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003,
             },
         };
 
@@ -650,7 +786,62 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let rollup_config = RollupConfig::default();
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        // Send unsafe block event
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_interop_activation() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1001,
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        mockdb.expect_initialise_derivation_storage().returning(move |_pair: DerivedRefPair| {
+            assert_eq!(_pair, block_pair);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+
         let task = ChainProcessorTask::new(
             rollup_config,
             1,
