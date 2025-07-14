@@ -228,7 +228,7 @@ mod tests {
     #[tokio::test]
     async fn test_reset_db_error() {
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(|| Err(StorageError::DatabaseNotInitialised));
+        db.expect_get_super_head().returning(|| Err(StorageError::LockPoisoned));
 
         let client = MockClient::new();
 
