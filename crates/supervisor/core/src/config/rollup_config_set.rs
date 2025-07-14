@@ -78,9 +78,9 @@ impl RollupConfig {
     /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
     /// provided timestamp is or after interop time
     ///
-    /// Returns `false` if `interop_time` is not configured or is 0.
-    fn is_interop(&self, timestamp: u64) -> bool {
-        self.interop_time.is_some_and(|t| t != 0 && timestamp >= t)
+    /// Returns `false` if `interop_time` is not configured.
+    pub fn is_interop(&self, timestamp: u64) -> bool {
+        self.interop_time.is_some_and(|t| timestamp >= t)
     }
 
     /// Returns `true` if the timestamp is strictly after the interop activation block.
@@ -177,5 +177,15 @@ mod tests {
 
         // Unknown chain_id returns false
         assert!(!set.is_interop_enabled(ChainId::from(999u64), 200));
+    }
+
+    #[test]
+    fn test_rollup_config_is_interop_interop_time_zero() {
+        // Interop time is 100, block_time is 10
+        let rollup_config =
+            RollupConfig::new(Genesis::new(dummy_blockinfo(0), dummy_blockinfo(0)), 2, Some(0));
+
+        assert!(rollup_config.is_interop(0));
+        assert!(rollup_config.is_interop(1000));
     }
 }

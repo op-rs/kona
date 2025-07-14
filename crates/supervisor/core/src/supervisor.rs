@@ -145,7 +145,7 @@ impl Supervisor {
             let db = self.database_factory.get_or_create_db(*chain_id)?;
             let interop_time = config.interop_time;
             let derived_pair = config.genesis.get_derived_pair();
-            if config.is_interop_activation_block(derived_pair.derived) {
+            if config.is_interop(derived_pair.derived.timestamp) {
                 info!(target: "supervisor_service", chain_id, interop_time, %derived_pair, "Initialising database for interop activation block");
                 db.initialise_log_storage(derived_pair.derived)?;
                 db.initialise_derivation_storage(derived_pair)?;

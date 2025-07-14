@@ -33,8 +33,7 @@ where
                 "Failed to seek head reference"
             );
         })?;
-        let block_ref = result
-            .ok_or_else(|| StorageError::EntryNotFound("no head reference found".to_string()))?;
+        let block_ref = result.ok_or_else(|| StorageError::FutureData)?;
         Ok(block_ref.into())
     }
 }

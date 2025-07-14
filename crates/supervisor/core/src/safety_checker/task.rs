@@ -118,7 +118,7 @@ where
             .provider
             .get_safety_head_ref(self.chain_id, self.promoter.target_level())
             .map_err(|err| {
-                if matches!(err, StorageError::EntryNotFound(_)) {
+                if matches!(err, StorageError::FutureData) {
                     CrossSafetyError::NoBlockToPromote
                 } else {
                     err.into()
@@ -129,7 +129,7 @@ where
             .provider
             .get_safety_head_ref(self.chain_id, self.promoter.lower_bound_level())
             .map_err(|err| {
-                if matches!(err, StorageError::EntryNotFound(_)) {
+                if matches!(err, StorageError::FutureData) {
                     CrossSafetyError::NoBlockToPromote
                 } else {
                     err.into()

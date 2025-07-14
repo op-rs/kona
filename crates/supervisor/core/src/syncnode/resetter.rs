@@ -33,7 +33,10 @@ where
             match self.get_latest_valid_super_head().await {
                 Ok(block) => block,
                 // todo: require refactor and corner case handling
-                Err(ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised)) => {
+                Err(
+                    ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised) |
+                    ManagedNodeError::StorageError(StorageError::FutureData),
+                ) => {
                     self.reset_pre_interop().await?;
                     return Ok(());
                 }
