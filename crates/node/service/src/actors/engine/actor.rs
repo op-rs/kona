@@ -65,6 +65,12 @@ pub struct EngineInboundData {
     /// A channel to send [`OpAttributesWithParent`] to the engine actor.
     pub attributes_tx: mpsc::Sender<OpAttributesWithParent>,
     /// A channel to send [`OpExecutionPayloadEnvelope`] to the engine actor.
+    ///
+    /// ## Note
+    /// The sequencer actor should not need to send [`OpExecutionPayloadEnvelope`]s to the engine
+    /// actor through that channel. Instead, it should use the `build_request_tx` channel to
+    /// trigger [`BuildTask`] tasks which should insert the block newly built to the engine
+    /// state upon completion.
     pub unsafe_block_tx: mpsc::Sender<OpExecutionPayloadEnvelope>,
     /// A channel to send reset requests.
     pub reset_request_tx: mpsc::Sender<()>,
@@ -126,7 +132,7 @@ impl EngineBuilder {
 #[derive(Debug)]
 pub(super) struct EngineActorState {
     /// The [`RollupConfig`] used to build tasks.
-    rollup: Arc<RollupConfig>,
+    pub(super) rollup: Arc<RollupConfig>,
     /// An [`EngineClient`] used for creating engine tasks.
     pub(super) client: Arc<EngineClient>,
     /// The [`Engine`] task queue.
@@ -230,7 +236,7 @@ impl EngineActorState {
     ) -> Result<(), EngineError> {
         // Reset the engine.
         let (l2_safe_head, l1_origin, system_config) =
-            self.engine.reset(self.client.clone(), &self.rollup).await?;
+            self.engine.reset(self.client.clone(), self.rollup.clone()).await?;
 
         // Signal the derivation actor to reset.
         let signal = ResetSignal { l2_safe_head, l1_origin, system_config: Some(system_config) };
@@ -328,7 +334,7 @@ impl EngineActorState {
 
     /// Attempts to update the safe head via the watch channel.
     fn maybe_update_safe_head(&self, engine_l2_safe_head_tx: &watch::Sender<L2BlockInfo>) {
-        let state_safe_head = self.engine.state().safe_head();
+        let state_safe_head = self.engine.state().sync_state.safe_head();
         let update = |head: &mut L2BlockInfo| {
             if head != &state_safe_head {
                 *head = state_safe_head;

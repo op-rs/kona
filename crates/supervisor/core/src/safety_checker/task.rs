@@ -114,7 +114,8 @@ where
 
     // Finds the next block that is eligible for promotion at the configured target level.
     fn find_next_promotable_block(&self) -> Result<BlockInfo, CrossSafetyError> {
-        let current_head = self.provider
+        let current_head = self
+            .provider
             .get_safety_head_ref(self.chain_id, self.promoter.target_level())
             .map_err(|err| {
                 if matches!(err, StorageError::EntryNotFound(_)) {
@@ -122,13 +123,14 @@ where
                 } else {
                     err.into()
                 }
-        })?;
+            })?;
 
-        let upper_head = self.provider
+        let upper_head = self
+            .provider
             .get_safety_head_ref(self.chain_id, self.promoter.lower_bound_level())
             .map_err(|err| {
                 if matches!(err, StorageError::EntryNotFound(_)) {
-                CrossSafetyError::NoBlockToPromote
+                    CrossSafetyError::NoBlockToPromote
                 } else {
                     err.into()
                 }

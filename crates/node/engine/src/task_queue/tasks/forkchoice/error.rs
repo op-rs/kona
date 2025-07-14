@@ -1,6 +1,7 @@
 //! Contains error types for the [crate::ForkchoiceTask].
 
 use crate::EngineTaskError;
+use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
 use thiserror::Error;
 
@@ -22,6 +23,12 @@ pub enum ForkchoiceTaskError {
     /// The forkchoice state is invalid.
     #[error("Invalid forkchoice state")]
     InvalidForkchoiceState,
+    /// The payload status is invalid.
+    #[error("Invalid payload status: {0}")]
+    InvalidPayloadStatus(String),
+    /// The payload status is unexpected.
+    #[error("Unexpected payload status: {0}")]
+    UnexpectedPayloadStatus(PayloadStatusEnum),
 }
 
 impl From<ForkchoiceTaskError> for EngineTaskError {
@@ -31,7 +38,9 @@ impl From<ForkchoiceTaskError> for EngineTaskError {
             ForkchoiceTaskError::EngineSyncing => Self::Temporary(Box::new(value)),
             ForkchoiceTaskError::ForkchoiceUpdateFailed(_) => Self::Temporary(Box::new(value)),
             ForkchoiceTaskError::FinalizedAheadOfUnsafe(_, _) => Self::Critical(Box::new(value)),
+            ForkchoiceTaskError::UnexpectedPayloadStatus(_) => Self::Critical(Box::new(value)),
             ForkchoiceTaskError::InvalidForkchoiceState => Self::Reset(Box::new(value)),
+            ForkchoiceTaskError::InvalidPayloadStatus(_) => Self::Reset(Box::new(value)),
         }
     }
 }

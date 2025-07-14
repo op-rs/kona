@@ -5,12 +5,12 @@ use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
 use jsonrpsee::{core::RpcResult, types::ErrorObject};
-use kona_interop::{
-    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootOutput,
-};
+use kona_interop::{DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
-use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
-use kona_supervisor_types::{HexChainId, SuperHead};
+use kona_supervisor_rpc::{
+    SuperRootOutputRpc, SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus,
+};
+use kona_supervisor_types::{HexStringU64, SuperHead};
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -39,7 +39,7 @@ where
 {
     async fn cross_derived_to_source(
         &self,
-        chain_id_hex: HexChainId,
+        chain_id_hex: HexStringU64,
         derived: BlockNumHash,
     ) -> RpcResult<BlockInfo> {
         let chain_id = ChainId::from(chain_id_hex);
@@ -71,7 +71,7 @@ where
         )
     }
 
-    async fn local_unsafe(&self, chain_id_hex: HexChainId) -> RpcResult<BlockNumHash> {
+    async fn local_unsafe(&self, chain_id_hex: HexStringU64) -> RpcResult<BlockNumHash> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "local_unsafe",
@@ -101,7 +101,7 @@ where
         )
     }
 
-    async fn cross_safe(&self, chain_id_hex: HexChainId) -> RpcResult<DerivedIdPair> {
+    async fn cross_safe(&self, chain_id_hex: HexStringU64) -> RpcResult<DerivedIdPair> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "cross_safe",
@@ -120,7 +120,7 @@ where
         )
     }
 
-    async fn finalized(&self, chain_id_hex: HexChainId) -> RpcResult<BlockNumHash> {
+    async fn finalized(&self, chain_id_hex: HexStringU64) -> RpcResult<BlockNumHash> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "finalized",
@@ -147,22 +147,27 @@ where
         )
     }
 
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput> {
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp_hex: HexStringU64,
+    ) -> RpcResult<SuperRootOutputRpc> {
         crate::observe_rpc_call!(
             "super_root_at_timestamp",
             async {
-            trace!(target: "supervisor_rpc",
-                %timestamp,
-                "Received super_root_at_timestamp request"
-            );
+                let timestamp = u64::from(timestamp_hex);
+                trace!(target: "supervisor_rpc",
+                    %timestamp,
+                    "Received super_root_at_timestamp request"
+                );
 
-            self.supervisor.super_root_at_timestamp(timestamp)
-                .await
-                .map_err(|err| {
-                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
-                    ErrorObject::from(err)
-                })
-        }.await)
+                self.supervisor.super_root_at_timestamp(timestamp)
+                    .await
+                    .map_err(|err| {
+                        warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
+                        ErrorObject::from(err)
+                    })
+            }.await
+        )
     }
 
     async fn check_access_list(
@@ -175,19 +180,20 @@ where
         crate::observe_rpc_call!(
             "check_access_list", 
             async {
-            trace!(target: "supervisor_rpc", 
-                num_inbox_entries = inbox_entries.len(),
-                ?min_safety,
-                ?executing_descriptor,
-                "Received check_access_list request",
-            );
-            self.supervisor
-                .check_access_list(inbox_entries, min_safety, executing_descriptor)
-                .map_err(|err| {
-                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
-                    ErrorObject::from(err)
-                })
-        }.await)
+                trace!(target: "supervisor_rpc", 
+                    num_inbox_entries = inbox_entries.len(),
+                    ?min_safety,
+                    ?executing_descriptor,
+                    "Received check_access_list request",
+                );
+                self.supervisor
+                    .check_access_list(inbox_entries, min_safety, executing_descriptor)
+                    .map_err(|err| {
+                        warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
+                        ErrorObject::from(err)
+                    })
+            }.await
+        )
     }
 
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus> {
@@ -361,7 +367,7 @@ mod tests {
         async fn super_root_at_timestamp(
             &self,
             _timestamp: u64,
-        ) -> Result<SuperRootOutput, SupervisorError> {
+        ) -> Result<SuperRootOutputRpc, SupervisorError> {
             unimplemented!()
         }
     }

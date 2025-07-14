@@ -11,6 +11,8 @@ pub use jsonrpsee::SupervisorApiServer;
 pub use jsonrpsee::ManagedModeApiClient;
 
 pub mod response;
-pub use response::{SupervisorChainSyncStatus, SupervisorSyncStatus};
+pub use response::{
+    ChainRootInfoRpc, SuperRootOutputRpc, SupervisorChainSyncStatus, SupervisorSyncStatus,
+};
 
 pub use kona_protocol::BlockInfo;

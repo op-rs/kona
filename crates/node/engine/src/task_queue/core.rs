@@ -1,7 +1,9 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
 use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineClient, EngineState, EngineTask, Metrics};
+use crate::{
+    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, ForkchoiceTask, Metrics,
+};
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
@@ -65,19 +67,28 @@ impl Engine {
     pub async fn reset(
         &mut self,
         client: Arc<EngineClient>,
-        config: &RollupConfig,
+        config: Arc<RollupConfig>,
     ) -> Result<(L2BlockInfo, BlockInfo, SystemConfig), EngineResetError> {
         // Clear any outstanding tasks to prepare for the reset.
         self.clear();
 
         let start =
-            find_starting_forkchoice(config, client.l1_provider(), client.l2_provider()).await?;
+            find_starting_forkchoice(&config, client.l1_provider(), client.l2_provider()).await?;
 
-        self.state.set_unsafe_head(start.un_safe);
-        self.state.set_cross_unsafe_head(start.un_safe);
-        self.state.set_local_safe_head(start.safe);
-        self.state.set_safe_head(start.safe);
-        self.state.set_finalized_head(start.finalized);
+        ForkchoiceTask::new(
+            client.clone(),
+            config.clone(),
+            EngineSyncStateUpdate {
+                unsafe_head: Some(start.un_safe),
+                cross_unsafe_head: Some(start.un_safe),
+                local_safe_head: Some(start.safe),
+                safe_head: Some(start.safe),
+                finalized_head: Some(start.finalized),
+            },
+            None,
+        )
+        .execute(&mut self.state)
+        .await?;
 
         // Find the new safe head's L1 origin and SystemConfig.
         let origin_block = start
@@ -102,7 +113,7 @@ impl Engine {
             .ok_or(SyncStartError::BlockNotFound(origin_block.into()))?
             .into_consensus()
             .map_transactions(|t| <Transaction<OpTxEnvelope> as Clone>::clone(&t).into_inner());
-        let system_config = to_system_config(&l2_safe_block, config)?;
+        let system_config = to_system_config(&l2_safe_block, &config)?;
 
         kona_macros::inc!(counter, Metrics::ENGINE_RESET_COUNT);
 

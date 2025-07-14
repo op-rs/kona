@@ -129,7 +129,7 @@ impl DerivationStorageWriter for ChainDb {
                         "conflict between unsafe block and derived block".to_string(),
                     ));
                 }
-                DerivationProvider::new(ctx).save_derived_block_pair(incoming_pair)?;
+                DerivationProvider::new(ctx).save_derived_block(incoming_pair)?;
                 SafetyHeadRefProvider::new(ctx)
                     .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
             })

@@ -74,7 +74,7 @@ impl RollupConfig {
     }
 
     /// Returns `true` if the timestamp is at or after the interop activation time.
-    /// 
+    ///
     /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
     /// provided timestamp is or after interop time
     ///

@@ -1,9 +1,10 @@
 //! Supervisor RPC response types.
 
 use alloy_eips::BlockNumHash;
-use alloy_primitives::{ChainId, map::HashMap};
+use alloy_primitives::{B256, Bytes, ChainId, map::HashMap};
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::SuperHead;
+use serde::{Deserialize, Serialize, Serializer};
 
 /// Describes superchain sync status.
 ///
@@ -80,10 +81,66 @@ impl From<SuperHead> for SupervisorChainSyncStatus {
     }
 }
 
+/// This is same as [`kona_interop::ChainRootInfo`] but with [`u64`] serializeing as a valid hex
+/// string.
+///
+/// Required by
+/// [`super_root_at_timestamp`](crate::jsonrpsee::SupervisorApiServer::super_root_at_timestamp) RPC
+/// for marshalling and unmarshalling in GO implementation. Required for e2e tests.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainRootInfoRpc {
+    /// The chain ID.
+    #[serde(rename = "chainID", with = "alloy_serde::quantity")]
+    pub chain_id: ChainId,
+    /// The canonical output root of the latest canonical block at a particular timestamp.
+    pub canonical: B256,
+    /// The pending output root.
+    ///
+    /// This is the output root preimage for the latest block at a particular timestamp prior to
+    /// validation of executing messages. If the original block was valid, this will be the
+    /// preimage of the output root from the `canonical` array. If it was invalid, it will be
+    /// the output root preimage from the optimistic block deposited transaction added to the
+    /// deposit-only block.
+    pub pending: Bytes,
+}
+
+/// This is same as [`kona_interop::SuperRootOutput`] but with timestamp serializing as a valid hex
+/// string. version is also serialized as an even length hex string.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SuperRootOutputRpc {
+    /// The Highest L1 Block that is cross-safe among all chains.
+    pub cross_safe_derived_from: BlockNumHash,
+    /// The timestamp of the super root.
+    #[serde(with = "alloy_serde::quantity")]
+    pub timestamp: u64,
+    /// The super root hash.
+    pub super_root: B256,
+    /// The version of the super root.
+    #[serde(serialize_with = "serialize_u8_as_hex")]
+    pub version: u8,
+    /// The chain root info for each chain in the dependency set.
+    /// It represents the state of the chain at or before the timestamp.
+    pub chains: Vec<ChainRootInfoRpc>,
+}
+
+/// Serializes a [u8] as a hex string. Ensure that the hex string has an even length.
+///
+/// This is used to serialize the [`SuperRootOutputRpc`]'s version field as a hex string.
+fn serialize_u8_as_hex<S>(value: &u8, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let hex_string = format!("0x{:02x}", value);
+    serializer.serialize_str(&hex_string)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use alloy_primitives::b256;
+    use kona_interop::SUPER_ROOT_VERSION;
 
     const CHAIN_STATUS: &str = r#"
     {
@@ -241,5 +298,24 @@ mod test {
                 chains,
             }
         )
+    }
+
+    #[test]
+    fn test_super_root_version_even_length_hex() {
+        let root = SuperRootOutputRpc {
+            cross_safe_derived_from: BlockNumHash::default(),
+            timestamp: 0,
+            super_root: B256::default(),
+            version: SUPER_ROOT_VERSION,
+            chains: vec![],
+        };
+        let json = serde_json::to_string(&root).expect("should serialize");
+        let v: serde_json::Value = serde_json::from_str(&json).expect("valid json");
+        let version_field =
+            v.get("version").expect("version field present").as_str().expect("version is string");
+        let hex_part = &version_field[2..]; // remove 0x
+        assert_eq!(hex_part.len() % 2, 0, "Hex string should have even length");
+        // For SUPER_ROOT_VERSION = 1, should be 0x01
+        assert_eq!(version_field, "0x01");
     }
 }

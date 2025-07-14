@@ -188,7 +188,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"derived_to_source|latest_derived_block_at_source|latest_derived_block_pair|save_derived_block_pair\"}",
+          "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"derived_to_source|latest_derived_block_at_source|latest_derivation_state|save_derived_block\"}",
           "legendFormat": "{{method}}"
         }
       ],

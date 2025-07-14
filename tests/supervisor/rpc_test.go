@@ -13,11 +13,14 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TODO: add test for dependencySetV1 after devstack support is added to the QueryAPI
 
 func TestRPCLocalUnsafe(gt *testing.T) {
 	t := devtest.ParallelT(gt)
@@ -83,6 +86,43 @@ func TestRPCFinalized(gt *testing.T) {
 			assert.Len(t, safe.Hash, 32)
 		})
 	}
+}
+
+func TestRPCFinalizedL1(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+	sys := presets.NewSimpleInterop(t)
+	client := sys.Supervisor.Escape()
+	t.Run("succeeds to get finalized L1 block", func(gt devtest.T) {
+		block, err := client.QueryAPI().FinalizedL1(context.Background())
+		require.NoError(t, err)
+		assert.Greater(t, block.Number, uint64(0))
+		assert.Less(t, block.Time, uint64(time.Now().Unix()+5))
+		assert.Len(t, block.Hash, 32)
+	})
+}
+
+func TestRPCSuperRootAtTimestamp(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+	sys := presets.NewSimpleInterop(t)
+	client := sys.Supervisor.Escape()
+
+	t.Run("fails with invalid timestamp", func(gt devtest.T) {
+		_, err := client.QueryAPI().SuperRootAtTimestamp(context.Background(), 0)
+		require.Error(t, err)
+	})
+
+	t.Run("succeeds with valid timestamp", func(gt devtest.T) {
+		timeNow := uint64(time.Now().Unix())
+		root, err := client.QueryAPI().SuperRootAtTimestamp(context.Background(), hexutil.Uint64(timeNow-90))
+		require.NoError(t, err)
+		assert.Len(t, root.SuperRoot, 32)
+		assert.Len(t, root.Chains, 2)
+
+		for _, chain := range root.Chains {
+			assert.Len(t, chain.Canonical, 32)
+			assert.Contains(t, []eth.ChainID{sys.L2ChainA.ChainID(), sys.L2ChainB.ChainID()}, chain.ChainID)
+		}
+	})
 }
 
 func TestRPCAllSafeDerivedAt(gt *testing.T) {

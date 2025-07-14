@@ -166,7 +166,7 @@ pub trait RollupNodeService {
         ) = Self::EngineActor::build(self.engine_builder());
 
         // Create the p2p actor.
-        let (NetworkInboundData { signer, rpc: network_rpc, unsafe_blocks: _ }, network) =
+        let (NetworkInboundData { signer, rpc: network_rpc, gossip_payload_tx }, network) =
             Self::NetworkActor::build(self.network_builder());
 
         // Create the RPC server actor.
@@ -201,7 +201,7 @@ pub trait RollupNodeService {
                         build_request_tx: build_request_tx.expect(
                             "`build_request_tx` not set while in sequencer mode. This should never happen.",
                         ),
-                        gossip_payload_tx: unsafe_block_tx.clone(),
+                        gossip_payload_tx,
                         cancellation: cancellation.clone(),
                     })
                 ),
