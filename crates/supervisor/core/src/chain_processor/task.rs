@@ -866,6 +866,109 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_handle_derived_event_block_out_of_order_triggers_reset() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Simulate BlockOutOfOrder error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::BlockOutOfOrder));
+
+        // Expect reset to be called
+        mocknode.expect_reset().returning(|| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_other_error() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        // Simulate a different error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn test_handle_derivation_origin_update_triggers() {
         let origin =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
