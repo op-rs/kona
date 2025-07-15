@@ -34,8 +34,7 @@ where
                 Ok(block) => block,
                 // todo: require refactor and corner case handling
                 Err(
-                    ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised) |
-                    ManagedNodeError::StorageError(StorageError::FutureData),
+                    ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised)
                 ) => {
                     self.reset_pre_interop().await?;
                     return Ok(());
