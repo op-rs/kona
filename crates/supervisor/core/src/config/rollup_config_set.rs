@@ -76,7 +76,7 @@ impl RollupConfig {
     /// Returns `true` if the timestamp is at or after the interop activation time.
     ///
     /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
-    /// provided timestamp is or after interop time
+    /// provided timestamp is before or after interop timestamp.
     ///
     /// Returns `false` if `interop_time` is not configured.
     pub fn is_interop(&self, timestamp: u64) -> bool {
@@ -94,7 +94,7 @@ impl RollupConfig {
         self.is_interop(timestamp.saturating_sub(self.block_time))
     }
 
-    /// Returns `true` if the timestamp is of an interop activation block.
+    /// Returns `true` if given block is the interop activation block.
     ///
     /// An interop activation block is defined as the block that is right after the
     /// interop activation time.
@@ -136,12 +136,12 @@ impl RollupConfigSet {
         Ok(())
     }
 
-    /// returns whether interop is enabled for a chain at given timestamp
+    /// Returns `true` if interop is enabled for the chain at given timestamp.
     pub fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
         self.get(chain_id).map(|cfg| cfg.is_post_interop(timestamp)).unwrap_or(false) // if config not found, return false
     }
 
-    /// returns whether the given block is an interop activation block for the specified chain.
+    /// Returns `true` if given block is the interop activation block for the specified chain.
     pub fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool {
         self.get(chain_id).map(|cfg| cfg.is_interop_activation_block(block)).unwrap_or(false)
     }

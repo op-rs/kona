@@ -327,17 +327,6 @@ where
             "Processing local safe derived block pair"
         );
 
-        if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
-            info!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = derived_ref_pair.derived.number,
-                "Initialising derivation storage for interop activation block"
-            );
-            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
-            return Ok(derived_ref_pair.derived);
-        }
-
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
             match self.state_manager.save_derived_block(derived_ref_pair) {
                 Ok(_) => return Ok(derived_ref_pair.derived),
@@ -371,6 +360,18 @@ where
                 }
             }
         }
+
+        if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Initialising derivation storage for interop activation block"
+            );
+            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
+            return Ok(derived_ref_pair.derived);
+        }
+
         Ok(derived_ref_pair.derived)
     }
 
@@ -385,6 +386,11 @@ where
             "Processing unsafe block"
         );
 
+        if self.rollup_config.is_post_interop(block.timestamp) {
+            self.log_indexer.clone().sync_logs(block);
+            return Ok(block);
+        }
+
         if self.rollup_config.is_interop_activation_block(block) {
             info!(
                 target: "chain_processor",
@@ -393,11 +399,6 @@ where
                 "Initialising log storage for interop activation block"
             );
             self.state_manager.initialise_log_storage(block)?;
-            return Ok(block);
-        }
-
-        if self.rollup_config.is_post_interop(block.timestamp) {
-            self.log_indexer.clone().sync_logs(block);
             return Ok(block);
         }
 
