@@ -305,7 +305,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
             "block_ref_by_number",
             async {
-              ManagedModeApiClient::block_ref_by_number(client.as_ref(), block_number).await
+              ManagedModeApiClient::l2_block_ref_by_number(client.as_ref(), block_number).await
             },
             "node" => self.config.url.clone()
         )?;

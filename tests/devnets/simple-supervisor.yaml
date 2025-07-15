@@ -14,7 +14,7 @@ optimism_package:
       network_params:
         network: "kurtosis"
         network_id: "2151908"
-        interop_time_offset: 1
+        interop_time_offset: 0
         holocene_time_offset: 0
         isthmus_time_offset: 0
         fjord_time_offset: 0
@@ -37,7 +37,7 @@ optimism_package:
       network_params:
         network: "kurtosis"
         network_id: "2151909"
-        interop_time_offset: 1
+        interop_time_offset: 0
         holocene_time_offset: 0
         isthmus_time_offset: 0
         fjord_time_offset: 0
