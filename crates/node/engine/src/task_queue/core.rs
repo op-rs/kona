@@ -2,8 +2,8 @@
 
 use super::EngineTaskExt;
 use crate::{
-    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, ForkchoiceTask, Metrics,
-    task_queue::EngineTaskErrors,
+    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
+    EngineTaskErrorSeverity, ForkchoiceTask, Metrics, task_queue::EngineTaskErrors,
 };
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
@@ -76,7 +76,7 @@ impl Engine {
         let start =
             find_starting_forkchoice(&config, client.l1_provider(), client.l2_provider()).await?;
 
-        ForkchoiceTask::new(
+        if let Err(err) = ForkchoiceTask::new(
             client.clone(),
             config.clone(),
             EngineSyncStateUpdate {
@@ -90,7 +90,14 @@ impl Engine {
         )
         .execute(&mut self.state)
         .await
-        .map_err(EngineTaskErrors::Forkchoice)?;
+        {
+            // Ignore temporary errors.
+            if matches!(err.severity(), EngineTaskErrorSeverity::Temporary) {
+                debug!(target: "engine", "Forkchoice update failed temporarily during reset: {}", err);
+            } else {
+                return Err(EngineTaskErrors::Forkchoice(err).into());
+            }
+        }
 
         // Find the new safe head's L1 origin and SystemConfig.
         let origin_block = start
