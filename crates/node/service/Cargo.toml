@@ -66,6 +66,9 @@ http-body-util.workspace = true
 # metrics
 metrics = { workspace = true, optional = true }
 
+[dev-dependencies]
+rstest.workspace = true
+
 [features]
 default = []
 metrics = [
