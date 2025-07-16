@@ -54,18 +54,14 @@ impl ForkchoiceTask {
                     state.el_sync_finished = true;
                 }
 
-                debug!(
-                    target: "engine_builder",
-                    "Forkchoice update with attributes successful"
-                );
                 Ok(())
             }
             PayloadStatusEnum::Syncing => {
-                warn!(target: "engine_builder", "Forkchoice update failed temporarily: EL is syncing");
+                debug!(target: "engine", "Forkchoice update failed temporarily: EL is syncing");
                 Err(ForkchoiceTaskError::EngineSyncing)
             }
             PayloadStatusEnum::Invalid { validation_error } => {
-                error!(target: "engine_builder", "Forkchoice update failed: {}", validation_error);
+                error!(target: "engine", "Forkchoice update failed: {}", validation_error);
                 Err(ForkchoiceTaskError::InvalidPayloadStatus(validation_error.clone()))
             }
             s => {
@@ -163,7 +159,7 @@ impl EngineTaskExt for ForkchoiceTask {
         kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FORKCHOICE_TASK_LABEL);
 
         let fcu_duration = fcu_time_start.elapsed();
-        info!(
+        debug!(
             target: "engine",
             fcu_duration = ?fcu_duration,
             forkchoice = ?forkchoice,

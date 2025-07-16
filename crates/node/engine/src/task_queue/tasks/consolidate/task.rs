@@ -97,7 +97,7 @@ impl ConsolidateTask {
                         number = block_info.block_info.number,
                         ?total_duration,
                         ?block_fetch_duration,
-                        "Skipping FCU for non-last in span block"
+                        "Updated safe head via L1 consolidation"
                     );
 
                     // Apply a transient update to the safe head.
