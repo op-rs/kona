@@ -212,9 +212,9 @@ mod tests {
                 "holocene_time": 1736445601
             },
             "optimism": {
-            "eip1559Elasticity": "0x6",
-            "eip1559Denominator": "0x32",
-            "eip1559DenominatorCanyon": "0xfa"
+                "eip1559Elasticity": 6,
+                "eip1559Denominator": 50,
+                "eip1559DenominatorCanyon": 250
             },
             "alt_da": null,
             "genesis": {

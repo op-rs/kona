@@ -4464,7 +4464,6 @@ dependencies = [
  "alloy-sol-types",
  "arbitrary",
  "derive_more",
- "kona-serde",
  "op-revm",
  "rand 0.9.1",
  "serde",
