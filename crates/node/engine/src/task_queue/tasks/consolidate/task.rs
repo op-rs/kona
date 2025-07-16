@@ -91,12 +91,21 @@ impl ConsolidateTask {
                 Ok(block_info) if !self.attributes.is_last_in_span => {
                     let total_duration = global_start.elapsed();
 
-                    info!(target: "engine",
-                    hash = %block_info.block_info.hash,
-                    number = block_info.block_info.number,
-                    ?total_duration,
-                    ?block_fetch_duration,
-                    "Skipping FCU for non-last in span block");
+                    info!(
+                        target: "engine",
+                        hash = %block_info.block_info.hash,
+                        number = block_info.block_info.number,
+                        ?total_duration,
+                        ?block_fetch_duration,
+                        "Skipping FCU for non-last in span block"
+                    );
+
+                    // Apply a transient update to the safe head.
+                    state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
+                        safe_head: Some(block_info),
+                        local_safe_head: Some(block_info),
+                        ..Default::default()
+                    });
 
                     return Ok(());
                 }
