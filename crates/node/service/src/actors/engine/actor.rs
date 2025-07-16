@@ -330,6 +330,12 @@ impl EngineActorState {
                 return Ok(());
             };
 
+            // Only reset the engine if the sync state does not already know about a finalized
+            // block.
+            if self.engine.state().sync_state.finalized_head() != L2BlockInfo::default() {
+                return Ok(());
+            }
+
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
             self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
