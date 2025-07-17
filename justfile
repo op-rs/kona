@@ -20,6 +20,10 @@ default:
 build-node:
   cargo build --release --bin kona-node
 
+# Run the vocs documentation
+vocs:
+  npm run dev -- --host
+
 # Run all tests (excluding online tests)
 tests: test test-docs
 
