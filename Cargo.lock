@@ -4689,6 +4689,7 @@ dependencies = [
 name = "kona-p2p"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-consensus",
  "alloy-eips",
  "alloy-primitives",
