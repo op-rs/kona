@@ -22,7 +22,7 @@ build-node:
 
 # Run the vocs documentation
 vocs:
-  npm run dev -- --host
+  cd docs && npm install && npm run dev -- --host
 
 # Run all tests (excluding online tests)
 tests: test test-docs
