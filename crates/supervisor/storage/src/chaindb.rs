@@ -205,15 +205,46 @@ impl HeadRefStorageReader for ChainDb {
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
         self.observe_call("get_super_head", || {
-            let l1_source = self.latest_derivation_state()?.source;
-
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx);
-                let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
-                let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-                let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-                let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
-                let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+                let local_unsafe =
+                    sp.get_safety_head_ref(SafetyLevel::LocalUnsafe).map_err(|err| {
+                        if matches!(err, StorageError::FutureData) {
+                            StorageError::DatabaseNotInitialised
+                        } else {
+                            err
+                        }
+                    })?;
+
+                let cross_unsafe = match sp.get_safety_head_ref(SafetyLevel::CrossUnsafe) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let local_safe = match sp.get_safety_head_ref(SafetyLevel::LocalSafe) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let cross_safe = match sp.get_safety_head_ref(SafetyLevel::CrossSafe) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let finalized = match sp.get_safety_head_ref(SafetyLevel::Finalized) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let l1_source = match DerivationProvider::new(tx).latest_derivation_state() {
+                    Ok(pair) => Some(pair.source),
+                    Err(StorageError::DatabaseNotInitialised) => None,
+                    Err(err) => return Err(err),
+                };
 
                 Ok(SuperHead {
                     l1_source,

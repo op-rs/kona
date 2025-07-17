@@ -230,6 +230,22 @@ where
                     //
                     // todo: add to spec
                     let SuperHead { l1_source, cross_safe, finalized, .. } = &head;
+
+                    let default_block = BlockInfo::default();
+                    let l1_source = l1_source.as_ref().unwrap_or(&default_block);
+                    let cross_safe = cross_safe.as_ref().unwrap_or(&default_block);
+                    let finalized = finalized.as_ref().unwrap_or(&default_block);
+
+                    if l1_source.number < min_synced_l1.number {
+                        min_synced_l1 = *l1_source;
+                    }
+                    if cross_safe.timestamp < cross_safe_timestamp {
+                        cross_safe_timestamp = cross_safe.timestamp;
+                    }
+                    if finalized.timestamp < finalized_timestamp {
+                        finalized_timestamp = finalized.timestamp;
+                    }
+
                     if l1_source.number < min_synced_l1.number {
                         min_synced_l1 = *l1_source;
                     }
@@ -400,9 +416,9 @@ mod tests {
 
         let block_info = BlockInfo { number: 42, ..Default::default() };
         let super_head = SuperHead {
-            l1_source: block_info,
-            cross_safe: BlockInfo { timestamp: 100, ..Default::default() },
-            finalized: BlockInfo { timestamp: 50, ..Default::default() },
+            l1_source: Some(block_info),
+            cross_safe: Some(BlockInfo { timestamp: 100, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 50, ..Default::default() }),
             ..Default::default()
         };
 
@@ -435,9 +451,9 @@ mod tests {
         // Only chain_id_1 has a SuperHead, chain_id_2 is missing
         let block_info = BlockInfo { number: 42, ..Default::default() };
         let super_head = SuperHead {
-            l1_source: block_info,
-            cross_safe: BlockInfo { timestamp: 100, ..Default::default() },
-            finalized: BlockInfo { timestamp: 50, ..Default::default() },
+            l1_source: Some(block_info),
+            cross_safe: Some(BlockInfo { timestamp: 100, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 50, ..Default::default() }),
             ..Default::default()
         };
 

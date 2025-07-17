@@ -1,6 +1,7 @@
 use super::{ManagedNodeClient, ManagedNodeError};
 use alloy_eips::BlockNumHash;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, StorageError};
+use kona_protocol::BlockInfo;
 use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -29,8 +30,8 @@ where
 
         info!(target: "resetter", "Resetting the node");
 
-        let SuperHead { local_unsafe, cross_unsafe, local_safe, cross_safe, finalized, .. } =
-            match self.get_latest_valid_super_head().await {
+        let local_safe =
+            match self.get_latest_valid_local_safe().await {
                 Ok(block) => block,
                 // todo: require refactor and corner case handling
                 Err(ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised)) => {
@@ -42,6 +43,28 @@ where
                     return Err(ManagedNodeError::ResetFailed);
                 }
             };
+
+        let SuperHead { cross_unsafe, cross_safe, finalized, .. } = self.db_provider
+            .get_super_head()
+            .inspect_err(|err| error!(target: "resetter", %err, "Failed to get super head"))?;
+
+        // using the local safe block as the local unsafe as well
+        let local_unsafe = local_safe.clone();
+
+        let mut cross_unsafe = cross_unsafe.unwrap_or_else(BlockInfo::default);
+        if cross_unsafe.number > local_unsafe.number {
+            cross_unsafe = local_unsafe.clone();
+        }
+
+        let mut cross_safe = cross_safe.unwrap_or_else(BlockInfo::default);
+        if cross_safe.number > local_safe.number {
+            cross_safe = local_safe.clone();
+        }
+        
+        let mut finalized = finalized.unwrap_or_else(BlockInfo::default);
+        if finalized.number > local_safe.number {
+            finalized = local_safe.clone();
+        }
 
         info!(target: "resetter",
             %local_unsafe,
@@ -76,17 +99,13 @@ where
         Ok(())
     }
 
-    /// Gets the last valid derived block by walking back the source blocks and checking the hash of
-    /// the last derived block at the source block.
-    async fn get_latest_valid_super_head(&self) -> Result<SuperHead, ManagedNodeError> {
-        // ToDo: right now the assumption is that supervisor has the correct view of the canonical
-        // chain
-        let mut super_head = self
+    async fn get_latest_valid_local_safe(&self) -> Result<BlockInfo, ManagedNodeError> {
+        let latest_derivation_state = self
             .db_provider
-            .get_super_head()
-            .inspect_err(|err| error!(target: "resetter", %err, "Failed to get super head"))?;
+            .latest_derivation_state()
+            .inspect_err(|err| error!(target: "resetter", %err, "Failed to get latest derivation state"))?;
 
-        let mut local_safe = super_head.local_safe;
+        let mut local_safe = latest_derivation_state.derived;
 
         loop {
             let node_block = self.client.block_ref_by_number(local_safe.number).await.inspect_err(
@@ -96,19 +115,7 @@ where
             // If the local safe block matches the node block, we can return the super
             // head right away
             if node_block == local_safe {
-                super_head.local_unsafe = local_safe;
-                super_head.local_safe = local_safe;
-
-                for ref_block in [
-                    &mut super_head.finalized,
-                    &mut super_head.cross_safe,
-                    &mut super_head.cross_unsafe,
-                ] {
-                    if ref_block.number > local_safe.number {
-                        *ref_block = local_safe;
-                    }
-                }
-                return Ok(super_head);
+                return Ok(local_safe);
             }
 
             // Get the source block for the current local safe, this helps to skip empty source
@@ -200,11 +207,11 @@ mod tests {
     fn make_super_head() -> SuperHead {
         SuperHead {
             local_unsafe: BlockInfo::new(B256::from([0u8; 32]), 5, B256::ZERO, 0),
-            cross_unsafe: BlockInfo::new(B256::from([1u8; 32]), 4, B256::ZERO, 0),
-            local_safe: BlockInfo::new(B256::from([2u8; 32]), 3, B256::ZERO, 0),
-            cross_safe: BlockInfo::new(B256::from([3u8; 32]), 2, B256::ZERO, 0),
-            finalized: BlockInfo::new(B256::from([4u8; 32]), 1, B256::ZERO, 0),
-            l1_source: BlockInfo::new(B256::from([54u8; 32]), 100, B256::ZERO, 0),
+            cross_unsafe: Some(BlockInfo::new(B256::from([1u8; 32]), 4, B256::ZERO, 0)),
+            local_safe: Some(BlockInfo::new(B256::from([2u8; 32]), 3, B256::ZERO, 0)),
+            cross_safe: Some(BlockInfo::new(B256::from([3u8; 32]), 2, B256::ZERO, 0)),
+            finalized: Some(BlockInfo::new(B256::from([4u8; 32]), 1, B256::ZERO, 0)),
+            l1_source: Some(BlockInfo::new(B256::from([54u8; 32]), 100, B256::ZERO, 0)),
         }
     }
 
@@ -213,10 +220,15 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
+        db.expect_latest_derivation_state()
+            .returning(move || Ok(DerivedRefPair {
+                derived: super_head.local_safe.clone().unwrap(),
+                source: super_head.l1_source.clone().unwrap(),
+            }));
         db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
-        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
+        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe.unwrap()));
 
         client.expect_reset().returning(|_, _, _, _, _| Ok(()));
 
@@ -228,8 +240,9 @@ mod tests {
     #[tokio::test]
     async fn test_reset_db_error() {
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(|| Err(StorageError::LockPoisoned));
-
+        db.expect_latest_derivation_state()
+            .returning(|| Err(StorageError::LockPoisoned));
+        
         let client = MockClient::new();
 
         let resetter = Resetter::new(Arc::new(client), Arc::new(db));
@@ -242,8 +255,11 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head));
-
+        db.expect_latest_derivation_state()
+            .returning(move || Ok(DerivedRefPair {
+                derived: super_head.local_safe.clone().unwrap(),
+                source: super_head.l1_source.clone().unwrap(),
+            }));
         let mut client = MockClient::new();
         client
             .expect_block_ref_by_number()
@@ -259,7 +275,11 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
-        db.expect_get_super_head().returning(move || Ok(super_head));
+        db.expect_latest_derivation_state()
+            .returning(move || Ok(DerivedRefPair {
+                derived: super_head.local_safe.clone().unwrap(),
+                source: super_head.l1_source.clone().unwrap(),
+            }));
 
         let prev_source_block = BlockInfo::new(B256::from([8u8; 32]), 101, B256::ZERO, 0);
         let current_source_block =
@@ -268,36 +288,26 @@ mod tests {
 
         // return expected values when get_last_valid_derived_block() is called
         db.expect_derived_to_source()
-            .with(predicate::eq(super_head.local_safe.id()))
+            .with(predicate::eq(super_head.local_safe.unwrap().id()))
             .returning(move |_| Ok(current_source_block));
         db.expect_latest_derived_block_at_source()
             .with(predicate::eq(prev_source_block.id()))
             .returning(move |_| Ok(last_valid_derived_block));
 
-        // let prev_source_block = BlockInfo::new(B256::from([8u8; 32]), 101, B256::ZERO, 0);
-        // let current_source_block =
-        //     BlockInfo::new(B256::from([7u8; 32]), 102, prev_source_block.hash, 0);
-        // let last_valid_derived_block = BlockInfo::new(B256::from([6u8; 32]), 9, B256::ZERO, 0);
-
-        // // return expected values when get_last_valid_derived_block() is called
-        // db.expect_derived_to_source()
-        //     .with(predicate::eq(super_head.local_safe.id()))
-        //     .returning(move |_| Ok(current_source_block));
-        // db.expect_latest_derived_block_at_source()
-        //     .with(predicate::eq(prev_source_block.id()))
-        //     .returning(move |_| Ok(last_valid_derived_block));
-
         let mut client = MockClient::new();
         // Return a block that does not match local_safe
         client
             .expect_block_ref_by_number()
-            .with(predicate::eq(super_head.local_safe.number))
+            .with(predicate::eq(super_head.local_safe.unwrap().number))
             .returning(|_| Ok(BlockInfo::new(B256::from([4u8; 32]), 3, B256::ZERO, 0)));
         // On second call, return the last valid derived block
         client
             .expect_block_ref_by_number()
             .with(predicate::eq(last_valid_derived_block.number))
             .returning(move |_| Ok(last_valid_derived_block));
+        
+        db.expect_get_super_head().returning(move || Ok(super_head));
+
         client.expect_reset().times(1).returning(|_, _, _, _, _| Ok(()));
 
         let resetter = Resetter::new(Arc::new(client), Arc::new(db));
@@ -310,10 +320,15 @@ mod tests {
         let super_head = make_super_head();
 
         let mut db = MockDb::new();
+        db.expect_latest_derivation_state()
+            .returning(move || Ok(DerivedRefPair {
+                derived: super_head.local_safe.clone().unwrap(),
+                source: super_head.l1_source.clone().unwrap(),
+            }));
         db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
-        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe));
+        client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe.unwrap()));
         client.expect_reset().returning(|_, _, _, _, _| {
             Err(ClientError::Authentication(AuthenticationError::InvalidJwt))
         });

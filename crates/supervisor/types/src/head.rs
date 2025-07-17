@@ -12,7 +12,7 @@ use kona_protocol::BlockInfo;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SuperHead {
     /// Source (L1) block.
-    pub l1_source: BlockInfo,
+    pub l1_source: Option<BlockInfo>,
     /// [`Unsafe`] head of chain.
     ///
     /// [`Unsafe`]: op_alloy_consensus::interop::SafetyLevel::LocalUnsafe
@@ -20,17 +20,17 @@ pub struct SuperHead {
     /// [`CrossUnsafe`] head of chain.
     ///
     /// [`CrossUnsafe`]: op_alloy_consensus::interop::SafetyLevel::CrossUnsafe
-    pub cross_unsafe: BlockInfo,
+    pub cross_unsafe: Option<BlockInfo>,
     /// [`LocalSafe`] head of chain.
     ///
     /// [`LocalSafe`]: op_alloy_consensus::interop::SafetyLevel::LocalSafe
-    pub local_safe: BlockInfo,
+    pub local_safe: Option<BlockInfo>,
     /// [`Safe`] head of chain.
     ///
     /// [`Safe`]: op_alloy_consensus::interop::SafetyLevel::CrossSafe
-    pub cross_safe: BlockInfo,
+    pub cross_safe: Option<BlockInfo>,
     /// [`Finalized`] head of chain.
     ///
     /// [`Finalized`]: op_alloy_consensus::interop::SafetyLevel::Finalized
-    pub finalized: BlockInfo,
+    pub finalized: Option<BlockInfo>,
 }

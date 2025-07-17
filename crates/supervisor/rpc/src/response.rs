@@ -71,12 +71,17 @@ impl From<SuperHead> for SupervisorChainSyncStatus {
         let SuperHead { local_unsafe, cross_unsafe, local_safe, cross_safe, finalized, .. } =
             super_head;
 
+        let cross_unsafe = cross_unsafe.unwrap_or_else(BlockInfo::default);
+        let local_safe = local_safe.unwrap_or_else(BlockInfo::default);
+        let cross_safe = cross_safe.unwrap_or_else(BlockInfo::default);
+        let finalized = finalized.unwrap_or_else(BlockInfo::default);
+
         Self {
             local_unsafe,
-            local_safe: BlockNumHash::new(local_safe.number, local_safe.hash),
-            cross_unsafe: BlockNumHash::new(cross_unsafe.number, cross_unsafe.hash),
-            cross_safe: BlockNumHash::new(cross_safe.number, cross_safe.hash),
-            finalized: BlockNumHash::new(finalized.number, finalized.hash),
+            local_safe: local_safe.id(),
+            cross_unsafe: cross_unsafe.id(),
+            cross_safe: cross_safe.id(),
+            finalized: finalized.id(),
         }
     }
 }
