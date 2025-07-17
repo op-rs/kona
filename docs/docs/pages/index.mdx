@@ -26,8 +26,8 @@ import { CodeGroup, Code } from '../components/CodeGroup'
     <CodeGroup>
       <Code
         title="Run a Node"
-        code={`# Install Kona
-cargo install kona
+        code={`# Install the kona-node
+cargo install kona-node
 
 # Start the node
 kona-node --chain base --port 8545`}
@@ -38,7 +38,7 @@ kona-node --chain base --port 8545`}
 git clone https://github.com/op-rs/kona.git
 
 # Build the node
-just build-native
+just build-node
 
 # Run your custom node
 ./target/release/kona-node`}

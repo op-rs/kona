@@ -16,6 +16,10 @@ alias h := hack
 default:
   @just --list
 
+# Build the rollup node in a single command.
+build-node:
+  cargo build --release --bin kona-node
+
 # Run all tests (excluding online tests)
 tests: test test-docs
 
