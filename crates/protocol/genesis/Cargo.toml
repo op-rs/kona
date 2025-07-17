@@ -36,7 +36,6 @@ arbitrary = { workspace = true, features = ["derive"], optional = true }
 # `serde` feature
 serde = { workspace = true, optional = true }
 serde_repr = { workspace = true, optional = true }
-kona-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 toml = { workspace = true, features = ["parse"] }
@@ -54,7 +53,6 @@ std = [
 	"alloy-primitives/std",
 	"alloy-sol-types/std",
 	"derive_more/std",
-	"kona-serde?/std",
 	"op-revm?/std",
 	"serde?/std",
 	"thiserror/std",
@@ -72,7 +70,6 @@ serde = [
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
 	"alloy-primitives/serde",
-	"dep:kona-serde",
 	"dep:serde",
 	"dep:serde_repr",
 	"op-revm?/serde",

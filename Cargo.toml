@@ -144,13 +144,13 @@ alloy-rpc-types-beacon = { version = "1.0.18", default-features = false }
 alloy-network-primitives = { version = "1.0.18", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.18.9", default-features = false }
+op-alloy-network = { version = "0.18.11", default-features = false }
 alloy-op-hardforks = { version = "0.2.11", default-features = false }
-op-alloy-provider = { version = "0.18.9", default-features = false }
-op-alloy-consensus = { version = "0.18.9", default-features = false }
-op-alloy-rpc-types = { version = "0.18.9", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.18.9", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.18.9", default-features = false }
+op-alloy-provider = { version = "0.18.11", default-features = false }
+op-alloy-consensus = { version = "0.18.11", default-features = false }
+op-alloy-rpc-types = { version = "0.18.11", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.18.11", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.18.11", default-features = false }
 
 # Execution
 revm = { version = "27.0", default-features = false }

@@ -2,7 +2,7 @@
 //!
 //! [`EngineActor`]: super::EngineActor
 
-use kona_engine::{EngineResetError, EngineTaskError};
+use kona_engine::{EngineResetError, EngineTaskErrors};
 
 /// An error from the [`EngineActor`].
 ///
@@ -17,5 +17,5 @@ pub enum EngineError {
     EngineReset(#[from] EngineResetError),
     /// Engine task error.
     #[error(transparent)]
-    EngineTask(#[from] EngineTaskError),
+    EngineTask(#[from] EngineTaskErrors),
 }

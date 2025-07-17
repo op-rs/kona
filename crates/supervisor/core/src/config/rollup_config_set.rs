@@ -29,8 +29,8 @@ impl Genesis {
         }
     }
 
-    /// Returns the genesis anchor as a [`DerivedRefPair`].
-    pub const fn get_anchor(&self) -> DerivedRefPair {
+    /// Returns the genesis as a [`DerivedRefPair`].
+    pub const fn get_derived_pair(&self) -> DerivedRefPair {
         DerivedRefPair { derived: self.l2, source: self.l1 }
     }
 }
@@ -73,15 +73,36 @@ impl RollupConfig {
         })
     }
 
+    /// Returns `true` if the timestamp is at or after the interop activation time.
+    ///
+    /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
+    /// provided timestamp is before or after interop timestamp.
+    ///
+    /// Returns `false` if `interop_time` is not configured.
+    pub fn is_interop(&self, timestamp: u64) -> bool {
+        self.interop_time.is_some_and(|t| timestamp >= t)
+    }
+
     /// Returns `true` if the timestamp is strictly after the interop activation block.
     ///
     /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
-    /// current block timestamp is *after* that activation, skipping the activation block
+    /// provided timestamp is *after* that activation, skipping the activation block
     /// itself.
     ///
     /// Returns `false` if `interop_time` is not configured.
     pub fn is_post_interop(&self, timestamp: u64) -> bool {
-        self.interop_time.is_some_and(|t| timestamp.saturating_sub(self.block_time) >= t)
+        self.is_interop(timestamp.saturating_sub(self.block_time))
+    }
+
+    /// Returns `true` if given block is the interop activation block.
+    ///
+    /// An interop activation block is defined as the block that is right after the
+    /// interop activation time.
+    ///
+    /// Returns `false` if `interop_time` is not configured.
+    pub fn is_interop_activation_block(&self, block: BlockInfo) -> bool {
+        self.is_interop(block.timestamp) &&
+            !self.is_interop(block.timestamp.saturating_sub(self.block_time))
     }
 }
 
@@ -115,9 +136,14 @@ impl RollupConfigSet {
         Ok(())
     }
 
-    /// returns whether interop is enabled for a chain at given timestamp
+    /// Returns `true` if interop is enabled for the chain at given timestamp.
     pub fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
         self.get(chain_id).map(|cfg| cfg.is_post_interop(timestamp)).unwrap_or(false) // if config not found, return false
+    }
+
+    /// Returns `true` if given block is the interop activation block for the specified chain.
+    pub fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool {
+        self.get(chain_id).map(|cfg| cfg.is_interop_activation_block(block)).unwrap_or(false)
     }
 }
 
@@ -151,5 +177,15 @@ mod tests {
 
         // Unknown chain_id returns false
         assert!(!set.is_interop_enabled(ChainId::from(999u64), 200));
+    }
+
+    #[test]
+    fn test_rollup_config_is_interop_interop_time_zero() {
+        // Interop time is 100, block_time is 10
+        let rollup_config =
+            RollupConfig::new(Genesis::new(dummy_blockinfo(0), dummy_blockinfo(0)), 2, Some(0));
+
+        assert!(rollup_config.is_interop(0));
+        assert!(rollup_config.is_interop(1000));
     }
 }

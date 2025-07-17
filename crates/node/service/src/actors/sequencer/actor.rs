@@ -36,7 +36,7 @@ struct SequencerActorState<AB: AttributesBuilder> {
     /// The [`AttributesBuilder`].
     pub builder: AB,
     /// The [`L1OriginSelector`].
-    pub origin_selector: L1OriginSelector,
+    pub origin_selector: L1OriginSelector<RootProvider>,
 }
 
 /// A trait for building [`AttributesBuilder`]s.
@@ -161,7 +161,17 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         }
 
         let unsafe_head = *unsafe_head_rx.borrow();
-        let l1_origin = self.origin_selector.next_l1_origin(unsafe_head).await?;
+        let l1_origin = match self.origin_selector.next_l1_origin(unsafe_head).await {
+            Ok(l1_origin) => l1_origin,
+            Err(err) => {
+                warn!(
+                    target: "sequencer",
+                    ?err,
+                    "Temporary error occurred while selecting next L1 origin. Re-attempting on next tick."
+                );
+                return Ok(());
+            }
+        };
 
         if unsafe_head.l1_origin.hash != l1_origin.parent_hash &&
             unsafe_head.l1_origin.hash != l1_origin.hash
@@ -313,6 +323,31 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         Ok(())
     }
+
+    /// Schedules the initial engine reset request and waits for the unsafe head to be updated.
+    async fn schedule_initial_reset(
+        &mut self,
+        ctx: &mut SequencerContext,
+        unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
+    ) -> Result<(), SequencerActorError> {
+        // Schedule a reset of the engine, in order to initialize the engine state.
+        if let Err(err) = ctx.reset_request_tx.send(()).await {
+            error!(target: "sequencer", ?err, "Failed to send reset request to engine");
+            ctx.cancellation.cancel();
+            return Err(SequencerActorError::ChannelClosed);
+        }
+
+        // Wait for the reset request to be processed before starting the block building loop.
+        //
+        // We know that the reset has concluded when the unsafe head watch channel is updated.
+        if unsafe_head_rx.changed().await.is_err() {
+            error!(target: "sequencer", "Failed to receive unsafe head update after reset request");
+            ctx.cancellation.cancel();
+            return Err(SequencerActorError::ChannelClosed);
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -333,6 +368,9 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         let mut state = SequencerActorState::from(self.builder);
         // A channel to receive the latest built payload from the engine.
         let mut latest_payload_rx = None;
+
+        // Reset the engine state prior to beginning block building.
+        state.schedule_initial_reset(&mut ctx, &mut self.unsafe_head_rx).await?;
 
         loop {
             // Check if we are waiting on a block to be built. If so, we must wait for the response

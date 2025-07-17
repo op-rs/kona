@@ -42,6 +42,9 @@ pub trait ManagedNodeClient: Debug {
     /// Fetches the [`BlockInfo`] by block number.
     async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError>;
 
+    /// Resets the managed node to the pre-interop state.
+    async fn reset_pre_interop(&self) -> Result<(), ClientError>;
+
     /// Resets the node state with the provided block IDs.
     async fn reset(
         &self,
@@ -302,12 +305,27 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
             "block_ref_by_number",
             async {
-              ManagedModeApiClient::block_ref_by_number(client.as_ref(), block_number).await
+              ManagedModeApiClient::l2_block_ref_by_number(client.as_ref(), block_number).await
             },
             "node" => self.config.url.clone()
         )?;
 
         Ok(block_info)
+    }
+
+    async fn reset_pre_interop(&self) -> Result<(), ClientError> {
+        let client = self.get_ws_client().await?;
+        observe_metrics_for_result_async!(
+            Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
+            Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
+            Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
+            "reset_pre_interop",
+            async {
+              ManagedModeApiClient::reset_pre_interop(client.as_ref()).await
+            },
+            "node" => self.config.url.clone()
+        )?;
+        Ok(())
     }
 
     async fn reset(

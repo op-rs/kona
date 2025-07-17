@@ -7,7 +7,8 @@ use futures::future::OptionFuture;
 use kona_derive::{ResetSignal, Signal};
 use kona_engine::{
     BuildTask, ConsolidateTask, Engine, EngineClient, EngineQueries,
-    EngineState as InnerEngineState, EngineTask, EngineTaskError, InsertUnsafeTask,
+    EngineState as InnerEngineState, EngineTask, EngineTaskError, EngineTaskErrorSeverity,
+    InsertTask,
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
@@ -144,7 +145,9 @@ pub(super) struct EngineActorState {
 pub struct EngineContext {
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
-
+    /// A sender for L2 unsafe head update notifications.
+    /// Is optional because it is only used in sequencer mode.
+    pub engine_unsafe_head_tx: Option<watch::Sender<L2BlockInfo>>,
     /// The sender for L2 safe head update notifications.
     pub engine_l2_safe_head_tx: watch::Sender<L2BlockInfo>,
     /// A channel to send a signal that EL sync has completed. Informs the derivation actor to
@@ -269,32 +272,36 @@ impl EngineActorState {
             Ok(_) => {
                 trace!(target: "engine", "[ENGINE] tasks drained");
             }
-            Err(EngineTaskError::Reset(err)) => {
-                warn!(target: "engine", ?err, "Received reset request");
-                self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
-            }
-            Err(EngineTaskError::Flush(err)) => {
-                // This error is encountered when the payload is marked INVALID
-                // by the engine api. Post-holocene, the payload is replaced by
-                // a "deposits-only" block and re-executed. At the same time,
-                // the channel and any remaining buffered batches are flushed.
-                warn!(target: "engine", ?err, "Invalid payload, Flushing derivation pipeline.");
-                match derivation_signal_tx.send(Signal::FlushChannel).await {
-                    Ok(_) => {
-                        debug!(target: "engine", "Sent flush signal to derivation actor")
+            Err(err) => {
+                match err.severity() {
+                    EngineTaskErrorSeverity::Critical => {
+                        error!(target: "engine", ?err, "Critical error draining engine tasks");
+                        return Err(err.into());
                     }
-                    Err(err) => {
-                        error!(target: "engine", ?err, "Failed to send flush signal to the derivation actor.");
-                        return Err(EngineError::ChannelClosed);
+                    EngineTaskErrorSeverity::Reset => {
+                        warn!(target: "engine", ?err, "Received reset request");
+                        self.reset(derivation_signal_tx, engine_l2_safe_head_tx, finalizer).await?;
+                    }
+                    EngineTaskErrorSeverity::Flush => {
+                        // This error is encountered when the payload is marked INVALID
+                        // by the engine api. Post-holocene, the payload is replaced by
+                        // a "deposits-only" block and re-executed. At the same time,
+                        // the channel and any remaining buffered batches are flushed.
+                        warn!(target: "engine", ?err, "Invalid payload, Flushing derivation pipeline.");
+                        match derivation_signal_tx.send(Signal::FlushChannel).await {
+                            Ok(_) => {
+                                debug!(target: "engine", "Sent flush signal to derivation actor")
+                            }
+                            Err(err) => {
+                                error!(target: "engine", ?err, "Failed to send flush signal to the derivation actor.");
+                                return Err(EngineError::ChannelClosed);
+                            }
+                        }
+                    }
+                    EngineTaskErrorSeverity::Temporary => {
+                        trace!(target: "engine", ?err, "Temporary error draining engine tasks");
                     }
                 }
-            }
-            Err(err @ EngineTaskError::Critical(_)) => {
-                error!(target: "engine", ?err, "Critical error draining engine tasks");
-                return Err(err.into());
-            }
-            Err(EngineTaskError::Temporary(err)) => {
-                trace!(target: "engine", ?err, "Temporary error draining engine tasks");
             }
         }
 
@@ -322,6 +329,12 @@ impl EngineActorState {
             let Some(sync_complete_tx) = std::mem::take(sync_complete_tx) else {
                 return Ok(());
             };
+
+            // Only reset the engine if the sync state does not already know about a finalized
+            // block.
+            if self.engine.state().sync_state.finalized_head() != L2BlockInfo::default() {
+                return Ok(());
+            }
 
             // If the sync status is finished, we can reset the engine and start derivation.
             info!(target: "engine", "Performing initial engine reset");
@@ -382,6 +395,7 @@ impl NodeActor for EngineActor {
             engine_l2_safe_head_tx,
             sync_complete_tx,
             derivation_signal_tx,
+            mut engine_unsafe_head_tx,
         }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut state = self.builder.build_state();
@@ -403,6 +417,14 @@ impl NodeActor for EngineActor {
                     &mut self.finalizer,
                 )
                 .await?;
+
+            // If the unsafe head has updated, propagate it to the outbound channels.
+            if let Some(unsafe_head_tx) = engine_unsafe_head_tx.as_mut() {
+                unsafe_head_tx.send_if_modified(|val| {
+                    let new_head = state.engine.state().sync_state.unsafe_head();
+                    (*val != new_head).then(|| *val = new_head).is_some()
+                });
+            }
 
             tokio::select! {
                 biased;
@@ -432,7 +454,7 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     };
 
-                    let task = EngineTask::BuildBlock(BuildTask::new(
+                    let task = EngineTask::Build(BuildTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
@@ -448,10 +470,11 @@ impl NodeActor for EngineActor {
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    let task = EngineTask::InsertUnsafe(InsertUnsafeTask::new(
+                    let task = EngineTask::Insert(InsertTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         envelope,
+                        false, // The payload is not derived in this case. This is an unsafe block.
                     ));
                     state.engine.enqueue(task);
                 }

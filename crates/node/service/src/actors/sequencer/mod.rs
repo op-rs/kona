@@ -1,7 +1,7 @@
 //! The `SequencerActor` and its components.
 
 mod origin_selector;
-pub use origin_selector::{L1OriginSelector, L1OriginSelectorError};
+pub use origin_selector::{L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider};
 
 mod actor;
 pub use actor::{

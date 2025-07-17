@@ -172,7 +172,7 @@ pub trait RollupNodeService {
         // Create the RPC server actor.
         let (_, rpc) = self.rpc_builder().map(Self::RpcActor::build).unzip();
 
-        let (_, sequencer) = self
+        let (sequencer_outbound_data, sequencer) = self
             .mode()
             .is_sequencer()
             .then_some(Self::SequencerActor::build(self.sequencer_builder()))
@@ -228,6 +228,8 @@ pub trait RollupNodeService {
                 Some((engine,
                     EngineContext {
                         engine_l2_safe_head_tx,
+                        engine_unsafe_head_tx: sequencer_outbound_data
+                            .map(|s| s.unsafe_head_tx),
                         sync_complete_tx: el_sync_complete_tx,
                         derivation_signal_tx,
                         cancellation: cancellation.clone(),

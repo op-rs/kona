@@ -6,7 +6,7 @@ use crate::{
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::CrossChainSafetyProvider;
+use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
 use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -114,10 +114,27 @@ where
 
     // Finds the next block that is eligible for promotion at the configured target level.
     fn find_next_promotable_block(&self) -> Result<BlockInfo, CrossSafetyError> {
-        let current_head =
-            self.provider.get_safety_head_ref(self.chain_id, self.promoter.target_level())?;
-        let upper_head =
-            self.provider.get_safety_head_ref(self.chain_id, self.promoter.lower_bound_level())?;
+        let current_head = self
+            .provider
+            .get_safety_head_ref(self.chain_id, self.promoter.target_level())
+            .map_err(|err| {
+                if matches!(err, StorageError::FutureData) {
+                    CrossSafetyError::NoBlockToPromote
+                } else {
+                    err.into()
+                }
+            })?;
+
+        let upper_head = self
+            .provider
+            .get_safety_head_ref(self.chain_id, self.promoter.lower_bound_level())
+            .map_err(|err| {
+                if matches!(err, StorageError::FutureData) {
+                    CrossSafetyError::NoBlockToPromote
+                } else {
+                    err.into()
+                }
+            })?;
 
         if current_head.number >= upper_head.number {
             return Err(CrossSafetyError::NoBlockToPromote);
