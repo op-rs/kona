@@ -246,16 +246,6 @@ where
                         finalized_timestamp = finalized.timestamp;
                     }
 
-                    if l1_source.number < min_synced_l1.number {
-                        min_synced_l1 = *l1_source;
-                    }
-                    if cross_safe.timestamp < cross_safe_timestamp {
-                        cross_safe_timestamp = cross_safe.timestamp;
-                    }
-                    if finalized.timestamp < finalized_timestamp {
-                        finalized_timestamp = finalized.timestamp;
-                    }
-
                     *status = head.into()
                 }
 
