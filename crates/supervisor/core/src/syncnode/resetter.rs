@@ -49,21 +49,21 @@ where
             .inspect_err(|err| error!(target: "resetter", %err, "Failed to get super head"))?;
 
         // using the local safe block as the local unsafe as well
-        let local_unsafe = local_safe.clone();
+        let local_unsafe = local_safe;
 
         let mut cross_unsafe = cross_unsafe.unwrap_or_else(BlockInfo::default);
         if cross_unsafe.number > local_unsafe.number {
-            cross_unsafe = local_unsafe.clone();
+            cross_unsafe = local_unsafe;
         }
 
         let mut cross_safe = cross_safe.unwrap_or_else(BlockInfo::default);
         if cross_safe.number > local_safe.number {
-            cross_safe = local_safe.clone();
+            cross_safe = local_safe;
         }
 
         let mut finalized = finalized.unwrap_or_else(BlockInfo::default);
         if finalized.number > local_safe.number {
-            finalized = local_safe.clone();
+            finalized = local_safe;
         }
 
         info!(target: "resetter",
@@ -221,8 +221,8 @@ mod tests {
         let mut db = MockDb::new();
         db.expect_latest_derivation_state().returning(move || {
             Ok(DerivedRefPair {
-                derived: super_head.local_safe.clone().unwrap(),
-                source: super_head.l1_source.clone().unwrap(),
+                derived: super_head.local_safe.unwrap(),
+                source: super_head.l1_source.unwrap(),
             })
         });
         db.expect_get_super_head().returning(move || Ok(super_head));
@@ -256,8 +256,8 @@ mod tests {
         let mut db = MockDb::new();
         db.expect_latest_derivation_state().returning(move || {
             Ok(DerivedRefPair {
-                derived: super_head.local_safe.clone().unwrap(),
-                source: super_head.l1_source.clone().unwrap(),
+                derived: super_head.local_safe.unwrap(),
+                source: super_head.l1_source.unwrap(),
             })
         });
         let mut client = MockClient::new();
@@ -277,8 +277,8 @@ mod tests {
         let mut db = MockDb::new();
         db.expect_latest_derivation_state().returning(move || {
             Ok(DerivedRefPair {
-                derived: super_head.local_safe.clone().unwrap(),
-                source: super_head.l1_source.clone().unwrap(),
+                derived: super_head.local_safe.unwrap(),
+                source: super_head.l1_source.unwrap(),
             })
         });
 
@@ -323,8 +323,8 @@ mod tests {
         let mut db = MockDb::new();
         db.expect_latest_derivation_state().returning(move || {
             Ok(DerivedRefPair {
-                derived: super_head.local_safe.clone().unwrap(),
-                source: super_head.l1_source.clone().unwrap(),
+                derived: super_head.local_safe.unwrap(),
+                source: super_head.l1_source.unwrap(),
             })
         });
         db.expect_get_super_head().returning(move || Ok(super_head));
