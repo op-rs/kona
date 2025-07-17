@@ -2,6 +2,8 @@
 import "./tests/justfile"
 # Builds docker images for kona
 import "./docker/apps/justfile"
+# Vocs Documentation commands
+import "./docs/justfile"
 
 set positional-arguments
 alias t := tests
@@ -19,10 +21,6 @@ default:
 # Build the rollup node in a single command.
 build-node:
   cargo build --release --bin kona-node
-
-# Run the vocs documentation
-vocs:
-  cd docs && npm install && npm run dev -- --host
 
 # Run all tests (excluding online tests)
 tests: test test-docs
