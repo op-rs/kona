@@ -1,0 +1,103 @@
+# A large network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
+# Spins up a large EL/CL network only with kona nodes.
+
+optimism_package:
+  faucet:
+    enabled: true
+  chains:
+    chain0:
+    # Chain with more nodes
+      participants:
+        kona-sequencer:
+        # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
+        # So we use op-geth for now.
+          el:
+            type: op-geth
+            log_level: "info"
+          cl:
+            type: kona-node
+            log_level: "info"
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+          sequencer: true
+        kona-1:
+          el:
+            type: op-geth
+          cl: 
+            type: kona-node
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+            log_level: "info"
+          sequencer: false
+        kona-2:
+          el:
+            type: op-geth
+          cl: 
+            type: kona-node
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+            log_level: "info"
+          sequencer: false
+        kona-3:
+          el:
+            type: op-geth
+          cl: 
+            type: kona-node
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+            log_level: "info"
+          sequencer: false
+        kona-4:
+          el:
+            type: op-geth
+          cl: 
+            type: kona-node
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+            log_level: "info"
+          sequencer: false
+        kona-5:
+        # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
+        # So we use op-geth for now.
+          el:
+            type: op-geth
+            log_level: "info"
+          cl:
+            type: kona-node
+            log_level: "info"
+            # Note: we use the local image for now. This allows us to run the tests in CI pipelines without publishing new docker images every time.
+            image: "kona-node:local"
+            extra_env_vars:
+              KONA_NODE_RPC_WS_ENABLED: "true"
+          sequencer: false
+      network_params:
+        network: "kurtosis"
+        network_id: "2151908"
+        seconds_per_slot: 2
+ethereum_package:
+  participants:
+  - el_type: geth
+    cl_type: teku
+  network_params:
+    preset: minimal
+    genesis_delay: 5
+    additional_preloaded_contracts: '
+      {
+        "0x4e59b44847b379578588920cA78FbF26c0B4956C": {
+          "balance": "0ETH",
+          "code": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3",
+          "storage": {},
+          "nonce": "1"
+        }
+      }
+    '

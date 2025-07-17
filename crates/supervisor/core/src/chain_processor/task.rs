@@ -18,7 +18,7 @@ use tracing::{debug, error, info};
 /// It listens for events emitted by the managed node and handles them accordingly.
 #[derive(Debug)]
 pub struct ChainProcessorTask<P, W> {
-    _rollup_config: RollupConfig,
+    rollup_config: RollupConfig,
     chain_id: ChainId,
     metrics_enabled: Option<bool>,
 
@@ -54,7 +54,7 @@ where
     ) -> Self {
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
         Self {
-            _rollup_config: rollup_config,
+            rollup_config,
             chain_id,
             metrics_enabled: None,
             cancel_token,
@@ -326,37 +326,53 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
-        match self.state_manager.save_derived_block(derived_ref_pair) {
-            Ok(_) => Ok(derived_ref_pair.derived),
-            Err(StorageError::BlockOutOfOrder | StorageError::ConflictError(_)) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = derived_ref_pair.derived.number,
-                    "Block out of order detected, resetting managed node"
-                );
 
-                if let Err(err) = self.managed_node.reset().await {
+        if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
+            match self.state_manager.save_derived_block(derived_ref_pair) {
+                Ok(_) => return Ok(derived_ref_pair.derived),
+                Err(StorageError::BlockOutOfOrder) => {
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
-                        %err,
-                        "Failed to reset managed node after block out of order"
+                        block_number = derived_ref_pair.derived.number,
+                        "Block out of order detected, resetting managed node"
                     );
+
+                    if let Err(err) = self.managed_node.reset().await {
+                        error!(
+                            target: "chain_processor",
+                            chain_id = self.chain_id,
+                            %err,
+                            "Failed to reset managed node after block out of order"
+                        );
+                    }
+                    return Err(StorageError::BlockOutOfOrder.into());
                 }
-                Err(StorageError::BlockOutOfOrder.into())
-            }
-            Err(err) => {
-                error!(
-                    target: "chain_processor",
-                    chain_id = self.chain_id,
-                    block_number = derived_ref_pair.derived.number,
-                    %err,
-                    "Failed to save derived block pair"
-                );
-                Err(err.into())
+                Err(err) => {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = derived_ref_pair.derived.number,
+                        %err,
+                        "Failed to save derived block pair"
+                    );
+                    return Err(err.into());
+                }
             }
         }
+
+        if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Initialising derivation storage for interop activation block"
+            );
+            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
+            return Ok(derived_ref_pair.derived);
+        }
+
+        Ok(derived_ref_pair.derived)
     }
 
     async fn handle_unsafe_event(
@@ -370,7 +386,21 @@ where
             "Processing unsafe block"
         );
 
-        self.log_indexer.clone().sync_logs(block);
+        if self.rollup_config.is_post_interop(block.timestamp) {
+            self.log_indexer.clone().sync_logs(block);
+            return Ok(block);
+        }
+
+        if self.rollup_config.is_interop_activation_block(block) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                "Initialising log storage for interop activation block"
+            );
+            self.state_manager.initialise_log_storage(block)?;
+            return Ok(block);
+        }
 
         Ok(block)
     }
@@ -412,6 +442,7 @@ where
 mod tests {
     use super::*;
     use crate::{
+        config::Genesis,
         event::ChainEvent,
         syncnode::{
             BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
@@ -548,19 +579,23 @@ mod tests {
         }
     );
 
+    fn genesis() -> Genesis {
+        let l2 = BlockInfo::new(B256::from([1u8; 32]), 0, B256::ZERO, 50);
+        let l1 = BlockInfo::new(B256::from([2u8; 32]), 10, B256::ZERO, 1000);
+        Genesis::new(l1, l2)
+    }
+
+    fn get_rollup_config(interop_time: u64) -> RollupConfig {
+        RollupConfig::new(genesis(), 2, Some(interop_time))
+    }
+
     #[tokio::test]
-    async fn test_handle_unsafe_event_triggers() {
-        let mut mockdb = MockDb::new();
-        let mut mocknode = MockNode::new();
+    async fn test_handle_unsafe_event_pre_interop() {
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
 
         // Send unsafe block event
-        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 0);
-
-        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
-        mocknode.expect_fetch_receipts().returning(move |block_hash| {
-            assert!(block_hash == block.hash);
-            Ok(Receipts::default())
-        });
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 10);
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
@@ -568,7 +603,8 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let rollup_config = RollupConfig::default();
+        let rollup_config = get_rollup_config(1000);
+
         let task = ChainProcessorTask::new(
             rollup_config,
             1,
@@ -591,7 +627,88 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_derived_event_triggers() {
+    async fn test_handle_unsafe_event_post_interop() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Send unsafe block event
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 1003);
+
+        mockdb.expect_store_block_logs().returning(move |_block, _log| Ok(()));
+        mocknode.expect_fetch_receipts().returning(move |block_hash| {
+            assert!(block_hash == block.hash);
+            Ok(Receipts::default())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_unsafe_event_interop_activation() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        // Block that triggers interop activation
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 1001); // Use timestamp/number that triggers activation
+
+        let rollup_config = get_rollup_config(1000);
+
+        mockdb.expect_initialise_log_storage().returning(move |b| {
+            assert_eq!(b, block);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::UnsafeBlock { block }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_pre_interop() {
         let block_pair = DerivedRefPair {
             source: BlockInfo {
                 number: 123,
@@ -603,17 +720,12 @@ mod tests {
                 number: 1234,
                 hash: B256::ZERO,
                 parent_hash: B256::ZERO,
-                timestamp: 0,
+                timestamp: 999,
             },
         };
 
-        let mut mockdb = MockDb::new();
+        let mockdb = MockDb::new();
         let mocknode = MockNode::new();
-
-        mockdb.expect_save_derived_block().returning(move |_pair: DerivedRefPair| {
-            assert_eq!(_pair, block_pair);
-            Ok(())
-        });
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
@@ -621,7 +733,7 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let (tx, rx) = mpsc::channel(10);
 
-        let rollup_config = RollupConfig::default();
+        let rollup_config = get_rollup_config(1000);
         let task = ChainProcessorTask::new(
             rollup_config,
             1,
@@ -640,6 +752,218 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_post_interop() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003,
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        mockdb.expect_save_derived_block().returning(move |_pair: DerivedRefPair| {
+            assert_eq!(_pair, block_pair);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        // Send unsafe block event
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_interop_activation() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1001,
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        mockdb.expect_initialise_derivation_storage().returning(move |_pair: DerivedRefPair| {
+            assert_eq!(_pair, block_pair);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        // Send unsafe block event
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        // Give it time to process
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Stop the task
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_out_of_order_triggers_reset() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Simulate BlockOutOfOrder error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::BlockOutOfOrder));
+
+        // Expect reset to be called
+        mocknode.expect_reset().returning(|| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_other_error() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        // Simulate a different error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         cancel_token.cancel();
         task_handle.await.unwrap();
     }

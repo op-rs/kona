@@ -115,13 +115,11 @@ func NewMixedOpKona(t devtest.T) *MixedOpKonaPreset {
 	opCLNodes := L2NodeMatcher[stack.L2CLNodeID, stack.L2CLNode](string(OpNode)).Match(l2Net.L2CLNodes())
 	konaCLNodes := L2NodeMatcher[stack.L2CLNodeID, stack.L2CLNode](string(KonaNode)).Match(l2Net.L2CLNodes())
 
-	t.Gate().GreaterOrEqual(len(opCLNodes), 1, "expected at least one op-node")
 	t.Gate().GreaterOrEqual(len(konaCLNodes), 1, "expected at least one kona-node")
 
 	opELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(OpNode)).Match(l2Net.L2ELNodes())
 	konaELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(KonaNode)).Match(l2Net.L2ELNodes())
 
-	t.Gate().GreaterOrEqual(len(opELNodes), 1, "expected at least one op-node")
 	t.Gate().GreaterOrEqual(len(konaELNodes), 1, "expected at least one kona-node")
 
 	out := &MixedOpKonaPreset{

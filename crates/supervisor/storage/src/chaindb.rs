@@ -205,15 +205,46 @@ impl HeadRefStorageReader for ChainDb {
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
         self.observe_call("get_super_head", || {
-            let l1_source = self.latest_derivation_state()?.source;
-
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx);
-                let local_unsafe = sp.get_safety_head_ref(SafetyLevel::LocalUnsafe)?;
-                let cross_unsafe = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
-                let local_safe = sp.get_safety_head_ref(SafetyLevel::LocalSafe)?;
-                let cross_safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
-                let finalized = sp.get_safety_head_ref(SafetyLevel::Finalized)?;
+                let local_unsafe =
+                    sp.get_safety_head_ref(SafetyLevel::LocalUnsafe).map_err(|err| {
+                        if matches!(err, StorageError::FutureData) {
+                            StorageError::DatabaseNotInitialised
+                        } else {
+                            err
+                        }
+                    })?;
+
+                let cross_unsafe = match sp.get_safety_head_ref(SafetyLevel::CrossUnsafe) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let local_safe = match sp.get_safety_head_ref(SafetyLevel::LocalSafe) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let cross_safe = match sp.get_safety_head_ref(SafetyLevel::CrossSafe) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let finalized = match sp.get_safety_head_ref(SafetyLevel::Finalized) {
+                    Ok(block) => Some(block),
+                    Err(StorageError::FutureData) => None,
+                    Err(err) => return Err(err),
+                };
+
+                let l1_source = match DerivationProvider::new(tx).latest_derivation_state() {
+                    Ok(pair) => Some(pair.source),
+                    Err(StorageError::DatabaseNotInitialised) => None,
+                    Err(err) => return Err(err),
+                };
 
                 Ok(SuperHead {
                     l1_source,
@@ -473,6 +504,57 @@ mod tests {
         // Get super head when no blocks are stored
         let err = db.get_super_head().unwrap_err();
         assert!(matches!(err, StorageError::DatabaseNotInitialised));
+    }
+
+    #[test]
+    fn test_get_super_head_populated() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        // Prepare blocks
+        let block = BlockInfo { number: 1, ..Default::default() };
+        let derived_pair = DerivedRefPair { source: block, derived: block };
+
+        // Initialise all heads
+        db.initialise_log_storage(block).unwrap();
+        db.initialise_derivation_storage(derived_pair).unwrap();
+
+        let _ = db
+            .env
+            .update(|ctx| {
+                let sp = SafetyHeadRefProvider::new(ctx);
+                sp.update_safety_head_ref(SafetyLevel::Finalized, &block)
+            })
+            .unwrap();
+
+        // Should not error and all heads should be Some
+        let super_head = db.get_super_head().unwrap();
+        assert_eq!(super_head.local_unsafe, block);
+        assert!(super_head.cross_unsafe.is_some());
+        assert!(super_head.local_safe.is_some());
+        assert!(super_head.cross_safe.is_some());
+        assert!(super_head.finalized.is_some());
+        assert!(super_head.l1_source.is_some());
+    }
+
+    #[test]
+    fn test_get_super_head_with_some_missing_heads() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        // Only initialise log storage (not derivation storage)
+        let block = BlockInfo { number: 1, ..Default::default() };
+        db.initialise_log_storage(block).unwrap();
+
+        let super_head = db.get_super_head().unwrap();
+        assert_eq!(super_head.local_unsafe, block);
+        // These will be None because derivation storage was not initialised
+        assert!(super_head.local_safe.is_none());
+        assert!(super_head.cross_safe.is_none());
+        assert!(super_head.finalized.is_none());
+        assert!(super_head.l1_source.is_none());
     }
 
     #[test]

@@ -272,7 +272,7 @@ mod tests {
         let mut mock_provider = MockBlockProvider::new();
         mock_provider.expect_fetch_receipts().withf(move |hash| *hash == block_hash).returning(
             |_| {
-                Err(ManagedNodeError::Client(ClientError::Authentication(
+                Err(ManagedNodeError::ClientError(ClientError::Authentication(
                     AuthenticationError::InvalidHeader,
                 )))
             },

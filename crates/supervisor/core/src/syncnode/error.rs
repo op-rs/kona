@@ -7,7 +7,7 @@ use thiserror::Error;
 pub enum ManagedNodeError {
     /// Represents an error that occurred while starting the managed node.
     #[error(transparent)]
-    Client(#[from] ClientError),
+    ClientError(#[from] ClientError),
 
     /// Represents an error that occurred while subscribing to the managed node.
     #[error("subscription error: {0}")]

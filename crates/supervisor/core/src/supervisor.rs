@@ -6,10 +6,11 @@ use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_interop::{
-    ChainRootInfo, DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION,
-    SafetyLevel, SuperRoot, SuperRootOutput,
+    DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
+    SuperRoot,
 };
 use kona_protocol::BlockInfo;
+use kona_supervisor_rpc::{ChainRootInfoRpc, SuperRootOutputRpc};
 use kona_supervisor_storage::{
     ChainDb, ChainDbFactory, DerivationStorageReader, DerivationStorageWriter, FinalizedL1Storage,
     HeadRefStorageReader, LogStorageReader, LogStorageWriter,
@@ -86,7 +87,7 @@ pub trait SupervisorService: Debug + Send + Sync {
     async fn super_root_at_timestamp(
         &self,
         timestamp: u64,
-    ) -> Result<SuperRootOutput, SupervisorError>;
+    ) -> Result<SuperRootOutputRpc, SupervisorError>;
 
     /// Verifies if an access-list references only valid messages
     fn check_access_list(
@@ -142,9 +143,13 @@ impl Supervisor {
         for (chain_id, config) in self.config.rollup_config_set.rollups.iter() {
             // Initialise the database for each chain.
             let db = self.database_factory.get_or_create_db(*chain_id)?;
-            let anchor = config.genesis.get_anchor();
-            db.initialise_log_storage(anchor.derived)?;
-            db.initialise_derivation_storage(anchor)?;
+            let interop_time = config.interop_time;
+            let derived_pair = config.genesis.get_derived_pair();
+            if config.is_interop(derived_pair.derived.timestamp) {
+                info!(target: "supervisor_service", chain_id, interop_time, %derived_pair, "Initialising database for interop activation block");
+                db.initialise_log_storage(derived_pair.derived)?;
+                db.initialise_derivation_storage(derived_pair)?;
+            }
             info!(target: "supervisor_service", chain_id, "Database initialized successfully");
         }
         Ok(())
@@ -393,12 +398,12 @@ impl SupervisorService for Supervisor {
     async fn super_root_at_timestamp(
         &self,
         timestamp: u64,
-    ) -> Result<SuperRootOutput, SupervisorError> {
+    ) -> Result<SuperRootOutputRpc, SupervisorError> {
         let mut chain_ids = self.config.dependency_set.dependencies.keys().collect::<Vec<_>>();
         // Sorting chain ids for deterministic super root hash
         chain_ids.sort();
 
-        let mut chain_infos = Vec::<ChainRootInfo>::with_capacity(chain_ids.len());
+        let mut chain_infos = Vec::<ChainRootInfoRpc>::with_capacity(chain_ids.len());
         let mut super_root_chains = Vec::<OutputRootWithChain>::with_capacity(chain_ids.len());
         let mut cross_safe_source = BlockNumHash::default();
 
@@ -413,7 +418,7 @@ impl SupervisorService for Supervisor {
                 serde_json::to_string(&pending_output_v0).unwrap().as_bytes(),
             );
 
-            chain_infos.push(ChainRootInfo {
+            chain_infos.push(ChainRootInfoRpc {
                 chain_id: *id,
                 canonical: canonical_root,
                 pending: pending_output_v0_bytes,
@@ -424,11 +429,9 @@ impl SupervisorService for Supervisor {
 
             let l2_block = managed_node.l2_block_ref_by_timestamp(timestamp).await?;
             let source = self
-                .get_db(*id)?
-                .derived_to_source(l2_block.id())
-                .map_err(|err| {
+                .derived_to_source_block(*id, l2_block.id())
+                .inspect_err(|err| {
                     error!(target: "supervisor_service", %id, %err, "Failed to get derived to source block for chain");
-                    SpecError::from(err)
                 })?;
 
             if cross_safe_source.number == 0 || cross_safe_source.number < source.number {
@@ -437,10 +440,9 @@ impl SupervisorService for Supervisor {
         }
 
         let super_root = SuperRoot { timestamp, output_roots: super_root_chains };
-
         let super_root_hash = super_root.hash();
 
-        Ok(SuperRootOutput {
+        Ok(SuperRootOutputRpc {
             cross_safe_derived_from: cross_safe_source,
             timestamp,
             super_root: super_root_hash,

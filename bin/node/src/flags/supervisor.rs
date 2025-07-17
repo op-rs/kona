@@ -30,7 +30,7 @@ pub struct SupervisorArgs {
     pub ip_address: IpAddr,
 
     /// TCP port to serve the supervisor rpc. Any available system port if set to 0.
-    #[arg(long = "supervisor.port", default_value = "9333", env = "KONA_NODE_SEQUENCER_PORT")]
+    #[arg(long = "supervisor.port", default_value = "9333", env = "KONA_NODE_SUPERVISOR_PORT")]
     pub port: u16,
 
     /// JWT secret for supervisor websocket authentication

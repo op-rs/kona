@@ -42,6 +42,6 @@ pub use network::{
 
 mod sequencer;
 pub use sequencer::{
-    AttributesBuilderConfig, L1OriginSelector, L1OriginSelectorError, SequencerActor,
-    SequencerActorError, SequencerBuilder, SequencerContext, SequencerInboundData,
+    AttributesBuilderConfig, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
+    SequencerActor, SequencerActorError, SequencerBuilder, SequencerContext, SequencerInboundData,
 };
