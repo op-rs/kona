@@ -16,7 +16,6 @@ use discv5::{
 use ipnet::IpNet;
 use kona_peers::OpStackEnr;
 use libp2p::{Multiaddr, PeerId, gossipsub::TopicHash};
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use tokio::sync::oneshot::Sender;
 
 use super::{
@@ -28,11 +27,6 @@ use crate::ConnectionGate;
 /// A p2p RPC Request.
 #[derive(Debug)]
 pub enum P2pRpcRequest {
-    /// An admin rpc request to post an unsafe payload.
-    PostUnsafePayload {
-        /// The payload to post.
-        payload: OpExecutionPayloadEnvelope,
-    },
     /// Returns [`PeerInfo`] for the p2p network.
     PeerInfo(Sender<PeerInfo>),
     /// Dumps the node's discovery table from the [`crate::Discv5Driver`].
@@ -137,11 +131,6 @@ impl P2pRpcRequest {
             Self::BlockSubnet { address } => Self::block_subnet(address, gossip),
             Self::UnblockSubnet { address } => Self::unblock_subnet(address, gossip),
             Self::ListBlockedSubnets(s) => Self::list_blocked_subnets(s, gossip),
-            Self::PostUnsafePayload { payload } => {
-                // Unsafe payload handling happens in the network driver.
-                // This must never be reached.
-                error!(target: "p2p::rpc", ?payload, "PostUnsafePayload request received, but it should not be handled here.");
-            }
         }
     }
 

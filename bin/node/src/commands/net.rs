@@ -8,7 +8,7 @@ use kona_node_service::{
     NetworkActor, NetworkBuilder, NetworkContext, NetworkInboundData, NodeActor,
 };
 use kona_p2p::P2pRpcRequest;
-use kona_rpc::{NetworkRpc, OpP2PApiServer, RpcBuilder};
+use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 use url::Url;
@@ -67,7 +67,7 @@ impl NetCommand {
         self.p2p.check_ports()?;
         let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
 
-        let (NetworkInboundData { rpc, .. }, network) =
+        let (NetworkInboundData { p2p_rpc: rpc, .. }, network) =
             NetworkActor::new(NetworkBuilder::from(p2p_config));
 
         let (blocks, mut blocks_rx) = tokio::sync::mpsc::channel(1024);
@@ -83,7 +83,7 @@ impl NetCommand {
 
             // Setup the RPC server with the P2P RPC Module
             let mut launcher = RpcModule::new(());
-            launcher.merge(NetworkRpc::new(rpc.clone()).into_rpc())?;
+            launcher.merge(P2pRpc::new(rpc.clone()).into_rpc())?;
 
             let server = Server::builder().build(config.socket).await?;
             Some(server.start(launcher))

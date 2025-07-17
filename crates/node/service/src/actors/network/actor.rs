@@ -2,6 +2,7 @@ use alloy_primitives::Address;
 use alloy_signer::SignerSync;
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
+use kona_rpc::NetworkAdminQuery;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
 use thiserror::Error;
@@ -48,8 +49,10 @@ pub struct NetworkActor {
     pub(super) builder: NetworkBuilder,
     /// A channel to receive the unsafe block signer address.
     pub(super) signer: mpsc::Receiver<Address>,
-    /// Handler for RPC Requests.
-    pub(super) rpc: mpsc::Receiver<P2pRpcRequest>,
+    /// Handler for p2p RPC Requests.
+    pub(super) p2p_rpc: mpsc::Receiver<P2pRpcRequest>,
+    /// A channel to receive admin rpc requests.
+    pub(super) admin_rpc: mpsc::Receiver<NetworkAdminQuery>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
     pub(super) publish_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
 }
@@ -59,8 +62,10 @@ pub struct NetworkActor {
 pub struct NetworkInboundData {
     /// A channel to send the unsafe block signer address to the network actor.
     pub signer: mpsc::Sender<Address>,
-    /// Handler for RPC Requests sent to the network actor.
-    pub rpc: mpsc::Sender<P2pRpcRequest>,
+    /// Handler for p2p RPC Requests sent to the network actor.
+    pub p2p_rpc: mpsc::Sender<P2pRpcRequest>,
+    /// Handler for admin RPC Requests.
+    pub admin_rpc: mpsc::Sender<NetworkAdminQuery>,
     /// A channel to send unsafe blocks to the network actor.
     /// This channel should only be used by the sequencer actor/admin RPC api to forward their
     /// newly produced unsafe blocks to the network actor.
@@ -72,10 +77,21 @@ impl NetworkActor {
     pub fn new(driver: NetworkBuilder) -> (NetworkInboundData, Self) {
         let (signer_tx, signer_rx) = mpsc::channel(16);
         let (rpc_tx, rpc_rx) = mpsc::channel(1024);
+        let (admin_rpc_tx, admin_rpc_rx) = mpsc::channel(1024);
         let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
-        let actor = Self { builder: driver, signer: signer_rx, rpc: rpc_rx, publish_rx };
-        let outbound_data =
-            NetworkInboundData { signer: signer_tx, rpc: rpc_tx, gossip_payload_tx: publish_tx };
+        let actor = Self {
+            builder: driver,
+            signer: signer_rx,
+            p2p_rpc: rpc_rx,
+            admin_rpc: admin_rpc_rx,
+            publish_rx,
+        };
+        let outbound_data = NetworkInboundData {
+            signer: signer_tx,
+            p2p_rpc: rpc_tx,
+            admin_rpc: admin_rpc_tx,
+            gossip_payload_tx: publish_tx,
+        };
         (outbound_data, actor)
     }
 }
@@ -224,22 +240,18 @@ impl NodeActor for NetworkActor {
                 _ = handler.peer_score_inspector.tick(), if handler.gossip.peer_monitoring.as_ref().is_some() => {
                     handler.handle_peer_monitoring().await;
                 },
-                req = self.rpc.recv(), if !self.rpc.is_closed() => {
-                    let Some(req) = req else {
-                        error!(target: "node::p2p", "The rpc receiver channel has closed");
-                        return Err(NetworkActorError::ChannelClosed);
-                    };
-                    let payload = match req {
-                        P2pRpcRequest::PostUnsafePayload { payload } => payload,
-                        req => {
-                            req.handle(&mut handler.gossip, &handler.discovery);
-                            continue;
-                        }
-                    };
+                Some(NetworkAdminQuery::PostUnsafePayload { payload }) = self.admin_rpc.recv(), if !self.admin_rpc.is_closed() => {
                     debug!(target: "node::p2p", "Broadcasting unsafe payload from admin api");
                     if unsafe_block_tx.send(payload).is_err() {
                         warn!(target: "node::p2p", "Failed to send unsafe block to network handler");
                     }
+                },
+                req = self.p2p_rpc.recv(), if !self.p2p_rpc.is_closed() => {
+                    let Some(req) = req else {
+                        error!(target: "node::p2p", "The p2p rpc receiver channel has closed");
+                        return Err(NetworkActorError::ChannelClosed);
+                    };
+                    req.handle(&mut handler.gossip, &handler.discovery);
                 },
             }
         }

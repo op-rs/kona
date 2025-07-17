@@ -181,4 +181,28 @@ pub trait AdminApi {
     #[method(name = "postUnsafePayload")]
     async fn admin_post_unsafe_payload(&self, payload: OpExecutionPayloadEnvelope)
     -> RpcResult<()>;
+
+    /// Checks if the sequencer is active.
+    #[method(name = "sequencerActive")]
+    async fn admin_sequencer_active(&self) -> RpcResult<bool>;
+
+    /// Starts the sequencer.
+    #[method(name = "startSequencer")]
+    async fn admin_start_sequencer(&self) -> RpcResult<()>;
+
+    /// Stops the sequencer.
+    #[method(name = "stopSequencer")]
+    async fn admin_stop_sequencer(&self) -> RpcResult<()>;
+
+    /// Checks if the conductor is enabled.
+    #[method(name = "conductorEnabled")]
+    async fn admin_conductor_enabled(&self) -> RpcResult<bool>;
+
+    /// Sets the recover mode.
+    #[method(name = "setRecoverMode")]
+    async fn admin_set_recover_mode(&self, mode: bool) -> RpcResult<()>;
+
+    /// Overrides the leader in the conductor.
+    #[method(name = "overrideLeader")]
+    async fn admin_override_leader(&self) -> RpcResult<()>;
 }
