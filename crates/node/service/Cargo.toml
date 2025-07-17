@@ -68,6 +68,9 @@ metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest.workspace = true
+arbitrary.workspace = true
+rand.workspace = true
+alloy-rpc-types-engine = { workspace = true, features = ["arbitrary"] }
 
 [features]
 default = []

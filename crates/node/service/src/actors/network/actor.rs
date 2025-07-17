@@ -1,5 +1,6 @@
 use alloy_primitives::Address;
 use alloy_signer::SignerSync;
+use alloy_signer_local::PrivateKeySigner;
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
 use libp2p::TransportError;
@@ -78,6 +79,29 @@ impl NetworkActor {
             NetworkInboundData { signer: signer_tx, rpc: rpc_tx, gossip_payload_tx: publish_tx };
         (outbound_data, actor)
     }
+
+    /// Signs a payload with the given signer and chain id.
+    ///
+    /// Spec: <https://specs.optimism.io/protocol/rollup-node-p2p.html#block-signatures>
+    fn sign_payload(
+        block: OpExecutionPayloadEnvelope,
+        signer: &PrivateKeySigner,
+        chain_id: u64,
+    ) -> Result<OpNetworkPayloadEnvelope, NetworkActorError> {
+        // Computes the payload hash for a given block.
+        let payload_hash = block.payload_hash();
+
+        let Ok(signature) = signer.sign_hash_sync(&payload_hash.signature_message(chain_id)) else {
+            return Err(NetworkActorError::FailedToSignPayload);
+        };
+
+        Ok(OpNetworkPayloadEnvelope {
+            parent_beacon_block_root: block.parent_beacon_block_root,
+            payload: block.payload,
+            signature,
+            payload_hash,
+        })
+    }
 }
 
 /// The communication context used by the network actor.
@@ -116,6 +140,9 @@ pub enum NetworkActorError {
     /// Channel closed unexpectedly.
     #[error("Channel closed unexpectedly")]
     ChannelClosed,
+    /// Failed to sign the payload.
+    #[error("Failed to sign the payload")]
+    FailedToSignPayload,
 }
 
 #[async_trait]
@@ -184,19 +211,10 @@ impl NodeActor for NetworkActor {
                         warn!(target: "net", "No local signer available to sign the payload");
                         continue;
                     };
-                    use ssz::Encode;
-                    let ssz_bytes = block.as_ssz_bytes();
-                    let Ok(signature) = signer.sign_message_sync(&ssz_bytes) else {
-                        warn!(target: "net", "Failed to sign the payload bytes");
-                        continue;
-                    };
-                    let payload_hash = block.payload_hash();
-                    let payload = OpNetworkPayloadEnvelope {
-                        payload: block.payload,
-                        signature,
-                        payload_hash,
-                        parent_beacon_block_root: block.parent_beacon_block_root,
-                    };
+
+                    let chain_id = handler.discovery.chain_id;
+                    let payload = Self::sign_payload(block, signer, chain_id)?;
+
                     match handler.gossip.publish(selector, Some(payload)) {
                         Ok(id) => info!("Published unsafe payload | {:?}", id),
                         Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
@@ -243,5 +261,70 @@ impl NodeActor for NetworkActor {
                 },
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+    use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV3};
+    use alloy_signer_local::PrivateKeySigner;
+    use arbitrary::Arbitrary;
+    use op_alloy_rpc_types_engine::OpExecutionPayload;
+    use rand::Rng;
+
+    #[test]
+    fn test_payload_signature_roundtrip_v1() {
+        let mut bytes = [0u8; 4096];
+        rand::rng().fill(bytes.as_mut_slice());
+
+        let pubkey = PrivateKeySigner::random();
+        let expected_address = pubkey.address();
+        const CHAIN_ID: u64 = 1337;
+
+        let block = OpExecutionPayloadEnvelope {
+            payload: OpExecutionPayload::V1(
+                ExecutionPayloadV1::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap(),
+            ),
+            parent_beacon_block_root: None,
+        };
+
+        let payload = NetworkActor::sign_payload(block, &pubkey, CHAIN_ID).unwrap();
+        let encoded_payload = payload.encode_v1().unwrap();
+
+        let decoded_payload = OpNetworkPayloadEnvelope::decode_v1(&encoded_payload).unwrap();
+
+        let msg = decoded_payload.payload_hash.signature_message(CHAIN_ID);
+        let msg_signer = decoded_payload.signature.recover_address_from_prehash(&msg).unwrap();
+
+        assert_eq!(expected_address, msg_signer);
+    }
+
+    #[test]
+    fn test_payload_signature_roundtrip_v3() {
+        let mut bytes = [0u8; 4096];
+        rand::rng().fill(bytes.as_mut_slice());
+
+        let pubkey = PrivateKeySigner::random();
+        let expected_address = pubkey.address();
+        const CHAIN_ID: u64 = 1337;
+
+        let block = OpExecutionPayloadEnvelope {
+            payload: OpExecutionPayload::V3(
+                ExecutionPayloadV3::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap(),
+            ),
+            parent_beacon_block_root: Some(B256::random()),
+        };
+
+        let payload = NetworkActor::sign_payload(block, &pubkey, CHAIN_ID).unwrap();
+        let encoded_payload = payload.encode_v3().unwrap();
+
+        let decoded_payload = OpNetworkPayloadEnvelope::decode_v3(&encoded_payload).unwrap();
+
+        let msg = decoded_payload.payload_hash.signature_message(CHAIN_ID);
+        let msg_signer = decoded_payload.signature.recover_address_from_prehash(&msg).unwrap();
+
+        assert_eq!(expected_address, msg_signer);
     }
 }
