@@ -1,16 +1,10 @@
-
-
-# default recipe to display help information
-default:
-  @just --list
-
 # Run the vocs documentation
 run-vocs:
-  cd docs && npm install && npm run dev -- --host
+  npm install && npm run dev -- --host
 
 # Build the vocs static site
 build-vocs:
-  cd docs && npm install && npm run build
+  npm install && npm run build
 
 # Builds and opens the static site in the browser
 open-site: build-vocs
