@@ -162,11 +162,6 @@ impl BlockHandler {
             }
         }
 
-        self.seen_hashes
-            .entry(envelope.payload.block_number())
-            .or_default()
-            .insert(envelope.payload.block_hash());
-
         // CHECK: The signature is valid.
         let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id);
         let block_signer = *self.signer_recv.borrow();
@@ -180,6 +175,11 @@ impl BlockHandler {
         if msg_signer != block_signer {
             return Err(BlockInvalidError::Signer { expected: msg_signer, received: block_signer });
         }
+
+        self.seen_hashes
+            .entry(envelope.payload.block_number())
+            .or_default()
+            .insert(envelope.payload.block_hash());
 
         // Mark the block as seen.
         if self.seen_hashes.len() >= Self::SEEN_HASH_CACHE_SIZE {
@@ -257,7 +257,7 @@ pub(crate) mod tests {
     use super::*;
     use alloy_consensus::{Block, EMPTY_OMMER_ROOT_HASH};
     use alloy_eips::{eip2718::Encodable2718, eip4895::Withdrawal};
-    use alloy_primitives::{Address, B256, Bytes, Signature};
+    use alloy_primitives::{Address, Bytes, Signature, B256};
     use alloy_rlp::BufMut;
     use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
     use arbitrary::{Arbitrary, Unstructured};
