@@ -16,6 +16,9 @@ dist/
 # vocs node_modules
 docs/node_modules
 
+# npm package lock
+package-lock.json
+
 # `optimism-package` workspace
 optimism-package/
 
