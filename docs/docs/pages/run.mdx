@@ -5,7 +5,7 @@ import { Callout } from 'vocs/components'
 <Callout type="info">
 This tutorial walks through running the `kona-node` as
 a binary. To use docker, head over to the
-[Docker Guide](./node/docker) which uses a `docker-compose`
+[Docker Guide](/node/install/docker) which uses a `docker-compose`
 setup provided by `kona`. The `docker-compose` setup
 automatically bootstraps the `kona-node` with `op-reth`,
 provisioning grafana dashboards and a default Prometheus
@@ -17,8 +17,8 @@ data source.
 In order to follow this tutorial, you'll need:
 
 1. An L1 Archive node (e.g., `op-geth`) with enough history for the rollup network you want to run.
-2. A `kona-node` binary. See [installation](./installation) for instructions.
-3. A rollup configuration file. See [rollup configuration](./protocol/genesis/rollup-config) for more information.
+2. A `kona-node` binary. See [installation](/node/install/binaries) for instructions.
+3. A rollup configuration file. See [rollup configuration](/sdk/protocol/genesis/rollup-config) for more information.
 
 ## Quick Start
 
@@ -50,7 +50,7 @@ kona-node --help
 
 ## Next Steps
 
-- [Docker Support](./node/docker) - Run with Docker
-- [Monitoring](./node/monitoring) - Set up monitoring and metrics
-- [CLI Reference](./node/cli) - Complete CLI documentation
-- [Subcommands](./node/subcommands) - Available subcommands
+- [Docker Support](/node/run/docker) - Run with Docker
+- [Monitoring](/node/monitoring) - Set up monitoring and metrics
+- [CLI Reference](/node/configuration) - Complete CLI documentation
+- [Subcommands](/node/subcommands) - Available subcommands
