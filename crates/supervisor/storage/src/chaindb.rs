@@ -507,6 +507,57 @@ mod tests {
     }
 
     #[test]
+    fn test_get_super_head_populated() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        // Prepare blocks
+        let block = BlockInfo { number: 1, ..Default::default() };
+        let derived_pair = DerivedRefPair { source: block, derived: block };
+
+        // Initialise all heads
+        db.initialise_log_storage(block).unwrap();
+        db.initialise_derivation_storage(derived_pair).unwrap();
+
+        let _ = db
+            .env
+            .update(|ctx| {
+                let sp = SafetyHeadRefProvider::new(ctx);
+                sp.update_safety_head_ref(SafetyLevel::Finalized, &block)
+            })
+            .unwrap();
+
+        // Should not error and all heads should be Some
+        let super_head = db.get_super_head().unwrap();
+        assert_eq!(super_head.local_unsafe, block);
+        assert!(super_head.cross_unsafe.is_some());
+        assert!(super_head.local_safe.is_some());
+        assert!(super_head.cross_safe.is_some());
+        assert!(super_head.finalized.is_some());
+        assert!(super_head.l1_source.is_some());
+    }
+
+    #[test]
+    fn test_get_super_head_with_some_missing_heads() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        // Only initialise log storage (not derivation storage)
+        let block = BlockInfo { number: 1, ..Default::default() };
+        db.initialise_log_storage(block).unwrap();
+
+        let super_head = db.get_super_head().unwrap();
+        assert_eq!(super_head.local_unsafe, block);
+        // These will be None because derivation storage was not initialised
+        assert!(super_head.local_safe.is_none());
+        assert!(super_head.cross_safe.is_none());
+        assert!(super_head.finalized.is_none());
+        assert!(super_head.l1_source.is_none());
+    }
+
+    #[test]
     fn test_latest_derivation_state_empty() {
         let tmp_dir = TempDir::new().expect("create temp dir");
         let db_path = tmp_dir.path().join("chaindb_latest_derivation_empty");
