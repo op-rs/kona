@@ -1,6 +1,5 @@
-package supervisor
+package sync
 
-// todo: add tests
 import (
 	"testing"
 	"time"
