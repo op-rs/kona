@@ -40,5 +40,5 @@ mod traits;
 pub use traits::{
     CrossChainSafetyProvider, DerivationStorage, DerivationStorageReader, DerivationStorageWriter,
     FinalizedL1Storage, HeadRefStorage, HeadRefStorageReader, HeadRefStorageWriter, LogStorage,
-    LogStorageReader, LogStorageWriter,
+    LogStorageReader, LogStorageWriter, Rewinder,
 };
