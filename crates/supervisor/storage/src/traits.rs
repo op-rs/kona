@@ -388,7 +388,7 @@ pub trait CrossChainSafetyProvider {
 
 /// Trait for rewinding supervisor-related state in the database.
 ///
-/// This trait is used to revert persisted log data and associated metadata
+/// This trait is used to revert persisted log data, derivation and safety head ref data
 /// from a given block onward. It is typically used to handle chain
 /// reorganizations or invalid block propagation.
 pub trait Rewinder {
