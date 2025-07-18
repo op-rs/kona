@@ -252,7 +252,7 @@ serde = { version = "1.0.219", default-features = false }
 serde_json = { version = "1.0.140", default-features = false }
 
 # K/V database
-rocksdb = { version = "0.23.0", default-features = false }
+rocksdb = { git = "https://github.com/rust-rocksdb/rust-rocksdb", rev = "7da6d11e669e1467d919764e446b82edeebb00c0", default-features = false }
 
 # Cryptography
 sha2 = { version = "0.10.9", default-features = false }
