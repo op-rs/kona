@@ -1,4 +1,4 @@
-package supervisor
+package message
 
 import (
 	"math/rand"
