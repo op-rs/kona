@@ -44,5 +44,5 @@ mod sequencer;
 pub use sequencer::{
     AttributesBuilderConfig, ConductorClient, ConductorError, L1OriginSelector,
     L1OriginSelectorError, L1OriginSelectorProvider, SequencerActor, SequencerActorError,
-    SequencerBuilder, SequencerContext, SequencerInboundData,
+    SequencerBuilder, SequencerConfig, SequencerContext, SequencerInboundData,
 };

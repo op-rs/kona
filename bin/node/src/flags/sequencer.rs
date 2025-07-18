@@ -5,7 +5,9 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go#L233-L265
 
 use clap::Parser;
-use std::{net::SocketAddr, num::ParseIntError, time::Duration};
+use kona_node_service::SequencerConfig;
+use std::{num::ParseIntError, time::Duration};
+use url::Url;
 
 /// Sequencer CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -41,21 +43,9 @@ pub struct SequencerArgs {
     )]
     pub recover: bool,
 
-    /// Enable the conductor service.
-    #[arg(
-        long = "conductor.enabled",
-        env = "KONA_NODE_CONDUCTOR_ENABLED",
-        default_value = "false"
-    )]
-    pub conductor_enabled: bool,
-
-    /// Conductor service rpc endpoint.
-    #[arg(
-        long = "conductor.rpc",
-        env = "KONA_NODE_CONDUCTOR_RPC",
-        default_value = "127.0.0.1:8547"
-    )]
-    pub conductor_rpc: Option<SocketAddr>,
+    /// Conductor service rpc endpoint. Providing this value will enable the conductor service.
+    #[arg(long = "conductor.rpc", env = "KONA_NODE_CONDUCTOR_RPC")]
+    pub conductor_rpc: Option<Url>,
 
     /// Conductor service rpc timeout.
     #[arg(
@@ -72,5 +62,16 @@ impl Default for SequencerArgs {
         // Construct default values using the clap parser.
         // This works since none of the cli flags are required.
         Self::parse_from::<[_; 0], &str>([])
+    }
+}
+
+impl SequencerArgs {
+    /// Creates a [`SequencerConfig`] from the [`SequencerArgs`].
+    pub fn config(&self) -> SequencerConfig {
+        SequencerConfig {
+            sequencer_stopped: self.stopped,
+            sequencer_recovery_mode: self.recover,
+            conductor_rpc_url: self.conductor_rpc.clone(),
+        }
     }
 }

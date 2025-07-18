@@ -1,6 +1,6 @@
 //! The [`SequencerActor`].
 
-use super::{L1OriginSelector, L1OriginSelectorError};
+use super::{L1OriginSelector, L1OriginSelectorError, SequencerConfig};
 use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -68,15 +68,25 @@ impl From<SequencerBuilder>
     for SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>>
 {
     fn from(seq_builder: SequencerBuilder) -> Self {
-        let cfg = seq_builder.cfg.clone();
+        let SequencerConfig { sequencer_stopped, sequencer_recovery_mode, conductor_rpc_url } =
+            seq_builder.seq_cfg.clone();
+
+        let cfg = seq_builder.rollup_cfg.clone();
         let l1_provider = seq_builder.l1_provider.clone();
-        let conductor = seq_builder.conductor.clone();
+        let conductor = conductor_rpc_url.map(ConductorClient::new_http);
 
         let builder = seq_builder.build();
 
         let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
 
-        Self { cfg, builder, origin_selector, conductor, is_active: true, is_recovery_mode: false }
+        Self {
+            cfg,
+            builder,
+            origin_selector,
+            conductor,
+            is_active: !sequencer_stopped,
+            is_recovery_mode: sequencer_recovery_mode,
+        }
     }
 }
 
@@ -85,14 +95,14 @@ const DERIVATION_PROVIDER_CACHE_SIZE: usize = 1024;
 /// The builder for the [`SequencerActor`].
 #[derive(Debug)]
 pub struct SequencerBuilder {
+    /// The [`SequencerConfig`].
+    pub seq_cfg: SequencerConfig,
     /// The [`RollupConfig`] for the chain being sequenced.
-    pub cfg: Arc<RollupConfig>,
+    pub rollup_cfg: Arc<RollupConfig>,
     /// The L1 provider.
     pub l1_provider: RootProvider,
     /// The L2 provider.
     pub l2_provider: RootProvider<Optimism>,
-    /// The conductor RPC client.
-    pub conductor: Option<ConductorClient>,
 }
 
 impl AttributesBuilderConfig for SequencerBuilder {
@@ -103,10 +113,14 @@ impl AttributesBuilderConfig for SequencerBuilder {
             AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
         let l2_derivation_provider = AlloyL2ChainProvider::new(
             self.l2_provider.clone(),
-            self.cfg.clone(),
+            self.rollup_cfg.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
         );
-        StatefulAttributesBuilder::new(self.cfg, l2_derivation_provider, l1_derivation_provider)
+        StatefulAttributesBuilder::new(
+            self.rollup_cfg,
+            l2_derivation_provider,
+            l1_derivation_provider,
+        )
     }
 }
 
@@ -374,7 +388,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
 
     async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
         let mut build_ticker =
-            tokio::time::interval(Duration::from_secs(self.builder.cfg.block_time));
+            tokio::time::interval(Duration::from_secs(self.builder.rollup_cfg.block_time));
 
         let mut state = SequencerActorState::from(self.builder);
 

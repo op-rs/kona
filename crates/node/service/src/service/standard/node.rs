@@ -2,7 +2,8 @@
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, RuntimeActor, SupervisorActor, SupervisorRpcServerExt,
+    RollupNodeService, RpcActor, RuntimeActor, SequencerConfig, SupervisorActor,
+    SupervisorRpcServerExt,
     actors::{RuntimeState, SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
@@ -39,6 +40,8 @@ pub struct RollupNode {
     pub(crate) p2p_config: NetworkConfig,
     /// The [`RuntimeState`] for the runtime loading service.
     pub(crate) runtime_builder: Option<RuntimeState>,
+    /// The [`SequencerConfig`] for the node.
+    pub(crate) sequencer_config: SequencerConfig,
     /// The supervisor rpc server config.
     pub(crate) supervisor_rpc: SupervisorRpcConfig,
 }
@@ -104,11 +107,10 @@ impl RollupNodeService for RollupNode {
 
     fn sequencer_builder(&self) -> SequencerBuilder {
         SequencerBuilder {
-            cfg: self.config.clone(),
+            seq_cfg: self.sequencer_config.clone(),
+            rollup_cfg: self.config.clone(),
             l1_provider: self.l1_provider.clone(),
             l2_provider: self.l2_provider.clone(),
-            // TODO(@theochap): support conductor api
-            conductor: None,
         }
     }
 

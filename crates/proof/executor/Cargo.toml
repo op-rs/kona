@@ -56,9 +56,6 @@ alloy-rpc-client = { workspace = true, optional = true }
 alloy-transport = { workspace = true, optional = true }
 alloy-transport-http = { workspace = true, optional = true }
 
-[dev-dependencies]
-kona-executor = { workspace = true, features = ["test-utils"] }
-
 [features]
 test-utils = [
 	"dep:alloy-provider",
@@ -76,8 +73,3 @@ test-utils = [
 	"dep:tokio",
 	"kona-protocol/test-utils",
 ]
-
-[package.metadata.cargo-udeps.ignore]
-# `kona-executor` is self-referenced in dev-dependencies to always enable the `test-utils` feature in `cfg(test)`.
-# this is a false-positive.
-development = ["kona-executor"]

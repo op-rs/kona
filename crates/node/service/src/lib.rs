@@ -23,7 +23,7 @@ pub use actors::{
     NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
     NetworkHandler, NetworkInboundData, NodeActor, PipelineBuilder, RpcActor, RpcActorError,
     RpcContext, RuntimeActor, RuntimeContext, RuntimeState, SequencerActor, SequencerActorError,
-    SequencerBuilder, SequencerContext, SequencerInboundData, SupervisorActor,
+    SequencerBuilder, SequencerConfig, SequencerContext, SequencerInboundData, SupervisorActor,
     SupervisorActorContext, SupervisorActorError, SupervisorExt, SupervisorInboundData,
     SupervisorRpcServerExt,
 };
