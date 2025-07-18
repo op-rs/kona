@@ -143,6 +143,25 @@ impl BlockHandler {
         // CHECK: The payload is valid for the specific version of this block.
         Self::validate_version_specific_payload(envelope)?;
 
+        // CHECK: The signature is valid.
+        let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id);
+        let block_signer = *self.signer_recv.borrow();
+
+        // The block has a valid signature.
+        let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
+            return Err(BlockInvalidError::Signature);
+        };
+
+        // The block is signed by the expected signer (the unsafe block signer).
+        if msg_signer != block_signer {
+            return Err(BlockInvalidError::Signer { expected: msg_signer, received: block_signer });
+        }
+
+        // Mark the block as seen.
+        if self.seen_hashes.len() >= Self::SEEN_HASH_CACHE_SIZE {
+            self.seen_hashes.pop_first();
+        }
+
         if let Some(seen_hashes_at_height) =
             self.seen_hashes.get_mut(&envelope.payload.block_number())
         {
@@ -167,25 +186,6 @@ impl BlockHandler {
                 envelope.payload.block_number(),
                 HashSet::from([envelope.payload.block_hash()]),
             );
-        }
-
-        // CHECK: The signature is valid.
-        let msg = envelope.payload_hash.signature_message(self.rollup_config.l2_chain_id);
-        let block_signer = *self.signer_recv.borrow();
-
-        // The block has a valid signature.
-        let Ok(msg_signer) = envelope.signature.recover_address_from_prehash(&msg) else {
-            return Err(BlockInvalidError::Signature);
-        };
-
-        // The block is signed by the expected signer (the unsafe block signer).
-        if msg_signer != block_signer {
-            return Err(BlockInvalidError::Signer { expected: msg_signer, received: block_signer });
-        }
-
-        // Mark the block as seen.
-        if self.seen_hashes.len() >= Self::SEEN_HASH_CACHE_SIZE {
-            self.seen_hashes.pop_first();
         }
 
         Ok(())
