@@ -10,12 +10,13 @@
 extern crate tracing;
 
 mod admin;
+pub use admin::{AdminRpc, NetworkAdminQuery, SequencerAdminQuery};
 
 mod config;
 pub use config::RpcBuilder;
 
 mod net;
-pub use net::NetworkRpc;
+pub use net::P2pRpc;
 
 mod supervisor;
 pub use supervisor::{SupervisorRpcConfig, SupervisorRpcServer};

@@ -1,7 +1,9 @@
 use alloy_primitives::Address;
 use alloy_signer::SignerSync;
+use alloy_signer_local::PrivateKeySigner;
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
+use kona_rpc::NetworkAdminQuery;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
 use thiserror::Error;
@@ -48,8 +50,10 @@ pub struct NetworkActor {
     pub(super) builder: NetworkBuilder,
     /// A channel to receive the unsafe block signer address.
     pub(super) signer: mpsc::Receiver<Address>,
-    /// Handler for RPC Requests.
-    pub(super) rpc: mpsc::Receiver<P2pRpcRequest>,
+    /// Handler for p2p RPC Requests.
+    pub(super) p2p_rpc: mpsc::Receiver<P2pRpcRequest>,
+    /// A channel to receive admin rpc requests.
+    pub(super) admin_rpc: mpsc::Receiver<NetworkAdminQuery>,
     /// A channel to receive unsafe blocks and send them through the gossip layer.
     pub(super) publish_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
 }
@@ -59,8 +63,10 @@ pub struct NetworkActor {
 pub struct NetworkInboundData {
     /// A channel to send the unsafe block signer address to the network actor.
     pub signer: mpsc::Sender<Address>,
-    /// Handler for RPC Requests sent to the network actor.
-    pub rpc: mpsc::Sender<P2pRpcRequest>,
+    /// Handler for p2p RPC Requests sent to the network actor.
+    pub p2p_rpc: mpsc::Sender<P2pRpcRequest>,
+    /// Handler for admin RPC Requests.
+    pub admin_rpc: mpsc::Sender<NetworkAdminQuery>,
     /// A channel to send unsafe blocks to the network actor.
     /// This channel should only be used by the sequencer actor/admin RPC api to forward their
     /// newly produced unsafe blocks to the network actor.
@@ -72,11 +78,45 @@ impl NetworkActor {
     pub fn new(driver: NetworkBuilder) -> (NetworkInboundData, Self) {
         let (signer_tx, signer_rx) = mpsc::channel(16);
         let (rpc_tx, rpc_rx) = mpsc::channel(1024);
+        let (admin_rpc_tx, admin_rpc_rx) = mpsc::channel(1024);
         let (publish_tx, publish_rx) = tokio::sync::mpsc::channel(256);
-        let actor = Self { builder: driver, signer: signer_rx, rpc: rpc_rx, publish_rx };
-        let outbound_data =
-            NetworkInboundData { signer: signer_tx, rpc: rpc_tx, gossip_payload_tx: publish_tx };
+        let actor = Self {
+            builder: driver,
+            signer: signer_rx,
+            p2p_rpc: rpc_rx,
+            admin_rpc: admin_rpc_rx,
+            publish_rx,
+        };
+        let outbound_data = NetworkInboundData {
+            signer: signer_tx,
+            p2p_rpc: rpc_tx,
+            admin_rpc: admin_rpc_tx,
+            gossip_payload_tx: publish_tx,
+        };
         (outbound_data, actor)
+    }
+
+    /// Signs a payload with the given signer and chain id.
+    ///
+    /// Spec: <https://specs.optimism.io/protocol/rollup-node-p2p.html#block-signatures>
+    fn sign_payload(
+        block: OpExecutionPayloadEnvelope,
+        signer: &PrivateKeySigner,
+        chain_id: u64,
+    ) -> Result<OpNetworkPayloadEnvelope, NetworkActorError> {
+        // Computes the payload hash for a given block.
+        let payload_hash = block.payload_hash();
+
+        let Ok(signature) = signer.sign_hash_sync(&payload_hash.signature_message(chain_id)) else {
+            return Err(NetworkActorError::FailedToSignPayload);
+        };
+
+        Ok(OpNetworkPayloadEnvelope {
+            parent_beacon_block_root: block.parent_beacon_block_root,
+            payload: block.payload,
+            signature,
+            payload_hash,
+        })
     }
 }
 
@@ -116,6 +156,9 @@ pub enum NetworkActorError {
     /// Channel closed unexpectedly.
     #[error("Channel closed unexpectedly")]
     ChannelClosed,
+    /// Failed to sign the payload.
+    #[error("Failed to sign the payload")]
+    FailedToSignPayload,
 }
 
 #[async_trait]
@@ -184,19 +227,10 @@ impl NodeActor for NetworkActor {
                         warn!(target: "net", "No local signer available to sign the payload");
                         continue;
                     };
-                    use ssz::Encode;
-                    let ssz_bytes = block.as_ssz_bytes();
-                    let Ok(signature) = signer.sign_message_sync(&ssz_bytes) else {
-                        warn!(target: "net", "Failed to sign the payload bytes");
-                        continue;
-                    };
-                    let payload_hash = block.payload_hash();
-                    let payload = OpNetworkPayloadEnvelope {
-                        payload: block.payload,
-                        signature,
-                        payload_hash,
-                        parent_beacon_block_root: block.parent_beacon_block_root,
-                    };
+
+                    let chain_id = handler.discovery.chain_id;
+                    let payload = Self::sign_payload(block, signer, chain_id)?;
+
                     match handler.gossip.publish(selector, Some(payload)) {
                         Ok(id) => info!("Published unsafe payload | {:?}", id),
                         Err(e) => warn!("Failed to publish unsafe payload: {:?}", e),
@@ -224,24 +258,85 @@ impl NodeActor for NetworkActor {
                 _ = handler.peer_score_inspector.tick(), if handler.gossip.peer_monitoring.as_ref().is_some() => {
                     handler.handle_peer_monitoring().await;
                 },
-                req = self.rpc.recv(), if !self.rpc.is_closed() => {
-                    let Some(req) = req else {
-                        error!(target: "node::p2p", "The rpc receiver channel has closed");
-                        return Err(NetworkActorError::ChannelClosed);
-                    };
-                    let payload = match req {
-                        P2pRpcRequest::PostUnsafePayload { payload } => payload,
-                        req => {
-                            req.handle(&mut handler.gossip, &handler.discovery);
-                            continue;
-                        }
-                    };
+                Some(NetworkAdminQuery::PostUnsafePayload { payload }) = self.admin_rpc.recv(), if !self.admin_rpc.is_closed() => {
                     debug!(target: "node::p2p", "Broadcasting unsafe payload from admin api");
                     if unsafe_block_tx.send(payload).is_err() {
                         warn!(target: "node::p2p", "Failed to send unsafe block to network handler");
                     }
                 },
+                req = self.p2p_rpc.recv(), if !self.p2p_rpc.is_closed() => {
+                    let Some(req) = req else {
+                        error!(target: "node::p2p", "The p2p rpc receiver channel has closed");
+                        return Err(NetworkActorError::ChannelClosed);
+                    };
+                    req.handle(&mut handler.gossip, &handler.discovery);
+                },
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+    use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV3};
+    use alloy_signer_local::PrivateKeySigner;
+    use arbitrary::Arbitrary;
+    use op_alloy_rpc_types_engine::OpExecutionPayload;
+    use rand::Rng;
+
+    #[test]
+    fn test_payload_signature_roundtrip_v1() {
+        let mut bytes = [0u8; 4096];
+        rand::rng().fill(bytes.as_mut_slice());
+
+        let pubkey = PrivateKeySigner::random();
+        let expected_address = pubkey.address();
+        const CHAIN_ID: u64 = 1337;
+
+        let block = OpExecutionPayloadEnvelope {
+            payload: OpExecutionPayload::V1(
+                ExecutionPayloadV1::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap(),
+            ),
+            parent_beacon_block_root: None,
+        };
+
+        let payload = NetworkActor::sign_payload(block, &pubkey, CHAIN_ID).unwrap();
+        let encoded_payload = payload.encode_v1().unwrap();
+
+        let decoded_payload = OpNetworkPayloadEnvelope::decode_v1(&encoded_payload).unwrap();
+
+        let msg = decoded_payload.payload_hash.signature_message(CHAIN_ID);
+        let msg_signer = decoded_payload.signature.recover_address_from_prehash(&msg).unwrap();
+
+        assert_eq!(expected_address, msg_signer);
+    }
+
+    #[test]
+    fn test_payload_signature_roundtrip_v3() {
+        let mut bytes = [0u8; 4096];
+        rand::rng().fill(bytes.as_mut_slice());
+
+        let pubkey = PrivateKeySigner::random();
+        let expected_address = pubkey.address();
+        const CHAIN_ID: u64 = 1337;
+
+        let block = OpExecutionPayloadEnvelope {
+            payload: OpExecutionPayload::V3(
+                ExecutionPayloadV3::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap(),
+            ),
+            parent_beacon_block_root: Some(B256::random()),
+        };
+
+        let payload = NetworkActor::sign_payload(block, &pubkey, CHAIN_ID).unwrap();
+        let encoded_payload = payload.encode_v3().unwrap();
+
+        let decoded_payload = OpNetworkPayloadEnvelope::decode_v3(&encoded_payload).unwrap();
+
+        let msg = decoded_payload.payload_hash.signature_message(CHAIN_ID);
+        let msg_signer = decoded_payload.signature.recover_address_from_prehash(&msg).unwrap();
+
+        assert_eq!(expected_address, msg_signer);
     }
 }

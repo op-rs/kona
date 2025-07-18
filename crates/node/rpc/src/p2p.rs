@@ -14,10 +14,10 @@ use jsonrpsee::{
 use kona_p2p::{P2pRpcRequest, PeerCount, PeerDump, PeerInfo, PeerStats};
 use std::{net::IpAddr, str::FromStr};
 
-use crate::{OpP2PApiServer, net::NetworkRpc};
+use crate::{OpP2PApiServer, net::P2pRpc};
 
 #[async_trait]
-impl OpP2PApiServer for NetworkRpc {
+impl OpP2PApiServer for P2pRpc {
     async fn opp2p_self(&self) -> RpcResult<PeerInfo> {
         kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "opp2p_self");
         let (tx, rx) = tokio::sync::oneshot::channel();

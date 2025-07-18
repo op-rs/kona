@@ -60,22 +60,23 @@ func TestP2PMinimal(gt *testing.T) {
 
 	out := NewMixedOpKona(t)
 
-	opNode := out.L2CLOpNodes[0]
-	konaNode := out.L2CLKonaNodes[0]
+	nodes := out.L2CLNodes()
+	firstNode := nodes[0]
+	secondNode := nodes[1]
 
-	opNodeId := opNode.PeerInfo().PeerID
-	konaNodeId := konaNode.PeerInfo().PeerID
+	opNodeId := firstNode.PeerInfo().PeerID
+	konaNodeId := secondNode.PeerInfo().PeerID
 
 	// Wait for a few blocks to be produced.
-	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalUnsafe, 40, 40), opNode.ReachedFn(types.LocalUnsafe, 40, 40))
+	dsl.CheckAll(t, secondNode.ReachedFn(types.LocalUnsafe, 40, 40), firstNode.ReachedFn(types.LocalUnsafe, 40, 40))
 
 	// Check that the nodes are connected to each other.
-	arePeers(t, &opNode, konaNodeId)
-	arePeers(t, &konaNode, opNodeId)
+	arePeers(t, &firstNode, konaNodeId)
+	arePeers(t, &secondNode, opNodeId)
 
 	// Check that the nodes have enough connected peers and peers in the discovery table.
-	checkPeerStats(t, &opNode, 1, 1, 1)
-	checkPeerStats(t, &konaNode, 1, 1, 1)
+	checkPeerStats(t, &firstNode, 1, 1, 1)
+	checkPeerStats(t, &secondNode, 1, 1, 1)
 }
 
 // Check that, for every node in the network, all the peers are connected to the expected protocols and the same chainID.

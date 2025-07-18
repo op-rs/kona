@@ -8,3 +8,8 @@ pub use actor::{
     AttributesBuilderConfig, SequencerActor, SequencerActorError, SequencerBuilder,
     SequencerContext, SequencerInboundData,
 };
+
+mod rpc;
+
+mod conductor;
+pub use conductor::{ConductorClient, ConductorError};

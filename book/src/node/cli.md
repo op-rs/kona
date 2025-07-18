@@ -12,7 +12,7 @@ This document lists all CLI flags for the `kona-node node` subcommand, grouped b
 | RPC WebSocket   | 9545         | (same as HTTP, enabled with `--rpc.ws-enabled`) |
 | P2P TCP         | 9222         | `--p2p.listen.tcp` / `KONA_NODE_P2P_LISTEN_TCP_PORT` |
 | P2P UDP         | 9223         | `--p2p.listen.udp` / `KONA_NODE_P2P_LISTEN_UDP_PORT` |
-| Supervisor RPC  | 9333         | `--supervisor.port` / `KONA_NODE_SEQUENCER_PORT`     |
+| Supervisor RPC  | 9333         | `--supervisor.port` / `KONA_NODE_SUPERVISOR_PORT`     |
 | Conductor RPC   | 8547         | `--conductor.rpc` / `KONA_NODE_CONDUCTOR_RPC`        |
 
 ---

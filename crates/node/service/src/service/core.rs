@@ -166,13 +166,20 @@ pub trait RollupNodeService {
         ) = Self::EngineActor::build(self.engine_builder());
 
         // Create the p2p actor.
-        let (NetworkInboundData { signer, rpc: network_rpc, gossip_payload_tx }, network) =
-            Self::NetworkActor::build(self.network_builder());
+        let (
+            NetworkInboundData {
+                signer,
+                p2p_rpc: network_rpc,
+                gossip_payload_tx,
+                admin_rpc: net_admin_rpc,
+            },
+            network,
+        ) = Self::NetworkActor::build(self.network_builder());
 
         // Create the RPC server actor.
         let (_, rpc) = self.rpc_builder().map(Self::RpcActor::build).unzip();
 
-        let (sequencer_outbound_data, sequencer) = self
+        let (sequencer_inbound_data, sequencer) = self
             .mode()
             .is_sequencer()
             .then_some(Self::SequencerActor::build(self.sequencer_builder()))
@@ -189,7 +196,9 @@ pub trait RollupNodeService {
                     r,
                     RpcContext {
                         cancellation: cancellation.clone(),
-                        network: network_rpc,
+                        p2p_network: network_rpc,
+                        network_admin: net_admin_rpc,
+                        sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_query_tx.clone()),
                         l1_watcher_queries: da_watcher_rpc,
                         engine_query: engine_rpc,
                     }
@@ -228,7 +237,7 @@ pub trait RollupNodeService {
                 Some((engine,
                     EngineContext {
                         engine_l2_safe_head_tx,
-                        engine_unsafe_head_tx: sequencer_outbound_data
+                        engine_unsafe_head_tx: sequencer_inbound_data
                             .map(|s| s.unsafe_head_tx),
                         sync_complete_tx: el_sync_complete_tx,
                         derivation_signal_tx,

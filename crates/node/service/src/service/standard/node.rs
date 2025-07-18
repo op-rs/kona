@@ -107,6 +107,8 @@ impl RollupNodeService for RollupNode {
             cfg: self.config.clone(),
             l1_provider: self.l1_provider.clone(),
             l2_provider: self.l2_provider.clone(),
+            // TODO(@theochap): support conductor api
+            conductor: None,
         }
     }
 

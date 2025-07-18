@@ -1,13 +1,14 @@
 //! The [`SequencerActor`].
 
 use super::{L1OriginSelector, L1OriginSelectorError};
-use crate::{CancellableContext, NodeActor};
+use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
 use kona_derive::{AttributesBuilder, PipelineErrorKind, StatefulAttributesBuilder};
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
+use kona_rpc::SequencerAdminQuery;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{sync::Arc, time::Duration};
@@ -26,17 +27,32 @@ pub struct SequencerActor<AB: AttributesBuilderConfig> {
     builder: AB,
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
+    /// Channel to receive admin queries from the sequencer actor.
+    pub admin_query_rx: mpsc::Receiver<SequencerAdminQuery>,
 }
 
 /// The state of the [`SequencerActor`].
 #[derive(Debug)]
-struct SequencerActorState<AB: AttributesBuilder> {
+pub(super) struct SequencerActorState<AB: AttributesBuilder> {
     /// The [`RollupConfig`] for the chain being sequenced.
     pub cfg: Arc<RollupConfig>,
     /// The [`AttributesBuilder`].
     pub builder: AB,
     /// The [`L1OriginSelector`].
     pub origin_selector: L1OriginSelector<RootProvider>,
+    /// The conductor RPC client.
+    pub conductor: Option<ConductorClient>,
+    /// Whether the sequencer is active. This is used inside communications between the sequencer
+    /// and the op-conductor to activate/deactivate the sequencer when leader election occurs.
+    ///
+    /// ## Default value
+    /// At startup, the sequencer is active.
+    pub is_active: bool,
+    /// Whether the sequencer is in recovery mode.
+    ///
+    /// ## Default value
+    /// At startup, the sequencer is _NOT_ in recovery mode.
+    pub is_recovery_mode: bool,
 }
 
 /// A trait for building [`AttributesBuilder`]s.
@@ -54,12 +70,13 @@ impl From<SequencerBuilder>
     fn from(seq_builder: SequencerBuilder) -> Self {
         let cfg = seq_builder.cfg.clone();
         let l1_provider = seq_builder.l1_provider.clone();
+        let conductor = seq_builder.conductor.clone();
 
         let builder = seq_builder.build();
 
         let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
 
-        Self { cfg, builder, origin_selector }
+        Self { cfg, builder, origin_selector, conductor, is_active: true, is_recovery_mode: false }
     }
 }
 
@@ -74,6 +91,8 @@ pub struct SequencerBuilder {
     pub l1_provider: RootProvider,
     /// The L2 provider.
     pub l2_provider: RootProvider<Optimism>,
+    /// The conductor RPC client.
+    pub conductor: Option<ConductorClient>,
 }
 
 impl AttributesBuilderConfig for SequencerBuilder {
@@ -97,6 +116,8 @@ impl AttributesBuilderConfig for SequencerBuilder {
 pub struct SequencerInboundData {
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_tx: watch::Sender<L2BlockInfo>,
+    /// Channel to send admin queries to the sequencer actor.
+    pub admin_query_tx: mpsc::Sender<SequencerAdminQuery>,
 }
 
 /// The communication context used by the [`SequencerActor`].
@@ -139,9 +160,10 @@ impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
     /// Creates a new instance of the [`SequencerActor`].
     pub fn new(state: AB) -> (SequencerInboundData, Self) {
         let (unsafe_head_tx, unsafe_head_rx) = watch::channel(L2BlockInfo::default());
-        let actor = Self { builder: state, unsafe_head_rx };
+        let (admin_query_tx, admin_query_rx) = mpsc::channel(1024);
+        let actor = Self { builder: state, unsafe_head_rx, admin_query_rx };
 
-        (SequencerInboundData { unsafe_head_tx }, actor)
+        (SequencerInboundData { unsafe_head_tx, admin_query_tx }, actor)
     }
 }
 
@@ -149,17 +171,11 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     /// Starts the build job for the next L2 block, on top of the current unsafe head.
     ///
     /// Notes: TODO
-    async fn start_build(
+    async fn build_block(
         &mut self,
         ctx: &mut SequencerContext,
-        latest_payload_rx: &mut Option<mpsc::Receiver<OpExecutionPayloadEnvelope>>,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
     ) -> Result<(), SequencerActorError> {
-        // If there is currently a block building job in-progress, do not start a new one.
-        if latest_payload_rx.is_some() {
-            return Ok(());
-        }
-
         let unsafe_head = *unsafe_head_rx.borrow();
         let l1_origin = match self.origin_selector.next_l1_origin(unsafe_head).await {
             Ok(l1_origin) => l1_origin,
@@ -275,7 +291,6 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         // Create a new channel to receive the built payload.
         let (payload_tx, payload_rx) = mpsc::channel(1);
-        *latest_payload_rx = Some(payload_rx);
 
         // Send the built attributes to the engine to be built.
         if let Err(err) = ctx.build_request_tx.send((attrs_with_parent, payload_tx)).await {
@@ -283,6 +298,9 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             ctx.cancellation.cancel();
             return Err(SequencerActorError::ChannelClosed);
         }
+
+        let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
+        self.schedule_gossip(ctx, payload).await?;
 
         Ok(())
     }
@@ -292,20 +310,13 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     async fn try_wait_for_payload(
         &mut self,
         ctx: &mut SequencerContext,
-        latest_payload_rx: &mut Option<mpsc::Receiver<OpExecutionPayloadEnvelope>>,
-    ) -> Result<Option<OpExecutionPayloadEnvelope>, SequencerActorError> {
-        if let Some(mut payload_rx) = latest_payload_rx.take() {
-            payload_rx.recv().await.map_or_else(
-                || {
-                    error!(target: "sequencer", "Failed to receive built payload");
-                    ctx.cancellation.cancel();
-                    Err(SequencerActorError::ChannelClosed)
-                },
-                |payload| Ok(Some(payload)),
-            )
-        } else {
-            Ok(None)
-        }
+        mut payload_rx: mpsc::Receiver<OpExecutionPayloadEnvelope>,
+    ) -> Result<OpExecutionPayloadEnvelope, SequencerActorError> {
+        payload_rx.recv().await.ok_or_else(|| {
+            error!(target: "sequencer", "Failed to receive built payload");
+            ctx.cancellation.cancel();
+            SequencerActorError::ChannelClosed
+        })
     }
 
     /// Schedules a built [`OpExecutionPayloadEnvelope`] to be signed and gossipped.
@@ -366,22 +377,15 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
             tokio::time::interval(Duration::from_secs(self.builder.cfg.block_time));
 
         let mut state = SequencerActorState::from(self.builder);
-        // A channel to receive the latest built payload from the engine.
-        let mut latest_payload_rx = None;
 
         // Reset the engine state prior to beginning block building.
         state.schedule_initial_reset(&mut ctx, &mut self.unsafe_head_rx).await?;
 
         loop {
-            // Check if we are waiting on a block to be built. If so, we must wait for the response
-            // before continuing.
-            if let Some(payload) =
-                state.try_wait_for_payload(&mut ctx, &mut latest_payload_rx).await?
-            {
-                state.schedule_gossip(&mut ctx, payload).await?;
-            }
-
             select! {
+                // We are using a biased select here to ensure that the admin queries are given priority over the block building task.
+                // This is important to limit the occurence of race conditions where a stopped query is received when a sequencer is building a new block.
+                biased;
                 _ = ctx.cancellation.cancelled() => {
                     info!(
                         target: "sequencer",
@@ -389,8 +393,15 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                     );
                     return Ok(());
                 }
-                _ = build_ticker.tick() => {
-                    state.start_build(&mut ctx, &mut latest_payload_rx, &mut self.unsafe_head_rx).await?;
+                // Handle admin queries.
+                Some(admin_query) = self.admin_query_rx.recv(), if !self.admin_query_rx.is_closed() => {
+                    if let Err(e) = state.handle_admin_query(admin_query).await {
+                        error!(target: "sequencer", err = ?e, "Failed to handle admin query");
+                    }
+                }
+                // The sequencer must be active to build new blocks.
+                _ = build_ticker.tick(), if state.is_active => {
+                    state.build_block(&mut ctx, &mut self.unsafe_head_rx).await?;
                 }
             }
         }
