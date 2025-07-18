@@ -15,6 +15,10 @@ pub fn init_tracing_subscriber(
     verbosity_level: u8,
     env_filter: Option<impl Into<EnvFilter>>,
 ) -> Result<(), SetGlobalDefaultError> {
+    if verbosity_level == 0 {
+        return Ok(());
+    }
+
     let level = match verbosity_level {
         1 => Level::ERROR,
         2 => Level::WARN,
@@ -22,9 +26,6 @@ pub fn init_tracing_subscriber(
         4 => Level::DEBUG,
         _ => Level::TRACE,
     };
-    if verbosity_level == 0 {
-        return tracing::subscriber::set_global_default(tracing_subscriber::fmt().finish());
-    }
     let filter = env_filter.map(|e| e.into()).unwrap_or(EnvFilter::from_default_env());
     let filter = filter.add_directive(level.into());
     let subscriber = tracing_subscriber::fmt().with_max_level(level);
