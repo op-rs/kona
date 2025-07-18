@@ -1,7 +1,8 @@
 //! Contains the builder for the [`RollupNode`].
 
 use crate::{
-    EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, actors::RuntimeState,
+    EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, SequencerConfig,
+    actors::RuntimeState,
 };
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
@@ -44,6 +45,8 @@ pub struct RollupNodeBuilder {
     supervisor_rpc_config: SupervisorRpcConfig,
     /// An interval to load the runtime config.
     runtime_load_interval: Option<std::time::Duration>,
+    /// The [`SequencerConfig`].
+    sequencer_config: Option<SequencerConfig>,
     /// The mode to run the node in.
     mode: NodeMode,
     /// Whether to run the node in interop mode.
@@ -111,6 +114,11 @@ impl RollupNodeBuilder {
         Self { runtime_load_interval: Some(interval), ..self }
     }
 
+    /// Appends the [`SequencerConfig`] to the builder.
+    pub fn with_sequencer_config(self, sequencer_config: SequencerConfig) -> Self {
+        Self { sequencer_config: Some(sequencer_config), ..self }
+    }
+
     /// Assembles the [`RollupNode`] service.
     ///
     /// By default, the supervisor RPC is disabled.
@@ -160,6 +168,7 @@ impl RollupNodeBuilder {
         });
 
         let p2p_config = self.p2p_config.expect("P2P config not set");
+        let sequencer_config = self.sequencer_config.unwrap_or_default();
 
         let interop_mode = match self.supervisor_rpc_config.is_disabled() {
             true => self.interop_mode,
@@ -176,6 +185,7 @@ impl RollupNodeBuilder {
             rpc_builder: self.rpc_config,
             runtime_builder,
             p2p_config,
+            sequencer_config,
             // By default, the supervisor rpc config is disabled.
             supervisor_rpc: self.supervisor_rpc_config,
         }
