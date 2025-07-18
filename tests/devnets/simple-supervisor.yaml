@@ -7,6 +7,7 @@ optimism_package:
         node1:
           el:
             type: op-geth
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
@@ -30,6 +31,7 @@ optimism_package:
         node1:
           el:
             type: op-geth
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
