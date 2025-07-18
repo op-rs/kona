@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use clap::{ArgAction, Parser, Subcommand};
-use kona_cli::{cli_styles, init_tracing_subscriber};
+use kona_cli::{LogFormat, cli_styles, init_tracing_subscriber};
 use serde::Serialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -28,6 +28,9 @@ pub struct HostCli {
     /// By default, the verbosity level is set to 3 (info level).
     #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
+    /// The format of the logs. One of: full, json, pretty, compact.
+    #[arg(long = "logs.format", short = 'f', default_value = "full")]
+    pub logs_format: LogFormat,
     /// Host mode
     #[command(subcommand)]
     pub mode: HostMode,
@@ -48,7 +51,7 @@ pub enum HostMode {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     let cfg = HostCli::parse();
-    init_tracing_subscriber(cfg.v, None::<EnvFilter>)?;
+    init_tracing_subscriber(cfg.v, None::<EnvFilter>, cfg.logs_format)?;
 
     match cfg.mode {
         #[cfg(feature = "single")]

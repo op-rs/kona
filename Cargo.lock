@@ -4246,6 +4246,7 @@ dependencies = [
  "libc",
  "libp2p",
  "metrics-exporter-prometheus",
+ "serde",
  "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber 0.3.19",

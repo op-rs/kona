@@ -19,7 +19,7 @@
 
 use clap::{ArgAction, Parser};
 use discv5::enr::CombinedKey;
-use kona_cli::init_tracing_subscriber;
+use kona_cli::{LogFormat, init_tracing_subscriber};
 use kona_p2p::{Discv5Builder, LocalNode};
 use std::net::{IpAddr, Ipv4Addr};
 
@@ -32,6 +32,9 @@ pub struct DiscCommand {
     /// By default, the verbosity level is set to 3 (info level).
     #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
+    /// The format of the logs. One of: full, json, pretty, compact.
+    #[arg(long = "logs.format", short = 'f', default_value = "full")]
+    pub logs_format: LogFormat,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
@@ -48,7 +51,7 @@ impl DiscCommand {
     pub async fn run(self) -> anyhow::Result<()> {
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?);
-        init_tracing_subscriber(self.v, Some(filter))?;
+        init_tracing_subscriber(self.v, Some(filter), self.logs_format)?;
 
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
             unreachable!()
