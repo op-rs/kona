@@ -44,7 +44,6 @@ tracing-subscriber = { workspace = true, optional = true, features = ["fmt"] }
 metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
-kona-derive = { workspace = true, features = ["test-utils"] }
 spin.workspace = true
 proptest.workspace = true
 serde_json.workspace = true
@@ -75,8 +74,3 @@ test-utils = [
 	"dep:tracing-subscriber",
 	"kona-protocol/test-utils",
 ]
-
-[package.metadata.cargo-udeps.ignore]
-# `kona-derive` is self-referenced in dev-dependencies to always enable the `test-utils` feature in `cfg(test)`.
-# this is a false-positive.
-development = ["kona-derive"]

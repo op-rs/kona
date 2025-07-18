@@ -53,7 +53,6 @@ spin = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["fmt"], optional = true }
 
 [dev-dependencies]
-kona-comp = { workspace = true, features = ["test-utils"] }
 brotli = { workspace = true, features = ["std"] }
 spin.workspace = true
 rand = { workspace = true, features = ["std", "std_rng"] }
@@ -112,9 +111,3 @@ arbitrary = [
 	"kona-protocol/arbitrary",
 	"op-alloy-consensus/arbitrary",
 ]
-
-
-[package.metadata.cargo-udeps.ignore]
-# `kona-comp` is self-referenced in dev-dependencies to always enable the `test-utils` feature in `cfg(test)`.
-# this is a false-positive.
-development = ["kona-comp"]
