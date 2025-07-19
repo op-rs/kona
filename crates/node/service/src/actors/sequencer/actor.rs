@@ -177,7 +177,11 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
     ) -> Result<(), SequencerActorError> {
         let unsafe_head = *unsafe_head_rx.borrow();
-        let l1_origin = match self.origin_selector.next_l1_origin(unsafe_head).await {
+        let l1_origin = match self
+            .origin_selector
+            .next_l1_origin(unsafe_head, self.is_recovery_mode)
+            .await
+        {
             Ok(l1_origin) => l1_origin,
             Err(err) => {
                 warn!(
