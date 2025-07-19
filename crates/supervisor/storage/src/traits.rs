@@ -385,3 +385,19 @@ pub trait CrossChainSafetyProvider {
         block: &BlockInfo,
     ) -> Result<DerivedRefPair, StorageError>;
 }
+
+/// Trait for rewinding supervisor-related state in the database.
+///
+/// This trait is used to revert persisted log data, derivation and safety head ref data
+/// from a given block onward. It is typically used to handle chain
+/// reorganizations or invalid block propagation.
+pub trait Rewinder {
+    /// Rewinds the log storage from the given block number (inclusive) to the latest block.
+    ///
+    /// # Arguments
+    /// - `from_block`: The block number from which to start the rewind (inclusive).
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if any database operation fails.
+    fn rewind_log_storage(&self, from_block: u64) -> Result<(), StorageError>;
+}

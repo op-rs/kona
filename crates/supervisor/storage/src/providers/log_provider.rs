@@ -124,6 +124,19 @@ where
         }
         Ok(())
     }
+
+    pub(crate) fn rewind_from(&self, block_number: u64) -> Result<(), StorageError> {
+        let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
+        let mut walker = cursor.walk(Some(block_number))?;
+
+        while let Some(Ok((key, _))) = walker.next() {
+            if key >= block_number {
+                walker.delete_current()?; // remove the block
+                self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<TX> LogProvider<'_, TX>
@@ -531,5 +544,53 @@ mod tests {
         genesis_conflict.hash = B256::from([0x33; 32]);
         let result = insert_block_logs(&db, &genesis_conflict, Vec::new());
         assert!(matches!(result, Err(StorageError::ConflictError(_))));
+    }
+
+    #[test]
+    fn test_rewind_block_logs_from() {
+        let db = setup_db();
+        let genesis = genesis_block();
+        initialize_db(&db, &genesis).expect("Failed to initialize DB");
+
+        // Add 5 blocks with logs
+        let mut blocks = vec![genesis];
+        for i in 1..=5 {
+            let prev = &blocks[i - 1];
+            let block = sample_block_info(i as u64, prev.hash);
+            let logs = (0..3).map(|j| sample_log(j, j % 2 == 0)).collect();
+            insert_block_logs(&db, &block, logs).expect("Failed to insert logs");
+            blocks.push(block);
+        }
+
+        // Rewind from block 3, blocks 3, 4, 5 should be removed
+        let tx = db.tx_mut().expect("Could not get mutable tx");
+        let provider = LogProvider::new(&tx);
+        provider.rewind_from(3).expect("Failed to rewind blocks");
+        tx.commit().expect("Failed to commit rewind");
+
+        let tx = db.tx().expect("Could not get RO tx");
+        let provider = LogProvider::new(&tx);
+
+        // Blocks 0,1,2 should still exist
+        for i in 0..=2 {
+            assert!(provider.get_block(i).is_ok(), "block {i} should exist after rewind");
+        }
+
+        // Logs for blocks 0,1,2 should exist
+        for i in 1..=2 {
+            let logs = provider.get_logs(i).expect("logs should exist");
+            assert_eq!(logs.len(), 3);
+        }
+
+        // Blocks 3,4,5 should be gone
+        for i in 3..=5 {
+            assert!(
+                matches!(provider.get_block(i), Err(StorageError::EntryNotFound(_))),
+                "block {i} should be removed"
+            );
+
+            let logs = provider.get_logs(i).expect("get_logs should not fail");
+            assert!(logs.is_empty(), "logs for block {i} should be empty");
+        }
     }
 }
