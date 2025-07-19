@@ -22,6 +22,7 @@ alloy-consensus.workspace = true
 alloy-eips.workspace = true
 alloy-hardforks.workspace = true
 alloy-op-hardforks.workspace = true
+alloy-chains.workspace = true
 
 # Misc
 thiserror.workspace = true
@@ -63,6 +64,7 @@ arbitrary = [
 	"alloy-primitives/arbitrary",
 	"alloy-primitives/rand",
 	"alloy-sol-types/arbitrary",
+	"alloy-chains/arbitrary",
 	"dep:arbitrary",
 	"std",
 ]
@@ -70,6 +72,7 @@ serde = [
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
 	"alloy-primitives/serde",
+	"alloy-chains/serde",
 	"dep:serde",
 	"dep:serde_repr",
 	"op-revm?/serde",

@@ -223,7 +223,7 @@ impl InteropHost {
             // Deserialize the config and return it.
             let cfg: RollupConfig = serde_json::from_str(&ser_config)?;
 
-            acc.insert(cfg.l2_chain_id, cfg);
+            acc.insert(cfg.l2_chain_id.id(), cfg);
             Ok(acc)
         })
     }

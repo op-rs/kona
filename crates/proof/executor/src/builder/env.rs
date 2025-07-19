@@ -41,7 +41,7 @@ where
     /// Returns the active [CfgEnv] for the executor.
     pub(crate) fn evm_cfg_env(&self, timestamp: u64) -> CfgEnv<OpSpecId> {
         CfgEnv::new()
-            .with_chain_id(self.config.l2_chain_id)
+            .with_chain_id(self.config.l2_chain_id.id())
             .with_spec(self.config.spec_id(timestamp))
     }
 
