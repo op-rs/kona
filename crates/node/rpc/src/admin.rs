@@ -1,6 +1,7 @@
 //! Admin RPC Module
 
 use crate::AdminApiServer;
+use alloy_primitives::B256;
 use async_trait::async_trait;
 use jsonrpsee::{
     core::RpcResult,
@@ -17,7 +18,7 @@ pub enum SequencerAdminQuery {
     /// A query to start the sequencer.
     StartSequencer,
     /// A query to stop the sequencer.
-    StopSequencer,
+    StopSequencer(oneshot::Sender<B256>),
     /// A query to check if the conductor is enabled.
     ConductorEnabled(oneshot::Sender<bool>),
     /// A query to set the recover mode.
@@ -87,16 +88,19 @@ impl AdminApiServer for AdminRpc {
             .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
-    async fn admin_stop_sequencer(&self) -> RpcResult<()> {
+    async fn admin_stop_sequencer(&self) -> RpcResult<B256> {
         // If the sequencer is not enabled (mode runs in validator mode), return an error.
         let Some(ref sequencer_sender) = self.sequencer_sender else {
             return Err(ErrorObject::from(ErrorCode::MethodNotFound));
         };
 
+        let (tx, rx) = oneshot::channel();
+
         sequencer_sender
-            .send(SequencerAdminQuery::StopSequencer)
+            .send(SequencerAdminQuery::StopSequencer(tx))
             .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+        rx.await.map_err(|_| ErrorObject::from(ErrorCode::InternalError))
     }
 
     async fn admin_conductor_enabled(&self) -> RpcResult<bool> {

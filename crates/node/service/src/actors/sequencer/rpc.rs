@@ -2,7 +2,9 @@
 //! Mostly handles queries from the admin rpc.
 
 use kona_derive::AttributesBuilder;
+use kona_protocol::L2BlockInfo;
 use kona_rpc::SequencerAdminQuery;
+use tokio::sync::watch;
 
 use crate::actors::sequencer::actor::SequencerActorState;
 
@@ -20,6 +22,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
     pub(super) async fn handle_admin_query(
         &mut self,
         query: SequencerAdminQuery,
+        unsafe_head: &mut watch::Receiver<L2BlockInfo>,
     ) -> Result<(), SequencerRpcError> {
         match query {
             SequencerAdminQuery::SequencerActive(tx) => {
@@ -29,9 +32,12 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 info!(target: "sequencer", "Starting sequencer");
                 self.is_active = true;
             }
-            SequencerAdminQuery::StopSequencer => {
+            SequencerAdminQuery::StopSequencer(tx) => {
                 info!(target: "sequencer", "Stopping sequencer");
                 self.is_active = false;
+
+                tx.send(unsafe_head.borrow().hash())
+                    .map_err(|_| SequencerRpcError::SendResponse)?;
             }
             SequencerAdminQuery::ConductorEnabled(tx) => {
                 tx.send(self.conductor.is_some()).map_err(|_| SequencerRpcError::SendResponse)?;

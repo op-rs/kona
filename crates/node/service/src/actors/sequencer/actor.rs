@@ -411,7 +411,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 Some(admin_query) = self.admin_query_rx.recv(), if !self.admin_query_rx.is_closed() => {
                     let is_sequencer_active = state.is_active;
 
-                    if let Err(e) = state.handle_admin_query(admin_query).await {
+                    if let Err(e) = state.handle_admin_query(admin_query, &mut self.unsafe_head_rx).await {
                         error!(target: "sequencer", err = ?e, "Failed to handle admin query");
                     }
 
