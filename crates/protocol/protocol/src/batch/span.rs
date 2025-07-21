@@ -100,9 +100,9 @@ impl SpanBatch {
         })
     }
 
-    /// Converts all [`SpanBatchElement`]s after the L2 safe head to [`SingleBatch`]es. The resulting
-    /// [`SingleBatch`]es do not contain a parent hash, as it is populated by the Batch Queue
-    /// stage.
+    /// Converts all [`SpanBatchElement`]s after the L2 safe head to [`SingleBatch`]es. The
+    /// resulting [`SingleBatch`]es do not contain a parent hash, as it is populated by the
+    /// Batch Queue stage.
     pub fn get_singular_batches(
         &self,
         l1_origins: &[BlockInfo],

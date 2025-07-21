@@ -36,9 +36,9 @@ impl RawSpanBatch {
         Ok(Self { prefix, payload })
     }
 
-    /// Converts a [`RawSpanBatch`] into a [`SpanBatch`], which has a list of [`SpanBatchElement`]s. Thos
-    /// function does not populate the [`SpanBatch`] with chain configuration data, which is
-    /// required for making payload attributes.
+    /// Converts a [`RawSpanBatch`] into a [`SpanBatch`], which has a list of [`SpanBatchElement`]s.
+    /// Thos function does not populate the [`SpanBatch`] with chain configuration data, which
+    /// is required for making payload attributes.
     pub fn derive(
         &mut self,
         block_time: u64,

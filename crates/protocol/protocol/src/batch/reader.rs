@@ -55,7 +55,8 @@ impl BatchReader {
     /// Brotli Compression Channel Version.
     pub const CHANNEL_VERSION_BROTLI: u8 = 1;
 
-    /// Creates a new [`BatchReader`] from the given data and max decompressed RLP bytes per channel.
+    /// Creates a new [`BatchReader`] from the given data and max decompressed RLP bytes per
+    /// channel.
     pub fn new<T>(data: T, max_rlp_bytes_per_channel: usize) -> Self
     where
         T: Into<Vec<u8>>,

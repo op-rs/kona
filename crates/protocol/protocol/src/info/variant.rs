@@ -132,8 +132,8 @@ impl L1BlockInfoTx {
         }))
     }
 
-    /// Creates a new [`L1BlockInfoTx`] from the given information and returns a typed [`TxDeposit`] to
-    /// include at the top of a block.
+    /// Creates a new [`L1BlockInfoTx`] from the given information and returns a typed [`TxDeposit`]
+    /// to include at the top of a block.
     pub fn try_new_with_deposit_tx(
         rollup_config: &RollupConfig,
         system_config: &SystemConfig,
