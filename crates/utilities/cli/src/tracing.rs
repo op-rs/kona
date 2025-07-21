@@ -1,8 +1,15 @@
 //! [tracing_subscriber] utilities.
 
+use tracing_subscriber::{
+    Layer,
+    prelude::__tracing_subscriber_SubscriberExt,
+    util::{SubscriberInitExt, TryInitError},
+};
+
 use serde::{Deserialize, Serialize};
-use tracing::{level_filters::LevelFilter, subscriber::SetGlobalDefaultError};
 use tracing_subscriber::EnvFilter;
+
+use crate::log::{LogConfig, LogRotation};
 
 /// The format of the logs.
 #[derive(
@@ -22,54 +29,66 @@ pub enum LogFormat {
     Compact,
 }
 
-/// Initializes the tracing subscriber
-///
-/// # Arguments
-/// * `verbosity_level` - The verbosity level (0-5). If `0`, no logs are printed.
-/// * `env_filter` - Optional environment filter for the subscriber.
-///
-/// # Returns
-/// * `Result<()>` - Ok if successful, Err otherwise.
-pub fn init_tracing_subscriber(
-    verbosity_level: u8,
-    env_filter: Option<impl Into<EnvFilter>>,
-    log_format: LogFormat,
-) -> Result<(), SetGlobalDefaultError> {
-    let level = match verbosity_level {
-        0 => LevelFilter::OFF,
-        1 => LevelFilter::ERROR,
-        2 => LevelFilter::WARN,
-        3 => LevelFilter::INFO,
-        4 => LevelFilter::DEBUG,
-        _ => LevelFilter::TRACE,
-    };
-    let filter = env_filter.map(|e| e.into()).unwrap_or(EnvFilter::from_default_env());
-    let filter = filter.add_directive(level.into());
+impl LogConfig {
+    /// Initializes the tracing subscriber
+    ///
+    /// # Arguments
+    /// * `verbosity_level` - The verbosity level (0-5). If `0`, no logs are printed.
+    /// * `env_filter` - Optional environment filter for the subscriber.
+    ///
+    /// # Returns
+    /// * `Result<()>` - Ok if successful, Err otherwise.
+    pub fn init_tracing_subscriber(
+        &self,
+        env_filter: Option<EnvFilter>,
+    ) -> Result<(), TryInitError> {
+        let file_layer = self.file_logs.as_ref().map(|file_logs| {
+            let directory_path = file_logs.directory_path.clone();
 
-    match log_format {
-        LogFormat::Full => {
-            let subscriber =
-                tracing_subscriber::fmt().with_max_level(level).with_env_filter(filter);
-            tracing::subscriber::set_global_default(subscriber.finish())?;
-        }
-        LogFormat::Json => {
-            let subscriber =
-                tracing_subscriber::fmt().json().with_max_level(level).with_env_filter(filter);
-            tracing::subscriber::set_global_default(subscriber.finish())?;
-        }
-        LogFormat::Pretty => {
-            let subscriber =
-                tracing_subscriber::fmt().pretty().with_max_level(level).with_env_filter(filter);
-            tracing::subscriber::set_global_default(subscriber.finish())?;
-        }
-        LogFormat::Compact => {
-            let subscriber =
-                tracing_subscriber::fmt().compact().with_max_level(level).with_env_filter(filter);
-            tracing::subscriber::set_global_default(subscriber.finish())?;
-        }
-    };
+            let appender = match file_logs.rotation {
+                LogRotation::Minutely => {
+                    tracing_appender::rolling::minutely(directory_path, "kona.log")
+                }
+                LogRotation::Hourly => {
+                    tracing_appender::rolling::hourly(directory_path, "kona.log")
+                }
+                LogRotation::Daily => tracing_appender::rolling::daily(directory_path, "kona.log"),
+                LogRotation::Never => tracing_appender::rolling::never(directory_path, "kona.log"),
+            };
 
-    Ok(())
+            match file_logs.format {
+                LogFormat::Full => tracing_subscriber::fmt::layer().with_writer(appender).boxed(),
+                LogFormat::Json => {
+                    tracing_subscriber::fmt::layer().json().with_writer(appender).boxed()
+                }
+                LogFormat::Pretty => {
+                    tracing_subscriber::fmt::layer().pretty().with_writer(appender).boxed()
+                }
+                LogFormat::Compact => {
+                    tracing_subscriber::fmt::layer().compact().with_writer(appender).boxed()
+                }
+            }
+        });
+
+        let stdout_layer = self.stdout_logs.as_ref().map(|stdout_logs| match stdout_logs.format {
+            LogFormat::Full => tracing_subscriber::fmt::layer().boxed(),
+            LogFormat::Json => tracing_subscriber::fmt::layer().json().boxed(),
+            LogFormat::Pretty => tracing_subscriber::fmt::layer().pretty().boxed(),
+            LogFormat::Compact => tracing_subscriber::fmt::layer().compact().boxed(),
+        });
+
+        let env_filter = env_filter
+            .unwrap_or(EnvFilter::from_default_env())
+            .add_directive(self.global_level.into());
+
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(file_layer)
+            .with(stdout_layer)
+            .try_init()?;
+
+        Ok(())
+    }
 }
 
 /// This provides function for init tracing in testing
@@ -79,5 +98,5 @@ pub fn init_tracing_subscriber(
 /// - `init_tracing_subscriber`: Initializes the tracing subscriber with a specified verbosity level
 ///   and optional environment filter.
 pub fn init_test_tracing() {
-    let _ = init_tracing_subscriber(4, None::<EnvFilter>, LogFormat::Full);
+    let _ = LogConfig::default().init_tracing_subscriber(None::<EnvFilter>);
 }

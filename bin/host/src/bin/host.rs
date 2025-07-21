@@ -5,8 +5,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 use anyhow::Result;
-use clap::{ArgAction, Parser, Subcommand};
-use kona_cli::{LogFormat, cli_styles, init_tracing_subscriber};
+use clap::{Parser, Subcommand};
+use kona_cli::{LogConfig, cli_styles, log::LogArgs};
 use serde::Serialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -23,14 +23,9 @@ primary thread.
 #[derive(Parser, Serialize, Clone, Debug)]
 #[command(about = ABOUT, version, styles = cli_styles())]
 pub struct HostCli {
-    /// Verbosity level (0-5)
-    /// If set to 0, no logs are printed.
-    /// By default, the verbosity level is set to 3 (info level).
-    #[arg(long, short, default_value = "3", action = ArgAction::Count)]
-    pub v: u8,
-    /// The format of the logs. One of: full, json, pretty, compact.
-    #[arg(long = "logs.format", short = 'f', default_value = "full")]
-    pub logs_format: LogFormat,
+    /// Logging arguments.
+    #[command(flatten)]
+    pub log_args: LogArgs,
     /// Host mode
     #[command(subcommand)]
     pub mode: HostMode,
@@ -51,7 +46,7 @@ pub enum HostMode {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     let cfg = HostCli::parse();
-    init_tracing_subscriber(cfg.v, None::<EnvFilter>, cfg.logs_format)?;
+    LogConfig::new(cfg.log_args).init_tracing_subscriber(None::<EnvFilter>)?;
 
     match cfg.mode {
         #[cfg(feature = "single")]

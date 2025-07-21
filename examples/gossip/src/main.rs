@@ -17,9 +17,9 @@
 
 #![warn(unused_crate_dependencies)]
 
-use clap::{ArgAction, Parser};
+use clap::Parser;
 use discv5::enr::CombinedKey;
-use kona_cli::{LogFormat, init_tracing_subscriber};
+use kona_cli::{LogConfig, log::LogArgs};
 use kona_node_service::{NetworkActor, NetworkConfig, NetworkContext, NodeActor};
 use kona_p2p::LocalNode;
 use kona_registry::ROLLUP_CONFIGS;
@@ -35,14 +35,8 @@ use tracing_subscriber::EnvFilter;
 #[derive(Parser, Debug, Clone)]
 #[command(about = "Runs the gossip service")]
 pub struct GossipCommand {
-    /// Verbosity level (0-5).
-    /// If set to 0, no logs are printed.
-    /// By default, the verbosity level is set to 3 (info level).
-    #[arg(long, short, default_value = "3", action = ArgAction::Count)]
-    pub v: u8,
-    /// The format of the logs. One of: full, json, pretty, compact.
-    #[arg(long = "logs.format", short = 'f', default_value = "full")]
-    pub logs_format: LogFormat,
+    #[command(flatten)]
+    pub v: LogArgs,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
@@ -60,7 +54,7 @@ pub struct GossipCommand {
 impl GossipCommand {
     /// Run the gossip subcommand.
     pub async fn run(self) -> anyhow::Result<()> {
-        init_tracing_subscriber(self.v, None::<EnvFilter>, self.logs_format)?;
+        LogConfig::new(self.v).init_tracing_subscriber(None::<EnvFilter>)?;
 
         let rollup_config = ROLLUP_CONFIGS
             .get(&self.l2_chain_id)

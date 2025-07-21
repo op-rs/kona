@@ -1,9 +1,10 @@
 //! Runtime Loading Actor
 
 use async_trait::async_trait;
+use kona_engine::EngineClient;
 use kona_sources::{RuntimeConfig, RuntimeLoader, RuntimeLoaderError};
-use std::time::Duration;
-use tokio::sync::mpsc;
+use op_alloy_provider::ext::engine::OpEngineApi;
+use std::{sync::Arc, time::Duration};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
 use crate::{NodeActor, actors::CancellableContext};
@@ -13,8 +14,6 @@ use crate::{NodeActor, actors::CancellableContext};
 pub struct RuntimeContext {
     /// Cancels the runtime actor.
     pub cancellation: CancellationToken,
-    /// The channel to send the [`RuntimeConfig`] to the runtime actor.
-    pub runtime_config_tx: mpsc::Sender<RuntimeConfig>,
 }
 
 impl CancellableContext for RuntimeContext {
@@ -39,12 +38,31 @@ pub struct RuntimeState {
     pub loader: RuntimeLoader,
     /// The interval at which to load the runtime.
     pub interval: Duration,
+    /// The client to send the updated runtime config to the EL engine.
+    pub client: Arc<EngineClient>,
 }
 
 impl RuntimeActor {
     /// Constructs a new [`RuntimeActor`] from the given [`RuntimeLoader`].
     pub const fn new(state: RuntimeState) -> ((), Self) {
         ((), Self { state })
+    }
+
+    fn runtime_config_update(&mut self, config: RuntimeConfig) {
+        let client = self.state.client.clone();
+        tokio::task::spawn(async move {
+            debug!(target: "engine", config = ?config, "Received runtime config");
+            let recommended = config.recommended_protocol_version;
+            let required = config.required_protocol_version;
+            match client.signal_superchain_v1(recommended, required).await {
+                Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
+                Err(e) => {
+                    // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                    // a warning is logged instead of an error.
+                    warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                }
+            }
+        });
     }
 }
 
@@ -61,7 +79,7 @@ impl NodeActor for RuntimeActor {
 
     async fn start(
         mut self,
-        RuntimeContext { cancellation, runtime_config_tx }: Self::OutboundData,
+        RuntimeContext { cancellation }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut interval = tokio::time::interval(self.state.interval);
 
@@ -74,9 +92,7 @@ impl NodeActor for RuntimeActor {
                 _ = interval.tick() => {
                     let config = self.state.loader.load_latest().await?;
                     debug!(target: "runtime", ?config, "Loaded latest runtime config");
-                    if let Err(e) = runtime_config_tx.send(config).await {
-                        error!(target: "runtime", ?e, "Failed to send runtime config to the engine actor");
-                    }
+                    self.runtime_config_update(config);
                 }
             }
         }

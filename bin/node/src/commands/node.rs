@@ -8,7 +8,7 @@ use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use kona_cli::metrics_args::MetricsArgs;
+use kona_cli::{LogConfig, metrics_args::MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
@@ -111,7 +111,7 @@ impl NodeCommand {
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?);
 
-        args.init_tracing(Some(filter))?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(Some(filter))?;
         Ok(())
     }
 
