@@ -23,12 +23,18 @@ import (
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-func TestPreInteropNoSyncStatus(gt *testing.T) {
+func TestPreInteropComprehensive(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 	sys := presets.NewSimpleInterop(t)
-	require := t.Require()
 
-	t.Logger().Info("Starting")
+	testPreInteropNoSyncStatus(t, sys)
+
+	testPreInteropCheckAccessList(t, sys)
+}
+
+func testPreInteropNoSyncStatus(t devtest.T, sys *presets.SimpleInterop) {
+	t.Logger().Info("Starting pre-interop no sync status test")
+	require := t.Require()
 
 	devtest.RunParallel(t, sys.L2Networks(), func(t devtest.T, net *dsl.L2Network) {
 		interopTime := net.Escape().ChainConfig().InteropTime
@@ -40,13 +46,11 @@ func TestPreInteropNoSyncStatus(gt *testing.T) {
 		_, err := sys.Supervisor.Escape().QueryAPI().SyncStatus(t.Ctx())
 		require.ErrorContains(err, "chain database is not initialized")
 	})
-
-	t.Logger().Info("Done")
+	t.Logger().Info("Done pre-interop no sync status test")
 }
 
-func TestPreInteropCheckAccessList(gt *testing.T) {
-	t := devtest.ParallelT(gt)
-	sys := presets.NewSimpleInterop(t)
+func testPreInteropCheckAccessList(t devtest.T, sys *presets.SimpleInterop) {
+	t.Logger().Info("Starting pre-interop check access list test")
 	require := t.Require()
 
 	alice := sys.FunderA.NewFundedEOA(eth.OneHundredthEther)
@@ -96,6 +100,7 @@ func TestPreInteropCheckAccessList(gt *testing.T) {
 
 	err := sys.Supervisor.Escape().QueryAPI().CheckAccessList(t.Ctx(), accessList, stypes.LocalUnsafe, ed)
 	require.Error(err, "CheckAccessList should fail before interop")
+	t.Logger().Info("Done pre-interop check access list test")
 }
 
 // Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/upgrade/pre_test.go

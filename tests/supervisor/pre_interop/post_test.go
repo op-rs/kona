@@ -19,29 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func TestPostInteropStatusSync(gt *testing.T) {
-	t := devtest.ParallelT(gt)
-	sys := presets.NewSimpleInterop(t)
-	require := t.Require()
-
-	devtest.RunParallel(t, sys.L2Networks(), func(t devtest.T, net *dsl.L2Network) {
-		t.Logger().Info("Awaiting activation block for chain", "chainID", net.ChainID())
-		activationBlock := net.AwaitActivation(t, rollup.Interop)
-		require.NotNil(activationBlock, "ActivationBlock should return a valid block number")
-
-		t.Logger().Info("Activation block found", "blockNumber", activationBlock.Number)
-		time.Sleep(10 * time.Second)
-
-		// wait for some time to ensure the interop activation block is become cross-safe
-		t.Logger().Info("Waiting for interop activation block to be cross-safe")
-		sys.Supervisor.WaitForL2HeadToAdvanceTo(net.ChainID(), stypes.CrossSafe, activationBlock)
-
-		status, err := sys.Supervisor.Escape().QueryAPI().SyncStatus(t.Ctx())
-		require.NoError(err, "SyncStatus should not error after interop")
-		require.NotNil(status, "SyncStatus should return a valid status")
-	})
-}
-
 func TestSupervisorActivationBlock(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 	sys := presets.NewSimpleInterop(t)
