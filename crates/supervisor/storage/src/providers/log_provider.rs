@@ -580,10 +580,7 @@ mod tests {
 
         // Blocks 0,1,2 should still exist
         for i in 0..=2 {
-            assert!(
-                provider.get_block(i).is_ok(),
-                "block {i} should exist after rewind"
-            );
+            assert!(provider.get_block(i).is_ok(), "block {i} should exist after rewind");
         }
 
         // Logs for blocks 1,2 should exist
@@ -614,7 +611,7 @@ mod tests {
         insert_block_logs(&db, &block1, vec![sample_log(0, true)]).expect("insert block 1");
 
         // Create a conflicting block with the same number but different hash
-        let mut conflicting_block1 = block1.clone();
+        let mut conflicting_block1 = block1;
         conflicting_block1.hash = B256::from([0xAB; 32]); // different hash
 
         let tx = db.tx_mut().expect("Failed to get tx");

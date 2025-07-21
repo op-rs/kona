@@ -377,13 +377,13 @@ impl Rewinder for ChainDb {
                 let hp = SafetyHeadRefProvider::new(tx);
 
                 lp.rewind_to(to)?;
-                
+
                 // get the current latest block to update the safety head refs
                 let latest_block = match lp.get_latest_block() {
                     Ok(block) => block,
                     Err(err) => return Err(err),
                 };
-                
+
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)
             })?
@@ -396,7 +396,7 @@ impl Rewinder for ChainDb {
                 let lp = LogProvider::new(tx);
                 let dp = DerivationProvider::new(tx);
                 let hp = SafetyHeadRefProvider::new(tx);
-                
+
                 lp.rewind_to(to)?;
                 dp.rewind_to(to)?;
 
@@ -408,7 +408,7 @@ impl Rewinder for ChainDb {
 
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)?;
-                
+
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalSafe, &latest_block)?;
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &latest_block)
             })?
@@ -936,5 +936,115 @@ mod tests {
 
         let latest_derived_pair = db.latest_derivation_state().expect("should exist");
         assert_eq!(latest_derived_pair, DerivedRefPair { source: source2, derived: derived3 });
+    }
+
+    #[test]
+    fn test_rewind_log_storage() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_rewind_log");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        let anchor = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 1,
+            parent_hash: B256::from([3u8; 32]),
+            timestamp: 0,
+        };
+
+        let next_block = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 2,
+            parent_hash: anchor.hash,
+            timestamp: 0,
+        };
+
+        db.initialise_log_storage(anchor).unwrap();
+        db.store_block_logs(&next_block, vec![]).unwrap();
+
+        // Add and promote next_block to CrossUnsafe and LocalUnsafe
+        db.update_current_cross_unsafe(&next_block).unwrap();
+
+        db.rewind_log_storage(&next_block).expect("rewind log storage should succeed");
+
+        // Should be rewound to anchor
+        let local_unsafe =
+            db.get_safety_head_ref(SafetyLevel::LocalUnsafe).expect("get safety head ref");
+        let cross_unsafe =
+            db.get_safety_head_ref(SafetyLevel::CrossUnsafe).expect("get safety head ref");
+
+        assert_eq!(local_unsafe, anchor);
+        assert_eq!(cross_unsafe, anchor);
+    }
+
+    #[test]
+    fn test_rewind() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_rewind_all");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 1,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        let pair1 = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([3u8; 32]),
+                number: 101,
+                parent_hash: anchor.source.hash,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([4u8; 32]),
+                number: 2,
+                parent_hash: anchor.derived.hash,
+                timestamp: 1,
+            },
+        };
+
+        let unsafe_block = BlockInfo {
+            hash: B256::from([5u8; 32]),
+            number: 3,
+            parent_hash: pair1.derived.hash,
+            timestamp: 2,
+        };
+
+        db.initialise_log_storage(anchor.derived).expect("initialise log storage");
+        db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
+
+        db.store_block_logs(&pair1.derived, vec![]).expect("store logs");
+        db.store_block_logs(&unsafe_block, vec![]).expect("store logs");
+
+        db.save_source_block(pair1.source).expect("save source block");
+        db.save_derived_block(pair1).expect("save derived block");
+
+        db.update_current_cross_unsafe(&pair1.derived).expect("update cross unsafe");
+
+        db.rewind(&pair1.derived).expect("rewind should succeed");
+
+        // Everything should be rewound to anchor.derived
+        let local_unsafe = db.get_safety_head_ref(SafetyLevel::LocalUnsafe).unwrap();
+        let cross_unsafe = db.get_safety_head_ref(SafetyLevel::CrossUnsafe).unwrap();
+        let local_safe = db.get_safety_head_ref(SafetyLevel::LocalSafe).unwrap();
+        let cross_safe = db.get_safety_head_ref(SafetyLevel::CrossSafe).unwrap();
+        let latest_pair = db.latest_derivation_state().unwrap();
+        let latest_unsafe = db.get_latest_block().unwrap();
+
+        assert_eq!(local_unsafe, anchor.derived);
+        assert_eq!(cross_unsafe, anchor.derived);
+        assert_eq!(local_safe, anchor.derived);
+        assert_eq!(cross_safe, anchor.derived);
+        assert_eq!(latest_pair, anchor);
+        assert_eq!(latest_unsafe, anchor.derived);
     }
 }

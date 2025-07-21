@@ -390,7 +390,8 @@ pub trait CrossChainSafetyProvider {
 ///
 /// This trait provides an interface to revert persisted log data, derivation records,
 /// and safety head references from the latest block back to a specified block number (inclusive).
-/// It is typically used during chain reorganizations or when invalid blocks are detected and need to be rolled back.
+/// It is typically used during chain reorganizations or when invalid blocks are detected and need
+/// to be rolled back.
 pub trait Rewinder {
     /// Rewinds the log storage from the latest block down to the specified block (inclusive).
     ///
@@ -408,7 +409,8 @@ pub trait Rewinder {
     /// of supervisor state after chain reorganizations or rollback of invalid blocks.
     ///
     /// # Arguments
-    /// * `to` - The target block to rewind to. Rewind is performed from the latest block down to this block.
+    /// * `to` - The target block to rewind to. Rewind is performed from the latest block down to
+    ///   this block.
     ///
     /// # Errors
     /// Returns a [`StorageError`] if any part of the rewind process fails.

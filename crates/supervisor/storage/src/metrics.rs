@@ -35,8 +35,7 @@ impl Metrics {
         "update_finalized_l1",
         "get_finalized_l1",
         "rewind_log_storage",
-        "rewind"
-        // Add more as needed
+        "rewind", // Add more as needed
     ];
 
     pub(crate) fn init(chain_id: ChainId) {
