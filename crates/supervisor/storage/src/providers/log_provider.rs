@@ -43,12 +43,12 @@ impl<TX> LogProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    pub(crate) fn initialise(&self, anchor: BlockInfo) -> Result<(), StorageError> {
+    pub(crate) fn initialise(&self, activation_block: BlockInfo) -> Result<(), StorageError> {
         match self.get_block(0) {
-            Ok(block) if block.hash == anchor.hash => Ok(()),
-            Ok(_) => Err(StorageError::InvalidAnchor),
+            Ok(block) if block == activation_block => Ok(()),
+            Ok(_) => Err(StorageError::ConflictError),
             Err(StorageError::EntryNotFound(_)) => {
-                self.store_block_logs_internal(&anchor, Vec::new())
+                self.store_block_logs_internal(&activation_block, Vec::new())
             }
 
             Err(err) => Err(err),
@@ -363,7 +363,7 @@ mod tests {
         wrong_genesis.hash = B256::from([42u8; 32]);
 
         let result = initialize_db(&db, &wrong_genesis);
-        assert!(matches!(result, Err(StorageError::InvalidAnchor)));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]

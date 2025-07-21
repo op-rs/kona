@@ -123,9 +123,7 @@ impl From<StorageError> for SpecError {
                 Self::from(SuperchainDAError::UninitializedChainDatabase)
             }
             StorageError::ConflictError => Self::from(SuperchainDAError::ConflictingData),
-            StorageError::BlockOutOfOrder | StorageError::DerivedBlockOutOfOrder => {
-                Self::from(SuperchainDAError::OutOfOrder)
-            }
+            StorageError::BlockOutOfOrder => Self::from(SuperchainDAError::OutOfOrder),
             _ => Self::ErrorNotInSpec,
         }
     }
