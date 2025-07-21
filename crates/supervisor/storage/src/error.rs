@@ -35,7 +35,7 @@ pub enum StorageError {
     DatabaseNotInitialised,
 
     /// Represents a conflict occurred while attempting to write to the database.
-    #[error("conflict between unsafe block and derived block")]
+    #[error("conflicting data")]
     ConflictError,
 
     /// Represents an error that occurred while writing to log database.
