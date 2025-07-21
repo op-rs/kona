@@ -73,7 +73,8 @@ The runtime system includes comprehensive error handling for various failure sce
 - **Contract Call Failures**: Graceful handling of failed storage queries with fallback behavior
 - **Protocol Version Decoding**: Validation and error reporting for malformed protocol version data
 
-:::info[Optional Engine Endpoint]
+:::info
+[Optional Engine Endpoint]
 The `engine_signalSuperchainV1` endpoint is optional in the Engine API specification. If your execution client doesn't support this method, the runtime system will log warnings but continue operating normally.
 :::
 
@@ -113,7 +114,8 @@ Implement monitoring for runtime system health:
 - Monitor L1 RPC endpoint availability and performance
 - Track protocol version changes for upgrade planning
 
-:::warning[Protocol Version Compatibility]
+:::warning
+[Protocol Version Compatibility]
 Ensure your node can support the required protocol version. Running with an incompatible version may result in consensus failures or network disconnection.
 :::
 
