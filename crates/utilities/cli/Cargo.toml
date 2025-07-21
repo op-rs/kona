@@ -15,9 +15,10 @@ workspace = true
 tracing.workspace = true
 serde = { workspace = true, features = ["derive"]}
 clap = { workspace = true, features = ["derive", "env"] }
-tracing-subscriber = { workspace = true, features = ["fmt", "env-filter", "json"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter", "json", "tracing-log"] }
+tracing-appender.workspace = true
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
-anyhow = { version = "1.0.98", default-features = false }
+anyhow = { workspace = true, default-features = false }
 
 # `secrets` feature
 libp2p = { workspace = true, features = ["secp256k1"], optional = true }
