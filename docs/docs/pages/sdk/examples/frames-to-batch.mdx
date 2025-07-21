@@ -1,22 +1,17 @@
-import { Callout } from 'vocs/components'
-
 # Transform Frames into a Batch
 
-<Callout type="info">
-
+:::info
 This example performs the reverse transformation as the [batch-to-frames][batch-to-frames] example.
+:::
 
-</Callout>
+This example walks through transforming [`Frame`][frame]s into the [`Batch`][batch] types.
 
-<Callout type="danger">
-
+:::danger
 Steps and handling of types with respect to chain tip, ordering of frames, re-orgs, and
 more are not covered by this example. This example solely demonstrates the most trivial
 way to transform individual [`Frame`][frame]s into a [`Batch`][batch] type.
+:::
 
-</Callout>
-
-This example walks through transforming [`Frame`][frame]s into the [`Batch`][batch] types.
 
 ## Walkthrough
 
@@ -32,10 +27,11 @@ the first step is to decode the frame data into [`Frame`][frame]s using
 the [`Channel`][channel] can be constructed using the [`ChannelId`][channel-id]
 of the first frame.
 
-<Callout type="info">
+
+:::info
 [`Frame`][frame]s may also be added to a [`Channel`][channel]
 once decoded with the [`Channel::add_frame`][add-frame] method.
-</Callout>
+:::
 
 When the [`Channel`][channel] is [`Channel::is_ready()`][is-ready],
 the frame data can taken from the [`Channel`][channel] using
