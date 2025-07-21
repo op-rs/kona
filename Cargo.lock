@@ -4454,7 +4454,7 @@ dependencies = [
 
 [[package]]
 name = "kona-genesis"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -4476,7 +4476,7 @@ dependencies = [
 
 [[package]]
 name = "kona-hardforks"
-version = "0.3.0"
+version = "0.4.3"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -4536,7 +4536,7 @@ dependencies = [
 
 [[package]]
 name = "kona-interop"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4840,7 +4840,7 @@ dependencies = [
 
 [[package]]
 name = "kona-protocol"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "alloc-no-stdlib",
  "alloy-consensus",
@@ -4875,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "kona-providers-alloy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4904,7 +4904,7 @@ dependencies = [
 
 [[package]]
 name = "kona-registry"
-version = "0.3.0"
+version = "0.4.2"
 dependencies = [
  "alloy-chains",
  "alloy-eips",
@@ -4920,7 +4920,7 @@ dependencies = [
 
 [[package]]
 name = "kona-rpc"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",

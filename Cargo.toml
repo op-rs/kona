@@ -80,15 +80,15 @@ kona-client = { path = "bin/client", version = "1.0.2", default-features = false
 kona-comp = { path = "crates/protocol/comp", version = "0.3.0", default-features = false }
 kona-driver = { path = "crates/protocol/driver", version = "0.3.0", default-features = false }
 kona-derive = { path = "crates/protocol/derive", version = "0.4.0", default-features = false }
-kona-interop = { path = "crates/protocol/interop", version = "0.3.0", default-features = false }
-kona-genesis = { path = "crates/protocol/genesis", version = "0.3.0", default-features = false }
-kona-protocol = { path = "crates/protocol/protocol", version = "0.3.0", default-features = false }
-kona-registry = { path = "crates/protocol/registry", version = "0.3.0", default-features = false }
-kona-hardforks = { path = "crates/protocol/hardforks", version = "0.3.0", default-features = false }
+kona-interop = { path = "crates/protocol/interop", version = "0.4.0", default-features = false }
+kona-genesis = { path = "crates/protocol/genesis", version = "0.4.0", default-features = false }
+kona-protocol = { path = "crates/protocol/protocol", version = "0.4.1", default-features = false }
+kona-registry = { path = "crates/protocol/registry", version = "0.4.2", default-features = false }
+kona-hardforks = { path = "crates/protocol/hardforks", version = "0.4.3", default-features = false }
 
 # Node
 kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
-kona-rpc = { path = "crates/node/rpc", version = "0.2.0", default-features = false }
+kona-rpc = { path = "crates/node/rpc", version = "0.3.0", default-features = false }
 kona-peers = { path = "crates/node/peers", version = "0.1.0", default-features = false }
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
 kona-sources = { path = "crates/node/sources", version = "0.1.0", default-features = false }
@@ -103,7 +103,7 @@ kona-supervisor-storage = { path = "crates/supervisor/storage", version = "0.1.0
 kona-supervisor-metrics = { path = "crates/supervisor/metrics", version = "0.1.0", default-features = false }
 
 # Providers
-kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.2.0", default-features = false }
+kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.3.0", default-features = false }
 
 # Proof
 kona-mpt = { path = "crates/proof/mpt", version = "0.2.0", default-features = false }

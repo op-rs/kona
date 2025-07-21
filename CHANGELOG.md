@@ -2,32 +2,930 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.0] - 2025-03-21
+## [0.4.0] - 2025-07-21
 
 ### ⚙️ Miscellaneous Tasks
 
 - Release 0.3.0
 - Release 0.3.0
-- Release 0.3.0
-- Release 0.3.0
-- Release 0.2.0
-- Release 0.3.0
-- Release 0.2.0
-- Release 0.3.0
-- Release 0.3.0
-- Release 0.3.0
-- Release 0.3.0
-- Release 0.2.0
-- Release 0.2.0
-- Release 0.2.0
 
-## [0.3.0] - 2025-03-21
+## [0.4.3] - 2025-07-21
+
+### 🐛 Bug Fixes
+
+- Kona-hardforks v0.4.0
+- Kona-hardforks v0.4.1
+- Kona-hardforks v0.4.2
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release 0.3.0
+- Release 0.4.3
 
-## [0.2.0] - 2025-03-21
+## [0.4.2] - 2025-07-21
+
+### 🐛 Bug Fixes
+
+- Kona-registry v0.4.0
+- Kona-registry v0.4.1
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.4.2
+
+## [0.4.1] - 2025-07-21
+
+### 🐛 Bug Fixes
+
+- Kona-protocol v0.4.0
+- Kona-protocol v0.4.0
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.4.1
+
+## [0.4.0] - 2025-07-21
+
+### 🚀 Features
+
+- *(book)* Node Documentation (#2304)
+- *(node/net)* Rewire unsafe block sender from engine to network (#2378)
+- *(node/service)* Add L1 origin consistency check (#2373)
+- *(supervisor)* Pre-interop db support (#2368)
+- *(supervisor/core)* Implemented task retrier (#2386)
+- *(node/engine)* Refactor engine tasks. fix sequencer startup logic (#2388)
+- *(node/sequencer)* Connect unsafe head watcher from sequencer to engine (#2406)
+- *(node/service)* `L1OriginSelector` advancement (#2404)
+- *(supervisor/core)* Preinterop node support (#2385)
+- *(node/service)* Reset engine prior to block building (#2415)
+- *(node/service)* Prevent second reset on startup when sequencing (#2423)
+- *(tests)* Simple `kona-node` sequencer profile (#2424)
+- *(node/engine)* Fix unsafe payload signature. add large kona sequencer config (#2425)
+- *(docs)* Kona Documentation with Vocs (#2398)
+- *(node/sequencer)* Groundwork for op-conductor (#2405)
+- *(node/service)* Wire in sequencer configuration (#2447)
+- *(kona/logs)* Add logging format options (#2457)
+- *(supervisor/storage)* Implemented rewinder for log storage (#2444)
+- *(node/service)* Add sequencer admin RPC logs (#2472)
+- *(bin/node)* L2 Chain ID Abstraction (#2394)
+- *(meta/logs)* Allow logging to file, silencing stdout and more configuration (#2482)
+
+### 🐛 Bug Fixes
+
+- *(supervisor/core)* Unsafe block processing (#2357)
+- *(supervisor/core)* Handle safe hash mismatch in reset (#2374)
+- *(protocol)* Serialization compatibility for `RollupConfig` (#2416)
+- *(node/service)* Block label metrics (#2417)
+- *(node/engine)* Consolidate task transient safe chain updates (#2421)
+- *(supervisor/rpc)* Making all head ref as optional in syncStatus method (#2427)
+- *(bin/node)* Fix `SUPERVISOR_PORT` envvar typo (#2440)
+- *(cli)* Correct `init_tracing_subscriber` behavior (#2452)
+- *(docs)* Hide Landing Page Logo (#2458)
+- *(docs)* Front Page (#2459)
+- *(node/engine)* Fix consolidate + insert task metrics (#2450)
+- *(supervisor)* Error consistency (#2461)
+- *(docs)* FPP Dev Docs (#2470)
+- *(docs)* Callouts and Doc Links (#2474)
+- *(node/service)* Fix sequencer build ticker (#2473)
+- *(node/service)* Add latest unsafe block hash to `admin_stopSequencer` response (#2475)
+
+### 📚 Documentation
+
+- Complete derivation documentation for kona-node (#2466)
+- Complete execution engine documentation with trait abstractions and kona-node integration (#2467)
+- Update shields.io badges to use crate names as labels (#2479)
+- Update docker documentation to use correct kona-node targets (#2477)
+
+### 🧪 Testing
+
+- *(supervisor/core)* Preinterop e2e test (#2420)
+- *(supervisor)* Preinterop acceptance test (#2463)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(node/net)* Integrate the network driver inside the network actor (#2376)
+- Fix 404 URL (#2393)
+- *(node/engine)* Cleanup engine tasks errors. refactors the engine build task to reuse the insert task (#2399)
+- Fix broken url (#2408)
+- *(node/service)* Clean up engine task logs (#2422)
+- *(workspace)* Remove self-referential `dev-dependencies` (#2451)
+- *(docs)* Remove Mdbook (#2454)
+- *(docs)* Categorize RFCs (#2455)
+- *(docs)* Fix Doc Links (#2453)
+- *(supervisor)* Stick to versioned op-node release (#2445)
+- *(supervisor/storage)* Make `StorageError::ConflictError` type safe (#2281)
+- *(docs)* Remove Supervisor Docs (#2469)
+- *(node/engine)* Decouple engine and runtime actor (#2483)
+- Release 0.4.0
+
+## [kona-node/v0.1.0-beta.5] - 2025-07-08
+
+### 🚀 Features
+
+- *(node/test)* Monitor cpu usage inside test (#2292)
+- *(node/test)* Add a way to retrieve RPC endpoints addresses from kurtosis services (#2293)
+- Block processing metrics (#2296)
+- *(supervisor)* Broadcast cross head update events to managed node (#2289)
+- *(supervisor/syncnode)* Observe `ManagedModeApiClient` RPC calls (#2279)
+- *(node/service)* L1 origin selector (#2240)
+- *(node/service)* Sequencer actor (#2241)
+- *(node/engine)* Build task modifications for sequencing (#2242)
+- *(node/service)* Handle resets in `SequencerActor` (#2313)
+- *(supervisor/rpc)* Map errors to spec errors (#2277)
+- *(supervisor/e2e)* Interop test (#2335)
+- *(supervisor/e2e)* Rpc e2e test  (#2339)
+- *(supervisor/e2e)* `checkAccessList` RPC e2e (#2352)
+- *(bin/node)* Sequencer key flag (#2356)
+- *(bin/node)* Change `sequencer.enabled` -> `mode` (#2342)
+- *(node/sequencer)* Connect build tasks to the engine (#2359)
+- *(node/service)* Propagated errors raised during NodeActor::start (#2322)
+- *(node/service)* Use drop guards to ensure actors are cancelled properly (#2363)
+- *(node/sequencer)* Move node mode from rollup node service trait to engine actor. (#2360)
+
+### 🐛 Bug Fixes
+
+- *(supervisor/storage)* Chaindb metric initialization (#2297)
+- *(github/codeowner)* Fix code owners list (#2300)
+- *(node/service)* Invert the channel arrows in the rollup node service (#2315)
+- *(supervisor/core)* Added missing metrics (#2299)
+- *(supervisor)* Cross head promotion stuck (#2327)
+- *(supervisor/core)* Consistency check (#2330)
+- *(supervisor/rpc)* Invalid param `check_accesslist` (#2334)
+- *(supervisor/storage)* Handled derivation storage corner cases (#2340)
+- *(supervisor/core)* Derivation reset (#2346)
+- *(supervisor/storage)* Safety head ref initialization (#2369)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(node)* Indexed Mode Rename (#2290)
+- *(node/tests)* Deprecate devnet-sdk and reactivate RPC endpoint tests (#2294)
+- *(book)* Indexed + Polling Traversal Stage Docs (#2291)
+- *(supervisor/core)* Cross check l1 block with config (#2268)
+- Add chainsafe as codeowner for `test`, `docker` and `Cargo` (#2301)
+- *(derive)* Globalize Derivation Crate Imports (#2295)
+- *(node/engine)* Refactor process method (#2302)
+- *(node/service)* Move actor component building process inside the actors (#2303)
+- Fix some minor issues in the comments (#2309)
+- *(node/sequencer)* Refactor the sequencer module using the builder pattern (#2310)
+- *(node/service)* Have `EngineActor` produce reset request channel (#2312)
+- *(node/rpc)* Unify RPC actor with the other actors (#2308)
+- *(protocol/docs)* Update spec for gov token address constant (#2171)
+- *(supervisor)* Grafana dashboard (#2326)
+- *(supervisor/storage)* Remove update_safety_head_ref (#2328)
+- *(supervisor/core)* Reset handling refactor (#2332)
+- *(node)* `NodeMode` helpers (#2343)
+- *(workspace)* Bump dependencies (#2344)
+- *(node/rpc)* Remove rpc disabled field in rpc builder (#2364)
+- *(supervisor)* Op-node devnet version (#2358)
+- *(supervisor)* Remove l1 cache (#2349)
+- *(bean/node)* Removed `--l2-engine-kind` from kona (#2321)
+
+## [kona-node/v0.1.0-beta.4] - 2025-06-25
+
+### 🚀 Features
+
+- *(derive)* New Managed Pipelines (#2287)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Fix immediately resolved future (#2286)
+- *(node)* Interop Mode Wiring (#2288)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(node/service)* Refactor node actor trait. take context out of the actor (#2271)
+- *(node/service)* Refactor and simplify the `RollupNodeService` trait (#2284)
+
+## [kona-node/v0.1.0-beta.3] - 2025-06-25
+
+### 🚀 Features
+
+- *(node/p2p)* Handle peer score inside `opp2p_peers` (#2118)
+- *(supervisor/rpc)* Implement `supervisor_localUnsafe` (#2129)
+- *(supervisor/rpc)* Implement `supervisor_crossSafe` (#2131)
+- *(supervisor/rpc)* Implement `supervisor_finalized` (#2139)
+- *(supervisor/core)* Finalized l1 process handling (#2147)
+- *(p2p)* Post Unsafe Payload (#2064)
+- *(node/test-devstack)* Update devstack configuration to large networks (#2144)
+- *(interop)* Managed Event (#2160)
+- *(supervisor/rpc)* Implement `supervisor_finalizedL1` (#2157)
+- Add predeploy_address constants in maili-genesis now kona-genesis (#2149)
+- *(supervisor/core)* Finalized l1 watcher with head ref updates (#2167)
+- *(node)* Supervisor Rpc Server Flags (#2168)
+- *(node)* Wire up Supervisor RPC Flags + Config (#2174)
+- *(node)* Supervisor Actor Setup (#2161)
+- *(supervisor/rpc)* Implement supervisor_dependencySet (#2165)
+- *(supervisor/core)* Remove hardcoded finalized head from reset event (#2172)
+- *(supervisor/interop)* Added a `chain_id` field to ExecutingDescriptor (#2173)
+- *(rpc)* Supervisor RPC Server (#2162)
+- *(bin/node)* Conductor cli flags (#2193)
+- *(supervisor)* Implemented `CrossChainSafetyProvider` (#2197)
+- *(supervisor/rpc)* Implement `supervisor_superRootAtTimestamp` (#2180)
+- *(supervisor)* Implemented cross chain safety checker (#2200)
+- *(node/rpc)* Test node rpc endpoints (#2191)
+- *(protocol/derive)* Provide Block Signal (#2230)
+- *(supervisor/core)* Check for inconsistency and trigger reset (#2220)
+- *(supervisor/storage)* Internal database metrics (#2216)
+- *(node/service)* Supervisor Engine Resets (#2235)
+- *(supervisor)* Implemented safety checker job (#2212)
+- Chaindb metrics (#2238)
+- *(derive)* Managed Traversal Stage (#2270)
+- *(ci)* Introduce `zepter` checks (#2267)
+- *(supervisor)* Integrated cross safety checker job (#2264)
+- *(supervisor/core)* L2 finalized head update (#2253)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Fix opp2p_peers rpc handler. Only return total peer score (#2121)
+- *(supervisor/rpc)* Metrics added for rpc methods (#2138)
+- *(supervisor)* Expose get_superhead using trait (#2150)
+- *(supervisor/rpc)* LocalUnsafe always points to genesis (#2145)
+- *(supervisor)* Use raw config l2 url (#2188)
+- *(interop)* Remove timestamps from the depset (#2187)
+- *(protocol/interop)* Made `override_message_expiry_window` as optional (#2208)
+- *(node/service)* Enable TLS in alloy providers / transports (#2222)
+- *(supervisor)* Supervisor kurtosis and test (#2251)
+- *(supervisor/core)* Consistency check (#2250)
+- *(node/docker)* Fix kona's docker deployment (#2259)
+- *(docker)* Include `ca-certificates` in final executable image (#2260)
+- *(hardforks)* Enable Ecotone Selector (#2263)
+
+### 🧪 Testing
+
+- *(node/e2e-devstack)* Increase node coverage with devstack (#2153)
+- *(node/e2e-devstack)* Deprecate p2p tests in devnet-sdk (#2159)
+- *(protocol/interop)* Add log parsing test  (#2196)
+- *(node/p2p)* Adding peer ban tests (#2201)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(rpc)* Cleanup IpNet TODOs (#2120)
+- *(supervisor/storage)* Add note about local unsafe block to `DerivationStorageReader::derived_to_source` (#2127)
+- *(supervisor)* State e2e (#2132)
+- *(node/cli)* Fix todos (#2142)
+- *(node/p2p)* Merge peer infos and peerstore (#2143)
+- *(supervisor)* Update `SupervisorError` conversion (#2134)
+- *(supervisor/core)* Rm unused variant `ChainProcessorError::InvalidChainId` (#2152)
+- *(supervisor/core)* Mv `SupervisorError` to own module (#2151)
+- *(node/rpc)* Cleanup rpc config flags and launcher (#2163)
+- *(node/net)* Simplify the network interface. (#2175)
+- *(supervisor)* Passing l1_provider instead of l1_rpc_url (#2043)
+- *(node/rpc)* Unify BaseFeeConfig to follow op-geth (#2198)
+- *(bin/node)* Increase error verbosity on port binding failure (#2225)
+- *(node/service)* Squash service traits (#2231)
+- *(node/service)* Cleanup `RollupNodeService::start` (#2233)
+- *(bin/node)* Move conductor flags to sequencer args (#2234)
+- *(node/test)* Update dependencies (#2224)
+- *(derive)* Metrics Mod Visibility (#2247)
+- *(driver)* Code Doc References (#2248)
+- *(derive)* Code Doc Comments (#2249)
+- *(genesis)* Remove Deprecated HardforkConfig Alias (#2258)
+- *(workspace)* Use `rustls` over `request`'s default TLS feature (#2261)
+- *(bin/node)* Improve error verbosity for runtime loader failure (#2262)
+- *(hardforks)* Code Comment References (#2265)
+- *(node/service)* Remove process method from NodeActor trait (#2266)
+
+### Fear
+
+- *(supervisor/core)* Added a new method to fetch the super head in a single tx (#2140)
+
+## [kona-node/v0.1.0-beta.2] - 2025-06-12
+
+### 🚀 Features
+
+- *(node/e2e-tests)* Bootstrap devstack testing suite (#2105)
+- *(p2p)* Track and Return Peer Ping Latencies (#2112)
+- *(node/p2p)* Impl BlockSubnet + UnblockSubnet (#2073)
+- *(node/p2p)* Impl opp2p_listBlockedSubnets (#2072)
+- *(node/devstack-e2e)* Convert simple tests to devstack (#2116)
+- *(node/p2p)* Record peer score distribution metrics (#2117)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Reduce number of peers that need to be connected for large e2e tests to pass (#2099)
+- *(p2p)* Properly Record Connectedness (#2103)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(supervisor)* E2E workflow configuration (#2091)
+- *(docker)* Update grafana dashboard (#2101)
+- *(p2p)* Kona Peers (#2097)
+- *(node/p2p)* Enable peer monitoring if configured (#2102)
+- Update Alloy Dependencies (#2082)
+- *(node)* Add L2 chain ID environment variable (#2113)
+- *(supervisor/docs)* Fix docs for RPC method `supervisor_allSafeDerivedAt` (#2104)
+- *(node)* Standardize envvars (#2114)
+- *(node)* Add rollup config env var (#2115)
+
+## [kona-node/v0.1.0-beta.1] - 2025-06-11
+
+### 🚀 Features
+
+- *(derive)* Initial Metrics (#2007)
+- *(supervisor/storage)* Derivation storage initialization (#1963)
+- *(supervisor/rpc)* Add RPC method `supervisor_syncStatus` (#1952)
+- *(supervisor/storage)* Log storage initialization (#1979)
+- *(supervisor)* Service initialisation (#1984)
+- *(derive)* Frame + Channel Metrics (#2008)
+- *(derive)* Max Channel Size and Timeout Metrics (#2009)
+- *(derive)* Batch Metrics (#2010)
+- *(derive)* Pipeline Metrics (#2021)
+- *(node/p2p)* Support chain id info inside opp2p_peers (#2017)
+- *(node/p2p)* Support user agent and protocol version in opp2p_peers rpc call (#2018)
+- *(node/p2p)* Support gossip information inside `opp2p_peers` (#2016)
+- *(derive)* System Config Update Metrics (#2029)
+- *(node/p2p)* Rotate peers out of `BootStore` (#2033)
+- *(derive)* Decompressed Channel Size Metric (#2031)
+- *(node/service)* Introduce backpressure in DA watcher channels (#2030)
+- *(node/p2p)* Add a shim handler for sync req resp protocol (#2042)
+- *(rpc)* Connect Peer RPC Method (#2037)
+- *(node/service)* Removed unbounded channels in kona-service actors and replaced with bounded ones (#2045)
+- *(node/p2p)* Improve dial metric granularity (#2052)
+- *(p2p)* Connection Gater (#2055)
+- *(p2p)* Peer Blocking (#2056)
+- *(supervisor/core)* Reset event handling (#2049)
+- *(p2p)* Address Blocking (#2060)
+- Make websocket optional (#1918)
+- *(p2p)* Peer Protection (#2061)
+- *(supervisor/core)* `derivationOriginUpdate` event (#2070)
+- *(node/p2p)* Add a dial period to dial protections (#2075)
+- *(p2p)* Peers Rpc Endpoint Progress (#2081)
+- *(ci)* Improve caching of e2e jobs (#2080)
+- *(supervisor/rpc)* Implement RPC method `supervisor_allSafeDerivedAt` (#2078)
+- *(rpc)* Healthcheck Endpoint (#2095)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Fix op-p2p peers rpc call (#2014)
+- Managed node initialisation (#2023)
+- *(node/p2p)* Fixing gossip stability by limiting the number of dials to a given peer (#2025)
+- *(supervisor/core)* Subscription handling (#2027)
+- *(docker)* Correctly set RPC port in node recipe (#2035)
+- *(node/p2p)* Reactivate e2e tests for gossip. (#2036)
+- *(node/service)* Authenticate unsafe block signer updates (#2041)
+- *(node/p2p)* Fix cli arguments values for node's p2p (#2051)
+- *(node/p2p)* Fix large e2e kurtosis tests (#2059)
+- *(node/p2p)* Raise default dial threshold (#2063)
+- *(tests/deps)* Update monorepo fork dep (#2071)
+- *(test/deps)* Fix go dependencies (#2076)
+- *(node/e2e-tests)* Enable websockets for e2e tests (#2079)
+- *(p2p)* Peer Blacklisting (#2085)
+- *(node/net)* Added back the `pubpublish_rx `in the NetworkActor, adjusted the other sections (#1910)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docker)* Update grafana dashboard (#1991)
+- Kurtosis supervisor network (#1949)
+- *(derive)* Remove Prelude (#2038)
+- *(docker)* Update Grafana Dashboard (#2040)
+- *(derive)* Hoist Error Exports (#2039)
+- *(node/service)* Display node mode in startup log (#2053)
+- *(node/service)* Remove `engine_ready` flag (#2054)
+- *(node/service)* Use watch channels in L1 watcher (#2057)
+- Dedup GlobalArgs for log verbosity (#2066)
+- *(engine)* Log finalized head updates (#2058)
+- *(derive)* Flatten Exports (#2077)
+- *(tests)* Add `kona-node` + `op-geth` config (#2074)
+- *(supervisor)* Use devstack for e2e tests (#2062)
+- *(p2p)* Banned Peer Count (#2083)
+- *(p2p)* Protected Peer Stat (#2084)
+- *(ci)* Don't fail fast on E2E matrix (#2098)
+
+## [kona-host/v1.0.2] - 2025-06-04
+
+### 🚀 Features
+
+- *(supervisor/core)* Managed derivation data flow (#1946)
+- *(node/engine)* Add `info` log for safe head promotion (#1948)
+- *(node)* Override Flags (#1968)
+- *(node/p2p)* Track Banned Peers (#1967)
+- Unsafe block processing (#1951)
+- *(supervisor/core)* Rollup config (#1953)
+- *(node/p2p)* Peer score histogram (#1975)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Gossipsub connection metric keys (#1947)
+- *(p2p)* Disable Peer Scoring (#1962)
+- *(node)* CLI Metrics Init (#1969)
+
+### ⚡ Performance
+
+- Remove Duplicated L2 Block Query (#1960)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(workspace)* Bump MSRV to `1.86` + `reth` deps (#1945)
+- Update Dependencies (#1955)
+- *(rpc)* Rollup Node RPC Endpoint Metrics (#1958)
+- *(rpc)* Disconnect Peer RPC Request (#1964)
+- *(node)* Additional CLI Option Stats (#1965)
+- *(ci)* Update `monorepo` revision (#1966)
+- *(node)* Hardfork Metrics (#1971)
+- *(docker)* Update grafana dashboard (#1970)
+- *(node)* Additional CLI Option Metrics (#1973)
+- *(rpc)* Server Restarts (#1972)
+- *(node)* Rollup Config Metrics (#1974)
+- *(node)* Indexable hardfork activation time metrics (#1976)
+- Fix some typos in comment (#1978)
+- *(client/host)* Prepare for `v1.0.2` release (#1995)
+
+## [kona-node/v0.0.1-beta.6] - 2025-06-02
+
+### 🚀 Features
+
+- *(node-service)* Derivation pipeline L1 origin metric (#1892)
+- *(docker)* Update `kona-node` dashboard (#1894)
+- *(supervisor/core)* Managed node event channel (#1887)
+- *(justfile/docker)* Import docker/app justfile in main kona justfile (#1912)
+- *(node/e2e-tests)* Add a restart recipe for hot reloads of the kurtosis network (#1914)
+- *(supervisor/core)* Chain processor skeleton (#1906)
+- Use alloy-op-hardfork constants (#1922)
+- *(node/p2p)* Adding gossipsub event metrics (#1916)
+- *(supervisor/core)* Logindexer implementation (#1898)
+- *(node/service)* Add metric for critical derivation errors (#1938)
+
+### 🐛 Bug Fixes
+
+- Supervisor kurtosis devnet (#1900)
+- *(node/e2e-sync)* Fix large sync test (#1899)
+- *(docker)* Add fix-missing to fix docker builds (#1915)
+- *(ci)* Prefix-key designation in generic setup (#1933)
+- *(docker)* Use cache busting for generic app dockerfile (#1935)
+- *(p2p)* Labels for Gossip Events (#1932)
+
+### 📚 Documentation
+
+- *(cargo-chef)* Add cargo chef to cache rust builds in docker (#1896)
+
+### ⚡ Performance
+
+- *(ci)* Use `mold` linker for performance (#1934)
+- *(ci)* Only persist rust cache on `main` (#1936)
+- *(engine)* Batch safe-head FCUs (#1937)
+
+### 🧪 Testing
+
+- *(node/e2e-sync)* Adding e2e sync tests for unsafe/finalized sync (#1861)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(node-sources)* Enable `RuntimeLoader` metrics (#1893)
+- *(supervisor)* Error logs consistency (#1889)
+- *(supervisor)* Smol fix spacing in display string (#1903)
+- *(supervisor/core)* `ManagedNode` error handling (#1904)
+- *(supervisor)* Add `SubscriptionError` (#1908)
+- *(supervisor)* Define `AuthenticationError` (#1911)
+- *(node/supervisor)* Move MetricArgs into kona-cli  (#1888)
+- Update Dependencies (#1923)
+- *(protocol)* Encapsulate Magic Arithmetic (#1924)
+- *(docker)* Small Grafana Doc Update (#1931)
+- Update Kona Node Grafana Dashboard (#1930)
+- *(ci)* Remove rust toolchain installation for e2e workflows (#1939)
+- *(node)* P2P CLI Metrics (#1940)
+
+## [kona-node/v0.0.1-beta.5] - 2025-05-28
+
+### 🚀 Features
+
+- *(engine)* Chain label metrics (#1741)
+- *(node)* Retry engine capability handshake (#1753)
+- *(node-service)* Aggressively process channels (#1756)
+- *(node)* Version info metrics (#1758)
+- *(node)* Mark derivation as idle when it yields (#1759)
+- *(supervisor/service)* L1 watcher for supervisor (#1717)
+- *(engine)* Task count metrics (#1766)
+- *(engine)* Engine method call duration metrics (#1767)
+- Replace SafetyLevel with op_alloy type (#1782)
+- *(node)* Propagate engine reset to pipeline (#1789)
+- Dependency set (#1793)
+- *(node)* Add kurtosis e2e testing skeleton (#1792)
+- *(engine)* Simplify EL sync startup routine (#1809)
+- *(node/ci)* Add e2e tests to ci (#1798)
+- *(engine)* Engine reset counter metric (#1806)
+- *(node/p2p)* Enable support for the peers RPC endpoint (#1811)
+- *(node/p2p)* Implements the `opp2p_peerStats` endpoint (#1812)
+- *(node-service)* Handle derivation reset events (#1816)
+- *(node-service)* L1 reorg metrics (#1817)
+- *(supervisor/storage)* Derivation schema (#1808)
+- *(node/e2e-test)* Add peer count test in Kurtosis (#1823)
+- *(docker)* `kona-node` recipe (#1832)
+- *(protocol/interop)* Derived ref pair (#1834)
+- *(node/p2p)* Streaming engine state through websockets (#1833)
+- *(supervisor/storage)* Derivation provider (#1835)
+- *(node)* L2 finalization routine (#1858)
+- *(supervisor/storage)* Log storage  (#1830)
+- *(supervisor/storage)* Chaindb and chaindb factory (#1864)
+- *(supervisor/db)* Safety head reference storage   (#1865)
+- *(node-service)* Refactor `EngineActor` (#1867)
+- *(docker)* Local builds + Cleanup (#1877)
+- *(supervisor/core)* Implement l2 controller (#1866)
+- *(workspace)* Performance release build profile (#1882)
+
+### 🐛 Bug Fixes
+
+- *(node/engine)* Initialize Unknowns (#1705)
+- *(node/rpc)* Removed the panic and added error when building RPC actor (#1709)
+- *(node/engine)* Derivation Sync Start (#1708)
+- *(node-p2p)* Discovery event metric labels (#1740)
+- *(engine)* Reset with inconsistent chain state (#1763)
+- *(node/p2p)* Bootnodes in Bootstrap + Backoff Discv5 Restart (#1755)
+- *(node/p2p)* Disable Topic Scoring (#1765)
+- *(p2p)* Discv5 startup panic (#1768)
+- *(bin/node)* Argument Defaults (#1769)
+- *(kurtosis)* Fix kurtosis configuration (#1774)
+- *(node-service)* Engine sync completion condition (#1780)
+- *(node/p2p)* Async Broadcast with Backoff (#1747)
+- *(node/p2p)* Default Channel Size (#1783)
+- *(ci)* Use stable toolchain for lint job (#1802)
+- *(node)* Zero `safe` + `finalized` hashes while EL syncs (#1801)
+- *(node)* Set `local-safe` and `cross-unsafe` labels (#1803)
+- *(node)* Build task + consolidate condition (#1804)
+- *(ci)* Free disk space on kurtosis e2e tests (#1821)
+- *(sources)* Stop sync start walkback at genesis (#1818)
+- *(node/kurtosis-e2e-test)* Fixes the versionning for the e2e testing package (#1814)
+- *(node/p2p)* Fix node id serialization and connectedness display (#1824)
+- *(p2p/rpc)* Fix formatting for the `opp2p-peers` rpc method (#1827)
+- *(node/async)* Fix cpu usage from future polling (#1848)
+- *(engine)* Prevent `drain` starvation (#1853)
+- *(kurtosis/config)* Fix kurtosis config to use teku instead of nimbus. (#1852)
+- Several typos (#1874)
+
+### 🧪 Testing
+
+- *(supervisor)* Add kurtosis network params for supervisor (#1777)
+- *(node/e2e)* Extend the p2p tests (#1831)
+- *(node/sync-e2e)* Adding e2e safe head sync tests (#1857)
+- *(supervisor/ci)* Configure supervisor workflow (#1840)
+- *(supervisor)* Comment out kona-supervisor in kurtosis network params (#1873)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(meta)* Add chainsafe as code owners of `kona-supervisor` (#1706)
+- *(workspace)* Update Alloy Deps (#1732)
+- *(workspace)* Update REVM Deps (#1733)
+- *(engine)* Remove `skip` module (#1737)
+- *(node/engine)* Remove CL Sync (#1739)
+- *(node/engine)* Update Docs (#1736)
+- *(node/rpc)* Remove Duplicate Protocol Versioning Code (#1744)
+- *(engine)* Chain label metrics cleanup (#1751)
+- *(engine)* Remove pending/backup unsafe head (#1742)
+- *(bin/node)* Remove Discover Subcommand (#1748)
+- *(bin/node)* Subcommand Tests (#1752)
+- *(node/service)* Small Cleanup (#1743)
+- Update LICENSE.md (#1764)
+- *(node)* Empty cargo features metric (#1770)
+- *(sources)* Refactor sync start to use alloy providers (#1773)
+- *(ci)* Normalize foundry version (#1787)
+- Consolidate Scripts (#1788)
+- *(node/p2p)* Remove Stale Docs (#1784)
+- *(supervisor)* Rm deprecated `InvalidInboxEntry` error (#1778)
+- *(engine)* Update block insertion log (#1791)
+- *(node/p2p)* Move P2P CLI Utilities (#1785)
+- *(node-service)* Lazy initialize pipeline cursor / engine state (#1790)
+- *(workspace)* Manifest Hygiene (#1795)
+- *(protocol/registry)* Remove Default Hasher (#1797)
+- *(workspace)* Remove + Ignore Vscode Config (#1796)
+- *(workspace)* Use `alloy-eips`' `EMPTY_REQUESTS_HASH` constant (#1805)
+- *(engine)* Remove `SyncStatus` (#1810)
+- *(engine)* Don't zero block label gauges (#1820)
+- *(supervisor)* Dedup `SupervisorApi` (#1713)
+- *(workspace)* Bump dependencies (#1846)
+- *(docker)* Update `kona-node` dashboard (#1859)
+- *(supervisor/storage)* Rename BlockRef field `time` to `timestamp` (#1870)
+- *(ci)* Consolidate workflows (#1863)
+- *(workspace)* Remove kurtosis recipes (#1879)
+- *(kurtosis/e2e-tests)* Revamp e2e testing to natively use kurtosis and not clone any repo (#1880)
+- *(workspace)* Move `kona-macros` to `utilities` (#1884)
+- *(supervisor)* Rename `ManagedNodeApi` to `ManagedModeApi` to match specs (#1875)
+- *(tests)* Skip `node/p2p` e2e tests (#1885)
+- *(workspace)* `Justfile` -> `justfile` (#1883)
+
+### Patch
+
+- *(node/p2p)* Patch the default p2p params (#1856)
+
+## [kona-host/v1.0.1] - 2025-05-10
+
+### 🚀 Features
+
+- *(docker)* Enable reproducible prestate builds for interop program (#1610)
+- *(interop)* Use `FpvmOpEvmFactory` in interop proof program (#1611)
+- Add code hash tests (#1601)
+- *(node)* Describe and Zero Metrics (#1612)
+- *(genesis)* Add `is_first_fork_block` helpers to `RollupConfig` (#1646)
+- *(genesis)* Add `block_number_from_timestamp` helper (#1647)
+- *(interop)* Bubble up message validity errors (#1644)
+- *(interop)* Support unaligned activation time (#1645)
+- *(proof)* Derivation over generic L1/L2/DA providers (#1655)
+- *(host)* Trace span for `L2BlockData` re-execution (#1658)
+- *(node/service)* Superchain Signaling with Runtime Loading (#1662)
+- *(node/engine)* Transmit the most recent version of the `EngineState` over watch channels to the engine actor (#1673)
+- *(node/service)* Flush Channel on Invalid Payloads (#1675)
+- *(node/service)* Update L2 Safe Head (#1677)
+- *(node/service)* Re-import Deposits Only Payload (#1676)
+- *(node/engine)* Set Safe Head Consolidation (#1690)
+- *(executor)* Public `compute_receipts_root` method (#1686)
+- *(engine/rpc)* Skeleton implementation of the engine rpc (#1664)
+- *(node/l1_watcher)* Adds query handler for the l1 watcher (#1692)
+- *(node/rpc)* Implement the rollup RPC endpoints (#1697)
+- *(supervisor)* Boilerplate (#1700)
+- Bump `kona-client` and `kona-host` versions (#1711)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Use Compat Metrics Crate (#1609)
+- *(node/engine)* Incorrect Engine Method Use in Insert Task (#1630)
+- *(node/engine)* Don't use Genesis in EngineState (#1635)
+- *(node/service)* Wait to Kickstart Derivation (#1640)
+- *(node/engine)* Attributes Matching and Sync Status (#1665)
+- *(bin/node)* Runtime Config Wiring (#1669)
+- *(node/engine)* Attributes Tx Mismatch (#1666)
+- *(node/engine)* Round Robin Task Execution (#1667)
+- *(node/service)* Mark Engine Ready on Sender (#1674)
+- *(node/service)* EL Sync Only (#1691)
+- *(node/service)* Check L2 Safe Head BN (#1703)
+- *(node/engine)* Pre-Holocene Deposits Only (#1702)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(client)* Loosen type constraints on `FpvmOpEvmFactory` (#1613)
+- Rm redundant bounds (#1614)
+- *(genesis)* Use `abi_decode_validate` (#1632)
+- *(interop)* Reduce message expiry window (#1636)
+- *(workspace)* Bump op-alloy Dep (#1631)
+- *(bin/node)* Disable DISCV5 logging by default (#1638)
+- *(node/engine)* Decrease Temporary Log Level (#1639)
+- *(bin/node)* Cleans up Logs Some More (#1641)
+- *(node)* Log Cleanup (#1642)
+- *(interop)* Refactor `MessageGraph` test utilities (#1643)
+- *(node/rpc)* Refactor p2p rpc (#1633)
+- *(bin/node)* CLI Argument Unit Tests (#1660)
+- *(node/engine)* Small Engine Touchups (#1657)
+- *(node/rpc)* Remove no-std requirement from kona-rpc, fix imports (#1659)
+- *(docker)* Update `asterisc` tag (#1661)
+- *(proof)* Drop lock before `await` (#1663)
+- *(hardforks)* Correct EIP-2935 source name (#1678)
+- *(meta)* Add chainsafe as supervisor code owners (#1701)
+- *(kona/kurtosis)* Update the link to the optimism-package repo (#1707)
+
+## [kona-host/v1.0.0] - 2025-05-01
+
+### 🚀 Features
+
+- *(workspace)* Kurtosis Justfile Targets (#1594)
+- *(protocol)* Interop upgrade transactions (#1597)
+- *(protocol)* Interop transition batch validity rule (#1602)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Enable identify protocol. Additional small fixes (#1592)
+- *(workspace)* Build Kona Node (#1598)
+- *(bin/node)* Enable Metrics (#1600)
+- *(node/p2p)* Block Validation (#1604)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(workspace)* Add FPVM artifacts to `gitignore` (#1593)
+- *(interop)* Update interop fork activation check for initiating messages (#1599)
+- *(docker)* Update `cannon` tag (#1606)
+
+### Release
+
+- `kona-client` + `kona-host` v1.0.0 version bump (#1605)
+
+## [kona-host/v0.1.0-beta.18] - 2025-04-29
+
+### 🚀 Features
+
+- *(node)* Redial Peers (#1477)
+- Add info subcommand to kona-node (#1488)
+- *(node)* Discover Command (#1481)
+- *(bin/node)* Add custom bootnode list CLI arg (#1496)
+- *(bin/node)* Ensure genesis matches the rollup config before fetching to the known network params list. (#1498)
+- *(interop)* Add message expiry check (#1506)
+- *(config/kurtosis)* Add a simple kurtosis configuration file to the `.config` folder (#1512)
+- *(bin/node)* Add advertise p2p flags (#1509)
+- *(bin/node)* Also advertise udp port (#1516)
+- *(node/p2p)* Add simple p2p rpc endpoints (#1535)
+- *(proof-interop)* Block replacement transaction (#1540)
+- *(protocol)* Add `OutputRoot` type (#1544)
+- *(protocol)* Complete `Predeploys` definition (#1549)
+- *(ci)* Interop FPP action tests (#1546)
+- *(bin/node)* Extend P2P Configurability (#1553)
+- *(node/p2p)* Disable dynamic ENR updates for static IPs (#1558)
+- *(std-fpvm)* Instruct kernel to lazily allocate pages (#1567)
+
+### 🐛 Bug Fixes
+
+- *(bin/node)* Sequencer Args Duplicate CLI Flag (#1490)
+- *(node/p2p)* Metrics Tasks (#1491)
+- *(node/p2p)* Peer Score Level Off (#1493)
+- *(node/p2p)* Discovery Test Fixes (#1494)
+- *(utilities)* CLI Verbosity Level (#1502)
+- *(proof-interop)* Operate provider off of `local-safe` heads (#1503)
+- *(node)* Unsafe Block Signer (#1505)
+- *(bin/node)* Magic String (#1513)
+- *(bin/node)* Adds Lints (#1518)
+- *(node/p2p)* Add Lints (#1520)
+- Use Unspecified Ipv4Addr (#1522)
+- *(bin/node)* Fix the unsafe block signer to be compatible with unknown chain ids (#1523)
+- *(node/p2p)* Ensure that the discovery and the gossip keys match (#1525)
+- *(bin/node)* Discovery Config Unset (#1532)
+- *(host-interop)* Ignore block data hint if chain hasn't progressed (#1542)
+- *(node/p2p)* Use EnrValidation (#1552)
+- *(node/p2p)* Wait for Swarm Address Dialing (#1554)
+- *(std-fpvm)* Large file IO (#1555)
+- *(node/p2p)* Fix the address list returned by `opp2p_self` (#1559)
+- *(node/p2p)* Fix multiaddress translation (#1561)
+
+### 📚 Documentation
+
+- *(providers-alloy)* Doc touchups (#1504)
+
+### ⚡ Performance
+
+- *(ci)* Cache forge artifacts in action tests (#1548)
+- *(std-fpvm)* Switch to `buddy_system_allocator` (#1590)
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump alloy 0.15 (#1492)
+- *(node/p2p)* Broadcast Wrapper (#1489)
+- *(bin/node)* Adding more flexibility to verbosity levels (#1497)
+- Bump `op-alloy` to `v0.15.1` (#1515)
+- *(bin/node)* Move Runtime Loading into Sources (#1517)
+- *(node/p2p)* Peer Count Metric (#1527)
+- *(node/p2p)* Forward Discovery Events (#1495)
+- *(ci)* Remove interop proof from codecov ignore (#1547)
+- *(host)* Gate experimental `debug_payloadWitness` usage (#1591)
+
+## [kona-node/v0.0.1-beta.1] - 2025-04-22
+
+### 🐛 Bug Fixes
+
+- *(node)* Fix RPC client building by adding jwt auth. (#1487)
+
+## [kona-node/v0.0.2] - 2025-04-22
+
+### 🚀 Features
+
+- *(node)* Bootstore Debugging Tool (#1478)
+- Function to init tracing in testing (#1467)
+- Add sequencer CLI params (#1485)
+
+### 🐛 Bug Fixes
+
+- *(proof)* Blob preimage keys (#1473)
+- *(bin/node)* Global Argument Positioning (#1482)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Bump timeout on Rust CI jobs (#1479)
+- *(workspace)* Improve proof tracing (#1476)
+- *(workspace)* Convert all tracing targets to `snake_case` format (#1484)
+- *(bin/node)* Subcommand Aliases (#1483)
+
+### Bug
+
+- *(bin/node)* Fix metrics address flag (#1486)
+
+## [kona-node/v0.0.1] - 2025-04-18
+
+### 🚀 Features
+
+- Use `alloy-evm` for stateless block building (#1400)
+- *(executor)* Add example + docs for generating new test fixtures (#1438)
+- Discovery Interval Configurability (#1445)
+- *(node/p2p)* Refactor block validity checks (#1451)
+- *(node/p2p)* Add manual block hash checks (#1453)
+- *(node/p2p)* Add version specific block checks (#1454)
+- *(node/p2p)* Add remaining block checks (replays + maximum block number per height) (#1455)
+- *(docker)* Use generic dockerfile for all binary apps (#1465)
+- *(ci)* Generic Binary (#1470)
+
+### 🐛 Bug Fixes
+
+- *(node/p2p)* Enr Validation (#1446)
+- *(bin/node)* Break after Receiving Peer Count (#1448)
+- *(node)* Configurable Bootstore Path (#1449)
+- *(cli)* Missing Env Filter (#1458)
+- *(node)* Local Bootstore Conflicts (#1450)
+- *(protocol)* Incorrect Genesis Hash Consensus Block (#1459)
+
+### 🧪 Testing
+
+- *(node/p2p)* Add extensive testing for block decoding validation (#1452)
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove useless TODO (#1418)
+- Use `OpPayloadAttributes::recovered_transactions` (#1434)
+- *(ci)* Add action to free up disk space in action test job (#1439)
+- Use encodedwith for execute (#1441)
+- *(comp)* Enable `test-utils` feature with `cfg(test)` (#1442)
+- *(derive)* Enable `test-utils` feature with `cfg(test)` (#1443)
+- *(protocol)* Enable `test-utils` feature with `cfg(test)` (#1444)
+- *(bin/node)* Discovery Config Wiring (#1456)
+- *(node/service)* P2P Rpc Module Wiring (#1469)
+
+### Bug
+
+- *(node/p2p)* Fix bootstrapping for enode addresses (#1435)
+
+## [kona-host/v0.1.0-beta.16] - 2025-04-15
+
+### 🚀 Features
+
+- *(docker)* Reproducible `cannon` prestate (#1389)
+- *(node/service)* Wire in Engine Arguments (#1383)
+- *(node/service)* Init the Engine Actor (#1387)
+- *(node/service)* Wire in the Engine Actor (#1390)
+- *(bin/node)* Registry Subcommand (#1379)
+- *(node/service)* Engine Consolidation Task (#1391)
+- *(node/service)* Insert Unsafe Payload Envelope (#1392)
+- *(bin/node)* Implement peer banning (#1405)
+- *(node/engine)* Add transaction checks to the consolidation step (#1412)
+- *(node/engine)* Check eip1559 parameters inside consolidation (#1419)
+- *(bin/node)* Extend metrics configuration options (#1422)
+
+### 🐛 Bug Fixes
+
+- *(bin/node)* Disable P2P when Specified (#1409)
+- *(node/service)* Error Bubbling and Shutdown (#1410)
+- *(node/engine)* Engine State Builder Missing (#1408)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(node/engine)* Use thiserror instead of anyhow (#1395)
+- *(docs)* Edited the license link (#1403)
+- *(node/service)* Engine State Builder Error (#1406)
+- *(node/service)* Touchup EngineActor (#1404)
+- Bump scr + monorepo (#1420)
+- *(bin/node)* In-use Port Erroring (#1411)
+- *(ci)* Hide action test output (#1428)
+- Add `@theochap` to `CODEOWNERS` file (#1430)
+- *(bin/node)* Add jwt startup check (#1421)
+- Remove redundant word in comment (#1433)
+
+## [kona-host/v0.1.0-beta.15] - 2025-04-08
+
+### 🚀 Features
+
+- *(node)* RPC CLI Args (#1314)
+- *(node)* RPC Config (#1315)
+- *(node)* Rpc Actor (#1318)
+- *(node)* Wire in the RpcConfig (#1321)
+- *(protocol)* Move Compression Types (#1298)
+- *(node/rpc)* RpcLauncher (#1325)
+- *(node/p2p)* P2P RPC Server (#1327)
+- *(node)* Network Config (#1323)
+- *(bin)* Network Subcommand (#1300)
+- *(node/p2p)* Redial Peers (#1367)
+- *(bin/node)* Peer Scoring Setup (#1376)
+- *(node/p2p)* Unsafe Payload Publishing (#1359)
+- *(node/service)* Unsafe Block Signer Updates (#1386)
+
+### 🐛 Bug Fixes
+
+- *(node/service)* Unsafe Block Signer (#1322)
+- *(node/p2p)* Gossip Config (#1328)
+- *(node/p2p)* Forward ENRs to the Swarm (#1337)
+- *(bin)* Correct Unsafe Block Signer (#1339)
+- *(node/p2p)* OP Stack ENRs (#1353)
+- *(node/p2p)* Unsafe Payload Sending (#1366)
+- *(bin/host)* Fix typo (#1384)
+
+### 📚 Documentation
+
+- Fx incorrect link reference for MSRV section (#1302)
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove Magic 0x7E Deposit Identifier Bytes (#1292)
+- *(cli)* Refactors Backtrace Init (#1293)
+- *(ci)* Refactor Github Action Steps (#1294)
+- *(protocol)* Remove unused L1 Tx Cost Functions (#1295)
+- *(protocol)* Cleanup Utilities (#1297)
+- *(protocol)* Remove Unused Frame Iterator (#1296)
+- Small Manifest Cleanup (#1299)
+- Update Dependencies (#1304)
+- Derive std Traits (#1329)
+- Derive More Core Traits (#1333)
+- *(node/p2p)* Network RPC Request Handling (#1330)
+- *(bin)* Rename RpcArgs (#1338)
+- *(node/p2p)* Cleanup Network Driver (#1349)
+- *(node/p2p)* Log Cleanup (#1348)
+- *(bin/node)* P2P Config Constructor (#1350)
+- *(node/service)* Cleans up the Rollup Node Service (#1352)
+- Bump op-alloy Patch (#1364)
+- *(node/service)* Dynamic Node Mode (#1358)
+- *(bin/node)* Allow subcommands to customize telemetry (#1370)
+- *(node/p2p)* Small Log Cleanup (#1369)
+- *(node/service)* Remove .expect (#1381)
+- *(node/service)* The RPC Launcher is Used (#1382)
+- *(ci)* Bump monorepo commit (#1385)
+
+## [kona-host/v0.1.0-beta.14] - 2025-03-24
 
 ### 🚀 Features
 
@@ -37,6 +935,7 @@ All notable changes to this project will be documented in this file.
 - *(engine)* Synchronous task queue (#1256)
 - *(engine)* Block building task (#1258)
 - *(node)* P2P Upgrades (#1271)
+- *(interop)* Add utility trait method to `InteropTxValidator` (#1291)
 
 ### 🐛 Bug Fixes
 
@@ -58,7 +957,9 @@ All notable changes to this project will be documented in this file.
 - *(workspace)* Remove `reth` dependency (#1279)
 - *(ci)* Bump Monorepo Commit for Operator Fee Tests (#1277)
 - Bump Deps before Release (#1288)
-- Release 0.2.0
+- Minor Crate Releases (#1289)
+- *(node)* Further P2P Fixes (#1280)
+- *(interop)* Remove new L1BlockInfo variant + deposit context (#1290)
 
 ### Refactor
 
