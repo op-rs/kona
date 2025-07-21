@@ -379,10 +379,7 @@ impl Rewinder for ChainDb {
                 lp.rewind_to(to)?;
 
                 // get the current latest block to update the safety head refs
-                let latest_block = match lp.get_latest_block() {
-                    Ok(block) => block,
-                    Err(err) => return Err(err),
-                };
+                let latest_block = lp.get_latest_block()?;
 
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)
@@ -401,10 +398,7 @@ impl Rewinder for ChainDb {
                 dp.rewind_to(to)?;
 
                 // get the current latest block to update the safety head refs
-                let latest_block = match lp.get_latest_block() {
-                    Ok(block) => block,
-                    Err(err) => return Err(err),
-                };
+                let latest_block = lp.get_latest_block()?;
 
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
                 hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)?;
