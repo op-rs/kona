@@ -2,48 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.0] - 2025-07-21
-
-### ⚙️ Miscellaneous Tasks
-
-- Release 0.3.0
-- Release 0.3.0
-
-## [0.4.3] - 2025-07-21
-
-### 🐛 Bug Fixes
-
-- Kona-hardforks v0.4.0
-- Kona-hardforks v0.4.1
-- Kona-hardforks v0.4.2
-
-### ⚙️ Miscellaneous Tasks
-
-- Release 0.4.3
-
-## [0.4.2] - 2025-07-21
-
-### 🐛 Bug Fixes
-
-- Kona-registry v0.4.0
-- Kona-registry v0.4.1
-
-### ⚙️ Miscellaneous Tasks
-
-- Release 0.4.2
-
-## [0.4.1] - 2025-07-21
-
-### 🐛 Bug Fixes
-
-- Kona-protocol v0.4.0
-- Kona-protocol v0.4.0
-
-### ⚙️ Miscellaneous Tasks
-
-- Release 0.4.1
-
-## [0.4.0] - 2025-07-21
+## [0.3.0] - 2025-07-21
 
 ### 🚀 Features
 
@@ -115,7 +74,7 @@ All notable changes to this project will be documented in this file.
 - *(supervisor/storage)* Make `StorageError::ConflictError` type safe (#2281)
 - *(docs)* Remove Supervisor Docs (#2469)
 - *(node/engine)* Decouple engine and runtime actor (#2483)
-- Release 0.4.0
+- Release Some Crates (#2485)
 
 ## [kona-node/v0.1.0-beta.5] - 2025-07-08
 

@@ -115,7 +115,7 @@ kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.2.0", d
 kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.2.0", default-features = false }
 
 # Utilities
-kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
+kona-cli = { path = "crates/utilities/cli", version = "0.3.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.2.0", default-features = false }
 kona-macros = { path = "crates/utilities/macros", version = "0.1.0", default-features = false }
 
