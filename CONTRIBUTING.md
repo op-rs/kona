@@ -10,12 +10,6 @@ Before working with this repository locally, you'll need to install the followin
 - [just][just] for our command-runner scripts.
 - The [Rust toolchain][rust]
 
-**Optional**
-
-- [mdbook](https://github.com/rust-lang/mdBook) to contribute to the [book][book]
-  - [mdbook-template](https://github.com/sgoudham/mdbook-template)
-  - [mdbook-mermaid](https://github.com/badboy/mdbook-mermaid)
-
 ## Pull Request Process
 
 1. Before anything, [create an issue][create-an-issue] to discuss the change you're
@@ -32,6 +26,6 @@ Before working with this repository locally, you'll need to install the followin
 [just]: https://github.com/casey/just
 [rust]: https://rustup.rs/
 
-[book]: https://op-rs.github.io/kona
+[book]: https://rollup.yoga
 
 [create-an-issue]: https://github.com/op-rs/kona/issues/new

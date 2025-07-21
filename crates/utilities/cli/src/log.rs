@@ -3,7 +3,7 @@
 use clap::{ArgAction, Args};
 use tracing_subscriber::EnvFilter;
 
-use crate::init_tracing_subscriber;
+use crate::{init_tracing_subscriber, tracing::LogFormat};
 
 /// Global configuration arguments.
 #[derive(Args, Debug, Default, Clone)]
@@ -16,15 +16,25 @@ pub struct LogArgs {
         short,
         global = true,
         default_value = "3",
+        env = "KONA_NODE_LOG_LEVEL",
         action = ArgAction::Count,
     )]
     pub v: u8,
+    /// The format of the logs. One of: full, json, pretty, compact.
+    #[arg(
+        long = "logs.format",
+        short = 'f',
+        global = true,
+        default_value = "full",
+        env = "KONA_NODE_LOG_FORMAT"
+    )]
+    pub logs_format: LogFormat,
 }
 
 impl LogArgs {
     /// Initializes the telemetry stack.
     pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
-        Ok(init_tracing_subscriber(self.v, filter)?)
+        Ok(init_tracing_subscriber(self.v, filter, self.logs_format)?)
     }
 }
 

@@ -196,14 +196,13 @@ export const sidebar: SidebarItem[] = [
     items: [
       {
         text: "Active RFCs",
-        items: [
-          { text: "Umbrellas", link: "/rfc/active/umbrellas" }
-        ]
+        items: [ ]
       },
       {
         text: "Archived RFCs",
         collapsed: true,
         items: [
+          { text: "Umbrellas", link: "/rfc/archived/umbrellas" },
           { text: "Monorepo", link: "/rfc/archived/monorepo" }
         ]
       }

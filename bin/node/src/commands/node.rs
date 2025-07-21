@@ -236,6 +236,7 @@ impl NodeCommand {
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
+            .with_sequencer_config(self.sequencer_flags.config())
             .build()
             .start()
             .await

@@ -1,16 +1,18 @@
+import { Callout } from 'vocs/components'
+
 # Umbrella Crates
 
-> [!INFO]
->
-> TL;DR, this is a proposal to introduce tiny crates inside each
-> container directory (e.g. `crates/protocol/`) to re-export all
-> crates contained in that directory.
+<Callout type="info">
+TL;DR, this is a proposal to introduce tiny crates inside each
+container directory (e.g. `crates/protocol/`) to re-export all
+crates contained in that directory.
+</Callout>
 
 ## Context
 
 #### Repository Structure
 
-Kona now has a [monorepo](../archives/monorepo.md) structure that merged
+Kona now has a [monorepo](/rfc/archived/monorepo) structure that merged
 `maili` and `hilo` crates into `kona`. This introduces a number of higher-level
 directories that hold a variety of crates themselves. As of the time at which
 this document was written the `kona` repository loosely looks like the following.
@@ -119,6 +121,4 @@ dependency.
 
 ## Proposed Solution
 
-???
-
-Looking for comments/thoughts here before landing on a proposed solution.
+This proposal has been iced.

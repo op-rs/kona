@@ -10,7 +10,7 @@ optimism_package:
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
-            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
             log_level: debug
       network_params:
         network: "kurtosis"
@@ -34,7 +34,7 @@ optimism_package:
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
-            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
             log_level: debug
       network_params:
         network: "kurtosis"
