@@ -26,22 +26,26 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 tx.send(self.is_active).map_err(|_| SequencerRpcError::SendResponse)?;
             }
             SequencerAdminQuery::StartSequencer => {
+                info!(target: "sequencer", "Starting sequencer");
                 self.is_active = true;
             }
             SequencerAdminQuery::StopSequencer => {
+                info!(target: "sequencer", "Stopping sequencer");
                 self.is_active = false;
             }
             SequencerAdminQuery::ConductorEnabled(tx) => {
                 tx.send(self.conductor.is_some()).map_err(|_| SequencerRpcError::SendResponse)?;
             }
-            SequencerAdminQuery::SetRecoveryMode(mode) => {
-                self.is_recovery_mode = mode;
+            SequencerAdminQuery::SetRecoveryMode(is_active) => {
+                self.is_recovery_mode = is_active;
+                info!(target: "sequencer", is_active, "Updated recovery mode");
             }
             SequencerAdminQuery::OverrideLeader => {
                 if let Some(conductor) = self.conductor.as_mut() {
                     if let Err(e) = conductor.override_leader().await {
                         error!(target: "sequencer::rpc", "Failed to override leader: {}", e);
                     }
+                    info!(target: "sequencer", "Overrode leader via the conductor service");
                 }
             }
         }
