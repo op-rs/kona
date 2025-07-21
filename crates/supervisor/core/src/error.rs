@@ -149,7 +149,7 @@ mod test {
 
         assert_eq!(spec_err, expected_err.into());
 
-        let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::InvalidAnchor));
+        let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::LockPoisoned));
         let expected_err = SpecError::ErrorNotInSpec;
 
         assert_eq!(spec_err, expected_err.into());
@@ -171,7 +171,7 @@ mod test {
     fn test_supervisor_error_conversion() {
         // This will happen implicitly in server rpc response calls.
         let supervisor_err = ErrorObjectOwned::from(SupervisorError::SpecError(SpecError::from(
-            StorageError::InvalidAnchor,
+            StorageError::LockPoisoned,
         )));
         let expected_err = SpecError::ErrorNotInSpec;
 
