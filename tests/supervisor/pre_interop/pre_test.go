@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/txintent"
 	stypes "github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	"github.com/ethereum/go-ethereum/core/types"
-	gethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 func TestPreInteropComprehensive(gt *testing.T) {
@@ -64,7 +63,7 @@ func testPreInteropCheckAccessList(t devtest.T, sys *presets.SimpleInterop) {
 		interop.RandomInitTrigger(rng, eventLoggerAddress, rng.Intn(3), rng.Intn(10)),
 	)
 
-	logToAccess := func(chainID eth.ChainID, log *gethTypes.Log, timestamp uint64) stypes.Access {
+	logToAccess := func(chainID eth.ChainID, log *types.Log, timestamp uint64) stypes.Access {
 		msgPayload := make([]byte, 0)
 		for _, topic := range log.Topics {
 			msgPayload = append(msgPayload, topic.Bytes()...)
