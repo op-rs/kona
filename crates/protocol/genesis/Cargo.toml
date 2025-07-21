@@ -49,32 +49,31 @@ alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 default = []
 revm = [ "dep:op-revm" ]
 std = [
+	"alloy-chains/std",
 	"alloy-consensus/std",
 	"alloy-eips/std",
 	"alloy-primitives/std",
 	"alloy-sol-types/std",
-	"alloy-chains/std",
 	"derive_more/std",
 	"op-revm?/std",
 	"serde?/std",
 	"thiserror/std",
-	"alloy-chains/std"
 ]
 arbitrary = [
+	"alloy-chains/arbitrary",
 	"alloy-consensus/arbitrary",
 	"alloy-eips/arbitrary",
 	"alloy-primitives/arbitrary",
 	"alloy-primitives/rand",
 	"alloy-sol-types/arbitrary",
-	"alloy-chains/arbitrary",
 	"dep:arbitrary",
 	"std",
 ]
 serde = [
+	"alloy-chains/serde",
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
 	"alloy-primitives/serde",
-	"alloy-chains/serde",
 	"dep:serde",
 	"dep:serde_repr",
 	"op-revm?/serde",
