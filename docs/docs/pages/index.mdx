@@ -6,9 +6,9 @@ import { HomePage } from 'vocs/components'
 import { SdkShowcase } from '../components/SdkShowcase'
 import { CodeGroup, Code } from '../components/CodeGroup'
 
-<div className="full-width pt-16 lg:pt-24">
+<div className="full-width pt-16 lg:pt-24 min-h-114">
   <div className="flex flex-col lg:flex-row items-center justify-between full-width-inner">
-  <div className="lg:w-1/2 mb-4 lg:mb-0 lg:pr-8">
+  <div className="lg:w-1/2 mb-4 lg:mb-0 lg:pr-8 self-start">
     <div className="mb-2">
       <h1 className="text-5xl lg:text-7xl font-bold mb-8 bg-gradient-to-r from-black to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent leading-tight">
         Kona
@@ -18,11 +18,13 @@ import { CodeGroup, Code } from '../components/CodeGroup'
       </p>
       <p className="text-lg lg:text-lg text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
         A comprehensive suite of low-level OP Stack types, portable `no_std`
-        components, and services built in Rust.
+        components, and services built in Rust. Kona provides a rollup node
+        implementation called the `kona-node` that is spec-compliant, performant,
+        and modular. Kona's Fault Proof implementation is also available as a release.
       </p>
     </div>
   </div>
-  <div className="lg:w-1/2">
+  <div className="lg:w-1/2 self-start">
     <CodeGroup>
       <Code
         title="Run a Node"
@@ -133,7 +135,7 @@ just build-node
 </div>
 
 
-<div className="full-width mt-32">
+<div className="full-width mt-20">
   <div className="full-width-inner">
     <h3 className="text-2xl lg:text-2xl font-bold mb-4 pb-2">Built with Kona SDK</h3>
     <p className="text-gray-600 dark:text-gray-400 mb-16 pb-4 text-lg lg:text-lg">

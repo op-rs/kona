@@ -19,7 +19,7 @@
 
 use clap::{ArgAction, Parser};
 use discv5::enr::CombinedKey;
-use kona_cli::init_tracing_subscriber;
+use kona_cli::{LogFormat, init_tracing_subscriber};
 use kona_node_service::{NetworkActor, NetworkConfig, NetworkContext, NodeActor};
 use kona_p2p::LocalNode;
 use kona_registry::ROLLUP_CONFIGS;
@@ -40,6 +40,9 @@ pub struct GossipCommand {
     /// By default, the verbosity level is set to 3 (info level).
     #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
+    /// The format of the logs. One of: full, json, pretty, compact.
+    #[arg(long = "logs.format", short = 'f', default_value = "full")]
+    pub logs_format: LogFormat,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
@@ -57,7 +60,7 @@ pub struct GossipCommand {
 impl GossipCommand {
     /// Run the gossip subcommand.
     pub async fn run(self) -> anyhow::Result<()> {
-        init_tracing_subscriber(self.v, None::<EnvFilter>)?;
+        init_tracing_subscriber(self.v, None::<EnvFilter>, self.logs_format)?;
 
         let rollup_config = ROLLUP_CONFIGS
             .get(&self.l2_chain_id)

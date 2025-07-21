@@ -18,7 +18,7 @@
 
 use anyhow::{Result, anyhow};
 use clap::{ArgAction, Parser};
-use kona_cli::init_tracing_subscriber;
+use kona_cli::{LogFormat, init_tracing_subscriber};
 use kona_executor::test_utils::ExecutorTestFixtureCreator;
 use std::path::PathBuf;
 use tracing::info;
@@ -34,6 +34,9 @@ pub struct ExecutionFixtureCommand {
     /// By default, the verbosity level is set to 3 (info level).
     #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
+    /// The format of the logs. One of: full, json, pretty, compact.
+    #[arg(long = "logs.format", short = 'f', default_value = "full")]
+    pub logs_format: LogFormat,
     /// The L2 archive EL to use.
     #[arg(long, short = 'r')]
     pub l2_rpc: Url,
@@ -48,7 +51,7 @@ pub struct ExecutionFixtureCommand {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = ExecutionFixtureCommand::parse();
-    init_tracing_subscriber(cli.v, None::<EnvFilter>)?;
+    init_tracing_subscriber(cli.v, None::<EnvFilter>, cli.logs_format)?;
 
     let output_dir = if let Some(output_dir) = cli.output_dir {
         output_dir

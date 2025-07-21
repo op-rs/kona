@@ -1,6 +1,6 @@
 //! Server-side implementation of the Supervisor RPC API.
 
-use crate::{SupervisorError, SupervisorService};
+use crate::{SpecError, SupervisorError, SupervisorService};
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
@@ -11,6 +11,7 @@ use kona_supervisor_rpc::{
     SuperRootOutputRpc, SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus,
 };
 use kona_supervisor_types::{HexStringU64, SuperHead};
+use op_alloy_rpc_types::SuperchainDAError;
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -220,9 +221,19 @@ where
                 let mut min_synced_l1 = BlockInfo { number: u64::MAX, ..Default::default() };
                 let mut cross_safe_timestamp = u64::MAX;
                 let mut finalized_timestamp = u64::MAX;
+                let mut uninitialized_chain_db_count = 0;
 
                 for (id, status) in chains.iter_mut() {
-                    let head = self.supervisor.super_head(*id)?;
+                    let head = match self.supervisor.super_head(*id) {
+                        Ok(head) => head,
+                        Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
+                            SuperchainDAError::UninitializedChainDatabase,
+                        ))) => {
+                            uninitialized_chain_db_count += 1;
+                            continue;
+                        }
+                        Err(err) => return Err(ErrorObject::from(err)),
+                    };
 
                     // uses lowest safe and finalized timestamps, as well as l1 block, of all l2s
                     //
@@ -246,7 +257,12 @@ where
                         finalized_timestamp = finalized.timestamp;
                     }
 
-                    *status = head.into()
+                    *status = head.into();
+                }
+
+                if uninitialized_chain_db_count == chains.len() {
+                    warn!(target: "supervisor_rpc", "No chain db initialized");
+                    return Err(SuperchainDAError::UninitializedChainDatabase.into());
                 }
 
                 Ok(SupervisorSyncStatus {
@@ -299,96 +315,35 @@ impl<T> Clone for SupervisorRpc<T> {
 mod tests {
     use super::*;
     use alloy_primitives::ChainId;
-    use kona_interop::ChainDependency;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
+    use mockall::*;
     use std::sync::Arc;
 
-    #[derive(Debug)]
-    struct MockSupervisorService {
-        pub chain_ids: Vec<ChainId>,
-        pub super_head_map: std::collections::HashMap<ChainId, SuperHead>,
-        pub dependency_set: DependencySet,
-    }
+    mock!(
+        #[derive(Debug)]
+        pub SupervisorService {}
 
-    #[async_trait::async_trait]
-    impl SupervisorService for MockSupervisorService {
-        fn chain_ids(&self) -> impl Iterator<Item = ChainId> {
-            self.chain_ids.clone().into_iter()
+        #[async_trait]
+        impl SupervisorService for SupervisorService {
+            fn chain_ids(&self) -> impl Iterator<Item = ChainId>;
+            fn dependency_set(&self) -> &DependencySet;
+            fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError>;
+            fn latest_block_from(&self, l1_block: BlockNumHash, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+            fn derived_to_source_block(&self, chain: ChainId, derived: BlockNumHash) -> Result<BlockInfo, SupervisorError>;
+            fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+            fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+            fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+            fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
+            fn check_access_list(&self, inbox_entries: Vec<B256>, min_safety: SafetyLevel, executing_descriptor: ExecutingDescriptor) -> Result<(), SupervisorError>;
+            async fn super_root_at_timestamp(&self, timestamp: u64) -> Result<SuperRootOutputRpc, SupervisorError>;
         }
-
-        fn dependency_set(&self) -> &DependencySet {
-            &self.dependency_set
-        }
-
-        fn super_head(&self, chain: ChainId) -> Result<SuperHead, SupervisorError> {
-            self.super_head_map.get(&chain).cloned().ok_or_else(|| {
-                SupervisorError::StorageError(StorageError::EntryNotFound(
-                    "superhead not found".to_string(),
-                ))
-            })
-        }
-
-        fn latest_block_from(
-            &self,
-            _l1_block: BlockNumHash,
-            _chain: ChainId,
-        ) -> Result<BlockInfo, SupervisorError> {
-            unimplemented!()
-        }
-
-        fn derived_to_source_block(
-            &self,
-            _chain: ChainId,
-            _derived: BlockNumHash,
-        ) -> Result<BlockInfo, SupervisorError> {
-            unimplemented!()
-        }
-
-        fn local_unsafe(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-            unimplemented!()
-        }
-
-        fn cross_safe(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-            unimplemented!()
-        }
-
-        fn finalized(&self, _chain: ChainId) -> Result<BlockInfo, SupervisorError> {
-            unimplemented!()
-        }
-
-        fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError> {
-            unimplemented!()
-        }
-
-        fn check_access_list(
-            &self,
-            _inbox_entries: Vec<B256>,
-            _min_safety: SafetyLevel,
-            _executing_descriptor: ExecutingDescriptor,
-        ) -> Result<(), SupervisorError> {
-            unimplemented!()
-        }
-
-        async fn super_root_at_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<SuperRootOutputRpc, SupervisorError> {
-            unimplemented!()
-        }
-    }
+    );
 
     #[tokio::test]
     async fn test_sync_status_empty_chains() {
-        let mut deps = HashMap::default();
-        deps.insert(1, ChainDependency {});
-        let ds = DependencySet { dependencies: deps, override_message_expiry_window: Some(0) };
-
-        let mock_service = MockSupervisorService {
-            chain_ids: vec![],
-            super_head_map: std::collections::HashMap::new(),
-            dependency_set: ds,
-        };
+        let mut mock_service = MockSupervisorService::new();
+        mock_service.expect_chain_ids().returning(|| Box::new(vec![].into_iter()));
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await;
@@ -399,9 +354,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_status_single_chain() {
-        let mut deps = HashMap::default();
-        deps.insert(1, ChainDependency {});
-        let ds = DependencySet { dependencies: deps, override_message_expiry_window: Some(0) };
         let chain_id = ChainId::from(1u64);
 
         let block_info = BlockInfo { number: 42, ..Default::default() };
@@ -412,13 +364,9 @@ mod tests {
             ..Default::default()
         };
 
-        let mut super_head_map = std::collections::HashMap::new();
-        super_head_map.insert(chain_id, super_head);
-
-        let mock_service =
-            MockSupervisorService { chain_ids: vec![chain_id], super_head_map, dependency_set: ds };
-
-        assert_eq!(mock_service.dependency_set.dependencies.len(), 1);
+        let mut mock_service = MockSupervisorService::new();
+        mock_service.expect_chain_ids().returning(move || Box::new(vec![chain_id].into_iter()));
+        mock_service.expect_super_head().returning(move |_| Ok(super_head));
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await.unwrap();
@@ -431,10 +379,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_status_missing_super_head() {
-        let mut deps = HashMap::default();
-        deps.insert(1, ChainDependency {});
-        deps.insert(2, ChainDependency {});
-        let ds = DependencySet { dependencies: deps, override_message_expiry_window: Some(0) };
         let chain_id_1 = ChainId::from(1u64);
         let chain_id_2 = ChainId::from(2u64);
 
@@ -447,18 +391,115 @@ mod tests {
             ..Default::default()
         };
 
-        let mut super_head_map = std::collections::HashMap::new();
-        super_head_map.insert(chain_id_1, super_head);
-
-        let mock_service = MockSupervisorService {
-            chain_ids: vec![chain_id_1, chain_id_2],
-            super_head_map,
-            dependency_set: ds,
-        };
+        let mut mock_service = MockSupervisorService::new();
+        mock_service
+            .expect_chain_ids()
+            .returning(move || Box::new(vec![chain_id_1, chain_id_2].into_iter()));
+        mock_service.expect_super_head().returning(move |chain_id| {
+            if chain_id == chain_id_1 {
+                Ok(super_head)
+            } else {
+                Err(SupervisorError::StorageError(StorageError::EntryNotFound(
+                    "superhead not found".to_string(),
+                )))
+            }
+        });
 
         let rpc = SupervisorRpc::new(Arc::new(mock_service));
         let result = rpc.sync_status().await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_sync_status_uninitialized_chain_db() {
+        let chain_id_1 = ChainId::from(1u64);
+        let chain_id_2 = ChainId::from(2u64);
+
+        // Case 1: No chain db is initialized
+        let mut mock_service = MockSupervisorService::new();
+        mock_service
+            .expect_chain_ids()
+            .returning(move || Box::new(vec![chain_id_1, chain_id_2].into_iter()));
+        mock_service.expect_super_head().times(2).returning(move |_| {
+            Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
+                SuperchainDAError::UninitializedChainDatabase,
+            )))
+        });
+
+        let rpc = SupervisorRpc::new(Arc::new(mock_service));
+        let result = rpc.sync_status().await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            ErrorObject::from(SupervisorError::SpecError(SpecError::SuperchainDAError(
+                SuperchainDAError::UninitializedChainDatabase
+            )))
+        );
+
+        // Case 2: Only one chain db is initialized
+        let mut super_head_map = std::collections::HashMap::new();
+        let block_info = BlockInfo { number: 42, ..Default::default() };
+        let super_head = SuperHead {
+            l1_source: Some(block_info),
+            cross_safe: Some(BlockInfo { timestamp: 100, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 50, ..Default::default() }),
+            ..Default::default()
+        };
+        super_head_map.insert(chain_id_1, super_head);
+
+        let mut mock_service = MockSupervisorService::new();
+        mock_service
+            .expect_chain_ids()
+            .returning(move || Box::new(vec![chain_id_1, chain_id_2].into_iter()));
+        mock_service.expect_super_head().times(2).returning(move |chain_id| {
+            if chain_id == chain_id_1 {
+                Ok(super_head)
+            } else {
+                Err(SupervisorError::SpecError(SpecError::SuperchainDAError(
+                    SuperchainDAError::UninitializedChainDatabase,
+                )))
+            }
+        });
+
+        let rpc = SupervisorRpc::new(Arc::new(mock_service));
+        let result = rpc.sync_status().await;
+        assert!(result.is_ok());
+
+        // Case 3: Both chain dbs are initialized
+        let mut super_head_map = std::collections::HashMap::new();
+        let block_info_1 = BlockInfo { number: 42, ..Default::default() };
+        let super_head_1 = SuperHead {
+            l1_source: Some(block_info_1),
+            cross_safe: Some(BlockInfo { timestamp: 100, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 50, ..Default::default() }),
+            ..Default::default()
+        };
+        let block_info_2 = BlockInfo { number: 43, ..Default::default() };
+        let super_head_2 = SuperHead {
+            l1_source: Some(block_info_2),
+            cross_safe: Some(BlockInfo { timestamp: 110, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 60, ..Default::default() }),
+            ..Default::default()
+        };
+        super_head_map.insert(chain_id_1, super_head_1);
+        super_head_map.insert(chain_id_2, super_head_2);
+
+        let mut mock_service = MockSupervisorService::new();
+        mock_service
+            .expect_chain_ids()
+            .returning(move || Box::new(vec![chain_id_1, chain_id_2].into_iter()));
+        mock_service.expect_super_head().times(2).returning(move |chain_id| {
+            if chain_id == chain_id_1 { Ok(super_head_1) } else { Ok(super_head_2) }
+        });
+
+        let rpc = SupervisorRpc::new(Arc::new(mock_service));
+        let result = rpc.sync_status().await;
+        assert!(result.is_ok());
+        let status = result.unwrap();
+        assert_eq!(status.min_synced_l1.number, 42);
+        assert_eq!(status.cross_safe_timestamp, 100);
+        assert_eq!(status.finalized_timestamp, 50);
+        assert_eq!(status.chains.len(), 2);
     }
 }

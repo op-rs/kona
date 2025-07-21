@@ -35,8 +35,8 @@ pub enum StorageError {
     DatabaseNotInitialised,
 
     /// Represents a conflict occurred while attempting to write to the database.
-    #[error("conflict error: {0}")]
-    ConflictError(String),
+    #[error("conflicting data")]
+    ConflictError,
 
     /// Represents an error that occurred while writing to log database.
     #[error("latest stored block is not parent of the incoming block")]
@@ -54,9 +54,9 @@ impl PartialEq for StorageError {
             (Database(a), Database(b)) => a == b,
             (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
             (EntryNotFound(a), EntryNotFound(b)) => a == b,
-            (InvalidAnchor, InvalidAnchor) => true,
-            (DatabaseNotInitialised, DatabaseNotInitialised) => true,
-            (ConflictError(a), ConflictError(b)) => a == b,
+            (InvalidAnchor, InvalidAnchor) |
+            (DatabaseNotInitialised, DatabaseNotInitialised) |
+            (ConflictError, ConflictError) => true,
             _ => false,
         }
     }

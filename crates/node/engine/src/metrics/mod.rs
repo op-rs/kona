@@ -21,7 +21,7 @@ impl Metrics {
     /// Identifier for the counter that records engine task counts.
     pub const ENGINE_TASK_COUNT: &str = "kona_node_engine_task_count";
     /// Insert task label.
-    pub const INSERT_TASK_LABEL: &str = "insert-unsafe";
+    pub const INSERT_TASK_LABEL: &str = "insert";
     /// Consolidate task label.
     pub const CONSOLIDATE_TASK_LABEL: &str = "consolidate";
     /// Forkchoice task label.

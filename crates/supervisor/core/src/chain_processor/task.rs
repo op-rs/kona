@@ -294,7 +294,7 @@ where
         );
         match self.state_manager.save_source_block(origin) {
             Ok(_) => Ok(()),
-            Err(StorageError::BlockOutOfOrder | StorageError::ConflictError(_)) => {
+            Err(StorageError::BlockOutOfOrder | StorageError::ConflictError) => {
                 error!(
                     target: "chain_processor",
                     chain_id = self.chain_id,

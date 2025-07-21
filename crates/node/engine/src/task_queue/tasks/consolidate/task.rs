@@ -91,6 +91,20 @@ impl ConsolidateTask {
                 Ok(block_info) if !self.attributes.is_last_in_span => {
                     let total_duration = global_start.elapsed();
 
+                    // Apply a transient update to the safe head.
+                    state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
+                        safe_head: Some(block_info),
+                        local_safe_head: Some(block_info),
+                        ..Default::default()
+                    });
+
+                    // Update metrics.
+                    kona_macros::inc!(
+                        counter,
+                        Metrics::ENGINE_TASK_COUNT,
+                        Metrics::CONSOLIDATE_TASK_LABEL
+                    );
+
                     info!(
                         target: "engine",
                         hash = %block_info.block_info.hash,
@@ -99,13 +113,6 @@ impl ConsolidateTask {
                         ?block_fetch_duration,
                         "Updated safe head via L1 consolidation"
                     );
-
-                    // Apply a transient update to the safe head.
-                    state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
-                        safe_head: Some(block_info),
-                        local_safe_head: Some(block_info),
-                        ..Default::default()
-                    });
 
                     return Ok(());
                 }

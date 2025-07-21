@@ -13,8 +13,9 @@ workspace = true
 
 [dependencies]
 tracing.workspace = true
+serde = { workspace = true, features = ["derive"]}
 clap = { workspace = true, features = ["derive", "env"] }
-tracing-subscriber = { workspace = true, features = ["fmt", "env-filter"] }
+tracing-subscriber = { workspace = true, features = ["fmt", "env-filter", "json"] }
 metrics-exporter-prometheus = { workspace = true, features = ["http-listener"] }
 anyhow = { version = "1.0.98", default-features = false }
 

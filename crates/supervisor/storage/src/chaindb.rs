@@ -23,7 +23,7 @@ use reth_db::{
 };
 use reth_db_api::database::Database;
 use std::path::Path;
-use tracing::warn;
+use tracing::{error, warn};
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -117,17 +117,26 @@ impl DerivationStorageWriter for ChainDb {
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
                     |err| match err {
-                        StorageError::EntryNotFound(_) => StorageError::ConflictError(
-                            "conflict between unsafe block and derived block".to_string(),
-                        ),
+                        StorageError::EntryNotFound(_) => {
+                            error!(
+                                target: "supervisor_storage",
+                                incoming_block = %derived_block,
+                                "Derived block not found in log storage: {derived_block:?}"
+                            );
+                            StorageError::ConflictError
+                        }
                         other => other, // propagate other errors as-is
                     },
                 )?;
 
                 if block != derived_block {
-                    return Err(StorageError::ConflictError(
-                        "conflict between unsafe block and derived block".to_string(),
-                    ));
+                    error!(
+                        target: "supervisor_storage",
+                        incoming_block = %derived_block,
+                        stored_log_block = %block,
+                        "Derived block does not match the stored log block"
+                    );
+                    return Err(StorageError::ConflictError);
                 }
                 DerivationProvider::new(ctx).save_derived_block(incoming_pair)?;
                 SafetyHeadRefProvider::new(ctx)
@@ -301,10 +310,13 @@ impl HeadRefStorageWriter for ChainDb {
                 // Check parent-child relationship with current CrossUnsafe head, if it exists.
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                 if !parent.is_parent_of(block) {
-                    return Err(StorageError::ConflictError(
-                        "candidate block is not the child of the current cross-unsafe head"
-                            .to_string(),
-                    ));
+                    error!(
+                        target: "supervisor_storage",
+                        incoming_block = %block,
+                        latest_block = %parent,
+                        "Incoming block is not the child of the current cross-unsafe head",
+                    );
+                    return Err(StorageError::ConflictError);
                 }
 
                 // Ensure the block exists in log storage and hasn't been pruned due to a re-org.
@@ -337,10 +349,13 @@ impl HeadRefStorageWriter for ChainDb {
                 // Check parent-child relationship with current CrossUnsafe head, if it exists.
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
                 if !parent.is_parent_of(block) {
-                    return Err(StorageError::ConflictError(
-                        "candidate block is not the child of the current cross-safe head"
-                            .to_string(),
-                    ));
+                    error!(
+                        target: "supervisor_storage",
+                        incoming_block = %block,
+                        latest_block = %parent,
+                        "Incoming block is not the child of the current cross-safe head",
+                    );
+                    return Err(StorageError::ConflictError);
                 }
 
                 // Ensure the block exists in derivation storage and hasn't been pruned due to a
@@ -630,7 +645,7 @@ mod tests {
 
         // Save derived block pair - should error conflict
         let err = db.save_derived_block(derived_pair).unwrap_err();
-        assert!(matches!(err, StorageError::ConflictError(_)));
+        assert!(matches!(err, StorageError::ConflictError));
 
         db.store_block_logs(
             &BlockInfo {
@@ -698,7 +713,7 @@ mod tests {
 
         // should error as block2 must be child of block1
         let err = db.update_current_cross_unsafe(&block2).expect_err("should return an error");
-        assert!(matches!(err, StorageError::ConflictError(_)));
+        assert!(matches!(err, StorageError::ConflictError));
 
         // make block2 as child of block1
         block2.parent_hash = block1.hash;
@@ -740,7 +755,7 @@ mod tests {
 
         // should error as block2 must be child of block1
         let err = db.update_current_cross_safe(&block2).expect_err("should return an error");
-        assert!(matches!(err, StorageError::ConflictError(_)));
+        assert!(matches!(err, StorageError::ConflictError));
 
         // make block2 as child of block1
         block2.parent_hash = block1.hash;

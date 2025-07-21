@@ -297,10 +297,7 @@ where
                     incoming_derived_block_pair = %incoming_pair,
                     "Incoming derived block is not consistent with the latest stored derived block"
                 );
-                return Err(StorageError::ConflictError(
-                    "incoming derived block is not consistent with the stored derived block"
-                        .to_string(),
-                ));
+                return Err(StorageError::ConflictError);
             }
         }
 
@@ -425,10 +422,7 @@ where
                     incoming_source = %incoming_source,
                     "Incoming source block is not consistent with the latest source block"
                 );
-                return Err(StorageError::ConflictError(
-                    "incoming source block is not consistent with the stored source block"
-                        .to_string(),
-                ));
+                return Err(StorageError::ConflictError);
             }
         }
 
@@ -579,7 +573,7 @@ mod tests {
         let wrong_anchor = derived_pair(source, wrong_derived);
 
         let result = insert_pair(&db, &wrong_anchor);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
@@ -682,7 +676,7 @@ mod tests {
         let derived_non_monotonic = block_info(1, derived2.hash, 400);
         let pair_non_monotonic = derived_pair(source1, derived_non_monotonic);
         let result = insert_pair(&db, &pair_non_monotonic);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
@@ -926,7 +920,7 @@ mod tests {
         let old_source = block_info(source0.number, B256::from([1u8; 32]), 400);
         // Try to save a block with a lower number
         let result = insert_source_block(&db, &old_source);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]

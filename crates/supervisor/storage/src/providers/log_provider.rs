@@ -81,9 +81,7 @@ where
                 incoming_block = %block,
                 "Incoming log block is not consistent with the stored log block",
             );
-            return Err(StorageError::ConflictError(
-                "incoming log block is not consistent with the stored log block".to_string(),
-            ))
+            return Err(StorageError::ConflictError)
         }
 
         if !latest_block.is_parent_of(block) {
@@ -537,13 +535,13 @@ mod tests {
         let logs1_conflict = vec![sample_log(0, false)];
 
         let result = insert_block_logs(&db, &block1_conflict, logs1_conflict);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
 
         // Try storing genesis block again with a different hash (simulate conflict)
         let mut genesis_conflict = genesis;
         genesis_conflict.hash = B256::from([0x33; 32]);
         let result = insert_block_logs(&db, &genesis_conflict, Vec::new());
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
