@@ -75,9 +75,7 @@ where
               actual_hash = %derived_block_pair.derived.hash,
               "Derived block hash mismatch"
             );
-            return Err(StorageError::EntryNotFound(
-                "derived block hash does not match".to_string(),
-            ));
+            return Err(StorageError::ConflictError);
         }
 
         Ok(derived_block_pair)
@@ -144,7 +142,7 @@ where
                 source_block_hash = %source_block_id.hash,
                 "Source block hash mismatch"
             );
-            return Err(StorageError::EntryNotFound("source block hash mismatch".to_string()));
+            return Err(StorageError::ConflictError);
         }
 
         while block_traversal.derived_block_numbers.is_empty() {
@@ -239,20 +237,17 @@ impl<TX> DerivationProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    /// initialises the database with a derived block pair anchor.
-    pub(crate) fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
+    /// initialises the database with a derived activation block pair.
+    pub(crate) fn initialise(&self, activation_pair: DerivedRefPair) -> Result<(), StorageError> {
         match self.get_derived_block_pair_by_number(0) {
-            Ok(pair)
-                if pair.derived.hash == anchor.derived.hash &&
-                    pair.source.hash == anchor.source.hash =>
-            {
+            Ok(pair) if activation_pair == pair.clone().into() => {
                 // Anchor matches, nothing to do
                 Ok(())
             }
-            Ok(_) => Err(StorageError::InvalidAnchor),
+            Ok(_) => Err(StorageError::ConflictError),
             Err(StorageError::EntryNotFound(_)) => {
-                self.save_source_block_internal(anchor.source)?;
-                self.save_derived_block_internal(anchor)?;
+                self.save_source_block_internal(activation_pair.source)?;
+                self.save_derived_block_internal(activation_pair)?;
                 Ok(())
             }
             Err(err) => Err(err),
@@ -319,7 +314,7 @@ where
               incoming_derived_block_pair = %incoming_pair,
               "Latest stored derived block is not parent of the incoming derived block"
             );
-            return Err(StorageError::DerivedBlockOutOfOrder);
+            return Err(StorageError::BlockOutOfOrder);
         }
 
         self.save_derived_block_internal(incoming_pair)
@@ -625,7 +620,7 @@ mod tests {
         let wrong_derived = block_info(0, B256::from([42u8; 32]), 200);
         let wrong_anchor = derived_pair(source, wrong_derived);
 
-        let result = insert_pair(&db, &wrong_anchor);
+        let result = initialize_db(&db, &wrong_anchor);
         assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
@@ -662,7 +657,7 @@ mod tests {
         let derived2 = block_info(2, wrong_parent_hash, 300);
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(matches!(result, Err(StorageError::DerivedBlockOutOfOrder)));
+        assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
     }
 
     #[test]
@@ -677,7 +672,7 @@ mod tests {
         let derived2 = block_info(4, derived1.hash, 400); // should be 2, not 4
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(matches!(result, Err(StorageError::DerivedBlockOutOfOrder)));
+        assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
     }
 
     #[test]
@@ -792,7 +787,7 @@ mod tests {
         let wrong_hash = B256::from([123u8; 32]);
         let source_id = BlockNumHash { number: source1.number, hash: wrong_hash };
         let result = provider.latest_derived_block_at_source(source_id);
-        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]

@@ -22,6 +22,7 @@ alloy-consensus.workspace = true
 alloy-eips.workspace = true
 alloy-hardforks.workspace = true
 alloy-op-hardforks.workspace = true
+alloy-chains.workspace = true
 
 # Misc
 thiserror.workspace = true
@@ -48,6 +49,7 @@ alloy-primitives = { workspace = true, features = ["rand", "arbitrary"] }
 default = []
 revm = [ "dep:op-revm" ]
 std = [
+	"alloy-chains/std",
 	"alloy-consensus/std",
 	"alloy-eips/std",
 	"alloy-primitives/std",
@@ -58,6 +60,7 @@ std = [
 	"thiserror/std",
 ]
 arbitrary = [
+	"alloy-chains/arbitrary",
 	"alloy-consensus/arbitrary",
 	"alloy-eips/arbitrary",
 	"alloy-primitives/arbitrary",
@@ -67,6 +70,7 @@ arbitrary = [
 	"std",
 ]
 serde = [
+	"alloy-chains/serde",
 	"alloy-consensus/serde",
 	"alloy-eips/serde",
 	"alloy-primitives/serde",

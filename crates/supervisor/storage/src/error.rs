@@ -26,10 +26,6 @@ pub enum StorageError {
     #[error("data not yet available")]
     FutureData,
 
-    /// Represents an error that occurred while initializing the database with an anchor.
-    #[error("invalid anchor")]
-    InvalidAnchor,
-
     /// Represents an error that occurred when database is not initialized.
     #[error("database not initialized")]
     DatabaseNotInitialised,
@@ -41,10 +37,6 @@ pub enum StorageError {
     /// Represents an error that occurred while writing to log database.
     #[error("latest stored block is not parent of the incoming block")]
     BlockOutOfOrder,
-
-    /// Represents an error that occurred while writing to derived block database.
-    #[error("latest stored derived block is not parent of the incoming derived block")]
-    DerivedBlockOutOfOrder,
 }
 
 impl PartialEq for StorageError {
@@ -54,9 +46,9 @@ impl PartialEq for StorageError {
             (Database(a), Database(b)) => a == b,
             (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
             (EntryNotFound(a), EntryNotFound(b)) => a == b,
-            (InvalidAnchor, InvalidAnchor) |
-            (DatabaseNotInitialised, DatabaseNotInitialised) |
-            (ConflictError, ConflictError) => true,
+            (DatabaseNotInitialised, DatabaseNotInitialised) | (ConflictError, ConflictError) => {
+                true
+            }
             _ => false,
         }
     }

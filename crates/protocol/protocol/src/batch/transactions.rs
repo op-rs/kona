@@ -1,4 +1,4 @@
-//! This module contains the [SpanBatchTransactions] type and logic for encoding and decoding
+//! This module contains the [`SpanBatchTransactions`] type and logic for encoding and decoding
 //! transactions in a span batch.
 
 use crate::{
@@ -37,7 +37,7 @@ pub struct SpanBatchTransactions {
 }
 
 impl SpanBatchTransactions {
-    /// Encodes the [SpanBatchTransactions] into a writer.
+    /// Encodes the [`SpanBatchTransactions`] into a writer.
     pub fn encode(&self, w: &mut dyn bytes::BufMut) -> Result<(), SpanBatchError> {
         self.encode_contract_creation_bits(w)?;
         self.encode_tx_sigs(w)?;
@@ -49,7 +49,7 @@ impl SpanBatchTransactions {
         Ok(())
     }
 
-    /// Decodes the [SpanBatchTransactions] from a reader.
+    /// Decodes the [`SpanBatchTransactions`] from a reader.
     pub fn decode(&mut self, r: &mut &[u8]) -> Result<(), SpanBatchError> {
         self.decode_contract_creation_bits(r)?;
         self.decode_tx_sigs(r)?;
@@ -228,7 +228,7 @@ impl SpanBatchTransactions {
         self.contract_creation_bits.as_ref().iter().map(|b| b.count_ones() as u64).sum()
     }
 
-    /// Retrieve all of the raw transactions from the [SpanBatchTransactions].
+    /// Retrieve all of the raw transactions from the [`SpanBatchTransactions`].
     pub fn full_txs(&self, chain_id: u64) -> Result<Vec<Vec<u8>>, SpanBatchError> {
         let mut txs = Vec::new();
         let mut to_idx = 0;
@@ -276,7 +276,7 @@ impl SpanBatchTransactions {
         Ok(txs)
     }
 
-    /// Add raw transactions into the [SpanBatchTransactions].
+    /// Add raw transactions into the [`SpanBatchTransactions`].
     pub fn add_txs(&mut self, txs: Vec<Bytes>, chain_id: u64) -> Result<(), SpanBatchError> {
         let total_block_tx_count = txs.len() as u64;
         let offset = self.total_block_tx_count;

@@ -387,8 +387,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     }
 
     async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
-        let mut build_ticker =
-            tokio::time::interval(Duration::from_secs(self.builder.rollup_cfg.block_time));
+        let block_time = self.builder.rollup_cfg.block_time;
+        let mut build_ticker = tokio::time::interval(Duration::from_secs(block_time));
 
         let mut state = SequencerActorState::from(self.builder);
 
@@ -409,8 +409,17 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 }
                 // Handle admin queries.
                 Some(admin_query) = self.admin_query_rx.recv(), if !self.admin_query_rx.is_closed() => {
+                    let is_sequencer_active = state.is_active;
+
                     if let Err(e) = state.handle_admin_query(admin_query).await {
                         error!(target: "sequencer", err = ?e, "Failed to handle admin query");
+                    }
+
+                    // Reset the build ticker if the sequencer's activity state has changed.
+                    if is_sequencer_active != state.is_active {
+                        build_ticker = tokio::time::interval(Duration::from_secs(
+                            block_time,
+                        ));
                     }
                 }
                 // The sequencer must be active to build new blocks.

@@ -17,7 +17,7 @@ pub struct SpanBatchPrefix {
 }
 
 impl SpanBatchPrefix {
-    /// Decodes a [SpanBatchPrefix] from a reader.
+    /// Decodes a [`SpanBatchPrefix`] from a reader.
     pub fn decode_prefix(r: &mut &[u8]) -> Result<Self, SpanBatchError> {
         let mut prefix = Self::default();
         prefix.decode_rel_timestamp(r)?;
@@ -63,7 +63,7 @@ impl SpanBatchPrefix {
         Ok(())
     }
 
-    /// Encodes the [SpanBatchPrefix] into a writer.
+    /// Encodes the [`SpanBatchPrefix`] into a writer.
     pub fn encode_prefix(&self, w: &mut dyn bytes::BufMut) {
         let mut u64_buf = [0u8; 10];
         w.put_slice(unsigned_varint::encode::u64(self.rel_timestamp, &mut u64_buf));

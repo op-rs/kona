@@ -111,7 +111,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5674914c2cfdb866c21cb0c09d82374ee39a1395cf512e7515f4c014083b3fff"
 dependencies = [
  "alloy-primitives",
+ "arbitrary",
  "num_enum",
+ "proptest",
  "serde",
  "strum",
 ]
@@ -4453,6 +4455,7 @@ dependencies = [
 name = "kona-genesis"
 version = "0.3.0"
 dependencies = [
+ "alloy-chains",
  "alloy-consensus",
  "alloy-eips",
  "alloy-hardforks",
@@ -4631,6 +4634,7 @@ dependencies = [
 name = "kona-node-service"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-eips",
  "alloy-primitives",
  "alloy-provider",
@@ -4684,6 +4688,7 @@ dependencies = [
 name = "kona-p2p"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-consensus",
  "alloy-eips",
  "alloy-primitives",

@@ -19,7 +19,7 @@ const REGOLITH_SYSTEM_TX_GAS: u64 = 1_000_000;
 pub(crate) const L1_INFO_DEPOSITOR_ADDRESS: Address =
     address!("deaddeaddeaddeaddeaddeaddeaddeaddead0001");
 
-/// The [L1BlockInfoTx] enum contains variants for the different versions of the L1 block info
+/// The [`L1BlockInfoTx`] enum contains variants for the different versions of the L1 block info
 /// transaction on OP Stack chains.
 ///
 /// This transaction always sits at the top of the block, and alters the `L1 Block` contract's
@@ -36,7 +36,7 @@ pub enum L1BlockInfoTx {
 }
 
 impl L1BlockInfoTx {
-    /// Creates a new [L1BlockInfoTx] from the given information.
+    /// Creates a new [`L1BlockInfoTx`] from the given information.
     pub fn try_new(
         rollup_config: &RollupConfig,
         system_config: &SystemConfig,
@@ -132,8 +132,8 @@ impl L1BlockInfoTx {
         }))
     }
 
-    /// Creates a new [L1BlockInfoTx] from the given information and returns a typed [TxDeposit] to
-    /// include at the top of a block.
+    /// Creates a new [`L1BlockInfoTx`] from the given information and returns a typed [`TxDeposit`]
+    /// to include at the top of a block.
     pub fn try_new_with_deposit_tx(
         rollup_config: &RollupConfig,
         system_config: &SystemConfig,
@@ -170,7 +170,7 @@ impl L1BlockInfoTx {
         Ok((l1_info, deposit_tx.seal_slow()))
     }
 
-    /// Decodes the [L1BlockInfoEcotone] object from Ethereum transaction calldata.
+    /// Decodes the [`L1BlockInfoEcotone`] object from Ethereum transaction calldata.
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> {
         if r.len() < 4 {
             return Err(DecodeError::MissingSelector);
@@ -200,7 +200,7 @@ impl L1BlockInfoTx {
         }
     }
 
-    /// Returns the block hash for the [L1BlockInfoTx].
+    /// Returns the block hash for the [`L1BlockInfoTx`].
     pub const fn block_hash(&self) -> B256 {
         match self {
             Self::Bedrock(tx) => tx.block_hash,
@@ -209,7 +209,7 @@ impl L1BlockInfoTx {
         }
     }
 
-    /// Encodes the [L1BlockInfoTx] object into Ethereum transaction calldata.
+    /// Encodes the [`L1BlockInfoTx`] object into Ethereum transaction calldata.
     pub fn encode_calldata(&self) -> Bytes {
         match self {
             Self::Bedrock(bedrock_tx) => bedrock_tx.encode_calldata(),
@@ -218,7 +218,7 @@ impl L1BlockInfoTx {
         }
     }
 
-    /// Returns the L1 [BlockNumHash] for the info transaction.
+    /// Returns the L1 [`BlockNumHash`] for the info transaction.
     pub const fn id(&self) -> BlockNumHash {
         match self {
             Self::Ecotone(L1BlockInfoEcotone { number, block_hash, .. }) |

@@ -1,6 +1,7 @@
 //! Rollup Config Types
 
 use crate::{AltDAConfig, BaseFeeConfig, ChainGenesis, HardForkConfig, OP_MAINNET_BASE_FEE_CONFIG};
+use alloy_chains::Chain;
 use alloy_hardforks::{EthereumHardfork, EthereumHardforks, ForkCondition};
 use alloy_op_hardforks::{OpHardfork, OpHardforks};
 use alloy_primitives::Address;
@@ -57,7 +58,7 @@ pub struct RollupConfig {
     /// The L1 chain ID
     pub l1_chain_id: u64,
     /// The L2 chain ID
-    pub l2_chain_id: u64,
+    pub l2_chain_id: Chain,
     /// Hardfork timestamps.
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub hardforks: HardForkConfig,
@@ -142,7 +143,7 @@ impl Default for RollupConfig {
             channel_timeout: 0,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 0,
-            l2_chain_id: 0,
+            l2_chain_id: Chain::from_id(0),
             hardforks: HardForkConfig::default(),
             batch_inbox_address: Address::ZERO,
             deposit_contract_address: Address::ZERO,
@@ -802,7 +803,7 @@ mod tests {
             channel_timeout: 300,
             granite_channel_timeout: GRANITE_CHANNEL_TIMEOUT,
             l1_chain_id: 3151908,
-            l2_chain_id: 1337,
+            l2_chain_id: Chain::from_id(1337),
             hardforks: HardForkConfig {
                 regolith_time: Some(0),
                 canyon_time: Some(0),

@@ -12,7 +12,7 @@ use crate::{
     OpBlockConversionError, SpanBatchError, SpanDecodingError,
 };
 
-/// Converts the [OpBlock] to a partial [SystemConfig].
+/// Converts the [`OpBlock`] to a partial [`SystemConfig`].
 pub fn to_system_config(
     block: &OpBlock,
     rollup_config: &RollupConfig,

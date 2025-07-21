@@ -46,7 +46,7 @@ where
     pub(crate) fn initialise(&self, anchor: BlockInfo) -> Result<(), StorageError> {
         match self.get_block(0) {
             Ok(block) if block.hash == anchor.hash => Ok(()),
-            Ok(_) => Err(StorageError::InvalidAnchor),
+            Ok(_) => Err(StorageError::ConflictError),
             Err(StorageError::EntryNotFound(_)) => {
                 self.store_block_logs_internal(&anchor, Vec::new())
             }
@@ -385,7 +385,7 @@ mod tests {
         wrong_genesis.hash = B256::from([42u8; 32]);
 
         let result = initialize_db(&db, &wrong_genesis);
-        assert!(matches!(result, Err(StorageError::InvalidAnchor)));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
