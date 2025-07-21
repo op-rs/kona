@@ -35,7 +35,7 @@ pub trait RollupNodeService {
         Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
         InboundData = SequencerInboundData,
     >;
-    
+
     fn mode(&self) -> NodeMode;
     // ... other methods
 }
@@ -118,7 +118,9 @@ kona-node node \
 
 ### Required Arguments
 
-:::warning Required Configuration
+:::warning
+Required Configuration
+
 Sequencer mode requires all standard node arguments plus the `--mode=Sequencer` flag. Missing any required argument will prevent the node from starting.
 :::
 
@@ -185,12 +187,13 @@ kona-node node \
 
 ## Key Considerations
 
-:::tip Sequencer Operation
+:::tip
+Sequencer Operation
+
 - **L1 Confirmations**: The `--sequencer.l1-confs` setting determines how many L1 blocks the sequencer waits before using an L1 block as an origin. Higher values provide more safety but increase latency.
 - **Recovery Mode**: Use `--sequencer.recover=true` when the sequencer needs to catch up after being offline.
 - **Conductor Integration**: For multi-sequencer deployments, configure the conductor service for proper leader election.
 :::
 
-:::caution Production Deployment
+
 Running a sequencer in production requires careful consideration of infrastructure, monitoring, and failover procedures. Ensure proper JWT secret management and secure network configuration.
-:::
