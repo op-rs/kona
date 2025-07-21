@@ -3,8 +3,8 @@
 The execution phase of the program is commonly the heaviest portion of the fault proof program, where the computation
 that is being verified is performed.
 
-This phase consumes the outputs of the [prologue phase](./prologue.mdx), and performs the bulk of the verifiable
-computation. After execution has concluded, the outputs are passed along to the [epilogue phase](./epilogue.mdx) for
+This phase consumes the outputs of the [prologue phase](/sdk/fpp-dev/prologue), and performs the bulk of the verifiable
+computation. After execution has concluded, the outputs are passed along to the [epilogue phase](/sdk/fpp-dev/epilogue) for
 final verification.
 
 ## Example
@@ -17,23 +17,5 @@ At a high-level, in the `kona-client` program, the execution phase:
 1. Executes the payloads produced by the L2 derivation pipeline, producing the [L2 output root][l2-output-root] at the
    L2 claim height.
 
-[op-stack]: https://github.com/ethereum-optimism/optimism
-[op-program]: https://github.com/ethereum-optimism/optimism/tree/develop/op-program
-[cannon]: https://github.com/ethereum-optimism/optimism/tree/develop/cannon
-[cannon-rs]: https://github.com/op-rs/cannon-rs
-[asterisc]: https://github.com/ethereum-optimism/asterisc
-[fp-specs]: https://specs.optimism.io/experimental/fault-proof/index.html
-[fpp-specs]: https://specs.optimism.io/experimental/fault-proof/index.html#fault-proof-program
-[preimage-specs]: https://specs.optimism.io/experimental/fault-proof/index.html#pre-image-oracle
-[cannon-specs]: https://specs.optimism.io/experimental/fault-proof/cannon-fault-proof-vm.html#cannon-fault-proof-virtual-machine
+
 [l2-output-root]: https://specs.optimism.io/protocol/proposals.html#l2-output-commitment-construction
-[op-succinct]: https://github.com/succinctlabs/op-succinct
-[revm]: https://github.com/bluealloy/revm
-
-[kona]: https://github.com/op-rs/kona
-[issues]: https://github.com/op-rs/kona/issues
-[new-issue]: https://github.com/op-rs/kona/issues/new
-[contributing]: https://github.com/op-rs/kona/tree/main/CONTRIBUTING.md
-
-[op-labs]: https://github.com/ethereum-optimism
-[bad-boi-labs]: https://github.com/BadBoiLabs
