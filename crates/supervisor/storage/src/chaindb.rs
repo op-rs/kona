@@ -117,12 +117,25 @@ impl DerivationStorageWriter for ChainDb {
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
                     |err| match err {
-                        StorageError::EntryNotFound(_) => StorageError::ConflictError,
+                        StorageError::EntryNotFound(_) => {
+                            error!(
+                                target: "supervisor_storage",
+                                incoming_block = %derived_block,
+                                "Derived block not found in log storage: {derived_block:?}"
+                            );
+                            StorageError::ConflictError
+                        }
                         other => other, // propagate other errors as-is
                     },
                 )?;
 
                 if block != derived_block {
+                    error!(
+                        target: "supervisor_storage",
+                        incoming_block = %derived_block,
+                        stored_log_block = %block,
+                        "Derived block does not match the stored log block"
+                    );
                     return Err(StorageError::ConflictError);
                 }
                 DerivationProvider::new(ctx).save_derived_block(incoming_pair)?;
