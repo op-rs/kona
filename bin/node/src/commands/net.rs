@@ -48,7 +48,7 @@ impl NetCommand {
             .add_directive("bootstore=debug".parse()?);
 
         // Initialize the telemetry stack.
-        LogConfig::new(args.v.clone()).init_tracing_subscriber(Some(filter))?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(Some(filter))?;
         Ok(())
     }
 

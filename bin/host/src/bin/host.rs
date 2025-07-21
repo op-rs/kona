@@ -25,7 +25,7 @@ primary thread.
 pub struct HostCli {
     /// Logging arguments.
     #[command(flatten)]
-    pub v: LogArgs,
+    pub log_args: LogArgs,
     /// Host mode
     #[command(subcommand)]
     pub mode: HostMode,
@@ -46,7 +46,7 @@ pub enum HostMode {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
     let cfg = HostCli::parse();
-    LogConfig::new(cfg.v).init_tracing_subscriber(None::<EnvFilter>)?;
+    LogConfig::new(cfg.log_args).init_tracing_subscriber(None::<EnvFilter>)?;
 
     match cfg.mode {
         #[cfg(feature = "single")]

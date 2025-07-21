@@ -12,7 +12,7 @@ use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
 pub struct GlobalArgs {
     /// Logging arguments.
     #[command(flatten)]
-    pub v: LogArgs,
+    pub log_args: LogArgs,
     /// The L2 chain ID to use.
     #[arg(
         long,

@@ -20,7 +20,7 @@ pub struct RegistryCommand;
 impl RegistryCommand {
     /// Initializes the logging system based on global arguments.
     pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
-        LogConfig::new(args.v.clone()).init_tracing_subscriber(None)?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(None)?;
         Ok(())
     }
 

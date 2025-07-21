@@ -16,7 +16,6 @@ pub struct LogArgs {
     ///
     /// This verbosity level is shared by both stdout and file logging (if enabled).
     #[arg(
-        long = "logs.level",
         short = 'v',
         global = true,
         default_value = "3",

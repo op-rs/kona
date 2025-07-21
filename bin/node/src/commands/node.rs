@@ -111,7 +111,7 @@ impl NodeCommand {
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?);
 
-        LogConfig::new(args.v.clone()).init_tracing_subscriber(Some(filter))?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(Some(filter))?;
         Ok(())
     }
 
