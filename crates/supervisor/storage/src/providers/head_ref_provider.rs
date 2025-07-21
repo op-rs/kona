@@ -78,10 +78,41 @@ where
             })?;
         Ok(())
     }
+
+    /// Forcefully resets the head reference only if the current stored head is ahead of the incoming one.
+    ///
+    /// This is intended for internal use during rewinds, where the safety head needs to be directly
+    /// set to a previous block regardless of the current head state.
+    pub(crate) fn reset_safety_head_ref_if_ahead(
+        &self,
+        safety_level: SafetyLevel,
+        incoming_head_ref: &BlockInfo,
+    ) -> Result<(), StorageError> {
+       // Reset only if head is ahead.
+        if let Ok(current_head_ref) = self.get_safety_head_ref(safety_level) {
+            if current_head_ref.number < incoming_head_ref.number {
+                return Ok(());
+            }
+        }
+
+        self.tx
+            .put::<SafetyHeadRefs>(safety_level.into(), (*incoming_head_ref).into())
+            .inspect_err(|err| {
+                error!(
+                    target: "supervisor_storage",
+                    %incoming_head_ref,
+                    %safety_level,
+                    %err,
+                    "Failed to reset head reference"
+                )
+            })?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use alloy_primitives::B256;
     use super::*;
     use crate::models::Tables;
     use reth_db::{
@@ -164,5 +195,55 @@ mod tests {
         let result =
             provider.get_safety_head_ref(SafetyLevel::CrossSafe).expect("Failed to get head ref");
         assert_eq!(result, updated_block_info);
+    }
+
+    #[test]
+    fn test_reset_safety_head_ref_if_ahead() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to start write tx");
+        let provider = SafetyHeadRefProvider::new(&tx);
+
+        // Set initial head at 100
+        let head_100 = BlockInfo {
+            number: 100,
+            hash: B256::from([1u8; 32]),
+            parent_hash: B256::ZERO,
+            timestamp: 1234,
+        };
+        provider
+            .update_safety_head_ref(SafetyLevel::CrossSafe, &head_100)
+            .expect("update failed");
+
+        // Try to reset to 101 (should NOT update — current is behind)
+        let head_101 = BlockInfo {
+            number: 101,
+            ..head_100
+        };
+        provider
+            .reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &head_101)
+            .expect("reset failed");
+
+        // Should still be 100
+        let current = provider
+            .get_safety_head_ref(SafetyLevel::CrossSafe)
+            .expect("get failed");
+        assert_eq!(current.number, 100);
+
+        // Now try to reset to 90 (should update — current is ahead)
+        let head_90 = BlockInfo {
+            number: 90,
+            ..head_100
+        };
+        provider
+            .reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &head_90)
+            .expect("reset failed");
+
+        // Should now be 90
+        let current = provider
+            .get_safety_head_ref(SafetyLevel::CrossSafe)
+            .expect("get failed");
+        assert_eq!(current.number, 90);
+
+        tx.commit().expect("commit failed");
     }
 }

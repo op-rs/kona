@@ -13,6 +13,7 @@ use reth_db_api::{
     transaction::{DbTx, DbTxMut},
 };
 use tracing::{error, warn};
+use crate::models::LogEntries;
 
 /// Provides access to derivation storage operations within a transaction.
 #[derive(Debug)]
@@ -454,12 +455,62 @@ where
 
         Ok(())
     }
+
+    /// Rewinds the derivation database from the given derived block onward.
+    /// This removes all derived blocks with number >= the given block number
+    /// and updates the traversal state accordingly.
+    pub(crate) fn rewind_to(&self, block_info: &BlockInfo) -> Result<(), StorageError> {
+        let block_pair = self.get_derived_block_pair(block_info.id())?;
+
+        // Delete all derived blocks with number ≥ `block_info.number`
+        {
+            let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
+            let mut walker = cursor.walk(Some(block_info.number))?;
+            while let Some(Ok((_, _))) = walker.next() {
+                walker.delete_current()?; // we’re already walking from the rewind point
+            }
+        }
+
+        self.rewind_block_traversal_to(&block_pair)
+    }
+
+    /// Rewinds the block traversal for a given derived block pair.
+    /// - If only part of the derived list needs to be removed, it updates the list in-place.
+    /// - If later source blocks exist, they are removed entirely.
+    /// TODO: validate the logic in block invalidation and re-org
+    fn rewind_block_traversal_to(&self, block_pair: &StoredDerivedBlockPair) -> Result<(), StorageError> {
+        // Retain only valid derived blocks < the invalidated one
+        let mut traversal = self.get_block_traversal(block_pair.source.number)?;
+        traversal
+            .derived_block_numbers
+            .retain(|&num| num < block_pair.derived.number);
+        
+        let mut walk_from = block_pair.source.number;
+
+        // If there's still something left, update the entry. Otherwise, skip — let the walker delete it.
+        if !traversal.derived_block_numbers.is_empty() {
+            self.tx.put::<BlockTraversal>(block_pair.source.number, traversal).inspect_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to update block traversal");
+            })?;
+            walk_from += 1;
+        }
+
+        // Walk from (source.number) forward, deleting entries with key ≥ source.number
+        let mut cursor = self.tx.cursor_write::<BlockTraversal>()?;
+        let mut walker = cursor.walk(Some(walk_from))?;
+        while let Some(Ok((_, val))) = walker.next() {
+            walker.delete_current()?;
+        }
+
+        Ok(())
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::Tables;
+    use crate::models::{BlockRef, Tables};
     use alloy_primitives::B256;
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
@@ -970,5 +1021,109 @@ mod tests {
             provider.get_block_traversal(source1.number).expect("should exist");
         block_traversal.derived_block_numbers.push(derived1.number);
         assert!(tx.put::<BlockTraversal>(source1.number, block_traversal).is_ok());
+    }
+    
+    #[test]
+    fn test_rewind_block_traversal_to_removes_later_derived_and_sources() {
+        use crate::models::BlockTraversal;
+        use reth_db_api::table::DupSort;
+        use reth_db_api::transaction::DbTxMut;
+
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to get mutable tx");
+        let provider = DerivationProvider::new(&tx);
+
+        // Setup:
+        // Block 1: derived blocks 10, 20, 30
+        // Block 2: derived blocks 25, 40
+        // Block 3: derived blocks 50
+        // We will rewind from (source: 1, derived: 20)
+        // After rewind:
+        // - Block 1 keeps only 10
+        // - Block 2 is removed completely (25, 40 >= 20)
+        // - Block 3 is deleted by walker
+
+        // Source block 1 with 3 derived blocks
+        let pair1 = StoredDerivedBlockPair {
+            source: BlockRef {
+                number: 1,
+                hash: B256::from([0x01; 32]),
+                parent_hash: B256::ZERO,
+                timestamp: 1_000,
+            },
+            derived: BlockRef {
+                number: 30,
+                hash: B256::from([0xAA; 32]),
+                parent_hash: B256::from([0x99; 32]),
+                timestamp: 1_050,
+            },
+        };
+        provider.store_derived_block_pair(&pair1).expect("Failed to store pair1");
+
+        // Manually inject earlier derived blocks for pair1 source (simulate list)
+        let mut traversal1 = provider.get_block_traversal(pair1.source.number).unwrap();
+        traversal1.derived_block_numbers = vec![10, 20, 30].into();
+        provider.tx.put::<BlockTraversal>(1, traversal1.clone()).unwrap();
+
+        // Source block 2 with derived blocks 25, 40 (should be removed completely)
+        let pair2 = StoredDerivedBlockPair {
+            source: BlockInfo {
+                number: 2,
+                hash: B256::from([0x02; 32]),
+                parent_hash: B256::from([0x01; 32]),
+                timestamp: 1_100,
+            },
+            derived: BlockInfo {
+                number: 40,
+                hash: B256::from([0xBB; 32]),
+                parent_hash: B256::from([0xAA; 32]),
+                timestamp: 1_150,
+            },
+        };
+        provider.store_derived_block_pair(&pair2).expect("Failed to store pair2");
+
+        // Source block 3 with derived 50 (will be deleted by walker)
+        let pair3 = StoredDerivedBlockPair {
+            source: BlockInfo {
+                number: 3,
+                hash: B256::from([0x03; 32]),
+                parent_hash: B256::from([0x02; 32]),
+                timestamp: 1_200,
+            },
+            derived: BlockInfo {
+                number: 50,
+                hash: B256::from([0xCC; 32]),
+                parent_hash: B256::from([0xBB; 32]),
+                timestamp: 1_250,
+            },
+        };
+        provider.store_derived_block_pair(&pair3).expect("Failed to store pair3");
+
+        // Perform rewind from (source: 1, derived: 20)
+        let rewind_point = StoredDerivedBlockPair {
+            source: pair1.source.clone(),
+            derived: BlockInfo {
+                number: 20,
+                hash: B256::from([0xDE; 32]),
+                parent_hash: pair1.source.hash,
+                timestamp: 1_020,
+            },
+        };
+
+        provider
+            .rewind_block_traversal_to(&rewind_point)
+            .expect("rewind failed");
+
+        // Expect: block 1 retains only 10
+        let new_traversal = provider.get_block_traversal(1).unwrap();
+        assert_eq!(new_traversal.derived_block_numbers.as_slice(), &[10]);
+
+        // Expect: block 2 is removed completely
+        let res = provider.get_block_traversal(2);
+        assert!(matches!(res, Err(StorageError::EntryNotFound(_))));
+
+        // Expect: block 3 is also removed by walker
+        let res = provider.get_block_traversal(3);
+        assert!(matches!(res, Err(StorageError::EntryNotFound(_))));
     }
 }

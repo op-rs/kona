@@ -370,9 +370,48 @@ impl HeadRefStorageWriter for ChainDb {
 }
 
 impl Rewinder for ChainDb {
-    fn rewind_log_storage(&self, from_block: u64) -> Result<(), StorageError> {
+    fn rewind_log_storage(&self, to: &BlockInfo) -> Result<(), StorageError> {
         self.observe_call("rewind_log_storage", || {
-            self.env.update(|tx| LogProvider::new(tx).rewind_to(from_block))?
+            self.env.update(|tx| {
+                let lp = LogProvider::new(tx);
+                let hp = SafetyHeadRefProvider::new(tx);
+
+                lp.rewind_to(to)?;
+                
+                // get the current latest block to update the safety head refs
+                let latest_block = match lp.get_latest_block() {
+                    Ok(block) => block,
+                    Err(err) => return Err(err),
+                };
+                
+                hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
+                hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)
+            })?
+        })
+    }
+
+    fn rewind(&self, to: &BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("rewind", || {
+            self.env.update(|tx| {
+                let lp = LogProvider::new(tx);
+                let dp = DerivationProvider::new(tx);
+                let hp = SafetyHeadRefProvider::new(tx);
+                
+                lp.rewind_to(to)?;
+                dp.rewind_to(to)?;
+
+                // get the current latest block to update the safety head refs
+                let latest_block = match lp.get_latest_block() {
+                    Ok(block) => block,
+                    Err(err) => return Err(err),
+                };
+
+                hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
+                hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)?;
+                
+                hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalSafe, &latest_block)?;
+                hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &latest_block)
+            })?
         })
     }
 }

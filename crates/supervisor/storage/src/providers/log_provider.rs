@@ -123,15 +123,24 @@ where
         Ok(())
     }
 
-    pub(crate) fn rewind_to(&self, block_number: u64) -> Result<(), StorageError> {
+    /// Rewinds the log storage by deleting all blocks and logs from the given block onward.
+    /// Fails if the given block exists with a mismatching hash (to prevent unsafe deletion).
+    pub(crate) fn rewind_to(&self, block_info: &BlockInfo) -> Result<(), StorageError> {
         let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
-        let mut walker = cursor.walk(Some(block_number))?;
+        let mut walker = cursor.walk(Some(block_info.number))?;
 
-        while let Some(Ok((key, _))) = walker.next() {
-            if key >= block_number {
-                walker.delete_current()?; // remove the block
-                self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block
+        while let Some(Ok((key, stored_block))) = walker.next() {
+            if key == block_info.number && block_info.hash != stored_block.hash {
+                error!(
+                    target: "supervisor_storage",
+                    %stored_block,
+                    incoming_block = %block_info,
+                    "Incoming log block is not consistent with the stored log block",
+                );
+                return Err(StorageError::ConflictError)
             }
+            walker.delete_current()?; // remove the block
+            self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block
         }
         Ok(())
     }
@@ -545,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rewind_block_logs_from() {
+    fn test_rewind_to() {
         let db = setup_db();
         let genesis = genesis_block();
         initialize_db(&db, &genesis).expect("Failed to initialize DB");
@@ -560,10 +569,10 @@ mod tests {
             blocks.push(block);
         }
 
-        // Rewind from block 3, blocks 3, 4, 5 should be removed
+        // Rewind to block 3, blocks 3, 4, 5 should be removed
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = LogProvider::new(&tx);
-        provider.rewind_to(3).expect("Failed to rewind blocks");
+        provider.rewind_to(&blocks[3]).expect("Failed to rewind blocks");
         tx.commit().expect("Failed to commit rewind");
 
         let tx = db.tx().expect("Could not get RO tx");
@@ -571,13 +580,16 @@ mod tests {
 
         // Blocks 0,1,2 should still exist
         for i in 0..=2 {
-            assert!(provider.get_block(i).is_ok(), "block {i} should exist after rewind");
+            assert!(
+                provider.get_block(i).is_ok(),
+                "block {i} should exist after rewind"
+            );
         }
 
-        // Logs for blocks 0,1,2 should exist
+        // Logs for blocks 1,2 should exist
         for i in 1..=2 {
             let logs = provider.get_logs(i).expect("logs should exist");
-            assert_eq!(logs.len(), 3);
+            assert_eq!(logs.len(), 3, "block {i} should have 3 logs");
         }
 
         // Blocks 3,4,5 should be gone
@@ -590,5 +602,28 @@ mod tests {
             let logs = provider.get_logs(i).expect("get_logs should not fail");
             assert!(logs.is_empty(), "logs for block {i} should be empty");
         }
+    }
+    #[test]
+    fn test_rewind_to_conflict_hash() {
+        let db = setup_db();
+        let genesis = genesis_block();
+        initialize_db(&db, &genesis).expect("Failed to initialize DB");
+
+        // Insert block 1
+        let block1 = sample_block_info(1, genesis.hash);
+        insert_block_logs(&db, &block1, vec![sample_log(0, true)]).expect("insert block 1");
+
+        // Create a conflicting block with the same number but different hash
+        let mut conflicting_block1 = block1.clone();
+        conflicting_block1.hash = B256::from([0xAB; 32]); // different hash
+
+        let tx = db.tx_mut().expect("Failed to get tx");
+        let provider = LogProvider::new(&tx);
+
+        let result = provider.rewind_to(&conflicting_block1);
+        assert!(
+            matches!(result, Err(StorageError::ConflictError)),
+            "Expected conflict error due to hash mismatch"
+        );
     }
 }
