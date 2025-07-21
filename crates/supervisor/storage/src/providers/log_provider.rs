@@ -43,12 +43,12 @@ impl<TX> LogProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    pub(crate) fn initialise(&self, anchor: BlockInfo) -> Result<(), StorageError> {
+    pub(crate) fn initialise(&self, activation_block: BlockInfo) -> Result<(), StorageError> {
         match self.get_block(0) {
-            Ok(block) if block.hash == anchor.hash => Ok(()),
+            Ok(block) if block == activation_block => Ok(()),
             Ok(_) => Err(StorageError::ConflictError),
             Err(StorageError::EntryNotFound(_)) => {
-                self.store_block_logs_internal(&anchor, Vec::new())
+                self.store_block_logs_internal(&activation_block, Vec::new())
             }
 
             Err(err) => Err(err),
@@ -135,7 +135,7 @@ where
                     target: "supervisor_storage",
                     %stored_block,
                     incoming_block = %block_info,
-                    "Incoming log block is not consistent with the stored log block",
+                    "Requested block to rewind does not match stored block",
                 );
                 return Err(StorageError::ConflictError)
             }
