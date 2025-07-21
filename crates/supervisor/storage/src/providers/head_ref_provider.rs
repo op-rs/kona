@@ -33,33 +33,49 @@ where
                 "Failed to seek head reference"
             );
         })?;
-        let block_ref = result.ok_or_else(|| {
-            warn!(target: "supervisor_storage", %safety_level, "No head reference found");
-            StorageError::EntryNotFound("no head reference found".to_string())
-        })?;
+        let block_ref = result.ok_or_else(|| StorageError::FutureData)?;
         Ok(block_ref.into())
     }
 }
 
 impl<Tx> SafetyHeadRefProvider<'_, Tx>
 where
-    Tx: DbTxMut,
+    Tx: DbTxMut + DbTx,
 {
+    /// Updates the safety head reference with the provided block info.
+    /// If the block info's number is less than the current head reference's number,
+    /// it will not update the head reference and will log a warning.
     pub(crate) fn update_safety_head_ref(
         &self,
         safety_level: SafetyLevel,
-        block_info: &BlockInfo,
+        incoming_head_ref: &BlockInfo,
     ) -> Result<(), StorageError> {
-        self.tx.put::<SafetyHeadRefs>(safety_level.into(), (*block_info).into()).inspect_err(
-            |err| {
+        // Ensure the block_info.number is greater than the stored head reference
+        // If the head reference is not set, this check will be skipped.
+        if let Ok(current_head_ref) = self.get_safety_head_ref(safety_level) {
+            if current_head_ref.number > incoming_head_ref.number {
+                warn!(
+                    target: "supervisor_storage",
+                    %current_head_ref,
+                    %incoming_head_ref,
+                    %safety_level,
+                    "Attempting to update head reference with a block that has a lower number than the current head reference",
+                );
+                return Ok(());
+            }
+        }
+
+        self.tx
+            .put::<SafetyHeadRefs>(safety_level.into(), (*incoming_head_ref).into())
+            .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
+                    %incoming_head_ref,
                     %safety_level,
                     %err,
                     "Failed to store head reference"
                 )
-            },
-        )?;
+            })?;
         Ok(())
     }
 }

@@ -152,15 +152,6 @@ pub const BASE_MAINNET_BASE_FEE_CONFIG: BaseFeeConfig = BaseFeeConfig {
 };
 
 /// Optimism Base Fee Config.
-///
-/// ## Compatibility note:
-/// We are automatically serializing/deserializing the fields of this struct using the
-/// `kona_serde::quantity` format. This is to ensure we can properly parse the superchain [registry](https://github.com/op-rs/kona/tree/main/crates/protocol/registry) entries.
-///
-/// This causes serialization/deserialization incompatibilities between the `RollupConfig` format of
-/// the `op-node` and `kona-node`. In the `op-node`, these fields are serialized/deserialized as
-/// simple `u64`s which may cause RPC response parsing errors for the `optimism_rollupConfig`
-/// endpoint.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -170,21 +161,18 @@ pub struct BaseFeeConfig {
         feature = "serde",
         serde(rename = "eip1559Elasticity", alias = "eip1559_elasticity")
     )]
-    #[cfg_attr(feature = "serde", serde(with = "kona_serde::quantity"))]
     pub eip1559_elasticity: u64,
     /// EIP 1559 Denominator
     #[cfg_attr(
         feature = "serde",
         serde(rename = "eip1559Denominator", alias = "eip1559_denominator")
     )]
-    #[cfg_attr(feature = "serde", serde(with = "kona_serde::quantity"))]
     pub eip1559_denominator: u64,
     /// EIP 1559 Denominator for the Canyon hardfork
     #[cfg_attr(
         feature = "serde",
         serde(rename = "eip1559DenominatorCanyon", alias = "eip1559_denominator_canyon")
     )]
-    #[cfg_attr(feature = "serde", serde(with = "kona_serde::quantity"))]
     pub eip1559_denominator_canyon: u64,
 }
 
@@ -250,31 +238,15 @@ mod tests {
         let raw_str = serde_json::to_string(&config).unwrap();
         assert_eq!(
             raw_str,
-            r#"{"eip1559Elasticity":"0x6","eip1559Denominator":"0x32","eip1559DenominatorCanyon":"0xfa"}"#
+            r#"{"eip1559Elasticity":6,"eip1559Denominator":50,"eip1559DenominatorCanyon":250}"#
         );
     }
 
     #[test]
     #[cfg(feature = "serde")]
-    fn test_base_fee_config_serde_strs() {
-        let raw_str: &'static str = r#"{"eip1559Elasticity":"6","eip1559Denominator":"50","eip1559DenominatorCanyon":"250"}"#;
-        let config: BaseFeeConfig = serde_json::from_str(raw_str).unwrap();
-        assert_eq!(config, OP_MAINNET_BASE_FEE_CONFIG);
-    }
-
-    #[test]
-    #[cfg(feature = "serde")]
-    fn test_base_fee_config_serde_raw_number() {
+    fn test_base_fee_config_deser() {
         let raw_str: &'static str =
             r#"{"eip1559Elasticity":6,"eip1559Denominator":50,"eip1559DenominatorCanyon":250}"#;
-        let config: BaseFeeConfig = serde_json::from_str(raw_str).unwrap();
-        assert_eq!(config, OP_MAINNET_BASE_FEE_CONFIG);
-    }
-
-    #[test]
-    #[cfg(feature = "serde")]
-    fn test_base_fee_config_serde_hex() {
-        let raw_str: &'static str = r#"{"eip1559Elasticity":"0x6","eip1559Denominator":"0x32","eip1559DenominatorCanyon":"0xfa"}"#;
         let config: BaseFeeConfig = serde_json::from_str(raw_str).unwrap();
         assert_eq!(config, OP_MAINNET_BASE_FEE_CONFIG);
     }

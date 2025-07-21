@@ -5,12 +5,12 @@ use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId, map::HashMap};
 use async_trait::async_trait;
 use jsonrpsee::{core::RpcResult, types::ErrorObject};
-use kona_interop::{
-    DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel, SuperRootOutput,
-};
+use kona_interop::{DependencySet, DerivedIdPair, ExecutingDescriptor, SafetyLevel};
 use kona_protocol::BlockInfo;
-use kona_supervisor_rpc::{SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus};
-use kona_supervisor_types::SuperHead;
+use kona_supervisor_rpc::{
+    SuperRootOutputRpc, SupervisorApiServer, SupervisorChainSyncStatus, SupervisorSyncStatus,
+};
+use kona_supervisor_types::{HexStringU64, SuperHead};
 use std::sync::Arc;
 use tracing::{trace, warn};
 
@@ -39,9 +39,10 @@ where
 {
     async fn cross_derived_to_source(
         &self,
-        chain_id: ChainId,
+        chain_id_hex: HexStringU64,
         derived: BlockNumHash,
     ) -> RpcResult<BlockInfo> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "cross_derived_to_source",
             async {
@@ -70,7 +71,8 @@ where
         )
     }
 
-    async fn local_unsafe(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
+    async fn local_unsafe(&self, chain_id_hex: HexStringU64) -> RpcResult<BlockNumHash> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "local_unsafe",
             async {
@@ -99,7 +101,8 @@ where
         )
     }
 
-    async fn cross_safe(&self, chain_id: ChainId) -> RpcResult<DerivedIdPair> {
+    async fn cross_safe(&self, chain_id_hex: HexStringU64) -> RpcResult<DerivedIdPair> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "cross_safe",
             async {
@@ -117,7 +120,8 @@ where
         )
     }
 
-    async fn finalized(&self, chain_id: ChainId) -> RpcResult<BlockNumHash> {
+    async fn finalized(&self, chain_id_hex: HexStringU64) -> RpcResult<BlockNumHash> {
+        let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
             "finalized",
             async {
@@ -143,22 +147,27 @@ where
         )
     }
 
-    async fn super_root_at_timestamp(&self, timestamp: u64) -> RpcResult<SuperRootOutput> {
+    async fn super_root_at_timestamp(
+        &self,
+        timestamp_hex: HexStringU64,
+    ) -> RpcResult<SuperRootOutputRpc> {
         crate::observe_rpc_call!(
             "super_root_at_timestamp",
             async {
-            trace!(target: "supervisor_rpc",
-                %timestamp,
-                "Received super_root_at_timestamp request"
-            );
+                let timestamp = u64::from(timestamp_hex);
+                trace!(target: "supervisor_rpc",
+                    %timestamp,
+                    "Received super_root_at_timestamp request"
+                );
 
-            self.supervisor.super_root_at_timestamp(timestamp)
-                .await
-                .map_err(|err| {
-                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
-                    ErrorObject::from(err)
-                })
-        }.await)
+                self.supervisor.super_root_at_timestamp(timestamp)
+                    .await
+                    .map_err(|err| {
+                        warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
+                        ErrorObject::from(err)
+                    })
+            }.await
+        )
     }
 
     async fn check_access_list(
@@ -171,19 +180,20 @@ where
         crate::observe_rpc_call!(
             "check_access_list", 
             async {
-            trace!(target: "supervisor_rpc", 
-                num_inbox_entries = inbox_entries.len(),
-                ?min_safety,
-                ?executing_descriptor,
-                "Received check_access_list request",
-            );
-            self.supervisor
-                .check_access_list(inbox_entries, min_safety, executing_descriptor)
-                .map_err(|err| {
-                    warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
-                    ErrorObject::from(err)
-                })
-        }.await)
+                trace!(target: "supervisor_rpc", 
+                    num_inbox_entries = inbox_entries.len(),
+                    ?min_safety,
+                    ?executing_descriptor,
+                    "Received check_access_list request",
+                );
+                self.supervisor
+                    .check_access_list(inbox_entries, min_safety, executing_descriptor)
+                    .map_err(|err| {
+                        warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
+                        ErrorObject::from(err)
+                    })
+            }.await
+        )
     }
 
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus> {
@@ -220,6 +230,12 @@ where
                     //
                     // todo: add to spec
                     let SuperHead { l1_source, cross_safe, finalized, .. } = &head;
+
+                    let default_block = BlockInfo::default();
+                    let l1_source = l1_source.as_ref().unwrap_or(&default_block);
+                    let cross_safe = cross_safe.as_ref().unwrap_or(&default_block);
+                    let finalized = finalized.as_ref().unwrap_or(&default_block);
+
                     if l1_source.number < min_synced_l1.number {
                         min_synced_l1 = *l1_source;
                     }
@@ -357,7 +373,7 @@ mod tests {
         async fn super_root_at_timestamp(
             &self,
             _timestamp: u64,
-        ) -> Result<SuperRootOutput, SupervisorError> {
+        ) -> Result<SuperRootOutputRpc, SupervisorError> {
             unimplemented!()
         }
     }
@@ -390,9 +406,9 @@ mod tests {
 
         let block_info = BlockInfo { number: 42, ..Default::default() };
         let super_head = SuperHead {
-            l1_source: block_info,
-            cross_safe: BlockInfo { timestamp: 100, ..Default::default() },
-            finalized: BlockInfo { timestamp: 50, ..Default::default() },
+            l1_source: Some(block_info),
+            cross_safe: Some(BlockInfo { timestamp: 100, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 50, ..Default::default() }),
             ..Default::default()
         };
 
@@ -425,9 +441,9 @@ mod tests {
         // Only chain_id_1 has a SuperHead, chain_id_2 is missing
         let block_info = BlockInfo { number: 42, ..Default::default() };
         let super_head = SuperHead {
-            l1_source: block_info,
-            cross_safe: BlockInfo { timestamp: 100, ..Default::default() },
-            finalized: BlockInfo { timestamp: 50, ..Default::default() },
+            l1_source: Some(block_info),
+            cross_safe: Some(BlockInfo { timestamp: 100, ..Default::default() }),
+            finalized: Some(BlockInfo { timestamp: 50, ..Default::default() }),
             ..Default::default()
         };
 

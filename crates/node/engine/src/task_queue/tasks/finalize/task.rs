@@ -1,11 +1,12 @@
 //! A task for finalizing an L2 block.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskError, EngineTaskExt, FinalizeTaskError, ForkchoiceTask,
-    Metrics,
+    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, ForkchoiceTask, Metrics,
+    state::EngineSyncStateUpdate,
 };
 use alloy_provider::Provider;
 use async_trait::async_trait;
+use kona_genesis::RollupConfig;
 use kona_protocol::L2BlockInfo;
 use std::{sync::Arc, time::Instant};
 
@@ -15,23 +16,29 @@ use std::{sync::Arc, time::Instant};
 pub struct FinalizeTask {
     /// The engine client.
     pub client: Arc<EngineClient>,
+    /// The rollup config.
+    pub cfg: Arc<RollupConfig>,
     /// The number of the L2 block to finalize.
     pub block_number: u64,
 }
 
 impl FinalizeTask {
     /// Creates a new [`ForkchoiceTask`].
-    pub const fn new(client: Arc<EngineClient>, block_number: u64) -> Self {
-        Self { client, block_number }
+    pub const fn new(client: Arc<EngineClient>, cfg: Arc<RollupConfig>, block_number: u64) -> Self {
+        Self { client, cfg, block_number }
     }
 }
 
 #[async_trait]
 impl EngineTaskExt for FinalizeTask {
-    async fn execute(&self, state: &mut EngineState) -> Result<(), EngineTaskError> {
+    type Output = ();
+
+    type Error = FinalizeTaskError;
+
+    async fn execute(&self, state: &mut EngineState) -> Result<(), FinalizeTaskError> {
         // Sanity check that the block that is being finalized is at least safe.
-        if state.safe_head().block_info.number < self.block_number {
-            return Err(FinalizeTaskError::BlockNotSafe.into());
+        if state.sync_state.safe_head().block_info.number < self.block_number {
+            return Err(FinalizeTaskError::BlockNotSafe);
         }
 
         let block_fetch_start = Instant::now();
@@ -48,12 +55,16 @@ impl EngineTaskExt for FinalizeTask {
             .map_err(FinalizeTaskError::FromBlock)?;
         let block_fetch_duration = block_fetch_start.elapsed();
 
-        // Update the finalized block in the engine state.
-        state.set_finalized_head(block_info);
-
         // Dispatch a forkchoice update.
         let fcu_start = Instant::now();
-        ForkchoiceTask::new(self.client.clone()).execute(state).await?;
+        ForkchoiceTask::new(
+            self.client.clone(),
+            self.cfg.clone(),
+            EngineSyncStateUpdate { finalized_head: Some(block_info), ..Default::default() },
+            None,
+        )
+        .execute(state)
+        .await?;
         let fcu_duration = fcu_start.elapsed();
 
         // Update metrics.

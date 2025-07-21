@@ -5,6 +5,7 @@ use crate::{ExecutorError, ExecutorResult, TrieDBProvider, util::decode_holocene
 use alloy_consensus::{BlockHeader, Header};
 use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
 use alloy_evm::{EvmEnv, EvmFactory};
+use alloy_primitives::U256;
 use kona_genesis::RollupConfig;
 use kona_mpt::TrieHinter;
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
@@ -12,6 +13,9 @@ use op_revm::OpSpecId;
 use revm::{
     context::{BlockEnv, CfgEnv},
     context_interface::block::BlobExcessGasAndPrice,
+    primitives::eip4844::{
+        BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN, BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
+    },
 };
 
 impl<P, H, Evm> StatelessL2Builder<'_, P, H, Evm>
@@ -48,23 +52,25 @@ where
         payload_attrs: &OpPayloadAttributes,
         base_fee_params: &BaseFeeParams,
     ) -> ExecutorResult<BlockEnv> {
+        let (params, fraction) = if spec_id.is_enabled_in(OpSpecId::ISTHMUS) {
+            (Some(BlobParams::prague()), BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE)
+        } else if spec_id.is_enabled_in(OpSpecId::ECOTONE) {
+            (Some(BlobParams::cancun()), BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN)
+        } else {
+            (None, 0)
+        };
+
         let blob_excess_gas_and_price = parent_header
-            .maybe_next_block_excess_blob_gas(if spec_id.is_enabled_in(OpSpecId::ISTHMUS) {
-                Some(BlobParams::prague())
-            } else if spec_id.is_enabled_in(OpSpecId::ECOTONE) {
-                Some(BlobParams::cancun())
-            } else {
-                None
-            })
+            .maybe_next_block_excess_blob_gas(params)
             .or_else(|| spec_id.is_enabled_in(OpSpecId::ECOTONE).then_some(0))
-            .map(|e| BlobExcessGasAndPrice::new(e, spec_id.is_enabled_in(OpSpecId::ISTHMUS)));
+            .map(|excess| BlobExcessGasAndPrice::new(excess, fraction));
         let next_block_base_fee =
             parent_header.next_block_base_fee(*base_fee_params).unwrap_or_default();
 
         Ok(BlockEnv {
-            number: parent_header.number + 1,
+            number: U256::from(parent_header.number + 1),
             beneficiary: payload_attrs.payload_attributes.suggested_fee_recipient,
-            timestamp: payload_attrs.payload_attributes.timestamp,
+            timestamp: U256::from(payload_attrs.payload_attributes.timestamp),
             gas_limit: payload_attrs.gas_limit.ok_or(ExecutorError::MissingGasLimit)?,
             basefee: next_block_base_fee,
             prevrandao: Some(payload_attrs.payload_attributes.prev_randao),

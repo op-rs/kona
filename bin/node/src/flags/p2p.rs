@@ -12,7 +12,8 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, GaterConfig, LocalNode};
+use kona_node_service::NetworkConfig;
+use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
@@ -209,6 +210,10 @@ pub struct P2PArgs {
     /// This is useful for discovering a wider set of peers.
     #[arg(long = "p2p.discovery.randomize", env = "KONA_NODE_P2P_DISCOVERY_RANDOMIZE")]
     pub discovery_randomize: Option<u64>,
+
+    /// An optional flag to specify the private key of the sequencer, used to sign unsafe blocks.
+    #[arg(long = "p2p.sequencer.key", env = "KONA_NODE_P2P_SEQUENCER_KEY")]
+    pub sequencer_key: Option<B256>,
 }
 
 impl Default for P2PArgs {
@@ -332,7 +337,7 @@ impl P2PArgs {
         })
     }
 
-    /// Constructs kona's P2P network [`Config`] from CLI arguments.
+    /// Constructs kona's P2P network [`NetworkConfig`] from CLI arguments.
     ///
     /// ## Parameters
     ///
@@ -344,7 +349,7 @@ impl P2PArgs {
         config: &RollupConfig,
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
-    ) -> anyhow::Result<Config> {
+    ) -> anyhow::Result<NetworkConfig> {
         // Note: the advertised address is contained in the ENR for external peers from the
         // discovery layer to use.
 
@@ -395,10 +400,14 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
-        let local_signer = self.private_key();
-        let local_signer = local_signer.map(|s| s.with_chain_id(Some(args.l2_chain_id)));
+        let local_signer = self
+            .sequencer_key
+            .as_ref()
+            .map(PrivateKeySigner::from_bytes)
+            .transpose()?
+            .map(|s| s.with_chain_id(Some(args.l2_chain_id)));
 
-        Ok(Config {
+        Ok(NetworkConfig {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address,
@@ -421,7 +430,7 @@ impl P2PArgs {
         })
     }
 
-    /// Returns the [Keypair] from the cli inputs.
+    /// Returns the [`Keypair`] from the cli inputs.
     ///
     /// If the raw private key is empty and the specified file is empty,
     /// this method will generate a new private key and write it out to the file.
@@ -528,6 +537,17 @@ mod tests {
         ]);
         let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
         assert_eq!(args.p2p.private_key, Some(key));
+    }
+
+    #[test]
+    fn test_p2p_args_sequencer_key() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.sequencer.key",
+            "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a",
+        ]);
+        let key = b256!("bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a");
+        assert_eq!(args.p2p.sequencer_key, Some(key));
     }
 
     #[test]

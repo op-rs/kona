@@ -56,11 +56,11 @@ impl NextAttributes for TestNextAttributes {
     }
 }
 
-/// An [`PollingTraversal`] using test providers and sources.
-pub type TestL1Traversal = PollingTraversal<TestChainProvider>;
+/// A [`PollingTraversal`] using test providers and sources.
+pub type TestPollingTraversal = PollingTraversal<TestChainProvider>;
 
 /// An [`L1Retrieval`] stage using test providers and sources.
-pub type TestL1Retrieval = L1Retrieval<TestDAP, TestL1Traversal>;
+pub type TestL1Retrieval = L1Retrieval<TestDAP, TestPollingTraversal>;
 
 /// A [`FrameQueue`] using test providers and sources.
 pub type TestFrameQueue = FrameQueue<TestL1Retrieval>;
@@ -92,5 +92,5 @@ pub fn new_test_pipeline() -> TestPipeline {
         .builder(TestAttributesBuilder::default())
         .chain_provider(TestChainProvider::default())
         .l2_chain_provider(TestL2ChainProvider::default())
-        .build()
+        .build_polled()
 }

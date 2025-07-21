@@ -17,7 +17,7 @@ pub trait DerivationStorageReader: Debug {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
     /// NOTE: [`LocalUnsafe`] block is not pushed to L1 yet, hence it cannot be part of derivation
-    /// storage. For reading latest L1 block in memory use [`HeadRefStorageReader::get_current_l1`].
+    /// storage.
     ///
     /// # Arguments
     /// * `derived_block_id` - The identifier (number and hash) of the derived (L2) block.
@@ -43,13 +43,14 @@ pub trait DerivationStorageReader: Debug {
         source_block_id: BlockNumHash,
     ) -> Result<BlockInfo, StorageError>;
 
-    /// Gets the latest [`DerivedRefPair`] from the storage.
+    /// Gets the latest derivation state [`DerivedRefPair`] from the storage, which includes the
+    /// latest source block and the latest derived block.
     ///
     /// # Returns
     ///
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
-    fn latest_derived_block_pair(&self) -> Result<DerivedRefPair, StorageError>;
+    fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
@@ -59,8 +60,29 @@ pub trait DerivationStorageReader: Debug {
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
 pub trait DerivationStorageWriter: Debug {
+    /// Initializes the derivation storage with a given [`DerivedRefPair`].
+    /// This method is typically called once to set up the storage with the initial pair.
+    ///
+    /// # Arguments
+    /// * `incoming_pair` - The derived block pair to initialize the storage with.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the storage was successfully initialized.
+    /// * `Err(StorageError)` if there is an issue initializing the storage.
+    fn initialise_derivation_storage(
+        &self,
+        incoming_pair: DerivedRefPair,
+    ) -> Result<(), StorageError>;
+
     /// Saves a [`DerivedRefPair`] to the storage.
-    /// This method is append only and does not overwrite existing pairs.
+    ///
+    /// This method is **append-only**: it does not overwrite existing pairs.
+    /// - If a pair with the same block number already exists and is identical to the incoming pair,
+    ///   the request is silently ignored (idempotent).
+    /// - If a pair with the same block number exists but differs from the incoming pair, an error
+    ///   is returned to indicate a data inconsistency.
+    /// - If the pair is new and consistent, it is appended to the storage.
+    ///
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
     ///
     /// # Arguments
@@ -69,7 +91,27 @@ pub trait DerivationStorageWriter: Debug {
     /// # Returns
     /// * `Ok(())` if the pair was successfully saved.
     /// * `Err(StorageError)` if there is an issue saving the pair.
-    fn save_derived_block_pair(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
+    fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
+
+    /// Saves the latest incoming source [`BlockInfo`] to the storage.
+    ///
+    /// This method is **append-only**: it does not overwrite existing source blocks.
+    /// - If a source block with the same number already exists and is identical to the incoming
+    ///   block, the request is silently ignored (idempotent).
+    /// - If a source block with the same number exists but differs from the incoming block, an
+    ///   error is returned to indicate a data inconsistency.
+    /// - If the block is new and consistent, it is appended to the storage.
+    ///
+    /// Ensures that the latest stored source block is the parent of the incoming block before
+    /// saving.
+    ///
+    /// # Arguments
+    /// * `source` - The source block to save.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the source block was successfully saved.
+    /// * `Err(StorageError)` if there is an issue saving the source block.
+    fn save_source_block(&self, source: BlockInfo) -> Result<(), StorageError>;
 }
 
 /// Combines both reading and writing capabilities for derivation storage.
@@ -127,6 +169,17 @@ pub trait LogStorageReader: Debug {
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
 pub trait LogStorageWriter: Send + Sync + Debug {
+    /// Initializes the log storage with a given [`BlockInfo`].
+    /// This method is typically called once to set up the storage with the initial block.
+    ///
+    /// # Arguments
+    /// * `block` - The [`BlockInfo`] to initialize the storage with.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the storage was successfully initialized.
+    /// * `Err(StorageError)` if there is an issue initializing the storage.
+    fn initialise_log_storage(&self, block: BlockInfo) -> Result<(), StorageError>;
+
     /// Stores [`BlockInfo`] and [`Log`]s in the storage.
     /// This method is append-only and does not overwrite existing logs.
     /// Ensures that the latest stored block is the parent of the incoming block before saving.
@@ -157,13 +210,6 @@ impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
 pub trait HeadRefStorageReader: Debug {
-    /// Retrieves the current L1 block reference from the storage.
-    ///
-    /// # Returns
-    /// * `Ok(BlockInfo)` containing the current L1 block reference.
-    /// * `Err(StorageError)` if there is an issue retrieving the reference.
-    fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
-
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -190,16 +236,6 @@ pub trait HeadRefStorageReader: Debug {
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
 pub trait HeadRefStorageWriter: Debug {
-    /// Updates the current L1 block reference in the storage.
-    ///
-    /// # Arguments
-    /// * `block` - The new [`BlockInfo`] to set as the current L1 block reference.
-    ///
-    /// # Returns
-    /// * `Ok(())` if the reference was successfully updated.
-    /// * `Err(StorageError)` if there is an issue updating the reference.
-    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
-
     /// Updates the finalized head reference using a finalized source(l1) block.
     ///
     /// # Arguments
@@ -213,20 +249,29 @@ pub trait HeadRefStorageWriter: Debug {
         finalized_source_block: BlockInfo,
     ) -> Result<BlockInfo, StorageError>;
 
-    /// Updates the safety head reference for a given [`SafetyLevel`].
+    /// Updates the current [`CrossUnsafe`](SafetyLevel::CrossUnsafe) head reference in storage.
     ///
+    /// Ensures the provided block still exists in log storage and was not removed due to a re-org.
+    /// If the stored block's hash does not match the provided block, the update is aborted.
     /// # Arguments
-    /// * `safety_level` - The safety level for which to update the head reference.
-    /// * `block` - The new [`BlockInfo`] to set as the safety head reference.
+    /// * `block` - The [`BlockInfo`] to set as the head reference
     ///
     /// # Returns
     /// * `Ok(())` if the reference was successfully updated.
     /// * `Err(StorageError)` if there is an issue updating the reference.
-    fn update_safety_head_ref(
-        &self,
-        safety_level: SafetyLevel,
-        block: &BlockInfo,
-    ) -> Result<(), StorageError>;
+    fn update_current_cross_unsafe(&self, block: &BlockInfo) -> Result<(), StorageError>;
+
+    /// Updates the current [`CrossSafe`](SafetyLevel::CrossSafe) head reference in storage and
+    /// returns the corresponding derived pair.
+    ///
+    /// Ensures the provided block still exists in derivation storage and was not removed due to a
+    /// re-org. # Arguments
+    /// * `block` - The [`BlockInfo`] to set as the head reference
+    ///
+    /// # Returns
+    /// * `Ok(DerivedRefPair)` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_current_cross_safe(&self, block: &BlockInfo) -> Result<DerivedRefPair, StorageError>;
 }
 
 /// Combines both reading and writing capabilities for safety head ref storage.
@@ -306,20 +351,37 @@ pub trait CrossChainSafetyProvider {
         level: SafetyLevel,
     ) -> Result<BlockInfo, StorageError>;
 
-    /// Updates the safety head reference for a given [`SafetyLevel`].
+    /// Updates the current [`CrossUnsafe`](SafetyLevel::CrossUnsafe) head reference in storage.
     ///
+    /// Ensures the provided block still exists in log storage and was not removed due to a re-org.
+    /// If the stored block's hash does not match the provided block, the update is aborted.
     /// # Arguments
     /// * `chain_id` - The [`ChainId`] of the target chain.
-    /// * `safety_level` - The safety level for which to update the head reference.
-    /// * `block` - The new [`BlockInfo`] to set as the safety head reference.
+    /// * `block` - The [`BlockInfo`] to set as the head reference
     ///
     /// # Returns
     /// * `Ok(())` if the reference was successfully updated.
     /// * `Err(StorageError)` if there is an issue updating the reference.
-    fn update_safety_head_ref(
+    fn update_current_cross_unsafe(
         &self,
         chain_id: ChainId,
-        safety_level: SafetyLevel,
         block: &BlockInfo,
     ) -> Result<(), StorageError>;
+
+    /// Updates the current [`CrossSafe`](SafetyLevel::CrossSafe) head reference in storage and
+    /// returns the corresponding derived pair.
+    ///
+    /// Ensures the provided block still exists in derivation storage and was not removed due to a
+    /// re-org. # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block` - The [`BlockInfo`] to set as the head reference
+    ///
+    /// # Returns
+    /// * `Ok(DerivedRefPair)` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_current_cross_safe(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+    ) -> Result<DerivedRefPair, StorageError>;
 }

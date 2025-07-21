@@ -1,22 +1,17 @@
 //! The core [`RollupNodeService`] trait
-
-use super::NodeMode;
 use crate::{
-    DerivationActor, EngineActor, EngineLauncher, NetworkActor, NodeActor, RpcActor,
-    RuntimeLauncher, SupervisorExt, service::spawn_and_wait,
+    AttributesBuilderConfig, DerivationContext, EngineContext, L1WatcherRpcContext, NetworkContext,
+    NodeActor, NodeMode, RpcContext, RuntimeContext, SequencerContext, SequencerInboundData,
+    SupervisorActorContext, SupervisorExt,
+    actors::{
+        DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
+        NetworkInboundData, PipelineBuilder, SupervisorInboundData,
+    },
+    service::spawn_and_wait,
 };
-use alloy_primitives::Address;
 use async_trait::async_trait;
-use kona_derive::{Pipeline, SignalReceiver};
-use kona_genesis::RollupConfig;
-use kona_p2p::Network;
-use kona_protocol::{BlockInfo, L2BlockInfo};
-use kona_rpc::{
-    L1WatcherQueries, NetworkRpc, OpP2PApiServer, RollupNodeApiServer, RollupRpc, RpcLauncher,
-    RpcLauncherError, WsRPC, WsServer,
-};
+use kona_derive::{AttributesBuilder, Pipeline, SignalReceiver};
 use std::fmt::Display;
-use tokio::sync::{mpsc, oneshot, watch};
 use tokio_util::sync::CancellationToken;
 
 /// The [`RollupNodeService`] trait defines the common interface for running a rollup node.
@@ -49,102 +44,102 @@ use tokio_util::sync::CancellationToken;
 #[async_trait]
 pub trait RollupNodeService {
     /// The type of [`NodeActor`] to use for the DA watcher service.
-    type DataAvailabilityWatcher: NodeActor<Error: Display> + Send + Sync + 'static;
+    type DataAvailabilityWatcher: NodeActor<
+            Error: Display,
+            OutboundData = L1WatcherRpcContext,
+            InboundData = L1WatcherRpcInboundChannels,
+        >;
+
     /// The type of derivation pipeline to use for the service.
     type DerivationPipeline: Pipeline + SignalReceiver + Send + Sync + 'static;
+
+    /// The type of derivation actor to use for the service.
+    type DerivationActor: NodeActor<
+            Error: Display,
+            Builder: PipelineBuilder<Pipeline = Self::DerivationPipeline>,
+            OutboundData = DerivationContext,
+            InboundData = DerivationInboundChannels,
+        >;
+
+    /// The type of engine actor to use for the service.
+    type EngineActor: NodeActor<Error: Display, OutboundData = EngineContext, InboundData = EngineInboundData>;
+
+    /// The type of network actor to use for the service.
+    type NetworkActor: NodeActor<Error: Display, OutboundData = NetworkContext, InboundData = NetworkInboundData>;
+
     /// The supervisor ext provider.
     type SupervisorExt: SupervisorExt + Send + Sync + 'static;
-    /// The type of error for the service's entrypoint.
-    type Error: From<RpcLauncherError>
-        + From<jsonrpsee::server::RegisterMethodError>
-        + std::fmt::Debug;
 
-    /// Returns the [`NodeMode`] of the service.
+    /// The type of supervisor actor to use for the service.
+    type SupervisorActor: NodeActor<
+            Error: Display,
+            OutboundData = SupervisorActorContext,
+            InboundData = SupervisorInboundData,
+        >;
+
+    /// The type of runtime actor to use for the service.
+    type RuntimeActor: NodeActor<Error: Display, OutboundData = RuntimeContext, InboundData = ()>;
+
+    /// The type of attributes builder to use for the sequener.
+    type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
+
+    /// The type of sequencer actor to use for the service.
+    type SequencerActor: NodeActor<
+            Error: Display,
+            OutboundData = SequencerContext,
+            Builder: AttributesBuilderConfig<AB = Self::AttributesBuilder>,
+            InboundData = SequencerInboundData,
+        >;
+
+    /// The type of rpc actor to use for the service.
+    type RpcActor: NodeActor<Error: Display, OutboundData = RpcContext, InboundData = ()>;
+
+    /// The mode of operation for the node.
     fn mode(&self) -> NodeMode;
 
-    /// Returns a reference to the rollup node's [`RollupConfig`].
-    fn config(&self) -> &RollupConfig;
+    /// Returns a DA watcher builder for the node.
+    fn da_watcher_builder(&self) -> <Self::DataAvailabilityWatcher as NodeActor>::Builder;
 
-    /// Creates a new [`NodeActor`] instance that watches the data availability layer. The
-    /// `cancellation` token is used to gracefully shut down the actor.
-    fn new_da_watcher(
-        &self,
-        head_updates: watch::Sender<Option<BlockInfo>>,
-        finalized_updates: watch::Sender<Option<BlockInfo>>,
-        block_signer_tx: mpsc::Sender<Address>,
-        cancellation: CancellationToken,
-        l1_watcher_inbound_queries: Option<mpsc::Receiver<L1WatcherQueries>>,
-    ) -> Self::DataAvailabilityWatcher;
+    /// Returns a derivation builder for the node.
+    fn derivation_builder(&self) -> <Self::DerivationActor as NodeActor>::Builder;
 
-    /// Creates a new instance of the [`Pipeline`] and initializes it. Returns the starting L2
-    /// forkchoice state and the initialized derivation pipeline.
-    async fn init_derivation(&self) -> Result<Self::DerivationPipeline, Self::Error>;
+    /// Creates a network builder for the node.
+    fn network_builder(&self) -> <Self::NetworkActor as NodeActor>::Builder;
 
-    /// Creates a new instance of the [`Network`].
-    async fn init_network(&self) -> Result<(Network, NetworkRpc), Self::Error>;
+    /// Returns a runtime builder for the node.
+    fn runtime_builder(&self) -> Option<<Self::RuntimeActor as NodeActor>::Builder>;
+
+    /// Returns an engine builder for the node.
+    fn engine_builder(&self) -> <Self::EngineActor as NodeActor>::Builder;
+
+    /// Returns an rpc builder for the node.
+    fn rpc_builder(&self) -> Option<<Self::RpcActor as NodeActor>::Builder>;
+
+    /// Returns the sequencer builder for the node.
+    fn sequencer_builder(&self) -> <Self::SequencerActor as NodeActor>::Builder;
 
     /// Creates a new [`Self::SupervisorExt`] to be used in the supervisor rpc actor.
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
 
-    /// Returns the [`RuntimeLauncher`] for the node.
-    fn runtime(&self) -> RuntimeLauncher;
-
-    /// Returns the [`EngineLauncher`]
-    fn engine(&self) -> EngineLauncher;
-
-    /// Returns the [`RpcLauncher`] for the node.
-    fn rpc(&self) -> RpcLauncher;
-
     /// Starts the rollup node service.
-    async fn start(&self) -> Result<(), Self::Error> {
-        info!(
-            target: "rollup_node",
-            mode = %self.mode(),
-            chain_id = self.config().l2_chain_id,
-            "Starting rollup node services"
-        );
-        for hf in self.config().hardforks.to_string().lines() {
-            info!(target: "rollup_node", "{hf}");
-        }
-
+    async fn start(&self) -> Result<(), String> {
         // Create a global cancellation token for graceful shutdown of tasks.
         let cancellation = CancellationToken::new();
 
-        // Create channels for communication between actors.
-        let (sync_complete_tx, sync_complete_rx) = oneshot::channel();
-        let (derived_payload_tx, derived_payload_rx) = mpsc::channel(16);
-        let (runtime_config_tx, runtime_config_rx) = mpsc::channel(16);
-        let (derivation_signal_tx, derivation_signal_rx) = mpsc::channel(16);
-        let (reset_request_tx, reset_request_rx) = mpsc::channel(16);
-        let (block_signer_tx, block_signer_rx) = mpsc::channel(16);
-        let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
-        let (l1_watcher_queries_sender, l1_watcher_queries_recv) = mpsc::channel(1024);
-        let (engine_query_sender, engine_query_recv) = mpsc::channel(1024);
-        let (head_updates_tx, head_updates_rx) = watch::channel(None);
-        let (finalized_updates_tx, finalized_updates_rx) = watch::channel(None);
-        let (engine_l2_safe_tx, engine_l2_safe_rx) = watch::channel(L2BlockInfo::default());
-
         // Create the DA watcher actor.
-        let da_watcher = self.new_da_watcher(
-            head_updates_tx,
-            finalized_updates_tx,
-            block_signer_tx,
-            cancellation.clone(),
-            Some(l1_watcher_queries_recv),
-        );
+        let (L1WatcherRpcInboundChannels { inbound_queries: da_watcher_rpc }, da_watcher) =
+            Self::DataAvailabilityWatcher::build(self.da_watcher_builder());
 
         // Create the derivation actor.
-        let derivation_pipeline = self.init_derivation().await?;
-        let derivation = DerivationActor::new(
-            derivation_pipeline,
-            engine_l2_safe_rx,
-            sync_complete_rx,
-            derivation_signal_rx,
-            head_updates_rx,
-            derived_payload_tx,
-            reset_request_tx,
-            cancellation.clone(),
-        );
+        let (
+            DerivationInboundChannels {
+                derivation_signal_tx,
+                l1_head_updates_tx,
+                engine_l2_safe_head_tx,
+                el_sync_complete_tx,
+            },
+            derivation,
+        ) = Self::DerivationActor::build(self.derivation_builder());
 
         // TODO: get the supervisor ext.
         // TODO: use the supervisor ext to create the supervisor actor.
@@ -153,69 +148,102 @@ pub trait RollupNodeService {
         //
         // )
 
-        // Create the runtime configuration actor.
-        let runtime = self
-            .runtime()
-            .with_tx(runtime_config_tx)
-            .with_cancellation(cancellation.clone())
-            .launch();
+        // Create the runtime actor.
+        let (_, runtime) = self.runtime_builder().map(Self::RuntimeActor::build).unzip();
 
         // Create the engine actor.
-        let engine_launcher = self.engine();
-        let client = engine_launcher.client();
-        let engine_task_queue = engine_launcher.launch();
-        let engine = EngineActor::new(
-            std::sync::Arc::new(self.config().clone()),
-            client,
-            engine_task_queue,
-            engine_l2_safe_tx,
-            sync_complete_tx,
-            derivation_signal_tx,
-            runtime_config_rx,
-            derived_payload_rx,
-            unsafe_block_rx,
-            reset_request_rx,
-            finalized_updates_rx,
-            Some(engine_query_recv),
-            cancellation.clone(),
-        );
+        let (
+            EngineInboundData {
+                build_request_tx,
+                attributes_tx,
+                unsafe_block_tx,
+                reset_request_tx,
+                inbound_queries_tx: engine_rpc,
+                runtime_config_tx,
+                finalized_l1_block_tx,
+            },
+            engine,
+        ) = Self::EngineActor::build(self.engine_builder());
 
         // Create the p2p actor.
-        let (p2p_rpc_module, network) = {
-            let (driver, module) = self.init_network().await?;
-            let actor =
-                NetworkActor::new(driver, unsafe_block_tx, block_signer_rx, cancellation.clone());
-
-            (module, actor)
-        };
+        let (
+            NetworkInboundData {
+                signer,
+                p2p_rpc: network_rpc,
+                gossip_payload_tx,
+                admin_rpc: net_admin_rpc,
+            },
+            network,
+        ) = Self::NetworkActor::build(self.network_builder());
 
         // Create the RPC server actor.
-        let rpc = {
-            let mut rpc_launcher = self.rpc().with_healthz()?;
+        let (_, rpc) = self.rpc_builder().map(Self::RpcActor::build).unzip();
 
-            rpc_launcher.merge(p2p_rpc_module.into_rpc())?;
-
-            let rollup_rpc = RollupRpc::new(engine_query_sender.clone(), l1_watcher_queries_sender);
-            rpc_launcher.merge(rollup_rpc.into_rpc())?;
-
-            if rpc_launcher.ws_enabled() {
-                rpc_launcher
-                    .merge(WsRPC::new(engine_query_sender).into_rpc())
-                    .map_err(Self::Error::from)?;
-            }
-
-            RpcActor::new(rpc_launcher, cancellation.clone())
-        };
+        let (sequencer_inbound_data, sequencer) = self
+            .mode()
+            .is_sequencer()
+            .then_some(Self::SequencerActor::build(self.sequencer_builder()))
+            .unzip();
 
         spawn_and_wait!(
             cancellation,
             actors = [
-                runtime,
-                Some(network),
-                Some(da_watcher),
-                Some(derivation),
-                Some(engine),
-                Some(rpc)
+                runtime.map(|r| (
+                    r,
+                    RuntimeContext { cancellation: cancellation.clone(), runtime_config_tx }
+                )),
+                rpc.map(|r| (
+                    r,
+                    RpcContext {
+                        cancellation: cancellation.clone(),
+                        p2p_network: network_rpc,
+                        network_admin: net_admin_rpc,
+                        sequencer_admin: sequencer_inbound_data.as_ref().map(|s| s.admin_query_tx.clone()),
+                        l1_watcher_queries: da_watcher_rpc,
+                        engine_query: engine_rpc,
+                    }
+                )),
+                sequencer.map(|s| (
+                    s,
+                    SequencerContext {
+                        reset_request_tx: reset_request_tx.clone(),
+                        build_request_tx: build_request_tx.expect(
+                            "`build_request_tx` not set while in sequencer mode. This should never happen.",
+                        ),
+                        gossip_payload_tx,
+                        cancellation: cancellation.clone(),
+                    })
+                ),
+                Some((
+                    network,
+                    NetworkContext { blocks: unsafe_block_tx, cancellation: cancellation.clone() }
+                )),
+                Some((
+                    da_watcher,
+                    L1WatcherRpcContext {
+                        latest_head: l1_head_updates_tx,
+                        latest_finalized: finalized_l1_block_tx,
+                        block_signer_sender: signer,
+                        cancellation: cancellation.clone(),
+                    })
+                ),
+                Some((
+                    derivation,
+                    DerivationContext {
+                        reset_request_tx: reset_request_tx.clone(),
+                        derived_attributes_tx: attributes_tx,
+                        cancellation: cancellation.clone(),
+                })),
+                Some((engine,
+                    EngineContext {
+                        engine_l2_safe_head_tx,
+                        engine_unsafe_head_tx: sequencer_inbound_data
+                            .map(|s| s.unsafe_head_tx),
+                        sync_complete_tx: el_sync_complete_tx,
+                        derivation_signal_tx,
+                        cancellation: cancellation.clone(),
+                    })
+                ),
             ]
         );
         Ok(())

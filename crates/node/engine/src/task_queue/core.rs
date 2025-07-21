@@ -1,7 +1,10 @@
 //! The [`Engine`] is a task queue that receives and executes [`EngineTask`]s.
 
-use super::{EngineTaskError, EngineTaskExt};
-use crate::{EngineClient, EngineState, EngineTask, Metrics};
+use super::EngineTaskExt;
+use crate::{
+    EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
+    EngineTaskErrorSeverity, ForkchoiceTask, Metrics, task_queue::EngineTaskErrors,
+};
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
 use kona_genesis::{RollupConfig, SystemConfig};
@@ -65,19 +68,36 @@ impl Engine {
     pub async fn reset(
         &mut self,
         client: Arc<EngineClient>,
-        config: &RollupConfig,
+        config: Arc<RollupConfig>,
     ) -> Result<(L2BlockInfo, BlockInfo, SystemConfig), EngineResetError> {
         // Clear any outstanding tasks to prepare for the reset.
         self.clear();
 
         let start =
-            find_starting_forkchoice(config, client.l1_provider(), client.l2_provider()).await?;
+            find_starting_forkchoice(&config, client.l1_provider(), client.l2_provider()).await?;
 
-        self.state.set_unsafe_head(start.un_safe);
-        self.state.set_cross_unsafe_head(start.un_safe);
-        self.state.set_local_safe_head(start.safe);
-        self.state.set_safe_head(start.safe);
-        self.state.set_finalized_head(start.finalized);
+        if let Err(err) = ForkchoiceTask::new(
+            client.clone(),
+            config.clone(),
+            EngineSyncStateUpdate {
+                unsafe_head: Some(start.un_safe),
+                cross_unsafe_head: Some(start.un_safe),
+                local_safe_head: Some(start.safe),
+                safe_head: Some(start.safe),
+                finalized_head: Some(start.finalized),
+            },
+            None,
+        )
+        .execute(&mut self.state)
+        .await
+        {
+            // Ignore temporary errors.
+            if matches!(err.severity(), EngineTaskErrorSeverity::Temporary) {
+                debug!(target: "engine", "Forkchoice update failed temporarily during reset: {}", err);
+            } else {
+                return Err(EngineTaskErrors::Forkchoice(err).into());
+            }
+        }
 
         // Find the new safe head's L1 origin and SystemConfig.
         let origin_block = start
@@ -102,7 +122,7 @@ impl Engine {
             .ok_or(SyncStartError::BlockNotFound(origin_block.into()))?
             .into_consensus()
             .map_transactions(|t| <Transaction<OpTxEnvelope> as Clone>::clone(&t).into_inner());
-        let system_config = to_system_config(&l2_safe_block, config)?;
+        let system_config = to_system_config(&l2_safe_block, &config)?;
 
         kona_macros::inc!(counter, Metrics::ENGINE_RESET_COUNT);
 
@@ -117,7 +137,7 @@ impl Engine {
     /// Attempts to drain the queue by executing all [`EngineTask`]s in-order. If any task returns
     /// an error along the way, it is not popped from the queue (in case it must be retried) and
     /// the error is returned.
-    pub async fn drain(&mut self) -> Result<(), EngineTaskError> {
+    pub async fn drain(&mut self) -> Result<(), EngineTaskErrors> {
         // Drain tasks in order of priority, halting on errors for a retry to be attempted.
         while let Some(task) = self.tasks.peek() {
             // Execute the task
@@ -137,9 +157,9 @@ impl Engine {
 /// An error occurred while attempting to reset the [`Engine`].
 #[derive(Debug, Error)]
 pub enum EngineResetError {
-    /// An error that originated from within the engine task.
+    /// An error that originated from within an engine task.
     #[error(transparent)]
-    Task(#[from] EngineTaskError),
+    Task(#[from] EngineTaskErrors),
     /// An error occurred while traversing the L1 for the sync starting point.
     #[error(transparent)]
     SyncStart(#[from] SyncStartError),

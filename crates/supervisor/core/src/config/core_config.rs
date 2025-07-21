@@ -1,4 +1,4 @@
-use crate::syncnode::ManagedNodeConfig;
+use crate::syncnode::ClientConfig;
 use kona_interop::DependencySet;
 use std::{net::SocketAddr, path::PathBuf};
 
@@ -11,7 +11,7 @@ pub struct Config {
     pub l1_rpc: String,
 
     /// L2 consensus nodes configuration.
-    pub l2_consensus_nodes_config: Vec<ManagedNodeConfig>,
+    pub l2_consensus_nodes_config: Vec<ClientConfig>,
 
     /// Directory where the database files are stored.
     pub datadir: PathBuf,

@@ -9,6 +9,7 @@ use crate::{
     LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
+use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use kona_supervisor_metrics::{MetricsReporter, observe_metrics_for_result};
 use kona_supervisor_types::Log;
@@ -41,9 +42,8 @@ impl ChainDbFactory {
     }
 
     /// Enables metrics on the database environment.
-    pub fn with_metrics(mut self) -> Self {
+    pub const fn with_metrics(mut self) -> Self {
         self.metrics_enabled = Some(true);
-        crate::Metrics::init();
         self
     }
 
@@ -107,9 +107,7 @@ impl ChainDbFactory {
     /// * `Err(StorageError)` if the database does not exist.
     pub fn get_db(&self, chain_id: ChainId) -> Result<Arc<ChainDb>, StorageError> {
         let dbs = self.dbs.read().unwrap_or_else(|e| e.into_inner());
-        dbs.get(&chain_id)
-            .cloned()
-            .ok_or_else(|| StorageError::EntryNotFound("chain not found".to_string()))
+        dbs.get(&chain_id).cloned().ok_or_else(|| StorageError::DatabaseNotInitialised)
     }
 }
 
@@ -193,13 +191,20 @@ impl CrossChainSafetyProvider for ChainDbFactory {
         self.get_db(chain_id)?.get_safety_head_ref(level)
     }
 
-    fn update_safety_head_ref(
+    fn update_current_cross_unsafe(
         &self,
         chain_id: ChainId,
-        safety_level: SafetyLevel,
         block: &BlockInfo,
     ) -> Result<(), StorageError> {
-        self.get_db(chain_id)?.update_safety_head_ref(safety_level, block)
+        self.get_db(chain_id)?.update_current_cross_unsafe(block)
+    }
+
+    fn update_current_cross_safe(
+        &self,
+        chain_id: ChainId,
+        block: &BlockInfo,
+    ) -> Result<DerivedRefPair, StorageError> {
+        self.get_db(chain_id)?.update_current_cross_safe(block)
     }
 }
 
@@ -233,7 +238,7 @@ mod tests {
     fn test_get_db_returns_error_if_not_exists() {
         let (_tmp, factory) = temp_factory();
         let err = factory.get_db(999).unwrap_err();
-        assert!(matches!(err, StorageError::EntryNotFound(_)));
+        assert!(matches!(err, StorageError::DatabaseNotInitialised));
     }
 
     #[test]

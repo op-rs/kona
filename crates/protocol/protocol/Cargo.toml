@@ -55,7 +55,6 @@ spin = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["fmt"], optional = true }
 
 [dev-dependencies]
-kona-protocol = { workspace = true, features = ["test-utils"] }
 brotli = { workspace = true, features = ["std"] }
 spin.workspace = true
 rand = { workspace = true, features = ["std", "std_rng"] }
@@ -124,8 +123,3 @@ serde = [
 	"op-alloy-rpc-types/serde",
 	"tracing-subscriber?/serde",
 ]
-
-[package.metadata.cargo-udeps.ignore]
-# `kona-protocol` is self-referenced in dev-dependencies to always enable the `test-utils` feature in `cfg(test)`.
-# this is a false-positive.
-development = ["kona-protocol"]

@@ -4,33 +4,89 @@ on:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  kurtosis-e2e-tests-supervisor:
+  supervisor-e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    name: test
+    name: ${{ matrix.devnet-config }}-${{ matrix.test-pkg }}-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - devnet-config: simple-supervisor
+            test-pkg: sync
+          - devnet-config: simple-supervisor
+            test-pkg: message
+          - devnet-config: simple-supervisor
+            test-pkg: rpc
+          - devnet-config: preinterop-supervisor
+            test-pkg: pre_interop
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
           submodules: true
+      
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           large-packages: false
+      
       - uses: taiki-e/install-action@just
+      
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.86
+      
       - name: Setup Go 1.24.3
         uses: actions/setup-go@v5
         with:
           # Semantic version range syntax or exact version of Go
           go-version: '1.24.3'
+
+      - name: Download Go dependencies
+        run: go mod download
+        working-directory: tests
+    
       - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
-      - name: test with simple-supervisor devnet
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build kona supervisor docker image
+        uses: docker/bake-action@v6
         env:
-          DISABLE_OP_E2E_LEGACY: true
-          DEVSTACK_ORCHESTRATOR: sysext
-        # todo:: once the PR is merged, switch back to the ethpandaops/optimism-package
-        # pr: https://github.com/ethpandaops/optimism-package/pull/343
-        run: just build-devnet-and-test-e2e simple-supervisor supervisor github.com/dhyaniarun1993/optimism-package@kona-supervisor
+          BIN_TARGET: kona-supervisor
+          BUILD_PROFILE: release
+          REPO_LOCATION: local
+          PLATFORMS: linux/${{ runner.arch == 'X64' && 'amd64' || runner.arch == 'ARM64' && 'arm64' || runner.arch }}
+        with:
+          files: |
+            ./docker/docker-bake.hcl
+          load: true
+          targets: |
+            generic
+          set: |
+            *.tags=kona-supervisor:local
+            *.cache-from=type=local,src=${{ runner.temp }}/.buildx-cache
+            *.cache-to=type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+      
+      - name: deploy ${{ matrix.devnet-config }} devnet
+        run: just devnet "${{ matrix.devnet-config }}" github.com/dhyaniarun1993/optimism-package@kona-supervisor
+
+      - name: test ${{ matrix.test-pkg }} with ${{ matrix.devnet-config }} devnet
+        run: just test-e2e "${{ matrix.devnet-config }}" "/supervisor/${{ matrix.test-pkg }}" 
+
+      - # Temp fix
+        # https://github.com/docker/build-push-action/issues/252
+        # https://github.com/moby/buildkit/issues/1896
+        name: Move cache
+        run: |
+          rm -rf ${{ runner.temp }}/.buildx-cache
+          mv ${{ runner.temp }}/.buildx-cache-new ${{ runner.temp }}/.buildx-cache
+
+      - name: Save docker cache
+        uses: actions/cache/save@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: ${{ runner.temp }}/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}

@@ -42,7 +42,7 @@ where
 
 impl<'a, C, Evm> SuperchainConsolidator<'a, C, Evm>
 where
-    C: CommsClient + Send + Sync,
+    C: CommsClient + Debug + Send + Sync,
     Evm: EvmFactory<Spec = OpSpecId> + Send + Sync + Debug + Clone + 'static,
     <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {

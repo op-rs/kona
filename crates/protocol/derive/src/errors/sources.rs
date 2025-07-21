@@ -1,6 +1,6 @@
 //! Error types for sources.
 
-use super::{PipelineError, PipelineErrorKind};
+use crate::{PipelineError, PipelineErrorKind};
 use alloc::string::{String, ToString};
 use thiserror::Error;
 

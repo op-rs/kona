@@ -9,14 +9,13 @@ use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_cli::metrics_args::MetricsArgs;
-use kona_engine::EngineKind;
 use kona_genesis::RollupConfig;
-use kona_node_service::{RollupNode, RollupNodeService};
-use kona_rpc::SupervisorRpcConfig;
+use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
-use tracing::{debug, error};
+use strum::IntoEnumIterator;
+use tracing::{debug, error, info};
 use url::Url;
 
 /// The Node subcommand.
@@ -28,6 +27,20 @@ use url::Url;
 #[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
+    /// The mode to run the node in.
+    #[arg(
+        long = "mode",
+        default_value_t = NodeMode::Validator,
+        env = "KONA_NODE_MODE",
+        help = format!(
+            "The mode to run the node in. Supported modes are: {}",
+            NodeMode::iter()
+                .map(|mode| format!("\"{}\"", mode.to_string()))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    )]
+    pub node_mode: NodeMode,
     /// URL of the L1 execution client RPC API.
     #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
@@ -48,15 +61,6 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
-    /// Engine kind.
-    #[arg(
-        long,
-        visible_alias = "l2.enginekind",
-        default_value = "geth",
-        env = "KONA_NODE_L2_ENGINE_KIND",
-        help = "DEPRECATED. The kind of engine client, used to control the behavior of optimism in respect to different types of engine clients. Supported engine clients are: [\"geth\", \"reth\", \"erigon\"]."
-    )]
-    pub l2_engine_kind: EngineKind,
     /// Poll interval (in seconds) for reloading the runtime config.
     /// Provides a backup for when config events are not being picked up.
     /// Disabled if `0`.
@@ -91,10 +95,10 @@ impl Default for NodeCommand {
             l2_engine_jwt_secret: None,
             l2_config_file: None,
             l1_runtime_config_reload_interval: 600,
+            node_mode: NodeMode::Validator,
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
-            l2_engine_kind: EngineKind::Geth,
             supervisor_flags: SupervisorArgs::default(),
         }
     }
@@ -204,8 +208,6 @@ impl NodeCommand {
                 (Err(e), true) => return Err(e),
                 (_, false) => None,
             };
-        let supervisor_rpc_config =
-            supervisor_rpc_config.unwrap_or(SupervisorRpcConfig::default().disable());
 
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
@@ -214,7 +216,17 @@ impl NodeCommand {
         let runtime_interval =
             std::time::Duration::from_secs(self.l1_runtime_config_reload_interval);
 
+        info!(
+            target: "rollup_node",
+            chain_id = cfg.l2_chain_id,
+            "Starting rollup node services"
+        );
+        for hf in cfg.hardforks.to_string().lines() {
+            info!(target: "rollup_node", "{hf}");
+        }
+
         RollupNode::builder(cfg)
+            .with_mode(self.node_mode)
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
@@ -223,11 +235,17 @@ impl NodeCommand {
             .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
-            .with_supervisor_rpc_config(supervisor_rpc_config)
+            .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
+            .with_sequencer_config(self.sequencer_flags.config())
             .build()
             .start()
             .await
-            .map_err(Into::into)
+            .map_err(|e| {
+                error!(target: "rollup_node", "Failed to start rollup node service: {e}");
+                anyhow::anyhow!("{}", e)
+            })?;
+
+        Ok(())
     }
 
     /// Get the L2 rollup config, either from a file or the superchain registry.
@@ -345,7 +363,6 @@ mod tests {
     #[test]
     fn test_node_cli_defaults() {
         let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
-        assert_eq!(args.l2_engine_kind, EngineKind::Geth);
         assert_eq!(args.l1_runtime_config_reload_interval, 600);
     }
 
@@ -358,13 +375,5 @@ mod tests {
                 .copied(),
         );
         assert_eq!(args.l1_runtime_config_reload_interval, 0);
-    }
-
-    #[test]
-    fn test_node_cli_engine_kind() {
-        let args = NodeCommand::parse_from(
-            ["node", "--l2.enginekind", "reth"].iter().chain(default_flags().iter()).copied(),
-        );
-        assert_eq!(args.l2_engine_kind, EngineKind::Reth);
     }
 }

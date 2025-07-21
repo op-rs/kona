@@ -1,10 +1,6 @@
 //! CallData Source
 
-use crate::{
-    errors::PipelineError,
-    traits::{ChainProvider, DataAvailabilityProvider},
-    types::PipelineResult,
-};
+use crate::{ChainProvider, DataAvailabilityProvider, PipelineError, PipelineResult};
 use alloc::{boxed::Box, collections::VecDeque};
 use alloy_consensus::{Transaction, TxEnvelope, transaction::SignerRecoverable};
 use alloy_primitives::{Address, Bytes};

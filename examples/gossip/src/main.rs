@@ -19,14 +19,16 @@
 
 use clap::{ArgAction, Parser};
 use discv5::enr::CombinedKey;
-use kona_cli::init_tracing_subscriber;
-use kona_p2p::{Config, LocalNode, Network};
+use kona_cli::{LogFormat, init_tracing_subscriber};
+use kona_node_service::{NetworkActor, NetworkConfig, NetworkContext, NodeActor};
+use kona_p2p::LocalNode;
 use kona_registry::ROLLUP_CONFIGS;
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     time::Duration,
 };
+use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 /// The gossip command.
@@ -38,6 +40,9 @@ pub struct GossipCommand {
     /// By default, the verbosity level is set to 3 (info level).
     #[arg(long, short, default_value = "3", action = ArgAction::Count)]
     pub v: u8,
+    /// The format of the logs. One of: full, json, pretty, compact.
+    #[arg(long = "logs.format", short = 'f', default_value = "full")]
+    pub logs_format: LogFormat,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
@@ -55,7 +60,7 @@ pub struct GossipCommand {
 impl GossipCommand {
     /// Run the gossip subcommand.
     pub async fn run(self) -> anyhow::Result<()> {
-        init_tracing_subscriber(self.v, None::<EnvFilter>)?;
+        init_tracing_subscriber(self.v, None::<EnvFilter>, self.logs_format)?;
 
         let rollup_config = ROLLUP_CONFIGS
             .get(&self.l2_chain_id)
@@ -82,40 +87,49 @@ impl GossipCommand {
         let disc_addr =
             LocalNode::new(secret_key, IpAddr::V4(disc_ip), self.disc_port, self.disc_port);
 
-        let mut network = Network::builder(Config {
-            discovery_address: disc_addr,
-            gossip_address: gossip_addr,
-            unsafe_block_signer: signer,
-            discovery_config: discv5::ConfigBuilder::new(discv5::ListenConfig::Ipv4 {
-                ip: disc_ip,
-                port: self.disc_port,
-            })
-            .build(),
-            discovery_interval: Duration::from_secs(self.interval),
-            discovery_randomize: None,
-            keypair: Keypair::generate_secp256k1(),
-            gossip_config: Default::default(),
-            scoring: Default::default(),
-            topic_scoring: Default::default(),
-            monitor_peers: Default::default(),
-            bootstore: None,
-            gater_config: Default::default(),
-            bootnodes: Default::default(),
-            rollup_config: rollup_config.clone(),
-            local_signer: None,
-        })
-        .build()?;
+        let (_, network) = NetworkActor::new(
+            NetworkConfig {
+                discovery_address: disc_addr,
+                gossip_address: gossip_addr,
+                unsafe_block_signer: signer,
+                discovery_config: discv5::ConfigBuilder::new(discv5::ListenConfig::Ipv4 {
+                    ip: disc_ip,
+                    port: self.disc_port,
+                })
+                .build(),
+                discovery_interval: Duration::from_secs(self.interval),
+                discovery_randomize: None,
+                keypair: Keypair::generate_secp256k1(),
+                gossip_config: Default::default(),
+                scoring: Default::default(),
+                topic_scoring: Default::default(),
+                monitor_peers: Default::default(),
+                bootstore: None,
+                gater_config: Default::default(),
+                bootnodes: Default::default(),
+                rollup_config: rollup_config.clone(),
+                local_signer: None,
+            }
+            .into(),
+        );
 
-        let mut recv = network.unsafe_block_recv();
-        network.start().await?;
+        let (unsafe_blocks_tx, mut unsafe_blocks_rx) = tokio::sync::mpsc::channel(1024);
+
+        network
+            .start(NetworkContext {
+                blocks: unsafe_blocks_tx,
+                cancellation: CancellationToken::new(),
+            })
+            .await?;
+
         tracing::info!("Gossip driver started, receiving blocks.");
         loop {
-            match recv.recv().await {
-                Ok(block) => {
-                    tracing::info!("Received unsafe block: {:?}", block);
+            match unsafe_blocks_rx.recv().await {
+                Some(block) => {
+                    tracing::info!(target: "gossip", "Received unsafe block: {:?}", block);
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to receive unsafe block: {:?}", e);
+                None => {
+                    tracing::warn!(target: "gossip", "unsafe block gossip channel closed");
                 }
             }
         }

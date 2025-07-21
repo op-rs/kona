@@ -18,5 +18,9 @@ pub use receipt::Receipts;
 mod access_list;
 pub use access_list::{Access, AccessListError, parse_access_list};
 
+mod hex_string_u64;
 mod types;
+
+pub use hex_string_u64::HexStringU64;
+
 pub use types::{BlockSeal, OutputV0, SubscriptionEvent};

@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        devnet-config: ["simple-kona", "simple-kona-geth", "large-kona"]
+        devnet-config: ["simple-kona", "simple-kona-geth", "large-kona", "simple-kona-sequencer", "large-kona-sequencer"]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -70,9 +70,6 @@ jobs:
 
       - name: test node with ${{ matrix.devnet-config }} devnet
         run: just test-e2e "${{ matrix.devnet-config }}" node
-
-      - name: test node-devstack with ${{ matrix.devnet-config }} devnet
-        run: just test-e2e "${{ matrix.devnet-config }}" node-devstack
 
       - # Temp fix
         # https://github.com/docker/build-push-action/issues/252

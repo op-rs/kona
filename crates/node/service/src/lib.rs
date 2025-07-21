@@ -10,14 +10,22 @@
 extern crate tracing;
 
 mod service;
-pub use service::{NodeMode, RollupNode, RollupNodeBuilder, RollupNodeError, RollupNodeService};
+pub use service::{InteropMode, NodeMode, RollupNode, RollupNodeBuilder, RollupNodeService};
 
 mod actors;
 pub use actors::{
-    DerivationActor, DerivationError, EngineActor, EngineError, EngineLauncher,
-    InboundDerivationMessage, InboundEngineMessage, L1WatcherRpc, L1WatcherRpcError, L2Finalizer,
-    NetworkActor, NetworkActorError, NodeActor, RpcActor, RpcActorError, RuntimeActor,
-    RuntimeLauncher, SupervisorActor, SupervisorActorError, SupervisorExt, SupervisorRpcServerExt,
+    AttributesBuilderConfig, CancellableContext, ConductorClient, ConductorError, DerivationActor,
+    DerivationBuilder, DerivationContext, DerivationError, DerivationInboundChannels,
+    DerivationState, EngineActor, EngineBuilder, EngineContext, EngineError, EngineInboundData,
+    InboundDerivationMessage, L1OriginSelector, L1OriginSelectorError, L1OriginSelectorProvider,
+    L1WatcherRpc, L1WatcherRpcContext, L1WatcherRpcError, L1WatcherRpcInboundChannels,
+    L1WatcherRpcState, L2Finalizer, NetworkActor, NetworkActorError, NetworkBuilder,
+    NetworkBuilderError, NetworkConfig, NetworkContext, NetworkDriver, NetworkDriverError,
+    NetworkHandler, NetworkInboundData, NodeActor, PipelineBuilder, RpcActor, RpcActorError,
+    RpcContext, RuntimeActor, RuntimeContext, RuntimeState, SequencerActor, SequencerActorError,
+    SequencerBuilder, SequencerConfig, SequencerContext, SequencerInboundData, SupervisorActor,
+    SupervisorActorContext, SupervisorActorError, SupervisorExt, SupervisorInboundData,
+    SupervisorRpcServerExt,
 };
 
 mod metrics;

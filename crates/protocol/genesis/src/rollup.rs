@@ -764,9 +764,9 @@ mod tests {
           "l1_system_config_address": "0x94ee52a9d8edd72a85dea7fae3ba6d75e4bf1710",
           "protocol_versions_address": "0x0000000000000000000000000000000000000000",
           "chain_op_config": {
-            "eip1559Elasticity": "0x6",
-            "eip1559Denominator": "0x32",
-            "eip1559DenominatorCanyon": "0xfa"
+            "eip1559Elasticity": 6,
+            "eip1559Denominator": 50,
+            "eip1559DenominatorCanyon": 250
             },
           "alt_da": null
         }

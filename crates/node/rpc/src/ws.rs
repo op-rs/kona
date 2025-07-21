@@ -64,16 +64,16 @@ impl WsServer for WsRPC {
 
         let mut subscription = self.engine_state_watcher().await?;
 
-        let mut current_safe_head = subscription.borrow().safe_head();
+        let mut current_safe_head = subscription.borrow().sync_state.safe_head();
 
         Self::send_state_update(&sink, current_safe_head).await?;
 
         while let Ok(new_state) = subscription
-            .wait_for(|state| state.safe_head() != current_safe_head)
+            .wait_for(|state| state.sync_state.safe_head() != current_safe_head)
             .await
             .map(|state| *state)
         {
-            current_safe_head = new_state.safe_head();
+            current_safe_head = new_state.sync_state.safe_head();
             Self::send_state_update(&sink, current_safe_head).await?;
         }
 
@@ -86,16 +86,16 @@ impl WsServer for WsRPC {
 
         let mut subscription = self.engine_state_watcher().await?;
 
-        let mut current_finalized_head = subscription.borrow().finalized_head();
+        let mut current_finalized_head = subscription.borrow().sync_state.finalized_head();
 
         Self::send_state_update(&sink, current_finalized_head).await?;
 
         while let Ok(new_state) = subscription
-            .wait_for(|state| state.finalized_head() != current_finalized_head)
+            .wait_for(|state| state.sync_state.finalized_head() != current_finalized_head)
             .await
             .map(|state| *state)
         {
-            current_finalized_head = new_state.finalized_head();
+            current_finalized_head = new_state.sync_state.finalized_head();
             Self::send_state_update(&sink, current_finalized_head).await?;
         }
 
@@ -108,16 +108,16 @@ impl WsServer for WsRPC {
 
         let mut subscription = self.engine_state_watcher().await?;
 
-        let mut current_unsafe_head = subscription.borrow().unsafe_head();
+        let mut current_unsafe_head = subscription.borrow().sync_state.unsafe_head();
 
         Self::send_state_update(&sink, current_unsafe_head).await?;
 
         while let Ok(new_state) = subscription
-            .wait_for(|state| state.unsafe_head() != current_unsafe_head)
+            .wait_for(|state| state.sync_state.unsafe_head() != current_unsafe_head)
             .await
             .map(|state| *state)
         {
-            current_unsafe_head = new_state.unsafe_head();
+            current_unsafe_head = new_state.sync_state.unsafe_head();
             Self::send_state_update(&sink, current_unsafe_head).await?;
         }
 

@@ -23,7 +23,7 @@ kona-supervisor-metrics.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde", "rand"] }
 alloy-eips = { workspace = true }
 
-# Op-Allow
+# Op-Alloy
 op-alloy-consensus.workspace = true
 
 # Misc

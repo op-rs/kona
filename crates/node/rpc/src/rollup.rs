@@ -33,8 +33,11 @@ impl RollupRpc {
     pub const RPC_IDENT: &'static str = "rollup_rpc";
 
     /// Constructs a new [`RollupRpc`] given a sender channel.
-    pub const fn new(sender: EngineQuerySender, l1_watcher_sender: L1WatcherQuerySender) -> Self {
-        Self { engine_sender: sender, l1_watcher_sender }
+    pub const fn new(
+        engine_sender: EngineQuerySender,
+        l1_watcher_sender: L1WatcherQuerySender,
+    ) -> Self {
+        Self { engine_sender, l1_watcher_sender }
     }
 
     // Important note: we zero-out the fields that can't be derived yet to follow op-node's
@@ -49,11 +52,11 @@ impl RollupRpc {
             head_l1: l1_sync_status.head_l1.unwrap_or_default(),
             safe_l1: l1_sync_status.safe_l1.unwrap_or_default(),
             finalized_l1: l1_sync_status.finalized_l1.unwrap_or_default(),
-            unsafe_l2: l2_sync_status.unsafe_head(),
-            cross_unsafe_l2: l2_sync_status.cross_unsafe_head(),
-            local_safe_l2: l2_sync_status.local_safe_head(),
-            safe_l2: l2_sync_status.safe_head(),
-            finalized_l2: l2_sync_status.finalized_head(),
+            unsafe_l2: l2_sync_status.sync_state.unsafe_head(),
+            cross_unsafe_l2: l2_sync_status.sync_state.cross_unsafe_head(),
+            local_safe_l2: l2_sync_status.sync_state.local_safe_head(),
+            safe_l2: l2_sync_status.sync_state.safe_head(),
+            finalized_l2: l2_sync_status.sync_state.finalized_head(),
         }
     }
 }
