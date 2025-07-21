@@ -357,7 +357,7 @@ impl HeadRefStorageWriter for ChainDb {
 impl Rewinder for ChainDb {
     fn rewind_log_storage(&self, from_block: u64) -> Result<(), StorageError> {
         self.observe_call("rewind_log_storage", || {
-            self.env.update(|tx| LogProvider::new(tx).rewind_from(from_block))?
+            self.env.update(|tx| LogProvider::new(tx).rewind_to(from_block))?
         })
     }
 }

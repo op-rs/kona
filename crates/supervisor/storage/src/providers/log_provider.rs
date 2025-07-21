@@ -125,7 +125,7 @@ where
         Ok(())
     }
 
-    pub(crate) fn rewind_from(&self, block_number: u64) -> Result<(), StorageError> {
+    pub(crate) fn rewind_to(&self, block_number: u64) -> Result<(), StorageError> {
         let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
         let mut walker = cursor.walk(Some(block_number))?;
 
@@ -565,7 +565,7 @@ mod tests {
         // Rewind from block 3, blocks 3, 4, 5 should be removed
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = LogProvider::new(&tx);
-        provider.rewind_from(3).expect("Failed to rewind blocks");
+        provider.rewind_to(3).expect("Failed to rewind blocks");
         tx.commit().expect("Failed to commit rewind");
 
         let tx = db.tx().expect("Could not get RO tx");
