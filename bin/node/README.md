@@ -1,6 +1,6 @@
 # `kona-node`
 
-A consensus node implementation for the OP Stack, providing rollup validation, networking, and service management capabilities.
+A modular, robust rollup node implementation for the OP Stack built in rust.
 
 ## Installation
 
