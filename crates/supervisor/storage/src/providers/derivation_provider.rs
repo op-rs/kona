@@ -75,9 +75,7 @@ where
               actual_hash = %derived_block_pair.derived.hash,
               "Derived block hash mismatch"
             );
-            return Err(StorageError::EntryNotFound(
-                "derived block hash does not match".to_string(),
-            ));
+            return Err(StorageError::ConflictError);
         }
 
         Ok(derived_block_pair)
@@ -144,7 +142,7 @@ where
                 source_block_hash = %source_block_id.hash,
                 "Source block hash mismatch"
             );
-            return Err(StorageError::EntryNotFound("source block hash mismatch".to_string()));
+            return Err(StorageError::ConflictError);
         }
 
         while block_traversal.derived_block_numbers.is_empty() {
@@ -736,7 +734,7 @@ mod tests {
         let wrong_hash = B256::from([123u8; 32]);
         let source_id = BlockNumHash { number: source1.number, hash: wrong_hash };
         let result = provider.latest_derived_block_at_source(source_id);
-        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
