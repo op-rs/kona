@@ -4,6 +4,7 @@ use crate::flags::{GlobalArgs, P2PArgs, RpcArgs};
 use clap::Parser;
 use futures::future::OptionFuture;
 use jsonrpsee::{RpcModule, server::Server};
+use kona_cli::LogConfig;
 use kona_node_service::{
     NetworkActor, NetworkBuilder, NetworkContext, NetworkInboundData, NodeActor,
 };
@@ -47,7 +48,7 @@ impl NetCommand {
             .add_directive("bootstore=debug".parse()?);
 
         // Initialize the telemetry stack.
-        args.init_tracing(Some(filter))?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(Some(filter))?;
         Ok(())
     }
 

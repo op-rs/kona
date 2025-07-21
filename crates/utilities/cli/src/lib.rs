@@ -16,9 +16,10 @@ pub use secrets::{KeypairError, ParseKeyError, SecretKeyLoader};
 pub mod backtrace;
 
 pub mod log;
+pub use log::LogConfig;
 
 mod tracing;
-pub use tracing::{LogFormat, init_test_tracing, init_tracing_subscriber};
+pub use tracing::{LogFormat, init_test_tracing};
 
 mod prometheus;
 pub use prometheus::init_prometheus_server;

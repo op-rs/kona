@@ -54,7 +54,7 @@ impl L1BlockInfoInterop {
     /// The 4 byte selector of "setL1BlockValuesInterop()"
     pub const L1_INFO_TX_SELECTOR: [u8; 4] = [0x76, 0x0e, 0xe0, 0x4d];
 
-    /// Encodes the [L1BlockInfoInterop] object into Ethereum transaction calldata.
+    /// Encodes the [`L1BlockInfoInterop`] object into Ethereum transaction calldata.
     pub fn encode_calldata(&self) -> Bytes {
         let mut buf = Vec::with_capacity(Self::L1_INFO_TX_LEN);
         buf.extend_from_slice(Self::L1_INFO_TX_SELECTOR.as_ref());
@@ -70,7 +70,7 @@ impl L1BlockInfoInterop {
         buf.into()
     }
 
-    /// Decodes the [L1BlockInfoInterop] object from ethereum transaction calldata.
+    /// Decodes the [`L1BlockInfoInterop`] object from ethereum transaction calldata.
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> {
         if r.len() != Self::L1_INFO_TX_LEN {
             return Err(DecodeError::InvalidInteropLength(Self::L1_INFO_TX_LEN, r.len()));

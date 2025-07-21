@@ -14,26 +14,26 @@ Jump ahead to [Run a Node using Docker page](/node/run/docker).
 
 ## GitHub
 
-Kona docker images are published with every release of reth on GitHub Container Registry.
+Kona docker images are published with every release on GitHub Container Registry.
 
-You can obtain the latest image with:
+You can obtain the latest `kona-node` image with:
 
 ```bash
-docker pull ghcr.io/op-rs/kona
+docker pull ghcr.io/op-rs/kona/kona-node
 ```
 
 <Callout type="note">
 Specify a specific version (e.g. v0.1.0) like so.
 
 ```bash
-docker pull ghcr.io/op-rs/kona:v0.1.0
+docker pull ghcr.io/op-rs/kona/kona-node:v0.1.0
 ```
 </Callout>
 
 You can test the image with:
 
 ```bash
-docker run --rm ghcr.io/op-rs/kona --version
+docker run --rm ghcr.io/op-rs/kona/kona-node --version
 ```
 
 If you can see the [latest release](https://github.com/op-rs/kona/releases) version,

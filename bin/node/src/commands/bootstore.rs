@@ -2,6 +2,7 @@
 
 use crate::flags::GlobalArgs;
 use clap::Parser;
+use kona_cli::LogConfig;
 use kona_peers::BootStore;
 use std::path::PathBuf;
 
@@ -29,7 +30,7 @@ pub struct BootstoreCommand {
 impl BootstoreCommand {
     /// Initializes the logging system based on global arguments.
     pub fn init_logs(&self, args: &GlobalArgs) -> anyhow::Result<()> {
-        args.init_tracing(None)?;
+        LogConfig::new(args.log_args.clone()).init_tracing_subscriber(None)?;
         Ok(())
     }
 

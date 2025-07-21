@@ -164,6 +164,7 @@ impl RollupNodeBuilder {
 
         let runtime_builder = self.runtime_load_interval.map(|load_interval| RuntimeState {
             loader: kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
+            client: engine_builder.client(),
             interval: load_interval,
         });
 

@@ -192,7 +192,7 @@ pub trait AdminApi {
 
     /// Stops the sequencer.
     #[method(name = "stopSequencer")]
-    async fn admin_stop_sequencer(&self) -> RpcResult<()>;
+    async fn admin_stop_sequencer(&self) -> RpcResult<B256>;
 
     /// Checks if the conductor is enabled.
     #[method(name = "conductorEnabled")]
