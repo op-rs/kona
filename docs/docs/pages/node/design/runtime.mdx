@@ -28,7 +28,8 @@ Responsible for fetching runtime configuration from L1 smart contracts. The load
 - Implements intelligent caching to minimize L1 calls and improve performance
 - Handles configuration validation and error recovery
 
-:::warning[L1 Dependency]
+:::warning
+[L1 Dependency]
 The runtime loader requires a reliable L1 RPC connection. Network issues or L1 node downtime can affect runtime configuration updates.
 :::
 
@@ -49,7 +50,8 @@ The runtime system automatically discovers configuration changes by monitoring s
 
 **Protocol Versions Contract**: Contains both required and recommended protocol versions. The required version represents the minimum version needed for consensus participation, while the recommended version indicates the optimal version for new features and improvements.
 
-:::tip[Caching Strategy]
+:::tip
+[Caching Strategy]
 The runtime loader implements an LRU cache that maps block information to runtime configurations, significantly reducing L1 query overhead during normal operation.
 :::
 
