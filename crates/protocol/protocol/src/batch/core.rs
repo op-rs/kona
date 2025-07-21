@@ -1,4 +1,4 @@
-//! Module containing the core [Batch] enum.
+//! Module containing the core [`Batch`] enum.
 
 use crate::{
     BatchDecodingError, BatchEncodingError, BatchType, RawSpanBatch, SingleBatch, SpanBatch,

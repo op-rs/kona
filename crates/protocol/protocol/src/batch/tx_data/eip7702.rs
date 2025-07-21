@@ -25,7 +25,7 @@ pub struct SpanBatchEip7702TransactionData {
 }
 
 impl SpanBatchEip7702TransactionData {
-    /// Converts [SpanBatchEip7702TransactionData] into a signed [`TxEip7702`].
+    /// Converts [`SpanBatchEip7702TransactionData`] into a signed [`TxEip7702`].
     pub fn to_signed_tx(
         &self,
         nonce: u64,

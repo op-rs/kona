@@ -77,7 +77,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    /// Creates a new [Frame].
+    /// Creates a new [`Frame`].
     pub const fn new(id: ChannelId, number: u16, data: Vec<u8>, is_last: bool) -> Self {
         Self { id, number, data, is_last }
     }

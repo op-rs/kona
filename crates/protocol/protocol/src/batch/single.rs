@@ -1,4 +1,4 @@
-//! This module contains the [SingleBatch] type.
+//! This module contains the [`SingleBatch`] type.
 
 use crate::{BatchValidity, BlockInfo, L2BlockInfo};
 use alloc::vec::Vec;
@@ -31,7 +31,7 @@ impl SingleBatch {
         self.transactions.iter().any(|tx| tx.0.is_empty() || tx.0[0] == OpTxType::Deposit as u8)
     }
 
-    /// Returns the [BlockNumHash] of the batch.
+    /// Returns the [`BlockNumHash`] of the batch.
     pub const fn epoch(&self) -> BlockNumHash {
         BlockNumHash { number: self.epoch_num, hash: self.epoch_hash }
     }

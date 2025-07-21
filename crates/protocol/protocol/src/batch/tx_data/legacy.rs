@@ -17,7 +17,7 @@ pub struct SpanBatchLegacyTransactionData {
 }
 
 impl SpanBatchLegacyTransactionData {
-    /// Converts [SpanBatchLegacyTransactionData] into a signed [`TxLegacy`].
+    /// Converts [`SpanBatchLegacyTransactionData`] into a signed [`TxLegacy`].
     pub fn to_signed_tx(
         &self,
         nonce: u64,

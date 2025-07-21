@@ -20,7 +20,7 @@ pub struct OpAttributesWithParent {
 }
 
 impl OpAttributesWithParent {
-    /// Create a new [OpAttributesWithParent] instance.
+    /// Create a new [`OpAttributesWithParent`] instance.
     pub const fn new(
         inner: OpPayloadAttributes,
         parent: L2BlockInfo,
