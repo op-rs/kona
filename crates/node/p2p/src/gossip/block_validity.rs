@@ -257,7 +257,7 @@ pub(crate) mod tests {
     use super::*;
     use alloy_consensus::{Block, EMPTY_OMMER_ROOT_HASH};
     use alloy_eips::{eip2718::Encodable2718, eip4895::Withdrawal};
-    use alloy_primitives::{Address, B256, Bytes, Signature};
+    use alloy_primitives::{Address, Bytes, Signature, B256};
     use alloy_rlp::BufMut;
     use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV2, ExecutionPayloadV3};
     use arbitrary::{Arbitrary, Unstructured};
@@ -574,6 +574,7 @@ pub(crate) mod tests {
         signature_bytes[0] = !signature_bytes[0];
         envelope.signature = Signature::from_raw_array(&signature_bytes).unwrap();
 
+        assert!(handler.seen_hashes.is_empty());
         assert!(matches!(handler.block_valid(&envelope), Err(BlockInvalidError::Signature)));
     }
 
