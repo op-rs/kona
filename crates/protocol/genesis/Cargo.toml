@@ -53,10 +53,12 @@ std = [
 	"alloy-eips/std",
 	"alloy-primitives/std",
 	"alloy-sol-types/std",
+	"alloy-chains/std",
 	"derive_more/std",
 	"op-revm?/std",
 	"serde?/std",
 	"thiserror/std",
+	"alloy-chains/std"
 ]
 arbitrary = [
 	"alloy-consensus/arbitrary",
