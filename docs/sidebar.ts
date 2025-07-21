@@ -110,8 +110,7 @@ export const sidebar: SidebarItem[] = [
           { text: "Engine", link: "/node/design/engine" },
           { text: "P2P", link: "/node/design/p2p" },
           { text: "Sequencer", link: "/node/design/sequencer" },
-          { text: "Runtime", link: "/node/design/runtime" },
-          { text: "Supervisor", link: "/node/design/supervisor" }
+          { text: "Runtime", link: "/node/design/runtime" }
         ]
       },
       {
