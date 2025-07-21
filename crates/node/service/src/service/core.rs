@@ -159,7 +159,6 @@ pub trait RollupNodeService {
                 unsafe_block_tx,
                 reset_request_tx,
                 inbound_queries_tx: engine_rpc,
-                runtime_config_tx,
                 finalized_l1_block_tx,
             },
             engine,
@@ -190,7 +189,7 @@ pub trait RollupNodeService {
             actors = [
                 runtime.map(|r| (
                     r,
-                    RuntimeContext { cancellation: cancellation.clone(), runtime_config_tx }
+                    RuntimeContext { cancellation: cancellation.clone() }
                 )),
                 rpc.map(|r| (
                     r,

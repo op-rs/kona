@@ -12,8 +12,6 @@ use kona_engine::{
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
-use kona_sources::RuntimeConfig;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
@@ -40,8 +38,6 @@ pub struct EngineActor {
     reset_request_rx: mpsc::Receiver<()>,
     /// Handler for inbound queries to the engine.
     inbound_queries: mpsc::Receiver<EngineQueries>,
-    /// A channel to receive [`RuntimeConfig`] from the runtime actor.
-    runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive build requests from the sequencer actor.
     ///
     /// ## Note
@@ -77,8 +73,6 @@ pub struct EngineInboundData {
     pub reset_request_tx: mpsc::Sender<()>,
     /// Handler to send inbound queries to the engine.
     pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
-    /// A channel to send [`RuntimeConfig`] to the engine actor.
-    pub runtime_config_tx: mpsc::Sender<RuntimeConfig>,
     /// A channel that sends new finalized L1 blocks intermittently.
     pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
 }
@@ -170,7 +164,6 @@ impl EngineActor {
     pub fn new(config: EngineBuilder) -> (EngineInboundData, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
-        let (runtime_config_tx, runtime_config_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
@@ -188,7 +181,6 @@ impl EngineActor {
             unsafe_block_rx,
             reset_request_rx,
             inbound_queries: inbound_queries_rx,
-            runtime_config_rx,
             build_request_rx,
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
         };
@@ -197,7 +189,6 @@ impl EngineActor {
             build_request_tx,
             finalized_l1_block_tx,
             inbound_queries_tx,
-            runtime_config_tx,
             attributes_tx,
             unsafe_block_tx,
             reset_request_tx,
@@ -358,23 +349,6 @@ impl EngineActorState {
         let sent = engine_l2_safe_head_tx.send_if_modified(update);
         trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
     }
-
-    fn runtime_config_update(&mut self, config: RuntimeConfig) {
-        let client = self.client.clone();
-        tokio::task::spawn(async move {
-            debug!(target: "engine", config = ?config, "Received runtime config");
-            let recommended = config.recommended_protocol_version;
-            let required = config.required_protocol_version;
-            match client.signal_superchain_v1(recommended, required).await {
-                Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
-                Err(e) => {
-                    // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
-                    // a warning is logged instead of an error.
-                    warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
-                }
-            }
-        });
-    }
 }
 
 #[async_trait]
@@ -493,10 +467,6 @@ impl NodeActor for EngineActor {
                         true,
                     ));
                     state.engine.enqueue(task);
-                }
-                // Since the runtime actor is optional, we need to check if the channel is closed to ensure we're not immediately resolving the future.
-                Some(config) = self.runtime_config_rx.recv(), if !self.runtime_config_rx.is_closed() => {
-                    state.runtime_config_update(config);
                 }
                 msg = self.finalizer.new_finalized_block() => {
                     if let Err(err) = msg {
