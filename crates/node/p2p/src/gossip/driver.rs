@@ -246,7 +246,7 @@ where
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         // Check if we're allowed to dial the address.
         if let Err(dial_error) = self.connection_gate.can_dial(&addr) {
-            debug!(target: "gossip", "unable to dial peer: {}", dial_error);
+            debug!(target: "gossip", ?dial_error, "unable to dial peer");
             return;
         }
 
