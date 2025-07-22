@@ -21,7 +21,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:${PROMETHEUS_PORT:-9090}}
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
     volumes:
       - "grafana_data:/var/lib/grafana"
       - "./grafana/datasources:/etc/grafana/provisioning/datasources"
