@@ -4331,7 +4331,7 @@ dependencies = [
 
 [[package]]
 name = "kona-comp"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloc-no-stdlib",
  "alloy-consensus",
@@ -4389,7 +4389,7 @@ dependencies = [
 
 [[package]]
 name = "kona-driver"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-consensus",
  "alloy-evm",
@@ -4452,7 +4452,7 @@ dependencies = [
 
 [[package]]
 name = "kona-executor"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4599,7 +4599,7 @@ version = "0.1.0"
 
 [[package]]
 name = "kona-mpt"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "alloy-consensus",
  "alloy-primitives",
