@@ -87,7 +87,6 @@ services:
       --rpc.port 5060
       --p2p.listen.tcp 9223
       --p2p.listen.udp 9223
-      --p2p.scoring off
       --p2p.bootstore /db
 
 volumes:
