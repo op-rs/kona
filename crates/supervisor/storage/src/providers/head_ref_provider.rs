@@ -90,10 +90,9 @@ where
         incoming_head_ref: &BlockInfo,
     ) -> Result<(), StorageError> {
         // Reset only if head is ahead.
-        if let Ok(current_head_ref) = self.get_safety_head_ref(safety_level) {
-            if current_head_ref.number < incoming_head_ref.number {
-                return Ok(());
-            }
+        let current_head_ref = self.get_safety_head_ref(safety_level)?;
+        if current_head_ref.number < incoming_head_ref.number {
+            return Ok(());
         }
 
         self.tx

@@ -1038,6 +1038,9 @@ mod tests {
         // - Block 1 keeps only 10
         // - Block 2 is removed completely
 
+        // Rewind 2 - to block 10
+        // After rewind: Only genesis left
+
         let (source1, source2) = {
             let s1 = block_info(1, genesis_block().hash, 200);
             let s2 = block_info(2, s1.hash, 300);
