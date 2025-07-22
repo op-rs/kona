@@ -19,7 +19,7 @@ jobs:
         uses: actions/stale@v9
         with:
           # Only process pull requests, not issues
-          only: pulls
+          only-pulls: true
           
           # Days of inactivity before marking PR as stale
           days-before-stale: 21
@@ -46,9 +46,6 @@ jobs:
             
           # Labels that prevent a PR from being marked as stale
           exempt-pr-labels: 'M-prevent-stale'
-          
-          # Don't mark PRs as stale if they have these labels
-          exempt-all-pr-labels: true
           
           # Remove stale label when PR becomes active again
           remove-stale-when-updated: true
