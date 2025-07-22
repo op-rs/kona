@@ -65,7 +65,7 @@ func TestKurtosisCPUMonitor(gt *testing.T) {
 	konaNode := out.L2CLKonaNodes[0]
 
 	// Wait for a few blocks to be produced before checking the CPU usage.
-	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalUnsafe, 40, 40), opNode.ReachedFn(types.LocalUnsafe, 40, 40))
+	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalUnsafe, 40, 80), opNode.ReachedFn(types.LocalUnsafe, 40, 80))
 
 	ctx := context.Background()
 

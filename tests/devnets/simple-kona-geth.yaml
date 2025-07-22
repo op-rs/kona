@@ -8,7 +8,7 @@ optimism_package:
     chain0:
       # Chain with only two nodes
       participants:
-        optimism:
+        optimism-sequencer:
         # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
         # So we use op-geth for now.
           el:

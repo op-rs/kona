@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::{cli_styles, metrics_args::MetricsArgs};
+use kona_cli::cli_styles;
 
 /// Subcommands for the CLI.
 #[derive(Debug, PartialEq, Clone, Subcommand)]
@@ -46,16 +46,13 @@ pub struct Cli {
     /// Global arguments for the CLI.
     #[command(flatten)]
     pub global: GlobalArgs,
-    /// Prometheus CLI arguments.
-    #[command(flatten)]
-    pub metrics: MetricsArgs,
 }
 
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
         // Initialize unified metrics
-        init_unified_metrics(&self.metrics)?;
+        init_unified_metrics(&self.global.metrics)?;
 
         // Initialize telemetry - allow subcommands to customize the filter.
         match self.subcommand {
@@ -66,14 +63,9 @@ impl Cli {
             Commands::Info(ref info) => info.init_logs(&self.global)?,
         }
 
-        // If metrics are enabled, initialize the global cli metrics.
-        if self.metrics.enabled {
-            self.global.init_cli_metrics();
-        }
-
         // Allow subcommands to initialize cli metrics.
         match self.subcommand {
-            Commands::Node(ref node) => node.init_cli_metrics(&self.metrics)?,
+            Commands::Node(ref node) => node.init_cli_metrics(&self.global.metrics)?,
             _ => {
                 tracing::debug!(target: "cli", "No CLI metrics initialized for subcommand: {:?}", self.subcommand)
             }

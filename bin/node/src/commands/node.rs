@@ -2,7 +2,7 @@
 
 use crate::{
     flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs, SupervisorArgs},
-    metrics::CliMetrics,
+    metrics::{CliMetrics, init_rollup_config_metrics},
 };
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
@@ -11,6 +11,7 @@ use clap::Parser;
 use kona_cli::{LogConfig, metrics_args::MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
+use kona_registry::scr_rollup_config_by_alloy_ident;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -200,6 +201,12 @@ impl NodeCommand {
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
+
+        // If metrics are enabled, initialize the global cli metrics.
+        if args.metrics.enabled {
+            init_rollup_config_metrics(&cfg);
+        }
+
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
         let supervisor_rpc_config =
@@ -259,10 +266,11 @@ impl NodeCommand {
             }
             None => {
                 debug!("Loading l2 config from superchain registry");
-                let Some(cfg) = args.rollup_config() else {
+                let alloy_chain: alloy_chains::Chain = args.l2_chain_id.into();
+                let Some(cfg) = scr_rollup_config_by_alloy_ident(&alloy_chain) else {
                     bail!("Failed to find l2 config for chain ID {}", args.l2_chain_id);
                 };
-                Ok(cfg)
+                Ok(cfg.clone())
             }
         }
     }

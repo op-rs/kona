@@ -20,8 +20,9 @@ import (
 type L2NodeKind string
 
 const (
-	OpNode   L2NodeKind = "optimism"
-	KonaNode L2NodeKind = "kona"
+	OpNode    L2NodeKind = "optimism"
+	KonaNode  L2NodeKind = "kona"
+	Sequencer L2NodeKind = "sequencer"
 )
 
 type MixedOpKonaPreset struct {
@@ -40,8 +41,6 @@ type MixedOpKonaPreset struct {
 
 	L2ELKonaNodes []dsl.L2ELNode
 	L2CLKonaNodes []dsl.L2CLNode
-
-	TestSequencer *dsl.TestSequencer
 
 	Wallet *dsl.HDWallet
 
@@ -134,7 +133,6 @@ func NewMixedOpKona(t devtest.T) *MixedOpKonaPreset {
 		L2CLOpNodes:   L2CLNodes(opCLNodes, orch),
 		L2ELKonaNodes: L2ELNodes(konaELNodes, orch),
 		L2CLKonaNodes: L2CLNodes(konaCLNodes, orch),
-		TestSequencer: dsl.NewTestSequencer(system.TestSequencer(match.Assume(t, match.FirstTestSequencer))),
 		Wallet:        dsl.NewHDWallet(t, devkeys.TestMnemonic, 30),
 		Faucet:        dsl.NewFaucet(l2Net.Faucet(match.Assume(t, match.FirstFaucet))),
 	}
@@ -156,8 +154,6 @@ type DefaultMixedOpKonaSystemIDs struct {
 
 	L2Batcher  stack.L2BatcherID
 	L2Proposer stack.L2ProposerID
-
-	TestSequencer stack.TestSequencerID
 }
 
 func NewDefaultMixedOpKonaSystemIDs(l1ID, l2ID eth.ChainID, opNodes, konaNodes int) DefaultMixedOpKonaSystemIDs {
@@ -186,9 +182,8 @@ func NewDefaultMixedOpKonaSystemIDs(l1ID, l2ID eth.ChainID, opNodes, konaNodes i
 		L2CLKonaNodes: konaCLNodes,
 		L2ELKonaNodes: konaELNodes,
 
-		L2Batcher:     stack.NewL2BatcherID("main", l2ID),
-		L2Proposer:    stack.NewL2ProposerID("main", l2ID),
-		TestSequencer: "test-sequencer",
+		L2Batcher:  stack.NewL2BatcherID("main", l2ID),
+		L2Proposer: stack.NewL2ProposerID("main", l2ID),
 	}
 	return ids
 }
@@ -229,8 +224,6 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opNodes, konaNo
 	opt.Add(sysgo.WithProposer(ids.L2Proposer, ids.L1EL, &ids.L2CLOpNodes[0], nil))
 
 	opt.Add(sysgo.WithFaucets([]stack.L1ELNodeID{ids.L1EL}, []stack.L2ELNodeID{ids.L2ELOpNodes[0], ids.L2ELKonaNodes[0]}))
-
-	opt.Add(sysgo.WithTestSequencer(ids.TestSequencer, ids.L1CL, ids.L2CLOpNodes[0], ids.L1EL, ids.L2ELOpNodes[0]))
 
 	opt.Add(stack.Finally(func(orch *sysgo.Orchestrator) {
 		*dest = ids

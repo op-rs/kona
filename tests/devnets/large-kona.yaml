@@ -8,7 +8,7 @@ optimism_package:
     chain0:
     # Chain with more nodes
       participants:
-        optimism-1:
+        optimism-sequencer:
         # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
         # So we use op-geth for now.
           el:
@@ -18,7 +18,7 @@ optimism_package:
             type: op-node
             log_level: "info"
           sequencer: true
-        optimism-2:
+        optimism-1:
         # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
         # So we use op-geth for now.
           el:
