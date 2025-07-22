@@ -1,6 +1,6 @@
-
 # A simple network configuration for kurtosis (https://github.com/ethpandaops/optimism-package)
-# Spins up a single EL/CL network. One participant sequencing the network with kona-node/op-geth.
+# Spins up a dual-sequencer EL/CL network. One participant sequencing the network with kona-node/op-geth,
+# the other with op-node/op-geth
 
 optimism_package:
   faucet:
@@ -9,7 +9,16 @@ optimism_package:
     chain0:
       # Chain with only two nodes
       participants:
-        kona:
+        optimism-seq:
+          el:
+            type: op-geth
+          cl:
+            type: op-node
+          sequencer: true
+          conductor_params:
+            enabled: true
+            bootstrap: true
+        kona-seq:
           el:
             type: op-geth
           cl:
@@ -18,8 +27,9 @@ optimism_package:
             image: "kona-node:local"
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
-            log_level: "debug"
           sequencer: true
+          conductor_params:
+            enabled: true
       network_params:
         network: "kurtosis"
         network_id: "2151908"
@@ -45,3 +55,4 @@ ethereum_package:
         }
       }
     '
+
