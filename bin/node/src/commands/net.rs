@@ -96,7 +96,7 @@ impl NetCommand {
         loop {
             tokio::select! {
                 Some(payload) = blocks_rx.recv() => {
-                    info!(target: "net", "Received unsafe payload: {:?}", payload.payload.block_hash());
+                    info!(target: "net", "Received unsafe payload: {:?}", payload.execution_payload.block_hash());
                 }
                 _ = interval.tick(), if !rpc.is_closed() => {
                     let (otx, mut orx) = tokio::sync::oneshot::channel();

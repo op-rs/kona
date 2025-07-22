@@ -89,10 +89,10 @@ func L2CLNodes(nodes []stack.L2CLNode, orch stack.Orchestrator) []dsl.L2CLNode {
 	return out
 }
 
-func L2ELNodes(nodes []stack.L2ELNode) []dsl.L2ELNode {
+func L2ELNodes(nodes []stack.L2ELNode, orch stack.Orchestrator) []dsl.L2ELNode {
 	out := make([]dsl.L2ELNode, len(nodes))
 	for i, node := range nodes {
-		out[i] = *dsl.NewL2ELNode(node)
+		out[i] = *dsl.NewL2ELNode(node, orch.ControlPlane())
 	}
 	return out
 }
@@ -128,11 +128,11 @@ func NewMixedOpKona(t devtest.T) *MixedOpKonaPreset {
 		ControlPlane:  orch.ControlPlane(),
 		L1Network:     dsl.NewL1Network(system.L1Network(match.FirstL1Network)),
 		L1EL:          dsl.NewL1ELNode(l1Net.L1ELNode(match.Assume(t, match.FirstL1EL))),
-		L2Chain:       dsl.NewL2Network(l2Net),
+		L2Chain:       dsl.NewL2Network(l2Net, orch.ControlPlane()),
 		L2Batcher:     dsl.NewL2Batcher(l2Net.L2Batcher(match.Assume(t, match.FirstL2Batcher))),
-		L2ELOpNodes:   L2ELNodes(opELNodes),
+		L2ELOpNodes:   L2ELNodes(opELNodes, orch),
 		L2CLOpNodes:   L2CLNodes(opCLNodes, orch),
-		L2ELKonaNodes: L2ELNodes(konaELNodes),
+		L2ELKonaNodes: L2ELNodes(konaELNodes, orch),
 		L2CLKonaNodes: L2CLNodes(konaCLNodes, orch),
 		TestSequencer: dsl.NewTestSequencer(system.TestSequencer(match.Assume(t, match.FirstTestSequencer))),
 		Wallet:        dsl.NewHDWallet(t, devkeys.TestMnemonic, 30),

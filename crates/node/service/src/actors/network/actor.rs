@@ -113,7 +113,7 @@ impl NetworkActor {
 
         Ok(OpNetworkPayloadEnvelope {
             parent_beacon_block_root: block.parent_beacon_block_root,
-            payload: block.payload,
+            payload: block.execution_payload,
             signature,
             payload_hash,
         })
@@ -219,7 +219,7 @@ impl NodeActor for NetworkActor {
                     }
                 }
                 Some(block) = self.publish_rx.recv(), if !self.publish_rx.is_closed() => {
-                    let timestamp = block.payload.timestamp();
+                    let timestamp = block.execution_payload.timestamp();
                     let selector = |handler: &kona_p2p::BlockHandler| {
                         handler.topic(timestamp)
                     };
@@ -296,7 +296,7 @@ mod tests {
         const CHAIN_ID: u64 = 1337;
 
         let block = OpExecutionPayloadEnvelope {
-            payload: OpExecutionPayload::V1(
+            execution_payload: OpExecutionPayload::V1(
                 ExecutionPayloadV1::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap(),
             ),
             parent_beacon_block_root: None,
@@ -323,7 +323,7 @@ mod tests {
         const CHAIN_ID: u64 = 1337;
 
         let block = OpExecutionPayloadEnvelope {
-            payload: OpExecutionPayload::V3(
+            execution_payload: OpExecutionPayload::V3(
                 ExecutionPayloadV3::arbitrary(&mut arbitrary::Unstructured::new(&bytes)).unwrap(),
             ),
             parent_beacon_block_root: Some(B256::random()),

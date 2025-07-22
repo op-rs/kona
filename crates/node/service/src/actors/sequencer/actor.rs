@@ -314,6 +314,14 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         }
 
         let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
+
+        // If the conductor is available, commit the payload to it.
+        if let Some(conductor) = &self.conductor {
+            if let Err(err) = conductor.commit_unsafe_payload(&payload).await {
+                error!(target: "sequencer", ?err, "Failed to commit unsafe payload to conductor");
+            }
+        }
+
         self.schedule_gossip(ctx, payload).await?;
 
         Ok(())
