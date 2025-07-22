@@ -36,11 +36,11 @@ impl Cli {
             service.run().await?; // run() now returns Result<()> and populates the handle internally
 
             tokio::signal::ctrl_c().await?;
-            info!("Shutdown signal received. Initiating service shutdown...");
+            info!(target: "supervisor", "Shutdown signal received. Initiating service shutdown...");
 
             service.shutdown().await?; // Call shutdown on the service instance itself
 
-            info!("Supervisor service shut down gracefully.");
+            info!(target: "supervisor", "Supervisor service shut down gracefully.");
             Ok(())
         })
     }
