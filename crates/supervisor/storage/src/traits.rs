@@ -304,6 +304,28 @@ pub trait FinalizedL1Storage {
     fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
 }
 
+/// Provides an interface for managing the latest L1 block reference in the storage.
+///
+/// This trait defines methods to update and retrieve the latest L1 block reference.
+pub trait LatestL1Storage {
+    /// Updates the latest L1 block reference in the storage.
+    ///
+    /// # Arguments
+    /// * `block` - The new [`BlockInfo`] to set as the latest L1 block reference.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the reference was successfully updated.
+    /// * `Err(StorageError)` if there is an issue updating the reference.
+    fn update_latest_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
+
+    /// Retrieves the latest L1 block reference from the storage.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the latest L1 block reference.
+    /// * `Err(StorageError)` if there is an issue retrieving the reference.
+    fn get_latest_l1(&self) -> Result<BlockInfo, StorageError>;
+}
+
 /// Provides an interface for retrieving block and safety information across multiple chains.
 ///
 /// This trait defines methods required by the cross-chain safety checker to access

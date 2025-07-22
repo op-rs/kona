@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     CrossChainSafetyProvider, FinalizedL1Storage, HeadRefStorageReader, HeadRefStorageWriter,
-    LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
+    LatestL1Storage, LogStorageReader, Metrics, chaindb::ChainDb, error::StorageError,
 };
 use alloy_primitives::ChainId;
 use kona_interop::DerivedRefPair;
@@ -28,6 +28,10 @@ pub struct ChainDbFactory {
     /// Finalized L1 block reference, used for tracking the finalized L1 block.
     /// In-memory only, not persisted.
     finalized_l1: RwLock<Option<BlockInfo>>,
+
+    /// Latest L1 block reference, used for tracking the latest L1 block.
+    /// In-memory only, not persisted.
+    latest_l1: RwLock<Option<BlockInfo>>,
 }
 
 impl ChainDbFactory {
@@ -38,6 +42,7 @@ impl ChainDbFactory {
             metrics_enabled: None,
             dbs: RwLock::new(HashMap::new()),
             finalized_l1: RwLock::new(None),
+            latest_l1: RwLock::new(None),
         }
     }
 
@@ -167,6 +172,40 @@ impl FinalizedL1Storage for ChainDbFactory {
                 Ok(())
             }
         )
+    }
+}
+
+impl LatestL1Storage for ChainDbFactory {
+    fn get_latest_l1(&self) -> Result<BlockInfo, StorageError> {
+        self.observe_call("get_latest_l1", || {
+            let guard = self.latest_l1.read().map_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to acquire read lock on latest_l1");
+                StorageError::LockPoisoned
+            })?;
+            guard.as_ref().cloned().ok_or(StorageError::FutureData)
+        })
+    }
+
+    fn update_latest_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
+        self.observe_call("update_latest_l1", || {
+            let mut guard = self.latest_l1.write().map_err(|err| {
+                error!(target: "supervisor_storage", %err, "Failed to acquire write lock on latest_l1");
+                StorageError::LockPoisoned
+            })?;
+
+            if let Some(ref current) = *guard {
+                if block.number <= current.number {
+                    error!(target: "supervisor_storage",
+                        current_block_number = current.number,
+                        new_block_number = block.number,
+                        "New latest L1 block number is not greater than current latest L1 block number",
+                    );
+                    return Err(StorageError::BlockOutOfOrder);
+                }
+            }
+            *guard = Some(block);
+            Ok(())
+        })
     }
 }
 
