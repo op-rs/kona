@@ -86,7 +86,7 @@ async fn launch(
     let server = Server::builder().build(config.socket).await?;
 
     if let Ok(addr) = server.local_addr() {
-        info!(target: "rpc", addr = ?addr, "Starting RPC server");
+        info!(target: "rpc", addr = ?addr, "RPC server bound to address");
     } else {
         error!(target: "rpc", "Failed to get local address for RPC server");
     }
