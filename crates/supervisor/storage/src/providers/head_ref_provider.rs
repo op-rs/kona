@@ -241,4 +241,30 @@ mod tests {
 
         tx.commit().expect("commit failed");
     }
+
+    #[test]
+    fn test_reset_safety_head_ref_should_ignore_future_data() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to start write tx");
+        let provider = SafetyHeadRefProvider::new(&tx);
+
+        // Set initial head at 100
+        let head_100 = BlockInfo {
+            number: 100,
+            hash: B256::from([1u8; 32]),
+            parent_hash: B256::ZERO,
+            timestamp: 1234,
+        };
+
+        provider
+            .reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &head_100)
+            .expect("reset should succeed");
+
+        // check head is not updated and still returns FutureData Err
+        let result = provider.get_safety_head_ref(SafetyLevel::CrossSafe);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), StorageError::FutureData));
+
+        tx.commit().expect("commit failed");
+    }
 }
