@@ -63,11 +63,11 @@ impl EngineTaskExt for InsertTask {
         // Form the new unsafe block ref from the execution payload.
         let parent_beacon_block_root = self.envelope.parent_beacon_block_root.unwrap_or_default();
         let insert_time_start = Instant::now();
-        let (response, block): (_, OpBlock) = match self.envelope.payload.clone() {
+        let (response, block): (_, OpBlock) = match self.envelope.execution_payload.clone() {
             OpExecutionPayload::V1(payload) => (
                 self.client.new_payload_v1(payload).await,
                 self.envelope
-                    .payload
+                    .execution_payload
                     .clone()
                     .try_into_block()
                     .map_err(InsertTaskError::FromBlockError)?,
@@ -80,7 +80,7 @@ impl EngineTaskExt for InsertTask {
                 (
                     self.client.new_payload_v2(payload_input).await,
                     self.envelope
-                        .payload
+                        .execution_payload
                         .clone()
                         .try_into_block()
                         .map_err(InsertTaskError::FromBlockError)?,
@@ -89,7 +89,7 @@ impl EngineTaskExt for InsertTask {
             OpExecutionPayload::V3(payload) => (
                 self.client.new_payload_v3(payload, parent_beacon_block_root).await,
                 self.envelope
-                    .payload
+                    .execution_payload
                     .clone()
                     .try_into_block_with_sidecar(&OpExecutionPayloadSidecar::v3(
                         CancunPayloadFields::new(parent_beacon_block_root, vec![]),
@@ -99,7 +99,7 @@ impl EngineTaskExt for InsertTask {
             OpExecutionPayload::V4(payload) => (
                 self.client.new_payload_v4(payload, parent_beacon_block_root).await,
                 self.envelope
-                    .payload
+                    .execution_payload
                     .clone()
                     .try_into_block_with_sidecar(&OpExecutionPayloadSidecar::v4(
                         CancunPayloadFields::new(parent_beacon_block_root, vec![]),
