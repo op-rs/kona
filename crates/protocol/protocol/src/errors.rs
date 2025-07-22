@@ -3,7 +3,7 @@
 use crate::DecodeError;
 use alloy_primitives::B256;
 
-/// An error encountered during OP [Block](alloy_consensus::Block) conversion.
+/// An error encountered during OP [`Block`](alloy_consensus::Block) conversion.
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum OpBlockConversionError {
     /// Invalid genesis hash.

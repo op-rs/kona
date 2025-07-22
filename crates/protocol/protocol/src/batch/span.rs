@@ -74,7 +74,7 @@ impl SpanBatch {
         &self.batches[self.batches.len() - 1 - n]
     }
 
-    /// Constructs a [RawSpanBatch] from the [SpanBatch].
+    /// Constructs a [`RawSpanBatch`] from the [`SpanBatch`].
     pub fn to_raw_span_batch(&self) -> Result<RawSpanBatch, SpanBatchError> {
         if self.batches.is_empty() {
             return Err(SpanBatchError::EmptySpanBatch);
@@ -100,9 +100,9 @@ impl SpanBatch {
         })
     }
 
-    /// Converts all [SpanBatchElement]s after the L2 safe head to [SingleBatch]es. The resulting
-    /// [SingleBatch]es do not contain a parent hash, as it is populated by the Batch Queue
-    /// stage.
+    /// Converts all [`SpanBatchElement`]s after the L2 safe head to [`SingleBatch`]es. The
+    /// resulting [`SingleBatch`]es do not contain a parent hash, as it is populated by the
+    /// Batch Queue stage.
     pub fn get_singular_batches(
         &self,
         l1_origins: &[BlockInfo],
@@ -135,7 +135,7 @@ impl SpanBatch {
         Ok(single_batches)
     }
 
-    /// Append a [SingleBatch] to the [SpanBatch]. Updates the L1 origin check if need be.
+    /// Append a [`SingleBatch`] to the [`SpanBatch`]. Updates the L1 origin check if need be.
     pub fn append_singular_batch(
         &mut self,
         singular_batch: SingleBatch,

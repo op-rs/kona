@@ -92,6 +92,7 @@ impl Behaviour {
 mod tests {
     use super::*;
     use crate::gossip::{config, handler::BlockHandler};
+    use alloy_chains::Chain;
     use alloy_primitives::Address;
     use kona_genesis::RollupConfig;
     use libp2p::gossipsub::{IdentTopic, TopicHash};
@@ -118,8 +119,10 @@ mod tests {
         let key = libp2p::identity::Keypair::generate_secp256k1();
         let cfg = config::default_config();
         let (_, recv) = tokio::sync::watch::channel(Address::default());
-        let block_handler =
-            BlockHandler::new(RollupConfig { l2_chain_id: 10, ..Default::default() }, recv);
+        let block_handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
+            recv,
+        );
         let handlers: Vec<Box<dyn Handler>> = vec![Box::new(block_handler)];
         let behaviour = Behaviour::new(key.public(), cfg, &handlers).unwrap();
         let mut topics = behaviour.gossipsub.topics().cloned().collect::<Vec<TopicHash>>();

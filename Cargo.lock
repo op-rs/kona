@@ -111,7 +111,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5674914c2cfdb866c21cb0c09d82374ee39a1395cf512e7515f4c014083b3fff"
 dependencies = [
  "alloy-primitives",
+ "arbitrary",
  "num_enum",
+ "proptest",
  "serde",
  "strum",
 ]
@@ -4238,7 +4240,7 @@ dependencies = [
 
 [[package]]
 name = "kona-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "alloy-primitives",
  "anyhow",
@@ -4249,6 +4251,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.12",
  "tracing",
+ "tracing-appender",
  "tracing-subscriber 0.3.19",
 ]
 
@@ -4451,8 +4454,9 @@ dependencies = [
 
 [[package]]
 name = "kona-genesis"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
+ "alloy-chains",
  "alloy-consensus",
  "alloy-eips",
  "alloy-hardforks",
@@ -4472,7 +4476,7 @@ dependencies = [
 
 [[package]]
 name = "kona-hardforks"
-version = "0.3.0"
+version = "0.4.3"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -4532,7 +4536,7 @@ dependencies = [
 
 [[package]]
 name = "kona-interop"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4631,6 +4635,7 @@ dependencies = [
 name = "kona-node-service"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-eips",
  "alloy-primitives",
  "alloy-provider",
@@ -4684,6 +4689,7 @@ dependencies = [
 name = "kona-p2p"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-consensus",
  "alloy-eips",
  "alloy-primitives",
@@ -4834,7 +4840,7 @@ dependencies = [
 
 [[package]]
 name = "kona-protocol"
-version = "0.3.0"
+version = "0.4.1"
 dependencies = [
  "alloc-no-stdlib",
  "alloy-consensus",
@@ -4869,7 +4875,7 @@ dependencies = [
 
 [[package]]
 name = "kona-providers-alloy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4898,7 +4904,7 @@ dependencies = [
 
 [[package]]
 name = "kona-registry"
-version = "0.3.0"
+version = "0.4.2"
 dependencies = [
  "alloy-chains",
  "alloy-eips",
@@ -4914,7 +4920,7 @@ dependencies = [
 
 [[package]]
 name = "kona-rpc"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",

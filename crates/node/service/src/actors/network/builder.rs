@@ -61,7 +61,7 @@ impl NetworkBuilder {
         Self {
             discovery: Discv5Builder::new(
                 discovery_address,
-                rollup_config.l2_chain_id,
+                rollup_config.l2_chain_id.id(),
                 discovery_config,
             ),
             gossip: GossipDriverBuilder::new(
@@ -159,6 +159,7 @@ impl NetworkBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_chains::Chain;
     use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
     use libp2p::gossipsub::IdentTopic;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -216,7 +217,10 @@ mod tests {
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
 
         let driver = network_builder(NetworkBuilderParams {
-            rollup_config: RollupConfig { l2_chain_id: 10, ..Default::default() },
+            rollup_config: RollupConfig {
+                l2_chain_id: Chain::optimism_mainnet(),
+                ..Default::default()
+            },
             signer,
         })
         .with_gossip_address(gossip_addr.clone())
@@ -234,6 +238,7 @@ mod tests {
         // Block Handler Assertions
         assert_eq!(driver.gossip.handler.rollup_config.l2_chain_id, id);
         let v1 = IdentTopic::new(format!("/optimism/{}/0/blocks", id));
+        println!("{:?}", driver.gossip.handler.blocks_v1_topic);
         assert_eq!(driver.gossip.handler.blocks_v1_topic.hash(), v1.hash());
         let v2 = IdentTopic::new(format!("/optimism/{}/1/blocks", id));
         assert_eq!(driver.gossip.handler.blocks_v2_topic.hash(), v2.hash());

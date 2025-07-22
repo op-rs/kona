@@ -1,4 +1,4 @@
-//! Contains the [BatchValidity] and its encodings.
+//! Contains the [`BatchValidity`] and its encodings.
 
 /// Batch Validity
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

@@ -63,7 +63,7 @@ impl L1BlockInfoEcotone {
     /// The 4 byte selector of "setL1BlockValuesEcotone()"
     pub const L1_INFO_TX_SELECTOR: [u8; 4] = [0x44, 0x0a, 0x5e, 0x20];
 
-    /// Encodes the [L1BlockInfoEcotone] object into Ethereum transaction calldata.
+    /// Encodes the [`L1BlockInfoEcotone`] object into Ethereum transaction calldata.
     pub fn encode_calldata(&self) -> Bytes {
         let mut buf = Vec::with_capacity(Self::L1_INFO_TX_LEN);
         buf.extend_from_slice(Self::L1_INFO_TX_SELECTOR.as_ref());
@@ -81,7 +81,7 @@ impl L1BlockInfoEcotone {
         buf.into()
     }
 
-    /// Decodes the [L1BlockInfoEcotone] object from ethereum transaction calldata.
+    /// Decodes the [`L1BlockInfoEcotone`] object from ethereum transaction calldata.
     pub fn decode_calldata(r: &[u8]) -> Result<Self, DecodeError> {
         if r.len() != Self::L1_INFO_TX_LEN {
             return Err(DecodeError::InvalidEcotoneLength(Self::L1_INFO_TX_LEN, r.len()));

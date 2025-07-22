@@ -8,7 +8,7 @@ use alloy_primitives::Bytes;
 /// or transaction per block allowed in a span batch.
 pub const MAX_SPAN_BATCH_ELEMENTS: u64 = 10_000_000;
 
-/// A single batch element is similar to the [SingleBatch] type
+/// A single batch element is similar to the [`SingleBatch`] type
 /// but does not contain the parent hash and epoch hash since spans
 /// do not contain this data for every block in the span.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

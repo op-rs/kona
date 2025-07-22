@@ -90,7 +90,7 @@ impl BlockHandler {
     ///
     /// Requires the chain ID and a receiver channel for the unsafe block signer.
     pub fn new(rollup_config: RollupConfig, signer_recv: Receiver<Address>) -> Self {
-        let chain_id = rollup_config.l2_chain_id;
+        let chain_id = rollup_config.l2_chain_id.id();
         Self {
             rollup_config,
             signer_recv,
@@ -137,6 +137,7 @@ impl BlockHandler {
 
 #[cfg(test)]
 mod tests {
+    use alloy_chains::Chain;
     use alloy_rpc_types_engine::{ExecutionPayloadV2, ExecutionPayloadV3};
     use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadV4, PayloadHash};
 
@@ -163,7 +164,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -208,7 +209,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -242,7 +243,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -281,7 +282,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -320,7 +321,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -363,7 +364,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -405,7 +406,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
@@ -451,7 +452,7 @@ mod tests {
         let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
         let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
         let mut handler = BlockHandler::new(
-            RollupConfig { l2_chain_id: 10, ..Default::default() },
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
             unsafe_signer,
         );
 
