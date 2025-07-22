@@ -5,7 +5,7 @@ use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{FinalizedL1Storage, LatestL1Storage};
+use kona_supervisor_storage::FinalizedL1Storage;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -13,31 +13,29 @@ use tracing::{error, info};
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
-pub struct L1Watcher<F, L> {
+pub struct L1Watcher<F> {
     /// The Alloy RPC client for L1.
     rpc_client: RpcClient,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
+    /// The finalized L1 block storage.
     finalized_l1_storage: Arc<F>,
-    latest_l1_storage: Arc<L>,
-
+    /// The event senders for each chain.
     event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
 }
 
-impl<F, L> L1Watcher<F, L>
+impl<F> L1Watcher<F>
 where
     F: FinalizedL1Storage + 'static,
-    L: LatestL1Storage + 'static,
 {
     /// Creates a new [`L1Watcher`] instance.
     pub const fn new(
         rpc_client: RpcClient,
         finalized_l1_storage: Arc<F>,
-        latest_l1_storage: Arc<L>,
         event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
         cancellation: CancellationToken,
     ) -> Self {
-        Self { rpc_client, finalized_l1_storage, latest_l1_storage, event_txs, cancellation }
+        Self { rpc_client, finalized_l1_storage, event_txs, cancellation }
     }
 
     /// Starts polling for finalized and latest blocks and processes them.
@@ -173,11 +171,6 @@ where
             "New latest L1 block received"
         );
 
-        if let Err(err) = self.latest_l1_storage.update_latest_l1(latest_source_block) {
-            error!(target: "l1_watcher", %err, "Failed to update latest L1 block");
-            return;
-        }
-
         *last_latest_number = block_number;
 
         // TODO: Trigger re-org after checking if the latest block is not the direct child of last
@@ -204,14 +197,6 @@ mod tests {
         }
     }
 
-    mock! {
-        pub latest_l1_storage {}
-        impl LatestL1Storage for latest_l1_storage {
-            fn update_latest_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
-            fn get_latest_l1(&self) -> Result<BlockInfo, StorageError>;
-        }
-    }
-
     #[tokio::test]
     async fn test_broadcast_finalized_source_update_sends_to_all() {
         let (tx1, mut rx1) = mpsc::channel(1);
@@ -229,7 +214,6 @@ mod tests {
             rpc_client,
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
-            latest_l1_storage: Arc::new(Mocklatest_l1_storage::new()),
             event_txs,
         };
 
@@ -260,7 +244,6 @@ mod tests {
             rpc_client,
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(mock_storage),
-            latest_l1_storage: Arc::new(Mocklatest_l1_storage::new()),
             event_txs,
         };
 
@@ -313,7 +296,6 @@ mod tests {
             rpc_client,
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(mock_storage),
-            latest_l1_storage: Arc::new(Mocklatest_l1_storage::new()),
             event_txs,
         };
 
@@ -342,9 +324,6 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(1);
         let event_txs = [(1, tx)].into_iter().collect();
 
-        let mut mock_storage = Mocklatest_l1_storage::new();
-        mock_storage.expect_update_latest_l1().returning(|_block| Ok(()));
-
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter);
         let rpc_client = RpcClient::new(transport, false);
@@ -353,7 +332,6 @@ mod tests {
             rpc_client,
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
-            latest_l1_storage: Arc::new(mock_storage),
             event_txs,
         };
 
@@ -373,50 +351,6 @@ mod tests {
         let mut last_latest_number = 0;
         watcher.handle_new_latest_block(block, &mut last_latest_number);
         assert_eq!(last_latest_number, 1);
-        // Should NOT send any event for latest block
-        assert!(rx.try_recv().is_err());
-    }
-
-    #[tokio::test]
-    async fn test_handle_new_latest_block_storage_error() {
-        let mut mock_storage = Mocklatest_l1_storage::new();
-        mock_storage
-            .expect_update_latest_l1()
-            .returning(|_block| Err(StorageError::DatabaseNotInitialised));
-
-        let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter);
-        let rpc_client = RpcClient::new(transport, false);
-
-        let (tx, mut rx) = mpsc::channel(1);
-        let mut event_txs = HashMap::new();
-        event_txs.insert(1, tx);
-
-        let watcher = L1Watcher {
-            rpc_client,
-            cancellation: CancellationToken::new(),
-            finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
-            latest_l1_storage: Arc::new(mock_storage),
-            event_txs,
-        };
-
-        let block = Block {
-            header: Header {
-                hash: B256::ZERO,
-                inner: alloy_consensus::Header {
-                    number: 200,
-                    parent_hash: B256::ZERO,
-                    timestamp: 654321,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let mut last_latest_number = 0;
-        watcher.handle_new_latest_block(block, &mut last_latest_number);
-        // Should NOT update last_latest_number if storage update fails
-        assert_eq!(last_latest_number, 0);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
     }

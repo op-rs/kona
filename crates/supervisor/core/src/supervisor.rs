@@ -291,7 +291,6 @@ impl Supervisor {
         let l1_watcher = L1Watcher::new(
             l1_rpc,
             self.database_factory.clone(),
-            self.database_factory.clone(),
             senders,
             self.cancel_token.clone(),
         );
