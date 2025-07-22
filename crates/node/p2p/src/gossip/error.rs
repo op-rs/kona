@@ -2,6 +2,8 @@
 
 use crate::BehaviourError;
 use derive_more::From;
+use libp2p::{Multiaddr, PeerId};
+use std::net::IpAddr;
 use thiserror::Error;
 
 /// An error publishing a payload.
@@ -44,4 +46,30 @@ pub enum GossipDriverBuilderError {
     /// The sync request/response protocol has already been accepted.
     #[error("sync request/response protocol already accepted")]
     SyncReqRespAlreadyAccepted,
+}
+
+/// An error type representing reasons why a peer cannot be dialed.
+#[derive(Debug, Clone, Error)]
+pub enum DialError {
+    /// Failed to extract PeerId from Multiaddr.
+    #[error("Failed to extract PeerId from Multiaddr: {addr}")]
+    InvalidMultiaddr { addr: Multiaddr },
+    /// Already dialing this peer.
+    #[error("Already dialing peer: {peer_id}")]
+    AlreadyDialing { peer_id: PeerId },
+    /// Dial threshold reached for this peer.
+    #[error("Dial threshold reached for peer: {addr}")]
+    ThresholdReached { addr: Multiaddr },
+    /// Peer is blocked.
+    #[error("Peer is blocked: {peer_id}")]
+    PeerBlocked { peer_id: PeerId },
+    /// Failed to extract IP address from Multiaddr.
+    #[error("Failed to extract IP address from Multiaddr: {addr}")]
+    InvalidIpAddress { addr: Multiaddr },
+    /// IP address is blocked.
+    #[error("IP address is blocked: {ip}")]
+    AddressBlocked { ip: IpAddr },
+    /// IP address is in a blocked subnet.
+    #[error("IP address {ip} is in a blocked subnet")]
+    SubnetBlocked { ip: IpAddr },
 }
