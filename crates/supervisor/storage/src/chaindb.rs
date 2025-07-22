@@ -1,7 +1,7 @@
 //! Main database access structure and transaction contexts.
 
 use crate::{
-    Metrics, Rewinder,
+    Metrics, StorageRewinder,
     error::StorageError,
     providers::{DerivationProvider, LogProvider, SafetyHeadRefProvider},
     traits::{
@@ -114,6 +114,11 @@ impl DerivationStorageWriter for ChainDb {
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
         self.observe_call("save_derived_block", || {
             self.env.update(|ctx| {
+                DerivationProvider::new(ctx).save_derived_block(incoming_pair)?;
+
+                // Verify consistency with log storage.
+                // The check is intentionally deferred until after saving the derived block,
+                // ensuring validation only triggers on committed state to prevent false positives.
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
                     |err| match err {
@@ -128,7 +133,6 @@ impl DerivationStorageWriter for ChainDb {
                         other => other, // propagate other errors as-is
                     },
                 )?;
-
                 if block != derived_block {
                     error!(
                         target: "supervisor_storage",
@@ -136,9 +140,9 @@ impl DerivationStorageWriter for ChainDb {
                         stored_log_block = %block,
                         "Derived block does not match the stored log block"
                     );
-                    return Err(StorageError::ConflictError);
+                    return Err(StorageError::ReorgRequired);
                 }
-                DerivationProvider::new(ctx).save_derived_block(incoming_pair)?;
+
                 SafetyHeadRefProvider::new(ctx)
                     .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
             })
@@ -369,7 +373,7 @@ impl HeadRefStorageWriter for ChainDb {
     }
 }
 
-impl Rewinder for ChainDb {
+impl StorageRewinder for ChainDb {
     fn rewind_log_storage(&self, to: &BlockInfo) -> Result<(), StorageError> {
         self.observe_call("rewind_log_storage", || {
             self.env.update(|tx| {

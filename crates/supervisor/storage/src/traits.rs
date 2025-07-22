@@ -392,7 +392,7 @@ pub trait CrossChainSafetyProvider {
 /// and safety head references from the latest block back to a specified block number (inclusive).
 /// It is typically used during chain reorganizations or when invalid blocks are detected and need
 /// to be rolled back.
-pub trait Rewinder {
+pub trait StorageRewinder {
     /// Rewinds the log storage from the latest block down to the specified block (inclusive).
     ///
     /// # Arguments
