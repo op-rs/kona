@@ -79,23 +79,6 @@ impl Access {
         }
         Ok(())
     }
-
-    /// Checks the expiry and validity of the message
-    pub const fn validate_message_lifetime(
-        &self,
-        exec_ts: u64,
-        exec_ts_with_duration: u64,
-        expiry_window: u64,
-    ) -> Result<(), AccessListError> {
-        if self.timestamp >= exec_ts {
-            return Err(AccessListError::InvalidTimestampInvariant);
-        }
-        let expires_at = self.timestamp.saturating_add(expiry_window);
-        if expires_at < exec_ts_with_duration {
-            return Err(AccessListError::MessageExpired);
-        }
-        Ok(())
-    }
 }
 
 /// Represents a single entry in the access list.
@@ -409,43 +392,5 @@ mod tests {
         let entries = vec![checksum, lookup];
 
         assert!(matches!(parse_access_list(entries), Err(AccessListError::MalformedEntry)));
-    }
-
-    #[test]
-    fn test_validate_message_lifetime_valid() {
-        let access = Access {
-            chain_id: [0; 32],
-            block_number: 0,
-            timestamp: 100,
-            log_index: 0,
-            checksum: B256::default(),
-        };
-        assert!(access.validate_message_lifetime(120, 150, 100).is_ok());
-    }
-
-    #[test]
-    fn test_validate_message_lifetime_expired() {
-        let access = Access {
-            chain_id: [0; 32],
-            block_number: 0,
-            timestamp: 100,
-            log_index: 0,
-            checksum: B256::default(),
-        };
-        let err = access.validate_message_lifetime(120, 250, 100);
-        assert_eq!(err, Err(AccessListError::MessageExpired));
-    }
-
-    #[test]
-    fn test_validate_message_lifetime_future_ts() {
-        let access = Access {
-            chain_id: [0; 32],
-            block_number: 0,
-            timestamp: 200,
-            log_index: 0,
-            checksum: B256::default(),
-        };
-        let err = access.validate_message_lifetime(100, 150, 100);
-        assert_eq!(err, Err(AccessListError::InvalidTimestampInvariant));
     }
 }

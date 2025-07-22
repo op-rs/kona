@@ -458,9 +458,6 @@ impl SupervisorService for Supervisor {
         executing_descriptor: ExecutingDescriptor,
     ) -> Result<(), SupervisorError> {
         let access_list = parse_access_list(inbox_entries)?;
-        let message_expiry_window = self.config.dependency_set.get_message_expiry_window();
-        let timeout = executing_descriptor.timeout.unwrap_or(0);
-        let executing_ts_with_duration = executing_descriptor.timestamp.saturating_add(timeout);
 
         for access in &access_list {
             // Check all the invariants for each message
@@ -474,21 +471,13 @@ impl SupervisorService for Supervisor {
             let executing_chain_id = executing_descriptor.chain_id.unwrap_or(initiating_chain_id);
 
             // Message must be valid at the time of execution.
-            access.validate_message_lifetime(
+            self.config.validate_interop_timestamps(
+                initiating_chain_id,
+                access.timestamp,
+                executing_chain_id,
                 executing_descriptor.timestamp,
-                executing_ts_with_duration,
-                message_expiry_window,
+                executing_descriptor.timeout,
             )?;
-
-            // The interop fork must be active for both the executing and
-            // initiating chains at the respective timestamps.
-            let rollup_config = &self.config.rollup_config_set;
-            if !rollup_config
-                .is_interop_enabled(initiating_chain_id, executing_descriptor.timestamp) ||
-                !rollup_config.is_interop_enabled(executing_chain_id, access.timestamp)
-            {
-                return Err(SupervisorError::InteropNotEnabled);
-            }
 
             // Verify the initiating message exists and valid for corresponding executing message.
             let db = self.get_db(initiating_chain_id)?;

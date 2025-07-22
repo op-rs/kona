@@ -11,22 +11,24 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
+use crate::config::Config;
 
 /// A background job that promotes blocks to a target safety level on a given chain.
 ///
 /// It uses [`CrossChainSafetyProvider`] to fetch candidate blocks and the [`CrossSafetyChecker`]
 /// to validate cross-chain message dependencies.
 #[derive(Debug, Constructor)]
-pub struct CrossSafetyCheckerJob<P, L> {
+pub struct CrossSafetyCheckerJob<'a, P, L> {
     chain_id: ChainId,
     provider: Arc<P>,
     cancel_token: CancellationToken,
     interval: Duration,
     promoter: L,
     event_tx: mpsc::Sender<ChainEvent>,
+    config: &'a Config,
 }
 
-impl<P, L> CrossSafetyCheckerJob<P, L>
+impl<P, L> CrossSafetyCheckerJob<'_, P, L>
 where
     P: CrossChainSafetyProvider + Send + Sync + 'static,
     L: SafetyPromoter,
@@ -39,18 +41,20 @@ where
     /// - Exits when [`CancellationToken`] is triggered
     pub async fn run(self) {
         let target_level = self.promoter.target_level();
+        let chain_id = self.chain_id;
+        
         info!(
             target: "safety_checker",
-            chain_id = self.chain_id,
+            chain_id,
             %target_level,
             "Started safety checker");
 
-        let checker = CrossSafetyChecker::new(&*self.provider);
+        let checker = CrossSafetyChecker::new(chain_id, self.config, &*self.provider);
 
         loop {
             tokio::select! {
                 _ = self.cancel_token.cancelled() => {
-                    info!(target: "safety_checker", chain_id = self.chain_id,target_level = %target_level, "Canceled safety checker");
+                    info!(target: "safety_checker", chain_id, %target_level, "Canceled safety checker");
                     break;
                 }
 
@@ -59,7 +63,7 @@ where
                         Ok(block_info) => {
                             info!(
                                 target: "safety_checker",
-                                chain_id = self.chain_id,
+                                chain_id,
                                 %target_level,
                                 %block_info,
                                 "Promoted next candidate block"
@@ -72,7 +76,7 @@ where
                                 _ => {
                                     warn!(
                                         target: "safety_checker",
-                                        chain_id = self.chain_id,
+                                        chain_id,
                                         %target_level,
                                         %err,
                                         "Error promoting next candidate block"

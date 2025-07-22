@@ -1,37 +1,44 @@
 use crate::CrossSafetyError;
 use alloy_primitives::ChainId;
+use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::CrossChainSafetyProvider;
 use kona_supervisor_types::ExecutingMessage;
 use op_alloy_consensus::interop::SafetyLevel;
+use crate::config::Config;
+use crate::CrossSafetyError::ValidationError;
+use crate::safety_checker::error::ValidationError::InteropValidationError;
 
 /// Uses a [`CrossChainSafetyProvider`] to verify the safety of cross-chain message dependencies.
-#[derive(Debug)]
+#[derive(Debug, Constructor)]
 pub struct CrossSafetyChecker<'a, P> {
+    chain_id: ChainId,
+    config: &'a Config,
     provider: &'a P,
 }
 
-#[allow(dead_code)]
 impl<'a, P> CrossSafetyChecker<'a, P>
 where
     P: CrossChainSafetyProvider,
 {
-    pub(crate) const fn new(provider: &'a P) -> Self {
-        Self { provider }
-    }
-
-    /// Verifies that all executing messages in the given block meet the required safety level.
-    pub fn verify_block_dependencies(
+    /// Verifies that all executing messages in the given block are valid based on the validity checks
+    pub fn validate_block(
         &self,
-        chain_id: ChainId,
         block: BlockInfo,
         required_level: SafetyLevel,
     ) -> Result<(), CrossSafetyError> {
         // Retrieve logs emitted in this block
-        let executing_logs = self.provider.get_block_logs(chain_id, block.number)?;
+        let executing_logs = self.provider.get_block_logs(self.chain_id, block.number)?;
 
         for log in executing_logs {
             if let Some(message) = log.executing_message {
+                self.config.validate_interop_timestamps(
+                    message.chain_id,
+                    message.timestamp, 
+                    self.chain_id,
+                    block.timestamp,
+                    None).map_err(|err|InteropValidationError(err))?;
+                
                 self.verify_message_dependency(&message, required_level)?;
             }
         }

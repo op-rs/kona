@@ -1,7 +1,9 @@
 use alloy_primitives::ChainId;
+use alloy_rpc_types_eth::BlockError;
 use kona_supervisor_storage::StorageError;
 use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
+use crate::config::ConfigError;
 
 /// Errors returned when validating cross-chain message dependencies.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -28,4 +30,15 @@ pub enum CrossSafetyError {
     /// The requested safety level is not supported for promotion.
     #[error("promotion to level {0} is not supported")]
     UnsupportedTargetLevel(SafetyLevel),
+
+    /// Indicates that error occurred while validating block
+    #[error(transparent)]
+    ValidationError(#[from] ValidationError),
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ValidationError {
+    /// Indicates that error occurred while validating interop config for the block messages
+    #[error(transparent)]
+    InteropValidationError(#[from] ConfigError),
 }
