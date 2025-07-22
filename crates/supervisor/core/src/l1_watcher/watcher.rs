@@ -371,7 +371,7 @@ mod tests {
             ..Default::default()
         };
         let mut last_latest_number = 0;
-        watcher.handle_new_latest_block(block.clone(), &mut last_latest_number);
+        watcher.handle_new_latest_block(block, &mut last_latest_number);
         assert_eq!(last_latest_number, 1);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
