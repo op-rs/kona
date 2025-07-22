@@ -1,3 +1,138 @@
 # Runtime
 
-Coming soon...
+The Kona Node Runtime system provides dynamic configuration management and protocol version signaling for rollup nodes. It maintains up-to-date runtime parameters by monitoring L1 contracts and automatically propagating changes to the execution engine.
+
+:::info
+[Core Purpose]
+The runtime system ensures your node stays synchronized with network-wide protocol upgrades and configuration changes without requiring manual intervention or restarts.
+:::
+
+## Architecture Overview
+
+The runtime system consists of three primary components that work together to maintain node configuration:
+
+### RuntimeConfig
+
+The core configuration structure containing essential runtime parameters:
+
+- **Unsafe Block Signer Address**: The P2P block signer address used for unsafe block validation
+- **Required Protocol Version**: The minimum protocol version nodes must support
+- **Recommended Protocol Version**: The preferred protocol version for optimal operation
+
+### RuntimeLoader
+
+Responsible for fetching runtime configuration from L1 smart contracts. The loader:
+
+- Queries the L1 System Config contract for the unsafe block signer address
+- Retrieves protocol version information from the Protocol Versions contract
+- Implements intelligent caching to minimize L1 calls and improve performance
+- Handles configuration validation and error recovery
+
+:::warning
+[L1 Dependency]
+The runtime loader requires a reliable L1 RPC connection. Network issues or L1 node downtime can affect runtime configuration updates.
+:::
+
+### RuntimeActor
+
+An autonomous actor that orchestrates the runtime system lifecycle:
+
+- Periodically loads the latest runtime configuration using configurable intervals
+- Signals protocol version updates to the execution engine via the `engine_signalSuperchainV1` RPC method
+- Manages the update cycle and handles shutdown signals gracefully
+- Provides logging and metrics for monitoring runtime system health
+
+## Configuration Management
+
+The runtime system automatically discovers configuration changes by monitoring specific storage slots in L1 contracts:
+
+**System Config Contract**: Stores the unsafe block signer address at a deterministic storage slot. This address is used to validate blocks received through the P2P network before they're finalized on L1.
+
+**Protocol Versions Contract**: Contains both required and recommended protocol versions. The required version represents the minimum version needed for consensus participation, while the recommended version indicates the optimal version for new features and improvements.
+
+:::tip
+[Caching Strategy]
+The runtime loader implements an LRU cache that maps block information to runtime configurations, significantly reducing L1 query overhead during normal operation.
+:::
+
+## Integration Patterns
+
+### Node Service Integration
+
+The runtime actor integrates seamlessly with the broader node service architecture:
+
+1. **Initialization**: The runtime actor starts alongside other node components during service startup
+2. **Configuration Updates**: When new runtime configuration is loaded, it's automatically propagated to relevant subsystems
+3. **Engine Signaling**: Protocol version updates are sent to the execution engine to ensure compatibility with network changes
+
+### Error Handling
+
+The runtime system includes comprehensive error handling for various failure scenarios:
+
+- **Network Errors**: Automatic retry logic for transient L1 connection issues
+- **Contract Call Failures**: Graceful handling of failed storage queries with fallback behavior
+- **Protocol Version Decoding**: Validation and error reporting for malformed protocol version data
+
+:::info
+[Optional Engine Endpoint]
+The `engine_signalSuperchainV1` endpoint is optional in the Engine API specification. If your execution client doesn't support this method, the runtime system will log warnings but continue operating normally.
+:::
+
+## Monitoring and Observability
+
+The runtime system provides comprehensive monitoring capabilities:
+
+### Logging
+
+Runtime operations are logged with structured information including:
+- Configuration loading events with timing details
+- Protocol version changes and their values
+- Error conditions with context for troubleshooting
+
+### Metrics
+
+When the metrics feature is enabled, the runtime system exports:
+- Current runtime configuration values as gauge metrics
+- Loading frequency and success rates
+- Error counts by type for alerting
+
+## Best Practices
+
+### Configuration Intervals
+
+Choose runtime loading intervals based on your operational requirements:
+
+- **High-frequency trading**: Shorter intervals (30-60 seconds) for rapid protocol version awareness
+- **Standard operation**: Medium intervals (5-10 minutes) for balanced responsiveness and efficiency  
+- **Resource-constrained environments**: Longer intervals (15-30 minutes) to minimize L1 query costs
+
+### Monitoring Setup
+
+Implement monitoring for runtime system health:
+
+- Alert on repeated configuration loading failures
+- Monitor L1 RPC endpoint availability and performance
+- Track protocol version changes for upgrade planning
+
+:::warning
+[Protocol Version Compatibility]
+Ensure your node can support the required protocol version. Running with an incompatible version may result in consensus failures or network disconnection.
+:::
+
+## Troubleshooting
+
+### Common Issues
+
+**Configuration Loading Failures**: Often caused by L1 RPC issues or contract call failures. Check L1 endpoint health and network connectivity.
+
+**Missing Protocol Versions**: If the protocol versions address is not set in the rollup configuration, the system will use default values and log warnings.
+
+**Engine Signaling Errors**: The `engine_signalSuperchainV1` method is optional. If your execution client doesn't implement it, you'll see warnings but the system will continue functioning.
+
+### Debug Information
+
+Enable debug logging to get detailed information about:
+- Runtime configuration loading timings
+- Cache hit/miss ratios
+- L1 contract interaction details
+- Protocol version parsing and validation
