@@ -7,7 +7,6 @@ use kona_genesis::RollupConfig;
 use kona_preimage::{PreimageKey, PreimageOracleClient};
 use kona_registry::ROLLUP_CONFIGS;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, warn};
 
 /// The local key ident for the L1 head hash.
 pub const L1_HEAD_KEY: U256 = U256::from_be_slice(&[1]);
