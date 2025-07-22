@@ -65,7 +65,7 @@ impl GossipCommand {
             .as_ref()
             .ok_or(anyhow::anyhow!("No system config found for chain ID"))?
             .batcher_address;
-        tracing::info!(target: "gossip", "Gossip configured with signer: {:?}", signer);
+        tracing::debug!(target: "gossip", "Gossip configured with signer: {:?}", signer);
 
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.gossip_port);
         tracing::info!(target: "gossip", "Starting gossip driver on {:?}", gossip);

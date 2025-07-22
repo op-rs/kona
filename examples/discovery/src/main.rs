@@ -83,7 +83,7 @@ impl DiscCommand {
                 enr = enr_receiver.recv() => {
                     match enr {
                         Some(enr) => {
-                            tracing::info!(target: "discovery", "Received peer: {:?}", enr);
+                            tracing::debug!(target: "discovery", "Received peer: {:?}", enr);
                         }
                         None => {
                             tracing::warn!(target: "discovery", "Failed to receive peer");
@@ -95,10 +95,10 @@ impl DiscCommand {
                     let peer_count = handler.peer_count();
                     tokio::spawn(async move {
                         if let Ok(metrics) = metrics.await {
-                            tracing::info!(target: "discovery", "Discovery metrics: {:?}", metrics);
+                            tracing::debug!(target: "discovery", "Discovery metrics: {:?}", metrics);
                         }
                         if let Ok(pc) = peer_count.await {
-                            tracing::info!(target: "discovery", "Discovery peer count: {:?}", pc);
+                            tracing::debug!(target: "discovery", "Discovery peer count: {:?}", pc);
                         }
                     });
                 }
