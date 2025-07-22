@@ -303,6 +303,7 @@ pub trait FinalizedL1Storage {
     /// * `Err(StorageError)` if there is an issue retrieving the reference.
     fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
 }
+
 /// Provides an interface for retrieving block and safety information across multiple chains.
 ///
 /// This trait defines methods required by the cross-chain safety checker to access
