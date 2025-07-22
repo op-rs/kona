@@ -17,6 +17,7 @@ use crate::{
     error::StorageError,
     models::{BlockRefs, LogEntries},
 };
+use alloy_eips::BlockNumHash;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use reth_db_api::{
@@ -125,16 +126,16 @@ where
 
     /// Rewinds the log storage by deleting all blocks and logs from the given block onward.
     /// Fails if the given block exists with a mismatching hash (to prevent unsafe deletion).
-    pub(crate) fn rewind_to(&self, block_info: &BlockInfo) -> Result<(), StorageError> {
+    pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
         let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
-        let mut walker = cursor.walk(Some(block_info.number))?;
+        let mut walker = cursor.walk(Some(block.number))?;
 
         while let Some(Ok((key, stored_block))) = walker.next() {
-            if key == block_info.number && block_info.hash != stored_block.hash {
+            if key == block.number && block.hash != stored_block.hash {
                 error!(
                     target: "supervisor_storage",
                     %stored_block,
-                    incoming_block = %block_info,
+                    incoming_block = ?block,
                     "Requested block to rewind does not match stored block",
                 );
                 return Err(StorageError::ConflictError)
@@ -572,7 +573,7 @@ mod tests {
         // Rewind to block 3, blocks 3, 4, 5 should be removed
         let tx = db.tx_mut().expect("Could not get mutable tx");
         let provider = LogProvider::new(&tx);
-        provider.rewind_to(&blocks[3]).expect("Failed to rewind blocks");
+        provider.rewind_to(&blocks[3].id()).expect("Failed to rewind blocks");
         tx.commit().expect("Failed to commit rewind");
 
         let tx = db.tx().expect("Could not get RO tx");
@@ -617,7 +618,7 @@ mod tests {
         let tx = db.tx_mut().expect("Failed to get tx");
         let provider = LogProvider::new(&tx);
 
-        let result = provider.rewind_to(&conflicting_block1);
+        let result = provider.rewind_to(&conflicting_block1.id());
         assert!(
             matches!(result, Err(StorageError::ConflictError)),
             "Expected conflict error due to hash mismatch"

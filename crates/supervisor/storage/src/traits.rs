@@ -396,11 +396,11 @@ pub trait Rewinder {
     /// Rewinds the log storage from the latest block down to the specified block (inclusive).
     ///
     /// # Arguments
-    /// * `to` - The block number to rewind to.
+    /// * `to` - The block id to rewind to.
     ///
     /// # Errors
     /// Returns a [`StorageError`] if any database operation fails during the rewind.
-    fn rewind_log_storage(&self, to: &BlockInfo) -> Result<(), StorageError>;
+    fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
 
     /// Rewinds all supervisor-managed state (log storage, derivation, and safety head refs)
     /// from the latest block back to the given block (inclusive).
@@ -409,10 +409,10 @@ pub trait Rewinder {
     /// of supervisor state after chain reorganizations or rollback of invalid blocks.
     ///
     /// # Arguments
-    /// * `to` - The target block to rewind to. Rewind is performed from the latest block down to
+    /// * `to` - The target block id to rewind to. Rewind is performed from the latest block down to
     ///   this block.
     ///
     /// # Errors
     /// Returns a [`StorageError`] if any part of the rewind process fails.
-    fn rewind(&self, to: &BlockInfo) -> Result<(), StorageError>;
+    fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
 }

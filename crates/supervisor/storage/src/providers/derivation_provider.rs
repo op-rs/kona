@@ -453,13 +453,13 @@ where
     /// Rewinds the derivation database from the given derived block onward.
     /// This removes all derived blocks with number >= the given block number
     /// and updates the traversal state accordingly.
-    pub(crate) fn rewind_to(&self, block_info: &BlockInfo) -> Result<(), StorageError> {
-        let block_pair = self.get_derived_block_pair(block_info.id())?;
+    pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
+        let block_pair = self.get_derived_block_pair(*block)?;
 
         // Delete all derived blocks with number ≥ `block_info.number`
         {
             let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
-            let mut walker = cursor.walk(Some(block_info.number))?;
+            let mut walker = cursor.walk(Some(block.number))?;
             while let Some(Ok((_, _))) = walker.next() {
                 walker.delete_current()?; // we’re already walking from the rewind point
             }
@@ -1072,7 +1072,7 @@ mod tests {
             .expect("Failed to save derived block 14");
 
         let rewind_point = derived11;
-        provider.rewind_to(&rewind_point).expect("rewind should succeed");
+        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
 
         // Expect: source block 1 retains only derived 10
         let new_state = provider.latest_derivation_state().expect("should succeed");
@@ -1080,7 +1080,7 @@ mod tests {
         assert_eq!(new_state.source, source1);
 
         let rewind_point = derived10;
-        provider.rewind_to(&rewind_point).expect("rewind should succeed");
+        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
 
         // Expect: source block 1 retains nothing, genesis should be new latest source
         let new_state = provider.latest_derivation_state().expect("should succeed");
