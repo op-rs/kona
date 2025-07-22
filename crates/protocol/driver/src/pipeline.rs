@@ -1,4 +1,8 @@
 //! Abstracts the derivation pipeline from the driver.
+//!
+//! This module provides the [`DriverPipeline`] trait which serves as a high-level
+//! abstraction for the driver's derivation pipeline. The pipeline is responsible
+//! for deriving L2 blocks from L1 data and producing payload attributes for execution.
 
 use alloc::boxed::Box;
 use async_trait::async_trait;
@@ -9,19 +13,77 @@ use kona_derive::{
     SignalReceiver, StepResult,
 };
 
-/// The Driver's Pipeline
+/// High-level abstraction for the driver's derivation pipeline.
 ///
-/// A high-level abstraction for the driver's derivation pipeline.
+/// The [`DriverPipeline`] trait extends the base [`Pipeline`] functionality with
+/// driver-specific operations needed for block production. It handles the complex
+/// logic of stepping through derivation stages, managing resets and reorgs, and
+/// producing payload attributes for block building.
+///
+/// ## Key Responsibilities
+/// - Stepping through derivation pipeline stages
+/// - Handling L1 origin advancement
+/// - Managing pipeline resets due to reorgs or activation signals
+/// - Producing payload attributes for disputed blocks
+/// - Caching and cache invalidation
+///
+/// ## Error Handling
+/// The pipeline can encounter several types of errors:
+/// - **Temporary**: Retryable errors (e.g., missing data)
+/// - **Reset**: Errors requiring pipeline reset (e.g., reorgs, activations)
+/// - **Critical**: Fatal errors that stop derivation
 #[async_trait]
 pub trait DriverPipeline<P>: Pipeline + SignalReceiver
 where
     P: Pipeline + SignalReceiver,
 {
-    /// Flushes any cache on re-org.
+    /// Flushes any cached data due to a reorganization.
+    ///
+    /// This method clears internal caches that may contain stale data
+    /// when a reorganization is detected on the L1 chain. It ensures
+    /// that subsequent derivation operations work with fresh data.
+    ///
+    /// # Usage
+    /// Called automatically when a reorg is detected during pipeline
+    /// stepping, but can also be called manually if needed.
     fn flush(&mut self);
 
-    /// Produces the disputed [`OpAttributesWithParent`] payload, directly after the given
-    /// starting l2 safe head.
+    /// Produces payload attributes for the next block after the given L2 safe head.
+    ///
+    /// This method advances the derivation pipeline to produce the next set of
+    /// [`OpAttributesWithParent`] that can be used for block building. It handles
+    /// the complex stepping logic including error recovery, resets, and reorgs.
+    ///
+    /// # Arguments
+    /// * `l2_safe_head` - The current L2 safe head block info to build upon
+    ///
+    /// # Returns
+    /// * `Ok(OpAttributesWithParent)` - Successfully produced payload attributes
+    /// * `Err(PipelineErrorKind)` - Pipeline error preventing payload production
+    ///
+    /// # Errors
+    /// This method can fail with various error types:
+    /// - **Temporary errors**: Insufficient data, retries automatically
+    /// - **Reset errors**: Reorg detected or activation needed, triggers pipeline reset
+    /// - **Critical errors**: Fatal issues that require external intervention
+    ///
+    /// # Behavior
+    /// The method operates in a loop, continuously stepping the pipeline until:
+    /// 1. Payload attributes are successfully produced
+    /// 2. A critical error occurs
+    /// 3. The pipeline signals completion
+    ///
+    /// ## Reset Handling
+    /// When reset errors occur:
+    /// - **Reorg detected**: Flushes cache and resets to safe head
+    /// - **Holocene activation**: Sends activation signal
+    /// - **Other resets**: Standard reset to safe head with system config
+    ///
+    /// ## Step Results
+    /// The pipeline can return different step results:
+    /// - **PreparedAttributes**: Attributes ready for the next block
+    /// - **AdvancedOrigin**: L1 origin moved forward
+    /// - **OriginAdvanceErr/StepFailed**: Various error conditions
     async fn produce_payload(
         &mut self,
         l2_safe_head: L2BlockInfo,
