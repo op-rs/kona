@@ -89,10 +89,17 @@ where
         safety_level: SafetyLevel,
         incoming_head_ref: &BlockInfo,
     ) -> Result<(), StorageError> {
-        // Reset only if head is ahead.
-        let current_head_ref = self.get_safety_head_ref(safety_level)?;
-        if current_head_ref.number < incoming_head_ref.number {
-            return Ok(());
+        // Skip if the current head is behind or missing.
+        match self.get_safety_head_ref(safety_level) {
+            Ok(current_head_ref) => {
+                if current_head_ref.number < incoming_head_ref.number {
+                    return Ok(());
+                }
+            }
+            Err(StorageError::FutureData) => {
+                return Ok(());
+            }
+            Err(err) => return Err(err),
         }
 
         self.tx
