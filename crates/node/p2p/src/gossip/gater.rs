@@ -334,25 +334,28 @@ fn test_check_ip_in_blocked_subnets_ipv4() {
 
 #[test]
 fn test_dial_error_handling() {
-    use std::str::FromStr;
     use crate::{ConnectionGate, DialError};
+    use std::str::FromStr;
 
     let mut gater = ConnectionGater::new(GaterConfig::default());
-    
+
     // Test invalid multiaddr (missing peer ID)
     let invalid_addr = Multiaddr::from_str("/ip4/127.0.0.1/tcp/8080").unwrap();
     let result = gater.can_dial(&invalid_addr);
     assert!(matches!(result, Err(DialError::InvalidMultiaddr { .. })));
-    
+
     // Test with valid address
-    let valid_addr = Multiaddr::from_str("/ip4/127.0.0.1/tcp/8080/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp").unwrap();
-    
+    let valid_addr = Multiaddr::from_str(
+        "/ip4/127.0.0.1/tcp/8080/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+
     // First dial should succeed
     assert!(gater.can_dial(&valid_addr).is_ok());
-    
+
     // Mark as dialing
     gater.dialing(&valid_addr);
-    
+
     // Second dial should fail with AlreadyDialing
     let result = gater.can_dial(&valid_addr);
     assert!(matches!(result, Err(DialError::AlreadyDialing { .. })));

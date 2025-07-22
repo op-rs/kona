@@ -22,7 +22,8 @@ use std::{
 use tokio::sync::Mutex;
 
 use crate::{
-    Behaviour, BlockHandler, ConnectionGate, ConnectionGater, Event, GossipDriverBuilder, Handler, PublishError,
+    Behaviour, BlockHandler, ConnectionGate, ConnectionGater, Event, GossipDriverBuilder, Handler,
+    PublishError,
 };
 
 /// A driver for a [`Swarm`] instance.
