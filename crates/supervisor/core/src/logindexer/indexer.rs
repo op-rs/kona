@@ -10,7 +10,7 @@ use kona_supervisor_types::{ExecutingMessage, Log};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::debug;
+use tracing::{debug, error};
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
@@ -61,7 +61,7 @@ where
             drop(running); // release the lock while the job runs
 
             if let Err(err) = self.index_log_upto(&block).await {
-                tracing::error!(
+                error!(
                     target: "log_indexer",
                     chain_id = %self.chain_id,
                     %err,

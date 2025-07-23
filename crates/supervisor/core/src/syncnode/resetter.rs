@@ -6,7 +6,7 @@ use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, Sto
 use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(Debug)]
 pub(super) struct Resetter<DB, C> {
@@ -32,7 +32,7 @@ where
         let chain_id = self.client.chain_id().await?;
         let _guard = self.reset_guard.lock().await;
 
-        info!(target: "resetter", %chain_id, "Resetting the node");
+        debug!(target: "resetter", %chain_id, "Resetting the node");
 
         let local_safe = match self.get_latest_valid_local_safe(chain_id).await {
             Ok(block) => block,
@@ -108,10 +108,7 @@ where
         &self,
         chain_id: ChainId,
     ) -> Result<BlockInfo, ManagedNodeError> {
-        let latest_derivation_state = self.db_provider.latest_derivation_state().inspect_err(
-            |err| error!(target: "resetter", %chain_id, %err, "Failed to get latest derivation state"),
-        )?;
-
+        let latest_derivation_state = self.db_provider.latest_derivation_state()?;
         let mut local_safe = latest_derivation_state.derived;
 
         loop {
