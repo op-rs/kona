@@ -388,16 +388,31 @@ pub trait CrossChainSafetyProvider {
 
 /// Trait for rewinding supervisor-related state in the database.
 ///
-/// This trait is used to revert persisted log data, derivation and safety head ref data
-/// from a given block onward. It is typically used to handle chain
-/// reorganizations or invalid block propagation.
+/// This trait provides an interface to revert persisted log data, derivation records,
+/// and safety head references from the latest block back to a specified block number (inclusive).
+/// It is typically used during chain reorganizations or when invalid blocks are detected and need
+/// to be rolled back.
 pub trait Rewinder {
-    /// Rewinds the log storage from the given block number (inclusive) to the latest block.
+    /// Rewinds the log storage from the latest block down to the specified block (inclusive).
     ///
     /// # Arguments
-    /// - `from_block`: The block number from which to start the rewind (inclusive).
+    /// * `to` - The block id to rewind to.
     ///
     /// # Errors
-    /// Returns [`StorageError`] if any database operation fails.
-    fn rewind_log_storage(&self, from_block: u64) -> Result<(), StorageError>;
+    /// Returns a [`StorageError`] if any database operation fails during the rewind.
+    fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+
+    /// Rewinds all supervisor-managed state (log storage, derivation, and safety head refs)
+    /// from the latest block back to the given block (inclusive).
+    ///
+    /// This method performs a coordinated rewind across all components, ensuring consistency
+    /// of supervisor state after chain reorganizations or rollback of invalid blocks.
+    ///
+    /// # Arguments
+    /// * `to` - The target block id to rewind to. Rewind is performed from the latest block down to
+    ///   this block.
+    ///
+    /// # Errors
+    /// Returns a [`StorageError`] if any part of the rewind process fails.
+    fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
 }

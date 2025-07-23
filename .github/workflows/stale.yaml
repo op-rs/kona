@@ -1,0 +1,60 @@
+name: Stale PR Management
+
+on:
+  schedule:
+    # Run daily at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    name: Close stale PRs
+    steps:
+      - name: Close stale PRs
+        uses: actions/stale@v9
+        with:
+          # Only process pull requests, not issues
+          only: pulls
+          
+          # Days of inactivity before marking PR as stale
+          days-before-stale: 21
+          
+          # Days of inactivity after being marked stale before closing
+          days-before-close: 7
+          
+          # Label to add when marking as stale
+          stale-pr-label: 'status: stale'
+          
+          # Message to post when marking PR as stale
+          stale-pr-message: |
+            This pull request has been automatically marked as stale because it has been inactive for 3 weeks.
+            It will be closed in 1 week if no further activity occurs.
+            
+            If you believe this PR should remain open, please add the `M-prevent-stale` label or leave a comment.
+            
+          # Message to post when closing stale PR
+          close-pr-message: |
+            This pull request has been automatically closed due to inactivity (4 weeks total).
+            
+            If you would like to continue working on this PR, please reopen it and ensure it stays active.
+            You can also add the `M-prevent-stale` label to prevent automatic closure in the future.
+            
+          # Labels that prevent a PR from being marked as stale
+          exempt-pr-labels: 'M-prevent-stale'
+          
+          # Don't mark PRs as stale if they have these labels
+          exempt-all-pr-labels: true
+          
+          # Remove stale label when PR becomes active again
+          remove-stale-when-updated: true
+          
+          # Limit to 30 operations per run to avoid API rate limits
+          operations-per-run: 30
+          
+          # Debug mode - set to true to see more detailed logs
+          debug-only: false

@@ -21,6 +21,7 @@ For more details on each flag, see the inline help (`kona-node node --help`) or 
 
 | Flag | Env | Description | Required | Default |
 |------|-----|-------------|----------|---------|
+| `--mode <verifier/sequencer>` | `KONA_NODE_MODE` | Mode of operation for the node | Yes | `verifier` |
 | `--l1-eth-rpc <URL>` | `KONA_NODE_L1_ETH_RPC` | URL of the L1 execution client RPC API | Yes | - |
 | `--l1-beacon <URL>` | `KONA_NODE_L1_BEACON` | URL of the L1 beacon API | Yes | - |
 | `--l2-engine-rpc <URL>` | `KONA_NODE_L2_ENGINE_RPC` | URL of the engine API endpoint of an L2 execution client | Yes | - |
@@ -78,7 +79,6 @@ For more details on each flag, see the inline help (`kona-node node --help`) or 
 
 | Flag | Env | Description | Default |
 |------|-----|-------------|---------|
-| `--sequencer.enabled` | `KONA_NODE_SEQUENCER_ENABLED` | Enable sequencing of new L2 blocks | `false` |
 | `--sequencer.stopped` | `KONA_NODE_SEQUENCER_STOPPED` | Start sequencer in stopped state | `false` |
 | `--sequencer.max-safe-lag <N>` | `KONA_NODE_SEQUENCER_MAX_SAFE_LAG` | Max L2 safe/unsafe lag | `0` |
 | `--sequencer.l1-confs <N>` | `KONA_NODE_SEQUENCER_L1_CONFS` | L1 block confirmations for sequencer | `4` |

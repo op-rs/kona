@@ -65,10 +65,10 @@ impl GossipCommand {
             .as_ref()
             .ok_or(anyhow::anyhow!("No system config found for chain ID"))?
             .batcher_address;
-        tracing::info!("Gossip configured with signer: {:?}", signer);
+        tracing::debug!(target: "gossip", "Gossip configured with signer: {:?}", signer);
 
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.gossip_port);
-        tracing::info!("Starting gossip driver on {:?}", gossip);
+        tracing::info!(target: "gossip", "Starting gossip driver on {:?}", gossip);
 
         let mut gossip_addr = Multiaddr::from(gossip.ip());
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
@@ -116,7 +116,7 @@ impl GossipCommand {
             })
             .await?;
 
-        tracing::info!("Gossip driver started, receiving blocks.");
+        tracing::info!(target: "gossip", "Gossip driver started, receiving blocks.");
         loop {
             match unsafe_blocks_rx.recv().await {
                 Some(block) => {
