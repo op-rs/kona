@@ -457,7 +457,7 @@ mod tests {
     use kona_supervisor_storage::{
         DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
-    use kona_supervisor_types::{Log, OutputV0, Receipts};
+    use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
     use std::time::Duration;
     use tokio::sync::mpsc;
@@ -517,6 +517,8 @@ mod tests {
             ) -> Result<(), ManagedNodeError>;
 
             async fn reset(&self) -> Result<(), ManagedNodeError>;
+
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
         }
     );
 

@@ -257,7 +257,7 @@ mod tests {
     use kona_interop::{BlockReplacement, DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{DerivationStorageReader, LogStorageReader, StorageError};
-    use kona_supervisor_types::{Log, OutputV0, Receipts, SubscriptionEvent, SuperHead};
+    use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts, SubscriptionEvent, SuperHead};
     use mockall::mock;
 
     mock! {
@@ -297,6 +297,7 @@ mod tests {
             async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError>;
             async fn reset_pre_interop(&self) -> Result<(), ClientError>;
             async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ClientError>;
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ClientError>;
             async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError>;
             async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ClientError>;
             async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ClientError>;

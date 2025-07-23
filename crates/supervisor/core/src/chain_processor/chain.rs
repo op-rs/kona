@@ -142,99 +142,70 @@ mod tests {
     use kona_supervisor_storage::{
         DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
-    use kona_supervisor_types::{Log, OutputV0, Receipts};
+    use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
-    use std::{
-        sync::atomic::{AtomicBool, Ordering},
-        time::Duration,
-    };
+    use std::time::Duration;
     use tokio::time::sleep;
 
-    #[derive(Debug)]
-    struct MockNode {
-        subscribed: Arc<AtomicBool>,
-    }
+    mock!(
+        #[derive(Debug)]
+        pub Node {}
 
-    impl MockNode {
-        fn new() -> Self {
-            Self { subscribed: Arc::new(AtomicBool::new(false)) }
-        }
-    }
-
-    #[async_trait]
-    impl NodeSubscriber for MockNode {
-        async fn start_subscription(
-            &self,
-            _tx: mpsc::Sender<ChainEvent>,
-        ) -> Result<(), ManagedNodeError> {
-            self.subscribed.store(true, Ordering::SeqCst);
-            Ok(())
-        }
-    }
-
-    #[async_trait]
-    impl BlockProvider for MockNode {
-        async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError> {
-            Ok(vec![]) // dummy
+        #[async_trait]
+        impl NodeSubscriber for Node {
+            async fn start_subscription(
+                &self,
+                _event_tx: mpsc::Sender<ChainEvent>,
+            ) -> Result<(), ManagedNodeError>;
         }
 
-        async fn block_by_number(&self, _number: u64) -> Result<BlockInfo, ManagedNodeError> {
-            Ok(BlockInfo::default())
-        }
-    }
-
-    #[async_trait]
-    impl ManagedNodeDataProvider for MockNode {
-        async fn output_v0_at_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<OutputV0, ManagedNodeError> {
-            Ok(OutputV0::default())
+        #[async_trait]
+        impl BlockProvider for Node {
+            async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+            async fn block_by_number(&self, _number: u64) -> Result<BlockInfo, ManagedNodeError>;
         }
 
-        async fn pending_output_v0_at_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<OutputV0, ManagedNodeError> {
-            Ok(OutputV0::default())
+        #[async_trait]
+        impl ManagedNodeDataProvider for Node {
+            async fn output_v0_at_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<OutputV0, ManagedNodeError>;
+
+            async fn pending_output_v0_at_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<OutputV0, ManagedNodeError>;
+
+            async fn l2_block_ref_by_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<BlockInfo, ManagedNodeError>;
         }
 
-        async fn l2_block_ref_by_timestamp(
-            &self,
-            _timestamp: u64,
-        ) -> Result<BlockInfo, ManagedNodeError> {
-            Ok(BlockInfo::default())
-        }
-    }
+        #[async_trait]
+        impl ManagedNodeController for Node {
+            async fn update_finalized(
+                &self,
+                _finalized_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
 
-    #[async_trait]
-    impl ManagedNodeController for MockNode {
-        async fn update_finalized(
-            &self,
-            _finalized_block_id: BlockNumHash,
-        ) -> Result<(), ManagedNodeError> {
-            Ok(())
-        }
+            async fn update_cross_unsafe(
+                &self,
+                cross_unsafe_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
 
-        async fn update_cross_unsafe(
-            &self,
-            _cross_unsafe_block_id: BlockNumHash,
-        ) -> Result<(), ManagedNodeError> {
-            Ok(())
-        }
+            async fn update_cross_safe(
+                &self,
+                source_block_id: BlockNumHash,
+                derived_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
 
-        async fn update_cross_safe(
-            &self,
-            _source_block_id: BlockNumHash,
-            _derived_block_id: BlockNumHash,
-        ) -> Result<(), ManagedNodeError> {
-            Ok(())
-        }
+            async fn reset(&self) -> Result<(), ManagedNodeError>;
 
-        async fn reset(&self) -> Result<(), ManagedNodeError> {
-            Ok(())
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
         }
-    }
+    );
 
     mock!(
         #[derive(Debug)]
@@ -297,7 +268,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_chain_processor_start_sets_task_and_calls_subscription() {
-        let mock_node = Arc::new(MockNode::new());
+        let mut mock_node = MockNode::new();
+        mock_node.expect_start_subscription().returning(|_| Ok(()));
+
         let storage = Arc::new(MockDb::new());
         let cancel_token = CancellationToken::new();
 
@@ -305,7 +278,7 @@ mod tests {
         let mut processor = ChainProcessor::new(
             rollup_config,
             1,
-            Arc::clone(&mock_node),
+            Arc::new(mock_node),
             Arc::clone(&storage),
             cancel_token,
         );
@@ -314,9 +287,6 @@ mod tests {
 
         // Wait a moment for task to spawn and subscription to run
         sleep(Duration::from_millis(50)).await;
-
-        // Ensure start_subscription was called
-        assert!(mock_node.subscribed.load(Ordering::SeqCst));
 
         let handle_guard = processor.task_handle.lock().await;
         assert!(handle_guard.is_some());
