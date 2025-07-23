@@ -46,10 +46,10 @@ where
             }
         };
 
-        let SuperHead { cross_unsafe, cross_safe, finalized, .. } = self
-            .db_provider
-            .get_super_head()
-            .inspect_err(|err| error!(target: "resetter", %chain_id, %err, "Failed to get super head"))?;
+        let SuperHead { cross_unsafe, cross_safe, finalized, .. } =
+            self.db_provider.get_super_head().inspect_err(
+                |err| error!(target: "resetter", %chain_id, %err, "Failed to get super head"),
+            )?;
 
         // using the local safe block as the local unsafe as well
         let local_unsafe = local_safe;

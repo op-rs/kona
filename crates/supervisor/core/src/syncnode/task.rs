@@ -2,10 +2,10 @@ use super::{ManagedEventTaskError, ManagedNodeClient, resetter::Resetter};
 use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
+use alloy_primitives::ChainId;
 use alloy_provider::{Provider, RootProvider};
 use kona_interop::{DerivedRefPair, ManagedEvent};
 use kona_protocol::BlockInfo;
-use alloy_primitives::ChainId;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -102,7 +102,11 @@ where
     ///
     /// Analyzes the event content and takes appropriate actions based on the
     /// event fields.
-    pub(super) async fn handle_managed_event(&self, chain_id: ChainId, incoming_event: Option<ManagedEvent>) {
+    pub(super) async fn handle_managed_event(
+        &self,
+        chain_id: ChainId,
+        incoming_event: Option<ManagedEvent>,
+    ) {
         match incoming_event {
             Some(event) => {
                 debug!(target: "managed_event_task", %chain_id, %event, "Handling ManagedEvent");
@@ -143,7 +147,7 @@ where
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
                     info!(target: "managed_event_task", %chain_id, %derived_ref_pair, "L1 exhausted event received");
 
-                    if let Err(err) = self.handle_exhaust_l1(derived_ref_pair).await {
+                    if let Err(err) = self.handle_exhaust_l1(chain_id, derived_ref_pair).await {
                         error!(target: "managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
                     }
                 }
@@ -198,10 +202,9 @@ where
     /// node.
     async fn handle_exhaust_l1(
         &self,
+        chain_id: ChainId,
         derived_ref_pair: &DerivedRefPair,
     ) -> Result<(), ManagedEventTaskError> {
-        let chain_id = self.client.chain_id().await?;
-        
         let next_block_number = derived_ref_pair.source.number + 1;
         let next_block = self
             .l1_provider
@@ -529,7 +532,7 @@ mod tests {
         // push the value that we expect on next call
         asserter.push(MockResponse::Success(serde_json::from_str(next_block).unwrap()));
 
-        let result = task.handle_exhaust_l1(&derived_ref_pair).await;
+        let result = task.handle_exhaust_l1(1, &derived_ref_pair).await;
 
         assert!(result.is_err(), "Expected error");
         assert_eq!(
