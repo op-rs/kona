@@ -18,6 +18,8 @@ use crate::{
     models::{BlockRefs, LogEntries},
 };
 use alloy_eips::BlockNumHash;
+use alloy_primitives::ChainId;
+use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::Log;
 use reth_db_api::{
@@ -28,16 +30,10 @@ use std::fmt::Debug;
 use tracing::{debug, error, warn};
 
 /// A log storage that wraps a transactional reference to the MDBX backend.
-#[derive(Debug)]
+#[derive(Debug, Constructor)]
 pub(crate) struct LogProvider<'tx, TX> {
     tx: &'tx TX,
-}
-
-/// Internal constructor and setup methods for [`LogProvider`].
-impl<'tx, TX> LogProvider<'tx, TX> {
-    pub(crate) const fn new(tx: &'tx TX) -> Self {
-        Self { tx }
-    }
+    chain_id: ChainId,
 }
 
 impl<TX> LogProvider<'_, TX>
@@ -61,7 +57,12 @@ where
         block: &BlockInfo,
         logs: Vec<Log>,
     ) -> Result<(), StorageError> {
-        debug!(target: "supervisor_storage", block_number = block.number, "Storing logs");
+        debug!(
+            target: "supervisor_storage",
+            chain_id = %self.chain_id,
+            block_number = block.number,
+            "Storing logs",
+        );
 
         let latest_block = match self.get_latest_block() {
             Ok(block) => block,
@@ -78,6 +79,7 @@ where
             }
             error!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 %stored_block,
                 incoming_block = %block,
                 "Incoming log block is not consistent with the stored log block",
@@ -88,6 +90,7 @@ where
         if !latest_block.is_parent_of(block) {
             warn!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 %latest_block,
                 incoming_block = %block,
                 "Incoming block does not follow latest stored block"
@@ -104,17 +107,29 @@ where
         logs: Vec<Log>,
     ) -> Result<(), StorageError> {
         self.tx.put::<BlockRefs>(block.number, (*block).into()).inspect_err(|err| {
-            error!(target: "supervisor_storage", block_number = block.number, %err, "Failed to insert block");
+            error!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                block_number = block.number,
+                %err,
+                "Failed to insert block"
+            );
         })?;
 
         let mut cursor = self.tx.cursor_dup_write::<LogEntries>().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to get dup cursor");
+            error!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                %err,
+                "Failed to get dup cursor"
+            );
         })?;
 
         for log in logs {
             cursor.append_dup(block.number, log.into()).inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
+                    chain_id = %self.chain_id,
                     block_number = block.number,
                     %err,
                     "Failed to append logs"
@@ -134,6 +149,7 @@ where
             if key == block.number && block.hash != stored_block.hash {
                 error!(
                     target: "supervisor_storage",
+                    chain_id = %self.chain_id,
                     %stored_block,
                     incoming_block = ?block,
                     "Requested block to rewind does not match stored block",
@@ -152,11 +168,17 @@ where
     TX: DbTx,
 {
     pub(crate) fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
-        debug!(target: "supervisor_storage", block_number, "Fetching block");
+        debug!(
+            target: "supervisor_storage",
+            chain_id = %self.chain_id,
+            block_number,
+            "Fetching block"
+        );
 
         let block_option = self.tx.get::<BlockRefs>(block_number).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 block_number,
                 %err,
                 "Failed to read block",
@@ -164,25 +186,44 @@ where
         })?;
 
         let block = block_option.ok_or_else(|| {
-            warn!(target: "supervisor_storage", block_number, "Block not found");
+            warn!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                block_number,
+                "Block not found"
+            );
             StorageError::EntryNotFound(format!("block {block_number} not found"))
         })?;
         Ok(block.into())
     }
 
     pub(crate) fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
-        debug!(target: "supervisor_storage", "Fetching latest block");
+        debug!(target: "supervisor_storage", chain_id = %self.chain_id, "Fetching latest block");
 
         let mut cursor = self.tx.cursor_read::<BlockRefs>().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to get cursor");
+            error!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                %err,
+                "Failed to get cursor"
+            );
         })?;
 
         let result = cursor.last().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to seek to last block");
+            error!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                %err,
+                "Failed to seek to last block"
+            );
         })?;
 
         let (_, block) = result.ok_or_else(|| {
-            warn!(target: "supervisor_storage", "No blocks found in storage");
+            warn!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                "No blocks found in storage"
+            );
             StorageError::DatabaseNotInitialised
         })?;
         Ok(block.into())
@@ -191,18 +232,25 @@ where
     pub(crate) fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError> {
         debug!(
             target: "supervisor_storage",
+            chain_id = %self.chain_id,
             block_number,
             log_index,
             "Fetching block  by log"
         );
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to get cursor for LogEntries");
+            error!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                %err,
+                "Failed to get cursor for LogEntries"
+            );
         })?;
 
         let result = cursor.seek_by_key_subkey(block_number, log_index).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 block_number,
                 log_index,
                 %err,
@@ -213,6 +261,7 @@ where
         let log_entry = result.ok_or_else(|| {
             warn!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 block_number,
                 log_index,
                 "Log not found"
@@ -227,15 +276,21 @@ where
     }
 
     pub(crate) fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
-        debug!(target: "supervisor_storage", block_number, "Fetching logs");
+        debug!(target: "supervisor_storage", chain_id = %self.chain_id, block_number, "Fetching logs");
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().inspect_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to get dup cursor");
+            error!(
+                target: "supervisor_storage",
+                chain_id = %self.chain_id,
+                %err,
+                "Failed to get dup cursor"
+            );
         })?;
 
         let walker = cursor.walk_range(block_number..=block_number).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 block_number,
                 %err,
                 "Failed to walk dup range",
@@ -249,6 +304,7 @@ where
                 Err(err) => {
                     error!(
                         target: "supervisor_storage",
+                        chain_id = %self.chain_id,
                         block_number,
                         %err,
                         "Failed to read log entry",
@@ -274,6 +330,8 @@ mod tests {
     };
     use reth_db_api::Database;
     use tempfile::TempDir;
+
+    static CHAIN_ID: ChainId = 1;
 
     fn genesis_block() -> BlockInfo {
         BlockInfo {
@@ -321,7 +379,7 @@ mod tests {
     /// Helper to initialize database in a new transaction, committing if successful.
     fn initialize_db(db: &DatabaseEnv, block: &BlockInfo) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = LogProvider::new(&tx);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
         let res = provider.initialise(*block);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
@@ -338,7 +396,7 @@ mod tests {
         logs: Vec<Log>,
     ) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = LogProvider::new(&tx);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
         let res = provider.store_block_logs(block, logs);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
@@ -356,7 +414,7 @@ mod tests {
 
         // Check that the anchor is present
         let tx = db.tx().expect("Could not get tx");
-        let provider = LogProvider::new(&tx);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
         let stored = provider.get_block(genesis.number).expect("should exist");
         assert_eq!(stored.hash, genesis.hash);
     }
@@ -394,7 +452,7 @@ mod tests {
         let db = setup_db();
 
         let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = LogProvider::new(&tx);
+        let log_reader = LogProvider::new(&tx, CHAIN_ID);
 
         let result = log_reader.get_latest_block();
         assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
@@ -432,7 +490,7 @@ mod tests {
         assert!(insert_block_logs(&db, &block3, logs3).is_ok());
 
         let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = LogProvider::new(&tx);
+        let log_reader = LogProvider::new(&tx, CHAIN_ID);
 
         // get_block
         let block = log_reader.get_block(block2.number).expect("Failed to get block");
@@ -458,7 +516,7 @@ mod tests {
         let db = setup_db();
 
         let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = LogProvider::new(&tx);
+        let log_reader = LogProvider::new(&tx, CHAIN_ID);
 
         let result = log_reader.get_latest_block();
         assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
@@ -524,7 +582,7 @@ mod tests {
 
         // Check that the logs are still present and correct
         let tx = db.tx().expect("Failed to start RO tx");
-        let log_reader = LogProvider::new(&tx);
+        let log_reader = LogProvider::new(&tx, CHAIN_ID);
         let logs = log_reader.get_logs(block1.number).expect("Should get logs");
         assert_eq!(logs, logs1);
     }
@@ -572,12 +630,12 @@ mod tests {
 
         // Rewind to block 3, blocks 3, 4, 5 should be removed
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = LogProvider::new(&tx);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
         provider.rewind_to(&blocks[3].id()).expect("Failed to rewind blocks");
         tx.commit().expect("Failed to commit rewind");
 
         let tx = db.tx().expect("Could not get RO tx");
-        let provider = LogProvider::new(&tx);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
 
         // Blocks 0,1,2 should still exist
         for i in 0..=2 {
@@ -616,7 +674,7 @@ mod tests {
         conflicting_block1.hash = B256::from([0xAB; 32]); // different hash
 
         let tx = db.tx_mut().expect("Failed to get tx");
-        let provider = LogProvider::new(&tx);
+        let provider = LogProvider::new(&tx, CHAIN_ID);
 
         let result = provider.rewind_to(&conflicting_block1.id());
         assert!(
