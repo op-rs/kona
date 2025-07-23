@@ -40,16 +40,29 @@ where
 
     /// Starts polling for finalized and latest blocks and processes them.
     pub async fn run(&self) {
+        // TODO: Change the polling interval to 1535 seconds with mainnet config.
         let finalized_head_poller = self
             .rpc_client
             .prepare_static_poller::<_, Block>(
                 "eth_getBlockByNumber",
                 (BlockNumberOrTag::Finalized, false),
             )
-            .with_poll_interval(Duration::from_secs(12));
+            .with_poll_interval(Duration::from_secs(47));
 
         let finalized_head_stream = finalized_head_poller.into_stream();
         let mut last_finalized_number = 0;
+
+        // TODO: Change the polling interval to 11 seconds with mainnet config.
+        let latest_head_poller = self
+            .rpc_client
+            .prepare_static_poller::<_, Block>(
+                "eth_getBlockByNumber",
+                (BlockNumberOrTag::Latest, false),
+            )
+            .with_poll_interval(Duration::from_secs(5));
+
+        let latest_head_stream = latest_head_poller.into_stream();
+        let mut last_latest_number = 0;
 
         self.poll_blocks(
             finalized_head_stream,
@@ -57,52 +70,45 @@ where
             |block, last_block_number| {
                 self.handle_new_finalized_block(block.clone(), last_block_number)
             },
-            "finalized",
-        )
-        .await;
-
-        let latest_head_poller = self
-            .rpc_client
-            .prepare_static_poller::<_, Block>(
-                "eth_getBlockByNumber",
-                (BlockNumberOrTag::Latest, false),
-            )
-            .with_poll_interval(Duration::from_secs(12));
-
-        let latest_head_stream = latest_head_poller.into_stream();
-        let mut last_latest_number = 0;
-
-        self.poll_blocks(
             latest_head_stream,
             &mut last_latest_number,
             |block, last_block_number| {
                 self.handle_new_latest_block(block.clone(), last_block_number)
             },
-            "latest",
         )
         .await;
     }
 
     /// Helper function to poll blocks using a provided stream and handler closure.
-    async fn poll_blocks<S, FBlock>(
+    async fn poll_blocks<S, FBlockFinalized, FBlockLatest>(
         &self,
-        mut stream: S,
-        last_block_number: &mut u64,
-        mut handle_block: FBlock,
-        block_type: &'static str,
+        mut finalized_head_stream: S,
+        last_finalized_number: &mut u64,
+        mut handle_finalized_block: FBlockFinalized,
+        mut latest_head_stream: S,
+        last_latest_number: &mut u64,
+        mut handle_latest_block: FBlockLatest,
     ) where
         S: futures::Stream<Item = Block> + Unpin,
-        FBlock: FnMut(&Block, &mut u64),
+        FBlockFinalized: FnMut(&Block, &mut u64),
+        FBlockLatest: FnMut(&Block, &mut u64),
     {
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
-                    info!(target: "l1_watcher", "L1Watcher cancellation requested, stopping {} polling...", block_type);
+                    info!(target: "l1_watcher", "L1Watcher cancellation requested, stopping polling");
                     break;
                 }
-                block = stream.next() => {
-                    if let Some(block) = block {
-                        handle_block(&block, last_block_number);
+                latest_block = latest_head_stream.next() => {
+                    if let Some(latest_block) = latest_block {
+                        info!(target: "l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
+                        handle_latest_block(&latest_block, last_latest_number);
+                    }
+                }
+                finalized_block = finalized_head_stream.next() => {
+                    if let Some(finalized_block) = finalized_block {
+                        info!(target: "l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
+                        handle_finalized_block(&finalized_block, last_finalized_number);
                     }
                 }
             }
