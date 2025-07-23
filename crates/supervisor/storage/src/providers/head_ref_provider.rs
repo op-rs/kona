@@ -1,19 +1,17 @@
 //! Provider for tracking block safety head reference
 use crate::{StorageError, models::SafetyHeadRefs};
+use alloy_primitives::ChainId;
+use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use op_alloy_consensus::interop::SafetyLevel;
 use reth_db_api::transaction::{DbTx, DbTxMut};
 use tracing::{error, warn};
 
 /// A Safety Head Reference storage that wraps transactional reference.
+#[derive(Debug, Constructor)]
 pub(crate) struct SafetyHeadRefProvider<'tx, TX> {
     tx: &'tx TX,
-}
-
-impl<'tx, TX> SafetyHeadRefProvider<'tx, TX> {
-    pub(crate) const fn new(tx: &'tx TX) -> Self {
-        Self { tx }
-    }
+    chain_id: ChainId,
 }
 
 impl<TX> SafetyHeadRefProvider<'_, TX>
@@ -28,6 +26,7 @@ where
         let result = self.tx.get::<SafetyHeadRefs>(head_ref_key).inspect_err(|err| {
             error!(
                 target: "supervisor_storage",
+                chain_id = %self.chain_id,
                 %safety_level,
                 %err,
                 "Failed to seek head reference"
@@ -56,6 +55,7 @@ where
             if current_head_ref.number > incoming_head_ref.number {
                 warn!(
                     target: "supervisor_storage",
+                    chain_id = %self.chain_id,
                     %current_head_ref,
                     %incoming_head_ref,
                     %safety_level,
@@ -70,6 +70,7 @@ where
             .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
+                    chain_id = %self.chain_id,
                     %incoming_head_ref,
                     %safety_level,
                     %err,
@@ -107,6 +108,7 @@ where
             .inspect_err(|err| {
                 error!(
                     target: "supervisor_storage",
+                    chain_id = %self.chain_id,
                     %incoming_head_ref,
                     %safety_level,
                     %err,
@@ -129,6 +131,8 @@ mod tests {
     use reth_db_api::Database;
     use tempfile::TempDir;
 
+    static CHAIN_ID: ChainId = 1;
+
     fn setup_db() -> DatabaseEnv {
         let temp_dir = TempDir::new().expect("Could not create temp dir");
         init_db_for::<_, Tables>(temp_dir.path(), DatabaseArguments::default())
@@ -141,7 +145,7 @@ mod tests {
 
         // Create write transaction first
         let write_tx = db.tx_mut().expect("Failed to create write transaction");
-        let write_provider = SafetyHeadRefProvider::new(&write_tx);
+        let write_provider = SafetyHeadRefProvider::new(&write_tx, CHAIN_ID);
 
         // Initially, there should be no head ref
         let result = write_provider.get_safety_head_ref(SafetyLevel::CrossSafe);
@@ -158,7 +162,7 @@ mod tests {
 
         // Create a new read transaction to verify
         let tx = db.tx().expect("Failed to create transaction");
-        let provider = SafetyHeadRefProvider::new(&tx);
+        let provider = SafetyHeadRefProvider::new(&tx, CHAIN_ID);
         let result =
             provider.get_safety_head_ref(SafetyLevel::CrossSafe).expect("Failed to get head ref");
         assert_eq!(result, block_info);
@@ -168,7 +172,7 @@ mod tests {
     fn test_safety_head_ref_update() {
         let db = setup_db();
         let write_tx = db.tx_mut().expect("Failed to create write transaction");
-        let write_provider = SafetyHeadRefProvider::new(&write_tx);
+        let write_provider = SafetyHeadRefProvider::new(&write_tx, CHAIN_ID);
 
         // Create initial block info
         let initial_block_info = BlockInfo {
@@ -198,7 +202,7 @@ mod tests {
 
         // Verify the updated value
         let tx = db.tx().expect("Failed to create transaction");
-        let provider = SafetyHeadRefProvider::new(&tx);
+        let provider = SafetyHeadRefProvider::new(&tx, CHAIN_ID);
         let result =
             provider.get_safety_head_ref(SafetyLevel::CrossSafe).expect("Failed to get head ref");
         assert_eq!(result, updated_block_info);
@@ -208,7 +212,7 @@ mod tests {
     fn test_reset_safety_head_ref_if_ahead() {
         let db = setup_db();
         let tx = db.tx_mut().expect("Failed to start write tx");
-        let provider = SafetyHeadRefProvider::new(&tx);
+        let provider = SafetyHeadRefProvider::new(&tx, CHAIN_ID);
 
         // Set initial head at 100
         let head_100 = BlockInfo {
@@ -246,7 +250,7 @@ mod tests {
     fn test_reset_safety_head_ref_should_ignore_future_data() {
         let db = setup_db();
         let tx = db.tx_mut().expect("Failed to start write tx");
-        let provider = SafetyHeadRefProvider::new(&tx);
+        let provider = SafetyHeadRefProvider::new(&tx, CHAIN_ID);
 
         // Set initial head at 100
         let head_100 = BlockInfo {
