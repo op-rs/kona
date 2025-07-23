@@ -61,16 +61,6 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
-    /// Poll interval (in seconds) for reloading the runtime config.
-    /// Provides a backup for when config events are not being picked up.
-    /// Disabled if `0`.
-    #[arg(
-        long,
-        visible_alias = "l1.runtime-config-reload-interval",
-        default_value = "600", // 10 minutes in seconds
-        env = "KONA_NODE_L1_RUNTIME_CONFIG_RELOAD_INTERVAL",
-    )]
-    pub l1_runtime_config_reload_interval: u64,
     /// P2P CLI arguments.
     #[command(flatten)]
     pub p2p_flags: P2PArgs,
@@ -94,7 +84,6 @@ impl Default for NodeCommand {
             l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
             l2_engine_jwt_secret: None,
             l2_config_file: None,
-            l1_runtime_config_reload_interval: 600,
             node_mode: NodeMode::Validator,
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
@@ -213,9 +202,6 @@ impl NodeCommand {
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
 
-        let runtime_interval =
-            std::time::Duration::from_secs(self.l1_runtime_config_reload_interval);
-
         info!(
             target: "rollup_node",
             chain_id = cfg.l2_chain_id.id(),
@@ -232,7 +218,6 @@ impl NodeCommand {
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
-            .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
@@ -358,22 +343,5 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.to_string().contains("--l2-provider-rpc"));
-    }
-
-    #[test]
-    fn test_node_cli_defaults() {
-        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
-        assert_eq!(args.l1_runtime_config_reload_interval, 600);
-    }
-
-    #[test]
-    fn test_node_cli_runtime_config_default() {
-        let args = NodeCommand::parse_from(
-            ["node", "--l1.runtime-config-reload-interval", "0"]
-                .iter()
-                .chain(default_flags().iter())
-                .copied(),
-        );
-        assert_eq!(args.l1_runtime_config_reload_interval, 0);
     }
 }
