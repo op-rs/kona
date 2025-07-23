@@ -1,5 +1,6 @@
 [package]
 name = "kona-supervisor-types"
+description = "Types used by the OP Stack supervisor"
 version = "0.1.0"
 
 edition.workspace = true

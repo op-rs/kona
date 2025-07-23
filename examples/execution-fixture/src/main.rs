@@ -69,6 +69,6 @@ async fn main() -> Result<()> {
         .create_static_fixture()
         .await;
 
-    info!(block_number = cli.block_number, "Successfully created static test fixture");
+    info!(target: "execution_fixture", block_number = cli.block_number, "Successfully created static test fixture");
     Ok(())
 }

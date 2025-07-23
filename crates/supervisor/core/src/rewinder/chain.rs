@@ -47,7 +47,7 @@ where
                 );
             })?;
 
-        self.db.rewind_log_storage(&conflicting_block).inspect_err(|err| {
+        self.db.rewind_log_storage(&conflicting_block.id()).inspect_err(|err| {
             error!(
                 target: "rewinder",
                 chain = %self.chain_id,

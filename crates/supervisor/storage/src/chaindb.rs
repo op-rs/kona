@@ -116,9 +116,10 @@ impl DerivationStorageWriter for ChainDb {
             self.env.update(|ctx| {
                 DerivationProvider::new(ctx).save_derived_block(incoming_pair)?;
 
-                // Verify consistency with log storage.
+                // Verify the consistency with log storage.
                 // The check is intentionally deferred until after saving the derived block,
-                // ensuring validation only triggers on committed state to prevent false positives.
+                // ensuring validation only triggers on the committed state to prevent false
+                // positives.
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx).get_block(derived_block.number).map_err(
                     |err| match err {
@@ -374,7 +375,7 @@ impl HeadRefStorageWriter for ChainDb {
 }
 
 impl StorageRewinder for ChainDb {
-    fn rewind_log_storage(&self, to: &BlockInfo) -> Result<(), StorageError> {
+    fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError> {
         self.observe_call("rewind_log_storage", || {
             self.env.update(|tx| {
                 let lp = LogProvider::new(tx);
@@ -391,7 +392,7 @@ impl StorageRewinder for ChainDb {
         })
     }
 
-    fn rewind(&self, to: &BlockInfo) -> Result<(), StorageError> {
+    fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError> {
         self.observe_call("rewind", || {
             self.env.update(|tx| {
                 let lp = LogProvider::new(tx);
@@ -962,7 +963,7 @@ mod tests {
         // Add and promote next_block to CrossUnsafe and LocalUnsafe
         db.update_current_cross_unsafe(&next_block).unwrap();
 
-        db.rewind_log_storage(&next_block).expect("rewind log storage should succeed");
+        db.rewind_log_storage(&next_block.id()).expect("rewind log storage should succeed");
 
         // Should be rewound to anchor
         let local_unsafe =
@@ -1028,7 +1029,7 @@ mod tests {
 
         db.update_current_cross_unsafe(&pair1.derived).expect("update cross unsafe");
 
-        db.rewind(&pair1.derived).expect("rewind should succeed");
+        db.rewind(&pair1.derived.id()).expect("rewind should succeed");
 
         // Everything should be rewound to anchor.derived
         let local_unsafe = db.get_safety_head_ref(SafetyLevel::LocalUnsafe).unwrap();

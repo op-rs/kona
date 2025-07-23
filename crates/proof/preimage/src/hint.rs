@@ -100,7 +100,7 @@ where
             // Write back on error to prevent blocking the client.
             self.channel.write(&[0x00]).await?;
 
-            error!("Failed to route hint: {e}");
+            error!(target: "hint_reader", "Failed to route hint: {e}");
             return Err(e);
         }
 

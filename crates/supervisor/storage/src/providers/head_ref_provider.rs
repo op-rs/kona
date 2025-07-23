@@ -89,11 +89,17 @@ where
         safety_level: SafetyLevel,
         incoming_head_ref: &BlockInfo,
     ) -> Result<(), StorageError> {
-        // Reset only if head is ahead.
-        if let Ok(current_head_ref) = self.get_safety_head_ref(safety_level) {
-            if current_head_ref.number < incoming_head_ref.number {
+        // Skip if the current head is behind or missing.
+        match self.get_safety_head_ref(safety_level) {
+            Ok(current_head_ref) => {
+                if current_head_ref.number < incoming_head_ref.number {
+                    return Ok(());
+                }
+            }
+            Err(StorageError::FutureData) => {
                 return Ok(());
             }
+            Err(err) => return Err(err),
         }
 
         self.tx
@@ -232,6 +238,32 @@ mod tests {
         // Should now be 90
         let current = provider.get_safety_head_ref(SafetyLevel::CrossSafe).expect("get failed");
         assert_eq!(current.number, 90);
+
+        tx.commit().expect("commit failed");
+    }
+
+    #[test]
+    fn test_reset_safety_head_ref_should_ignore_future_data() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to start write tx");
+        let provider = SafetyHeadRefProvider::new(&tx);
+
+        // Set initial head at 100
+        let head_100 = BlockInfo {
+            number: 100,
+            hash: B256::from([1u8; 32]),
+            parent_hash: B256::ZERO,
+            timestamp: 1234,
+        };
+
+        provider
+            .reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &head_100)
+            .expect("reset should succeed");
+
+        // check head is not updated and still returns FutureData Err
+        let result = provider.get_safety_head_ref(SafetyLevel::CrossSafe);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), StorageError::FutureData));
 
         tx.commit().expect("commit failed");
     }

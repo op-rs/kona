@@ -60,7 +60,7 @@ impl DiscCommand {
             self.disc_port,
             self.disc_port,
         );
-        tracing::info!("Starting discovery service on {:?}", socket);
+        tracing::info!(target: "discovery", "Starting discovery service on {:?}", socket);
 
         let discovery_builder = Discv5Builder::new(
             socket,
@@ -75,7 +75,7 @@ impl DiscCommand {
         discovery.interval = std::time::Duration::from_secs(self.interval);
         discovery.forward = false;
         let (handler, mut enr_receiver) = discovery.start();
-        tracing::info!("Discovery service started, receiving peers.");
+        tracing::info!(target: "discovery", "Discovery service started, receiving peers.");
 
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         loop {
@@ -83,10 +83,10 @@ impl DiscCommand {
                 enr = enr_receiver.recv() => {
                     match enr {
                         Some(enr) => {
-                            tracing::info!("Received peer: {:?}", enr);
+                            tracing::debug!(target: "discovery", "Received peer: {:?}", enr);
                         }
                         None => {
-                            tracing::warn!("Failed to receive peer");
+                            tracing::warn!(target: "discovery", "Failed to receive peer");
                         }
                     }
                 }
@@ -95,10 +95,10 @@ impl DiscCommand {
                     let peer_count = handler.peer_count();
                     tokio::spawn(async move {
                         if let Ok(metrics) = metrics.await {
-                            tracing::info!("Discovery metrics: {:?}", metrics);
+                            tracing::debug!(target: "discovery", "Discovery metrics: {:?}", metrics);
                         }
                         if let Ok(pc) = peer_count.await {
-                            tracing::info!("Discovery peer count: {:?}", pc);
+                            tracing::debug!(target: "discovery", "Discovery peer count: {:?}", pc);
                         }
                     });
                 }

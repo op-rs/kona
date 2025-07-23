@@ -79,7 +79,7 @@ impl BuildTask {
 
                 OpExecutionPayloadEnvelope {
                     parent_beacon_block_root: Some(payload.parent_beacon_block_root),
-                    payload: OpExecutionPayload::V4(payload.execution_payload),
+                    execution_payload: OpExecutionPayload::V4(payload.execution_payload),
                 }
             }
             EngineGetPayloadVersion::V3 => {
@@ -90,7 +90,7 @@ impl BuildTask {
 
                 OpExecutionPayloadEnvelope {
                     parent_beacon_block_root: Some(payload.parent_beacon_block_root),
-                    payload: OpExecutionPayload::V3(payload.execution_payload),
+                    execution_payload: OpExecutionPayload::V3(payload.execution_payload),
                 }
             }
             EngineGetPayloadVersion::V2 => {
@@ -101,7 +101,7 @@ impl BuildTask {
 
                 OpExecutionPayloadEnvelope {
                     parent_beacon_block_root: None,
-                    payload: match payload.execution_payload.into_payload() {
+                    execution_payload: match payload.execution_payload.into_payload() {
                         ExecutionPayload::V1(payload) => OpExecutionPayload::V1(payload),
                         ExecutionPayload::V2(payload) => OpExecutionPayload::V2(payload),
                         _ => unreachable!("the response should be a V1 or V2 payload"),
@@ -151,7 +151,7 @@ impl EngineTaskExt for BuildTask {
             .await?;
 
         let new_block_ref = L2BlockInfo::from_payload_and_genesis(
-            new_payload.payload.clone(),
+            new_payload.execution_payload.clone(),
             self.attributes.inner().payload_attributes.parent_beacon_block_root,
             &self.cfg.genesis,
         )
