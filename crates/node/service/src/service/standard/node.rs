@@ -2,8 +2,7 @@
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, SequencerConfig, SupervisorActor,
-    SupervisorRpcServerExt,
+    RollupNodeService, RpcActor, SequencerConfig, SupervisorActor, SupervisorRpcServerExt,
     actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;

@@ -305,6 +305,12 @@ mod tests {
     }
 
     #[test]
+    fn test_node_cli_defaults() {
+        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
+        assert_eq!(args.node_mode, NodeMode::Validator);
+    }
+
+    #[test]
     fn test_node_cli_missing_l1_eth_rpc() {
         let err = NodeCommand::try_parse_from(["node"]).unwrap_err();
         assert!(err.to_string().contains("--l1-eth-rpc"));

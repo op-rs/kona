@@ -1,8 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{
-    EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, SequencerConfig,
-};
+use crate::{EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, SequencerConfig};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -148,7 +146,7 @@ impl RollupNodeBuilder {
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
             l2_rpc_url,
-            l1_rpc_url: l1_rpc_url.clone(),
+            l1_rpc_url,
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,
             mode: self.mode,
