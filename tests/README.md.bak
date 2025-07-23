@@ -44,12 +44,13 @@ just test-e2e simple-kona <commit_tag>
 just devnet simple-kona
 ```
 
-- `just cleanup-kurtosis`: Winds down kurtosis, cleaning up the network.
+- `just isolate_test DEVNET_ENV_URL`: Runs the e2e tests for the devnet specified by `DEVNET_ENV_URL` - does not try to deploy a kurtosis network associated with the devnet. The `DEVNET_ENV_URL` is the URL of the devnet specification file in the `devnets/specs` directory. For example, to run the e2e tests for the `simple-kona` devnet, run the following command:
 
-- `just build-devnet BINARY`: Builds the docker image for the specified binary (`"node"` or `"supervisor"`).
+```bash
+just isolate_test devnets/specs/simple-kona-devnet.json
+```
 
-- `just update-node-devnet DEVNET`: Updates the devnet with the latest local changes. This is useful to rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
-
+- `just clone-kurtosis-devnet`: Clones the [optimism monorepo](https://github.com/ethereum-optimism/optimism) repository and installs the dependencies.
 
 ## Using `op-devstack` for testing
 
