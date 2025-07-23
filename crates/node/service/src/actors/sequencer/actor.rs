@@ -381,6 +381,18 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         Ok(())
     }
+
+    /// Updates the metrics for the sequencer actor.
+    #[cfg(feature = "metrics")]
+    fn update_metrics(&self) {
+        let state_flags: [(&str, String); 2] = [
+            ("active", self.is_active.to_string()),
+            ("recovery", self.is_recovery_mode.to_string()),
+        ];
+
+        let gauge = metrics::gauge!(crate::Metrics::SEQUENCER_STATE, &state_flags);
+        gauge.set(1);
+    }
 }
 
 #[async_trait]
@@ -399,6 +411,10 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         let mut build_ticker = tokio::time::interval(Duration::from_secs(block_time));
 
         let mut state = SequencerActorState::from(self.builder);
+
+        // Initialize metrics, if configured.
+        #[cfg(feature = "metrics")]
+        state.update_metrics();
 
         // Reset the engine state prior to beginning block building.
         state.schedule_initial_reset(&mut ctx, &mut self.unsafe_head_rx).await?;
@@ -429,6 +445,10 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                             block_time,
                         ));
                     }
+
+                    // Update metrics, if configured.
+                    #[cfg(feature = "metrics")]
+                    state.update_metrics();
                 }
                 // The sequencer must be active to build new blocks.
                 _ = build_ticker.tick(), if state.is_active => {

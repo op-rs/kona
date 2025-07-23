@@ -14,6 +14,9 @@ impl Metrics {
     /// Identifier for the counter of critical derivation errors (strictly for alerting.)
     pub const DERIVATION_CRITICAL_ERROR: &str = "kona_node_derivation_critical_errors";
 
+    /// Identifier for the counter that tracks sequencer state flags.
+    pub const SEQUENCER_STATE: &str = "kona_node_sequencer_state";
+
     /// Initializes metrics for the node service.
     ///
     /// This does two things:
@@ -39,6 +42,9 @@ impl Metrics {
             Self::DERIVATION_CRITICAL_ERROR,
             "Critical errors in the derivation pipeline"
         );
+
+        // Sequencer active
+        metrics::describe_counter!(Self::SEQUENCER_STATE, "Tracks sequencer state flags");
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
