@@ -9,6 +9,7 @@ use kona_node_service::{
     NetworkActor, NetworkBuilder, NetworkContext, NetworkInboundData, NodeActor,
 };
 use kona_p2p::P2pRpcRequest;
+use kona_registry::scr_rollup_config_by_alloy_ident;
 use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
@@ -60,13 +61,12 @@ impl NetCommand {
         let rpc_config = Option::<RpcBuilder>::from(self.rpc);
 
         // Get the rollup config from the args
-        let rollup_config = args
-            .rollup_config()
+        let rollup_config = scr_rollup_config_by_alloy_ident(&args.l2_chain_id)
             .ok_or(anyhow::anyhow!("Rollup config not found for chain id: {}", args.l2_chain_id))?;
 
         // Start the Network Stack
         self.p2p.check_ports()?;
-        let p2p_config = self.p2p.config(&rollup_config, args, self.l1_eth_rpc).await?;
+        let p2p_config = self.p2p.config(rollup_config, args, self.l1_eth_rpc).await?;
 
         let (NetworkInboundData { p2p_rpc: rpc, .. }, network) =
             NetworkActor::new(NetworkBuilder::from(p2p_config));

@@ -6,7 +6,9 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
+	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/apis"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
 )
@@ -161,5 +163,41 @@ func p2pBanPeer(t devtest.T, out *MixedOpKonaPreset) {
 
 		require.Equal(t, connectedPeers, peersAfterUnban.TotalConnected, "totalConnected mismatch node %s", clName)
 		require.NotContains(t, peersAfterUnban.BannedPeers, peerToBan, "peer %s is banned", peerToBan)
+	}
+}
+
+func rollupConfig(t devtest.T, node *dsl.L2CLNode) *rollup.Config {
+	clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
+	require.NoError(t, err, "failed to get RPC endpoint for node %s", node.Escape().ID().Key())
+	clName := node.Escape().ID().Key()
+
+	rollupConfig := &rollup.Config{}
+	require.NoError(t, SendRPCRequest(clRPC, "optimism_rollupConfig", rollupConfig), "failed to send RPC request to node %s: %s", clName)
+
+	return rollupConfig
+}
+
+func rollupConfigMatches(t devtest.T, configA *rollup.Config, configB *rollup.Config) {
+	// ProtocolVersionsAddress is deprecated in kona-node while not yet removed from the op-node.
+	configA.ProtocolVersionsAddress = common.Address{}
+	configB.ProtocolVersionsAddress = common.Address{}
+
+	require.Equal(t, configA, configB, "rollup config mismatch")
+}
+
+func TestRollupConfig(gt *testing.T) {
+	t := devtest.ParallelT(gt)
+
+	out := NewMixedOpKona(t)
+
+	rollupConfigs := make([]*rollup.Config, 0)
+
+	for _, node := range out.L2CLNodes() {
+		rollupConfigs = append(rollupConfigs, rollupConfig(t, &node))
+	}
+
+	// Check that the rollup configs are the same.
+	for _, config := range rollupConfigs {
+		rollupConfigMatches(t, rollupConfigs[0], config)
 	}
 }

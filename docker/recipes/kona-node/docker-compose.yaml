@@ -1,4 +1,4 @@
-name: 'kona-node'
+name: '${CLUSTER_NAME:-kona-node}'
 
 services:
   prometheus:
@@ -19,7 +19,7 @@ services:
     depends_on:
       - prometheus
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
     volumes:
@@ -33,7 +33,7 @@ services:
 
   op-reth:
     restart: unless-stopped
-    image: ghcr.io/paradigmxyz/op-reth:latest
+    image: ${OP_RETH_NODE_IMAGE:-ghcr.io/paradigmxyz/op-reth:latest}
     depends_on:
       - prometheus
     ports:
@@ -58,7 +58,7 @@ services:
 
   kona-node:
     restart: unless-stopped
-    image: ghcr.io/op-rs/kona/kona-node:latest
+    image: ${KONA_NODE_IMAGE:-ghcr.io/op-rs/kona/kona-node:latest}
     depends_on:
       - prometheus
       - op-reth

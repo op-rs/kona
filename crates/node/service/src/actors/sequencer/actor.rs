@@ -11,7 +11,10 @@ use kona_providers_alloy::{AlloyChainProvider, AlloyL2ChainProvider};
 use kona_rpc::SequencerAdminQuery;
 use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 use tokio::{
     select,
     sync::{mpsc, watch},
@@ -183,8 +186,6 @@ impl<AB: AttributesBuilderConfig> SequencerActor<AB> {
 
 impl<AB: AttributesBuilder> SequencerActorState<AB> {
     /// Starts the build job for the next L2 block, on top of the current unsafe head.
-    ///
-    /// Notes: TODO
     async fn build_block(
         &mut self,
         ctx: &mut SequencerContext,
@@ -229,6 +230,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         );
 
         // Build the payload attributes for the next block.
+        let _attributes_build_start = Instant::now();
         let mut attributes =
             match self.builder.prepare_payload_attributes(unsafe_head, l1_origin.id()).await {
                 Ok(attrs) => attrs,
@@ -303,10 +305,19 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         let attrs_with_parent =
             OpAttributesWithParent::new(attributes, unsafe_head, BlockInfo::default(), false);
 
+        // Log the attributes build duration, if metrics are enabled.
+        let _attributes_build_duration = _attributes_build_start.elapsed();
+        kona_macros::set!(
+            gauge,
+            crate::Metrics::SEQUENCER_ATTRIBUTES_BUILDER_DURATION,
+            _attributes_build_duration
+        );
+
         // Create a new channel to receive the built payload.
         let (payload_tx, payload_rx) = mpsc::channel(1);
 
         // Send the built attributes to the engine to be built.
+        let _build_request_start = Instant::now();
         if let Err(err) = ctx.build_request_tx.send((attrs_with_parent, payload_tx)).await {
             error!(target: "sequencer", ?err, "Failed to send built attributes to engine");
             ctx.cancellation.cancel();
@@ -315,6 +326,14 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
 
         let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
 
+        // Log the block building job duration, if metrics are enabled.
+        let _block_building_job_duration = _build_request_start.elapsed();
+        kona_macros::set!(
+            gauge,
+            crate::Metrics::SEQUENCER_BLOCK_BUILDING_JOB_DURATION,
+            _block_building_job_duration
+        );
+
         // If the conductor is available, commit the payload to it.
         if let Some(conductor) = &self.conductor {
             if let Err(err) = conductor.commit_unsafe_payload(&payload).await {
@@ -322,9 +341,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             }
         }
 
-        self.schedule_gossip(ctx, payload).await?;
-
-        Ok(())
+        self.schedule_gossip(ctx, payload).await
     }
 
     /// Waits for the next payload to be built and returns it, if there is a payload receiver

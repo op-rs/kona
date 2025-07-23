@@ -4623,6 +4623,7 @@ dependencies = [
 name = "kona-node"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types-engine",

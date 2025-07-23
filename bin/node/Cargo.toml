@@ -30,6 +30,7 @@ kona-sources = { workspace = true, features = ["metrics"] }
 kona-node-service = { workspace = true, features = ["metrics"] }
 
 # alloy
+alloy-chains.workspace = true
 alloy-signer.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true

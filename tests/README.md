@@ -66,6 +66,14 @@ Then, you can run the tests using:
 just build-devnet-and-test-e2e DEVNET BINARY
 ```
 
+### Hacks/Notes
+
+For the `op-devstack` to properly parse the nodes of the network (inside the `mixed_preset`) we're using the following hacks/methods:
+
+- All the kona nodes should have the `kona` string in their names.
+- All the op-node nodes should have the `optimism` string in their names.
+- All the sequencer nodes should have the `sequencer` string in their names.
+
 ## Contributing
 
 We welcome contributions to this repository.

@@ -9,16 +9,7 @@ optimism_package:
     chain0:
       # Chain with only two nodes
       participants:
-        optimism-seq:
-          el:
-            type: op-geth
-          cl:
-            type: op-node
-          sequencer: true
-          conductor_params:
-            enabled: true
-            bootstrap: true
-        kona-seq:
+        kona-sequencer:
           el:
             type: op-geth
           cl:
@@ -28,8 +19,12 @@ optimism_package:
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
           sequencer: true
-          conductor_params:
-            enabled: true
+        optimism-1:
+          el:
+            type: op-geth
+          cl:
+            type: op-node
+          sequencer: false
       network_params:
         network: "kurtosis"
         network_id: "2151908"
