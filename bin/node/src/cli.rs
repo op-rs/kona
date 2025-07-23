@@ -119,4 +119,87 @@ mod tests {
         let cli = Cli::parse_from(args);
         assert_eq!(cli.subcommand, subcommand);
     }
+
+    #[test]
+    fn test_cli_l2_chain_id_numeric() {
+        // Test that numeric chain IDs work with the CLI
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "--l2-chain-id", "10",
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 10);
+
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "--l2-chain-id", "8453",
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 8453);
+    }
+
+    #[test]
+    fn test_cli_l2_chain_id_string() {
+        // Test that string chain names work with the CLI
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "--l2-chain-id", "optimism",
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 10);
+
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "--l2-chain-id", "base",
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 8453);
+    }
+
+    #[test]
+    fn test_cli_l2_chain_id_short_flag() {
+        // Test that the short flag (-c) works with the CLI
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "-c", "10",
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 10);
+
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "-c", "optimism",
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 10);
+    }
+
+    #[test]
+    fn test_cli_l2_chain_id_default() {
+        // Test that the default chain ID is 10 (Optimism)
+        let cli = Cli::try_parse_from([
+            "kona-node", 
+            "registry",
+            "--help"
+        ]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 10);
+    }
+
+    #[test]
+    fn test_cli_l2_chain_id_invalid() {
+        // Test that invalid chain IDs fail appropriately
+        let result = Cli::try_parse_from([
+            "kona-node", 
+            "--l2-chain-id", "invalid_chain",
+            "registry",
+            "--help"
+        ]);
+        assert!(result.is_err());
+    }
 }
