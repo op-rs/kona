@@ -2,6 +2,7 @@
 
 use crate::{OutputResponse, SafeHeadResponse};
 use alloy_eips::BlockNumberOrTag;
+use alloy_primitives::B256;
 use core::net::IpAddr;
 use ipnet::IpNet;
 use jsonrpsee::{
