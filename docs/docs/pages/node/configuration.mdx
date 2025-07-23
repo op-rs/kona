@@ -30,6 +30,38 @@ For more details on each flag, see the inline help (`kona-node node --help`) or 
 | `--l2-config-file <PATH>` | `KONA_NODE_ROLLUP_CONFIG` | Path to a custom L2 rollup configuration file | No | - |
 | `--l1-runtime-config-reload-interval <SECONDS>` | `KONA_NODE_L1_RUNTIME_CONFIG_RELOAD_INTERVAL` | Poll interval for reloading runtime config | No | `600` |
 
+## Global Arguments
+
+| Flag | Env | Description | Required | Default |
+|------|-----|-------------|----------|---------|
+| `--l2-chain-id <ID/NAME>` or `-c <ID/NAME>` | `KONA_NODE_L2_CHAIN_ID` | L2 chain ID (numeric) or chain name (string) | No | `10` (Optimism) |
+
+### Chain ID Support
+
+The `--l2-chain-id` flag supports flexible chain identification using the `alloy_chains` crate:
+
+**Numeric Chain IDs:**
+```bash
+kona-node --l2-chain-id 10 node [args...]      # Optimism mainnet
+kona-node --l2-chain-id 8453 node [args...]    # Base mainnet
+kona-node --l2-chain-id 1 node [args...]       # Ethereum mainnet
+```
+
+**String Chain Names:**
+```bash
+kona-node --l2-chain-id optimism node [args...]
+kona-node --l2-chain-id base node [args...]
+kona-node --l2-chain-id mainnet node [args...]
+```
+
+**Short Flag and Environment Variable:**
+```bash
+kona-node -c optimism node [args...]
+export KONA_NODE_L2_CHAIN_ID=optimism && kona-node node [args...]
+```
+
+Supported chain names include all those recognized by `alloy_chains` (e.g., `optimism`, `base`, `mainnet`). Unknown numeric chain IDs are accepted for custom networks.
+
 ## P2P Arguments
 
 | Flag | Env | Description | Default |
