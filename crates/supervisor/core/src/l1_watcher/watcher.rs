@@ -1,6 +1,6 @@
 use crate::event::ChainEvent;
-use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::ChainId;
+use alloy_eips::{BlockNumHash, BlockNumberOrTag};
+use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
@@ -71,7 +71,7 @@ where
         S: futures::Stream<Item = Block> + Unpin,
     {
         let mut last_finalized_number = 0;
-        let mut last_latest_number = 0;
+        let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
 
         loop {
             tokio::select! {
@@ -138,9 +138,13 @@ where
         }
     }
 
-    fn handle_new_latest_block(&self, block: Block, last_latest_number: &mut u64) {
-        let block_number = block.header.number;
-        if block_number == *last_latest_number {
+    fn handle_new_latest_block(&self, incoming_block: Block, previous_block: &mut BlockNumHash) {
+        let incoming_block_number = incoming_block.header.number;
+        if incoming_block_number <= previous_block.number {
+            info!(
+                target: "l1_watcher",
+                "Incoming latest L1 block is not greater than the stored latest block"
+            );
             return;
         }
 
@@ -148,19 +152,21 @@ where
             hash,
             inner: alloy_consensus::Header { number, parent_hash, timestamp, .. },
             ..
-        } = block.header;
-        let latest_source_block = BlockInfo::new(hash, number, parent_hash, timestamp);
+        } = incoming_block.header;
+        let latest_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
         info!(
             target: "l1_watcher",
-            block_number = latest_source_block.number,
+            block_number = latest_block.number,
             "New latest L1 block received"
         );
 
-        *last_latest_number = block_number;
+        if latest_block.parent_hash != previous_block.hash {
+            // TODO: Trigger re-org.
+            // Remove unnecessary fields from latest_block is not required in re-org.
+        }
 
-        // TODO: Trigger re-org after checking if the latest block is not the direct child of last
-        // latest block.
+        *previous_block = latest_block.id();
     }
 }
 
@@ -334,9 +340,9 @@ mod tests {
             },
             ..Default::default()
         };
-        let mut last_latest_number = 0;
+        let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
         watcher.handle_new_latest_block(block, &mut last_latest_number);
-        assert_eq!(last_latest_number, 1);
+        assert_eq!(last_latest_number.number, 1);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
     }
