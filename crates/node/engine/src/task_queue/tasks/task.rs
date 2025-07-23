@@ -294,8 +294,6 @@ impl EngineTaskExt for EngineTask {
         }
 
         self.update_success_metrics();
-
-        // Update metrics.
         Ok(())
     }
 }
