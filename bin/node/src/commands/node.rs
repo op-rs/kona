@@ -203,9 +203,7 @@ impl NodeCommand {
         let cfg = self.get_l2_config(args)?;
 
         // If metrics are enabled, initialize the global cli metrics.
-        if args.metrics.enabled {
-            init_rollup_config_metrics(&cfg);
-        }
+        args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
 
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
@@ -266,8 +264,7 @@ impl NodeCommand {
             }
             None => {
                 debug!("Loading l2 config from superchain registry");
-                let alloy_chain: alloy_chains::Chain = args.l2_chain_id.into();
-                let Some(cfg) = scr_rollup_config_by_alloy_ident(&alloy_chain) else {
+                let Some(cfg) = scr_rollup_config_by_alloy_ident(&args.l2_chain_id) else {
                     bail!("Failed to find l2 config for chain ID {}", args.l2_chain_id);
                 };
                 Ok(cfg.clone())

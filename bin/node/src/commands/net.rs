@@ -60,10 +60,8 @@ impl NetCommand {
 
         let rpc_config = Option::<RpcBuilder>::from(self.rpc);
 
-        let alloy_chain: alloy_chains::Chain = args.l2_chain_id.into();
-
         // Get the rollup config from the args
-        let rollup_config = scr_rollup_config_by_alloy_ident(&alloy_chain)
+        let rollup_config = scr_rollup_config_by_alloy_ident(&args.l2_chain_id)
             .ok_or(anyhow::anyhow!("Rollup config not found for chain id: {}", args.l2_chain_id))?;
 
         // Start the Network Stack

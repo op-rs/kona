@@ -21,7 +21,7 @@ pub struct GlobalArgs {
         env = "KONA_NODE_L2_CHAIN_ID",
         help = "The L2 chain ID to use"
     )]
-    pub l2_chain_id: u64,
+    pub l2_chain_id: alloy_chains::Chain,
     /// Embed the override flags globally to provide override values adjacent to the configs.
     #[command(flatten)]
     pub override_args: super::OverrideArgs,
@@ -42,7 +42,7 @@ impl GlobalArgs {
     pub fn genesis_signer(&self) -> anyhow::Result<Address> {
         let id = self.l2_chain_id;
         OPCHAINS
-            .get(&id)
+            .get(&id.id())
             .ok_or(anyhow::anyhow!("No chain config found for chain ID: {id}"))?
             .roles
             .as_ref()
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_genesis_signer() {
-        let args = GlobalArgs { l2_chain_id: 10, ..Default::default() };
+        let args = GlobalArgs { l2_chain_id: 10.into(), ..Default::default() };
         assert_eq!(
             args.genesis_signer().unwrap(),
             alloy_primitives::address!("aaaa45d9549eda09e70937013520214382ffc4a2")
