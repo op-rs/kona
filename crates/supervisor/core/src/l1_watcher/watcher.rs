@@ -50,7 +50,6 @@ where
             .with_poll_interval(Duration::from_secs(47));
 
         let finalized_head_stream = finalized_head_poller.into_stream();
-        let mut last_finalized_number = 0;
 
         // TODO: Change the polling interval to 11 seconds with mainnet config.
         let latest_head_poller = self
@@ -62,37 +61,21 @@ where
             .with_poll_interval(Duration::from_secs(5));
 
         let latest_head_stream = latest_head_poller.into_stream();
-        let mut last_latest_number = 0;
 
-        self.poll_blocks(
-            finalized_head_stream,
-            &mut last_finalized_number,
-            |block, last_block_number| {
-                self.handle_new_finalized_block(block.clone(), last_block_number)
-            },
-            latest_head_stream,
-            &mut last_latest_number,
-            |block, last_block_number| {
-                self.handle_new_latest_block(block.clone(), last_block_number)
-            },
-        )
-        .await;
+        self.poll_blocks(finalized_head_stream, latest_head_stream).await;
     }
 
     /// Helper function to poll blocks using a provided stream and handler closure.
-    async fn poll_blocks<S, FBlockFinalized, FBlockLatest>(
+    async fn poll_blocks<S>(
         &self,
         mut finalized_head_stream: S,
-        last_finalized_number: &mut u64,
-        mut handle_finalized_block: FBlockFinalized,
         mut latest_head_stream: S,
-        last_latest_number: &mut u64,
-        mut handle_latest_block: FBlockLatest,
     ) where
         S: futures::Stream<Item = Block> + Unpin,
-        FBlockFinalized: FnMut(&Block, &mut u64),
-        FBlockLatest: FnMut(&Block, &mut u64),
     {
+        let mut last_finalized_number = 0;
+        let mut last_latest_number = 0;
+
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
@@ -102,13 +85,13 @@ where
                 latest_block = latest_head_stream.next() => {
                     if let Some(latest_block) = latest_block {
                         info!(target: "l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
-                        handle_latest_block(&latest_block, last_latest_number);
+                        self.handle_new_latest_block(latest_block, &mut last_latest_number);
                     }
                 }
                 finalized_block = finalized_head_stream.next() => {
                     if let Some(finalized_block) = finalized_block {
                         info!(target: "l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
-                        handle_finalized_block(&finalized_block, last_finalized_number);
+                        self.handle_new_finalized_block(finalized_block, &mut last_finalized_number);
                     }
                 }
             }
