@@ -1,5 +1,6 @@
 use super::{ManagedNodeClient, ManagedNodeError};
 use alloy_eips::BlockNumHash;
+use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, StorageError};
 use kona_supervisor_types::SuperHead;
@@ -33,11 +34,11 @@ where
 
         info!(target: "resetter", %chain_id, "Resetting the node");
 
-        let local_safe = match self.get_latest_valid_local_safe().await {
+        let local_safe = match self.get_latest_valid_local_safe(chain_id).await {
             Ok(block) => block,
             // todo: require refactor and corner case handling
             Err(ManagedNodeError::StorageError(StorageError::DatabaseNotInitialised)) => {
-                self.reset_pre_interop().await?;
+                self.reset_pre_interop(chain_id).await?;
                 return Ok(());
             }
             Err(err) => {
@@ -94,10 +95,7 @@ where
         Ok(())
     }
 
-    async fn reset_pre_interop(&self) -> Result<(), ManagedNodeError> {
-        // get the chain ID to log it, this is useful for debugging
-        // no performance impact as it is cached in the client
-        let chain_id = self.client.chain_id().await?;
+    async fn reset_pre_interop(&self, chain_id: ChainId) -> Result<(), ManagedNodeError> {
         info!(target: "resetter", %chain_id, "Resetting the node to pre-interop state");
 
         self.client.reset_pre_interop().await.inspect_err(|err| {
@@ -106,10 +104,10 @@ where
         Ok(())
     }
 
-    async fn get_latest_valid_local_safe(&self) -> Result<BlockInfo, ManagedNodeError> {
-        // get the chain ID to log it, this is useful for debugging
-        // no performance impact as it is cached in the client
-        let chain_id = self.client.chain_id().await?;
+    async fn get_latest_valid_local_safe(
+        &self,
+        chain_id: ChainId,
+    ) -> Result<BlockInfo, ManagedNodeError> {
         let latest_derivation_state = self.db_provider.latest_derivation_state().inspect_err(
             |err| error!(target: "resetter", %chain_id, %err, "Failed to get latest derivation state"),
         )?;
@@ -238,6 +236,7 @@ mod tests {
         db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
+        client.expect_chain_id().returning(move || Ok(1));
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe.unwrap()));
 
         client.expect_reset().returning(|_, _, _, _, _| Ok(()));
@@ -252,7 +251,8 @@ mod tests {
         let mut db = MockDb::new();
         db.expect_latest_derivation_state().returning(|| Err(StorageError::LockPoisoned));
 
-        let client = MockClient::new();
+        let mut client = MockClient::new();
+        client.expect_chain_id().returning(move || Ok(1));
 
         let resetter = Resetter::new(Arc::new(client), Arc::new(db));
 
@@ -271,6 +271,7 @@ mod tests {
             })
         });
         let mut client = MockClient::new();
+        client.expect_chain_id().returning(move || Ok(1));
         client
             .expect_block_ref_by_number()
             .returning(|_| Err(ClientError::Authentication(AuthenticationError::InvalidHeader)));
@@ -306,6 +307,7 @@ mod tests {
             .returning(move |_| Ok(last_valid_derived_block));
 
         let mut client = MockClient::new();
+        client.expect_chain_id().returning(move || Ok(1));
         // Return a block that does not match local_safe
         client
             .expect_block_ref_by_number()
@@ -340,6 +342,7 @@ mod tests {
         db.expect_get_super_head().returning(move || Ok(super_head));
 
         let mut client = MockClient::new();
+        client.expect_chain_id().returning(move || Ok(1));
         client.expect_block_ref_by_number().returning(move |_| Ok(super_head.local_safe.unwrap()));
         client.expect_reset().returning(|_, _, _, _, _| {
             Err(ClientError::Authentication(AuthenticationError::InvalidJwt))

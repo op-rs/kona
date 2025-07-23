@@ -46,13 +46,13 @@ where
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
         rollup_config: RollupConfig,
-        chain_id: u64,
+        chain_id: ChainId,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
-        let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
+        let log_indexer = LogIndexer::new(chain_id, managed_node.clone(), state_manager.clone());
         Self {
             rollup_config,
             chain_id,
