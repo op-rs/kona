@@ -5,6 +5,7 @@ use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
 use kona_interop::{DerivedRefPair, ManagedEvent};
 use kona_protocol::BlockInfo;
+use alloy_primitives::ChainId;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -64,7 +65,7 @@ where
                 incoming_event = subscription.next() => {
                     match incoming_event {
                         Some(Ok(subscription_event)) => {
-                            self.handle_managed_event(subscription_event.data).await;
+                            self.handle_managed_event(chain_id, subscription_event.data).await;
                         }
                         Some(Err(err)) => {
                             error!(
@@ -101,54 +102,54 @@ where
     ///
     /// Analyzes the event content and takes appropriate actions based on the
     /// event fields.
-    pub(super) async fn handle_managed_event(&self, incoming_event: Option<ManagedEvent>) {
+    pub(super) async fn handle_managed_event(&self, chain_id: ChainId, incoming_event: Option<ManagedEvent>) {
         match incoming_event {
             Some(event) => {
-                debug!(target: "managed_event_task", %event, "Handling ManagedEvent");
+                debug!(target: "managed_event_task", %chain_id, %event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target: "managed_event_task", %reset_id, "Reset event received");
+                    info!(target: "managed_event_task", %chain_id, %reset_id, "Reset event received");
                     if let Err(err) = self.resetter.reset().await {
-                        error!(target: "managed_event_task", %err, "Failed to reset node");
+                        error!(target: "managed_event_task", %chain_id, %err, "Failed to reset node");
                     }
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target: "managed_event_task", %unsafe_block, "Unsafe block event received");
+                    info!(target: "managed_event_task", %chain_id, %unsafe_block, "Unsafe block event received");
 
                     // todo: check any pre processing needed
                     if let Err(err) =
                         self.event_tx.send(ChainEvent::UnsafeBlock { block: *unsafe_block }).await
                     {
-                        warn!(target: "managed_event_task", %err, "Failed to send unsafe block event, channel closed or receiver dropped");
+                        warn!(target: "managed_event_task", %chain_id, %err, "Failed to send unsafe block event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(derived_ref_pair) = &event.derivation_update {
                     if event.derivation_origin_update.is_none() {
-                        info!(target: "managed_event_task", %event, "Derivation update received without origin update");
+                        info!(target: "managed_event_task", %chain_id, %event, "Derivation update received without origin update");
 
                         if let Err(err) = self
                             .event_tx
                             .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
                             .await
                         {
-                            warn!(target: "managed_event_task", %err, "Failed to derivation update event, channel closed or receiver dropped");
+                            warn!(target: "managed_event_task", %chain_id, %err, "Failed to derivation update event, channel closed or receiver dropped");
                         }
                     }
                 }
 
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
-                    info!(target: "managed_event_task", ?derived_ref_pair, "L1 exhausted event received");
+                    info!(target: "managed_event_task", %chain_id, %derived_ref_pair, "L1 exhausted event received");
 
                     if let Err(err) = self.handle_exhaust_l1(derived_ref_pair).await {
-                        error!(target: "managed_event_task", %err, "Failed to fetch next L1 block");
+                        error!(target: "managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
                     }
                 }
 
                 if let Some(replacement) = &event.replace_block {
-                    info!(target: "managed_event_task", %replacement, "Block replacement received");
+                    info!(target: "managed_event_task", %chain_id, %replacement, "Block replacement received");
 
                     // todo: check any pre processing needed
                     if let Err(err) = self
@@ -156,19 +157,19 @@ where
                         .send(ChainEvent::BlockReplaced { replacement: *replacement })
                         .await
                     {
-                        warn!(target: "managed_event_task", %err, "Failed to send block replacement event, channel closed or receiver dropped");
+                        warn!(target: "managed_event_task", %chain_id, %err, "Failed to send block replacement event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!(target: "managed_event_task", %origin, "Derivation origin update received");
+                    info!(target: "managed_event_task", %chain_id, %origin, "Derivation origin update received");
 
                     if let Err(err) = self
                         .event_tx
                         .send(ChainEvent::DerivationOriginUpdate { origin: *origin })
                         .await
                     {
-                        warn!(target: "managed_event_task", %err, "Failed to send derivation origin update event, channel closed or receiver dropped");
+                        warn!(target: "managed_event_task", %chain_id, %err, "Failed to send derivation origin update event, channel closed or receiver dropped");
                     }
                 }
 
@@ -180,12 +181,13 @@ where
                     event.replace_block.is_none() &&
                     event.derivation_origin_update.is_none()
                 {
-                    debug!(target: "managed_event_task", "Received empty event with all fields None");
+                    debug!(target: "managed_event_task", %chain_id, "Received empty event with all fields None");
                 }
             }
             None => {
                 warn!(
                     target: "managed_event_task",
+                    %chain_id,
                     "Received None event, possibly an empty notification or an issue with deserialization."
                 );
             }
@@ -198,13 +200,15 @@ where
         &self,
         derived_ref_pair: &DerivedRefPair,
     ) -> Result<(), ManagedEventTaskError> {
+        let chain_id = self.client.chain_id().await?;
+        
         let next_block_number = derived_ref_pair.source.number + 1;
         let next_block = self
             .l1_provider
             .get_block_by_number(BlockNumberOrTag::Number(next_block_number))
             .await
             .map_err(|err| {
-                error!(target: "managed_event_task", %err, "Failed to fetch next L1 block");
+                error!(target: "managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
                 ManagedEventTaskError::GetBlockByNumberFailed(next_block_number)
             })?;
 
@@ -220,7 +224,7 @@ where
         if block.header.parent_hash != derived_ref_pair.source.hash {
             // this could happen due to a reorg.
             // this case should be handled by the reorg manager
-            error!(target: "managed_event_task", "L1 Block parent hash mismatch");
+            error!(target: "managed_event_task", %chain_id, "L1 Block parent hash mismatch");
             Err(ManagedEventTaskError::BlockHashMismatch {
                 current: derived_ref_pair.source.hash,
                 parent: block.header.parent_hash,
@@ -235,11 +239,11 @@ where
         };
 
         if let Err(err) = self.client.provide_l1(block_info).await {
-            error!(target: "managed_event_task", %err, "Error sending provide_l1 to managed node");
+            error!(target: "managed_event_task", %chain_id, %err, "Error sending provide_l1 to managed node");
             Err(ManagedEventTaskError::ManagedNodeAPICallFailed)?
         }
 
-        info!(target: "managed_event_task", "Sent next L1 block to managed node using provide_l1");
+        info!(target: "managed_event_task", %chain_id, "Sent next L1 block to managed node using provide_l1");
         Ok(())
     }
 }
@@ -339,7 +343,7 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
-        task.handle_managed_event(Some(managed_event)).await;
+        task.handle_managed_event(1, Some(managed_event)).await;
 
         let event = rx.recv().await.expect("Should receive event");
         match event {
@@ -390,7 +394,7 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
-        task.handle_managed_event(Some(managed_event)).await;
+        task.handle_managed_event(1, Some(managed_event)).await;
 
         let event = rx.recv().await.expect("Should receive event");
         match event {
@@ -438,7 +442,7 @@ mod tests {
         let cancel_token = CancellationToken::new();
         let task = ManagedEventTask::new(client, provider, resetter, cancel_token, tx);
 
-        task.handle_managed_event(Some(managed_event)).await;
+        task.handle_managed_event(1, Some(managed_event)).await;
 
         let event = rx.recv().await.expect("Should receive event");
         match event {

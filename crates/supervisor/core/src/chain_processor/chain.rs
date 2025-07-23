@@ -94,7 +94,7 @@ where
     pub async fn start(&mut self) -> Result<(), ChainProcessorError> {
         let mut handle_guard = self.task_handle.lock().await;
         if handle_guard.is_some() {
-            warn!(target: "chain_processor", "ChainProcessor is already running");
+            warn!(target: "chain_processor", chain_id = %self.chain_id, "ChainProcessor is already running");
             return Ok(())
         }
 
