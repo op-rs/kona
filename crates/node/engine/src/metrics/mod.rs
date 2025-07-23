@@ -19,7 +19,10 @@ impl Metrics {
     pub const FINALIZED_BLOCK_LABEL: &str = "finalized";
 
     /// Identifier for the counter that records engine task counts.
-    pub const ENGINE_TASK_COUNT: &str = "kona_node_engine_task_count";
+    pub const ENGINE_TASK_SUCCESS: &str = "kona_node_engine_task_count";
+    /// Identifier for the counter that records engine task counts.
+    pub const ENGINE_TASK_FAILURE: &str = "kona_node_engine_task_failure";
+
     /// Insert task label.
     pub const INSERT_TASK_LABEL: &str = "insert";
     /// Consolidate task label.
@@ -61,7 +64,8 @@ impl Metrics {
         metrics::describe_gauge!(Self::BLOCK_LABELS, "Blockchain head labels");
 
         // Engine task counts
-        metrics::describe_counter!(Self::ENGINE_TASK_COUNT, "Engine task counts");
+        metrics::describe_counter!(Self::ENGINE_TASK_SUCCESS, "Engine tasks successfully executed");
+        metrics::describe_counter!(Self::ENGINE_TASK_FAILURE, "Engine tasks failed");
 
         // Engine method request duration histogram
         metrics::describe_histogram!(
@@ -83,11 +87,17 @@ impl Metrics {
     #[cfg(feature = "metrics")]
     pub fn zero() {
         // Engine task counts
-        kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::INSERT_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::CONSOLIDATE_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::FORKCHOICE_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::BUILD_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_COUNT, Self::FINALIZE_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::INSERT_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::CONSOLIDATE_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::BUILD_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::FINALIZE_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::FORKCHOICE_TASK_LABEL, 0);
+
+        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::INSERT_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::CONSOLIDATE_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::BUILD_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::FINALIZE_TASK_LABEL, 0);
+        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::FORKCHOICE_TASK_LABEL, 0);
 
         // Engine reset count
         kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);

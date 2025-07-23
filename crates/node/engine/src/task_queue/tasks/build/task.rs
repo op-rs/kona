@@ -4,7 +4,6 @@ use crate::{
     EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, ForkchoiceTask,
     ForkchoiceTaskError, InsertTask,
     InsertTaskError::{self},
-    Metrics,
     state::EngineSyncStateUpdate,
 };
 use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
@@ -224,9 +223,6 @@ impl EngineTaskExt for BuildTask {
             "Built and imported new {} block",
             if self.is_attributes_derived { "safe" } else { "unsafe" },
         );
-
-        // Update metrics.
-        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::BUILD_TASK_LABEL);
 
         Ok(())
     }

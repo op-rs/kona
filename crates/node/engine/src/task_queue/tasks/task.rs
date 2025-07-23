@@ -8,21 +8,26 @@ use crate::{
     InsertTaskError,
 };
 use async_trait::async_trait;
+use derive_more::Display;
 use std::cmp::Ordering;
 use thiserror::Error;
 
 /// The severity of an engine task error.
 ///
 /// This is used to determine how to handle the error when draining the engine task queue.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Display, Clone, Copy)]
 pub enum EngineTaskErrorSeverity {
     /// The error is temporary and the task is retried.
+    #[display("temporary")]
     Temporary,
     /// The error is critical and is propagated to the engine actor.
+    #[display("critical")]
     Critical,
     /// The error indicates that the engine should be reset.
+    #[display("reset")]
     Reset,
     /// The error indicates that the engine should be flushed.
+    #[display("flush")]
     Flush,
 }
 
@@ -112,6 +117,86 @@ impl EngineTask {
 
         Ok(())
     }
+
+    fn update_failure_metrics(&self, severity: EngineTaskErrorSeverity) {
+        match self {
+            Self::Insert(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_FAILURE,
+                    crate::Metrics::INSERT_TASK_LABEL => severity.to_string()
+                );
+            }
+            Self::Consolidate(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_FAILURE,
+                    crate::Metrics::CONSOLIDATE_TASK_LABEL => severity.to_string()
+                );
+            }
+            Self::Build(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_FAILURE,
+                    crate::Metrics::BUILD_TASK_LABEL => severity.to_string()
+                );
+            }
+            Self::Finalize(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_FAILURE,
+                    crate::Metrics::FINALIZE_TASK_LABEL => severity.to_string()
+                );
+            }
+            Self::ForkchoiceUpdate(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_FAILURE,
+                    crate::Metrics::FORKCHOICE_TASK_LABEL => severity.to_string()
+                );
+            }
+        }
+    }
+
+    fn update_success_metrics(&self) {
+        match self {
+            Self::Insert(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_SUCCESS,
+                    crate::Metrics::INSERT_TASK_LABEL
+                );
+            }
+            Self::Consolidate(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_SUCCESS,
+                    crate::Metrics::CONSOLIDATE_TASK_LABEL
+                );
+            }
+            Self::Build(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_SUCCESS,
+                    crate::Metrics::BUILD_TASK_LABEL
+                );
+            }
+            Self::Finalize(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_SUCCESS,
+                    crate::Metrics::FINALIZE_TASK_LABEL
+                );
+            }
+            Self::ForkchoiceUpdate(_) => {
+                kona_macros::inc!(
+                    counter,
+                    crate::Metrics::ENGINE_TASK_SUCCESS,
+                    crate::Metrics::FORKCHOICE_TASK_LABEL
+                );
+            }
+        }
+    }
 }
 
 impl PartialEq for EngineTask {
@@ -184,7 +269,11 @@ impl EngineTaskExt for EngineTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), Self::Error> {
         // Retry the task until it succeeds or a critical error occurs.
         while let Err(e) = self.execute_inner(state).await {
-            match e.severity() {
+            let severity = e.severity();
+
+            self.update_failure_metrics(severity);
+
+            match severity {
                 EngineTaskErrorSeverity::Temporary => {
                     trace!(target: "engine", "{e}");
                     continue;
@@ -204,6 +293,9 @@ impl EngineTaskExt for EngineTask {
             }
         }
 
+        self.update_success_metrics();
+
+        // Update metrics.
         Ok(())
     }
 }

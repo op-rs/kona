@@ -2,7 +2,7 @@
 
 use crate::{
     BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, ForkchoiceTask,
-    Metrics, state::EngineSyncStateUpdate,
+    state::EngineSyncStateUpdate,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -98,13 +98,6 @@ impl ConsolidateTask {
                         ..Default::default()
                     });
 
-                    // Update metrics.
-                    kona_macros::inc!(
-                        counter,
-                        Metrics::ENGINE_TASK_COUNT,
-                        Metrics::CONSOLIDATE_TASK_LABEL
-                    );
-
                     info!(
                         target: "engine",
                         hash = %block_info.block_info.hash,
@@ -139,13 +132,6 @@ impl ConsolidateTask {
                     let fcu_duration = fcu_start.elapsed();
 
                     let total_duration = global_start.elapsed();
-
-                    // Update metrics.
-                    kona_macros::inc!(
-                        counter,
-                        Metrics::ENGINE_TASK_COUNT,
-                        Metrics::CONSOLIDATE_TASK_LABEL
-                    );
 
                     info!(
                         target: "engine",

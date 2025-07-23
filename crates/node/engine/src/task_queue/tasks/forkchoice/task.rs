@@ -2,7 +2,7 @@
 
 use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskExt, ForkchoiceTaskError,
-    Metrics, state::EngineSyncStateUpdate,
+    state::EngineSyncStateUpdate,
 };
 use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{INVALID_FORK_CHOICE_STATE_ERROR, PayloadId, PayloadStatusEnum};
@@ -162,9 +162,6 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Apply the new sync state to the engine state.
         state.sync_state = new_sync_state;
-
-        // Update metrics.
-        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FORKCHOICE_TASK_LABEL);
 
         let fcu_duration = fcu_time_start.elapsed();
         debug!(
