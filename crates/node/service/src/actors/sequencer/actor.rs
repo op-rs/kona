@@ -306,11 +306,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             OpAttributesWithParent::new(attributes, unsafe_head, BlockInfo::default(), false);
 
         // Log the attributes build duration, if metrics are enabled.
-        let _attributes_build_duration = _attributes_build_start.elapsed();
         kona_macros::set!(
             gauge,
             crate::Metrics::SEQUENCER_ATTRIBUTES_BUILDER_DURATION,
-            _attributes_build_duration
+            _attributes_build_start.elapsed()
         );
 
         // Create a new channel to receive the built payload.
@@ -327,18 +326,24 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         let payload = self.try_wait_for_payload(ctx, payload_rx).await?;
 
         // Log the block building job duration, if metrics are enabled.
-        let _block_building_job_duration = _build_request_start.elapsed();
         kona_macros::set!(
             gauge,
             crate::Metrics::SEQUENCER_BLOCK_BUILDING_JOB_DURATION,
-            _block_building_job_duration
+            _build_request_start.elapsed()
         );
 
         // If the conductor is available, commit the payload to it.
         if let Some(conductor) = &self.conductor {
+            let _conductor_commitment_start = Instant::now();
             if let Err(err) = conductor.commit_unsafe_payload(&payload).await {
                 error!(target: "sequencer", ?err, "Failed to commit unsafe payload to conductor");
             }
+
+            kona_macros::set!(
+                gauge,
+                crate::Metrics::SEQUENCER_CONDUCTOR_COMMITMENT_DURATION,
+                _conductor_commitment_start.elapsed()
+            );
         }
 
         self.schedule_gossip(ctx, payload).await

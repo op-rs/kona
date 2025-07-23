@@ -25,6 +25,10 @@ impl Metrics {
     pub const SEQUENCER_BLOCK_BUILDING_JOB_DURATION: &str =
         "kona_node_sequencer_block_building_duration";
 
+    /// Gauge for the sequencer's conductor commitment duration.
+    pub const SEQUENCER_CONDUCTOR_COMMITMENT_DURATION: &str =
+        "kona_node_sequencer_conductor_commitment_duration";
+
     /// Initializes metrics for the node service.
     ///
     /// This does two things:
@@ -64,6 +68,12 @@ impl Metrics {
         metrics::describe_gauge!(
             Self::SEQUENCER_BLOCK_BUILDING_JOB_DURATION,
             "Duration of the sequencer block building job"
+        );
+
+        // Sequencer conductor commitment duration
+        metrics::describe_gauge!(
+            Self::SEQUENCER_CONDUCTOR_COMMITMENT_DURATION,
+            "Duration of the sequencer conductor commitment"
         );
     }
 
