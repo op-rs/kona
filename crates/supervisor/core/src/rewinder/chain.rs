@@ -19,7 +19,7 @@ pub struct ChainRewinder<DB> {
     db: DB,
 }
 
-#[allow(dead_code)] // todo: to be removed in the follow up PR
+#[expect(dead_code)] // todo: to be removed in the follow up PR
 impl<DB> ChainRewinder<DB>
 where
     DB: StorageRewinder + LogStorageReader,
@@ -47,6 +47,12 @@ where
                 );
             })?;
 
+        // cross-check whether the block is conflicting
+        if conflicting_block == derived_pair.derived {
+            return Ok(())
+        }
+
+        // rewind the log storage to remove all the blocks till the conflicting one
         self.db.rewind_log_storage(&conflicting_block.id()).inspect_err(|err| {
             error!(
                 target: "rewinder",
