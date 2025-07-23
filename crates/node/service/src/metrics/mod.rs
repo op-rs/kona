@@ -17,6 +17,10 @@ impl Metrics {
     /// Identifier for the counter that tracks sequencer state flags.
     pub const SEQUENCER_STATE: &str = "kona_node_sequencer_state";
 
+    /// Gauge for the sequencer's attributes builder duration.
+    pub const SEQUENCER_ATTRIBUTES_BUILDER_DURATION: &str =
+        "kona_node_sequencer_attributes_build_duration";
+
     /// Initializes metrics for the node service.
     ///
     /// This does two things:
@@ -43,8 +47,14 @@ impl Metrics {
             "Critical errors in the derivation pipeline"
         );
 
-        // Sequencer active
+        // Sequencer state
         metrics::describe_counter!(Self::SEQUENCER_STATE, "Tracks sequencer state flags");
+
+        // Sequencer attributes builder duration
+        metrics::describe_gauge!(
+            Self::SEQUENCER_ATTRIBUTES_BUILDER_DURATION,
+            "Duration of the sequencer attributes builder"
+        );
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
