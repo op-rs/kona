@@ -1,4 +1,4 @@
-name: 'kona-node'
+name: '${CLUSTER_NAME:-kona-node}'
 
 services:
   prometheus:
