@@ -12,7 +12,8 @@ use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Config, GaterConfig, LocalNode};
+use kona_node_service::NetworkConfig;
+use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
@@ -29,9 +30,6 @@ use url::Url;
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
 pub struct P2PArgs {
-    /// Fully disable the P2P stack.
-    #[arg(long = "p2p.disable", default_value = "false", env = "KONA_NODE_P2P_DISABLE")]
-    pub disabled: bool,
     /// Disable Discv5 (node discovery).
     #[arg(long = "p2p.no-discovery", default_value = "false", env = "KONA_NODE_P2P_NO_DISCOVERY")]
     pub no_discovery: bool,
@@ -212,6 +210,10 @@ pub struct P2PArgs {
     /// This is useful for discovering a wider set of peers.
     #[arg(long = "p2p.discovery.randomize", env = "KONA_NODE_P2P_DISCOVERY_RANDOMIZE")]
     pub discovery_randomize: Option<u64>,
+
+    /// An optional flag to specify the private key of the sequencer, used to sign unsafe blocks.
+    #[arg(long = "p2p.sequencer.key", env = "KONA_NODE_P2P_SEQUENCER_KEY")]
+    pub sequencer_key: Option<B256>,
 }
 
 impl Default for P2PArgs {
@@ -232,15 +234,13 @@ impl P2PArgs {
         }
         let tcp_socket = std::net::TcpListener::bind((ip_addr, tcp_port));
         let udp_socket = std::net::UdpSocket::bind((ip_addr, udp_port));
-        if tcp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "TCP port {} is already in use", tcp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different TCP port with --p2p.listen.tcp");
-            anyhow::bail!("TCP port {} is already in use", tcp_port);
+        if let Err(e) = tcp_socket {
+            tracing::error!(target: "p2p::flags", tcp_port, "Error binding TCP socket: {e}");
+            anyhow::bail!("Error binding TCP socket on port {}: {}", tcp_port, e);
         }
-        if udp_socket.is_err() {
-            tracing::error!(target: "p2p::flags", "UDP port {} is already in use", udp_port);
-            tracing::warn!(target: "p2p::flags", "Specify a different UDP port with --p2p.listen.udp");
-            anyhow::bail!("UDP port {} is already in use", udp_port);
+        if let Err(e) = udp_socket {
+            tracing::error!(target: "p2p::flags", udp_port, "Error binding UDP socket: {e}");
+            anyhow::bail!("Error binding UDP socket on port {}: {}", udp_port, e);
         }
 
         Ok(())
@@ -255,10 +255,6 @@ impl P2PArgs {
     /// - If the TCP port is already in use.
     /// - If the UDP port is already in use.
     pub fn check_ports(&self) -> Result<()> {
-        if self.disabled {
-            tracing::debug!(target: "p2p::flags", "P2P is disabled, skipping port check");
-            return Ok(());
-        }
         Self::check_ports_inner(
             // If the advertised ip is not specified, we use the listen ip.
             self.advertise_ip.unwrap_or(self.listen_ip),
@@ -329,10 +325,9 @@ impl P2PArgs {
         // First attempt to load the unsafe block signer from the runtime loader.
         if let Some(url) = l1_rpc {
             let mut loader = RuntimeLoader::new(url, Arc::new(config.clone()));
-            let runtime = loader
-                .load_latest()
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to load runtime: {}", e))?;
+            let runtime = loader.load_latest().await.map_err(|e| {
+                anyhow::anyhow!("Failed to load runtime: {} {:?}", e, std::error::Error::source(&e))
+            })?;
             return Ok(runtime.unsafe_block_signer_address);
         }
 
@@ -342,7 +337,7 @@ impl P2PArgs {
         })
     }
 
-    /// Constructs kona's P2P network [`Config`] from CLI arguments.
+    /// Constructs kona's P2P network [`NetworkConfig`] from CLI arguments.
     ///
     /// ## Parameters
     ///
@@ -354,7 +349,7 @@ impl P2PArgs {
         config: &RollupConfig,
         args: &GlobalArgs,
         l1_rpc: Option<Url>,
-    ) -> anyhow::Result<Config> {
+    ) -> anyhow::Result<NetworkConfig> {
         // Note: the advertised address is contained in the ENR for external peers from the
         // discovery layer to use.
 
@@ -405,10 +400,14 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
-        let local_signer = self.private_key();
-        let local_signer = local_signer.map(|s| s.with_chain_id(Some(args.l2_chain_id)));
+        let local_signer = self
+            .sequencer_key
+            .as_ref()
+            .map(PrivateKeySigner::from_bytes)
+            .transpose()?
+            .map(|s| s.with_chain_id(Some(args.l2_chain_id)));
 
-        Ok(Config {
+        Ok(NetworkConfig {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address,
@@ -431,7 +430,7 @@ impl P2PArgs {
         })
     }
 
-    /// Returns the [Keypair] from the cli inputs.
+    /// Returns the [`Keypair`] from the cli inputs.
     ///
     /// If the raw private key is empty and the specified file is empty,
     /// this method will generate a new private key and write it out to the file.
@@ -518,12 +517,6 @@ mod tests {
     }
 
     #[test]
-    fn test_p2p_args_disabled() {
-        let args = MockCommand::parse_from(["test", "--p2p.disable"]);
-        assert!(args.p2p.disabled);
-    }
-
-    #[test]
     fn test_p2p_args_no_discovery() {
         let args = MockCommand::parse_from(["test", "--p2p.no-discovery"]);
         assert!(args.p2p.no_discovery);
@@ -544,6 +537,17 @@ mod tests {
         ]);
         let key = b256!("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be");
         assert_eq!(args.p2p.private_key, Some(key));
+    }
+
+    #[test]
+    fn test_p2p_args_sequencer_key() {
+        let args = MockCommand::parse_from([
+            "test",
+            "--p2p.sequencer.key",
+            "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a",
+        ]);
+        let key = b256!("bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a");
+        assert_eq!(args.p2p.sequencer_key, Some(key));
     }
 
     #[test]

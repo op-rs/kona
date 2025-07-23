@@ -77,18 +77,17 @@ kona-host = { path = "bin/host", version = "1.0.2", default-features = false }
 kona-client = { path = "bin/client", version = "1.0.2", default-features = false }
 
 # Protocol
-kona-comp = { path = "crates/protocol/comp", version = "0.3.0", default-features = false }
-kona-driver = { path = "crates/protocol/driver", version = "0.3.0", default-features = false }
-kona-derive = { path = "crates/protocol/derive", version = "0.3.0", default-features = false }
-kona-interop = { path = "crates/protocol/interop", version = "0.3.0", default-features = false }
-kona-genesis = { path = "crates/protocol/genesis", version = "0.3.0", default-features = false }
-kona-protocol = { path = "crates/protocol/protocol", version = "0.3.0", default-features = false }
-kona-registry = { path = "crates/protocol/registry", version = "0.3.0", default-features = false }
-kona-hardforks = { path = "crates/protocol/hardforks", version = "0.3.0", default-features = false }
+kona-comp = { path = "crates/protocol/comp", version = "0.4.0", default-features = false }
+kona-derive = { path = "crates/protocol/derive", version = "0.4.0", default-features = false }
+kona-interop = { path = "crates/protocol/interop", version = "0.4.0", default-features = false }
+kona-genesis = { path = "crates/protocol/genesis", version = "0.4.0", default-features = false }
+kona-protocol = { path = "crates/protocol/protocol", version = "0.4.1", default-features = false }
+kona-registry = { path = "crates/protocol/registry", version = "0.4.2", default-features = false }
+kona-hardforks = { path = "crates/protocol/hardforks", version = "0.4.3", default-features = false }
 
 # Node
 kona-p2p = { path = "crates/node/p2p", version = "0.1.0", default-features = false }
-kona-rpc = { path = "crates/node/rpc", version = "0.2.0", default-features = false }
+kona-rpc = { path = "crates/node/rpc", version = "0.3.0", default-features = false }
 kona-peers = { path = "crates/node/peers", version = "0.1.0", default-features = false }
 kona-engine = { path = "crates/node/engine", version = "0.1.0", default-features = false }
 kona-sources = { path = "crates/node/sources", version = "0.1.0", default-features = false }
@@ -100,71 +99,73 @@ kona-supervisor-core = { path = "crates/supervisor/core", version = "0.1.0", def
 kona-supervisor-service = { path = "crates/supervisor/service", version = "0.1.0", default-features = false }
 kona-supervisor-types = { path = "crates/supervisor/types", version = "0.1.0", default-features = false }
 kona-supervisor-storage = { path = "crates/supervisor/storage", version = "0.1.0", default-features = false }
+kona-supervisor-metrics = { path = "crates/supervisor/metrics", version = "0.1.0", default-features = false }
 
 # Providers
-kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.2.0", default-features = false }
+kona-providers-alloy = { path = "crates/providers/providers-alloy", version = "0.3.0", default-features = false }
 
 # Proof
-kona-mpt = { path = "crates/proof/mpt", version = "0.2.0", default-features = false }
+kona-driver = { path = "crates/proof/driver", version = "0.4.0", default-features = false }
+kona-mpt = { path = "crates/proof/mpt", version = "0.3.0", default-features = false }
 kona-proof = { path = "crates/proof/proof", version = "0.3.0", default-features = false }
-kona-executor = { path = "crates/proof/executor", version = "0.3.0", default-features = false }
+kona-executor = { path = "crates/proof/executor", version = "0.4.0", default-features = false }
 kona-std-fpvm = { path = "crates/proof/std-fpvm", version = "0.2.0", default-features = false }
 kona-preimage = { path = "crates/proof/preimage", version = "0.3.0", default-features = false }
 kona-std-fpvm-proc = { path = "crates/proof/std-fpvm-proc", version = "0.2.0", default-features = false }
 kona-proof-interop = { path = "crates/proof/proof-interop", version = "0.2.0", default-features = false }
 
 # Utilities
-kona-cli = { path = "crates/utilities/cli", version = "0.2.0", default-features = false }
+kona-cli = { path = "crates/utilities/cli", version = "0.3.0", default-features = false }
 kona-serde = { path = "crates/utilities/serde", version = "0.2.0", default-features = false }
 kona-macros = { path = "crates/utilities/macros", version = "0.1.0", default-features = false }
 
 # Alloy
 alloy-rlp = { version = "0.3.12", default-features = false }
-alloy-trie = { version = "0.8.1", default-features = false }
-alloy-eips = { version = "1.0.9", default-features = false }
-alloy-serde = { version = "1.0.9", default-features = false }
-alloy-signer = { version = "1.0.9", default-features = false }
-alloy-chains = { version = "0.2.4", default-features = false }
-alloy-network = { version = "1.0.9", default-features = false }
-alloy-provider = { version = "1.0.9", default-features = false }
-alloy-hardforks = { version = "0.2.7", default-features = false }
-alloy-sol-types = { version = "1.2.0", default-features = false }
-alloy-consensus = { version = "1.0.9", default-features = false }
-alloy-transport = { version = "1.0.9", default-features = false }
-alloy-rpc-types = { version = "1.0.9", default-features = false }
-alloy-rpc-client = { version = "1.0.9", default-features = false }
-alloy-primitives = { version = "1.2.0", default-features = false }
-alloy-signer-local = { version = "1.0.9", default-features = false }
-alloy-node-bindings = { version = "1.0.9", default-features = false }
-alloy-rpc-types-eth = { version = "1.0.9", default-features = false }
-alloy-transport-http = { version = "1.0.9", default-features = false }
-alloy-rpc-types-engine = { version = "1.0.9", default-features = false }
-alloy-rpc-types-beacon = { version = "1.0.9", default-features = false }
-alloy-network-primitives = { version = "1.0.9", default-features = false }
+alloy-trie = { version = "0.9.0", default-features = false }
+alloy-eips = { version = "1.0.18", default-features = false }
+alloy-serde = { version = "1.0.18", default-features = false }
+alloy-signer = { version = "1.0.18", default-features = false }
+alloy-chains = { version = "0.2.5", default-features = false }
+alloy-network = { version = "1.0.18", default-features = false }
+alloy-provider = { version = "1.0.18", default-features = false }
+alloy-hardforks = { version = "0.2.11", default-features = false }
+alloy-sol-types = { version = "1.2.1", default-features = false }
+alloy-consensus = { version = "1.0.18", default-features = false }
+alloy-transport = { version = "1.0.18", default-features = false }
+alloy-rpc-types = { version = "1.0.18", default-features = false }
+alloy-rpc-client = { version = "1.0.18", default-features = false }
+alloy-primitives = { version = "1.2.1", default-features = false }
+alloy-signer-local = { version = "1.0.18", default-features = false }
+alloy-node-bindings = { version = "1.0.18", default-features = false }
+alloy-rpc-types-eth = { version = "1.0.18", default-features = false }
+alloy-transport-http = { version = "1.0.18", default-features = false }
+alloy-rpc-types-engine = { version = "1.0.18", default-features = false }
+alloy-rpc-types-beacon = { version = "1.0.18", default-features = false }
+alloy-network-primitives = { version = "1.0.18", default-features = false }
 
 # OP Alloy
-op-alloy-network = { version = "0.18.1", default-features = false }
-alloy-op-hardforks = { version = "0.2.7", default-features = false }
-op-alloy-provider = { version = "0.18.1", default-features = false }
-op-alloy-consensus = { version = "0.18.1", default-features = false }
-op-alloy-rpc-types = { version = "0.18.1", default-features = false }
-op-alloy-rpc-jsonrpsee = { version = "0.18.1", default-features = false }
-op-alloy-rpc-types-engine = { version = "0.18.1", default-features = false }
+op-alloy-network = { version = "0.18.3", default-features = false }
+op-alloy-provider = { version = "0.18.3", default-features = false }
+alloy-op-hardforks = { version = "0.2.11", default-features = false }
+op-alloy-consensus = { version = "0.18.3", default-features = false }
+op-alloy-rpc-types = { version = "0.18.3", default-features = false }
+op-alloy-rpc-jsonrpsee = { version = "0.18.3", default-features = false }
+op-alloy-rpc-types-engine = { version = "0.18.3", default-features = false }
 
 # Execution
-revm = { version = "24.0.1", default-features = false }
-op-revm = { version = "5.0.1", default-features = false }
-alloy-evm = { version = "0.11.0", default-features = false }
-alloy-op-evm = { version = "0.11.0", default-features = false }
+revm = { version = "27.0", default-features = false }
+op-revm = { version = "8.0", default-features = false }
+alloy-evm = { version = "0.14", default-features = false }
+alloy-op-evm = { version = "0.14", default-features = false }
 
 # Reth (pinned to v1.4.8 for kona-supervisor-storage)
-reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8" }
+reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 
 # General
 url = "2.5.4"
-lru = "0.14.0"
+lru = "0.16.0"
 glob = "0.3.2"
 dirs = "6.0.0"
 eyre = "0.6.12"
@@ -175,6 +176,7 @@ bytes = "1.10.1"
 vergen = "9.0.6"
 tokio = "1.45.1"
 rayon = "1.10.0"
+strum = "0.27"
 cfg-if = "1.0.0"
 rstest = "0.25.0"
 ratatui = "0.29.0"
@@ -197,13 +199,12 @@ async-stream = "0.3.6"
 async-channel = "2.3.1"
 http-body-util = "0.1.3"
 unsigned-varint = "0.8.0"
-tracing-appender = "0.2.3"
 modular-bitfield = "0.11.2"
 buddy_system_allocator = "0.11.0"
 
 rand = { version = "0.9.1", default-features = false }
 backon = { version = "1.5.1", default-features = false }
-tabled = { version = "0.19.0", default-features = false }
+tabled = { version = "0.20.0", default-features = false }
 anyhow = { version = "1.0.98", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 derive_more = { version = "2.0.1", default-features = false }
@@ -218,8 +219,8 @@ brotli = { version = "8.0.1", default-features = false }
 # Networking
 snap = "1.1.1"
 discv5 = "0.9.1"
-libp2p = "0.55.0"
-libp2p-stream = "0.3.0-alpha"
+libp2p = "0.56.0"
+libp2p-stream = "0.4.0-alpha"
 libp2p-identity = "0.2.11"
 openssl = "0.10.73"
 ipnet = "2.11.0"
@@ -227,6 +228,7 @@ ipnet = "2.11.0"
 # Tracing
 tracing-loki = "0.2.6"
 tracing-subscriber = "0.3.19"
+tracing-appender = "0.2.3"
 tracing = { version = "0.1.41", default-features = false }
 
 # Metrics

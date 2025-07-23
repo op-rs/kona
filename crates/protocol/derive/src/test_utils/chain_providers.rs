@@ -76,7 +76,7 @@ impl TestChainProvider {
     }
 }
 
-/// An error for the [TestChainProvider] and [TestL2ChainProvider].
+/// An error for the [`TestChainProvider`] and [`TestL2ChainProvider`].
 #[derive(Error, Debug)]
 pub enum TestProviderError {
     /// The block was not found.
@@ -150,7 +150,7 @@ impl ChainProvider for TestChainProvider {
     }
 }
 
-/// An [L2ChainProvider] implementation for testing.
+/// An [`L2ChainProvider`] implementation for testing.
 #[derive(Debug, Default, Clone)]
 pub struct TestL2ChainProvider {
     /// Blocks
@@ -164,7 +164,7 @@ pub struct TestL2ChainProvider {
 }
 
 impl TestL2ChainProvider {
-    /// Creates a new [MockBlockFetcher] with the given origin and batches.
+    /// Creates a new [`MockBlockFetcher`] with the given origin and batches.
     pub const fn new(
         blocks: Vec<L2BlockInfo>,
         op_blocks: Vec<OpBlock>,

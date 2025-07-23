@@ -4,7 +4,7 @@ pub mod chain_processor;
 pub use chain_processor::{ChainProcessor, ChainProcessorError};
 
 pub mod error;
-pub use error::SupervisorError;
+pub use error::{SpecError, SupervisorError};
 
 /// Contains the main Supervisor struct and its implementation.
 mod supervisor;
@@ -22,3 +22,9 @@ pub mod config;
 pub mod event;
 pub mod l1_watcher;
 pub mod syncnode;
+
+pub mod safety_checker;
+pub use safety_checker::{CrossSafetyCheckerJob, CrossSafetyError};
+
+mod rewinder;
+pub use rewinder::{ChainRewinder, ChainRewinderError};

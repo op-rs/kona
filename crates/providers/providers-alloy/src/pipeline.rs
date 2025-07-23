@@ -4,17 +4,29 @@ use crate::{AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, Online
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_derive::{
-    AttributesQueueStage, DerivationPipeline, EthereumDataSource, L2ChainProvider, OriginProvider,
-    Pipeline, PipelineBuilder, PipelineErrorKind, PipelineResult, ResetSignal, Signal,
-    SignalReceiver, StatefulAttributesBuilder, StepResult,
+    DerivationPipeline, EthereumDataSource, IndexedAttributesQueueStage, L2ChainProvider,
+    OriginProvider, Pipeline, PipelineBuilder, PipelineErrorKind, PipelineResult,
+    PolledAttributesQueueStage, ResetSignal, Signal, SignalReceiver, StatefulAttributesBuilder,
+    StepResult,
 };
 use kona_genesis::{RollupConfig, SystemConfig};
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
 use std::sync::Arc;
 
-/// An online derivation pipeline.
-pub type OnlineDerivationPipeline = DerivationPipeline<
-    AttributesQueueStage<
+/// An online polled derivation pipeline.
+pub type OnlinePolledDerivationPipeline = DerivationPipeline<
+    PolledAttributesQueueStage<
+        OnlineDataProvider,
+        AlloyChainProvider,
+        AlloyL2ChainProvider,
+        OnlineAttributesBuilder,
+    >,
+    AlloyL2ChainProvider,
+>;
+
+/// An online managed derivation pipeline.
+pub type OnlineManagedDerivationPipeline = DerivationPipeline<
+    IndexedAttributesQueueStage<
         OnlineDataProvider,
         AlloyChainProvider,
         AlloyL2ChainProvider,
@@ -32,15 +44,17 @@ pub type OnlineDataProvider =
 pub type OnlineAttributesBuilder =
     StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
 
-/// An oracle-backed derivation pipeline.
+/// An online derivation pipeline.
 #[derive(Debug)]
-pub struct OnlinePipeline {
-    /// The internal derivation pipeline.
-    pub pipeline: OnlineDerivationPipeline,
+pub enum OnlinePipeline {
+    /// An online derivation pipeline that uses a polled traversal stage.
+    Polled(OnlinePolledDerivationPipeline),
+    /// An online derivation pipeline that uses a managed traversal stage.
+    Managed(OnlineManagedDerivationPipeline),
 }
 
 impl OnlinePipeline {
-    /// Constructs a new oracle-backed derivation pipeline.
+    /// Constructs a new polled derivation pipeline that is initialized.
     pub async fn new(
         cfg: Arc<RollupConfig>,
         l2_safe_head: L2BlockInfo,
@@ -49,12 +63,8 @@ impl OnlinePipeline {
         chain_provider: AlloyChainProvider,
         mut l2_chain_provider: AlloyL2ChainProvider,
     ) -> PipelineResult<Self> {
-        let Self { mut pipeline } = Self::new_uninitialized(
-            cfg.clone(),
-            blob_provider,
-            chain_provider,
-            l2_chain_provider.clone(),
-        );
+        let mut pipeline =
+            Self::new_polled(cfg.clone(), blob_provider, chain_provider, l2_chain_provider.clone());
 
         // Reset the pipeline to populate the initial L1/L2 cursor and system configuration in L1
         // Traversal.
@@ -72,13 +82,17 @@ impl OnlinePipeline {
             )
             .await?;
 
-        Ok(Self { pipeline })
+        Ok(pipeline)
     }
 
-    /// Constructs a new oracle-backed derivation pipeline that has not been populated with an L2
-    /// safe head, L1 origin, or System Config. Before using, a [`ResetSignal`] must be sent to
-    /// instantiate the pipeline state.
-    pub fn new_uninitialized(
+    /// Constructs a new polled derivation pipeline that is uninitialized.
+    ///
+    /// Uses online providers as specified by the arguments.
+    ///
+    /// Before using the returned pipeline, a [`ResetSignal`] must be sent to
+    /// instantiate the pipeline state. [`Self::new`] is a convenience method that
+    /// constructs a new online pipeline and sends the reset signal.
+    pub fn new_polled(
         cfg: Arc<RollupConfig>,
         blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
         chain_provider: AlloyChainProvider,
@@ -98,9 +112,41 @@ impl OnlinePipeline {
             .chain_provider(chain_provider)
             .builder(attributes)
             .origin(BlockInfo::default())
-            .build();
+            .build_polled();
 
-        Self { pipeline }
+        Self::Polled(pipeline)
+    }
+
+    /// Constructs a new indexed derivation pipeline that is uninitialized.
+    ///
+    /// Uses online providers as specified by the arguments.
+    ///
+    /// Before using the returned pipeline, a [`ResetSignal`] must be sent to
+    /// instantiate the pipeline state. [`Self::new`] is a convenience method that
+    /// constructs a new online pipeline and sends the reset signal.
+    pub fn new_indexed(
+        cfg: Arc<RollupConfig>,
+        blob_provider: OnlineBlobProvider<OnlineBeaconClient>,
+        chain_provider: AlloyChainProvider,
+        l2_chain_provider: AlloyL2ChainProvider,
+    ) -> Self {
+        let attributes = StatefulAttributesBuilder::new(
+            cfg.clone(),
+            l2_chain_provider.clone(),
+            chain_provider.clone(),
+        );
+        let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
+
+        let pipeline = PipelineBuilder::new()
+            .rollup_config(cfg.clone())
+            .dap_source(dap)
+            .l2_chain_provider(l2_chain_provider.clone())
+            .chain_provider(chain_provider)
+            .builder(attributes)
+            .origin(BlockInfo::default())
+            .build_indexed();
+
+        Self::Managed(pipeline)
     }
 }
 
@@ -108,14 +154,20 @@ impl OnlinePipeline {
 impl SignalReceiver for OnlinePipeline {
     /// Receives a signal from the driver.
     async fn signal(&mut self, signal: Signal) -> PipelineResult<()> {
-        self.pipeline.signal(signal).await
+        match self {
+            Self::Polled(pipeline) => pipeline.signal(signal).await,
+            Self::Managed(pipeline) => pipeline.signal(signal).await,
+        }
     }
 }
 
 impl OriginProvider for OnlinePipeline {
     /// Returns the optional L1 [BlockInfo] origin.
     fn origin(&self) -> Option<BlockInfo> {
-        self.pipeline.origin()
+        match self {
+            Self::Polled(pipeline) => pipeline.origin(),
+            Self::Managed(pipeline) => pipeline.origin(),
+        }
     }
 }
 
@@ -123,7 +175,10 @@ impl Iterator for OnlinePipeline {
     type Item = OpAttributesWithParent;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.pipeline.next()
+        match self {
+            Self::Polled(pipeline) => pipeline.next(),
+            Self::Managed(pipeline) => pipeline.next(),
+        }
     }
 }
 
@@ -131,17 +186,26 @@ impl Iterator for OnlinePipeline {
 impl Pipeline for OnlinePipeline {
     /// Peeks at the next [OpAttributesWithParent] from the pipeline.
     fn peek(&self) -> Option<&OpAttributesWithParent> {
-        self.pipeline.peek()
+        match self {
+            Self::Polled(pipeline) => pipeline.peek(),
+            Self::Managed(pipeline) => pipeline.peek(),
+        }
     }
 
     /// Attempts to progress the pipeline.
     async fn step(&mut self, cursor: L2BlockInfo) -> StepResult {
-        self.pipeline.step(cursor).await
+        match self {
+            Self::Polled(pipeline) => pipeline.step(cursor).await,
+            Self::Managed(pipeline) => pipeline.step(cursor).await,
+        }
     }
 
     /// Returns the rollup config.
     fn rollup_config(&self) -> &RollupConfig {
-        self.pipeline.rollup_config()
+        match self {
+            Self::Polled(pipeline) => pipeline.rollup_config(),
+            Self::Managed(pipeline) => pipeline.rollup_config(),
+        }
     }
 
     /// Returns the [SystemConfig] by L2 number.
@@ -149,6 +213,9 @@ impl Pipeline for OnlinePipeline {
         &mut self,
         number: u64,
     ) -> Result<SystemConfig, PipelineErrorKind> {
-        self.pipeline.system_config_by_number(number).await
+        match self {
+            Self::Polled(pipeline) => pipeline.system_config_by_number(number).await,
+            Self::Managed(pipeline) => pipeline.system_config_by_number(number).await,
+        }
     }
 }

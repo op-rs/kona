@@ -12,7 +12,7 @@ pub enum RuntimeLoaderError {
     /// An error resulting from decoding the protocol version
     #[error("Failed to decode protocol version: {0}")]
     ProtocolVersionDecode(#[from] ProtocolVersionError),
-    /// An error occured from the [`kona_providers_alloy::AlloyChainProvider`].
+    /// An error occurred from the [`kona_providers_alloy::AlloyChainProvider`].
     #[error(transparent)]
     ChainProvider(#[from] kona_providers_alloy::AlloyChainProviderError),
     /// Failed to convert the address slot bytes to an address

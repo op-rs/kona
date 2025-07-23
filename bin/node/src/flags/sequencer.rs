@@ -5,19 +5,13 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go#L233-L265
 
 use clap::Parser;
+use kona_node_service::SequencerConfig;
+use std::{num::ParseIntError, time::Duration};
+use url::Url;
 
 /// Sequencer CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
 pub struct SequencerArgs {
-    /// Enable sequencing of new L2 blocks. A separate batch submitter has to be deployed to
-    /// publish the data for verifiers.
-    #[arg(
-        long = "sequencer.enabled",
-        default_value = "false",
-        env = "KONA_NODE_SEQUENCER_ENABLED"
-    )]
-    pub enabled: bool,
-
     /// Initialize the sequencer in a stopped state. The sequencer can be started using the
     /// admin_startSequencer RPC.
     #[arg(
@@ -48,6 +42,19 @@ pub struct SequencerArgs {
         env = "KONA_NODE_SSEQUENCER_RECOVER"
     )]
     pub recover: bool,
+
+    /// Conductor service rpc endpoint. Providing this value will enable the conductor service.
+    #[arg(long = "conductor.rpc", env = "KONA_NODE_CONDUCTOR_RPC")]
+    pub conductor_rpc: Option<Url>,
+
+    /// Conductor service rpc timeout.
+    #[arg(
+        long = "conductor.rpc.timeout",
+        default_value = "1",
+        env = "KONA_NODE_CONDUCTOR_RPC_TIMEOUT",
+        value_parser = |arg: &str| -> Result<Duration, ParseIntError> {Ok(Duration::from_secs(arg.parse()?))}
+    )]
+    pub conductor_rpc_timeout: Duration,
 }
 
 impl Default for SequencerArgs {
@@ -55,5 +62,16 @@ impl Default for SequencerArgs {
         // Construct default values using the clap parser.
         // This works since none of the cli flags are required.
         Self::parse_from::<[_; 0], &str>([])
+    }
+}
+
+impl SequencerArgs {
+    /// Creates a [`SequencerConfig`] from the [`SequencerArgs`].
+    pub fn config(&self) -> SequencerConfig {
+        SequencerConfig {
+            sequencer_stopped: self.stopped,
+            sequencer_recovery_mode: self.recover,
+            conductor_rpc_url: self.conductor_rpc.clone(),
+        }
     }
 }

@@ -15,12 +15,12 @@ use kona_genesis::{
 };
 use kona_protocol::{BlockInfo, Channel};
 
-/// The [ChannelAssembler] stage is responsible for assembling the [Frame]s from the [FrameQueue]
-/// stage into a raw compressed [Channel].
+/// The [`ChannelAssembler`] stage is responsible for assembling the [`Frame`]s from the
+/// [`FrameQueue`] stage into a raw compressed [`Channel`].
 ///
-/// [Frame]: kona_protocol::Frame
-/// [FrameQueue]: crate::stages::FrameQueue
-/// [Channel]: kona_protocol::Channel
+/// [`Frame`]: kona_protocol::Frame
+/// [`FrameQueue`]: crate::stages::FrameQueue
+/// [`Channel`]: kona_protocol::Channel
 #[derive(Debug)]
 pub struct ChannelAssembler<P>
 where
@@ -30,7 +30,7 @@ where
     pub(crate) cfg: Arc<RollupConfig>,
     /// The previous stage of the derivation pipeline.
     pub(crate) prev: P,
-    /// The current [Channel] being assembled.
+    /// The current [`Channel`] being assembled.
     pub(crate) channel: Option<Channel>,
 }
 
@@ -38,7 +38,7 @@ impl<P> ChannelAssembler<P>
 where
     P: NextFrameProvider + OriginAdvancer + OriginProvider + SignalReceiver + Debug,
 {
-    /// Creates a new [ChannelAssembler] stage with the given configuration and previous stage.
+    /// Creates a new [`ChannelAssembler`] stage with the given configuration and previous stage.
     pub const fn new(cfg: Arc<RollupConfig>, prev: P) -> Self {
         Self { cfg, prev, channel: None }
     }

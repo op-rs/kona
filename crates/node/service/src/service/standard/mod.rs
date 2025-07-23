@@ -6,8 +6,5 @@
 mod node;
 pub use node::RollupNode;
 
-mod error;
-pub use error::RollupNodeError;
-
 mod builder;
 pub use builder::RollupNodeBuilder;

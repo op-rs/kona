@@ -1,13 +1,14 @@
 use alloy_network::Ethereum;
 use alloy_provider::{Provider, RootProvider};
-use anyhow::{Context as _, Ok, Result};
+use anyhow::{Context as _, Ok, Result, anyhow};
 use clap::Args;
 use glob::glob;
 use kona_genesis::RollupConfig;
 use kona_interop::DependencySet;
+use kona_protocol::BlockInfo;
 use kona_supervisor_core::{
     config::{Config, RollupConfigSet},
-    syncnode::ManagedNodeConfig,
+    syncnode::ClientConfig,
 };
 use serde::de::DeserializeOwned;
 use std::{
@@ -132,18 +133,25 @@ impl SupervisorArgs {
                 )
             })?;
 
-            rollup_config_set.add_from_rollup_config(
-                chain_id,
-                rollup_config,
-                l1_genesis.header.timestamp,
-            );
+            rollup_config_set
+                .add_from_rollup_config(
+                    chain_id.id(),
+                    rollup_config,
+                    BlockInfo::new(
+                        l1_genesis.header.hash,
+                        l1_genesis.header.number,
+                        l1_genesis.header.parent_hash,
+                        l1_genesis.header.timestamp,
+                    ),
+                )
+                .map_err(|err| anyhow!(err))?;
         }
 
         Ok(rollup_config_set)
     }
 
     /// initialise and return the managed nodes configuration.
-    pub fn init_managed_nodes_config(&self) -> Result<Vec<ManagedNodeConfig>> {
+    pub fn init_managed_nodes_config(&self) -> Result<Vec<ClientConfig>> {
         let mut managed_nodes = Vec::new();
         let default_secret = self
             .l2_consensus_jwt_secret
@@ -152,8 +160,7 @@ impl SupervisorArgs {
         for (i, rpc_url) in self.l2_consensus_nodes.iter().enumerate() {
             let secret = self.l2_consensus_jwt_secret.get(i).unwrap_or(default_secret);
 
-            managed_nodes
-                .push(ManagedNodeConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
+            managed_nodes.push(ClientConfig { url: rpc_url.clone(), jwt_path: secret.clone() });
         }
         Ok(managed_nodes)
     }
@@ -305,26 +312,12 @@ mod tests {
 
         let loaded_depset = result.unwrap();
         let mut expected_dependencies = HashMap::default();
-        expected_dependencies.insert(
-            1,
-            ChainDependency {
-                chain_index: 10,
-                activation_time: 1678886400,
-                history_min_time: 1609459200,
-            },
-        );
-        expected_dependencies.insert(
-            2,
-            ChainDependency {
-                chain_index: 20,
-                activation_time: 1678886401,
-                history_min_time: 1609459201,
-            },
-        );
+        expected_dependencies.insert(1, ChainDependency {});
+        expected_dependencies.insert(2, ChainDependency {});
 
         let expected_depset = DependencySet {
             dependencies: expected_dependencies,
-            override_message_expiry_window: 3600,
+            override_message_expiry_window: Some(3600),
         };
 
         assert_eq!(loaded_depset, expected_depset);

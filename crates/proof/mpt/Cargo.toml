@@ -1,7 +1,7 @@
 [package]
 name = "kona-mpt"
 description = "Utilities for interacting with and iterating through a merkle patricia trie"
-version = "0.2.0"
+version = "0.3.0"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -40,11 +40,12 @@ criterion = { workspace = true, features = ["html_reports"] }
 pprof = { workspace = true, features = ["criterion", "flamegraph", "frame-pointer"] }
 
 [features]
-default = ["serde"]
+default = [ "serde" ]
 serde = [
-    "dep:serde",
-    "alloy-primitives/serde",
-    "alloy-trie/serde"
+	"alloy-primitives/serde",
+	"alloy-trie/serde",
+	"dep:serde",
+	"op-alloy-rpc-types-engine/serde",
 ]
 
 [[bench]]

@@ -6,14 +6,13 @@ use clap::Parser;
 use kona_cli::log::LogArgs;
 use kona_genesis::RollupConfig;
 use kona_registry::{OPCHAINS, ROLLUP_CONFIGS};
-use tracing_subscriber::EnvFilter;
 
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
 pub struct GlobalArgs {
     /// Logging arguments.
     #[command(flatten)]
-    pub v: LogArgs,
+    pub log_args: LogArgs,
     /// The L2 chain ID to use.
     #[arg(
         long,
@@ -30,11 +29,6 @@ pub struct GlobalArgs {
 }
 
 impl GlobalArgs {
-    /// Initializes the telemetry stack and Prometheus metrics recorder.
-    pub fn init_tracing(&self, filter: Option<EnvFilter>) -> anyhow::Result<()> {
-        self.v.init_tracing(filter)
-    }
-
     /// Initializes cli metrics for global argument values.
     pub fn init_cli_metrics(&self) {
         metrics::describe_gauge!(

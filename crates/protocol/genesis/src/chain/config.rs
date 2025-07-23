@@ -1,6 +1,7 @@
 //! Contains the chain config type.
 
 use alloc::string::String;
+use alloy_chains::Chain;
 use alloy_eips::eip1559::BaseFeeParams;
 use alloy_primitives::Address;
 
@@ -138,7 +139,7 @@ impl ChainConfig {
         RollupConfig {
             genesis: self.genesis,
             l1_chain_id: self.l1_chain_id,
-            l2_chain_id: self.chain_id,
+            l2_chain_id: Chain::from(self.chain_id),
             block_time: self.block_time,
             seq_window_size: self.seq_window_size,
             max_sequencer_drift: self.max_sequencer_drift,
@@ -212,9 +213,9 @@ mod tests {
                 "holocene_time": 1736445601
             },
             "optimism": {
-            "eip1559Elasticity": "0x6",
-            "eip1559Denominator": "0x32",
-            "eip1559DenominatorCanyon": "0xfa"
+                "eip1559Elasticity": 6,
+                "eip1559Denominator": 50,
+                "eip1559DenominatorCanyon": 250
             },
             "alt_da": null,
             "genesis": {

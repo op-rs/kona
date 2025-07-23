@@ -1,11 +1,9 @@
 //! Contains the core derivation pipeline.
 
 use crate::{
-    errors::{PipelineError, PipelineErrorKind},
-    traits::{
-        L2ChainProvider, NextAttributes, OriginAdvancer, OriginProvider, Pipeline, SignalReceiver,
-    },
-    types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult},
+    ActivationSignal, L2ChainProvider, NextAttributes, OriginAdvancer, OriginProvider, Pipeline,
+    PipelineError, PipelineErrorKind, PipelineResult, ResetSignal, Signal, SignalReceiver,
+    StepResult,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use async_trait::async_trait;
@@ -23,7 +21,7 @@ where
     /// A handle to the next attributes.
     pub attributes: S,
     /// Reset provider for the pipeline.
-    /// A list of prepared [OpAttributesWithParent] to be used by the derivation pipeline
+    /// A list of prepared [`OpAttributesWithParent`] to be used by the derivation pipeline
     /// consumer.
     pub prepared: VecDeque<OpAttributesWithParent>,
     /// The rollup config.
@@ -37,7 +35,7 @@ where
     S: NextAttributes + SignalReceiver + OriginProvider + OriginAdvancer + Debug + Send,
     P: L2ChainProvider + Send + Sync + Debug,
 {
-    /// Creates a new instance of the [DerivationPipeline].
+    /// Creates a new instance of the [`DerivationPipeline`].
     pub const fn new(
         attributes: S,
         rollup_config: Arc<RollupConfig>,
@@ -83,7 +81,7 @@ where
     /// Signals the pipeline by calling the [`SignalReceiver::signal`] method.
     ///
     /// During a [`Signal::Reset`], each stage is recursively called from the top-level
-    /// [crate::stages::AttributesQueue] to the bottom [crate::stages::L1Traversal]
+    /// [crate::stages::AttributesQueue] to the bottom [crate::PollingTraversal]
     /// with a head-recursion pattern. This effectively clears the internal state
     /// of each stage in the pipeline from bottom on up.
     ///
@@ -121,6 +119,9 @@ where
             Signal::FlushChannel => {
                 self.attributes.signal(signal).await?;
             }
+            Signal::ProvideBlock(_) => {
+                self.attributes.signal(signal).await?;
+            }
         }
         kona_macros::inc!(
             gauge,
@@ -137,7 +138,7 @@ where
     S: NextAttributes + SignalReceiver + OriginProvider + OriginAdvancer + Debug + Send + Sync,
     P: L2ChainProvider + Send + Sync + Debug,
 {
-    /// Peeks at the next prepared [OpAttributesWithParent] from the pipeline.
+    /// Peeks at the next prepared [`OpAttributesWithParent`] from the pipeline.
     fn peek(&self) -> Option<&OpAttributesWithParent> {
         self.prepared.front()
     }
@@ -147,7 +148,7 @@ where
         &self.rollup_config
     }
 
-    /// Returns the [SystemConfig] by L2 number.
+    /// Returns the [`SystemConfig`] by L2 number.
     async fn system_config_by_number(
         &mut self,
         number: u64,
@@ -169,7 +170,7 @@ where
     /// When [DerivationPipeline::step] returns [Ok(())], it should be called again, to continue the
     /// derivation process.
     ///
-    /// [PipelineError]: crate::errors::PipelineError
+    /// [`PipelineError`]: crate::errors::PipelineError
     async fn step(&mut self, cursor: L2BlockInfo) -> StepResult {
         kona_macros::inc!(gauge, crate::metrics::Metrics::PIPELINE_STEPS);
         kona_macros::set!(

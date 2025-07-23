@@ -15,5 +15,12 @@ pub use message::ExecutingMessage;
 mod receipt;
 pub use receipt::Receipts;
 
+mod access_list;
+pub use access_list::{Access, AccessListError, parse_access_list};
+
+mod hex_string_u64;
 mod types;
-pub use types::{BlockSeal, L2BlockRef, OutputV0, SubscriptionEvent};
+
+pub use hex_string_u64::HexStringU64;
+
+pub use types::{BlockSeal, OutputV0, SubscriptionEvent};

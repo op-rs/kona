@@ -6,7 +6,7 @@ use kona_protocol::BlockInfo;
 /// about changes in block states, such as unsafe blocks, safe blocks, or block replacements.
 /// Each event carries relevant information about the block involved,
 /// allowing the supervisor to take appropriate actions based on the event type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ChainEvent {
     /// An unsafe block event, indicating that a new unsafe block has been detected.
     UnsafeBlock {
@@ -31,5 +31,23 @@ pub enum ChainEvent {
         /// The [`BlockReplacement`] containing the replacement block and the invalidated block
         /// hash.
         replacement: BlockReplacement,
+    },
+
+    /// A finalized source update event, indicating that a new source block has been finalized.
+    FinalizedSourceUpdate {
+        /// The [`BlockInfo`] of the new finalized source(l1) block.
+        finalized_source_block: BlockInfo,
+    },
+
+    /// A cross unsafe update event, indicating that a cross unsafe block has been promoted.
+    CrossUnsafeUpdate {
+        /// The [`BlockInfo`] of the new cross unsafe block
+        block: BlockInfo,
+    },
+
+    /// A cross safe update event, indicating that a cross safe block has been promoted.
+    CrossSafeUpdate {
+        /// The [`DerivedRefPair`] containing the derived block and its source block.
+        derived_ref_pair: DerivedRefPair,
     },
 }

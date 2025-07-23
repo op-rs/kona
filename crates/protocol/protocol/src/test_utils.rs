@@ -28,7 +28,7 @@ pub const RAW_ISTHMUS_INFO_TX: [u8; L1BlockInfoIsthmus::L1_INFO_TX_LEN] = hex!(
     "098999be00000558000c5fc5000000000000000500000000661c277300000000012bec20000000000000000000000000000000000000000000000000000000026e9f109900000000000000000000000000000000000000000000000000000000000000011c4c84c50740386c7dc081efddd644405f04cde73e30a2e381737acce9f5add30000000000000000000000006887246668a3b87f54deb3b94ba47a6f63f329850000abcd000000000000dcba"
 );
 
-/// An error for implementations of the [BatchValidationProvider] trait.
+/// An error for implementations of the [`BatchValidationProvider`] trait.
 #[derive(Debug, thiserror::Error)]
 pub enum TestBatchValidatorError {
     /// The block was not found.
@@ -39,7 +39,7 @@ pub enum TestBatchValidatorError {
     L2BlockNotFound,
 }
 
-/// An [TestBatchValidator] implementation for testing.
+/// An [`TestBatchValidator`] implementation for testing.
 #[derive(Default, Debug, Clone)]
 pub struct TestBatchValidator {
     /// Blocks
@@ -51,7 +51,7 @@ pub struct TestBatchValidator {
 }
 
 impl TestBatchValidator {
-    /// Creates a new []TestBatchValidator with the given origin and batches.
+    /// Creates a new [`TestBatchValidator`] with the given origin and batches.
     pub const fn new(blocks: Vec<L2BlockInfo>, op_blocks: Vec<OpBlock>) -> Self {
         Self { blocks, short_circuit: false, op_blocks }
     }

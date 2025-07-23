@@ -1,9 +1,9 @@
 //! Consensus-layer gossipsub driver for Optimism.
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, hex};
 use derive_more::Debug;
 use discv5::Enr;
-use futures::stream::StreamExt;
+use futures::{AsyncReadExt, AsyncWriteExt, stream::StreamExt};
 use kona_genesis::RollupConfig;
 use kona_peers::{EnrValidation, PeerMonitoring, enr_to_multiaddr};
 use libp2p::{
@@ -22,7 +22,8 @@ use std::{
 use tokio::sync::Mutex;
 
 use crate::{
-    Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
+    Behaviour, BlockHandler, ConnectionGate, ConnectionGater, Event, GossipDriverBuilder, Handler,
+    PublishError,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -127,9 +128,67 @@ where
         Ok(Some(id))
     }
 
-    /// Tells the swarm to listen on the given [`Multiaddr`].
+    /// Handles the sync request/response protocol.
+    ///
+    /// This is a mock handler that supports the `payload_by_number` protocol.
+    /// It always returns: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
+    ///
+    /// ## Note
+    ///
+    /// This is used to ensure op-nodes are not penalizing kona-nodes for not supporting it.
+    /// This feature is being deprecated by the op-node team. Once it is fully removed from the
+    /// op-node's implementation we will remove this handler.
+    pub(super) fn sync_protocol_handler(&mut self) {
+        let Some(mut sync_protocol) = self.sync_protocol.take() else {
+            return;
+        };
+
+        // Spawn a new task to handle the sync request/response protocol.
+        tokio::spawn(async move {
+            loop {
+                let Some((peer_id, mut inbound_stream)) = sync_protocol.next().await else {
+                    warn!(target: "gossip", "The sync protocol stream has ended");
+                    return;
+                };
+
+                info!(target: "gossip", "Received a sync request from {peer_id}, spawning a new task to handle it");
+
+                tokio::spawn(async move {
+                    let mut buffer = Vec::new();
+                    let Ok(bytes_received) = inbound_stream.read_to_end(&mut buffer).await else {
+                        error!(target: "gossip", "Failed to read the sync request from {peer_id}");
+                        return;
+                    };
+
+                    debug!(target: "gossip", bytes_received = bytes_received, peer_id = ?peer_id, payload = ?buffer, "Received inbound sync request");
+
+                    // We return: not found (1), version (0). `<https://specs.optimism.io/protocol/rollup-node-p2p.html#payload_by_number>`
+                    // Response format: <response> = <res><version><payload>
+                    // No payload is returned.
+                    const OUTPUT: [u8; 2] = hex!("0100");
+
+                    // We only write that we're not supporting the sync request.
+                    if let Err(e) = inbound_stream.write_all(&OUTPUT).await {
+                        error!(target: "gossip", err = ?e, "Failed to write the sync response to {peer_id}");
+                        return;
+                    };
+
+                    debug!(target: "gossip", bytes_sent = OUTPUT.len(), peer_id = ?peer_id, "Sent outbound sync response");
+                });
+            }
+        });
+    }
+
+    /// Starts the libp2p Swarm.
+    ///
+    /// - Starts the sync request/response protocol handler.
+    /// - Tells the swarm to listen on the given [`Multiaddr`].
+    ///
     /// Waits for the swarm to start listen before returning and connecting to peers.
-    pub async fn listen(&mut self) -> Result<(), TransportError<std::io::Error>> {
+    pub async fn start(&mut self) -> Result<(), TransportError<std::io::Error>> {
+        // Start the sync request/response protocol handler.
+        self.sync_protocol_handler();
+
         match self.swarm.listen_on(self.addr.clone()) {
             Ok(id) => loop {
                 if let SwarmEvent::NewListenAddr { address, listener_id } =
@@ -171,9 +230,9 @@ where
 
     /// Dials the given [`Enr`].
     pub fn dial(&mut self, enr: Enr) {
-        let validation = EnrValidation::validate(&enr, self.handler.rollup_config.l2_chain_id);
+        let validation = EnrValidation::validate(&enr, self.handler.rollup_config.l2_chain_id.id());
         if validation.is_invalid() {
-            trace!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.rollup_config.l2_chain_id, validation);
+            trace!(target: "gossip", "Invalid OP Stack ENR for chain id {}: {}", self.handler.rollup_config.l2_chain_id.id(), validation);
             return;
         }
         let Some(multiaddr) = enr_to_multiaddr(&enr) else {
@@ -187,13 +246,13 @@ where
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         // Check if we're allowed to dial the address.
-        if !self.connection_gate.can_dial(&addr) {
-            warn!(target: "gossip", "unable to dial peer");
+        if let Err(dial_error) = self.connection_gate.can_dial(&addr) {
+            debug!(target: "gossip", ?dial_error, "unable to dial peer");
             return;
         }
 
         // Extract the peer ID from the address.
-        let Some(peer_id) = crate::ConnectionGater::peer_id_from_addr(&addr) else {
+        let Some(peer_id) = ConnectionGater::peer_id_from_addr(&addr) else {
             warn!(target: "gossip", peer=?addr, "Failed to extract PeerId from Multiaddr");
             return;
         };
@@ -224,7 +283,7 @@ where
 
     fn handle_gossip_event(&mut self, event: Event) -> Option<OpNetworkPayloadEnvelope> {
         match event {
-            Event::Gossipsub(e) => return self.handle_gossipsub_event(e),
+            Event::Gossipsub(e) => return self.handle_gossipsub_event(*e),
             Event::Ping(libp2p::ping::Event { peer, result, .. }) => {
                 trace!(target: "gossip", ?peer, ?result, "Ping received");
 
@@ -256,7 +315,7 @@ where
                     }
                 });
             }
-            Event::Identify(e) => self.handle_identify_event(e),
+            Event::Identify(e) => self.handle_identify_event(*e),
             // Don't do anything with stream events as this should be unreachable code.
             Event::Stream => {
                 error!(target: "gossip", "Stream events should not be emitted!");

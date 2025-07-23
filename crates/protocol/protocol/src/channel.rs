@@ -5,17 +5,17 @@ use alloy_primitives::{Bytes, map::HashMap};
 
 use crate::{BlockInfo, Frame};
 
-/// [CHANNEL_ID_LENGTH] is the length of the channel ID.
+/// [`CHANNEL_ID_LENGTH`] is the length of the channel ID.
 pub const CHANNEL_ID_LENGTH: usize = 16;
 
-/// [ChannelId] is an opaque identifier for a channel.
+/// [`ChannelId`] is an opaque identifier for a channel.
 pub type ChannelId = [u8; CHANNEL_ID_LENGTH];
 
-/// [MAX_RLP_BYTES_PER_CHANNEL] is the maximum amount of bytes that will be read from
+/// [`MAX_RLP_BYTES_PER_CHANNEL`] is the maximum amount of bytes that will be read from
 /// a channel. This limit is set when decoding the RLP.
 pub const MAX_RLP_BYTES_PER_CHANNEL: u64 = 10_000_000;
 
-/// [FJORD_MAX_RLP_BYTES_PER_CHANNEL] is the maximum amount of bytes that will be read from
+/// [`FJORD_MAX_RLP_BYTES_PER_CHANNEL`] is the maximum amount of bytes that will be read from
 /// a channel when the Fjord Hardfork is activated. This limit is set when decoding the RLP.
 pub const FJORD_MAX_RLP_BYTES_PER_CHANNEL: u64 = 100_000_000;
 
@@ -63,12 +63,12 @@ pub struct Channel {
 }
 
 impl Channel {
-    /// Create a new [Channel] with the given [ChannelId] and [BlockInfo].
+    /// Create a new [`Channel`] with the given [`ChannelId`] and [`BlockInfo`].
     pub fn new(id: ChannelId, open_block: BlockInfo) -> Self {
         Self { id, open_block, inputs: HashMap::default(), ..Default::default() }
     }
 
-    /// Returns the current [ChannelId] for the channel.
+    /// Returns the current [`ChannelId`] for the channel.
     pub const fn id(&self) -> ChannelId {
         self.id
     }
@@ -141,12 +141,12 @@ impl Channel {
         Ok(())
     }
 
-    /// Returns the block number of the L1 block that contained the first [Frame] in this channel.
+    /// Returns the block number of the L1 block that contained the first [`Frame`] in this channel.
     pub const fn open_block_number(&self) -> u64 {
         self.open_block.number
     }
 
-    /// Returns the estimated size of the channel including [Frame] overhead.
+    /// Returns the estimated size of the channel including [`Frame`] overhead.
     pub const fn size(&self) -> usize {
         self.estimated_size
     }
@@ -173,7 +173,7 @@ impl Channel {
         true
     }
 
-    /// Returns all of the channel's [Frame]s concatenated together.
+    /// Returns all of the channel's [`Frame`]s concatenated together.
     ///
     /// ## Returns
     ///

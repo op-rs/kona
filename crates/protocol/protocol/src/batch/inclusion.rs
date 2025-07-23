@@ -1,4 +1,4 @@
-//! Module containing the [BatchWithInclusionBlock] struct.
+//! Module containing the [`BatchWithInclusionBlock`] struct.
 
 use crate::{Batch, BatchValidationProvider, BatchValidity, BlockInfo, L2BlockInfo};
 use kona_genesis::RollupConfig;

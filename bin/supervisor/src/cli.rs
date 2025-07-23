@@ -3,7 +3,7 @@
 use crate::flags::SupervisorArgs;
 use anyhow::Result;
 use clap::Parser;
-use kona_cli::{cli_styles, log::LogArgs, metrics_args::MetricsArgs};
+use kona_cli::{LogConfig, cli_styles, log::LogArgs, metrics_args::MetricsArgs};
 use kona_supervisor_service::Service;
 use tracing::info;
 
@@ -36,11 +36,11 @@ impl Cli {
             service.run().await?; // run() now returns Result<()> and populates the handle internally
 
             tokio::signal::ctrl_c().await?;
-            info!("Shutdown signal received. Initiating service shutdown...");
+            info!(target: "supervisor", "Shutdown signal received. Initiating service shutdown...");
 
             service.shutdown().await?; // Call shutdown on the service instance itself
 
-            info!("Supervisor service shut down gracefully.");
+            info!(target: "supervisor", "Supervisor service shut down gracefully.");
             Ok(())
         })
     }
@@ -65,7 +65,7 @@ impl Cli {
         // Filter out discovery warnings since they're very very noisy.
         let filter = tracing_subscriber::EnvFilter::from_default_env();
 
-        args.init_tracing(Some(filter))?;
+        LogConfig::new(args.clone()).init_tracing_subscriber(Some(filter))?;
         Ok(())
     }
 }

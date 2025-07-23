@@ -24,8 +24,8 @@ pub use errors::{
 mod pipeline;
 pub use pipeline::{
     AttributesQueueStage, BatchProviderStage, BatchStreamStage, ChannelProviderStage,
-    ChannelReaderStage, DerivationPipeline, FrameQueueStage, L1RetrievalStage, L1TraversalStage,
-    PipelineBuilder,
+    ChannelReaderStage, DerivationPipeline, FrameQueueStage, IndexedAttributesQueueStage,
+    L1RetrievalStage, PipelineBuilder, PolledAttributesQueueStage,
 };
 
 mod sources;
@@ -35,8 +35,8 @@ mod stages;
 pub use stages::{
     AttributesQueue, BatchProvider, BatchQueue, BatchStream, BatchStreamProvider, BatchValidator,
     ChannelAssembler, ChannelBank, ChannelProvider, ChannelReader, ChannelReaderProvider,
-    FrameQueue, FrameQueueProvider, L1Retrieval, L1RetrievalProvider, L1Traversal,
-    NextBatchProvider, NextFrameProvider,
+    FrameQueue, FrameQueueProvider, IndexedTraversal, L1Retrieval, L1RetrievalProvider,
+    NextBatchProvider, NextFrameProvider, PollingTraversal, TraversalStage,
 };
 
 mod traits;
@@ -49,8 +49,8 @@ pub use traits::{
 mod types;
 pub use types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResult};
 
-pub mod metrics;
+mod metrics;
 pub use metrics::Metrics;
 
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

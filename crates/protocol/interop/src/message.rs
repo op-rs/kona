@@ -78,14 +78,30 @@ impl From<executeMessageCall> for ExecutingMessage {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExecutingDescriptor {
     /// The timestamp used to enforce timestamp [invariant](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/derivation.md#invariants)
-    timestamp: u64,
+    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
+    pub timestamp: u64,
     /// The timeout that requests verification to still hold at `timestamp+timeout`
     /// (message expiry may drop previously valid messages).
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-    timeout: Option<u64>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            with = "alloy_serde::quantity::opt"
+        )
+    )]
+    pub timeout: Option<u64>,
     /// Chain ID of the chain that the message was executed on.
-    #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
-    chain_id: ChainId,
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            default,
+            rename = "chainID",
+            skip_serializing_if = "Option::is_none",
+            with = "alloy_serde::quantity::opt"
+        )
+    )]
+    pub chain_id: Option<ChainId>,
 }
 
 /// A wrapper type for [ExecutingMessage] containing the chain ID of the chain that the message was
@@ -146,19 +162,80 @@ pub fn parse_log_to_executing_message(log: &Log) -> Option<ExecutingMessage> {
 
 #[cfg(test)]
 mod tests {
+    use alloy_primitives::{Address, B256, LogData, U256};
+
     use super::*;
 
     // Test the serialization of ExecutingDescriptor
     #[cfg(feature = "serde")]
     #[test]
     fn test_serialize_executing_descriptor() {
-        let descriptor =
-            ExecutingDescriptor { timestamp: 1234567890, timeout: Some(3600), chain_id: 1000 };
+        let descriptor = ExecutingDescriptor {
+            timestamp: 1234567890,
+            timeout: Some(3600),
+            chain_id: Some(1000),
+        };
         let serialized = serde_json::to_string(&descriptor).unwrap();
-        let expected = r#"{"timestamp":1234567890,"timeout":3600,"chain_id":"0x3e8"}"#;
+        let expected = r#"{"timestamp":"0x499602d2","timeout":"0xe10","chainID":"0x3e8"}"#;
         assert_eq!(serialized, expected);
 
         let deserialized: ExecutingDescriptor = serde_json::from_str(&serialized).unwrap();
         assert_eq!(descriptor, deserialized);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_deserialize_executing_descriptor_missing_chain_id() {
+        let json = r#"{
+            "timestamp": "0x499602d2",
+            "timeout": "0xe10"
+        }"#;
+
+        let expected =
+            ExecutingDescriptor { timestamp: 1234567890, timeout: Some(3600), chain_id: None };
+
+        let deserialized: ExecutingDescriptor = serde_json::from_str(json).unwrap();
+        assert_eq!(deserialized, expected);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_deserialize_executing_descriptor_missing_timeout() {
+        let json = r#"{
+            "timestamp": "0x499602d2",
+            "chainID": "0x3e8"
+        }"#;
+
+        let expected =
+            ExecutingDescriptor { timestamp: 1234567890, timeout: None, chain_id: Some(1000) };
+
+        let deserialized: ExecutingDescriptor = serde_json::from_str(json).unwrap();
+        assert_eq!(deserialized, expected);
+    }
+
+    #[test]
+    fn test_parse_logs_to_executing_msgs_iterator() {
+        // One valid, one invalid log
+        let identifier = MessageIdentifier {
+            origin: Address::repeat_byte(0x77),
+            blockNumber: U256::from(200),
+            logIndex: U256::from(3),
+            timestamp: U256::from(777777),
+            chainId: U256::from(12),
+        };
+        let payload_hash = B256::repeat_byte(0x88);
+        let event = ExecutingMessage { payloadHash: payload_hash, identifier };
+        let data = ExecutingMessage::encode_log_data(&event);
+
+        let valid_log = Log { address: Predeploys::CROSS_L2_INBOX, data };
+        let invalid_log = Log {
+            address: Address::repeat_byte(0x99),
+            data: LogData::new_unchecked([B256::ZERO, B256::ZERO].to_vec(), Bytes::default()),
+        };
+
+        let logs = vec![&valid_log, &invalid_log];
+        let mut iter = parse_logs_to_executing_msgs(logs.into_iter());
+        assert_eq!(iter.next().unwrap().unwrap(), event);
+        assert!(iter.next().unwrap().is_none());
     }
 }

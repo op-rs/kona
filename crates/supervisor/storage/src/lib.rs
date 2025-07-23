@@ -20,6 +20,7 @@
 //! - Track sealed blocks and ancestry metadata
 
 pub mod models;
+pub use models::SourceBlockTraversal;
 
 mod error;
 pub use error::StorageError;
@@ -29,12 +30,15 @@ mod providers;
 mod chaindb;
 pub use chaindb::ChainDb;
 
+mod metrics;
+pub(crate) use metrics::Metrics;
+
 mod chaindb_factory;
 pub use chaindb_factory::ChainDbFactory;
 
 mod traits;
 pub use traits::{
-    DerivationStorage, DerivationStorageReader, DerivationStorageWriter, FinalizedL1Storage,
-    HeadRefStorage, HeadRefStorageReader, HeadRefStorageWriter, LogStorage, LogStorageReader,
-    LogStorageWriter,
+    CrossChainSafetyProvider, DerivationStorage, DerivationStorageReader, DerivationStorageWriter,
+    FinalizedL1Storage, HeadRefStorage, HeadRefStorageReader, HeadRefStorageWriter, LogStorage,
+    LogStorageReader, LogStorageWriter, StorageRewinder,
 };

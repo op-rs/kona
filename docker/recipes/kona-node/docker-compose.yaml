@@ -11,7 +11,7 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
 
   grafana:
     restart: unless-stopped
@@ -87,7 +87,6 @@ services:
       --rpc.port 5060
       --p2p.listen.tcp 9223
       --p2p.listen.udp 9223
-      --p2p.scoring off
       --p2p.bootstore /db
 
 volumes:

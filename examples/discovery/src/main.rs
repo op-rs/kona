@@ -17,9 +17,9 @@
 
 #![warn(unused_crate_dependencies)]
 
-use clap::{ArgAction, Parser};
+use clap::Parser;
 use discv5::enr::CombinedKey;
-use kona_cli::init_tracing_subscriber;
+use kona_cli::{LogConfig, log::LogArgs};
 use kona_p2p::{Discv5Builder, LocalNode};
 use std::net::{IpAddr, Ipv4Addr};
 
@@ -30,8 +30,8 @@ pub struct DiscCommand {
     /// Verbosity level (0-5).
     /// If set to 0, no logs are printed.
     /// By default, the verbosity level is set to 3 (info level).
-    #[arg(long, short, default_value = "3", action = ArgAction::Count)]
-    pub v: u8,
+    #[command(flatten)]
+    pub v: LogArgs,
     /// The L2 chain ID to use.
     #[arg(long, short = 'c', default_value = "10", help = "The L2 chain ID to use")]
     pub l2_chain_id: u64,
@@ -48,7 +48,7 @@ impl DiscCommand {
     pub async fn run(self) -> anyhow::Result<()> {
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("discv5=error".parse()?);
-        init_tracing_subscriber(self.v, Some(filter))?;
+        LogConfig::new(self.v).init_tracing_subscriber(Some(filter))?;
 
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
             unreachable!()
@@ -60,7 +60,7 @@ impl DiscCommand {
             self.disc_port,
             self.disc_port,
         );
-        tracing::info!("Starting discovery service on {:?}", socket);
+        tracing::info!(target: "discovery", "Starting discovery service on {:?}", socket);
 
         let discovery_builder = Discv5Builder::new(
             socket,
@@ -75,7 +75,7 @@ impl DiscCommand {
         discovery.interval = std::time::Duration::from_secs(self.interval);
         discovery.forward = false;
         let (handler, mut enr_receiver) = discovery.start();
-        tracing::info!("Discovery service started, receiving peers.");
+        tracing::info!(target: "discovery", "Discovery service started, receiving peers.");
 
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         loop {
@@ -83,10 +83,10 @@ impl DiscCommand {
                 enr = enr_receiver.recv() => {
                     match enr {
                         Some(enr) => {
-                            tracing::info!("Received peer: {:?}", enr);
+                            tracing::debug!(target: "discovery", "Received peer: {:?}", enr);
                         }
                         None => {
-                            tracing::warn!("Failed to receive peer");
+                            tracing::warn!(target: "discovery", "Failed to receive peer");
                         }
                     }
                 }
@@ -95,10 +95,10 @@ impl DiscCommand {
                     let peer_count = handler.peer_count();
                     tokio::spawn(async move {
                         if let Ok(metrics) = metrics.await {
-                            tracing::info!("Discovery metrics: {:?}", metrics);
+                            tracing::debug!(target: "discovery", "Discovery metrics: {:?}", metrics);
                         }
                         if let Ok(pc) = peer_count.await {
-                            tracing::info!("Discovery peer count: {:?}", pc);
+                            tracing::debug!(target: "discovery", "Discovery peer count: {:?}", pc);
                         }
                     });
                 }

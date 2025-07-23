@@ -83,8 +83,8 @@ mod tests {
             let (storage_root, storage_proof) = {
                 let slot_key =
                     Nibbles::unpack(keccak256(U256::from(ring_index).to_be_bytes::<32>()));
-                let mut storage_hb = HashBuilder::default()
-                    .with_proof_retainer(ProofRetainer::new(vec![slot_key.clone()]));
+                let mut storage_hb =
+                    HashBuilder::default().with_proof_retainer(ProofRetainer::new(vec![slot_key]));
 
                 let mut encoded = Vec::with_capacity(block_hash.length());
                 block_hash.encode(&mut encoded);
@@ -98,7 +98,7 @@ mod tests {
             let (state_root, state_proof) = {
                 let account_key = Nibbles::unpack(HASHED_HISTORY_STORAGE_ADDRESS);
                 let mut state_hb = HashBuilder::default()
-                    .with_proof_retainer(ProofRetainer::new(vec![account_key.clone()]));
+                    .with_proof_retainer(ProofRetainer::new(vec![account_key]));
 
                 let account =
                     TrieAccount { storage_root, code_hash: keccak256(""), ..Default::default() };

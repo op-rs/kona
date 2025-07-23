@@ -17,6 +17,8 @@ pub enum Signal {
     Activation(ActivationSignal),
     /// Flush the currently active channel.
     FlushChannel,
+    /// Provide a new L1 block to the L1 traversal stage.
+    ProvideBlock(BlockInfo),
 }
 
 impl core::fmt::Display for Signal {
@@ -25,17 +27,19 @@ impl core::fmt::Display for Signal {
             Self::Reset(_) => write!(f, "reset"),
             Self::Activation(_) => write!(f, "activation"),
             Self::FlushChannel => write!(f, "flush_channel"),
+            Self::ProvideBlock(_) => write!(f, "provide_block"),
         }
     }
 }
 
 impl Signal {
-    /// Sets the [SystemConfig] for the signal.
+    /// Sets the [`SystemConfig`] for the signal.
     pub const fn with_system_config(self, system_config: SystemConfig) -> Self {
         match self {
             Self::Reset(reset) => reset.with_system_config(system_config).signal(),
             Self::Activation(activation) => activation.with_system_config(system_config).signal(),
             Self::FlushChannel => Self::FlushChannel,
+            Self::ProvideBlock(block) => Self::ProvideBlock(block),
         }
     }
 }
@@ -47,17 +51,17 @@ pub struct ResetSignal {
     pub l2_safe_head: L2BlockInfo,
     /// The L1 origin to reset to.
     pub l1_origin: BlockInfo,
-    /// The optional [SystemConfig] to reset with.
+    /// The optional [`SystemConfig`] to reset with.
     pub system_config: Option<SystemConfig>,
 }
 
 impl ResetSignal {
-    /// Creates a new [Signal::Reset] from the [ResetSignal].
+    /// Creates a new [Signal::Reset] from the [`ResetSignal`].
     pub const fn signal(self) -> Signal {
         Signal::Reset(self)
     }
 
-    /// Sets the [SystemConfig] for the signal.
+    /// Sets the [`SystemConfig`] for the signal.
     pub const fn with_system_config(self, system_config: SystemConfig) -> Self {
         Self { system_config: Some(system_config), ..self }
     }
@@ -70,17 +74,17 @@ pub struct ActivationSignal {
     pub l2_safe_head: L2BlockInfo,
     /// The L1 origin to reset to.
     pub l1_origin: BlockInfo,
-    /// The optional [SystemConfig] to reset with.
+    /// The optional [`SystemConfig`] to reset with.
     pub system_config: Option<SystemConfig>,
 }
 
 impl ActivationSignal {
-    /// Creates a new [Signal::Activation] from the [ActivationSignal].
+    /// Creates a new [Signal::Activation] from the [`ActivationSignal`].
     pub const fn signal(self) -> Signal {
         Signal::Activation(self)
     }
 
-    /// Sets the [SystemConfig] for the signal.
+    /// Sets the [`SystemConfig`] for the signal.
     pub const fn with_system_config(self, system_config: SystemConfig) -> Self {
         Self { system_config: Some(system_config), ..self }
     }

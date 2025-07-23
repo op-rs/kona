@@ -147,6 +147,16 @@ pub trait Ws {
     async fn ws_unsafe_head_updates(&self) -> SubscriptionResult;
 }
 
+/// SupervisorEvents
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws_supervisor"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws_supervisor"))]
+#[async_trait]
+pub trait SupervisorEvents {
+    /// Subscribes to the stream of events from the node.
+    #[subscription(name = "subscribe_events", item = ())]
+    async fn ws_event_stream(&self) -> SubscriptionResult;
+}
+
 /// The admin namespace for the consensus node.
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
@@ -155,4 +165,28 @@ pub trait AdminApi {
     #[method(name = "postUnsafePayload")]
     async fn admin_post_unsafe_payload(&self, payload: OpExecutionPayloadEnvelope)
     -> RpcResult<()>;
+
+    /// Checks if the sequencer is active.
+    #[method(name = "sequencerActive")]
+    async fn admin_sequencer_active(&self) -> RpcResult<bool>;
+
+    /// Starts the sequencer.
+    #[method(name = "startSequencer")]
+    async fn admin_start_sequencer(&self) -> RpcResult<()>;
+
+    /// Stops the sequencer.
+    #[method(name = "stopSequencer")]
+    async fn admin_stop_sequencer(&self) -> RpcResult<B256>;
+
+    /// Checks if the conductor is enabled.
+    #[method(name = "conductorEnabled")]
+    async fn admin_conductor_enabled(&self) -> RpcResult<bool>;
+
+    /// Sets the recover mode.
+    #[method(name = "setRecoverMode")]
+    async fn admin_set_recover_mode(&self, mode: bool) -> RpcResult<()>;
+
+    /// Overrides the leader in the conductor.
+    #[method(name = "overrideLeader")]
+    async fn admin_override_leader(&self) -> RpcResult<()>;
 }

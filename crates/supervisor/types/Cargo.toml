@@ -1,5 +1,6 @@
 [package]
 name = "kona-supervisor-types"
+description = "Types used by the OP Stack supervisor"
 version = "0.1.0"
 
 edition.workspace = true
@@ -24,6 +25,7 @@ kona-protocol = { workspace = true, features = ["serde"] }
 # alloy
 alloy-eips.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
+alloy-serde = { workspace = true }
 
 # op-alloy
 op-alloy-consensus.workspace = true
@@ -31,4 +33,7 @@ op-alloy-consensus.workspace = true
 # general
 serde.workspace = true
 derive_more = { workspace = true, default-features = false, features = ["constructor"] }
-async-trait = "0.1.88"
+thiserror = {workspace = true}
+
+[dev-dependencies]
+serde_json.workspace = true

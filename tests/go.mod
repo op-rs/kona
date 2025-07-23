@@ -2,7 +2,7 @@ module github.com/op-rs/kona
 
 go 1.24.3
 
-// We're using the "develop" branch of the Optimism repo to include the latest changes to the `devnet-sdk` package.
+// We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
 require github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
 
 require github.com/stretchr/testify v1.10.0
@@ -11,7 +11,11 @@ require github.com/gorilla/websocket v1.5.3
 
 require github.com/ethereum/go-ethereum v1.15.11
 
-require github.com/libp2p/go-libp2p v0.36.2 
+require github.com/libp2p/go-libp2p v0.36.2
+
+require github.com/kurtosis-tech/kurtosis/api/golang v1.8.2-0.20250602144112-2b7d06430e48
+
+require golang.org/x/sync v0.14.0
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
@@ -123,7 +127,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kurtosis-tech/kurtosis-portal/api/golang v0.0.0-20230818182330-1a86869414d2 // indirect
-	github.com/kurtosis-tech/kurtosis/api/golang v1.8.2-0.20250602144112-2b7d06430e48 // indirect
 	github.com/kurtosis-tech/kurtosis/contexts-config-store v0.0.0-20230818184218-f4e3e773463b // indirect
 	github.com/kurtosis-tech/kurtosis/grpc-file-transfer/golang v0.0.0-20230803130419-099ee7a4e3dc // indirect
 	github.com/kurtosis-tech/kurtosis/path-compression v0.0.0-20250108161014-0819b8ca912f // indirect
@@ -261,7 +264,6 @@ require (
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.36.0 // indirect
-	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
@@ -278,9 +280,9 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum-optimism/optimism/op-node v0.10.14 => github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
+replace github.com/ethereum-optimism/optimism/op-node => github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
 
-// Patched version of the Optimism repo that includes the latest changes of the `devnet-sdk` package to enable testing for the CL clients.
-replace github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0 => github.com/theochap/optimism v0.0.0-20250610154333-f7c3ea378f73
+// Patched version of the Optimism repo that includes the latest changes of the `devstack` package to enable testing for the CL clients.
+replace github.com/ethereum-optimism/optimism => github.com/theochap/optimism v0.0.0-20250722140414-a9cde29cbe46
 
-replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-dev.1.0.20250603002020-3e5073a7b5a4
+replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-dev.1.0.20250608235258-6005dd53e1b5

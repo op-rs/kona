@@ -1,5 +1,6 @@
 //! Base Sepolia Rollup Config.
 
+use alloy_chains::Chain;
 use alloy_eips::BlockNumHash;
 use alloy_op_hardforks::{
     BASE_SEPOLIA_CANYON_TIMESTAMP, BASE_SEPOLIA_ECOTONE_TIMESTAMP, BASE_SEPOLIA_FJORD_TIMESTAMP,
@@ -43,7 +44,7 @@ pub const BASE_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
     channel_timeout: 300,
     granite_channel_timeout: 50,
     l1_chain_id: 11155111,
-    l2_chain_id: 84532,
+    l2_chain_id: Chain::base_sepolia(),
     chain_op_config: BASE_SEPOLIA_BASE_FEE_CONFIG,
     alt_da_config: None,
     hardforks: HardForkConfig {

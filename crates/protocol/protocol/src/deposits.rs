@@ -25,7 +25,7 @@ pub enum DepositError {
     #[error("Unexpected number of deposit event log topics: {0}")]
     UnexpectedTopicsLen(usize),
     /// Invalid deposit event selector.
-    /// Expected: [B256] (deposit event selector), Actual: [B256] (event log topic).
+    /// Expected: [`B256`] (deposit event selector), Actual: [`B256`] (event log topic).
     #[error("Invalid deposit event selector: {1}, expected {0}")]
     InvalidSelector(B256, B256),
     /// Incomplete opaqueData slice header (incomplete length).

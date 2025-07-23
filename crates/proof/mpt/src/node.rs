@@ -154,17 +154,15 @@ impl TrieNode {
     ) -> TrieNodeResult<Option<&'a mut Bytes>> {
         match self {
             Self::Branch { stack } => {
-                let branch_nibble = path[0] as usize;
+                let branch_nibble = path.get(0).ok_or(TrieNodeError::PathTooShort)? as usize;
                 stack
                     .get_mut(branch_nibble)
                     .map(|node| node.open(&path.slice(BRANCH_NODE_NIBBLES..), fetcher))
                     .unwrap_or(Ok(None))
             }
-            Self::Leaf { prefix, value } => {
-                Ok((path.as_slice() == prefix.as_slice()).then_some(value))
-            }
+            Self::Leaf { prefix, value } => Ok((path == prefix).then_some(value)),
             Self::Extension { prefix, node } => {
-                if path.slice(..prefix.len()).as_slice() == prefix.as_slice() {
+                if path.slice(..prefix.len()) == *prefix {
                     // Follow extension branch
                     node.unblind(fetcher)?;
                     node.open(&path.slice(prefix.len()..), fetcher)
@@ -200,15 +198,15 @@ impl TrieNode {
         match self {
             Self::Empty => {
                 // If the trie node is null, insert the leaf node at the current path.
-                *self = Self::Leaf { prefix: path.clone(), value };
+                *self = Self::Leaf { prefix: *path, value };
                 Ok(())
             }
             Self::Leaf { prefix, value: leaf_value } => {
                 let shared_extension_nibbles = path.common_prefix_length(prefix);
 
                 // If all nibbles are shared, update the leaf node with the new value.
-                if path.as_slice() == prefix.as_slice() {
-                    *self = Self::Leaf { prefix: prefix.clone(), value };
+                if path == prefix {
+                    *self = Self::Leaf { prefix: *prefix, value };
                     return Ok(());
                 }
 
@@ -216,14 +214,17 @@ impl TrieNode {
                 let mut stack = vec![Self::Empty; BRANCH_LIST_LENGTH];
 
                 // Insert the shortened extension into the branch stack.
-                let extension_nibble = prefix[shared_extension_nibbles] as usize;
+                let extension_nibble =
+                    prefix.get(shared_extension_nibbles).ok_or(TrieNodeError::PathTooShort)?
+                        as usize;
                 stack[extension_nibble] = Self::Leaf {
                     prefix: prefix.slice(shared_extension_nibbles + BRANCH_NODE_NIBBLES..),
                     value: leaf_value.clone(),
                 };
 
                 // Insert the new value into the branch stack.
-                let branch_nibble_new = path[shared_extension_nibbles] as usize;
+                let branch_nibble_new =
+                    path.get(shared_extension_nibbles).ok_or(TrieNodeError::PathTooShort)? as usize;
                 stack[branch_nibble_new] = Self::Leaf {
                     prefix: path.slice(shared_extension_nibbles + BRANCH_NODE_NIBBLES..),
                     value,
@@ -253,7 +254,9 @@ impl TrieNode {
                 let mut stack = vec![Self::Empty; BRANCH_LIST_LENGTH];
 
                 // Insert the shortened extension into the branch stack.
-                let extension_nibble = prefix[shared_extension_nibbles] as usize;
+                let extension_nibble =
+                    prefix.get(shared_extension_nibbles).ok_or(TrieNodeError::PathTooShort)?
+                        as usize;
                 let new_prefix = prefix.slice(shared_extension_nibbles + BRANCH_NODE_NIBBLES..);
                 stack[extension_nibble] = if new_prefix.is_empty() {
                     // In the case that the extension node no longer has a prefix, insert the node
@@ -264,7 +267,8 @@ impl TrieNode {
                 };
 
                 // Insert the new value into the branch stack.
-                let branch_nibble_new = path[shared_extension_nibbles] as usize;
+                let branch_nibble_new =
+                    path.get(shared_extension_nibbles).ok_or(TrieNodeError::PathTooShort)? as usize;
                 stack[branch_nibble_new] = Self::Leaf {
                     prefix: path.slice(shared_extension_nibbles + BRANCH_NODE_NIBBLES..),
                     value,
@@ -285,7 +289,7 @@ impl TrieNode {
             }
             Self::Branch { stack } => {
                 // Follow the branch node to the next node in the path.
-                let branch_nibble = path[0] as usize;
+                let branch_nibble = path.get(0).ok_or(TrieNodeError::PathTooShort)? as usize;
                 stack[branch_nibble].insert(&path.slice(BRANCH_NODE_NIBBLES..), value, fetcher)
             }
             Self::Blinded { .. } => {
@@ -337,7 +341,7 @@ impl TrieNode {
                 self.collapse_if_possible(fetcher, hinter)
             }
             Self::Branch { stack } => {
-                let branch_nibble = path[0] as usize;
+                let branch_nibble = path.get(0).ok_or(TrieNodeError::PathTooShort)? as usize;
                 stack[branch_nibble].delete(&path.slice(BRANCH_NODE_NIBBLES..), fetcher, hinter)?;
 
                 // Simplify the branch if possible after the deletion
@@ -368,7 +372,7 @@ impl TrieNode {
                 Self::Extension { prefix: child_prefix, node: child_node } => {
                     // Double extensions are collapsed into a single extension.
                     let new_prefix = Nibbles::from_nibbles_unchecked(
-                        [prefix.as_slice(), child_prefix.as_slice()].concat(),
+                        [prefix.to_vec(), child_prefix.to_vec()].concat(),
                     );
                     *self = Self::Extension { prefix: new_prefix, node: child_node.clone() };
                 }
@@ -376,7 +380,7 @@ impl TrieNode {
                     // If the child node is a leaf, convert the extension into a leaf with the full
                     // path.
                     let new_prefix = Nibbles::from_nibbles_unchecked(
-                        [prefix.as_slice(), child_prefix.as_slice()].concat(),
+                        [prefix.to_vec(), child_prefix.to_vec()].concat(),
                     );
                     *self = Self::Leaf { prefix: new_prefix, value: child_value.clone() };
                 }
@@ -404,13 +408,13 @@ impl TrieNode {
                     match non_empty_node {
                         Self::Leaf { prefix, value } => {
                             let new_prefix = Nibbles::from_nibbles_unchecked(
-                                [&[*index as u8], prefix.as_slice()].concat(),
+                                [&[*index as u8], prefix.to_vec().as_slice()].concat(),
                             );
                             *self = Self::Leaf { prefix: new_prefix, value: value.clone() };
                         }
                         Self::Extension { prefix, node } => {
                             let new_prefix = Nibbles::from_nibbles_unchecked(
-                                [&[*index as u8], prefix.as_slice()].concat(),
+                                [&[*index as u8], prefix.to_vec().as_slice()].concat(),
                             );
                             *self = Self::Extension { prefix: new_prefix, node: node.clone() };
                         }

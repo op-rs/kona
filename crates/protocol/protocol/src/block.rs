@@ -6,6 +6,7 @@ use alloy_consensus::{Block, Transaction, Typed2718};
 use alloy_eips::{BlockNumHash, eip2718::Eip2718Error, eip7685::EMPTY_REQUESTS_HASH};
 use alloy_primitives::B256;
 use alloy_rpc_types_engine::{CancunPayloadFields, PraguePayloadFields};
+use alloy_rpc_types_eth::Block as RpcBlock;
 use derive_more::Display;
 use kona_genesis::ChainGenesis;
 use op_alloy_consensus::{OpBlock, OpTxEnvelope};
@@ -64,6 +65,28 @@ impl<T> From<&Block<T>> for BlockInfo {
     }
 }
 
+impl<T> From<RpcBlock<T>> for BlockInfo {
+    fn from(block: RpcBlock<T>) -> Self {
+        Self {
+            hash: block.header.hash_slow(),
+            number: block.header.number,
+            parent_hash: block.header.parent_hash,
+            timestamp: block.header.timestamp,
+        }
+    }
+}
+
+impl<T> From<&RpcBlock<T>> for BlockInfo {
+    fn from(block: &RpcBlock<T>) -> Self {
+        Self {
+            hash: block.header.hash_slow(),
+            number: block.header.number,
+            parent_hash: block.header.parent_hash,
+            timestamp: block.header.timestamp,
+        }
+    }
+}
+
 /// L2 Block Header Info
 #[derive(Debug, Display, Clone, Copy, Hash, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -72,7 +95,7 @@ impl<T> From<&Block<T>> for BlockInfo {
     "L2BlockInfo {{ block_info: {block_info}, l1_origin: {l1_origin:?}, seq_num: {seq_num} }}"
 )]
 pub struct L2BlockInfo {
-    /// The base [BlockInfo]
+    /// The base [`BlockInfo`]
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub block_info: BlockInfo,
     /// The L1 origin [`BlockNumHash`]
@@ -81,6 +104,13 @@ pub struct L2BlockInfo {
     /// The sequence number of the L2 block
     #[cfg_attr(feature = "serde", serde(rename = "sequenceNumber", alias = "seqNum"))]
     pub seq_num: u64,
+}
+
+impl L2BlockInfo {
+    /// Returns the block hash.
+    pub const fn hash(&self) -> B256 {
+        self.block_info.hash
+    }
 }
 
 #[cfg(feature = "arbitrary")]
@@ -112,7 +142,7 @@ pub enum FromBlockError {
     /// The first payload transaction is not a deposit transaction.
     #[error("First payload transaction is not a deposit transaction, type: {0}")]
     FirstTxNonDeposit(u8),
-    /// Failed to decode the [L1BlockInfoTx] from the deposit transaction.
+    /// Failed to decode the [`L1BlockInfoTx`] from the deposit transaction.
     #[error("Failed to decode the L1BlockInfoTx from the deposit transaction: {0}")]
     BlockInfoDecodeError(#[from] DecodeError),
     /// Failed to convert [`OpExecutionPayload`] to [`OpBlock`].

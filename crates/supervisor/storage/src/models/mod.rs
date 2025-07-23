@@ -20,7 +20,7 @@ mod block;
 pub use block::BlockRef;
 
 mod derivation;
-pub use derivation::StoredDerivedBlockPair;
+pub use derivation::{SourceBlockTraversal, StoredDerivedBlockPair};
 
 mod common;
 mod head_ref;
@@ -60,7 +60,13 @@ macro_rules! impl_compression_for_compact {
 }
 
 // Implement compression logic for all value types stored in tables
-impl_compression_for_compact!(BlockRef, LogEntry, StoredDerivedBlockPair, U64List);
+impl_compression_for_compact!(
+    BlockRef,
+    LogEntry,
+    StoredDerivedBlockPair,
+    U64List,
+    SourceBlockTraversal
+);
 
 tables! {
     /// A dup-sorted table that stores all logs emitted in a given block, sorted by their index.
@@ -88,12 +94,14 @@ tables! {
         type Value = StoredDerivedBlockPair;
     }
 
-    /// A table mapping a source block number to a list of its derived block numbers.
+    /// A table mapping a source block number to a struct representing the traversal of its derived
+    /// block numbers.
     /// - Key: `u64` — source block number
-    /// - Value: [`U64List`] — list of derived block numbers
-     table SourceToDerivedBlockNumbers {
+    /// - Value: [`SourceBlockTraversal`] — contains the source block reference and the list of
+    ///   derived block numbers.
+    table BlockTraversal {
         type Key = u64;
-        type Value = U64List;
+        type Value = SourceBlockTraversal;
     }
 
     /// Stores the latest head block reference for each safety level.

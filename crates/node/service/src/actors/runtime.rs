@@ -1,12 +1,26 @@
 //! Runtime Loading Actor
 
 use async_trait::async_trait;
+use kona_engine::EngineClient;
 use kona_sources::{RuntimeConfig, RuntimeLoader, RuntimeLoaderError};
-use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
+use op_alloy_provider::ext::engine::OpEngineApi;
+use std::{sync::Arc, time::Duration};
+use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
-use crate::NodeActor;
+use crate::{NodeActor, actors::CancellableContext};
+
+/// The communication context used by the runtime actor.
+#[derive(Debug)]
+pub struct RuntimeContext {
+    /// Cancels the runtime actor.
+    pub cancellation: CancellationToken,
+}
+
+impl CancellableContext for RuntimeContext {
+    fn cancelled(&self) -> WaitForCancellationFuture<'_> {
+        self.cancellation.cancelled()
+    }
+}
 
 /// The Runtime Actor.
 ///
@@ -14,94 +28,73 @@ use crate::NodeActor;
 /// using the [`RuntimeLoader`].
 #[derive(Debug)]
 pub struct RuntimeActor {
+    state: RuntimeState,
+}
+
+/// The state of the runtime actor.
+#[derive(Debug, Clone)]
+pub struct RuntimeState {
     /// The [`RuntimeLoader`].
-    loader: RuntimeLoader,
+    pub loader: RuntimeLoader,
     /// The interval at which to load the runtime.
-    interval: Duration,
-    /// A channel to send the loaded runtime config to the engine actor.
-    runtime_config_tx: mpsc::Sender<RuntimeConfig>,
-    /// The cancellation token, shared between all tasks.
-    cancellation: CancellationToken,
+    pub interval: Duration,
+    /// The client to send the updated runtime config to the EL engine.
+    pub client: Arc<EngineClient>,
 }
 
 impl RuntimeActor {
     /// Constructs a new [`RuntimeActor`] from the given [`RuntimeLoader`].
-    pub const fn new(
-        loader: RuntimeLoader,
-        interval: Duration,
-        runtime_config_tx: mpsc::Sender<RuntimeConfig>,
-        cancellation: CancellationToken,
-    ) -> Self {
-        Self { loader, interval, runtime_config_tx, cancellation }
-    }
-}
-
-/// The Runtime Launcher is a simple launcher for the [`RuntimeActor`].
-#[derive(Debug, Clone)]
-pub struct RuntimeLauncher {
-    /// The [`RuntimeLoader`].
-    loader: RuntimeLoader,
-    /// The interval at which to load the runtime.
-    interval: Option<Duration>,
-    /// The channel to send the [`RuntimeConfig`] to the engine actor.
-    tx: Option<mpsc::Sender<RuntimeConfig>>,
-    /// The cancellation token.
-    cancellation: Option<CancellationToken>,
-}
-
-impl RuntimeLauncher {
-    /// Constructs a new [`RuntimeLoader`] from the given runtime loading interval.
-    pub const fn new(loader: RuntimeLoader, interval: Option<Duration>) -> Self {
-        Self { loader, interval, tx: None, cancellation: None }
+    pub const fn new(state: RuntimeState) -> ((), Self) {
+        ((), Self { state })
     }
 
-    /// Sets the runtime config tx channel.
-    pub fn with_tx(self, tx: mpsc::Sender<RuntimeConfig>) -> Self {
-        Self { tx: Some(tx), ..self }
-    }
-
-    /// Sets the [`CancellationToken`] on the [`RuntimeLauncher`].
-    pub fn with_cancellation(self, cancellation: CancellationToken) -> Self {
-        Self { cancellation: Some(cancellation), ..self }
-    }
-
-    /// Launches the [`RuntimeActor`].
-    pub fn launch(self) -> Option<RuntimeActor> {
-        let cancellation = self.cancellation?;
-        let tx = self.tx?;
-        if self.interval.is_some() {
-            info!(target: "runtime", interval = ?self.interval, "Launched Runtime Actor");
-        }
-        self.interval.map(|i| RuntimeActor::new(self.loader, i, tx, cancellation))
+    fn runtime_config_update(&mut self, config: RuntimeConfig) {
+        let client = self.state.client.clone();
+        tokio::task::spawn(async move {
+            debug!(target: "engine", config = ?config, "Received runtime config");
+            let recommended = config.recommended_protocol_version;
+            let required = config.required_protocol_version;
+            match client.signal_superchain_v1(recommended, required).await {
+                Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
+                Err(e) => {
+                    // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
+                    // a warning is logged instead of an error.
+                    warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
+                }
+            }
+        });
     }
 }
 
 #[async_trait]
 impl NodeActor for RuntimeActor {
-    type InboundEvent = ();
     type Error = RuntimeLoaderError;
+    type OutboundData = RuntimeContext;
+    type InboundData = ();
+    type Builder = RuntimeState;
 
-    async fn start(mut self) -> Result<(), Self::Error> {
-        let mut interval = tokio::time::interval(self.interval);
+    fn build(state: Self::Builder) -> (Self::InboundData, Self) {
+        Self::new(state)
+    }
+
+    async fn start(
+        mut self,
+        RuntimeContext { cancellation }: Self::OutboundData,
+    ) -> Result<(), Self::Error> {
+        let mut interval = tokio::time::interval(self.state.interval);
+
         loop {
             tokio::select! {
-                _ = self.cancellation.cancelled() => {
+                _ = cancellation.cancelled() => {
                     warn!(target: "runtime", "RuntimeActor received shutdown signal.");
                     return Ok(());
                 }
                 _ = interval.tick() => {
-                    let config = self.loader.load_latest().await?;
+                    let config = self.state.loader.load_latest().await?;
                     debug!(target: "runtime", ?config, "Loaded latest runtime config");
-                    if let Err(e) = self.runtime_config_tx.send(config).await {
-                        error!(target: "runtime", ?e, "Failed to send runtime config to the engine actor");
-                    }
+                    self.runtime_config_update(config);
                 }
             }
         }
-    }
-
-    async fn process(&mut self, e: Self::InboundEvent) -> Result<(), Self::Error> {
-        trace!(target: "runtime", ?e, "Runtime Actor received unexpected inbound event. Ignoring.");
-        Ok(())
     }
 }

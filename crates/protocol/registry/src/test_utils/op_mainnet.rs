@@ -1,5 +1,6 @@
 //! OP Mainnet Rollup Config.
 
+use alloy_chains::Chain;
 use alloy_eips::BlockNumHash;
 use alloy_op_hardforks::{
     OP_MAINNET_CANYON_TIMESTAMP, OP_MAINNET_ECOTONE_TIMESTAMP, OP_MAINNET_FJORD_TIMESTAMP,
@@ -42,7 +43,7 @@ pub const OP_MAINNET_CONFIG: RollupConfig = RollupConfig {
     channel_timeout: 300_u64,
     granite_channel_timeout: 50,
     l1_chain_id: 1_u64,
-    l2_chain_id: 10_u64,
+    l2_chain_id: Chain::optimism_mainnet(),
     chain_op_config: OP_MAINNET_BASE_FEE_CONFIG,
     alt_da_config: None,
     hardforks: HardForkConfig {

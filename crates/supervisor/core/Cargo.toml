@@ -19,6 +19,7 @@ kona-protocol.workspace = true
 kona-supervisor-types.workspace = true
 kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee", "client"] }
 kona-supervisor-storage.workspace = true
+kona-supervisor-metrics.workspace = true
 kona-genesis.workspace = true
 
 # alloy
@@ -41,6 +42,7 @@ jsonrpsee = { workspace = true, features = [ "macros", "server", "client", "ws-c
 # general
 async-trait.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tracing.workspace = true 
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "macros"] }
@@ -48,6 +50,7 @@ tokio-util.workspace = true
 auto_impl.workspace = true
 reqwest = { workspace = true }
 futures = { workspace = true }
+derive_more = { workspace = true, features = ["try_from"] }
 
 # `metrics` feature
 metrics = { workspace = true }

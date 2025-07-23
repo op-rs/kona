@@ -1,4 +1,4 @@
-//! Module containing a [TxDeposit] builder for the Ecotone network upgrade transactions.
+//! Module containing a [`TxDeposit`] builder for the Ecotone network upgrade transactions.
 
 use alloc::{string::String, vec::Vec};
 use alloy_eips::eip2718::Encodable2718;
@@ -22,7 +22,7 @@ impl Ecotone {
     pub const DEPOSITOR_ACCOUNT: Address = address!("DeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001");
 
     /// The Enable Ecotone Input Method 4Byte Signature
-    pub const ENABLE_ECOTONE_INPUT: [u8; 4] = hex!("22b908b3");
+    pub const ENABLE_ECOTONE_INPUT: [u8; 4] = hex!("22b90ab3");
 
     /// L1 Block Deployer Address
     pub const L1_BLOCK_DEPLOYER: Address = address!("4210000000000000000000000000000000000000");
@@ -108,7 +108,7 @@ impl Ecotone {
             .into()
     }
 
-    /// Returns the list of [TxDeposit]s for the Ecotone network upgrade.
+    /// Returns the list of [`TxDeposit`]s for the Ecotone network upgrade.
     pub fn deposits() -> impl Iterator<Item = TxDeposit> {
         ([
             // Deploy the L1 Block contract for Ecotone.

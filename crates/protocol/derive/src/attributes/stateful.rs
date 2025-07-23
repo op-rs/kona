@@ -1,9 +1,8 @@
 //! The [`AttributesBuilder`] and it's default implementation.
 
 use crate::{
-    errors::{BuilderError, PipelineEncodingError, PipelineError, PipelineErrorKind},
-    traits::{AttributesBuilder, ChainProvider, L2ChainProvider},
-    types::PipelineResult,
+    AttributesBuilder, BuilderError, ChainProvider, L2ChainProvider, PipelineEncodingError,
+    PipelineError, PipelineErrorKind, PipelineResult,
 };
 use alloc::{boxed::Box, fmt::Debug, string::ToString, sync::Arc, vec, vec::Vec};
 use alloy_consensus::{Eip658Value, Receipt};
@@ -19,7 +18,7 @@ use kona_protocol::{
 };
 use op_alloy_rpc_types_engine::OpPayloadAttributes;
 
-/// A stateful implementation of the [AttributesBuilder].
+/// A stateful implementation of the [`AttributesBuilder`].
 #[derive(Debug, Default)]
 pub struct StatefulAttributesBuilder<L1P, L2P>
 where
@@ -39,7 +38,7 @@ where
     L1P: ChainProvider + Debug,
     L2P: L2ChainProvider + Debug,
 {
-    /// Create a new [StatefulAttributesBuilder] with the given epoch.
+    /// Create a new [`StatefulAttributesBuilder`] with the given epoch.
     pub const fn new(rcfg: Arc<RollupConfig>, sys_cfg_fetcher: L2P, receipts: L1P) -> Self {
         Self { rollup_cfg: rcfg, config_fetcher: sys_cfg_fetcher, receipts_fetcher: receipts }
     }
@@ -206,7 +205,7 @@ where
 ///
 /// Successful deposits must be emitted by the deposit contract and have the correct event
 /// signature. So the receipt address must equal the specified deposit contract and the first topic
-/// must be the [DEPOSIT_EVENT_ABI_HASH].
+/// must be the [`DEPOSIT_EVENT_ABI_HASH`].
 async fn derive_deposits(
     block_hash: B256,
     receipts: &[Receipt],

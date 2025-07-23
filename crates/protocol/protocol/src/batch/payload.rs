@@ -20,7 +20,7 @@ pub struct SpanBatchPayload {
 }
 
 impl SpanBatchPayload {
-    /// Decodes a [SpanBatchPayload] from a reader.
+    /// Decodes a [`SpanBatchPayload`] from a reader.
     pub fn decode_payload(r: &mut &[u8]) -> Result<Self, SpanBatchError> {
         let mut payload = Self::default();
         payload.decode_block_count(r)?;
@@ -30,7 +30,7 @@ impl SpanBatchPayload {
         Ok(payload)
     }
 
-    /// Encodes a [SpanBatchPayload] into a writer.
+    /// Encodes a [`SpanBatchPayload`] into a writer.
     pub fn encode_payload(&self, w: &mut dyn bytes::BufMut) -> Result<(), SpanBatchError> {
         self.encode_block_count(w);
         self.encode_origin_bits(w)?;

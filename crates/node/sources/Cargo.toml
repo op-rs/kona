@@ -23,7 +23,7 @@ kona-providers-alloy.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
-alloy-provider.workspace = true
+alloy-provider = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
 
@@ -42,7 +42,7 @@ metrics = { workspace = true, optional = true }
 
 [features]
 default = []
-metrics = ["dep:metrics"]
+metrics = [ "dep:metrics", "kona-derive/metrics" ]
 
 [dev-dependencies]
 tokio.workspace = true
