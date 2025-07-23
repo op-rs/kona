@@ -66,11 +66,8 @@ where
     }
 
     /// Helper function to poll blocks using a provided stream and handler closure.
-    async fn poll_blocks<S>(
-        &self,
-        mut finalized_head_stream: S,
-        mut latest_head_stream: S,
-    ) where
+    async fn poll_blocks<S>(&self, mut finalized_head_stream: S, mut latest_head_stream: S)
+    where
         S: futures::Stream<Item = Block> + Unpin,
     {
         let mut last_finalized_number = 0;
