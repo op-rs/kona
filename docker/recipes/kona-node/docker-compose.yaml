@@ -19,7 +19,7 @@ services:
     depends_on:
       - prometheus
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
     volumes:
