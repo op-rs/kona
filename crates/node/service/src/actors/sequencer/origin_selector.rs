@@ -102,14 +102,9 @@ impl<P: L1OriginSelectorProvider> L1OriginSelector<P> {
         in_recovery_mode: bool,
     ) -> Result<(), L1OriginSelectorError> {
         if in_recovery_mode {
-            let current_origin = self.l1.get_block_by_hash(unsafe_head.l1_origin.hash).await?;
-            if let Some(current_origin) = current_origin {
-                self.current = Some(current_origin);
-                let next_origin = self.l1.get_block_by_number(current_origin.number + 1).await?;
-                if let Some(next_origin) = next_origin {
-                    self.next = Some(next_origin);
-                }
-            }
+            self.current = self.l1.get_block_by_hash(unsafe_head.l1_origin.hash).await?;
+            self.next = self.l1.get_block_by_number(unsafe_head.l1_origin.number + 1).await?;
+            return Ok(());
         }
 
         if self.current.map(|c| c.hash == unsafe_head.l1_origin.hash).unwrap_or(false) {
