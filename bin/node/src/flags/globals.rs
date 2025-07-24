@@ -55,6 +55,8 @@ impl GlobalArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
+    use rstest::rstest;
 
     #[test]
     fn test_genesis_signer() {
@@ -63,5 +65,58 @@ mod tests {
             args.genesis_signer().unwrap(),
             alloy_primitives::address!("aaaa45d9549eda09e70937013520214382ffc4a2")
         );
+    }
+
+    #[rstest]
+    #[case::numeric_optimism("10", 10)]
+    #[case::numeric_ethereum("1", 1)]
+    #[case::numeric_base("8453", 8453)]
+    #[case::numeric_unknown("999999", 999999)]
+    #[case::string_optimism("optimism", 10)]
+    #[case::string_mainnet("mainnet", 1)]
+    #[case::string_base("base", 8453)]
+    fn test_l2_chain_id_parse_valid(#[case] value: &str, #[case] expected_id: u64) {
+        let args = GlobalArgs::try_parse_from(["test", "--l2-chain-id", value]).unwrap();
+        assert_eq!(args.l2_chain_id.id(), expected_id);
+    }
+
+    #[rstest]
+    #[case::invalid_string("invalid_chain")]
+    fn test_l2_chain_id_parse_invalid(#[case] invalid_value: &str) {
+        let result = GlobalArgs::try_parse_from(["test", "--l2-chain-id", invalid_value]);
+        assert!(result.is_err());
+
+        // The error should be related to parsing
+        let err = result.unwrap_err();
+        assert!(err.to_string().to_lowercase().contains("invalid"));
+    }
+
+    #[rstest]
+    #[case::numeric("10", 10)]
+    #[case::string("optimism", 10)]
+    fn test_l2_chain_id_short_flag(#[case] value: &str, #[case] expected_id: u64) {
+        let args = GlobalArgs::try_parse_from(["test", "-c", value]).unwrap();
+        assert_eq!(args.l2_chain_id.id(), expected_id);
+    }
+
+    #[rstest]
+    #[case::numeric("10", 10)]
+    #[case::string("optimism", 10)]
+    fn test_l2_chain_id_env_var(#[case] env_value: &str, #[case] expected_id: u64) {
+        unsafe {
+            std::env::set_var("KONA_NODE_L2_CHAIN_ID", env_value);
+        }
+        let args = GlobalArgs::try_parse_from(["test"]).unwrap();
+        assert_eq!(args.l2_chain_id.id(), expected_id);
+        unsafe {
+            std::env::remove_var("KONA_NODE_L2_CHAIN_ID");
+        }
+    }
+
+    #[test]
+    fn test_l2_chain_id_default() {
+        // Test that the default value is chain ID 10 (Optimism)
+        let args = GlobalArgs::try_parse_from(["test"]).unwrap();
+        assert_eq!(args.l2_chain_id.id(), 10);
     }
 }

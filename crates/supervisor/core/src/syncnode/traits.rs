@@ -4,7 +4,7 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{OutputV0, Receipts};
+use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::fmt::Debug;
 use tokio::sync::mpsc;
 
@@ -138,6 +138,18 @@ pub trait ManagedNodeController: Send + Sync + Debug {
     /// * `Ok(())` on success
     /// * `Err(ManagedNodeError)` if the reset fails
     async fn reset(&self) -> Result<(), ManagedNodeError>;
+
+    /// Instructs the managed node to invalidate a block.
+    /// This is used when the supervisor detects an invalid block
+    /// and needs to roll back the node's state.
+    ///
+    /// # Arguments
+    /// * `seal` - The [`BlockSeal`] of the block.
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the invalidation fails
+    async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:

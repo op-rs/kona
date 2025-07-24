@@ -7,7 +7,7 @@ use alloy_rpc_types_eth::BlockNumHash;
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
-use kona_supervisor_types::{OutputV0, Receipts};
+use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::sync::Arc;
 use tokio::{
     sync::{Mutex, mpsc},
@@ -190,6 +190,11 @@ where
 
     async fn reset(&self) -> Result<(), ManagedNodeError> {
         self.resetter.reset().await?;
+        Ok(())
+    }
+
+    async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError> {
+        self.client.invalidate_block(seal).await?;
         Ok(())
     }
 }
