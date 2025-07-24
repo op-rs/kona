@@ -75,8 +75,11 @@ pub enum ConfigError {
     InteropNotEnabled,
 
     /// Executing timestamp is earlier than the initiating timestamp.
-    #[error("executing timestamp is earlier than initiating timestamp")]
-    InvalidTimestampInvariant,
+    #[error("executing timestamp is earlier than initiating timestamp, executing: {executing}, initiating: {initiating}")]
+    InvalidTimestampInvariant {
+        executing: u64,
+        initiating: u64,
+    },
 
     /// Timestamp is outside the allowed interop expiry window.
     #[error("timestamp outside allowed interop window")]
