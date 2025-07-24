@@ -15,7 +15,8 @@ use kona_genesis::RollupConfig;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
 };
-use kona_rpc::{RpcBuilder, SupervisorRpcConfig, SupervisorRpcServer};
+use kona_rpc::RpcBuilder;
+use kona_supervisor_rpc::{SupervisorRpcConfig, SupervisorRpcServer};
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.

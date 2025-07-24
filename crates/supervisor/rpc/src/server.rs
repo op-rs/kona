@@ -1,11 +1,7 @@
-//! RPC module for the kona-node supervisor event stream.
+//! Minimal supervisor RPC server implementation
 
 #[cfg(feature = "server")]
-use crate::jsonrpsee::{SupervisorEvents, SubscriptionResult};
-#[cfg(feature = "server")]
 use alloy_rpc_types_engine::JwtSecret;
-#[cfg(feature = "server")]
-use async_trait::async_trait;
 #[cfg(feature = "server")]
 use jsonrpsee::server::ServerHandle;
 #[cfg(feature = "server")]
@@ -15,14 +11,13 @@ use std::net::SocketAddr;
 #[cfg(feature = "server")]
 use tokio::sync::broadcast;
 
-/// The supervisor rpc for the kona-node.
+/// Minimal supervisor RPC server
 #[cfg(feature = "server")]
 #[derive(Debug)]
 pub struct SupervisorRpcServer {
     /// A channel to receive [`ManagedEvent`] from the node.
+    #[allow(dead_code)]
     managed_events: broadcast::Receiver<ManagedEvent>,
-
-    // TODO: use this sender for http rpc queries
     /// A channel to send [`ControlEvent`].
     #[allow(dead_code)]
     control_events: broadcast::Sender<ControlEvent>,
@@ -53,17 +48,8 @@ impl SupervisorRpcServer {
     /// Launches the RPC server with the given socket address.
     pub async fn launch(self) -> std::io::Result<ServerHandle> {
         let server = jsonrpsee::server::ServerBuilder::default().build(self.socket).await?;
-
-        Ok(server.start(self.into_rpc()))
-    }
-}
-
-#[cfg(feature = "server")]
-#[async_trait]
-impl SupervisorEvents for SupervisorRpcServer {
-    async fn ws_event_stream(&self) -> SubscriptionResult {
-        // This is a placeholder implementation for subscription
-        // The actual implementation would be handled by the jsonrpsee proc macro
-        Ok(())
+        // For now, start without any RPC methods - this is a minimal implementation
+        let module = jsonrpsee::RpcModule::new(());
+        Ok(server.start(module))
     }
 }

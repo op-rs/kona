@@ -6,8 +6,6 @@ pub mod jsonrpsee;
 pub use jsonrpsee::{ManagedModeApiClient, SupervisorApiClient};
 #[cfg(feature = "jsonrpsee")]
 pub use jsonrpsee::SupervisorApiServer;
-#[cfg(feature = "server")]
-pub use crate::jsonrpsee::SupervisorEvents as SupervisorEventsServer;
 
 #[cfg(feature = "server")]
 pub mod config;

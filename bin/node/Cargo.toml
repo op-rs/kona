@@ -28,6 +28,7 @@ kona-engine = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }
 kona-sources = { workspace = true, features = ["metrics"] }
 kona-node-service = { workspace = true, features = ["metrics"] }
+kona-supervisor-rpc = { workspace = true, features = ["server"] }
 
 # alloy
 alloy-chains.workspace = true

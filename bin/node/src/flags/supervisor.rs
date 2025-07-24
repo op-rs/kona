@@ -3,7 +3,7 @@
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::anyhow;
 use clap::Parser;
-use kona_rpc::SupervisorRpcConfig;
+use kona_supervisor_rpc::SupervisorRpcConfig;
 use std::{
     fs,
     net::{IpAddr, SocketAddr},

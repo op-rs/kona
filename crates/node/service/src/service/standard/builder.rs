@@ -17,7 +17,8 @@ use url::Url;
 
 use kona_genesis::RollupConfig;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::{RpcBuilder, SupervisorRpcConfig};
+use kona_rpc::RpcBuilder;
+use kona_supervisor_rpc::SupervisorRpcConfig;
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
