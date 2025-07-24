@@ -32,7 +32,7 @@ The primary use case is running the consensus node with the `node` subcommand:
 
 ```bash
 kona-node \
-  --l2-chain-id 11155420 \
+  --chain 11155420 \
   --metrics.enabled \
   --metrics.port 9002 \
   node \
@@ -59,7 +59,7 @@ export L1_BEACON_API="https://your-l1-beacon-api-endpoint"
 
 # Run the node
 kona-node \
-  --l2-chain-id 11155420 \
+  --chain 11155420 \
   --metrics.enabled \
   --metrics.port 9002 \
   node \
