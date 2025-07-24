@@ -51,7 +51,10 @@ impl Config {
 
         // Executing timestamp must not be earlier than the initiating timestamp
         if initiating_timestamp > executing_timestamp {
-            return Err(ConfigError::InvalidTimestampInvariant);
+            return Err(ConfigError::InvalidTimestampInvariant {
+                initiating: initiating_timestamp,
+                executing: executing_timestamp,
+            });
         }
 
         // Ensure the message has not expired by the time of execution
@@ -60,7 +63,7 @@ impl Config {
         let execution_deadline = executing_timestamp.saturating_add(timeout.unwrap_or(0));
 
         if expires_at < execution_deadline {
-            return Err(ConfigError::InvalidInteropTimestamp);
+            return Err(ConfigError::InvalidInteropTimestamp(executing_timestamp));
         }
 
         Ok(())
@@ -75,9 +78,13 @@ pub enum ConfigError {
     InteropNotEnabled,
 
     /// Executing timestamp is earlier than the initiating timestamp.
-    #[error("executing timestamp is earlier than initiating timestamp, executing: {executing}, initiating: {initiating}")]
+    #[error(
+        "executing timestamp is earlier than initiating timestamp, executing: {executing}, initiating: {initiating}"
+    )]
     InvalidTimestampInvariant {
+        /// Executing timestamp of the message
         executing: u64,
+        /// Initiating timestamp of the message
         initiating: u64,
     },
 
@@ -149,20 +156,23 @@ mod tests {
     fn test_invalid_timestamp_invariant() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 195, Some(20));
-        assert_eq!(res, Err(ConfigError::InvalidTimestampInvariant));
+        assert_eq!(
+            res,
+            Err(ConfigError::InvalidTimestampInvariant { initiating: 200, executing: 195 })
+        );
     }
 
     #[test]
     fn test_expired_message_with_timeout() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 250, Some(20));
-        assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp));
+        assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp(250)));
     }
 
     #[test]
     fn test_expired_message_without_timeout() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 215, None);
-        assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp));
+        assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp(215)));
     }
 }
