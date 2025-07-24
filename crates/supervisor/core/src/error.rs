@@ -131,6 +131,8 @@ impl From<StorageError> for SpecError {
 
 #[cfg(test)]
 mod test {
+    use kona_supervisor_storage::EntryNotFoundError;
+
     use super::*;
 
     #[test]
@@ -160,7 +162,7 @@ mod test {
         assert_eq!(spec_err, expected_err.into());
 
         let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::EntryNotFound(
-            "superhead not found".to_string(),
+            EntryNotFoundError::DerivedBlockNotFound(12),
         )));
         let expected_err = SpecError::SuperchainDAError(SuperchainDAError::MissedData);
 

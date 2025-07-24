@@ -318,6 +318,7 @@ mod tests {
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::StorageError;
     use mockall::*;
+    use reqwest::header::Entry;
     use std::sync::Arc;
 
     mock!(
@@ -400,7 +401,7 @@ mod tests {
                 Ok(super_head)
             } else {
                 Err(SupervisorError::StorageError(StorageError::EntryNotFound(
-                    "superhead not found".to_string(),
+                    EntryNotFoundError::DerivedBlockNotFound(1),
                 )))
             }
         });
