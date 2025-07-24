@@ -318,7 +318,6 @@ mod tests {
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{EntryNotFoundError, StorageError};
     use mockall::*;
-    use reqwest::header::Entry;
     use std::sync::Arc;
 
     mock!(
