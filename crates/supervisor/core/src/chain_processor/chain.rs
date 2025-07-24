@@ -3,6 +3,7 @@ use crate::{config::RollupConfig, event::ChainEvent, syncnode::ManagedNodeProvid
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::{
     DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
+    StorageRewinder,
 };
 use std::sync::Arc;
 use tokio::{
@@ -50,6 +51,7 @@ where
         + LogStorageReader
         + DerivationStorageWriter
         + HeadRefStorageWriter
+        + StorageRewinder
         + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].
@@ -292,6 +294,10 @@ mod tests {
                 &self,
                 block: &BlockInfo,
             ) -> Result<DerivedRefPair, StorageError>;
+        }
+        impl StorageRewinder for Db {
+            fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
         }
     );
 

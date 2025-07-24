@@ -1,13 +1,14 @@
 use super::Metrics;
 use crate::{
-    ChainProcessorError, LogIndexer, config::RollupConfig, event::ChainEvent,
+    ChainProcessorError, ChainRewinder, LogIndexer, config::RollupConfig, event::ChainEvent,
     syncnode::ManagedNodeProvider,
 };
 use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter, StorageError,
+    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
+    StorageError, StorageRewinder,
 };
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
@@ -28,6 +29,8 @@ pub struct ChainProcessorTask<P, W> {
 
     log_indexer: Arc<LogIndexer<P, W>>,
 
+    rewinder: Arc<ChainRewinder<W>>,
+
     cancel_token: CancellationToken,
 
     /// The channel for receiving node events.
@@ -41,6 +44,7 @@ where
         + LogStorageReader
         + DerivationStorageWriter
         + HeadRefStorageWriter
+        + StorageRewinder
         + 'static,
 {
     /// Creates a new [`ChainProcessorTask`].
@@ -53,6 +57,8 @@ where
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
         let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
+        let rewinder = ChainRewinder::new(chain_id, state_manager.clone());
+
         Self {
             rollup_config,
             chain_id,
@@ -62,6 +68,7 @@ where
             event_rx,
             state_manager,
             log_indexer: Arc::from(log_indexer),
+            rewinder: Arc::from(rewinder),
         }
     }
 
@@ -348,6 +355,17 @@ where
                     }
                     return Err(StorageError::BlockOutOfOrder.into());
                 }
+
+                Err(StorageError::ReorgRequired) => {
+                    error!(
+                        target: "chain_processor",
+                        chain = self.chain_id,
+                        derived_block = %derived_ref_pair.derived,
+                        "Local derivation conflict detected — rewinding"
+                    );
+                    self.rewinder.handle_local_reorg(&derived_ref_pair)?;
+                }
+
                 Err(err) => {
                     error!(
                         target: "chain_processor",
@@ -576,6 +594,11 @@ mod tests {
                 &self,
                 block: &BlockInfo,
             ) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl StorageRewinder for Db {
+            fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
         }
     );
 
@@ -892,6 +915,68 @@ mod tests {
 
         // Expect reset to be called
         mocknode.expect_reset().returning(|| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        // Expect reorg on log storage
+        mockdb.expect_rewind_log_storage().returning(|_block_id| Ok(()));
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);

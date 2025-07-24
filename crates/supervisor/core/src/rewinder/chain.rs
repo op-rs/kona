@@ -2,6 +2,7 @@ use alloy_primitives::ChainId;
 use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
 use kona_supervisor_storage::{LogStorageReader, StorageError, StorageRewinder};
+use std::sync::Arc;
 use thiserror::Error;
 use tracing::{error, info, warn};
 
@@ -16,7 +17,7 @@ use tracing::{error, info, warn};
 #[derive(Debug, Constructor)]
 pub struct ChainRewinder<DB> {
     chain_id: ChainId,
-    db: DB,
+    db: Arc<DB>,
 }
 
 #[expect(dead_code)] // todo: to be removed in the follow up PR
@@ -28,13 +29,7 @@ where
     ///
     /// This is triggered when an update to supervisor storage fails due to an
     /// integrity violation (e.g., mismatched on storing local safe block hash).
-    fn handle_local_reorg(&self, derived_pair: &DerivedRefPair) -> Result<(), StorageError> {
-        warn!(
-            target: "rewinder",
-            chain = %self.chain_id,
-            derived_block = %derived_pair.derived,
-            "Local derivation conflict detected — rewinding..."
-        );
+    pub fn handle_local_reorg(&self, derived_pair: &DerivedRefPair) -> Result<(), StorageError> {
         // get the same block from log storage
         let conflicting_block =
             self.db.get_block(derived_pair.derived.number).inspect_err(|err| {
