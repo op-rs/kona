@@ -82,8 +82,8 @@ pub enum ConfigError {
     },
 
     /// Timestamp is outside the allowed interop expiry window.
-    #[error("timestamp outside allowed interop window")]
-    InvalidInteropTimestamp,
+    #[error("timestamp outside allowed interop window, timestamp: {0}")]
+    InvalidInteropTimestamp(u64),
 }
 
 #[cfg(test)]
