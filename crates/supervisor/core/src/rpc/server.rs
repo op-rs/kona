@@ -316,7 +316,7 @@ mod tests {
     use super::*;
     use alloy_primitives::ChainId;
     use kona_protocol::BlockInfo;
-    use kona_supervisor_storage::StorageError;
+    use kona_supervisor_storage::{EntryNotFoundError, StorageError};
     use mockall::*;
     use reqwest::header::Entry;
     use std::sync::Arc;
