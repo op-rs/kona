@@ -1,6 +1,6 @@
 [package]
 name = "kona-hardforks"
-version = "0.4.3"
+version = "0.4.4"
 description = "Consensus hardfork types for the OP Stack"
 
 edition.workspace = true

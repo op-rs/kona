@@ -1,6 +1,6 @@
 [package]
 name = "kona-registry"
-version = "0.4.2"
+version = "0.4.4"
 description = "A registry of superchain configs"
 
 edition.workspace = true
