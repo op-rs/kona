@@ -2,7 +2,7 @@
 
 use crate::{
     flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs, SupervisorArgs},
-    metrics::CliMetrics,
+    metrics::{CliMetrics, init_rollup_config_metrics},
 };
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
@@ -11,6 +11,7 @@ use clap::Parser;
 use kona_cli::{LogConfig, metrics_args::MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
+use kona_registry::scr_rollup_config_by_alloy_ident;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
 use std::{fs::File, path::PathBuf, sync::Arc};
@@ -61,16 +62,6 @@ pub struct NodeCommand {
     /// (overrides the default rollup configuration from the registry)
     #[arg(long, visible_alias = "rollup-cfg", env = "KONA_NODE_ROLLUP_CONFIG")]
     pub l2_config_file: Option<PathBuf>,
-    /// Poll interval (in seconds) for reloading the runtime config.
-    /// Provides a backup for when config events are not being picked up.
-    /// Disabled if `0`.
-    #[arg(
-        long,
-        visible_alias = "l1.runtime-config-reload-interval",
-        default_value = "600", // 10 minutes in seconds
-        env = "KONA_NODE_L1_RUNTIME_CONFIG_RELOAD_INTERVAL",
-    )]
-    pub l1_runtime_config_reload_interval: u64,
     /// P2P CLI arguments.
     #[command(flatten)]
     pub p2p_flags: P2PArgs,
@@ -94,7 +85,6 @@ impl Default for NodeCommand {
             l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
             l2_engine_jwt_secret: None,
             l2_config_file: None,
-            l1_runtime_config_reload_interval: 600,
             node_mode: NodeMode::Validator,
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
@@ -200,6 +190,10 @@ impl NodeCommand {
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
+
+        // If metrics are enabled, initialize the global cli metrics.
+        args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
+
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
         let supervisor_rpc_config =
@@ -212,9 +206,6 @@ impl NodeCommand {
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
-
-        let runtime_interval =
-            std::time::Duration::from_secs(self.l1_runtime_config_reload_interval);
 
         info!(
             target: "rollup_node",
@@ -232,7 +223,6 @@ impl NodeCommand {
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
-            .with_runtime_load_interval(runtime_interval)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
@@ -259,10 +249,10 @@ impl NodeCommand {
             }
             None => {
                 debug!("Loading l2 config from superchain registry");
-                let Some(cfg) = args.rollup_config() else {
+                let Some(cfg) = scr_rollup_config_by_alloy_ident(&args.l2_chain_id) else {
                     bail!("Failed to find l2 config for chain ID {}", args.l2_chain_id);
                 };
-                Ok(cfg)
+                Ok(cfg.clone())
             }
         }
     }
@@ -320,6 +310,12 @@ mod tests {
     }
 
     #[test]
+    fn test_node_cli_defaults() {
+        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
+        assert_eq!(args.node_mode, NodeMode::Validator);
+    }
+
+    #[test]
     fn test_node_cli_missing_l1_eth_rpc() {
         let err = NodeCommand::try_parse_from(["node"]).unwrap_err();
         assert!(err.to_string().contains("--l1-eth-rpc"));
@@ -358,22 +354,5 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.to_string().contains("--l2-provider-rpc"));
-    }
-
-    #[test]
-    fn test_node_cli_defaults() {
-        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
-        assert_eq!(args.l1_runtime_config_reload_interval, 600);
-    }
-
-    #[test]
-    fn test_node_cli_runtime_config_default() {
-        let args = NodeCommand::parse_from(
-            ["node", "--l1.runtime-config-reload-interval", "0"]
-                .iter()
-                .chain(default_flags().iter())
-                .copied(),
-        );
-        assert_eq!(args.l1_runtime_config_reload_interval, 0);
     }
 }

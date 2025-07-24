@@ -2,9 +2,8 @@
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, RuntimeActor, SequencerConfig, SupervisorActor,
-    SupervisorRpcServerExt,
-    actors::{RuntimeState, SequencerActor, SequencerBuilder},
+    RollupNodeService, RpcActor, SequencerConfig, SupervisorActor, SupervisorRpcServerExt,
+    actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -38,8 +37,6 @@ pub struct RollupNode {
     pub(crate) rpc_builder: Option<RpcBuilder>,
     /// The P2P [`NetworkConfig`] for the node.
     pub(crate) p2p_config: NetworkConfig,
-    /// The [`RuntimeState`] for the runtime loading service.
-    pub(crate) runtime_builder: Option<RuntimeState>,
     /// The [`SequencerConfig`] for the node.
     pub(crate) sequencer_config: SequencerConfig,
     /// The supervisor rpc server config.
@@ -66,7 +63,6 @@ impl RollupNodeService for RollupNode {
     type SupervisorExt = SupervisorRpcServerExt;
     type SupervisorActor = SupervisorActor<Self::SupervisorExt>;
 
-    type RuntimeActor = RuntimeActor;
     type RpcActor = RpcActor;
     type EngineActor = EngineActor;
     type NetworkActor = NetworkActor;
@@ -95,10 +91,6 @@ impl RollupNodeService for RollupNode {
         // launcher.
         let handle = server.launch().await.ok()?;
         Some(SupervisorRpcServerExt::new(handle, events_tx, control_rx))
-    }
-
-    fn runtime_builder(&self) -> Option<RuntimeState> {
-        self.runtime_builder.clone()
     }
 
     fn engine_builder(&self) -> EngineBuilder {

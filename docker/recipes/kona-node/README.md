@@ -45,6 +45,20 @@ Once your visualization has been added, click `Share` > `Export` (tab), and togg
 Then, copy the JSON, and replace the contents of [`overview.json`](./grafana/dashboards/overview.json)
 before making a PR.
 
+## Default Ports
+
+| Port    | Service                     |
+|---------|-----------------------------|
+| `9223`  | `kona-node` discovery       |
+| `9002`  | `kona-node` metrics         |
+| `5060`  | `kona-node` RPC             |
+| `30303` | `op-reth` discovery         |
+| `9001`  | `op-reth` metrics           |
+| `8545`  | `op-reth` RPC               |
+| `8551`  | `op-reth` engine            |
+| `9090`  | `prometheus` metrics server |
+| `3000`  | `grafana` dashboard UI      |
+
 ## Configuration
 
 ### Adjusting host ports

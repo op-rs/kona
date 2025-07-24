@@ -9,7 +9,7 @@ use jsonrpsee::{
 };
 use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_rpc::{BlockInfo, ManagedModeApiClient, jsonrpsee::SubscriptionTopic};
-use kona_supervisor_types::{OutputV0, Receipts, SubscriptionEvent};
+use kona_supervisor_types::{BlockSeal, OutputV0, Receipts, SubscriptionEvent};
 use std::{
     fmt::Debug,
     sync::{Arc, OnceLock},
@@ -54,6 +54,9 @@ pub trait ManagedNodeClient: Debug {
         cross_safe_id: BlockNumHash,
         finalised_id: BlockNumHash,
     ) -> Result<(), ClientError>;
+
+    /// Invalidates a block in the managed node.
+    async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ClientError>;
 
     /// Provides L1 [`BlockInfo`] to the managed node.
     async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError>;
@@ -344,6 +347,21 @@ impl ManagedNodeClient for Client {
             "reset",
             async {
               ManagedModeApiClient::reset(client.as_ref(), unsafe_id, cross_unsafe_id, local_safe_id, cross_safe_id, finalised_id).await
+            },
+            "node" => self.config.url.clone()
+        )?;
+        Ok(())
+    }
+
+    async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ClientError> {
+        let client = self.get_ws_client().await?;
+        observe_metrics_for_result_async!(
+            Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
+            Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
+            Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
+            "invalidate_block",
+            async {
+              ManagedModeApiClient::invalidate_block(client.as_ref(), seal).await
             },
             "node" => self.config.url.clone()
         )?;

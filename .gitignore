@@ -31,6 +31,9 @@ optimism/
 # kona-host data-dir
 data/
 
+# Ignore jwt hex tokens
+jwt.hex
+
 # FPVM artifacts
 ./state.bin.gz
 ./meta.json

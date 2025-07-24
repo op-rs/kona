@@ -1,7 +1,7 @@
 //! The core [`RollupNodeService`] trait
 use crate::{
     AttributesBuilderConfig, DerivationContext, EngineContext, L1WatcherRpcContext, NetworkContext,
-    NodeActor, NodeMode, RpcContext, RuntimeContext, SequencerContext, SequencerInboundData,
+    NodeActor, NodeMode, RpcContext, SequencerContext, SequencerInboundData,
     SupervisorActorContext, SupervisorExt,
     actors::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
@@ -77,9 +77,6 @@ pub trait RollupNodeService {
             InboundData = SupervisorInboundData,
         >;
 
-    /// The type of runtime actor to use for the service.
-    type RuntimeActor: NodeActor<Error: Display, OutboundData = RuntimeContext, InboundData = ()>;
-
     /// The type of attributes builder to use for the sequener.
     type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
 
@@ -105,9 +102,6 @@ pub trait RollupNodeService {
 
     /// Creates a network builder for the node.
     fn network_builder(&self) -> <Self::NetworkActor as NodeActor>::Builder;
-
-    /// Returns a runtime builder for the node.
-    fn runtime_builder(&self) -> Option<<Self::RuntimeActor as NodeActor>::Builder>;
 
     /// Returns an engine builder for the node.
     fn engine_builder(&self) -> <Self::EngineActor as NodeActor>::Builder;
@@ -148,9 +142,6 @@ pub trait RollupNodeService {
         //
         // )
 
-        // Create the runtime actor.
-        let (_, runtime) = self.runtime_builder().map(Self::RuntimeActor::build).unzip();
-
         // Create the engine actor.
         let (
             EngineInboundData {
@@ -187,10 +178,6 @@ pub trait RollupNodeService {
         spawn_and_wait!(
             cancellation,
             actors = [
-                runtime.map(|r| (
-                    r,
-                    RuntimeContext { cancellation: cancellation.clone() }
-                )),
                 rpc.map(|r| (
                     r,
                     RpcContext {

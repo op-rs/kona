@@ -41,6 +41,7 @@ impl ForkchoiceTask {
     /// Checks the response of the `engine_forkchoiceUpdated` call, and updates the sync status if
     /// necessary.
     fn check_forkchoice_updated_status(
+        &self,
         state: &mut EngineState,
         status: &PayloadStatusEnum,
     ) -> Result<(), ForkchoiceTaskError> {
@@ -57,8 +58,15 @@ impl ForkchoiceTask {
                 Ok(())
             }
             PayloadStatusEnum::Syncing => {
-                debug!(target: "engine", "Forkchoice update failed temporarily: EL is syncing");
-                Err(ForkchoiceTaskError::EngineSyncing)
+                if self.envelope.is_some() {
+                    // If we're building a new payload, we should retry the FCU once the engine is
+                    // done syncing.
+                    debug!(target: "engine", "Build initiation FCU failed temporarily: EL is syncing");
+                    Err(ForkchoiceTaskError::EngineSyncing)
+                } else {
+                    // If we're not building a new payload, we're driving EL sync.
+                    Ok(())
+                }
             }
             PayloadStatusEnum::Invalid { validation_error } => {
                 error!(target: "engine", "Forkchoice update failed: {}", validation_error);
@@ -150,7 +158,7 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Unexpected forkchoice payload status.
         // We may be able to recover from this by resetting the engine.
-        Self::check_forkchoice_updated_status(state, &valid_response.payload_status.status)?;
+        self.check_forkchoice_updated_status(state, &valid_response.payload_status.status)?;
 
         // Apply the new sync state to the engine state.
         state.sync_state = new_sync_state;

@@ -84,6 +84,13 @@ async fn launch(
     module: RpcModule<()>,
 ) -> Result<ServerHandle, std::io::Error> {
     let server = Server::builder().build(config.socket).await?;
+
+    if let Ok(addr) = server.local_addr() {
+        info!(target: "rpc", addr = ?addr, "RPC server bound to address");
+    } else {
+        error!(target: "rpc", "Failed to get local address for RPC server");
+    }
+
     Ok(server.start(module))
 }
 

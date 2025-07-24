@@ -1,6 +1,6 @@
 //! An implementation of the [`ConnectionGate`] trait.
 
-use crate::{Connectedness, ConnectionGate};
+use crate::{Connectedness, ConnectionGate, DialError};
 use ipnet::IpNet;
 use libp2p::{Multiaddr, PeerId};
 use std::{
@@ -145,19 +145,19 @@ impl ConnectionGater {
 }
 
 impl ConnectionGate for ConnectionGater {
-    fn can_dial(&mut self, addr: &Multiaddr) -> bool {
+    fn can_dial(&mut self, addr: &Multiaddr) -> Result<(), DialError> {
         // Get the peer id from the given multiaddr.
-        let Some(peer_id) = Self::peer_id_from_addr(addr) else {
+        let peer_id = Self::peer_id_from_addr(addr).ok_or_else(|| {
             warn!(target: "p2p", peer=?addr, "Failed to extract PeerId from Multiaddr");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "invalid_multiaddr");
-            return false;
-        };
+            DialError::InvalidMultiaddr { addr: addr.clone() }
+        })?;
 
         // Cannot dial a peer that is already being dialed.
         if self.current_dials.contains(&peer_id) {
             debug!(target: "gossip", peer=?addr, "Already dialing peer, not dialing");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "already_dialing", "peer" => peer_id.to_string());
-            return false;
+            return Err(DialError::AlreadyDialing { peer_id });
         }
 
         // If the peer is protected, do not apply thresholds.
@@ -169,38 +169,38 @@ impl ConnectionGate for ConnectionGater {
             debug!(target: "gossip", peer=?addr, "Dial threshold reached, not dialing");
             self.connectedness.insert(peer_id, Connectedness::CannotConnect);
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "threshold_reached", "peer" => peer_id.to_string());
-            return false;
+            return Err(DialError::ThresholdReached { addr: addr.clone() });
         }
 
         // If the peer is blocked, do not dial.
         if self.blocked_peers.contains(&peer_id) {
             debug!(target: "gossip", peer=?addr, "Peer is blocked, not dialing");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_peer", "peer" => peer_id.to_string());
-            return false;
+            return Err(DialError::PeerBlocked { peer_id });
         }
 
         // There must be a reachable IP Address in the Multiaddr protocol stack.
-        let Some(ip_addr) = Self::ip_from_addr(addr) else {
+        let ip_addr = Self::ip_from_addr(addr).ok_or_else(|| {
             warn!(target: "p2p", peer=?addr, "Failed to extract IpAddr from Multiaddr");
-            return false;
-        };
+            DialError::InvalidIpAddress { addr: addr.clone() }
+        })?;
 
         // If the address is blocked, do not dial.
         if self.blocked_addrs.contains(&ip_addr) {
             debug!(target: "gossip", peer=?addr, "Address is blocked, not dialing");
             self.connectedness.insert(peer_id, Connectedness::CannotConnect);
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_address", "peer" => peer_id.to_string());
-            return false;
+            return Err(DialError::AddressBlocked { ip: ip_addr });
         }
 
         // If address lies in any blocked subnets, do not dial.
         if self.check_ip_in_blocked_subnets(&ip_addr) {
             debug!(target: "gossip", ip=?ip_addr, "IP address is in a blocked subnet, not dialing");
             kona_macros::inc!(gauge, crate::Metrics::DIAL_PEER_ERROR, "type" => "blocked_subnet", "peer" => peer_id.to_string());
-            return false;
+            return Err(DialError::SubnetBlocked { ip: ip_addr });
         }
 
-        true
+        Ok(())
     }
 
     fn connectedness(&self, peer_id: &PeerId) -> Connectedness {
@@ -330,4 +330,33 @@ fn test_check_ip_in_blocked_subnets_ipv4() {
     assert!(!gater.check_ip_in_blocked_subnets(&IpAddr::from_str("192.168.2.1").unwrap()));
     assert!(!gater.check_ip_in_blocked_subnets(&IpAddr::from_str("172.17.0.1").unwrap()));
     assert!(!gater.check_ip_in_blocked_subnets(&IpAddr::from_str("8.8.8.8").unwrap()));
+}
+
+#[test]
+fn test_dial_error_handling() {
+    use crate::{ConnectionGate, DialError};
+    use std::str::FromStr;
+
+    let mut gater = ConnectionGater::new(GaterConfig::default());
+
+    // Test invalid multiaddr (missing peer ID)
+    let invalid_addr = Multiaddr::from_str("/ip4/127.0.0.1/tcp/8080").unwrap();
+    let result = gater.can_dial(&invalid_addr);
+    assert!(matches!(result, Err(DialError::InvalidMultiaddr { .. })));
+
+    // Test with valid address
+    let valid_addr = Multiaddr::from_str(
+        "/ip4/127.0.0.1/tcp/8080/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp",
+    )
+    .unwrap();
+
+    // First dial should succeed
+    assert!(gater.can_dial(&valid_addr).is_ok());
+
+    // Mark as dialing
+    gater.dialing(&valid_addr);
+
+    // Second dial should fail with AlreadyDialing
+    let result = gater.can_dial(&valid_addr);
+    assert!(matches!(result, Err(DialError::AlreadyDialing { .. })));
 }

@@ -410,6 +410,7 @@ impl SpanBatch {
             let block_timestamp = batch.timestamp;
             if block_timestamp < l1_origin.timestamp {
                 warn!(
+                    target: "batch_span",
                     "block timestamp is less than L1 origin timestamp, l2_timestamp: {}, l1_timestamp: {}, origin: {:?}",
                     block_timestamp,
                     l1_origin.timestamp,
@@ -430,6 +431,7 @@ impl SpanBatch {
                     if !origin_advanced {
                         if origin_index + 1 >= l1_blocks.len() {
                             info!(
+                                target: "batch_span",
                                 "without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid"
                             );
                             return BatchValidity::Undecided;
@@ -437,11 +439,13 @@ impl SpanBatch {
                         if block_timestamp >= l1_blocks[origin_index + 1].timestamp {
                             // check if the next L1 origin could have been adopted
                             info!(
+                                target: "batch_span",
                                 "batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid"
                             );
                             return BatchValidity::Drop;
                         } else {
                             info!(
+                                target: "batch_span",
                                 "continuing with empty batch before late L1 block to preserve L2 time invariant"
                             );
                         }
@@ -451,6 +455,7 @@ impl SpanBatch {
                     // force an empty batch instead, as the sequencer is not
                     // allowed to include anything past this point without moving to the next epoch.
                     warn!(
+                        target: "batch_span",
                         "batch exceeded sequencer time drift, sequencer must adopt new L1 origin to include transactions again, max_time: {}",
                         l1_origin.timestamp + max_drift
                     );
@@ -462,6 +467,7 @@ impl SpanBatch {
             for (i, tx) in batch.transactions.iter().enumerate() {
                 if tx.is_empty() {
                     warn!(
+                        target: "batch_span",
                         "transaction data must not be empty, but found empty tx, tx_index: {}",
                         i
                     );
@@ -469,6 +475,7 @@ impl SpanBatch {
                 }
                 if tx.as_ref().first() == Some(&(OpTxType::Deposit as u8)) {
                     warn!(
+                        target: "batch_span",
                         "sequencers may not embed any deposits into batch data, but found tx that has one, tx_index: {}",
                         i
                     );
@@ -479,7 +486,7 @@ impl SpanBatch {
                 if !cfg.is_isthmus_active(batch.timestamp) &&
                     tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
                 {
-                    warn!("EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
+                    warn!(target: "batch_span", "EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
                     return BatchValidity::Drop;
                 }
             }
@@ -494,7 +501,7 @@ impl SpanBatch {
                 let safe_block_payload = match fetcher.block_by_number(safe_block_num).await {
                     Ok(p) => p,
                     Err(e) => {
-                        warn!("failed to fetch block number {safe_block_num}: {e}");
+                        warn!(target: "batch_span", "failed to fetch block number {safe_block_num}: {e}");
                         return BatchValidity::Undecided;
                     }
                 };
@@ -508,6 +515,7 @@ impl SpanBatch {
                     .sum();
                 if safe_block.transactions.len() - deposit_count != batch_txs.len() {
                     warn!(
+                        target: "batch_span",
                         "overlapped block's tx count does not match, safe_block_txs: {}, batch_txs: {}",
                         safe_block.transactions.len(),
                         batch_txs.len()
@@ -520,7 +528,7 @@ impl SpanBatch {
                     let mut buf = Vec::new();
                     safe_block.transactions[j + deposit_count].encode_2718(&mut buf);
                     if buf != batch_txs[j].0 {
-                        warn!("overlapped block's transaction does not match");
+                        warn!(target: "batch_span", "overlapped block's transaction does not match");
                         return BatchValidity::Drop;
                     }
                 }
@@ -531,6 +539,7 @@ impl SpanBatch {
                     Ok(r) => r,
                     Err(e) => {
                         warn!(
+                            target: "batch_span",
                             "failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}",
                             safe_block_payload.header.hash_slow()
                         );
@@ -563,11 +572,11 @@ impl SpanBatch {
         fetcher: &mut BF,
     ) -> (BatchValidity, Option<L2BlockInfo>) {
         if l1_origins.is_empty() {
-            warn!("missing L1 block input, cannot proceed with batch checking");
+            warn!(target: "batch_span", "missing L1 block input, cannot proceed with batch checking");
             return (BatchValidity::Undecided, None);
         }
         if self.batches.is_empty() {
-            warn!("empty span batch, cannot proceed with batch checking");
+            warn!(target: "batch_span", "empty span batch, cannot proceed with batch checking");
             return (BatchValidity::Undecided, None);
         }
 
@@ -579,6 +588,7 @@ impl SpanBatch {
         if starting_epoch_num == batch_origin.number + 1 {
             if l1_origins.len() < 2 {
                 info!(
+                    target: "batch_span",
                     "eager batch wants to advance current epoch {:?}, but could not without more L1 blocks",
                     epoch.id()
                 );
@@ -588,6 +598,7 @@ impl SpanBatch {
         }
         if !cfg.is_delta_active(batch_origin.timestamp) {
             warn!(
+                target: "batch_span",
                 "received SpanBatch (id {:?}) with L1 origin (timestamp {}) before Delta hard fork",
                 batch_origin.id(),
                 batch_origin.timestamp
@@ -597,6 +608,7 @@ impl SpanBatch {
 
         if self.starting_timestamp() > next_timestamp {
             warn!(
+                target: "batch_span",
                 "received out-of-order batch for future processing after next batch ({} > {})",
                 self.starting_timestamp(),
                 next_timestamp
@@ -611,7 +623,7 @@ impl SpanBatch {
 
         // Drop the batch if it has no new blocks after the safe head.
         if self.final_timestamp() < next_timestamp {
-            warn!("span batch has no new blocks after safe head");
+            warn!(target: "batch_span", "span batch has no new blocks after safe head");
             return if cfg.is_holocene_active(inclusion_block.timestamp) {
                 (BatchValidity::Past, None)
             } else {
@@ -627,12 +639,12 @@ impl SpanBatch {
         if self.starting_timestamp() < next_timestamp {
             if self.starting_timestamp() > l2_safe_head.block_info.timestamp {
                 // Batch timestamp cannot be between safe head and next timestamp.
-                warn!("batch has misaligned timestamp, block time is too short");
+                warn!(target: "batch_span", "batch has misaligned timestamp, block time is too short");
                 return (BatchValidity::Drop, None);
             }
             if (l2_safe_head.block_info.timestamp - self.starting_timestamp()) % cfg.block_time != 0
             {
-                warn!("batch has misaligned timestamp, not overlapped exactly");
+                warn!(target: "batch_span", "batch has misaligned timestamp, not overlapped exactly");
                 return (BatchValidity::Drop, None);
             }
             parent_num = l2_safe_head.block_info.number -
@@ -641,7 +653,7 @@ impl SpanBatch {
             parent_block = match fetcher.l2_block_info_by_number(parent_num).await {
                 Ok(block) => block,
                 Err(e) => {
-                    warn!("failed to fetch L2 block number {parent_num}: {e}");
+                    warn!(target: "batch_span", "failed to fetch L2 block number {parent_num}: {e}");
                     // Unable to validate the batch for now. Retry later.
                     return (BatchValidity::Undecided, None);
                 }
@@ -649,6 +661,7 @@ impl SpanBatch {
         }
         if !self.check_parent_hash(parent_block.block_info.hash) {
             warn!(
+                target: "batch_span",
                 "parent block mismatch, expected: {parent_num}, received: {}. parent hash: {}, parent hash check: {}",
                 parent_block.block_info.number, parent_block.block_info.hash, self.parent_check,
             );
@@ -657,13 +670,14 @@ impl SpanBatch {
 
         // Filter out batches that were included too late.
         if starting_epoch_num + cfg.seq_window_size < inclusion_block.number {
-            warn!("batch was included too late, sequence window expired");
+            warn!(target: "batch_span", "batch was included too late, sequence window expired");
             return (BatchValidity::Drop, None);
         }
 
         // Check the L1 origin of the batch
         if starting_epoch_num > parent_block.l1_origin.number + 1 {
             warn!(
+                target: "batch_span",
                 "batch is for future epoch too far ahead, while it has the next timestamp, so it must be invalid. starting epoch: {} | next epoch: {}",
                 starting_epoch_num,
                 parent_block.l1_origin.number + 1
@@ -680,6 +694,7 @@ impl SpanBatch {
             if l1_block.number == end_epoch_num {
                 if !self.check_origin_hash(l1_block.hash) {
                     warn!(
+                        target: "batch_span",
                         "batch is for different L1 chain, epoch hash does not match, expected: {}",
                         l1_block.hash
                     );
@@ -690,12 +705,12 @@ impl SpanBatch {
             }
         }
         if !origin_checked {
-            info!("need more l1 blocks to check entire origins of span batch");
+            info!(target: "batch_span", "need more l1 blocks to check entire origins of span batch");
             return (BatchValidity::Undecided, None);
         }
 
         if starting_epoch_num < parent_block.l1_origin.number {
-            warn!("dropped batch, epoch is too old, minimum: {:?}", parent_block.block_info.id());
+            warn!(target: "batch_span", "dropped batch, epoch is too old, minimum: {:?}", parent_block.block_info.id());
             return (BatchValidity::Drop, None);
         }
 
