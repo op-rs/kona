@@ -23,7 +23,7 @@ pub mod models;
 pub use models::SourceBlockTraversal;
 
 mod error;
-pub use error::StorageError;
+pub use error::{EntryNotFoundError, StorageError};
 
 mod providers;
 

@@ -1,3 +1,4 @@
+use alloy_eips::BlockNumHash;
 use reth_db::DatabaseError;
 use thiserror::Error;
 
@@ -19,8 +20,8 @@ pub enum StorageError {
     LockPoisoned,
 
     /// The expected entry was not found in the database.
-    #[error("entry not found: {0}")]
-    EntryNotFound(String),
+    #[error(transparent)]
+    EntryNotFound(#[from] EntryNotFoundError),
 
     /// Represents an error that occurred while getting data that is not yet available.
     #[error("data not yet available")]
@@ -55,3 +56,28 @@ impl PartialEq for StorageError {
 }
 
 impl Eq for StorageError {}
+
+/// Entry not found error.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum EntryNotFoundError {
+    /// No derived blocks found for given source block.
+    #[error("no derived blocks for source block, number: {}, hash: {}", .0.number, .0.hash)]
+    MissingDerivedBlocks(BlockNumHash),
+
+    /// Expected source block not found.
+    #[error("source block not found, number: {0}")]
+    SourceBlockNotFound(u64),
+
+    /// Expected derived block not found.
+    #[error("derived block not found, number: {0}")]
+    DerivedBlockNotFound(u64),
+
+    /// Expected log not found.
+    #[error("log not found at block {block_number} index {log_index}")]
+    LogNotFound {
+        /// Block number.
+        block_number: u64,
+        /// Log index within the block.
+        log_index: u32,
+    },
+}

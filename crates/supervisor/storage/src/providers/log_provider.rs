@@ -14,7 +14,7 @@
 //! used as the subkey. Block metadata is stored in [`BlockRefs`].
 
 use crate::{
-    error::StorageError,
+    error::{EntryNotFoundError, StorageError},
     models::{BlockRefs, LogEntries},
 };
 use alloy_eips::BlockNumHash;
@@ -192,7 +192,7 @@ where
                 block_number,
                 "Block not found"
             );
-            StorageError::EntryNotFound(format!("block {block_number} not found"))
+            EntryNotFoundError::DerivedBlockNotFound(block_number)
         })?;
         Ok(block.into())
     }
@@ -266,10 +266,7 @@ where
                 log_index,
                 "Log not found"
             );
-            StorageError::EntryNotFound(format!(
-                "log not found at block {block_number} index {}",
-                log_index,
-            ))
+            EntryNotFoundError::LogNotFound { block_number, log_index }
         })?;
 
         Ok(Log::from(log_entry))
