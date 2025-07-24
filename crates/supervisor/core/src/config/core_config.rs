@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_valid_with_timeout() {
         let cfg = mock_config();
-        let res = cfg.validate_interop_timestamps(1, 200, 2, 215, Some(20));
+        let res = cfg.validate_interop_timestamps(1, 200, 2, 202, Some(5));
         assert_eq!(res, Ok(()));
     }
 
