@@ -22,7 +22,7 @@ pub struct RpcArgs {
     #[arg(long = "rpc.addr", default_value = "0.0.0.0", env = "KONA_NODE_RPC_ADDR")]
     pub listen_addr: IpAddr,
     /// RPC listening port.
-    #[arg(long = "rpc.port", default_value = "9545", env = "KONA_NODE_RPC_PORT")]
+    #[arg(long = "port", alias = "rpc.port", default_value = "9545", env = "KONA_NODE_RPC_PORT")]
     pub listen_port: u16,
     /// Enable the admin API.
     #[arg(long = "rpc.enable-admin", env = "KONA_NODE_RPC_ENABLE_ADMIN")]
@@ -70,7 +70,8 @@ mod tests {
     #[case::disable_rpc(&["--rpc.disabled"], |args: &mut RpcArgs| { args.rpc_disabled = true; })]
     #[case::no_restart(&["--rpc.no-restart"], |args: &mut RpcArgs| { args.no_restart = true; })]
     #[case::disable_rpc(&["--rpc.addr", "1.1.1.1"], |args: &mut RpcArgs| { args.listen_addr = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)); })]
-    #[case::disable_rpc(&["--rpc.port", "8743"], |args: &mut RpcArgs| { args.listen_port = 8743; })]
+    #[case::disable_rpc(&["--port", "8743"], |args: &mut RpcArgs| { args.listen_port = 8743; })]
+    #[case::disable_rpc_alias(&["--rpc.port", "8743"], |args: &mut RpcArgs| { args.listen_port = 8743; })]
     #[case::disable_rpc(&["--rpc.enable-admin"], |args: &mut RpcArgs| { args.enable_admin = true; })]
     #[case::disable_rpc(&["--rpc.admin-state", "/"], |args: &mut RpcArgs| { args.admin_persistence = Some(PathBuf::from("/")); })]
     fn test_parse_rpc_args(#[case] args: &[&str], #[case] mutate: impl Fn(&mut RpcArgs)) {
