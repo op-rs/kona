@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.0] - 2025-07-21
+## [0.4.0] - 2025-07-22
 
 ### 🚀 Features
 
@@ -27,6 +27,10 @@ All notable changes to this project will be documented in this file.
 - *(node/service)* Add sequencer admin RPC logs (#2472)
 - *(bin/node)* L2 Chain ID Abstraction (#2394)
 - *(meta/logs)* Allow logging to file, silencing stdout and more configuration (#2482)
+- *(node/service)* Commit unsafe payloads to `op-conductor` (#2486)
+- *(tests)* Leadership transfer test (#2493)
+- *(node/rpc)* Log rpc server address (#2508)
+- (supervisor/storage): rewind storage (#2484)
 
 ### 🐛 Bug Fixes
 
@@ -46,6 +50,7 @@ All notable changes to this project will be documented in this file.
 - *(docs)* Callouts and Doc Links (#2474)
 - *(node/service)* Fix sequencer build ticker (#2473)
 - *(node/service)* Add latest unsafe block hash to `admin_stopSequencer` response (#2475)
+- *(engine)* Allow `ForkchoiceTask` to drive EL sync (#2514)
 
 ### 📚 Documentation
 
@@ -53,6 +58,10 @@ All notable changes to this project will be documented in this file.
 - Complete execution engine documentation with trait abstractions and kona-node integration (#2467)
 - Update shields.io badges to use crate names as labels (#2479)
 - Update docker documentation to use correct kona-node targets (#2477)
+- Document admin RPC methods following P2P RPC format (#2490)
+- Complete rollup RPC methods documentation (#2491)
+- Complete P2P RPC endpoints documentation (#2489)
+- Comprehensive README for kona-node with installation and usage instructions (#2492)
 
 ### 🧪 Testing
 
@@ -75,6 +84,13 @@ All notable changes to this project will be documented in this file.
 - *(docs)* Remove Supervisor Docs (#2469)
 - *(node/engine)* Decouple engine and runtime actor (#2483)
 - Release Some Crates (#2485)
+- More Crate Releases (#2487)
+- *(node/test)* Update monorepo fork (#2505)
+- *(docs)* Update `kona-node` flags (#2507)
+- *(docker)* Don't disable p2p scoring in `kona-node` recipe (#2510)
+- Release 0.4.0
+- Release 0.4.0
+- Release 0.3.0
 
 ## [kona-node/v0.1.0-beta.5] - 2025-07-08
 

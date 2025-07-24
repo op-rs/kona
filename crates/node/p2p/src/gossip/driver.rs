@@ -22,7 +22,8 @@ use std::{
 use tokio::sync::Mutex;
 
 use crate::{
-    Behaviour, BlockHandler, ConnectionGate, Event, GossipDriverBuilder, Handler, PublishError,
+    Behaviour, BlockHandler, ConnectionGate, ConnectionGater, Event, GossipDriverBuilder, Handler,
+    PublishError,
 };
 
 /// A driver for a [`Swarm`] instance.
@@ -245,13 +246,13 @@ where
     /// Dials the given [`Multiaddr`].
     pub fn dial_multiaddr(&mut self, addr: Multiaddr) {
         // Check if we're allowed to dial the address.
-        if !self.connection_gate.can_dial(&addr) {
-            warn!(target: "gossip", "unable to dial peer");
+        if let Err(dial_error) = self.connection_gate.can_dial(&addr) {
+            debug!(target: "gossip", ?dial_error, "unable to dial peer");
             return;
         }
 
         // Extract the peer ID from the address.
-        let Some(peer_id) = crate::ConnectionGater::peer_id_from_addr(&addr) else {
+        let Some(peer_id) = ConnectionGater::peer_id_from_addr(&addr) else {
             warn!(target: "gossip", peer=?addr, "Failed to extract PeerId from Multiaddr");
             return;
         };

@@ -36,13 +36,13 @@ lazy_static::lazy_static! {
 }
 
 /// Returns a [RollupConfig] by its identifier.
-pub fn rollup_config_by_ident(ident: &str) -> Option<&RollupConfig> {
+pub fn scr_rollup_config_by_ident(ident: &str) -> Option<&RollupConfig> {
     let chain_id = CHAINS.get_chain_by_ident(ident)?.chain_id;
     ROLLUP_CONFIGS.get(&chain_id)
 }
 
 /// Returns a [RollupConfig] by its identifier.
-pub fn rollup_config_by_alloy_ident(chain: &alloy_chains::Chain) -> Option<&RollupConfig> {
+pub fn scr_rollup_config_by_alloy_ident(chain: &alloy_chains::Chain) -> Option<&RollupConfig> {
     ROLLUP_CONFIGS.get(&chain.id())
 }
 
@@ -83,8 +83,8 @@ mod tests {
     fn test_rollup_config_by_ident() {
         const ALLOY_BASE: AlloyChain = AlloyChain::base_mainnet();
 
-        let rollup_config_by_ident = rollup_config_by_ident("mainnet/base").unwrap();
-        let rollup_config_by_alloy_ident = rollup_config_by_alloy_ident(&ALLOY_BASE).unwrap();
+        let rollup_config_by_ident = scr_rollup_config_by_ident("mainnet/base").unwrap();
+        let rollup_config_by_alloy_ident = scr_rollup_config_by_alloy_ident(&ALLOY_BASE).unwrap();
         let rollup_config_by_id = ROLLUP_CONFIGS.get(&8453).unwrap();
 
         assert_eq!(rollup_config_by_ident, rollup_config_by_id);

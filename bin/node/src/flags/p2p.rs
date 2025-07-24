@@ -405,7 +405,7 @@ impl P2PArgs {
             .as_ref()
             .map(PrivateKeySigner::from_bytes)
             .transpose()?
-            .map(|s| s.with_chain_id(Some(args.l2_chain_id)));
+            .map(|s| s.with_chain_id(Some(args.l2_chain_id.into())));
 
         Ok(NetworkConfig {
             discovery_config,

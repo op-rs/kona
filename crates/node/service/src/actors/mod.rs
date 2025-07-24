@@ -5,9 +5,6 @@
 mod traits;
 pub use traits::{CancellableContext, NodeActor};
 
-mod runtime;
-pub use runtime::{RuntimeActor, RuntimeContext, RuntimeState};
-
 mod engine;
 pub use engine::{
     EngineActor, EngineBuilder, EngineContext, EngineError, EngineInboundData, L2Finalizer,

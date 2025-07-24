@@ -1,5 +1,6 @@
 use alloy_rpc_client::ReqwestClient;
 use alloy_transport::{RpcError, TransportErrorKind};
+use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use url::Url;
 
 /// A client for communicating with the conductor service via RPC
@@ -31,6 +32,15 @@ impl ConductorClient {
     /// Override the leader of the conductor.
     pub async fn override_leader(&self) -> Result<(), ConductorError> {
         let _result: () = self.rpc.request("conductor_overrideLeader", ()).await?;
+        Ok(())
+    }
+
+    /// Commit an unsafe payload to the conductor.
+    pub async fn commit_unsafe_payload(
+        &self,
+        payload: &OpExecutionPayloadEnvelope,
+    ) -> Result<(), ConductorError> {
+        let _result: () = self.rpc.request("conductor_commitUnsafePayload", [payload]).await?;
         Ok(())
     }
 }

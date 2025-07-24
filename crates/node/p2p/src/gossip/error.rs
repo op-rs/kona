@@ -2,6 +2,8 @@
 
 use crate::BehaviourError;
 use derive_more::From;
+use libp2p::{Multiaddr, PeerId};
+use std::net::IpAddr;
 use thiserror::Error;
 
 /// An error publishing a payload.
@@ -44,4 +46,51 @@ pub enum GossipDriverBuilderError {
     /// The sync request/response protocol has already been accepted.
     #[error("sync request/response protocol already accepted")]
     SyncReqRespAlreadyAccepted,
+}
+
+/// An error type representing reasons why a peer cannot be dialed.
+#[derive(Debug, Clone, Error)]
+pub enum DialError {
+    /// Failed to extract PeerId from Multiaddr.
+    #[error("Failed to extract PeerId from Multiaddr: {addr}")]
+    InvalidMultiaddr {
+        /// The multiaddress that failed to be parsed or does not contain a valid PeerId component
+        addr: Multiaddr,
+    },
+    /// Already dialing this peer.
+    #[error("Already dialing peer: {peer_id}")]
+    AlreadyDialing {
+        /// The PeerId of the peer that is already being dialed
+        peer_id: PeerId,
+    },
+    /// Dial threshold reached for this peer.
+    #[error("Dial threshold reached for peer: {addr}")]
+    ThresholdReached {
+        /// The multiaddress of the peer that has reached the maximum dial attempts
+        addr: Multiaddr,
+    },
+    /// Peer is blocked.
+    #[error("Peer is blocked: {peer_id}")]
+    PeerBlocked {
+        /// The PeerId of the peer that is on the blocklist
+        peer_id: PeerId,
+    },
+    /// Failed to extract IP address from Multiaddr.
+    #[error("Failed to extract IP address from Multiaddr: {addr}")]
+    InvalidIpAddress {
+        /// The multiaddress that does not contain a valid IP address component
+        addr: Multiaddr,
+    },
+    /// IP address is blocked.
+    #[error("IP address is blocked: {ip}")]
+    AddressBlocked {
+        /// The IP address that is on the blocklist
+        ip: IpAddr,
+    },
+    /// IP address is in a blocked subnet.
+    #[error("IP address {ip} is in a blocked subnet")]
+    SubnetBlocked {
+        /// The IP address that belongs to a blocked subnet range
+        ip: IpAddr,
+    },
 }

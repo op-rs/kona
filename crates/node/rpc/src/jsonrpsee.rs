@@ -10,10 +10,8 @@ use jsonrpsee::{
     proc_macros::rpc,
 };
 use kona_genesis::RollupConfig;
-use kona_interop::ExecutingDescriptor;
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
-use op_alloy_consensus::interop::SafetyLevel;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
@@ -157,20 +155,6 @@ pub trait SupervisorEvents {
     /// Subscribes to the stream of events from the node.
     #[subscription(name = "subscribe_events", item = ())]
     async fn ws_event_stream(&self) -> SubscriptionResult;
-}
-
-/// Supervisor API for interop.
-#[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
-#[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
-pub trait SupervisorApi {
-    /// Checks if the given inbox entries meet the given minimum safety level.
-    #[method(name = "checkAccessList")]
-    async fn check_access_list(
-        &self,
-        inbox_entries: Vec<B256>,
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> RpcResult<()>;
 }
 
 /// The admin namespace for the consensus node.

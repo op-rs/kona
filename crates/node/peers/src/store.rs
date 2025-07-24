@@ -39,7 +39,7 @@ impl<'de> serde::Deserialize<'de> for BootStore {
                     store.peers.push_back(enr);
                 }
                 Err(e) => {
-                    warn!("Failed to deserialize ENR: {:?}", e);
+                    warn!(target: "peers_store", "Failed to deserialize ENR: {:?}", e);
                 }
             }
         }
