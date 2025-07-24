@@ -86,33 +86,23 @@ pub enum ConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::core_config::ConfigError;
-    use crate::config::RollupConfig;
+    use crate::config::{RollupConfig, core_config::ConfigError};
     use kona_interop::DependencySet;
     use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
 
     fn mock_rollup_config_set() -> RollupConfigSet {
-        let chain1 = RollupConfig{
-            genesis: Default::default(),
-            block_time: 2,
-            interop_time: Some(100),
-        };
-        let chain2 = RollupConfig{
-            genesis: Default::default(),
-            block_time: 2,
-            interop_time: Some(105),
-        };
+        let chain1 =
+            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(100) };
+        let chain2 =
+            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(105) };
         let mut config_set = HashMap::<ChainId, RollupConfig>::new();
         config_set.insert(1, chain1);
         config_set.insert(2, chain2);
-        
-        RollupConfigSet{
-            rollups: config_set,
-        }
+
+        RollupConfigSet { rollups: config_set }
     }
 
-    fn mock_config(
-    ) -> Config {
+    fn mock_config() -> Config {
         Config {
             l1_rpc: Default::default(),
             l2_consensus_nodes_config: vec![],
@@ -122,7 +112,7 @@ mod tests {
                 dependencies: Default::default(),
                 override_message_expiry_window: Some(10),
             },
-            rollup_config_set: mock_rollup_config_set()
+            rollup_config_set: mock_rollup_config_set(),
         }
     }
 
@@ -151,21 +141,21 @@ mod tests {
         let res = cfg.validate_interop_timestamps(1, 100, 2, 215, Some(20));
         assert_eq!(res, Err(ConfigError::InteropNotEnabled));
     }
-    
+
     #[test]
     fn test_invalid_timestamp_invariant() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 195, Some(20));
         assert_eq!(res, Err(ConfigError::InvalidTimestampInvariant));
     }
-    
+
     #[test]
     fn test_expired_message_with_timeout() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 250, Some(20));
         assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp));
     }
-    
+
     #[test]
     fn test_expired_message_without_timeout() {
         let cfg = mock_config();
@@ -173,4 +163,3 @@ mod tests {
         assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp));
     }
 }
-

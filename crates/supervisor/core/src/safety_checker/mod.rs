@@ -17,4 +17,4 @@ pub use promoter::{CrossSafePromoter, CrossUnsafePromoter};
 
 pub use task::CrossSafetyCheckerJob;
 
-pub use error::CrossSafetyError;
+pub use error::{CrossSafetyError, ValidationError};

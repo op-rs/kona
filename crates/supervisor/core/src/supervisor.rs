@@ -191,6 +191,8 @@ impl Supervisor {
         Ok(())
     }
     async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
+        let cfg = Arc::new(self.config.clone());
+
         for (&chain_id, config) in &self.config.rollup_config_set.rollups {
             let db = Arc::clone(&self.database_factory);
             let cancel = self.cancel_token.clone();
@@ -214,6 +216,7 @@ impl Supervisor {
                 Duration::from_secs(config.block_time),
                 CrossSafePromoter,
                 event_tx.clone(),
+                cfg.clone(),
             );
 
             tokio::spawn(async move {
@@ -227,6 +230,7 @@ impl Supervisor {
                 Duration::from_secs(config.block_time),
                 CrossUnsafePromoter,
                 event_tx,
+                cfg.clone(),
             );
 
             tokio::spawn(async move {

@@ -1,9 +1,8 @@
+use crate::config::ConfigError;
 use alloy_primitives::ChainId;
-use alloy_rpc_types_eth::BlockError;
 use kona_supervisor_storage::StorageError;
 use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
-use crate::config::ConfigError;
 
 /// Errors returned when validating cross-chain message dependencies.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -36,6 +35,8 @@ pub enum CrossSafetyError {
     ValidationError(#[from] ValidationError),
 }
 
+/// Errors returned when block validation fails due to a fatal violation.
+/// These errors indicate that the block must be invalidated.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ValidationError {
     /// Indicates that error occurred while validating interop config for the block messages
