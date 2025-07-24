@@ -103,10 +103,14 @@ mod tests {
     #[case::numeric("10", 10)]
     #[case::string("optimism", 10)]
     fn test_l2_chain_id_env_var(#[case] env_value: &str, #[case] expected_id: u64) {
-        std::env::set_var("KONA_NODE_L2_CHAIN_ID", env_value);
+        unsafe {
+            std::env::set_var("KONA_NODE_L2_CHAIN_ID", env_value);
+        }
         let args = GlobalArgs::try_parse_from(["test"]).unwrap();
         assert_eq!(args.l2_chain_id.id(), expected_id);
-        std::env::remove_var("KONA_NODE_L2_CHAIN_ID");
+        unsafe {
+            std::env::remove_var("KONA_NODE_L2_CHAIN_ID");
+        }
     }
 
     #[test]

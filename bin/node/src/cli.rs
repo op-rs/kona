@@ -134,12 +134,7 @@ mod tests {
         #[case] value: &str,
         #[case] expected_id: u64,
     ) {
-        let cli = Cli::try_parse_from([
-            "kona-node", 
-            flag, value,
-            "registry",
-            "--help"
-        ]).unwrap();
+        let cli = Cli::try_parse_from(["kona-node", flag, value, "registry"]).unwrap();
         assert_eq!(cli.global.l2_chain_id.id(), expected_id);
     }
 
@@ -147,23 +142,14 @@ mod tests {
     #[case::invalid_string("invalid_chain")]
     #[case::empty_string("")]
     fn test_cli_l2_chain_id_invalid(#[case] invalid_value: &str) {
-        let result = Cli::try_parse_from([
-            "kona-node", 
-            "--l2-chain-id", invalid_value,
-            "registry",
-            "--help"
-        ]);
+        let result = Cli::try_parse_from(["kona-node", "--l2-chain-id", invalid_value, "registry"]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_cli_l2_chain_id_default() {
         // Test that the default chain ID is 10 (Optimism)
-        let cli = Cli::try_parse_from([
-            "kona-node", 
-            "registry",
-            "--help"
-        ]).unwrap();
+        let cli = Cli::try_parse_from(["kona-node", "registry"]).unwrap();
         assert_eq!(cli.global.l2_chain_id.id(), 10);
     }
 }
