@@ -60,7 +60,7 @@ pub enum OracleProviderError {
     /// Block information extraction or conversion error.
     ///
     /// This error occurs when converting raw block data into structured
-    /// [`BlockInfo`] objects fails due to missing fields, invalid data
+    /// [`kona_protocol::BlockInfo`] objects fails due to missing fields, invalid data
     /// formats, or unsupported block versions.
     #[error("From block error: {0}")]
     BlockInfo(FromBlockError),
@@ -121,7 +121,7 @@ impl From<OracleProviderError> for PipelineErrorKind {
 ///
 /// # Common Causes
 /// - Invalid hint format (wrong number of parts, missing data)
-/// - Unknown hint type strings that don't map to [`HintType`] variants
+/// - Unknown hint type strings that don't map to [`crate::HintType`] variants
 /// - Malformed hex encoding in hint data
 /// - Empty or malformed hint strings
 ///

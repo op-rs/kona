@@ -134,7 +134,7 @@ impl PipelineCursor {
     /// # Panics
     /// This method panics if called before the cursor is properly initialized with at
     /// least one L1/L2 mapping. This should never happen in normal operation as the
-    /// cursor is initialized with an origin in [`new`].
+    /// cursor is initialized with an origin in [`Self::new`].
     pub fn tip(&self) -> &TipCursor {
         if let Some((_, l2_tip)) = self.tips.last_key_value() {
             l2_tip

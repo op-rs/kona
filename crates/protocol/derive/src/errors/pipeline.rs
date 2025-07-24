@@ -99,27 +99,27 @@ pub enum PipelineErrorKind {
 /// detailed context about the failure mode and suggests appropriate recovery strategies.
 ///
 /// # Error Categories
-/// 
+///
 /// ## Data Availability Errors
-/// - [`Eof`]: No more data available from source
-/// - [`NotEnoughData`]: Insufficient data for current operation
-/// - [`MissingL1Data`]: Required L1 data not available
-/// - [`EndOfSource`]: Data source completely exhausted
+/// - [`Self::Eof`]: No more data available from source
+/// - [`Self::NotEnoughData`]: Insufficient data for current operation
+/// - [`Self::MissingL1Data`]: Required L1 data not available
+/// - [`Self::EndOfSource`]: Data source completely exhausted
 ///
 /// ## Stage-Specific Errors  
-/// - [`ChannelProviderEmpty`]: No channels available for processing
-/// - [`ChannelReaderEmpty`]: Channel reader has no data
-/// - [`BatchQueueEmpty`]: No batches available for processing
+/// - [`Self::ChannelProviderEmpty`]: No channels available for processing
+/// - [`Self::ChannelReaderEmpty`]: Channel reader has no data
+/// - [`Self::BatchQueueEmpty`]: No batches available for processing
 ///
 /// ## Validation Errors
-/// - [`InvalidBatchType`]: Unsupported or malformed batch type
-/// - [`InvalidBatchValidity`]: Batch failed validation checks
-/// - [`BadEncoding`]: Data decoding/encoding failures
+/// - [`Self::InvalidBatchType`]: Unsupported or malformed batch type
+/// - [`Self::InvalidBatchValidity`]: Batch failed validation checks
+/// - [`Self::BadEncoding`]: Data decoding/encoding failures
 ///
 /// ## System Errors
-/// - [`SystemConfigUpdate`]: System configuration update failures
-/// - [`AttributesBuilder`]: Block attribute construction failures
-/// - [`Provider`]: External provider communication failures
+/// - [`Self::SystemConfigUpdate`]: System configuration update failures
+/// - [`Self::AttributesBuilder`]: Block attribute construction failures
+/// - [`Self::Provider`]: External provider communication failures
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum PipelineError {
     /// End of file: no more data available from the channel bank.

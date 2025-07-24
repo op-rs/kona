@@ -75,7 +75,7 @@ pub trait Executor {
     /// - Block validation failures
     ///
     /// # Usage
-    /// Must be called after setting the safe head with [`update_safe_head`].
+    /// Must be called after setting the safe head with [`Self::update_safe_head`].
     /// The execution builds on the current safe head state.
     async fn execute_payload(
         &mut self,
@@ -99,7 +99,7 @@ pub trait Executor {
     ///
     /// # Usage
     /// Expected to be called immediately after successful payload execution
-    /// via [`execute_payload`]. The computed root corresponds to the state
+    /// via [`Self::execute_payload`]. The computed root corresponds to the state
     /// after the most recent block execution.
     fn compute_output_root(&mut self) -> Result<B256, Self::Error>;
 }

@@ -22,7 +22,7 @@ use spin::RwLock;
 /// ## Architecture
 /// The driver operates with three main components:
 /// - **Pipeline**: Derives L2 block attributes from L1 data
-/// - **Executor**: Builds and executes L2 blocks from attributes  
+/// - **Executor**: Builds and executes L2 blocks from attributes
 /// - **Cursor**: Tracks the current state of derivation progress
 ///
 /// ## Usage Pattern
@@ -48,7 +48,7 @@ where
     P: Pipeline + SignalReceiver + Send + Sync + Debug,
 {
     /// Marker for the pipeline type parameter.
-    /// 
+    ///
     /// This phantom data ensures type safety while allowing the driver
     /// to work with different pipeline implementations.
     _marker: core::marker::PhantomData<P>,
@@ -89,11 +89,11 @@ where
     ///
     /// # Arguments
     /// * `cursor` - Shared cursor for tracking derivation state
-    /// * `executor` - Block executor for building and executing L2 blocks  
+    /// * `executor` - Block executor for building and executing L2 blocks
     /// * `pipeline` - Derivation pipeline for producing block attributes
     ///
     /// # Returns
-    /// A new [`Driver`] instance ready for operation after calling [`wait_for_executor`].
+    /// A new [`Driver`] instance ready for operation after calling [`Self::wait_for_executor`].
     ///
     /// # Usage
     /// ```rust,ignore
@@ -118,7 +118,7 @@ where
     /// payload attributes and executing blocks.
     ///
     /// # Usage
-    /// Must be called after creating the driver and before calling [`advance_to_target`].
+    /// Must be called after creating the driver and before calling [`Self::advance_to_target`].
     /// This ensures the executor is in a valid state for block execution.
     ///
     /// # Example
@@ -139,12 +139,12 @@ where
     ///
     /// # Arguments
     /// * `cfg` - The rollup configuration containing chain parameters and activation heights
-    /// * `target` - Optional target block number. If `None`, derives indefinitely until
-    ///   data source is exhausted or an error occurs
+    /// * `target` - Optional target block number. If `None`, derives indefinitely until data source
+    ///   is exhausted or an error occurs
     ///
     /// # Returns
-    /// * `Ok((l2_safe_head, output_root))` - Tuple containing the final [`L2BlockInfo`]
-    ///   and output root hash when target is reached or derivation completes
+    /// * `Ok((l2_safe_head, output_root))` - Tuple containing the final [`L2BlockInfo`] and output
+    ///   root hash when target is reached or derivation completes
     /// * `Err(DriverError)` - Various error conditions that prevent further derivation
     ///
     /// # Errors

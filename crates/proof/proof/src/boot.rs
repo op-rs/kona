@@ -154,7 +154,7 @@ impl BootInfo {
     ///
     /// # Rollup Configuration Loading
     /// The rollup configuration is loaded with a security preference:
-    /// - **Primary**: Lookup in hardcoded [`ROLLUP_CONFIGS`] registry by chain ID
+    /// - **Primary**: Lookup in hardcoded [`static@ROLLUP_CONFIGS`] registry by chain ID
     /// - **Fallback**: Load from oracle using `L2_ROLLUP_CONFIG_KEY` (with warning)
     ///
     /// The fallback method requires additional validation in production environments
@@ -162,7 +162,7 @@ impl BootInfo {
     ///
     /// # Security Considerations
     /// - Verified inputs are cryptographically committed in the fault proof
-    /// - User inputs (claim data) require verification through the derivation process  
+    /// - User inputs (claim data) require verification through the derivation process
     /// - Oracle-loaded configs should be validated against known good configurations
     ///
     /// # Example Usage
