@@ -18,12 +18,21 @@ impl Metrics {
 
     // --- RPC Method Names (for zeroing) ---
     /// Lists all managed mode RPC methods here to ensure they are pre-registered.
-    const RPC_METHODS: [&'static str; 5] = [
+    const RPC_METHODS: [&'static str; 14] = [
+        "chain_id",
+        "subscribe_events",
         "fetch_receipts",
         "output_v0_at_timestamp",
         "pending_output_v0_at_timestamp",
         "l2_block_ref_by_timestamp",
+        "block_ref_by_number",
+        "reset_pre_interop",
+        "reset",
+        "invalidate_block",
         "provide_l1",
+        "update_finalized",
+        "update_cross_unsafe",
+        "update_cross_safe",
     ];
 
     /// Initializes metrics for the Supervisor RPC service.

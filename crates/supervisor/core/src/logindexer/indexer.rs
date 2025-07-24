@@ -2,6 +2,7 @@ use crate::{
     logindexer::{log_to_log_hash, payload_hash_to_log_hash},
     syncnode::{BlockProvider, ManagedNodeError},
 };
+use alloy_primitives::ChainId;
 use kona_interop::parse_log_to_executing_message;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{LogStorageReader, LogStorageWriter, StorageError};
@@ -9,16 +10,18 @@ use kona_supervisor_types::{ExecutingMessage, Log};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::debug;
+use tracing::{debug, error};
 
 /// The [`LogIndexer`] is responsible for processing L2 receipts, extracting [`ExecutingMessage`]s,
 /// and persisting them to the state manager.
 #[derive(Debug)]
 pub struct LogIndexer<P, S> {
+    /// The chain ID of the rollup.
+    chain_id: ChainId,
     /// Component that provides receipts for a given block hash.
-    pub block_provider: Arc<P>,
+    block_provider: Arc<P>,
     /// Component that persists parsed log entries to storage.
-    pub log_storage: Arc<S>,
+    log_storage: Arc<S>,
     /// Protects concurrent catch-up
     is_catch_up_running: Mutex<bool>,
 }
@@ -34,8 +37,8 @@ where
     /// - `block_provider`: Shared reference to a component capable of fetching block ref and
     ///   receipts.
     /// - `log_storage`: Shared reference to the storage layer for persisting parsed logs.
-    pub fn new(block_provider: Arc<P>, log_storage: Arc<S>) -> Self {
-        Self { block_provider, log_storage, is_catch_up_running: Mutex::new(false) }
+    pub fn new(chain_id: ChainId, block_provider: Arc<P>, log_storage: Arc<S>) -> Self {
+        Self { chain_id, block_provider, log_storage, is_catch_up_running: Mutex::new(false) }
     }
 
     /// Asynchronously initiates a background task to catch up and index logs
@@ -50,7 +53,7 @@ where
             let mut running = self.is_catch_up_running.lock().await;
 
             if *running {
-                debug!(target: "log_indexer", "Catch-up running log index");
+                debug!(target: "log_indexer", chain_id = %self.chain_id, "Catch-up running log index");
                 return;
             }
 
@@ -58,7 +61,12 @@ where
             drop(running); // release the lock while the job runs
 
             if let Err(err) = self.index_log_upto(&block).await {
-                tracing::error!(target: "log_indexer", %err, "Log indexer catch-up failed");
+                error!(
+                    target: "log_indexer",
+                    chain_id = %self.chain_id,
+                    %err,
+                    "Log indexer catch-up failed"
+                );
             }
 
             let mut running = self.is_catch_up_running.lock().await;
@@ -227,7 +235,7 @@ mod tests {
             .withf(|block, logs| block.number == 1 && logs.len() == 2)
             .returning(|_, _| Ok(()));
 
-        let log_indexer = LogIndexer::new(Arc::new(mock_provider), Arc::new(mock_db));
+        let log_indexer = LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db));
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_ok());
@@ -257,7 +265,7 @@ mod tests {
             .withf(|block, logs| block.number == 2 && logs.is_empty())
             .returning(|_, _| Ok(()));
 
-        let log_indexer = LogIndexer::new(Arc::new(mock_provider), Arc::new(mock_db));
+        let log_indexer = LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db));
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_ok());
@@ -282,7 +290,7 @@ mod tests {
 
         let mock_db = MockDb::new(); // No call expected
 
-        let log_indexer = LogIndexer::new(Arc::new(mock_provider), Arc::new(mock_db));
+        let log_indexer = LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db));
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_err());
@@ -320,7 +328,7 @@ mod tests {
 
         mock_db.expect_store_block_logs().times(5).returning(move |_, _| Ok(()));
 
-        let indexer = Arc::new(LogIndexer::new(Arc::new(mock_provider), Arc::new(mock_db)));
+        let indexer = Arc::new(LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db)));
 
         indexer.clone().sync_logs(target_block);
 

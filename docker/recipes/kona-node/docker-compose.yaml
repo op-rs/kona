@@ -75,7 +75,7 @@ services:
       L1_BEACON_API: ${L1_BEACON_API:?}
       RUST_LOG: ${RUST_LOG:-}
     command: >
-      --l2-chain-id 11155420
+      --chain optimism-sepolia
       --metrics.enabled
       --metrics.port 9002
       node

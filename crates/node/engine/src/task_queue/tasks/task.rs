@@ -8,21 +8,26 @@ use crate::{
     InsertTaskError,
 };
 use async_trait::async_trait;
+use derive_more::Display;
 use std::cmp::Ordering;
 use thiserror::Error;
 
 /// The severity of an engine task error.
 ///
 /// This is used to determine how to handle the error when draining the engine task queue.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Display, Clone, Copy)]
 pub enum EngineTaskErrorSeverity {
     /// The error is temporary and the task is retried.
+    #[display("temporary")]
     Temporary,
     /// The error is critical and is propagated to the engine actor.
+    #[display("critical")]
     Critical,
     /// The error indicates that the engine should be reset.
+    #[display("reset")]
     Reset,
     /// The error indicates that the engine should be flushed.
+    #[display("flush")]
     Flush,
 }
 
@@ -112,6 +117,16 @@ impl EngineTask {
 
         Ok(())
     }
+
+    const fn task_metrics_label(&self) -> &'static str {
+        match self {
+            Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
+            Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
+            Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
+            Self::ForkchoiceUpdate(_) => crate::Metrics::FORKCHOICE_TASK_LABEL,
+            Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
+        }
+    }
 }
 
 impl PartialEq for EngineTask {
@@ -184,7 +199,15 @@ impl EngineTaskExt for EngineTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), Self::Error> {
         // Retry the task until it succeeds or a critical error occurs.
         while let Err(e) = self.execute_inner(state).await {
-            match e.severity() {
+            let severity = e.severity();
+
+            kona_macros::inc!(
+                counter,
+                crate::Metrics::ENGINE_TASK_FAILURE,
+                self.task_metrics_label() => severity.to_string()
+            );
+
+            match severity {
                 EngineTaskErrorSeverity::Temporary => {
                     trace!(target: "engine", "{e}");
                     continue;
@@ -203,6 +226,8 @@ impl EngineTaskExt for EngineTask {
                 }
             }
         }
+
+        kona_macros::inc!(counter, crate::Metrics::ENGINE_TASK_SUCCESS, self.task_metrics_label());
 
         Ok(())
     }
