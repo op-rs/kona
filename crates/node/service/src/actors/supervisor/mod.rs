@@ -1,7 +1,7 @@
 //! Contains types and traits for the supervisor rpc actor.
 
 mod traits;
-pub use traits::SupervisorExt;
+pub use traits::{SupervisorExt, NoOpSupervisorExt};
 
 mod actor;
 pub use actor::{

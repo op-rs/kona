@@ -25,6 +25,7 @@ pub use actors::{
     RpcContext, SequencerActor, SequencerActorError, SequencerBuilder, SequencerConfig,
     SequencerContext, SequencerInboundData, SupervisorActor, SupervisorActorContext,
     SupervisorActorError, SupervisorExt, SupervisorInboundData, SupervisorRpcServerExt,
+    NoOpSupervisorExt,
 };
 
 mod metrics;

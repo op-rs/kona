@@ -1,7 +1,7 @@
 //! Node Subcommand.
 
 use crate::{
-    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs, SupervisorArgs},
+    flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
 use alloy_rpc_types_engine::JwtSecret;
@@ -71,9 +71,6 @@ pub struct NodeCommand {
     /// SEQUENCER CLI arguments.
     #[command(flatten)]
     pub sequencer_flags: SequencerArgs,
-    /// SUPERVISOR CLI arguments.
-    #[command(flatten)]
-    pub supervisor_flags: SupervisorArgs,
 }
 
 impl Default for NodeCommand {
@@ -89,7 +86,6 @@ impl Default for NodeCommand {
             p2p_flags: P2PArgs::default(),
             rpc_flags: RpcArgs::default(),
             sequencer_flags: SequencerArgs::default(),
-            supervisor_flags: SupervisorArgs::default(),
         }
     }
 }
@@ -196,13 +192,6 @@ impl NodeCommand {
 
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
-        let supervisor_rpc_config =
-            match (self.supervisor_flags.as_rpc_config(), self.supervisor_flags.rpc_enabled) {
-                (Ok(cfg), true) => Some(cfg),
-                (Err(e), true) => return Err(e),
-                (_, false) => None,
-            };
-
         self.p2p_flags.check_ports()?;
         let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
         let rpc_config = self.rpc_flags.into();
@@ -225,7 +214,6 @@ impl NodeCommand {
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
-            .with_supervisor_rpc_config(supervisor_rpc_config.unwrap_or_default())
             .with_sequencer_config(self.sequencer_flags.config())
             .build()
             .start()

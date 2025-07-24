@@ -2,7 +2,7 @@
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, SequencerConfig, SupervisorActor, SupervisorRpcServerExt,
+    RollupNodeService, RpcActor, SequencerConfig, SupervisorActor, NoOpSupervisorExt,
     actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
@@ -16,7 +16,6 @@ use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
 };
 use kona_rpc::RpcBuilder;
-use kona_supervisor_rpc::{SupervisorRpcConfig, SupervisorRpcServer};
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.
@@ -40,8 +39,6 @@ pub struct RollupNode {
     pub(crate) p2p_config: NetworkConfig,
     /// The [`SequencerConfig`] for the node.
     pub(crate) sequencer_config: SequencerConfig,
-    /// The supervisor rpc server config.
-    pub(crate) supervisor_rpc: SupervisorRpcConfig,
 }
 
 impl RollupNode {
@@ -61,7 +58,7 @@ impl RollupNodeService for RollupNode {
     type DerivationPipeline = OnlinePipeline;
     type DerivationActor = DerivationActor<DerivationBuilder>;
 
-    type SupervisorExt = SupervisorRpcServerExt;
+    type SupervisorExt = NoOpSupervisorExt;
     type SupervisorActor = SupervisorActor<Self::SupervisorExt>;
 
     type RpcActor = RpcActor;
@@ -77,21 +74,8 @@ impl RollupNodeService for RollupNode {
     }
 
     async fn supervisor_ext(&self) -> Option<Self::SupervisorExt> {
-        if self.supervisor_rpc.is_disabled() {
-            return None;
-        }
-        let (events_tx, events_rx) = tokio::sync::broadcast::channel(1024);
-        let (control_tx, control_rx) = tokio::sync::broadcast::channel(1024);
-        let server = SupervisorRpcServer::new(
-            events_rx,
-            control_tx,
-            self.supervisor_rpc.jwt_secret,
-            self.supervisor_rpc.socket_address,
-        );
-        // TODO: handle this error properly by encapsulating this logic in a trait-abstracted
-        // launcher.
-        let handle = server.launch().await.ok()?;
-        Some(SupervisorRpcServerExt::new(handle, events_tx, control_rx))
+        // Always return None to disable supervisor functionality
+        None
     }
 
     fn engine_builder(&self) -> EngineBuilder {
