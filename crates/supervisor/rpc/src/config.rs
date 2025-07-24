@@ -1,9 +1,12 @@
 //! Contains the Configuration for the supervisor RPC server.
 
+#[cfg(feature = "server")]
 use alloy_rpc_types_engine::JwtSecret;
+#[cfg(feature = "server")]
 use std::net::SocketAddr;
 
 /// The RPC Config.
+#[cfg(feature = "server")]
 #[derive(Debug, Clone)]
 pub struct SupervisorRpcConfig {
     /// If the RPC is disabled.
@@ -15,6 +18,7 @@ pub struct SupervisorRpcConfig {
     pub jwt_secret: JwtSecret,
 }
 
+#[cfg(feature = "server")]
 impl SupervisorRpcConfig {
     /// Returns if the rpc is disabled.
     pub const fn is_disabled(&self) -> bool {
@@ -25,6 +29,7 @@ impl SupervisorRpcConfig {
 // By default, the RPC server is disabled.
 // As such, the socket address and JWT secret are unused
 // and can be set to random values.
+#[cfg(feature = "server")]
 impl std::default::Default for SupervisorRpcConfig {
     fn default() -> Self {
         Self {

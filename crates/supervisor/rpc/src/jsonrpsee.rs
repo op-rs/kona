@@ -212,3 +212,12 @@ pub trait ManagedModeApi {
     #[method(name = "l2BlockRefByTimestamp")]
     async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> RpcResult<BlockInfo>;
 }
+
+/// SupervisorEvents trait for subscribing to supervisor events
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "ws_supervisor"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "ws_supervisor"))]
+pub trait SupervisorEvents {
+    /// Subscribes to the stream of events from the node.
+    #[subscription(name = "subscribe_events", item = ())]
+    async fn ws_event_stream(&self) -> SubscriptionResult;
+}

@@ -2,7 +2,6 @@
 
 use alloy_primitives::B256;
 use kona_interop::{ExecutingDescriptor, SafetyLevel};
-use kona_supervisor_rpc::SupervisorApiClient;
 
 use crate::InteropTxValidatorError;
 
@@ -15,22 +14,5 @@ pub trait CheckAccessListClient {
         inbox_entries: &[B256],
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
-    ) -> impl Future<Output = Result<(), InteropTxValidatorError>> + Send;
-}
-
-impl<T> CheckAccessListClient for T
-where
-    T: SupervisorApiClient + Send + Sync,
-{
-    // codecov:ignore-start
-    async fn check_access_list(
-        &self,
-        inbox_entries: &[B256],
-        min_safety: SafetyLevel,
-        executing_descriptor: ExecutingDescriptor,
-    ) -> Result<(), InteropTxValidatorError> {
-        Ok(T::check_access_list(self, inbox_entries.to_vec(), min_safety, executing_descriptor)
-            .await?)
-    }
-    // codecov:ignore-end
+    ) -> impl std::future::Future<Output = Result<(), InteropTxValidatorError>> + Send;
 }

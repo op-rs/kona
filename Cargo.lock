@@ -4972,7 +4972,6 @@ dependencies = [
  "kona-macros",
  "kona-p2p",
  "kona-protocol",
- "kona-supervisor-rpc",
  "libp2p",
  "metrics",
  "op-alloy-consensus",
@@ -5119,7 +5118,11 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
+ "alloy-rpc-client",
+ "alloy-rpc-types-engine",
  "alloy-serde",
+ "async-trait",
+ "derive_more",
  "jsonrpsee",
  "kona-interop",
  "kona-protocol",
@@ -5127,6 +5130,8 @@ dependencies = [
  "op-alloy-consensus",
  "serde",
  "serde_json",
+ "thiserror 2.0.12",
+ "tokio",
 ]
 
 [[package]]
