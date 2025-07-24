@@ -342,6 +342,20 @@ impl NodeCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::anyhow;
+
+    #[derive(Debug)]
+    struct MockError {
+        message: String,
+    }
+
+    impl std::fmt::Display for MockError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.message)
+        }
+    }
+
+    impl std::error::Error for MockError {}
 
     const fn default_flags() -> &'static [&'static str] {
         &[
@@ -395,6 +409,28 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.to_string().contains("--l2-provider-rpc"));
+    }
+
+    #[test]
+    fn test_is_jwt_signature_error() {
+        let jwt_error = MockError {
+            message: "signature invalid".to_string(),
+        };
+        assert!(NodeCommand::is_jwt_signature_error(&jwt_error));
+
+        let other_error = MockError {
+            message: "network timeout".to_string(),
+        };
+        assert!(!NodeCommand::is_jwt_signature_error(&other_error));
+    }
+
+    #[test]
+    fn test_is_jwt_signature_error_from_anyhow() {
+        let jwt_anyhow_error = anyhow!("signature invalid");
+        assert!(NodeCommand::is_jwt_signature_error_from_anyhow(&jwt_anyhow_error));
+
+        let other_anyhow_error = anyhow!("network timeout");
+        assert!(!NodeCommand::is_jwt_signature_error_from_anyhow(&other_anyhow_error));
     }
 
     #[test]
