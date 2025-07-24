@@ -4,7 +4,6 @@ use crate::{
     EngineClient, EngineForkchoiceVersion, EngineState, EngineTaskExt, ForkchoiceTaskError,
     state::EngineSyncStateUpdate,
 };
-use alloy_provider::ext::EngineApi;
 use alloy_rpc_types_engine::{INVALID_FORK_CHOICE_STATE_ERROR, PayloadId, PayloadStatusEnum};
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -130,14 +129,6 @@ impl EngineTaskExt for ForkchoiceTask {
 
         // Handle the forkchoice update result.
         let response = match version {
-            EngineForkchoiceVersion::V1 => {
-                self.client
-                    .fork_choice_updated_v1(
-                        forkchoice,
-                        payload_attributes.map(|p| p.payload_attributes),
-                    )
-                    .await
-            }
             EngineForkchoiceVersion::V2 => {
                 self.client.fork_choice_updated_v2(forkchoice, payload_attributes).await
             }

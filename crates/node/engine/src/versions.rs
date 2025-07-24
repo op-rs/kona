@@ -9,8 +9,6 @@ use kona_genesis::RollupConfig;
 /// The method version for the `engine_forkchoiceUpdated` api.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EngineForkchoiceVersion {
-    /// The `engine_forkchoiceUpdated` api version 1.
-    V1,
     /// The `engine_forkchoiceUpdated` api version 2.
     V2,
     /// The `engine_forkchoiceUpdated` api version 3.
@@ -23,15 +21,11 @@ impl EngineForkchoiceVersion {
     /// Uses the [`RollupConfig`] to check which hardfork is active at the given timestamp.
     pub fn from_cfg(cfg: &RollupConfig, timestamp: u64) -> Self {
         if cfg.is_ecotone_active(timestamp) {
-            // Cancun
+            // Cancun+
             Self::V3
-        } else if cfg.is_canyon_active(timestamp) {
-            // Shanghai
-            Self::V2
         } else {
-            // According to Ethereum engine API spec, we can use fcuV2 here,
-            // but Geth v1.13.11 does not accept V2 before Shanghai.
-            Self::V1
+            // Bedrock, Canyon, Delta
+            Self::V2
         }
     }
 }
