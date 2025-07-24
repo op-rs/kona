@@ -118,83 +118,13 @@ impl EngineTask {
         Ok(())
     }
 
-    fn update_failure_metrics(&self, severity: EngineTaskErrorSeverity) {
+    const fn task_metrics_label(&self) -> &'static str {
         match self {
-            Self::Insert(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_FAILURE,
-                    crate::Metrics::INSERT_TASK_LABEL => severity.to_string()
-                );
-            }
-            Self::Consolidate(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_FAILURE,
-                    crate::Metrics::CONSOLIDATE_TASK_LABEL => severity.to_string()
-                );
-            }
-            Self::Build(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_FAILURE,
-                    crate::Metrics::BUILD_TASK_LABEL => severity.to_string()
-                );
-            }
-            Self::Finalize(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_FAILURE,
-                    crate::Metrics::FINALIZE_TASK_LABEL => severity.to_string()
-                );
-            }
-            Self::ForkchoiceUpdate(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_FAILURE,
-                    crate::Metrics::FORKCHOICE_TASK_LABEL => severity.to_string()
-                );
-            }
-        }
-    }
-
-    fn update_success_metrics(&self) {
-        match self {
-            Self::Insert(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_SUCCESS,
-                    crate::Metrics::INSERT_TASK_LABEL
-                );
-            }
-            Self::Consolidate(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_SUCCESS,
-                    crate::Metrics::CONSOLIDATE_TASK_LABEL
-                );
-            }
-            Self::Build(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_SUCCESS,
-                    crate::Metrics::BUILD_TASK_LABEL
-                );
-            }
-            Self::Finalize(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_SUCCESS,
-                    crate::Metrics::FINALIZE_TASK_LABEL
-                );
-            }
-            Self::ForkchoiceUpdate(_) => {
-                kona_macros::inc!(
-                    counter,
-                    crate::Metrics::ENGINE_TASK_SUCCESS,
-                    crate::Metrics::FORKCHOICE_TASK_LABEL
-                );
-            }
+            Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
+            Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
+            Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
+            Self::ForkchoiceUpdate(_) => crate::Metrics::FORKCHOICE_TASK_LABEL,
+            Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
         }
     }
 }
@@ -271,7 +201,11 @@ impl EngineTaskExt for EngineTask {
         while let Err(e) = self.execute_inner(state).await {
             let severity = e.severity();
 
-            self.update_failure_metrics(severity);
+            kona_macros::inc!(
+                counter,
+                crate::Metrics::ENGINE_TASK_FAILURE,
+                self.task_metrics_label() => severity.to_string()
+            );
 
             match severity {
                 EngineTaskErrorSeverity::Temporary => {
@@ -293,7 +227,8 @@ impl EngineTaskExt for EngineTask {
             }
         }
 
-        self.update_success_metrics();
+        kona_macros::inc!(counter, crate::Metrics::ENGINE_TASK_SUCCESS, self.task_metrics_label());
+
         Ok(())
     }
 }
