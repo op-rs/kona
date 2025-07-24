@@ -1,7 +1,7 @@
 //! A task for finalizing an L2 block.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, ForkchoiceTask, Metrics,
+    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, ForkchoiceTask,
     state::EngineSyncStateUpdate,
 };
 use alloy_provider::Provider;
@@ -66,9 +66,6 @@ impl EngineTaskExt for FinalizeTask {
         .execute(state)
         .await?;
         let fcu_duration = fcu_start.elapsed();
-
-        // Update metrics.
-        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FINALIZE_TASK_LABEL);
 
         info!(
             target: "engine",

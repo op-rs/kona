@@ -1,7 +1,7 @@
 //! A task to insert an unsafe payload into the execution engine.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskExt, ForkchoiceTask, InsertTaskError, Metrics,
+    EngineClient, EngineState, EngineTaskExt, ForkchoiceTask, InsertTaskError,
     state::EngineSyncStateUpdate,
 };
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
@@ -149,9 +149,6 @@ impl EngineTaskExt for InsertTask {
             insert_duration = ?insert_duration,
             "Inserted new unsafe block"
         );
-
-        // Update metrics.
-        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::INSERT_TASK_LABEL);
 
         Ok(())
     }

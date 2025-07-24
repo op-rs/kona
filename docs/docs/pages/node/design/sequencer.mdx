@@ -113,7 +113,7 @@ kona-node node \
   --l2-engine-rpc=http://l2-execution:8551 \
   --l2-provider-rpc=http://l2-execution:8545 \
   --l2.jwt-secret=./jwt.hex \
-  --l2-chain-id=123456
+  --chain=123456
 ```
 
 ### Required Arguments
@@ -132,7 +132,7 @@ Sequencer mode requires all standard node arguments plus the `--mode=Sequencer` 
 | **L2 Engine** | `--l2-engine-rpc` | `KONA_NODE_L2_ENGINE_RPC` | L2 engine API endpoint |
 | **L2 Provider** | `--l2-provider-rpc` | `KONA_NODE_L2_ETH_RPC` | L2 execution client RPC URL |
 | **JWT Secret** | `--l2.jwt-secret` | `KONA_NODE_L2_ENGINE_AUTH` | Path to JWT secret file |
-| **Chain ID** | `--l2-chain-id` | `KONA_NODE_L2_CHAIN_ID` | L2 chain identifier |
+| **Chain ID** | `--chain` | `KONA_NODE_L2_CHAIN_ID` | L2 chain identifier |
 
 ### Sequencer-Specific Flags
 
@@ -155,7 +155,7 @@ kona-node node \
   --l1-beacon=http://localhost:5052 \
   --l2-engine-rpc=http://localhost:8551 \
   --l2-provider-rpc=http://localhost:8545 \
-  --l2-chain-id=42161
+  --chain=42161
 ```
 
 #### Sequencer with Conductor
@@ -169,7 +169,7 @@ kona-node node \
   --l1-beacon=http://l1-beacon:5052 \
   --l2-engine-rpc=http://l2-execution:8551 \
   --l2-provider-rpc=http://l2-execution:8545 \
-  --l2-chain-id=123456
+  --chain=123456
 ```
 
 #### Recovery Mode Sequencer
@@ -182,7 +182,7 @@ kona-node node \
   --l1-beacon=http://localhost:5052 \
   --l2-engine-rpc=http://localhost:8551 \
   --l2-provider-rpc=http://localhost:8545 \
-  --l2-chain-id=42161
+  --chain=42161
 ```
 
 ## Key Considerations

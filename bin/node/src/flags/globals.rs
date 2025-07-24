@@ -14,7 +14,8 @@ pub struct GlobalArgs {
     pub log_args: LogArgs,
     /// The L2 chain ID to use.
     #[arg(
-        long,
+        long = "chain",
+        alias = "l2-chain-id",
         short = 'c',
         global = true,
         default_value = "10",
