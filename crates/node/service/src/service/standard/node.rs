@@ -2,7 +2,7 @@
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, SequencerConfig, SupervisorActor, NoOpSupervisorExt,
+    RollupNodeService, RpcActor, SequencerConfig,
     actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
@@ -58,9 +58,6 @@ impl RollupNodeService for RollupNode {
     type DerivationPipeline = OnlinePipeline;
     type DerivationActor = DerivationActor<DerivationBuilder>;
 
-    type SupervisorExt = NoOpSupervisorExt;
-    type SupervisorActor = SupervisorActor<Self::SupervisorExt>;
-
     type RpcActor = RpcActor;
     type EngineActor = EngineActor;
     type NetworkActor = NetworkActor;
@@ -71,11 +68,6 @@ impl RollupNodeService for RollupNode {
 
     fn da_watcher_builder(&self) -> L1WatcherRpcState {
         L1WatcherRpcState { rollup: self.config.clone(), l1_provider: self.l1_provider.clone() }
-    }
-
-    async fn supervisor_ext(&self) -> Option<Self::SupervisorExt> {
-        // Always return None to disable supervisor functionality
-        None
     }
 
     fn engine_builder(&self) -> EngineBuilder {
