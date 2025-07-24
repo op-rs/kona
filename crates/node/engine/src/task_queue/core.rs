@@ -34,6 +34,8 @@ pub struct Engine {
     state: EngineState,
     /// A sender that can be used to notify the engine actor of state changes.
     state_sender: Sender<EngineState>,
+    /// A sender that can be used to notify the engine actor of task queue length changes.
+    task_queue_length: Sender<usize>,
     /// The task queue.
     tasks: BinaryHeap<EngineTask>,
 }
@@ -43,8 +45,12 @@ impl Engine {
     ///
     /// An initial [`EngineTask::ForkchoiceUpdate`] is added to the task queue to synchronize the
     /// engine with the forkchoice state of the [`EngineState`].
-    pub fn new(initial_state: EngineState, state_sender: Sender<EngineState>) -> Self {
-        Self { state: initial_state, state_sender, tasks: BinaryHeap::default() }
+    pub fn new(
+        initial_state: EngineState,
+        state_sender: Sender<EngineState>,
+        task_queue_length: Sender<usize>,
+    ) -> Self {
+        Self { state: initial_state, state_sender, task_queue_length, tasks: BinaryHeap::default() }
     }
 
     /// Returns a reference to the inner [`EngineState`].
@@ -53,13 +59,20 @@ impl Engine {
     }
 
     /// Returns a receiver that can be used to listen to engine state updates.
-    pub fn subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
+    pub fn state_subscribe(&self) -> tokio::sync::watch::Receiver<EngineState> {
         self.state_sender.subscribe()
     }
 
+    /// Returns a receiver that can be used to listen to engine queue length updates.
+    pub fn queue_length_subscribe(&self) -> tokio::sync::watch::Receiver<usize> {
+        self.task_queue_length.subscribe()
+    }
+
     /// Enqueues a new [`EngineTask`] for execution.
+    /// Updates the queue length and notifies listeners of the change.
     pub fn enqueue(&mut self, task: EngineTask) {
         self.tasks.push(task);
+        self.task_queue_length.send_replace(self.tasks.len());
     }
 
     /// Resets the engine by finding a plausible sync starting point via
@@ -148,6 +161,8 @@ impl Engine {
 
             // Pop the task from the queue now that it's been executed.
             self.tasks.pop();
+
+            self.task_queue_length.send_replace(self.tasks.len());
         }
 
         Ok(())

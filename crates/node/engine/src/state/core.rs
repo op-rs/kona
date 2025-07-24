@@ -3,6 +3,7 @@
 use crate::Metrics;
 use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
+use serde::{Deserialize, Serialize};
 
 /// The sync state of the engine.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -112,7 +113,7 @@ impl EngineSyncState {
 }
 
 /// Specifies how to update the sync state of the engine.
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EngineSyncStateUpdate {
     /// Most recent block found on the p2p network
     pub unsafe_head: Option<L2BlockInfo>,

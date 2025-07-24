@@ -29,6 +29,10 @@ pub enum EngineQueries {
     },
     /// Returns a subscription to the updates of the engine state.
     StateReceiver(Sender<tokio::sync::watch::Receiver<EngineState>>),
+    /// Dev API: Returns a subscription to the updates of the engine queue length.
+    QueueLengthReceiver(Sender<tokio::sync::watch::Receiver<usize>>),
+    /// Dev API: Returns the number of tasks in the engine queue.
+    TaskQueueLength(Sender<usize>),
 }
 
 /// An error that can occur when querying the engine.
@@ -56,6 +60,7 @@ impl EngineQueries {
     pub async fn handle(
         self,
         state_recv: &tokio::sync::watch::Receiver<EngineState>,
+        queue_length_recv: &tokio::sync::watch::Receiver<usize>,
         client: &Arc<EngineClient>,
         rollup_config: &Arc<RollupConfig>,
     ) -> Result<(), EngineQueriesError> {
@@ -112,6 +117,16 @@ impl EngineQueries {
             Self::StateReceiver(subscription) => subscription
                 .send(state_recv.clone())
                 .map_err(|_| EngineQueriesError::OutputChannelClosed),
+            Self::QueueLengthReceiver(subscription) => subscription
+                .send(queue_length_recv.clone())
+                .map_err(|_| EngineQueriesError::OutputChannelClosed),
+            Self::TaskQueueLength(sender) => {
+                let queue_length = *queue_length_recv.borrow();
+                if sender.send(queue_length).is_err() {
+                    warn!(target: "engine", "Failed to send task queue length response");
+                }
+                Ok(())
+            }
         }
     }
 }
