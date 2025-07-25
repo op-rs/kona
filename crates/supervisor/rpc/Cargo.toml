@@ -45,10 +45,10 @@ thiserror = { workspace = true, optional = true }
 serde = [
 	"alloy-eips/serde",
 	"alloy-primitives/serde",
+	"alloy-rpc-types-engine?/serde",
 	"kona-interop/serde",
 	"kona-protocol/serde",
 	"op-alloy-consensus/serde",
-	"alloy-rpc-types-engine?/serde"
 ]
 # The `jsonrpsee` feature enables the core RPC functionality.
 # When it's active, we also need the `serde` feature.
@@ -56,11 +56,16 @@ jsonrpsee = [ "dep:jsonrpsee", "serde" ]
 # Client feature builds upon the base jsonrpsee feature
 client = [ "jsonrpsee", "jsonrpsee/client" ]
 # Server feature for supervisor RPC server functionality
-server = [ 
-	"jsonrpsee", 
-	"dep:alloy-rpc-types-engine", 
+server = [
+	"dep:alloy-rpc-types-engine",
+	"dep:derive_more",
 	"dep:tokio",
-	"dep:derive_more"
+	"jsonrpsee",
 ]
 # reqwest client feature
-reqwest = [ "client", "dep:alloy-rpc-client", "dep:derive_more", "dep:thiserror" ]
+reqwest = [
+	"client",
+	"dep:alloy-rpc-client",
+	"dep:derive_more",
+	"dep:thiserror",
+]
