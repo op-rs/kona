@@ -10,8 +10,6 @@ pub use engine::{
     EngineActor, EngineBuilder, EngineContext, EngineError, EngineInboundData, L2Finalizer,
 };
 
-
-
 mod rpc;
 pub use rpc::{RpcActor, RpcActorError, RpcContext};
 
