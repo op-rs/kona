@@ -2,7 +2,8 @@ use super::{ChainProcessorError, ChainProcessorTask};
 use crate::{config::RollupConfig, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::{
-    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
+    DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+    LogStorageWriter, StorageRewinder,
 };
 use std::sync::Arc;
 use tokio::{
@@ -48,8 +49,10 @@ where
     P: ManagedNodeProvider + 'static,
     W: LogStorageWriter
         + LogStorageReader
+        + DerivationStorageReader
         + DerivationStorageWriter
         + HeadRefStorageWriter
+        + StorageRewinder
         + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].
@@ -224,11 +227,17 @@ mod tests {
             ) -> Result<(), StorageError>;
         }
 
-         impl LogStorageReader for Db {
+        impl LogStorageReader for Db {
             fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
             fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {
@@ -263,6 +272,11 @@ mod tests {
                 &self,
                 block: &BlockInfo,
             ) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl StorageRewinder for Db {
+            fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
         }
     );
 

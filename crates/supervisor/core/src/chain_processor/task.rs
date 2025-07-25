@@ -7,12 +7,14 @@ use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter, StorageError,
+    DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+    LogStorageWriter, StorageError, StorageRewinder,
 };
+use kona_supervisor_types::BlockSeal;
 use std::{fmt::Debug, sync::Arc};
-use tokio::sync::mpsc;
+use tokio::sync::{RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -32,6 +34,8 @@ pub struct ChainProcessorTask<P, W> {
 
     /// The channel for receiving node events.
     event_rx: mpsc::Receiver<ChainEvent>,
+
+    invalidated_block: RwLock<Option<DerivedRefPair>>,
 }
 
 impl<P, W> ChainProcessorTask<P, W>
@@ -40,7 +44,9 @@ where
     W: LogStorageWriter
         + LogStorageReader
         + DerivationStorageWriter
+        + DerivationStorageReader
         + HeadRefStorageWriter
+        + StorageRewinder
         + 'static,
 {
     /// Creates a new [`ChainProcessorTask`].
@@ -62,6 +68,7 @@ where
             event_rx,
             state_manager,
             log_indexer: Arc::from(log_indexer),
+            invalidated_block: RwLock::new(None),
         }
     }
 
@@ -197,8 +204,19 @@ where
                     );
                 });
             }
+            ChainEvent::InvalidateBlock { block } => {
+                let _ = self.handle_invalidate_block(block).await.inspect_err(|err| {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        block_number = block.number,
+                        %err,
+                        "Failed to invalidate block"
+                    );
+                });
+            }
             ChainEvent::BlockReplaced { replacement } => {
-                let _ = self.handle_block_replacement(replacement).inspect_err(|err| {
+                let _ = self.handle_block_replacement(replacement).await.inspect_err(|err| {
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
@@ -257,12 +275,121 @@ where
         }
     }
 
-    #[allow(clippy::missing_const_for_fn)]
-    fn handle_block_replacement(
+    async fn handle_block_replacement(
         &self,
-        _replacement: BlockReplacement,
+        replacement: BlockReplacement,
     ) -> Result<(), ChainProcessorError> {
         // Logic to handle block replacement
+        info!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            %replacement,
+            "Handling block replacement"
+        );
+
+        let mut guard = self.invalidated_block.write().await;
+        // check if invalidated block is same as replacement block
+        if let Some(invalidated_ref_pair) = *guard {
+            if invalidated_ref_pair.derived.hash == replacement.invalidated {
+                debug!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    "Invalidated block matches replacement block, skipping"
+                );
+
+                *guard = None;
+                // save the derived block
+                let derived_ref_pair = DerivedRefPair {
+                    source: invalidated_ref_pair.source,
+                    derived: replacement.replacement,
+                };
+
+                // todo: index logs if needed
+                // hardcoding logs for now
+                self.state_manager.store_block_logs(&replacement.replacement, Vec::new()).inspect_err(|err| {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to store logs for derived block on replacement"
+                    );
+                })?;
+                self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to save derived block after replacement"
+                    );
+                })?;
+                return Ok(());
+            }
+        } else {
+            warn!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                "No invalidated block found, but block replacement event received"
+            );
+        }
+
+        Ok(())
+    }
+
+    async fn handle_invalidate_block(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
+        info!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            invalidated_block = %block,
+            "Processing invalidate block"
+        );
+
+        let mut invalidated_block = self.invalidated_block.write().await;
+        if invalidated_block.is_some() {
+            debug!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                "Invalidated block already set, skipping"
+            );
+            return Ok(());
+        }
+
+        // todo: handle error if block is not found or conflict error
+        let source_block = self.state_manager.derived_to_source(block.id())?;
+
+        // rewind the storage to the block before the invalidated block
+        let to = block.id();
+        self.state_manager.rewind(&to)?;
+
+        // log latest derivation and log state for debugging
+        let latest_derivation_state = self.state_manager.latest_derivation_state()?;
+        info!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            latest_derivation_state = ?latest_derivation_state,
+            "Latest derivation state after rewinding storage"
+        );
+
+        let latest_log_state = self.state_manager.get_latest_block()?;
+        info!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            latest_log_state = ?latest_log_state,
+            "Latest log state after rewinding storage"
+        );
+
+        let block_seal = BlockSeal::new(block.hash, block.number, block.timestamp);
+        self.managed_node.invalidate_block(block_seal).await.inspect_err(|err| {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                %err,
+                "Failed to invalidate block"
+            );
+        })?;
+
+        *invalidated_block = Some(DerivedRefPair { source: source_block, derived: block });
         Ok(())
     }
 
@@ -292,6 +419,18 @@ where
             block_number = origin.number,
             "Processing derivation origin update"
         );
+
+        let invalidated_block = self.invalidated_block.read().await;
+        if invalidated_block.is_some() {
+            debug!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = origin.number,
+                "Invalidated block set, skipping derivation origin update"
+            );
+            return Ok(());
+        }
+
         match self.state_manager.save_source_block(origin) {
             Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder | StorageError::ConflictError) => {
@@ -326,6 +465,38 @@ where
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
         );
+
+        let invalidated_block = self.invalidated_block.read().await;
+        if invalidated_block.is_some() {
+            debug!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Invalidated block already set, skipping safe event processing"
+            );
+            return Ok(derived_ref_pair.derived);
+        }
+
+        let latest_derivation_state = self.state_manager.latest_derivation_state()?;
+        info!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            latest_derivation_state = ?latest_derivation_state,
+            "Latest derivation state in handle_safe_event"
+        );
+
+        // // for testing purpose
+        // // trigger handle_invalidate with block 15 at block 20
+        // if derived_ref_pair.derived.number == 20 {
+        //     info!(
+        //         target: "chain_processor",
+        //         chain_id = self.chain_id,
+        //         block_number = derived_ref_pair.derived.number,
+        //         "Triggering handle_invalidate for block 15 at block 20"
+        //     );
+        //     let block_15 = self.state_manager.get_block(15)?;
+        //     let _ = self.handle_invalidate_block(block_15).await;
+        // }
 
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
             match self.state_manager.save_derived_block(derived_ref_pair) {
@@ -385,6 +556,17 @@ where
             block_number = block.number,
             "Processing unsafe block"
         );
+
+        let invalidated_block = self.invalidated_block.read().await;
+        if invalidated_block.is_some() {
+            debug!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = block.number,
+                "Invalidated block already set, skipping unsafe event processing"
+            );
+            return Ok(block);
+        }
 
         if self.rollup_config.is_post_interop(block.timestamp) {
             self.log_indexer.clone().sync_logs(block);
@@ -546,6 +728,12 @@ mod tests {
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
 
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+        }
+
         impl DerivationStorageWriter for Db {
             fn initialise_derivation_storage(
                 &self,
@@ -578,6 +766,11 @@ mod tests {
                 &self,
                 block: &BlockInfo,
             ) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl StorageRewinder for Db {
+            fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
         }
     );
 

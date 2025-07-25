@@ -4,10 +4,13 @@ use crate::{
     safety_checker::{CrossSafetyChecker, traits::SafetyPromoter},
 };
 use alloy_primitives::ChainId;
-use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
-use std::{sync::Arc, time::Duration};
+use op_alloy_consensus::interop::SafetyLevel;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -16,7 +19,7 @@ use tracing::{error, info, warn};
 ///
 /// It uses [`CrossChainSafetyProvider`] to fetch candidate blocks and the [`CrossSafetyChecker`]
 /// to validate cross-chain message dependencies.
-#[derive(Debug, Constructor)]
+#[derive(Debug)]
 pub struct CrossSafetyCheckerJob<P, L> {
     chain_id: ChainId,
     provider: Arc<P>,
@@ -24,6 +27,8 @@ pub struct CrossSafetyCheckerJob<P, L> {
     interval: Duration,
     promoter: L,
     event_tx: mpsc::Sender<ChainEvent>,
+
+    test_run: Mutex<bool>,
 }
 
 impl<P, L> CrossSafetyCheckerJob<P, L>
@@ -31,6 +36,26 @@ where
     P: CrossChainSafetyProvider + Send + Sync + 'static,
     L: SafetyPromoter,
 {
+    /// Creates a new instance of [`CrossSafetyCheckerJob`].
+    pub fn new(
+        chain_id: ChainId,
+        provider: Arc<P>,
+        cancel_token: CancellationToken,
+        interval: Duration,
+        promoter: L,
+        event_tx: mpsc::Sender<ChainEvent>,
+    ) -> Self {
+        Self {
+            chain_id,
+            provider,
+            cancel_token,
+            interval,
+            promoter,
+            event_tx,
+            test_run: Mutex::new(true),
+        }
+    }
+
     /// Runs the job loop until cancelled, promoting blocks by Promoter
     ///
     /// On each iteration:
@@ -104,6 +129,22 @@ where
         )?;
 
         // TODO: Add more checks in future
+
+        // test the invalidate block
+        let mut test_run = self.test_run.lock().unwrap();
+        if *test_run && candidate.number == 20 && self.promoter.target_level() == SafetyLevel::CrossSafe {
+            let event = ChainEvent::InvalidateBlock { block: candidate.clone() };
+            if let Err(err) = self.event_tx.try_send(event) {
+                error!(
+                    target: "safety_checker",
+                    target_level = %self.promoter.target_level(),
+                    %err,
+                    "Failed to broadcast cross head update event",
+                );
+            }
+            *test_run = false;
+            return Ok(candidate);
+        }
 
         let event =
             self.promoter.update_and_emit_event(&*self.provider, self.chain_id, &candidate)?;
