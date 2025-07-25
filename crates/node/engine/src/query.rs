@@ -1,3 +1,9 @@
+//! Engine query interface for external communication.
+//!
+//! Provides a channel-based API for querying engine state and configuration
+//! from external actors. Uses oneshot channels for responses to maintain
+//! clean async communication patterns.
+
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
@@ -9,29 +15,34 @@ use tokio::sync::oneshot::Sender;
 
 use crate::{EngineClient, EngineClientError, EngineState};
 
-/// The type of data that can be requested from the engine.
+/// Channel sender for submitting [`EngineQueries`] to the engine.
 pub type EngineQuerySender = tokio::sync::mpsc::Sender<EngineQueries>;
 
-/// Returns the full engine state.
+/// Query types supported by the engine for external communication.
+///
+/// Each variant includes a oneshot sender for the response, enabling
+/// async request-response patterns. The engine processes these queries
+/// and sends responses back through the provided channels.
 #[derive(Debug)]
 pub enum EngineQueries {
-    /// Returns the rollup config.
+    /// Request the current rollup configuration.
     Config(Sender<RollupConfig>),
-    /// Returns current L2 engine state information.
+    /// Request the current [`EngineState`] snapshot.
     State(Sender<EngineState>),
-    /// Returns the L2 output at the specified block with a tuple of the block info and associated
-    /// engine state.
+    /// Request the L2 output root for a specific block.
+    ///
+    /// Returns a tuple of block info, output root, and engine state at the requested block.
     OutputAtBlock {
-        /// The block number or tag of the block to retrieve the output for.
+        /// The block number or tag to retrieve the output for.
         block: BlockNumberOrTag,
-        /// A channel to send back the output and engine state.
+        /// Response channel for (block_info, output_root, engine_state).
         sender: Sender<(L2BlockInfo, OutputRoot, EngineState)>,
     },
-    /// Returns a subscription to the updates of the engine state.
+    /// Subscribe to engine state updates via a watch channel receiver.
     StateReceiver(Sender<tokio::sync::watch::Receiver<EngineState>>),
-    /// Dev API: Returns a subscription to the updates of the engine queue length.
+    /// Development API: Subscribe to task queue length updates.
     QueueLengthReceiver(Sender<tokio::sync::watch::Receiver<usize>>),
-    /// Dev API: Returns the number of tasks in the engine queue.
+    /// Development API: Get the current number of pending tasks in the queue.
     TaskQueueLength(Sender<usize>),
 }
 

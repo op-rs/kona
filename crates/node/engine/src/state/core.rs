@@ -5,20 +5,34 @@ use alloy_rpc_types_engine::ForkchoiceState;
 use kona_protocol::L2BlockInfo;
 use serde::{Deserialize, Serialize};
 
-/// The sync state of the engine.
+/// The synchronization state of the execution layer across different safety levels.
+///
+/// Tracks block progression through various stages of verification and finalization,
+/// from initial unsafe blocks received via P2P to fully finalized blocks derived from
+/// finalized L1 data. Each level represents increasing confidence in the block's validity.
+///
+/// # Safety Levels
+///
+/// The state tracks blocks at different safety levels, listed from least to most safe:
+///
+/// 1. **Unsafe** - Most recent blocks from P2P network (unverified)
+/// 2. **Cross-unsafe** - Unsafe blocks with cross-layer verification  
+/// 3. **Local-safe** - Derived from L1 data, completed span-batch
+/// 4. **Safe** - Cross-verified with safe L1 dependencies
+/// 5. **Finalized** - Derived from finalized L1 data only
+///
+/// See the [OP Stack specifications](https://specs.optimism.io) for detailed safety definitions.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EngineSyncState {
-    /// Most recent block found on the p2p network
+    /// Most recent block found on the P2P network (lowest safety level).
     unsafe_head: L2BlockInfo,
-    /// Cross-verified unsafe head, always equal to the unsafe head pre-interop
+    /// Cross-verified unsafe head (equal to unsafe_head pre-interop).
     cross_unsafe_head: L2BlockInfo,
-    /// Derived from L1, and known to be a completed span-batch,
-    /// but not cross-verified yet.
+    /// Derived from L1 data as a completed span-batch, but not yet cross-verified.
     local_safe_head: L2BlockInfo,
-    /// Derived from L1 and cross-verified to have cross-safe dependencies.
+    /// Derived from L1 data and cross-verified to have safe L1 dependencies.
     safe_head: L2BlockInfo,
-    /// Derived from finalized L1 data,
-    /// and cross-verified to only have finalized dependencies.
+    /// Derived from finalized L1 data with only finalized dependencies (highest safety level).
     finalized_head: L2BlockInfo,
 }
 

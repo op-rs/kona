@@ -7,6 +7,68 @@
 
 An extensible implementation of the [OP Stack][op-stack] rollup node engine client.
 
+## Overview
+
+The `kona-engine` crate provides a task-based engine client for interacting with Ethereum execution layers. It implements the Engine API specification and manages the execution layer state through a priority-driven task queue system.
+
+## Key Components
+
+- **[`Engine`](crate::Engine)** - Main task queue processor that executes engine operations atomically
+- **[`EngineClient`](crate::EngineClient)** - HTTP client for Engine API communication with JWT authentication
+- **[`EngineState`](crate::EngineState)** - Tracks the current state of the execution layer
+- **Task Types** - Specialized tasks for different engine operations:
+  - [`InsertTask`](crate::InsertTask) - Insert new payloads
+  - [`ForkchoiceTask`](crate::ForkchoiceTask) - Update fork choice state
+  - [`BuildTask`](crate::BuildTask) - Build new payloads
+  - [`ConsolidateTask`](crate::ConsolidateTask) - Consolidate unsafe payloads
+  - [`FinalizeTask`](crate::FinalizeTask) - Finalize safe payloads
+
+## Usage
+
+```rust,no_run
+use kona_engine::{Engine, EngineClient, EngineState};
+use kona_genesis::RollupConfig;
+use alloy_rpc_types_engine::JwtSecret;
+use url::Url;
+use std::sync::Arc;
+
+# async fn example() -> Result<(), Box<dyn std::error::Error>> {
+// Create an engine client
+let engine_url = Url::parse("http://localhost:8551")?;
+let l2_url = Url::parse("http://localhost:9545")?;
+let l1_url = Url::parse("http://localhost:8545")?;
+let config = Arc::new(RollupConfig::default());
+let jwt = JwtSecret::from_hex("0xabcd")?;
+
+let client = EngineClient::new_http(engine_url, l2_url, l1_url, config, jwt);
+
+// Initialize engine state
+let state = EngineState::default();
+
+// Create task queue watchers
+let (state_sender, _) = tokio::sync::watch::channel(state);
+let (queue_sender, _) = tokio::sync::watch::channel(0);
+
+// Create the engine
+let engine = Engine::new(state, state_sender, queue_sender);
+# Ok(())
+# }
+```
+
+## Engine API Compatibility
+
+The crate supports multiple Engine API versions with automatic version selection based on the rollup configuration:
+
+- **Engine Forkchoice Updated**: V2, V3
+- **Engine New Payload**: V2, V3, V4  
+- **Engine Get Payload**: V2, V3, V4
+
+Version selection follows Optimism hardfork activation times (Bedrock, Canyon, Delta, Ecotone, Isthmus).
+
+## Features
+
+- `metrics` - Enable Prometheus metrics collection (optional)
+
 <!-- Hyper Links -->
 
 [op-stack]: https://specs.optimism.io
