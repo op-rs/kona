@@ -17,7 +17,7 @@ use url::Url;
 
 use kona_genesis::RollupConfig;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::{RpcBuilder, SupervisorRpcConfig};
+use kona_rpc::RpcBuilder;
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
@@ -38,8 +38,6 @@ pub struct RollupNodeBuilder {
     p2p_config: Option<NetworkConfig>,
     /// An RPC Configuration.
     rpc_config: Option<RpcBuilder>,
-    /// An RPC Configuration for the supervisor rpc.
-    supervisor_rpc_config: SupervisorRpcConfig,
     /// The [`SequencerConfig`].
     sequencer_config: Option<SequencerConfig>,
     /// The mode to run the node in.
@@ -62,11 +60,6 @@ impl RollupNodeBuilder {
     /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
     pub fn with_mode(self, mode: NodeMode) -> Self {
         Self { mode, ..self }
-    }
-
-    /// Appends the [`SupervisorRpcConfig`] to the builder.
-    pub fn with_supervisor_rpc_config(self, config: SupervisorRpcConfig) -> Self {
-        Self { supervisor_rpc_config: config, ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.
@@ -111,9 +104,6 @@ impl RollupNodeBuilder {
 
     /// Assembles the [`RollupNode`] service.
     ///
-    /// By default, the supervisor RPC is disabled.
-    /// To enable it, use the [`Self::with_supervisor_rpc_config`] method.
-    ///
     /// ## Panics
     ///
     /// Panics if:
@@ -155,14 +145,9 @@ impl RollupNodeBuilder {
         let p2p_config = self.p2p_config.expect("P2P config not set");
         let sequencer_config = self.sequencer_config.unwrap_or_default();
 
-        let interop_mode = match self.supervisor_rpc_config.is_disabled() {
-            true => self.interop_mode,
-            false => InteropMode::Indexed,
-        };
-
         RollupNode {
             config: rollup_config,
-            interop_mode,
+            interop_mode: self.interop_mode,
             l1_provider,
             l1_beacon,
             l2_provider,
@@ -170,8 +155,6 @@ impl RollupNodeBuilder {
             rpc_builder: self.rpc_config,
             p2p_config,
             sequencer_config,
-            // By default, the supervisor rpc config is disabled.
-            supervisor_rpc: self.supervisor_rpc_config,
         }
     }
 }
