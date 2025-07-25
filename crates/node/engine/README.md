@@ -18,7 +18,6 @@ The `kona-engine` crate provides a task-based engine client for interacting with
 - **[`EngineState`](crate::EngineState)** - Tracks the current state of the execution layer
 - **Task Types** - Specialized tasks for different engine operations:
   - [`InsertTask`](crate::InsertTask) - Insert new payloads
-  - [`ForkchoiceTask`](crate::ForkchoiceTask) - Update fork choice state
   - [`BuildTask`](crate::BuildTask) - Build new payloads
   - [`ConsolidateTask`](crate::ConsolidateTask) - Consolidate unsafe payloads
   - [`FinalizeTask`](crate::FinalizeTask) - Finalize safe payloads
@@ -60,7 +59,7 @@ let engine = Engine::new(state, state_sender, queue_sender);
 The crate supports multiple Engine API versions with automatic version selection based on the rollup configuration:
 
 - **Engine Forkchoice Updated**: V2, V3
-- **Engine New Payload**: V2, V3, V4  
+- **Engine New Payload**: V2, V3, V4
 - **Engine Get Payload**: V2, V3, V4
 
 Version selection follows Optimism hardfork activation times (Bedrock, Canyon, Delta, Ecotone, Isthmus).
