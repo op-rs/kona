@@ -3,7 +3,8 @@
 use super::EngineTaskExt;
 use crate::{
     EngineClient, EngineState, EngineSyncStateUpdate, EngineTask, EngineTaskError,
-    EngineTaskErrorSeverity, ForkchoiceTask, Metrics, task_queue::EngineTaskErrors,
+    EngineTaskErrorSeverity, Metrics, SynchronizeTask, SynchronizeTaskError,
+    task_queue::EngineTaskErrors,
 };
 use alloy_provider::Provider;
 use alloy_rpc_types_eth::Transaction;
@@ -42,9 +43,6 @@ pub struct Engine {
 
 impl Engine {
     /// Creates a new [`Engine`] with an empty task queue and the passed initial [`EngineState`].
-    ///
-    /// An initial [`EngineTask::ForkchoiceUpdate`] is added to the task queue to synchronize the
-    /// engine with the forkchoice state of the [`EngineState`].
     pub fn new(
         initial_state: EngineState,
         state_sender: Sender<EngineState>,
@@ -89,7 +87,8 @@ impl Engine {
         let start =
             find_starting_forkchoice(&config, client.l1_provider(), client.l2_provider()).await?;
 
-        if let Err(err) = ForkchoiceTask::new(
+        // Retry to synchronize the engine until we succeeds or a critical error occurs.
+        while let Err(err) = SynchronizeTask::new(
             client.clone(),
             config.clone(),
             EngineSyncStateUpdate {
@@ -99,16 +98,19 @@ impl Engine {
                 safe_head: Some(start.safe),
                 finalized_head: Some(start.finalized),
             },
-            None,
         )
         .execute(&mut self.state)
         .await
         {
-            // Ignore temporary errors.
-            if matches!(err.severity(), EngineTaskErrorSeverity::Temporary) {
-                debug!(target: "engine", "Forkchoice update failed temporarily during reset: {}", err);
-            } else {
-                return Err(EngineTaskErrors::Forkchoice(err).into());
+            match err.severity() {
+                EngineTaskErrorSeverity::Temporary |
+                EngineTaskErrorSeverity::Flush |
+                EngineTaskErrorSeverity::Reset => {
+                    debug!(target: "engine", ?err, "Forkchoice update failed during reset. Trying again...");
+                }
+                EngineTaskErrorSeverity::Critical => {
+                    return Err(EngineResetError::Forkchoice(err));
+                }
             }
         }
 
@@ -172,9 +174,9 @@ impl Engine {
 /// An error occurred while attempting to reset the [`Engine`].
 #[derive(Debug, Error)]
 pub enum EngineResetError {
-    /// An error that originated from within an engine task.
+    /// An error that occurred while updating the forkchoice state.
     #[error(transparent)]
-    Task(#[from] EngineTaskErrors),
+    Forkchoice(#[from] SynchronizeTaskError),
     /// An error occurred while traversing the L1 for the sync starting point.
     #[error(transparent)]
     SyncStart(#[from] SyncStartError),

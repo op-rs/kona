@@ -2,10 +2,9 @@
 //!
 //! [`Engine`]: crate::Engine
 
-use super::{BuildTask, ConsolidateTask, FinalizeTask, ForkchoiceTask, InsertTask};
+use super::{BuildTask, ConsolidateTask, FinalizeTask, InsertTask};
 use crate::{
-    BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, ForkchoiceTaskError,
-    InsertTaskError,
+    BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, InsertTaskError,
 };
 use async_trait::async_trait;
 use derive_more::Display;
@@ -56,9 +55,6 @@ pub trait EngineTaskExt {
 /// An error that may occur during an [`EngineTask`]'s execution.
 #[derive(Error, Debug)]
 pub enum EngineTaskErrors {
-    /// An error that occurred while updating the forkchoice state.
-    #[error(transparent)]
-    Forkchoice(#[from] ForkchoiceTaskError),
     /// An error that occurred while inserting a block into the engine.
     #[error(transparent)]
     Insert(#[from] InsertTaskError),
@@ -76,7 +72,6 @@ pub enum EngineTaskErrors {
 impl EngineTaskError for EngineTaskErrors {
     fn severity(&self) -> EngineTaskErrorSeverity {
         match self {
-            Self::Forkchoice(inner) => inner.severity(),
             Self::Insert(inner) => inner.severity(),
             Self::Build(inner) => inner.severity(),
             Self::Consolidate(inner) => inner.severity(),
@@ -90,9 +85,6 @@ impl EngineTaskError for EngineTaskErrors {
 /// [`Engine`]: crate::Engine
 #[derive(Debug, Clone)]
 pub enum EngineTask {
-    /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
-    /// and no payload attributes.
-    ForkchoiceUpdate(ForkchoiceTask),
     /// Inserts a payload into the execution engine.
     Insert(InsertTask),
     /// Builds a new block with the given attributes, and inserts it into the execution engine.
@@ -108,7 +100,6 @@ impl EngineTask {
     /// Executes the task without consuming it.
     async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskErrors> {
         match self.clone() {
-            Self::ForkchoiceUpdate(task) => task.execute(state).await.map(|_| ())?,
             Self::Insert(task) => task.execute(state).await?,
             Self::Build(task) => task.execute(state).await?,
             Self::Consolidate(task) => task.execute(state).await?,
@@ -123,7 +114,6 @@ impl EngineTask {
             Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
             Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
             Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
-            Self::ForkchoiceUpdate(_) => crate::Metrics::FORKCHOICE_TASK_LABEL,
             Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
         }
     }
@@ -133,8 +123,7 @@ impl PartialEq for EngineTask {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
-            (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) |
-                (Self::Insert(_), Self::Insert(_)) |
+            (Self::Insert(_), Self::Insert(_)) |
                 (Self::Build(_), Self::Build(_)) |
                 (Self::Consolidate(_), Self::Consolidate(_)) |
                 (Self::Finalize(_), Self::Finalize(_))
@@ -168,12 +157,7 @@ impl Ord for EngineTask {
             (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,
             (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::Build(_), Self::Build(_)) => Ordering::Equal,
-            (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) => Ordering::Equal,
             (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
-
-            // Individual ForkchoiceUpdate tasks are the highest priority
-            (Self::ForkchoiceUpdate(_), _) => Ordering::Greater,
-            (_, Self::ForkchoiceUpdate(_)) => Ordering::Less,
 
             // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
             (Self::Build(_), _) => Ordering::Greater,

@@ -1,7 +1,7 @@
 //! Contains error types for the [crate::FinalizeTask].
 
 use crate::{
-    EngineTaskError, ForkchoiceTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
+    EngineTaskError, SynchronizeTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
 };
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_protocol::FromBlockError;
@@ -26,7 +26,7 @@ pub enum FinalizeTaskError {
     TransportError(#[from] RpcError<TransportErrorKind>),
     /// The forkchoice update call to finalize the block failed.
     #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
+    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
 }
 
 impl EngineTaskError for FinalizeTaskError {

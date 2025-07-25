@@ -1,12 +1,13 @@
 //! A task for building a new block and importing it.
 use super::BuildTaskError;
 use crate::{
-    EngineClient, EngineGetPayloadVersion, EngineState, EngineTaskExt, ForkchoiceTask,
-    ForkchoiceTaskError, InsertTask,
+    EngineClient, EngineForkchoiceVersion, EngineGetPayloadVersion, EngineState, EngineTaskExt,
+    InsertTask,
     InsertTaskError::{self},
     state::EngineSyncStateUpdate,
+    task_queue::tasks::build::error::EngineBuildError,
 };
-use alloy_rpc_types_engine::{ExecutionPayload, PayloadId};
+use alloy_rpc_types_engine::{ExecutionPayload, PayloadId, PayloadStatusEnum};
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OpAttributesWithParent};
@@ -41,6 +42,112 @@ impl BuildTask {
         payload_tx: Option<mpsc::Sender<OpExecutionPayloadEnvelope>>,
     ) -> Self {
         Self { engine, cfg, attributes, is_attributes_derived, payload_tx }
+    }
+
+    /// Starts the block building process by sending an initial `engine_forkchoiceUpdate` call with
+    /// the payload attributes to build.
+    ///
+    /// ## Observed [PayloadStatusEnum] Variants
+    /// The `engine_forkchoiceUpdate` payload statuses that this function observes are below. Any
+    /// other [PayloadStatusEnum] variant is considered a failure.
+    ///
+    /// ### Success (`VALID`)
+    /// If the build is successful, the [PayloadId] is returned for sealing and the external
+    /// actor is notified of the successful forkchoice update.
+    ///
+    /// ### Failure (`INVALID`)
+    /// If the forkchoice update fails, the external actor is notified of the failure.
+    ///
+    /// ### Syncing (`SYNCING`)
+    /// If the EL is syncing, the payload attributes are buffered and the function returns early.
+    /// This is a temporary state, and the function should be called again later.
+    async fn start_build(
+        &self,
+        state: &EngineState,
+        engine_client: &EngineClient,
+        attributes_envelope: OpAttributesWithParent,
+    ) -> Result<PayloadId, BuildTaskError> {
+        debug!(
+            target: "engine_builder",
+            txs = attributes_envelope.inner.transactions.as_ref().map_or(0, |txs| txs.len()),
+            "Starting new build job"
+        );
+
+        // Sanity check if the head is behind the finalized head. If it is, this is a critical
+        // error.
+        if state.sync_state.unsafe_head().block_info.number <
+            state.sync_state.finalized_head().block_info.number
+        {
+            return Err(BuildTaskError::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(
+                state.sync_state.unsafe_head().block_info.number,
+                state.sync_state.finalized_head().block_info.number,
+            )));
+        }
+
+        // When inserting a payload, we advertise the parent's unsafe head as the current unsafe
+        // head to build on top of.
+        let new_forkchoice = state
+            .sync_state
+            .apply_update(EngineSyncStateUpdate {
+                unsafe_head: Some(attributes_envelope.parent),
+                ..Default::default()
+            })
+            .create_forkchoice_state();
+
+        let forkchoice_version = EngineForkchoiceVersion::from_cfg(
+            &self.cfg,
+            attributes_envelope.inner.payload_attributes.timestamp,
+        );
+        let update = match forkchoice_version {
+            EngineForkchoiceVersion::V3 => {
+                engine_client
+                    .fork_choice_updated_v3(new_forkchoice, Some(attributes_envelope.inner))
+                    .await
+            }
+            EngineForkchoiceVersion::V2 => {
+                engine_client
+                    .fork_choice_updated_v2(new_forkchoice, Some(attributes_envelope.inner))
+                    .await
+            }
+        }
+        .map_err(|e| {
+            error!(target: "engine_builder", "Forkchoice update failed: {}", e);
+            BuildTaskError::EngineBuildError(EngineBuildError::AttributesInsertionFailed(e))
+        })?;
+
+        match update.payload_status.status {
+            PayloadStatusEnum::Valid => {
+                debug!(
+                    target: "engine_builder",
+                    unsafe_hash = new_forkchoice.head_block_hash.to_string(),
+                    safe_hash = new_forkchoice.safe_block_hash.to_string(),
+                    finalized_hash = new_forkchoice.finalized_block_hash.to_string(),
+                    "Forkchoice update with attributes successful"
+                );
+            }
+            PayloadStatusEnum::Invalid { validation_error } => {
+                error!(target: "engine_builder", "Forkchoice update failed: {}", validation_error);
+                return Err(BuildTaskError::EngineBuildError(EngineBuildError::InvalidPayload(
+                    validation_error,
+                )));
+            }
+            PayloadStatusEnum::Syncing => {
+                warn!(target: "engine_builder", "Forkchoice update failed temporarily: EL is syncing");
+                return Err(BuildTaskError::EngineBuildError(EngineBuildError::EngineSyncing));
+            }
+            s => {
+                // Other codes are never returned by `engine_forkchoiceUpdate`
+                return Err(BuildTaskError::EngineBuildError(
+                    EngineBuildError::UnexpectedPayloadStatus(s),
+                ));
+            }
+        }
+
+        // Fetch the payload ID from the FCU. If no payload ID was returned, something went wrong -
+        // the block building job on the EL should have been initiated.
+        update
+            .payload_id
+            .ok_or(BuildTaskError::EngineBuildError(EngineBuildError::MissingPayloadId))
     }
 
     /// Fetches the execution payload from the EL.
@@ -129,18 +236,8 @@ impl EngineTaskExt for BuildTask {
         // Start the build by sending an FCU call with the current forkchoice and the input
         // payload attributes.
         let fcu_start_time = Instant::now();
-        let payload_id = ForkchoiceTask::new(
-            self.engine.clone(),
-            self.cfg.clone(),
-            EngineSyncStateUpdate {
-                unsafe_head: Some(self.attributes.parent),
-                ..Default::default()
-            },
-            Some(self.attributes.clone()),
-        )
-        .execute(state)
-        .await?
-        .ok_or(BuildTaskError::MissingPayloadId)?;
+        let payload_id = self.start_build(state, &self.engine, self.attributes.clone()).await?;
+
         let fcu_duration = fcu_start_time.elapsed();
 
         // Fetch the payload just inserted from the EL and import it into the engine.
@@ -166,18 +263,17 @@ impl EngineTaskExt for BuildTask {
         .execute(state)
         .await
         {
-            Err(InsertTaskError::ForkchoiceUpdateFailed(
-                ForkchoiceTaskError::InvalidPayloadStatus(e),
-            )) if self.attributes.is_deposits_only() => {
+            Err(InsertTaskError::UnexpectedPayloadStatus(e))
+                if self.attributes.is_deposits_only() =>
+            {
                 error!(target: "engine_builder", error = ?e, "Critical: Deposit-only payload import failed");
                 return Err(BuildTaskError::DepositOnlyPayloadFailed)
             }
             // HOLOCENE: Re-attempt payload import with deposits only
-            Err(InsertTaskError::ForkchoiceUpdateFailed(
-                ForkchoiceTaskError::InvalidPayloadStatus(e),
-            )) if self
-                .cfg
-                .is_holocene_active(self.attributes.inner().payload_attributes.timestamp) =>
+            Err(InsertTaskError::UnexpectedPayloadStatus(e))
+                if self
+                    .cfg
+                    .is_holocene_active(self.attributes.inner().payload_attributes.timestamp) =>
             {
                 warn!(target: "engine_builder", error = ?e, "Re-attempting payload import with deposits only.");
                 // HOLOCENE: Re-attempt payload import with deposits only

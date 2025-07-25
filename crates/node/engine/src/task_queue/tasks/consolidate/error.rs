@@ -1,7 +1,7 @@
 //! Contains error types for the [`crate::ConsolidateTask`].
 
 use crate::{
-    BuildTaskError, EngineTaskError, ForkchoiceTaskError,
+    BuildTaskError, EngineTaskError, SynchronizeTaskError,
     task_queue::tasks::task::EngineTaskErrorSeverity,
 };
 use thiserror::Error;
@@ -20,7 +20,7 @@ pub enum ConsolidateTaskError {
     BuildTaskFailed(#[from] BuildTaskError),
     /// The consolidation forkchoice update call to the engine api failed.
     #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
+    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
 }
 
 impl EngineTaskError for ConsolidateTaskError {

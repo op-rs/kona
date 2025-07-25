@@ -65,12 +65,12 @@ The engine uses a priority-based task queue where tasks are ordered according to
 
 ### Task Types
 
-#### ForkchoiceTask
+#### SynchronizeTask
 
 Updates the execution layer's forkchoice state:
 
 ```rust
-pub struct ForkchoiceTask {
+pub struct SynchronizeTask {
     pub client: Arc<EngineClient>,
     pub rollup: Arc<RollupConfig>,
     pub envelope: Option<OpAttributesWithParent>,
@@ -226,7 +226,7 @@ let engine = Engine::new(state, state_sender);
 
 ```rust
 // Add a forkchoice update task
-let task = EngineTask::ForkchoiceUpdate(ForkchoiceTask::new(
+let task = EngineTask::ForkchoiceUpdate(SynchronizeTask::new(
     client.clone(),
     rollup_config.clone(),
     state_update,
