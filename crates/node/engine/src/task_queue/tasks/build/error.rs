@@ -1,7 +1,7 @@
-//! Contains error types for the [crate::ForkchoiceTask].
+//! Contains error types for the [crate::SynchronizeTask].
 
 use crate::{
-    EngineTaskError, ForkchoiceTaskError, InsertTaskError,
+    EngineTaskError, InsertTaskError, SynchronizeTaskError,
     task_queue::tasks::task::EngineTaskErrorSeverity,
 };
 use alloy_rpc_types_engine::PayloadStatusEnum;
@@ -11,33 +11,44 @@ use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
-/// An error that occurs when running the [crate::ForkchoiceTask].
+/// An error that occurs when building a payload in the engine.
+#[derive(Debug, Error)]
+pub enum EngineBuildError {
+    /// The finalized head is ahead of the unsafe head.
+    #[error("Finalized head is ahead of unsafe head")]
+    FinalizedAheadOfUnsafe(u64, u64),
+    /// The forkchoice update call to the engine api failed.
+    #[error("Failed to build payload attributes in the engine. Forkchoice RPC error: {0}")]
+    AttributesInsertionFailed(#[from] RpcError<TransportErrorKind>),
+    /// The inserted payload is invalid.
+    #[error("The inserted payload is invalid: {0}")]
+    InvalidPayload(String),
+    /// The inserted payload status is unexpected.
+    #[error("The inserted payload status is unexpected: {0}")]
+    UnexpectedPayloadStatus(PayloadStatusEnum),
+    /// The payload ID is missing.
+    #[error("The inserted payload ID is missing")]
+    MissingPayloadId,
+    /// The engine is syncing.
+    #[error("The engine is syncing")]
+    EngineSyncing,
+}
+
+/// An error that occurs when running the [crate::SynchronizeTask].
 #[derive(Debug, Error)]
 pub enum BuildTaskError {
-    /// The forkchoice update is not needed.
-    #[error("No forkchoice update needed")]
-    NoForkchoiceUpdateNeeded,
-    /// The engine is syncing.
-    #[error("Attempting to update forkchoice state while EL syncing")]
-    EngineSyncing,
-    /// Missing payload ID.
-    #[error("Missing payload ID")]
-    MissingPayloadId,
+    /// An error occurred when building the payload attributes in the engine.
+    #[error("An error occurred when building the payload attributes to the engine.")]
+    EngineBuildError(EngineBuildError),
     /// The initial forkchoice update call to the engine api failed.
     #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
+    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
     /// Impossible to insert the payload into the engine.
     #[error(transparent)]
     PayloadInsertionFailed(#[from] InsertTaskError),
-    /// Unexpected payload status
-    #[error("Unexpected payload status: {0}")]
-    UnexpectedPayloadStatus(PayloadStatusEnum),
     /// The get payload call to the engine api failed.
     #[error(transparent)]
     GetPayloadFailed(RpcError<TransportErrorKind>),
-    /// The new payload call to the engine api failed.
-    #[error(transparent)]
-    NewPayloadFailed(RpcError<TransportErrorKind>),
     /// A deposit-only payload failed to import.
     #[error("Deposit-only payload failed to import")]
     DepositOnlyPayloadFailed,
@@ -64,13 +75,26 @@ impl EngineTaskError for BuildTaskError {
         match self {
             Self::ForkchoiceUpdateFailed(inner) => inner.severity(),
             Self::PayloadInsertionFailed(inner) => inner.severity(),
-            Self::NoForkchoiceUpdateNeeded => EngineTaskErrorSeverity::Temporary,
-            Self::EngineSyncing => EngineTaskErrorSeverity::Temporary,
+            Self::EngineBuildError(EngineBuildError::FinalizedAheadOfUnsafe(_, _)) => {
+                EngineTaskErrorSeverity::Critical
+            }
+            Self::EngineBuildError(EngineBuildError::AttributesInsertionFailed(_)) => {
+                EngineTaskErrorSeverity::Temporary
+            }
+            Self::EngineBuildError(EngineBuildError::InvalidPayload(_)) => {
+                EngineTaskErrorSeverity::Temporary
+            }
+            Self::EngineBuildError(EngineBuildError::UnexpectedPayloadStatus(_)) => {
+                EngineTaskErrorSeverity::Temporary
+            }
+            Self::EngineBuildError(EngineBuildError::MissingPayloadId) => {
+                EngineTaskErrorSeverity::Temporary
+            }
+            Self::EngineBuildError(EngineBuildError::EngineSyncing) => {
+                EngineTaskErrorSeverity::Temporary
+            }
             Self::GetPayloadFailed(_) => EngineTaskErrorSeverity::Temporary,
-            Self::NewPayloadFailed(_) => EngineTaskErrorSeverity::Temporary,
             Self::HoloceneInvalidFlush => EngineTaskErrorSeverity::Flush,
-            Self::MissingPayloadId => EngineTaskErrorSeverity::Critical,
-            Self::UnexpectedPayloadStatus(_) => EngineTaskErrorSeverity::Critical,
             Self::DepositOnlyPayloadReattemptFailed => EngineTaskErrorSeverity::Critical,
             Self::DepositOnlyPayloadFailed => EngineTaskErrorSeverity::Critical,
             Self::FromBlock(_) => EngineTaskErrorSeverity::Critical,

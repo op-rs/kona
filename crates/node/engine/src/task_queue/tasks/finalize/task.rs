@@ -1,7 +1,7 @@
 //! A task for finalizing an L2 block.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, ForkchoiceTask,
+    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, SynchronizeTask,
     state::EngineSyncStateUpdate,
 };
 use alloy_provider::Provider;
@@ -23,7 +23,7 @@ pub struct FinalizeTask {
 }
 
 impl FinalizeTask {
-    /// Creates a new [`ForkchoiceTask`].
+    /// Creates a new [`SynchronizeTask`].
     pub const fn new(client: Arc<EngineClient>, cfg: Arc<RollupConfig>, block_number: u64) -> Self {
         Self { client, cfg, block_number }
     }
@@ -57,11 +57,10 @@ impl EngineTaskExt for FinalizeTask {
 
         // Dispatch a forkchoice update.
         let fcu_start = Instant::now();
-        ForkchoiceTask::new(
+        SynchronizeTask::new(
             self.client.clone(),
             self.cfg.clone(),
             EngineSyncStateUpdate { finalized_head: Some(block_info), ..Default::default() },
-            None,
         )
         .execute(state)
         .await?;
