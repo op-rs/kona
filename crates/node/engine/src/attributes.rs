@@ -21,10 +21,10 @@ use op_alloy_rpc_types::Transaction;
 /// use kona_engine::AttributesMatch;
 /// use kona_genesis::RollupConfig;
 /// use kona_protocol::OpAttributesWithParent;
-/// 
+///
 /// let config = RollupConfig::default();
 /// let match_result = AttributesMatch::check_withdrawals(&config, &attributes, &block);
-/// 
+///
 /// if match_result.is_match() {
 ///     println!("Attributes are valid for this block");
 /// }

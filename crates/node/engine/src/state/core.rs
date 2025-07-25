@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 /// The state tracks blocks at different safety levels, listed from least to most safe:
 ///
 /// 1. **Unsafe** - Most recent blocks from P2P network (unverified)
-/// 2. **Cross-unsafe** - Unsafe blocks with cross-layer verification  
+/// 2. **Cross-unsafe** - Unsafe blocks with cross-layer verification
 /// 3. **Local-safe** - Derived from L1 data, completed span-batch
 /// 4. **Safe** - Cross-verified with safe L1 dependencies
 /// 5. **Finalized** - Derived from finalized L1 data only

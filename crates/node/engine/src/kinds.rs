@@ -18,7 +18,7 @@ use derive_more::{Display, FromStr};
 /// let kind = EngineKind::from_str("geth").unwrap();
 /// assert_eq!(kind, EngineKind::Geth);
 ///
-/// // Display as string  
+/// // Display as string
 /// assert_eq!(EngineKind::Reth.to_string(), "reth");
 /// ```
 #[derive(Debug, Display, FromStr, Clone, Copy, PartialEq, Eq)]

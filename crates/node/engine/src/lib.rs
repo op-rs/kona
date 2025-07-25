@@ -28,7 +28,8 @@
 //! - **Task Queue** - Core engine task queue and execution logic via [`Engine`]
 //! - **Client** - HTTP client for Engine API communication via [`EngineClient`]
 //! - **State** - Engine state management and synchronization via [`EngineState`]
-//! - **Versions** - Engine API version selection via [`EngineForkchoiceVersion`], [`EngineNewPayloadVersion`], [`EngineGetPayloadVersion`]
+//! - **Versions** - Engine API version selection via [`EngineForkchoiceVersion`],
+//!   [`EngineNewPayloadVersion`], [`EngineGetPayloadVersion`]
 //! - **Attributes** - Payload attribute validation via [`AttributesMatch`]
 //! - **Kinds** - Engine client type identification via [`EngineKind`]
 //! - **Query** - Engine query interface via [`EngineQueries`]

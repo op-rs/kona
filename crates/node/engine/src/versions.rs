@@ -1,13 +1,13 @@
 //! Engine API version selection based on Optimism hardfork activations.
 //!
-//! Automatically selects the appropriate Engine API method versions based on 
+//! Automatically selects the appropriate Engine API method versions based on
 //! the rollup configuration and block timestamps. Different Optimism hardforks
 //! require different Engine API versions to support new features.
 //!
 //! # Version Mapping
 //!
 //! - **Bedrock, Canyon, Delta** → V2 methods
-//! - **Ecotone (Cancun)** → V3 methods  
+//! - **Ecotone (Cancun)** → V3 methods
 //! - **Isthmus** → V4 methods
 //!
 //! Adapted from the [OP Node version providers](https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/types.go#L546).
@@ -45,7 +45,7 @@ impl EngineForkchoiceVersion {
 ///
 /// Progressive version selection based on hardfork activation:
 /// - V2: Basic payload processing
-/// - V3: Adds Cancun/Ecotone support  
+/// - V3: Adds Cancun/Ecotone support
 /// - V4: Adds Isthmus hardfork features
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EngineNewPayloadVersion {

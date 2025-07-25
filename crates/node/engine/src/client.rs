@@ -51,22 +51,22 @@ type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpCo
 
 /// An Engine API client that provides authenticated HTTP communication with an execution layer.
 ///
-/// The [`EngineClient`] handles JWT authentication and manages connections to both L1 and L2 
+/// The [`EngineClient`] handles JWT authentication and manages connections to both L1 and L2
 /// execution layers. It automatically selects the appropriate Engine API version based on the
 /// rollup configuration and block timestamps.
 ///
 /// # Examples
 ///
 /// ```rust,no_run
+/// use alloy_rpc_types_engine::JwtSecret;
 /// use kona_engine::EngineClient;
 /// use kona_genesis::RollupConfig;
-/// use alloy_rpc_types_engine::JwtSecret;
-/// use url::Url;
 /// use std::sync::Arc;
+/// use url::Url;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let engine_url = Url::parse("http://localhost:8551")?;
-/// let l2_url = Url::parse("http://localhost:9545")?; 
+/// let l2_url = Url::parse("http://localhost:9545")?;
 /// let l1_url = Url::parse("http://localhost:8545")?;
 /// let config = Arc::new(RollupConfig::default());
 /// let jwt = JwtSecret::from_hex("0xabcd")?;
@@ -109,7 +109,7 @@ impl EngineClient {
     /// # Arguments
     ///
     /// * `engine` - Engine API endpoint URL (typically port 8551)
-    /// * `l2_rpc` - L2 chain RPC endpoint URL  
+    /// * `l2_rpc` - L2 chain RPC endpoint URL
     /// * `l1_rpc` - L1 chain RPC endpoint URL
     /// * `cfg` - Rollup configuration for version selection
     /// * `jwt` - JWT secret for authentication

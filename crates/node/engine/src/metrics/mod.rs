@@ -8,7 +8,7 @@
 /// Contains identifiers for gauges, counters, and histograms used to monitor
 /// engine operations when the `metrics` feature is enabled. Metrics track:
 ///
-/// - Block progression through safety levels (unsafe → finalized)  
+/// - Block progression through safety levels (unsafe → finalized)
 /// - Task execution success/failure rates by type
 /// - Engine API method call latencies
 ///
