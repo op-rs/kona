@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -122,87 +121,6 @@ func rpcEndpoint(ctx context.Context, serviceName string) (string, error) {
 
 func GetNodeRPCEndpoint(ctx context.Context, node *dsl.L2CLNode) (string, error) {
 	return rpcEndpoint(ctx, node.Escape().ID().Key())
-}
-
-// StopNode stops a specific l2cl node.
-func StopNode(ctx context.Context, node *dsl.L2CLNode) error {
-	return StopKurtosisService(ctx, node.Escape().ID().Key())
-}
-
-// StopKurtosisService stops a specific service in a Kurtosis enclave
-func StopKurtosisService(ctx context.Context, serviceName string) error {
-	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
-	if err != nil {
-		return fmt.Errorf("failed to create kurtosis context: %w", err)
-	}
-
-	enclaves, err := kurtosisCtx.GetEnclaves(ctx)
-	if err != nil {
-		return err
-	}
-
-	for enclave := range enclaves.GetEnclavesByName() {
-		enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, enclave)
-		if err != nil {
-			return fmt.Errorf("failed to get enclave context for %s: %w", enclave, err)
-		}
-
-		// Check if the service exists in this enclave
-		_, err = enclaveCtx.GetServiceContext(serviceName)
-		if err != nil {
-			continue
-		}
-
-		// Stop the service
-		if err := exec.Command("kurtosis", "service", "stop",
-			enclave, serviceName).Run(); err != nil {
-			return fmt.Errorf("failed to stop service %s in enclave %s: %w", serviceName, enclave, err)
-		}
-
-		return nil
-	}
-
-	return fmt.Errorf("service %s not found in any enclave", serviceName)
-}
-
-// StartNode starts a specific l2cl node that was previously stopped
-func StartNode(ctx context.Context, node *dsl.L2CLNode) error {
-	return StartKurtosisService(ctx, node.Escape().ID().Key())
-}
-
-// StartKurtosisService starts a specific service in a Kurtosis enclave
-func StartKurtosisService(ctx context.Context, serviceName string) error {
-	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
-	if err != nil {
-		return fmt.Errorf("failed to create kurtosis context: %w", err)
-	}
-
-	enclaves, err := kurtosisCtx.GetEnclaves(ctx)
-	if err != nil {
-		return err
-	}
-
-	for enclave := range enclaves.GetEnclavesByName() {
-		enclaveCtx, err := kurtosisCtx.GetEnclaveContext(ctx, enclave)
-		if err != nil {
-			return fmt.Errorf("failed to get enclave context for %s: %w", enclave, err)
-		}
-
-		// Check if the service exists in this enclave
-		_, err = enclaveCtx.GetServiceContext(serviceName)
-		if err != nil {
-			continue
-		}
-
-		if err := exec.Command("kurtosis", "service", "start",
-			enclave, serviceName).Run(); err != nil {
-			return fmt.Errorf("failed to start service %s in enclave %s: %w", serviceName, enclave, err)
-		}
-
-		return nil
-	}
-
-	return fmt.Errorf("service %s not found in any enclave", serviceName)
 }
 
 func SendRPCRequest[T any](addr string, method string, resOutput *T, params ...any) error {
