@@ -4652,6 +4652,7 @@ dependencies = [
  "metrics",
  "op-alloy-provider",
  "op-alloy-rpc-types-engine",
+ "reqwest",
  "rstest",
  "serde_json",
  "strum",

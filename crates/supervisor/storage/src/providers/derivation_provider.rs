@@ -271,7 +271,9 @@ where
         // todo: use cursor to get the last block(performance improvement)
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(e) => return Err(e),
         };
 
@@ -400,7 +402,9 @@ where
     pub(crate) fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
         let latest_source_block = match self.latest_source_block() {
             Ok(latest_source_block) => latest_source_block,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(err) => return Err(err),
         };
 

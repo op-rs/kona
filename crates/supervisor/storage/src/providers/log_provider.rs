@@ -66,7 +66,9 @@ where
 
         let latest_block = match self.get_latest_block() {
             Ok(block) => block,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(e) => return Err(e),
         };
 
@@ -84,7 +86,7 @@ where
                 incoming_block = %block,
                 "Incoming log block is not consistent with the stored log block",
             );
-            return Err(StorageError::ConflictError)
+            return Err(StorageError::ConflictError);
         }
 
         if !latest_block.is_parent_of(block) {
@@ -154,7 +156,7 @@ where
                     incoming_block = ?block,
                     "Requested block to rewind does not match stored block",
                 );
-                return Err(StorageError::ConflictError)
+                return Err(StorageError::ConflictError);
             }
             walker.delete_current()?; // remove the block
             self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block

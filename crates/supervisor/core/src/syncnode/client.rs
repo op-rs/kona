@@ -138,7 +138,7 @@ impl Client {
     fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
             error!(target: "managed_node", "JWT secret not found or invalid");
-            return Err(AuthenticationError::InvalidJwt.into())
+            return Err(AuthenticationError::InvalidJwt.into());
         };
 
         // Create JWT claims with current time

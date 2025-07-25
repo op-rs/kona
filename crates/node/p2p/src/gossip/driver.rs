@@ -390,7 +390,7 @@ where
     pub fn handle_event(&mut self, event: SwarmEvent<Event>) -> Option<OpNetworkPayloadEnvelope> {
         match event {
             SwarmEvent::Behaviour(behavior_event) => {
-                return self.handle_gossip_event(behavior_event)
+                return self.handle_gossip_event(behavior_event);
             }
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 let peer_count = self.swarm.connected_peers().count();

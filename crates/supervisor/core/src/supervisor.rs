@@ -500,7 +500,7 @@ impl SupervisorService for Supervisor {
             if block.timestamp != access.timestamp {
                 return Err(SupervisorError::from(SpecError::SuperchainDAError(
                     SuperchainDAError::ConflictingData,
-                )))
+                )));
             }
 
             let log = db.get_log(access.block_number, access.log_index).map_err(|err| {

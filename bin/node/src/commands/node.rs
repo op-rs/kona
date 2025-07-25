@@ -4,9 +4,9 @@ use crate::{
     flags::{GlobalArgs, P2PArgs, RpcArgs, SequencerArgs},
     metrics::{CliMetrics, init_rollup_config_metrics},
 };
+use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
-use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use kona_cli::{LogConfig, metrics_args::MetricsArgs};
 use kona_genesis::RollupConfig;
@@ -14,7 +14,7 @@ use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::scr_rollup_config_by_alloy_ident;
 use op_alloy_provider::ext::engine::OpEngineApi;
 use serde_json::from_reader;
-use std::{fs::File, path::PathBuf, sync::Arc};
+use std::{fs::File, path::PathBuf, sync::Arc, time::Duration};
 use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use url::Url;
@@ -43,16 +43,36 @@ pub struct NodeCommand {
     )]
     pub node_mode: NodeMode,
     /// URL of the L1 execution client RPC API.
-    #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
+    #[arg(
+        long,
+        visible_alias = "l1",
+        env = "KONA_NODE_L1_ETH_RPC",
+        default_value = "http://localhost:8545"
+    )]
     pub l1_eth_rpc: Url,
     /// URL of the L1 beacon API.
-    #[arg(long, visible_alias = "l1.beacon", env = "KONA_NODE_L1_BEACON")]
+    #[arg(
+        long,
+        visible_alias = "l1.beacon",
+        env = "KONA_NODE_L1_BEACON",
+        default_value = "http://localhost:5052"
+    )]
     pub l1_beacon: Url,
     /// URL of the engine API endpoint of an L2 execution client.
-    #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
+    #[arg(
+        long,
+        visible_alias = "l2",
+        env = "KONA_NODE_L2_ENGINE_RPC",
+        default_value = "http://localhost:8551"
+    )]
     pub l2_engine_rpc: Url,
     /// An L2 RPC Url.
-    #[arg(long, visible_alias = "l2.provider", env = "KONA_NODE_L2_ETH_RPC")]
+    #[arg(
+        long,
+        visible_alias = "l2.provider",
+        env = "KONA_NODE_L2_ETH_RPC",
+        default_value = "http://localhost:8546"
+    )]
     pub l2_provider_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
@@ -79,7 +99,7 @@ impl Default for NodeCommand {
             l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
             l1_beacon: Url::parse("http://localhost:5052").unwrap(),
             l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
-            l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l2_provider_rpc: Url::parse("http://localhost:8546").unwrap(),
             l2_engine_jwt_secret: None,
             l2_config_file: None,
             node_mode: NodeMode::Validator,
@@ -141,51 +161,225 @@ impl NodeCommand {
         Ok(())
     }
 
-    /// Validate the jwt secret if specified by exchanging capabilities with the engine.
-    /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
-    /// that the jwt token passed as a cli arg is correct.
-    pub async fn validate_jwt(&self, config: &RollupConfig) -> anyhow::Result<JwtSecret> {
-        let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
+    /// Get the JWT secret for the engine API.
+    /// JWT validation is now performed as part of RPC endpoint validation.
+    pub async fn validate_jwt(&self, _config: &RollupConfig) -> anyhow::Result<JwtSecret> {
+        self.jwt_secret().ok_or_else(|| {
+            anyhow::anyhow!("No JWT secret available. Please provide a JWT secret file using --l2-engine-jwt-secret or ensure jwt.hex exists in the current directory.")
+        })
+    }
+
+    /// Validate that all RPC endpoints are reachable by performing simple RPC calls.
+    /// This helps catch configuration issues early with helpful error messages.
+    pub async fn validate_rpc_endpoints(&self) -> anyhow::Result<()> {
+        // Validate L1 ETH RPC
+        self.validate_eth_rpc(&self.l1_eth_rpc, "L1 ETH RPC", "--l1-eth-rpc").await?;
+
+        // Validate L2 Provider RPC
+        self.validate_eth_rpc(&self.l2_provider_rpc, "L2 Provider RPC", "--l2-provider-rpc")
+            .await?;
+
+        // Validate L2 Engine RPC using Engine API
+        self.validate_engine_rpc(&self.l2_engine_rpc, "L2 Engine RPC", "--l2-engine-rpc").await?;
+
+        // Validate L1 Beacon API
+        self.validate_beacon_api(&self.l1_beacon, "L1 Beacon API", "--l1-beacon").await?;
+
+        Ok(())
+    }
+
+    /// Validate an ETH RPC endpoint by making a simple chain ID call.
+    async fn validate_eth_rpc(&self, url: &Url, name: &str, flag: &str) -> anyhow::Result<()> {
+        let provider = ProviderBuilder::new().connect_http(url.clone());
+
+        // Use a timeout for the RPC call
+        let call_result =
+            tokio::time::timeout(Duration::from_secs(10), provider.get_chain_id()).await;
+
+        match call_result {
+            Ok(Ok(_)) => {
+                debug!("{} endpoint {} is reachable", name, url);
+                Ok(())
+            }
+            Ok(Err(transport_err)) => {
+                let is_default = self.is_default_url(url, flag);
+                self.format_rpc_error(name, url, flag, is_default, &transport_err.to_string())
+            }
+            Err(_) => {
+                let is_default = self.is_default_url(url, flag);
+                self.format_rpc_error(
+                    name,
+                    url,
+                    flag,
+                    is_default,
+                    "connection timeout after 10 seconds",
+                )
+            }
+        }
+    }
+
+    /// Validate an Engine API endpoint by making a simple exchange capabilities call.
+    /// Uses the actual JWT token to properly validate the engine endpoint.
+    async fn validate_engine_rpc(&self, url: &Url, name: &str, flag: &str) -> anyhow::Result<()> {
+        // Get the actual JWT secret that will be used for the engine connection
+        let jwt_secret = self.jwt_secret().ok_or_else(|| {
+            anyhow::anyhow!("No JWT secret available for Engine API validation. Please provide a JWT secret file using --l2-engine-jwt-secret or ensure jwt.hex exists in the current directory.")
+        })?;
+
+        // Create a minimal rollup config for the engine client
+        // We only need this for the client construction, not for actual operation
+        let dummy_config = Arc::new(RollupConfig::default());
+
         let engine_client = kona_engine::EngineClient::new_http(
-            self.l2_engine_rpc.clone(),
-            self.l2_provider_rpc.clone(),
-            self.l1_eth_rpc.clone(),
-            Arc::new(config.clone()),
+            url.clone(),
+            url.clone(), // Use same URL for l2_provider as we're only testing engine endpoint
+            url.clone(), // Use same URL for l1_provider as we're only testing engine endpoint
+            dummy_config,
             jwt_secret,
         );
 
-        let exchange = || async {
-            match engine_client.exchange_capabilities(vec![]).await {
-                Ok(_) => {
-                    debug!("Successfully exchanged capabilities with engine");
-                    Ok(jwt_secret)
-                }
-                Err(e) => {
-                    if e.to_string().contains("signature invalid") {
-                        error!(
-                            "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
-                        );
-                        error!(
-                            "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
-                        );
-                    }
-                    bail!("Failed to exchange capabilities with engine: {}", e);
+        // Use a timeout for the RPC call
+        let call_result = tokio::time::timeout(
+            Duration::from_secs(10),
+            engine_client.exchange_capabilities(vec![]),
+        )
+        .await;
+
+        match call_result {
+            Ok(Ok(_)) => {
+                debug!("{} endpoint {} is reachable and JWT authentication is valid", name, url);
+                Ok(())
+            }
+            Ok(Err(transport_err)) => {
+                let error_msg = transport_err.to_string();
+
+                // If the error is about JWT/signature, provide specific guidance
+                if error_msg.contains("signature invalid") ||
+                    error_msg.contains("unauthorized") ||
+                    error_msg.contains("401")
+                {
+                    let is_default = self.is_default_url(url, flag);
+                    let auth_error = format!(
+                        "{} endpoint is reachable but JWT authentication failed: {}{}\n\
+                         URL: {}\n\
+                         Error: {}\n\
+                         \n\
+                         To fix this:\n\
+                         - Ensure the JWT secret file contains the correct token for the engine\n\
+                         - Use --l2-engine-jwt-secret to specify the correct JWT secret file\n\
+                         - Verify the engine is configured with the same JWT secret",
+                        name,
+                        url,
+                        if is_default { " (using default value)" } else { "" },
+                        url,
+                        error_msg
+                    );
+                    bail!("{}", auth_error)
+                } else {
+                    // Other errors indicate the endpoint is unreachable
+                    let is_default = self.is_default_url(url, flag);
+                    self.format_rpc_error(name, url, flag, is_default, &error_msg)
                 }
             }
-        };
+            Err(_) => {
+                let is_default = self.is_default_url(url, flag);
+                self.format_rpc_error(
+                    name,
+                    url,
+                    flag,
+                    is_default,
+                    "connection timeout after 10 seconds",
+                )
+            }
+        }
+    }
 
-        exchange
-            .retry(ExponentialBuilder::default())
-            .when(|e| !e.to_string().contains("signature invalid"))
-            .notify(|_, duration| {
-                debug!("Retrying engine capability handshake after {duration:?}");
-            })
-            .await
+    /// Validate a Beacon API endpoint by making a simple config call.
+    async fn validate_beacon_api(&self, url: &Url, name: &str, flag: &str) -> anyhow::Result<()> {
+        let client = reqwest::Client::new();
+        let endpoint = format!("{}/eth/v1/config/spec", url);
+
+        let call_result =
+            tokio::time::timeout(Duration::from_secs(10), client.get(&endpoint).send()).await;
+
+        match call_result {
+            Ok(Ok(response)) if response.status().is_success() => {
+                debug!("{} endpoint {} is reachable", name, url);
+                Ok(())
+            }
+            Ok(Ok(response)) => {
+                let is_default = self.is_default_url(url, flag);
+                let error_msg = format!(
+                    "HTTP {} - {}",
+                    response.status(),
+                    response.status().canonical_reason().unwrap_or("Unknown")
+                );
+                self.format_rpc_error(name, url, flag, is_default, &error_msg)
+            }
+            Ok(Err(req_err)) => {
+                let is_default = self.is_default_url(url, flag);
+                self.format_rpc_error(name, url, flag, is_default, &req_err.to_string())
+            }
+            Err(_) => {
+                let is_default = self.is_default_url(url, flag);
+                self.format_rpc_error(
+                    name,
+                    url,
+                    flag,
+                    is_default,
+                    "connection timeout after 10 seconds",
+                )
+            }
+        }
+    }
+
+    /// Check if the given URL matches the default for this flag.
+    fn is_default_url(&self, url: &Url, flag: &str) -> bool {
+        let default_cmd = Self::default();
+        match flag {
+            "--l1-eth-rpc" => url == &default_cmd.l1_eth_rpc,
+            "--l1-beacon" => url == &default_cmd.l1_beacon,
+            "--l2-engine-rpc" => url == &default_cmd.l2_engine_rpc,
+            "--l2-provider-rpc" => url == &default_cmd.l2_provider_rpc,
+            _ => false,
+        }
+    }
+
+    /// Format a helpful error message for RPC validation failures.
+    fn format_rpc_error(
+        &self,
+        name: &str,
+        url: &Url,
+        flag: &str,
+        is_default: bool,
+        error_msg: &str,
+    ) -> anyhow::Result<()> {
+        let default_note =
+            if is_default { " (using default value)".to_string() } else { String::new() };
+
+        let error = format!(
+            "{} endpoint is unreachable or invalid: {}{}\n\
+             URL: {}\n\
+             Error: {}\n\
+             \n\
+             To fix this:\n\
+             - Ensure the service is running and accessible\n\
+             - Use {} to specify a different endpoint URL",
+            name, url, default_note, url, error_msg, flag
+        );
+
+        bail!("{}", error)
     }
 
     /// Run the Node subcommand.
     pub async fn run(self, args: &GlobalArgs) -> anyhow::Result<()> {
         let cfg = self.get_l2_config(args)?;
+
+        // Validate all RPC endpoints early to provide helpful error messages
+        if let Err(e) = self.validate_rpc_endpoints().await {
+            eprintln!("{}", e);
+            std::process::abort();
+        }
 
         // If metrics are enabled, initialize the global cli metrics.
         args.metrics.enabled.then(|| init_rollup_config_metrics(&cfg));
@@ -284,63 +478,49 @@ impl NodeCommand {
 mod tests {
     use super::*;
 
-    const fn default_flags() -> &'static [&'static str] {
-        &[
-            "--l1-eth-rpc",
-            "http://localhost:8545",
-            "--l1-beacon",
-            "http://localhost:5052",
-            "--l2-engine-rpc",
-            "http://localhost:8551",
-            "--l2-provider-rpc",
-            "http://localhost:8545",
-        ]
-    }
-
     #[test]
     fn test_node_cli_defaults() {
-        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
+        let args = NodeCommand::parse_from(["node"]);
         assert_eq!(args.node_mode, NodeMode::Validator);
     }
 
     #[test]
-    fn test_node_cli_missing_l1_eth_rpc() {
-        let err = NodeCommand::try_parse_from(["node"]).unwrap_err();
-        assert!(err.to_string().contains("--l1-eth-rpc"));
+    fn test_node_cli_default_values() {
+        let args = NodeCommand::parse_from(["node"]);
+        assert_eq!(args.l1_eth_rpc.as_str(), "http://localhost:8545/");
+        assert_eq!(args.l1_beacon.as_str(), "http://localhost:5052/");
+        assert_eq!(args.l2_engine_rpc.as_str(), "http://localhost:8551/");
+        assert_eq!(args.l2_provider_rpc.as_str(), "http://localhost:8546/");
     }
 
     #[test]
-    fn test_node_cli_missing_l1_beacon() {
-        let err = NodeCommand::try_parse_from(["node", "--l1-eth-rpc", "http://localhost:8545"])
-            .unwrap_err();
-        assert!(err.to_string().contains("--l1-beacon"));
-    }
-
-    #[test]
-    fn test_node_cli_missing_l2_engine_rpc() {
-        let err = NodeCommand::try_parse_from([
+    fn test_node_cli_custom_values() {
+        let args = NodeCommand::parse_from([
             "node",
             "--l1-eth-rpc",
-            "http://localhost:8545",
+            "http://custom:8545",
             "--l1-beacon",
-            "http://localhost:5052",
-        ])
-        .unwrap_err();
-        assert!(err.to_string().contains("--l2-engine-rpc"));
-    }
-
-    #[test]
-    fn test_node_cli_missing_l2_provider_rpc() {
-        let err = NodeCommand::try_parse_from([
-            "node",
-            "--l1-eth-rpc",
-            "http://localhost:8545",
-            "--l1-beacon",
-            "http://localhost:5052",
+            "http://custom:5052",
             "--l2-engine-rpc",
-            "http://localhost:8551",
-        ])
-        .unwrap_err();
-        assert!(err.to_string().contains("--l2-provider-rpc"));
+            "http://custom:8551",
+            "--l2-provider-rpc",
+            "http://custom:8546",
+        ]);
+        assert_eq!(args.l1_eth_rpc.as_str(), "http://custom:8545/");
+        assert_eq!(args.l1_beacon.as_str(), "http://custom:5052/");
+        assert_eq!(args.l2_engine_rpc.as_str(), "http://custom:8551/");
+        assert_eq!(args.l2_provider_rpc.as_str(), "http://custom:8546/");
+    }
+
+    #[test]
+    fn test_is_default_url() {
+        let args = NodeCommand::default();
+        assert!(args.is_default_url(&args.l1_eth_rpc, "--l1-eth-rpc"));
+        assert!(args.is_default_url(&args.l1_beacon, "--l1-beacon"));
+        assert!(args.is_default_url(&args.l2_engine_rpc, "--l2-engine-rpc"));
+        assert!(args.is_default_url(&args.l2_provider_rpc, "--l2-provider-rpc"));
+
+        let custom_url = Url::parse("http://custom:8546").unwrap();
+        assert!(!args.is_default_url(&custom_url, "--l1-eth-rpc"));
     }
 }

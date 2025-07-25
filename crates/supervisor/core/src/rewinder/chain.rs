@@ -49,7 +49,7 @@ where
 
         // cross-check whether the block is conflicting
         if conflicting_block == derived_pair.derived {
-            return Ok(())
+            return Ok(());
         }
 
         // rewind the log storage to remove all the blocks till the conflicting one
