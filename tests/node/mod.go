@@ -41,17 +41,28 @@ type rpcError struct {
 }
 
 // push { "jsonrpc":"2.0", "method":"time", "params":{ "subscription":"0x…", "result":"…" } }
-type push struct {
+type push[Out any] struct {
 	Method string `json:"method"`
 	Params struct {
-		SubID  uint64         `json:"subscription"`
-		Result eth.L2BlockRef `json:"result"`
+		SubID  uint64 `json:"subscription"`
+		Result Out    `json:"result"`
 	} `json:"params"`
 }
 
 func websocketRPC(clRPC string) string {
 	// Remove the leading http and replace it with ws.
 	return strings.Replace(clRPC, "http", "ws", 1)
+}
+
+func supportsDevRPC(t devtest.T, clName string, clRPC string) bool {
+	// To see if the node supports the dev RPC, we try to send a request to the dev RPC to
+	// get the last engine queue length.
+	engineQueueLength := 0
+	if err := SendRPCRequest(clRPC, "dev_taskQueueLength", &engineQueueLength); err != nil {
+		return false
+	}
+
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -175,7 +186,7 @@ func SendRPCRequest[T any](addr string, method string, resOutput *T, params ...a
 
 }
 
-func GetKonaWS[T any](t devtest.T, wsRPC string, method string, runUntil <-chan T) []eth.L2BlockRef {
+func GetPrefixedWs[T any, Out any](t devtest.T, prefix string, wsRPC string, method string, runUntil <-chan T) []Out {
 	conn, _, err := websocket.DefaultDialer.DialContext(t.Ctx(), wsRPC, nil)
 	require.NoError(t, err, "dial: %v", err)
 	defer conn.Close()
@@ -184,7 +195,7 @@ func GetKonaWS[T any](t devtest.T, wsRPC string, method string, runUntil <-chan 
 	require.NoError(t, conn.WriteJSON(rpcRequest{
 		JSONRPC: "2.0",
 		ID:      1,
-		Method:  "ws_subscribe_" + method,
+		Method:  prefix + "_" + "subscribe_" + method,
 		Params:  nil,
 	}), "subscribe: %v", err)
 
@@ -193,7 +204,7 @@ func GetKonaWS[T any](t devtest.T, wsRPC string, method string, runUntil <-chan 
 	require.NoError(t, conn.ReadJSON(&a), "ack: %v", err)
 	t.Log("subscribed to websocket - id=", string(a.Result))
 
-	output := make([]eth.L2BlockRef, 0)
+	output := make([]Out, 0)
 
 	// Function to handle JSON reading with error channel
 	readJSON := func(conn *websocket.Conn, msg *json.RawMessage) <-chan error {
@@ -224,7 +235,7 @@ outer_loop:
 		case err := <-readJSON(conn, &msg):
 			require.NoError(t, err, "read: %v", err)
 
-			var p push
+			var p push[Out]
 			require.NoError(t, json.Unmarshal(msg, &p), "decode: %v", err)
 
 			t.Log(wsRPC, method, "received websocket message", p.Params.Result)
@@ -235,13 +246,21 @@ outer_loop:
 	require.NoError(t, conn.WriteJSON(rpcRequest{
 		JSONRPC: "2.0",
 		ID:      2,
-		Method:  "ws_unsubscribe_" + method,
-		Params:  []interface{}{a.Result},
+		Method:  prefix + "_unsubscribe_" + method,
+		Params:  []any{a.Result},
 	}), "unsubscribe: %v", err)
 
 	t.Log("gracefully closed websocket connection")
 
 	return output
+}
+
+func GetKonaWs[T any](t devtest.T, wsRPC string, method string, runUntil <-chan T) []eth.L2BlockRef {
+	return GetPrefixedWs[T, eth.L2BlockRef](t, "ws", wsRPC, method, runUntil)
+}
+
+func GetDevWS[T any](t devtest.T, wsRPC string, method string, runUntil <-chan T) []uint64 {
+	return GetPrefixedWs[T, uint64](t, "dev", wsRPC, method, runUntil)
 }
 
 func isKonaNode(t devtest.T, clRPC string, clName string) bool {

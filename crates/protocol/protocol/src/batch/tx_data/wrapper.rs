@@ -105,7 +105,7 @@ impl TryFrom<&TxEnvelope> for SpanBatchTransactionData {
 }
 
 impl SpanBatchTransactionData {
-    /// Returns the transaction type of the [SpanBatchTransactionData].
+    /// Returns the transaction type of the [`SpanBatchTransactionData`].
     pub const fn tx_type(&self) -> TxType {
         match self {
             Self::Legacy(_) => TxType::Legacy,
@@ -115,7 +115,7 @@ impl SpanBatchTransactionData {
         }
     }
 
-    /// Decodes a typed transaction into a [SpanBatchTransactionData] from a byte slice.
+    /// Decodes a typed transaction into a [`SpanBatchTransactionData`] from a byte slice.
     pub fn decode_typed(b: &[u8]) -> Result<Self, alloy_rlp::Error> {
         if b.len() <= 1 {
             return Err(alloy_rlp::Error::Custom("Invalid transaction data"));
@@ -135,7 +135,7 @@ impl SpanBatchTransactionData {
         }
     }
 
-    /// Converts the [SpanBatchTransactionData] into a singed transaction as [`TxEnvelope`].
+    /// Converts the [`SpanBatchTransactionData`] into a singed transaction as [`TxEnvelope`].
     pub fn to_signed_tx(
         &self,
         nonce: u64,

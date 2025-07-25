@@ -9,12 +9,31 @@ use kona_protocol::OpAttributesWithParent;
 use op_alloy_consensus::{EIP1559ParamError, OpTxEnvelope, decode_holocene_extra_data};
 use op_alloy_rpc_types::Transaction;
 
-/// Represents whether the attributes match the block or not.
+/// Result of validating payload attributes against an execution layer block.
+///
+/// Used to verify that proposed payload attributes match the actual executed block,
+/// ensuring consistency between the rollup derivation process and execution layer.
+/// Validation includes withdrawals, transactions, fees, and other block properties.
+///
+/// # Examples
+///
+/// ```rust,ignore  
+/// use kona_engine::AttributesMatch;
+/// use kona_genesis::RollupConfig;
+/// use kona_protocol::OpAttributesWithParent;
+///
+/// let config = RollupConfig::default();
+/// let match_result = AttributesMatch::check_withdrawals(&config, &attributes, &block);
+///
+/// if match_result.is_match() {
+///     println!("Attributes are valid for this block");
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttributesMatch {
-    /// The attributes match the block.
+    /// The payload attributes are consistent with the block.
     Match,
-    /// The attributes do not match the block.
+    /// The attributes do not match the block (contains mismatch details).
     Mismatch(AttributesMismatch),
 }
 

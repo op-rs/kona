@@ -10,10 +10,9 @@ use jsonrpsee::{
     proc_macros::rpc,
 };
 use kona_genesis::RollupConfig;
-use kona_interop::ExecutingDescriptor;
+use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
-use op_alloy_consensus::interop::SafetyLevel;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
@@ -173,6 +172,20 @@ pub trait SupervisorApi {
     ) -> RpcResult<()>;
 }
 
+/// Development RPC API for engine state introspection.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "dev"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "dev"))]
+#[async_trait]
+pub trait DevEngineApi {
+    /// Subscribe to engine queue length updates.
+    #[subscription(name = "subscribe_engine_queue_size", item = usize)]
+    async fn dev_subscribe_engine_queue_length(&self) -> SubscriptionResult;
+
+    /// Get the current number of tasks in the engine queue.
+    #[method(name = "taskQueueLength")]
+    async fn dev_task_queue_length(&self) -> RpcResult<usize>;
+}
+
 /// The admin namespace for the consensus node.
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
@@ -181,4 +194,28 @@ pub trait AdminApi {
     #[method(name = "postUnsafePayload")]
     async fn admin_post_unsafe_payload(&self, payload: OpExecutionPayloadEnvelope)
     -> RpcResult<()>;
+
+    /// Checks if the sequencer is active.
+    #[method(name = "sequencerActive")]
+    async fn admin_sequencer_active(&self) -> RpcResult<bool>;
+
+    /// Starts the sequencer.
+    #[method(name = "startSequencer")]
+    async fn admin_start_sequencer(&self) -> RpcResult<()>;
+
+    /// Stops the sequencer.
+    #[method(name = "stopSequencer")]
+    async fn admin_stop_sequencer(&self) -> RpcResult<B256>;
+
+    /// Checks if the conductor is enabled.
+    #[method(name = "conductorEnabled")]
+    async fn admin_conductor_enabled(&self) -> RpcResult<bool>;
+
+    /// Sets the recover mode.
+    #[method(name = "setRecoverMode")]
+    async fn admin_set_recover_mode(&self, mode: bool) -> RpcResult<()>;
+
+    /// Overrides the leader in the conductor.
+    #[method(name = "overrideLeader")]
+    async fn admin_override_leader(&self) -> RpcResult<()>;
 }

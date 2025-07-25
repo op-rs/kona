@@ -1,4 +1,9 @@
-//! The Span Batch Type
+//! Span Batch implementation for efficient multi-block L2 transaction batching.
+//!
+//! Span batches are an advanced batching format that can contain transactions for multiple
+//! L2 blocks in a single compressed structure. This provides significant efficiency gains
+//! over single batches by amortizing overhead across multiple blocks and enabling
+//! sophisticated compression techniques.
 
 use alloc::vec::Vec;
 use alloy_eips::eip2718::Encodable2718;
@@ -13,68 +18,257 @@ use crate::{
     SpanBatchTransactions,
 };
 
-/// Container of the inputs required to build a span of L2 blocks in derived form.
+/// Container for the inputs required to build a span of L2 blocks in derived form.
+///
+/// A [`SpanBatch`] represents a compressed format for multiple L2 blocks that enables
+/// significant space savings compared to individual single batches. The format uses
+/// differential encoding, bit packing, and shared data structures to minimize the
+/// L1 footprint while maintaining all necessary information for L2 block reconstruction.
+///
+/// # Compression Techniques
+///
+/// ## Temporal Compression
+/// - **Relative timestamps**: Store timestamps relative to genesis to reduce size
+/// - **Differential encoding**: Encode changes between consecutive blocks
+/// - **Epoch sharing**: Multiple blocks can share the same L1 origin
+///
+/// ## Spatial Compression
+/// - **Shared prefixes**: Common data shared across all blocks in span
+/// - **Transaction batching**: Transactions grouped and compressed together
+/// - **Bit packing**: Use minimal bits for frequently-used fields
+///
+/// # Format Structure
+///
+/// ```text
+/// SpanBatch {
+///   prefix: {
+///     rel_timestamp,     // Relative to genesis
+///     l1_origin_num,     // Final L1 block number  
+///     parent_check,      // First 20 bytes of parent hash
+///     l1_origin_check,   // First 20 bytes of L1 origin hash
+///   },
+///   payload: {
+///     block_count,       // Number of blocks in span
+///     origin_bits,       // Bit array indicating L1 origin changes
+///     block_tx_counts,   // Transaction count per block
+///     txs,              // Compressed transaction data
+///   }
+/// }
+/// ```
+///
+/// # Validation and Integrity
+///
+/// The span batch format includes several integrity checks:
+/// - **Parent check**: Validates continuity with previous span
+/// - **L1 origin check**: Ensures proper L1 origin binding
+/// - **Transaction count validation**: Verifies transaction distribution
+/// - **Bit field consistency**: Ensures origin bits match block count
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct SpanBatch {
-    /// First 20 bytes of the first block's parent hash
+    /// First 20 bytes of the parent hash of the first block in the span.
+    ///
+    /// This field provides a collision-resistant check to ensure the span batch
+    /// builds properly on the expected parent block. Using only 20 bytes saves
+    /// space while maintaining strong integrity guarantees.
     pub parent_check: FixedBytes<20>,
-    /// First 20 bytes of the last block's L1 origin hash
+    /// First 20 bytes of the L1 origin hash of the last block in the span.
+    ///
+    /// This field enables validation that the span batch references the correct
+    /// L1 origin block, ensuring proper derivation ordering and preventing
+    /// replay attacks across different L1 contexts.
     pub l1_origin_check: FixedBytes<20>,
-    /// Genesis block timestamp
+    /// Genesis block timestamp for relative timestamp calculations.
+    ///
+    /// All timestamps in the span batch are stored relative to this genesis
+    /// timestamp to minimize storage requirements. This enables efficient
+    /// timestamp compression while maintaining full precision.
     pub genesis_timestamp: u64,
-    /// Chain ID
+    /// Chain ID for transaction validation and network identification.
+    ///
+    /// Required for proper transaction signature validation and to prevent
+    /// cross-chain replay attacks. All transactions in the span must be
+    /// valid for this chain ID.
     pub chain_id: u64,
-    /// List of block input in derived form
+    /// Ordered list of block elements contained in this span.
+    ///
+    /// Each element represents the derived data for one L2 block, including
+    /// timestamp, epoch information, and transaction references. The order
+    /// must match the intended L2 block sequence.
     pub batches: Vec<SpanBatchElement>,
-    /// Caching - origin bits
+    /// Cached bit array indicating L1 origin changes between consecutive blocks.
+    ///
+    /// This compressed representation allows efficient encoding of which blocks
+    /// in the span advance to a new L1 origin. Bit `i` is set if block `i+1`
+    /// has a different L1 origin than block `i`.
     pub origin_bits: SpanBatchBits,
-    /// Caching - block tx counts
+    /// Cached transaction count for each block in the span.
+    ///
+    /// Pre-computed transaction counts enable efficient random access to
+    /// transactions for specific blocks without scanning the entire transaction
+    /// list. Index `i` contains the transaction count for block `i`.
     pub block_tx_counts: Vec<u64>,
-    /// Caching - span batch txs
+    /// Cached compressed transaction data for all blocks in the span.
+    ///
+    /// Contains all transactions from all blocks in a compressed format that
+    /// enables efficient encoding and decoding. Transactions are grouped and
+    /// compressed using span-specific techniques.
     pub txs: SpanBatchTransactions,
 }
 
 impl SpanBatch {
     /// Returns the starting timestamp for the first batch in the span.
     ///
-    /// ## Safety
-    /// Panics if [Self::batches] is empty.
+    /// This is the absolute timestamp (not relative to genesis) of the first
+    /// block in the span batch. Used for validation and block sequencing.
+    ///
+    /// # Panics
+    /// Panics if the span batch contains no elements (`batches` is empty).
+    /// This should never happen in valid span batches as they must contain
+    /// at least one block.
+    ///
+    /// # Usage
+    /// Typically used during span batch validation to ensure proper temporal
+    /// ordering with respect to the parent block and L1 derivation window.
     pub fn starting_timestamp(&self) -> u64 {
         self.batches[0].timestamp
     }
 
     /// Returns the final timestamp for the last batch in the span.
     ///
-    /// ## Safety
-    /// Panics if [Self::batches] is empty.
+    /// This is the absolute timestamp (not relative to genesis) of the last
+    /// block in the span batch. Used for validation and determining the
+    /// span's temporal range.
+    ///
+    /// # Panics
+    /// Panics if the span batch contains no elements (`batches` is empty).
+    /// This should never happen in valid span batches as they must contain
+    /// at least one block.
+    ///
+    /// # Usage
+    /// Used during validation to ensure the span doesn't exceed maximum
+    /// temporal ranges and fits within L1 derivation windows.
     pub fn final_timestamp(&self) -> u64 {
         self.batches[self.batches.len() - 1].timestamp
     }
 
-    /// Returns the epoch number for the first batch in the span.
+    /// Returns the L1 epoch number for the first batch in the span.
     ///
-    /// ## Safety
-    /// Panics if [Self::batches] is empty.
+    /// The epoch number corresponds to the L1 block number that serves as
+    /// the L1 origin for the first L2 block in this span. This establishes
+    /// the L1 derivation context for the span.
+    ///
+    /// # Panics
+    /// Panics if the span batch contains no elements (`batches` is empty).
+    /// This should never happen in valid span batches as they must contain
+    /// at least one block.
+    ///
+    /// # Usage
+    /// Used during validation to ensure proper L1 origin sequencing and
+    /// that the span begins with the expected L1 context.
     pub fn starting_epoch_num(&self) -> u64 {
         self.batches[0].epoch_num
     }
 
-    /// Checks if the first 20 bytes of the given hash match the L1 origin check.
+    /// Validates that the L1 origin hash matches the span's L1 origin check.
+    ///
+    /// Compares the first 20 bytes of the provided hash against the stored
+    /// `l1_origin_check` field. This provides a collision-resistant validation
+    /// that the span batch was derived from the expected L1 context.
+    ///
+    /// # Arguments
+    /// * `hash` - The full 32-byte L1 origin hash to validate
+    ///
+    /// # Returns
+    /// * `true` - If the first 20 bytes match the span's L1 origin check
+    /// * `false` - If there's a mismatch, indicating invalid L1 context
+    ///
+    /// # Algorithm
+    /// ```text
+    /// l1_origin_check[0..20] == hash[0..20]
+    /// ```
+    ///
+    /// Using only 20 bytes provides strong collision resistance (2^160 space)
+    /// while saving 12 bytes per span compared to storing full hashes.
     pub fn check_origin_hash(&self, hash: FixedBytes<32>) -> bool {
         self.l1_origin_check == hash[..20]
     }
 
-    /// Checks if the first 20 bytes of the given hash match the parent check.
+    /// Validates that the parent hash matches the span's parent check.
+    ///
+    /// Compares the first 20 bytes of the provided hash against the stored
+    /// `parent_check` field. This ensures the span batch builds on the
+    /// expected parent block, maintaining chain continuity.
+    ///
+    /// # Arguments
+    /// * `hash` - The full 32-byte parent hash to validate
+    ///
+    /// # Returns
+    /// * `true` - If the first 20 bytes match the span's parent check
+    /// * `false` - If there's a mismatch, indicating discontinuity
+    ///
+    /// # Algorithm
+    /// ```text
+    /// parent_check[0..20] == hash[0..20]
+    /// ```
+    ///
+    /// This validation is critical for maintaining the integrity of the L2
+    /// chain and preventing insertion of span batches in wrong locations.
     pub fn check_parent_hash(&self, hash: FixedBytes<32>) -> bool {
         self.parent_check == hash[..20]
     }
 
-    /// Peek at the `n`th-to-last last element in the batch.
+    /// Accesses the nth element from the end of the batch list.
+    ///
+    /// This is a convenience method for accessing recent elements in the span,
+    /// typically used during validation or processing algorithms that need to
+    /// examine the latest elements in the sequence.
+    ///
+    /// # Arguments
+    /// * `n` - Offset from the end (0 = last element, 1 = second-to-last, etc.)
+    ///
+    /// # Returns
+    /// Reference to the nth element from the end of the batch list
+    ///
+    /// # Panics
+    /// Panics if `n >= batches.len()`, i.e., if trying to access beyond
+    /// the available elements.
+    ///
+    /// # Algorithm
+    /// ```text
+    /// index = batches.len() - 1 - n
+    /// return &batches[index]
+    /// ```
     fn peek(&self, n: usize) -> &SpanBatchElement {
         &self.batches[self.batches.len() - 1 - n]
     }
 
-    /// Constructs a [RawSpanBatch] from the [SpanBatch].
+    /// Converts this span batch to its raw serializable format.
+    ///
+    /// Transforms the derived span batch into a [`RawSpanBatch`] that can be
+    /// serialized and transmitted over the network. This involves organizing
+    /// the cached data into the proper prefix and payload structure.
+    ///
+    /// # Returns
+    /// * `Ok(RawSpanBatch)` - Successfully converted raw span batch
+    /// * `Err(SpanBatchError)` - Conversion failed, typically due to empty batch
+    ///
+    /// # Errors
+    /// Returns [`SpanBatchError::EmptySpanBatch`] if the span contains no blocks,
+    /// which is invalid as span batches must contain at least one block.
+    ///
+    /// # Algorithm
+    /// The conversion process:
+    /// 1. **Validation**: Ensure the span is not empty
+    /// 2. **Prefix Construction**: Build prefix with temporal and origin data
+    /// 3. **Payload Assembly**: Package cached data into payload structure
+    /// 4. **Relative Timestamp Calculation**: Convert absolute to relative timestamp
+    ///
+    /// The relative timestamp is calculated as:
+    /// ```text
+    /// rel_timestamp = first_block_timestamp - genesis_timestamp
+    /// ```
+    ///
+    /// This enables efficient timestamp encoding in the serialized format.
     pub fn to_raw_span_batch(&self) -> Result<RawSpanBatch, SpanBatchError> {
         if self.batches.is_empty() {
             return Err(SpanBatchError::EmptySpanBatch);
@@ -100,9 +294,9 @@ impl SpanBatch {
         })
     }
 
-    /// Converts all [SpanBatchElement]s after the L2 safe head to [SingleBatch]es. The resulting
-    /// [SingleBatch]es do not contain a parent hash, as it is populated by the Batch Queue
-    /// stage.
+    /// Converts all [`SpanBatchElement`]s after the L2 safe head to [`SingleBatch`]es. The
+    /// resulting [`SingleBatch`]es do not contain a parent hash, as it is populated by the
+    /// Batch Queue stage.
     pub fn get_singular_batches(
         &self,
         l1_origins: &[BlockInfo],
@@ -135,7 +329,7 @@ impl SpanBatch {
         Ok(single_batches)
     }
 
-    /// Append a [SingleBatch] to the [SpanBatch]. Updates the L1 origin check if need be.
+    /// Append a [`SingleBatch`] to the [`SpanBatch`]. Updates the L1 origin check if need be.
     pub fn append_singular_batch(
         &mut self,
         singular_batch: SingleBatch,
@@ -216,6 +410,7 @@ impl SpanBatch {
             let block_timestamp = batch.timestamp;
             if block_timestamp < l1_origin.timestamp {
                 warn!(
+                    target: "batch_span",
                     "block timestamp is less than L1 origin timestamp, l2_timestamp: {}, l1_timestamp: {}, origin: {:?}",
                     block_timestamp,
                     l1_origin.timestamp,
@@ -236,6 +431,7 @@ impl SpanBatch {
                     if !origin_advanced {
                         if origin_index + 1 >= l1_blocks.len() {
                             info!(
+                                target: "batch_span",
                                 "without the next L1 origin we cannot determine yet if this empty batch that exceeds the time drift is still valid"
                             );
                             return BatchValidity::Undecided;
@@ -243,11 +439,13 @@ impl SpanBatch {
                         if block_timestamp >= l1_blocks[origin_index + 1].timestamp {
                             // check if the next L1 origin could have been adopted
                             info!(
+                                target: "batch_span",
                                 "batch exceeded sequencer time drift without adopting next origin, and next L1 origin would have been valid"
                             );
                             return BatchValidity::Drop;
                         } else {
                             info!(
+                                target: "batch_span",
                                 "continuing with empty batch before late L1 block to preserve L2 time invariant"
                             );
                         }
@@ -257,6 +455,7 @@ impl SpanBatch {
                     // force an empty batch instead, as the sequencer is not
                     // allowed to include anything past this point without moving to the next epoch.
                     warn!(
+                        target: "batch_span",
                         "batch exceeded sequencer time drift, sequencer must adopt new L1 origin to include transactions again, max_time: {}",
                         l1_origin.timestamp + max_drift
                     );
@@ -268,6 +467,7 @@ impl SpanBatch {
             for (i, tx) in batch.transactions.iter().enumerate() {
                 if tx.is_empty() {
                     warn!(
+                        target: "batch_span",
                         "transaction data must not be empty, but found empty tx, tx_index: {}",
                         i
                     );
@@ -275,6 +475,7 @@ impl SpanBatch {
                 }
                 if tx.as_ref().first() == Some(&(OpTxType::Deposit as u8)) {
                     warn!(
+                        target: "batch_span",
                         "sequencers may not embed any deposits into batch data, but found tx that has one, tx_index: {}",
                         i
                     );
@@ -285,7 +486,7 @@ impl SpanBatch {
                 if !cfg.is_isthmus_active(batch.timestamp) &&
                     tx.as_ref().first() == Some(&(OpTxType::Eip7702 as u8))
                 {
-                    warn!("EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
+                    warn!(target: "batch_span", "EIP-7702 transactions are not supported pre-isthmus. tx_index: {}", i);
                     return BatchValidity::Drop;
                 }
             }
@@ -300,7 +501,7 @@ impl SpanBatch {
                 let safe_block_payload = match fetcher.block_by_number(safe_block_num).await {
                     Ok(p) => p,
                     Err(e) => {
-                        warn!("failed to fetch block number {safe_block_num}: {e}");
+                        warn!(target: "batch_span", "failed to fetch block number {safe_block_num}: {e}");
                         return BatchValidity::Undecided;
                     }
                 };
@@ -314,6 +515,7 @@ impl SpanBatch {
                     .sum();
                 if safe_block.transactions.len() - deposit_count != batch_txs.len() {
                     warn!(
+                        target: "batch_span",
                         "overlapped block's tx count does not match, safe_block_txs: {}, batch_txs: {}",
                         safe_block.transactions.len(),
                         batch_txs.len()
@@ -326,7 +528,7 @@ impl SpanBatch {
                     let mut buf = Vec::new();
                     safe_block.transactions[j + deposit_count].encode_2718(&mut buf);
                     if buf != batch_txs[j].0 {
-                        warn!("overlapped block's transaction does not match");
+                        warn!(target: "batch_span", "overlapped block's transaction does not match");
                         return BatchValidity::Drop;
                     }
                 }
@@ -337,6 +539,7 @@ impl SpanBatch {
                     Ok(r) => r,
                     Err(e) => {
                         warn!(
+                            target: "batch_span",
                             "failed to extract L2BlockInfo from execution payload, hash: {}, err: {e}",
                             safe_block_payload.header.hash_slow()
                         );
@@ -369,11 +572,11 @@ impl SpanBatch {
         fetcher: &mut BF,
     ) -> (BatchValidity, Option<L2BlockInfo>) {
         if l1_origins.is_empty() {
-            warn!("missing L1 block input, cannot proceed with batch checking");
+            warn!(target: "batch_span", "missing L1 block input, cannot proceed with batch checking");
             return (BatchValidity::Undecided, None);
         }
         if self.batches.is_empty() {
-            warn!("empty span batch, cannot proceed with batch checking");
+            warn!(target: "batch_span", "empty span batch, cannot proceed with batch checking");
             return (BatchValidity::Undecided, None);
         }
 
@@ -385,6 +588,7 @@ impl SpanBatch {
         if starting_epoch_num == batch_origin.number + 1 {
             if l1_origins.len() < 2 {
                 info!(
+                    target: "batch_span",
                     "eager batch wants to advance current epoch {:?}, but could not without more L1 blocks",
                     epoch.id()
                 );
@@ -394,6 +598,7 @@ impl SpanBatch {
         }
         if !cfg.is_delta_active(batch_origin.timestamp) {
             warn!(
+                target: "batch_span",
                 "received SpanBatch (id {:?}) with L1 origin (timestamp {}) before Delta hard fork",
                 batch_origin.id(),
                 batch_origin.timestamp
@@ -403,6 +608,7 @@ impl SpanBatch {
 
         if self.starting_timestamp() > next_timestamp {
             warn!(
+                target: "batch_span",
                 "received out-of-order batch for future processing after next batch ({} > {})",
                 self.starting_timestamp(),
                 next_timestamp
@@ -417,7 +623,7 @@ impl SpanBatch {
 
         // Drop the batch if it has no new blocks after the safe head.
         if self.final_timestamp() < next_timestamp {
-            warn!("span batch has no new blocks after safe head");
+            warn!(target: "batch_span", "span batch has no new blocks after safe head");
             return if cfg.is_holocene_active(inclusion_block.timestamp) {
                 (BatchValidity::Past, None)
             } else {
@@ -433,12 +639,12 @@ impl SpanBatch {
         if self.starting_timestamp() < next_timestamp {
             if self.starting_timestamp() > l2_safe_head.block_info.timestamp {
                 // Batch timestamp cannot be between safe head and next timestamp.
-                warn!("batch has misaligned timestamp, block time is too short");
+                warn!(target: "batch_span", "batch has misaligned timestamp, block time is too short");
                 return (BatchValidity::Drop, None);
             }
             if (l2_safe_head.block_info.timestamp - self.starting_timestamp()) % cfg.block_time != 0
             {
-                warn!("batch has misaligned timestamp, not overlapped exactly");
+                warn!(target: "batch_span", "batch has misaligned timestamp, not overlapped exactly");
                 return (BatchValidity::Drop, None);
             }
             parent_num = l2_safe_head.block_info.number -
@@ -447,7 +653,7 @@ impl SpanBatch {
             parent_block = match fetcher.l2_block_info_by_number(parent_num).await {
                 Ok(block) => block,
                 Err(e) => {
-                    warn!("failed to fetch L2 block number {parent_num}: {e}");
+                    warn!(target: "batch_span", "failed to fetch L2 block number {parent_num}: {e}");
                     // Unable to validate the batch for now. Retry later.
                     return (BatchValidity::Undecided, None);
                 }
@@ -455,6 +661,7 @@ impl SpanBatch {
         }
         if !self.check_parent_hash(parent_block.block_info.hash) {
             warn!(
+                target: "batch_span",
                 "parent block mismatch, expected: {parent_num}, received: {}. parent hash: {}, parent hash check: {}",
                 parent_block.block_info.number, parent_block.block_info.hash, self.parent_check,
             );
@@ -463,13 +670,14 @@ impl SpanBatch {
 
         // Filter out batches that were included too late.
         if starting_epoch_num + cfg.seq_window_size < inclusion_block.number {
-            warn!("batch was included too late, sequence window expired");
+            warn!(target: "batch_span", "batch was included too late, sequence window expired");
             return (BatchValidity::Drop, None);
         }
 
         // Check the L1 origin of the batch
         if starting_epoch_num > parent_block.l1_origin.number + 1 {
             warn!(
+                target: "batch_span",
                 "batch is for future epoch too far ahead, while it has the next timestamp, so it must be invalid. starting epoch: {} | next epoch: {}",
                 starting_epoch_num,
                 parent_block.l1_origin.number + 1
@@ -486,6 +694,7 @@ impl SpanBatch {
             if l1_block.number == end_epoch_num {
                 if !self.check_origin_hash(l1_block.hash) {
                     warn!(
+                        target: "batch_span",
                         "batch is for different L1 chain, epoch hash does not match, expected: {}",
                         l1_block.hash
                     );
@@ -496,12 +705,12 @@ impl SpanBatch {
             }
         }
         if !origin_checked {
-            info!("need more l1 blocks to check entire origins of span batch");
+            info!(target: "batch_span", "need more l1 blocks to check entire origins of span batch");
             return (BatchValidity::Undecided, None);
         }
 
         if starting_epoch_num < parent_block.l1_origin.number {
-            warn!("dropped batch, epoch is too old, minimum: {:?}", parent_block.block_info.id());
+            warn!(target: "batch_span", "dropped batch, epoch is too old, minimum: {:?}", parent_block.block_info.id());
             return (BatchValidity::Drop, None);
         }
 

@@ -10,12 +10,13 @@
 extern crate tracing;
 
 mod admin;
+pub use admin::{AdminRpc, NetworkAdminQuery, SequencerAdminQuery};
 
 mod config;
 pub use config::RpcBuilder;
 
 mod net;
-pub use net::NetworkRpc;
+pub use net::P2pRpc;
 
 mod supervisor;
 pub use supervisor::{SupervisorRpcConfig, SupervisorRpcServer};
@@ -28,10 +29,13 @@ pub use response::SafeHeadResponse;
 mod output;
 pub use output::OutputResponse;
 
+mod dev;
+pub use dev::DevEngineRpc;
+
 mod jsonrpsee;
 pub use jsonrpsee::{
-    AdminApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
-    SupervisorEventsServer, WsServer,
+    AdminApiServer, DevEngineApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer,
+    RollupNodeApiServer, SupervisorEventsServer, WsServer,
 };
 
 #[cfg(feature = "reqwest")]

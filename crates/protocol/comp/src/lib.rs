@@ -44,5 +44,5 @@ mod ratio;
 #[cfg(feature = "std")]
 pub use ratio::RatioCompressor;
 
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

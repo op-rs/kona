@@ -95,7 +95,7 @@ impl<T> From<&RpcBlock<T>> for BlockInfo {
     "L2BlockInfo {{ block_info: {block_info}, l1_origin: {l1_origin:?}, seq_num: {seq_num} }}"
 )]
 pub struct L2BlockInfo {
-    /// The base [BlockInfo]
+    /// The base [`BlockInfo`]
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub block_info: BlockInfo,
     /// The L1 origin [`BlockNumHash`]
@@ -104,6 +104,13 @@ pub struct L2BlockInfo {
     /// The sequence number of the L2 block
     #[cfg_attr(feature = "serde", serde(rename = "sequenceNumber", alias = "seqNum"))]
     pub seq_num: u64,
+}
+
+impl L2BlockInfo {
+    /// Returns the block hash.
+    pub const fn hash(&self) -> B256 {
+        self.block_info.hash
+    }
 }
 
 #[cfg(feature = "arbitrary")]
@@ -135,7 +142,7 @@ pub enum FromBlockError {
     /// The first payload transaction is not a deposit transaction.
     #[error("First payload transaction is not a deposit transaction, type: {0}")]
     FirstTxNonDeposit(u8),
-    /// Failed to decode the [L1BlockInfoTx] from the deposit transaction.
+    /// Failed to decode the [`L1BlockInfoTx`] from the deposit transaction.
     #[error("Failed to decode the L1BlockInfoTx from the deposit transaction: {0}")]
     BlockInfoDecodeError(#[from] DecodeError),
     /// Failed to convert [`OpExecutionPayload`] to [`OpBlock`].

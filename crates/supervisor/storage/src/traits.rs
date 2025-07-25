@@ -17,7 +17,7 @@ pub trait DerivationStorageReader: Debug {
     /// Gets the source [`BlockInfo`] for a given derived block [`BlockNumHash`].
     ///
     /// NOTE: [`LocalUnsafe`] block is not pushed to L1 yet, hence it cannot be part of derivation
-    /// storage. For reading latest L1 block in memory use [`HeadRefStorageReader::get_current_l1`].
+    /// storage.
     ///
     /// # Arguments
     /// * `derived_block_id` - The identifier (number and hash) of the derived (L2) block.
@@ -60,8 +60,29 @@ pub trait DerivationStorageReader: Debug {
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block data.
 pub trait DerivationStorageWriter: Debug {
+    /// Initializes the derivation storage with a given [`DerivedRefPair`].
+    /// This method is typically called once to set up the storage with the initial pair.
+    ///
+    /// # Arguments
+    /// * `incoming_pair` - The derived block pair to initialize the storage with.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the storage was successfully initialized.
+    /// * `Err(StorageError)` if there is an issue initializing the storage.
+    fn initialise_derivation_storage(
+        &self,
+        incoming_pair: DerivedRefPair,
+    ) -> Result<(), StorageError>;
+
     /// Saves a [`DerivedRefPair`] to the storage.
-    /// This method is append only and does not overwrite existing pairs.
+    ///
+    /// This method is **append-only**: it does not overwrite existing pairs.
+    /// - If a pair with the same block number already exists and is identical to the incoming pair,
+    ///   the request is silently ignored (idempotent).
+    /// - If a pair with the same block number exists but differs from the incoming pair, an error
+    ///   is returned to indicate a data inconsistency.
+    /// - If the pair is new and consistent, it is appended to the storage.
+    ///
     /// Ensures that the latest stored pair is the parent of the incoming pair before saving.
     ///
     /// # Arguments
@@ -72,7 +93,17 @@ pub trait DerivationStorageWriter: Debug {
     /// * `Err(StorageError)` if there is an issue saving the pair.
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError>;
 
-    /// Saves the latest incoming source block to the storage.
+    /// Saves the latest incoming source [`BlockInfo`] to the storage.
+    ///
+    /// This method is **append-only**: it does not overwrite existing source blocks.
+    /// - If a source block with the same number already exists and is identical to the incoming
+    ///   block, the request is silently ignored (idempotent).
+    /// - If a source block with the same number exists but differs from the incoming block, an
+    ///   error is returned to indicate a data inconsistency.
+    /// - If the block is new and consistent, it is appended to the storage.
+    ///
+    /// Ensures that the latest stored source block is the parent of the incoming block before
+    /// saving.
     ///
     /// # Arguments
     /// * `source` - The source block to save.
@@ -138,6 +169,17 @@ pub trait LogStorageReader: Debug {
 ///
 /// Implementations are expected to provide persistent and thread-safe access to block logs.
 pub trait LogStorageWriter: Send + Sync + Debug {
+    /// Initializes the log storage with a given [`BlockInfo`].
+    /// This method is typically called once to set up the storage with the initial block.
+    ///
+    /// # Arguments
+    /// * `block` - The [`BlockInfo`] to initialize the storage with.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the storage was successfully initialized.
+    /// * `Err(StorageError)` if there is an issue initializing the storage.
+    fn initialise_log_storage(&self, block: BlockInfo) -> Result<(), StorageError>;
+
     /// Stores [`BlockInfo`] and [`Log`]s in the storage.
     /// This method is append-only and does not overwrite existing logs.
     /// Ensures that the latest stored block is the parent of the incoming block before saving.
@@ -168,13 +210,6 @@ impl<T: LogStorageReader + LogStorageWriter> LogStorage for T {}
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
 pub trait HeadRefStorageReader: Debug {
-    /// Retrieves the current L1 block reference from the storage.
-    ///
-    /// # Returns
-    /// * `Ok(BlockInfo)` containing the current L1 block reference.
-    /// * `Err(StorageError)` if there is an issue retrieving the reference.
-    fn get_current_l1(&self) -> Result<BlockInfo, StorageError>;
-
     /// Retrieves the current [`BlockInfo`] for a given [`SafetyLevel`].
     ///
     /// # Arguments
@@ -201,16 +236,6 @@ pub trait HeadRefStorageReader: Debug {
 /// Implementations are expected to provide persistent and thread-safe access to safety head
 /// references.
 pub trait HeadRefStorageWriter: Debug {
-    /// Updates the current L1 block reference in the storage.
-    ///
-    /// # Arguments
-    /// * `block` - The new [`BlockInfo`] to set as the current L1 block reference.
-    ///
-    /// # Returns
-    /// * `Ok(())` if the reference was successfully updated.
-    /// * `Err(StorageError)` if there is an issue updating the reference.
-    fn update_current_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
-
     /// Updates the finalized head reference using a finalized source(l1) block.
     ///
     /// # Arguments
@@ -359,4 +384,35 @@ pub trait CrossChainSafetyProvider {
         chain_id: ChainId,
         block: &BlockInfo,
     ) -> Result<DerivedRefPair, StorageError>;
+}
+
+/// Trait for rewinding supervisor-related state in the database.
+///
+/// This trait provides an interface to revert persisted log data, derivation records,
+/// and safety head references from the latest block back to a specified block number (inclusive).
+/// It is typically used during chain reorganizations or when invalid blocks are detected and need
+/// to be rolled back.
+pub trait StorageRewinder {
+    /// Rewinds the log storage from the latest block down to the specified block (inclusive).
+    ///
+    /// # Arguments
+    /// * `to` - The block id to rewind to.
+    ///
+    /// # Errors
+    /// Returns a [`StorageError`] if any database operation fails during the rewind.
+    fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+
+    /// Rewinds all supervisor-managed state (log storage, derivation, and safety head refs)
+    /// from the latest block back to the given block (inclusive).
+    ///
+    /// This method performs a coordinated rewind across all components, ensuring consistency
+    /// of supervisor state after chain reorganizations or rollback of invalid blocks.
+    ///
+    /// # Arguments
+    /// * `to` - The target block id to rewind to. Rewind is performed from the latest block down to
+    ///   this block.
+    ///
+    /// # Errors
+    /// Returns a [`StorageError`] if any part of the rewind process fails.
+    fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
 }

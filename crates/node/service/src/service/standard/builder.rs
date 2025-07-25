@@ -1,6 +1,6 @@
 //! Contains the builder for the [`RollupNode`].
 
-use crate::{EngineBuilder, InteropMode, NodeMode, RollupNode, actors::RuntimeState};
+use crate::{EngineBuilder, InteropMode, NetworkConfig, NodeMode, RollupNode, SequencerConfig};
 use alloy_primitives::Bytes;
 use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
@@ -16,9 +16,8 @@ use tower::ServiceBuilder;
 use url::Url;
 
 use kona_genesis::RollupConfig;
-use kona_p2p::Config;
 use kona_providers_alloy::OnlineBeaconClient;
-use kona_rpc::{RpcBuilder, SupervisorRpcConfig};
+use kona_rpc::RpcBuilder;
 
 /// The [`RollupNodeBuilder`] is used to construct a [`RollupNode`] service.
 #[derive(Debug, Default)]
@@ -35,14 +34,12 @@ pub struct RollupNodeBuilder {
     l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
     jwt_secret: Option<JwtSecret>,
-    /// The [`Config`].
-    p2p_config: Option<Config>,
+    /// The [`NetworkConfig`].
+    p2p_config: Option<NetworkConfig>,
     /// An RPC Configuration.
     rpc_config: Option<RpcBuilder>,
-    /// An RPC Configuration for the supervisor rpc.
-    supervisor_rpc_config: SupervisorRpcConfig,
-    /// An interval to load the runtime config.
-    runtime_load_interval: Option<std::time::Duration>,
+    /// The [`SequencerConfig`].
+    sequencer_config: Option<SequencerConfig>,
     /// The mode to run the node in.
     mode: NodeMode,
     /// Whether to run the node in interop mode.
@@ -63,11 +60,6 @@ impl RollupNodeBuilder {
     /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
     pub fn with_mode(self, mode: NodeMode) -> Self {
         Self { mode, ..self }
-    }
-
-    /// Appends the [`SupervisorRpcConfig`] to the builder.
-    pub fn with_supervisor_rpc_config(self, config: SupervisorRpcConfig) -> Self {
-        Self { supervisor_rpc_config: config, ..self }
     }
 
     /// Appends an L1 EL provider RPC URL to the builder.
@@ -95,8 +87,8 @@ impl RollupNodeBuilder {
         Self { jwt_secret: Some(jwt_secret), ..self }
     }
 
-    /// Appends the P2P [`Config`] to the builder.
-    pub fn with_p2p_config(self, config: Config) -> Self {
+    /// Appends the P2P [`NetworkConfig`] to the builder.
+    pub fn with_p2p_config(self, config: NetworkConfig) -> Self {
         Self { p2p_config: Some(config), ..self }
     }
 
@@ -105,15 +97,12 @@ impl RollupNodeBuilder {
         Self { rpc_config, ..self }
     }
 
-    /// Sets the runtime load interval on the [`RollupNodeBuilder`].
-    pub fn with_runtime_load_interval(self, interval: std::time::Duration) -> Self {
-        Self { runtime_load_interval: Some(interval), ..self }
+    /// Appends the [`SequencerConfig`] to the builder.
+    pub fn with_sequencer_config(self, sequencer_config: SequencerConfig) -> Self {
+        Self { sequencer_config: Some(sequencer_config), ..self }
     }
 
     /// Assembles the [`RollupNode`] service.
-    ///
-    /// By default, the supervisor RPC is disabled.
-    /// To enable it, use the [`Self::with_supervisor_rpc_config`] method.
     ///
     /// ## Panics
     ///
@@ -147,36 +136,25 @@ impl RollupNodeBuilder {
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
             l2_rpc_url,
-            l1_rpc_url: l1_rpc_url.clone(),
+            l1_rpc_url,
             engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
             jwt_secret,
             mode: self.mode,
         };
 
-        let runtime_builder = self.runtime_load_interval.map(|load_interval| RuntimeState {
-            loader: kona_sources::RuntimeLoader::new(l1_rpc_url, rollup_config.clone()),
-            interval: load_interval,
-        });
-
         let p2p_config = self.p2p_config.expect("P2P config not set");
-
-        let interop_mode = match self.supervisor_rpc_config.is_disabled() {
-            true => self.interop_mode,
-            false => InteropMode::Indexed,
-        };
+        let sequencer_config = self.sequencer_config.unwrap_or_default();
 
         RollupNode {
             config: rollup_config,
-            interop_mode,
+            interop_mode: self.interop_mode,
             l1_provider,
             l1_beacon,
             l2_provider,
             engine_builder,
             rpc_builder: self.rpc_config,
-            runtime_builder,
             p2p_config,
-            // By default, the supervisor rpc config is disabled.
-            supervisor_rpc: self.supervisor_rpc_config,
+            sequencer_config,
         }
     }
 }

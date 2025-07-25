@@ -16,7 +16,6 @@ use discv5::{
 use ipnet::IpNet;
 use kona_peers::OpStackEnr;
 use libp2p::{Multiaddr, PeerId, gossipsub::TopicHash};
-use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use tokio::sync::oneshot::Sender;
 
 use super::{
@@ -28,12 +27,7 @@ use crate::ConnectionGate;
 /// A p2p RPC Request.
 #[derive(Debug)]
 pub enum P2pRpcRequest {
-    /// An admin rpc request to post an unsafe payload.
-    PostUnsafePayload {
-        /// The payload to post.
-        payload: OpExecutionPayloadEnvelope,
-    },
-    /// Returns [`PeerInfo`] for the [`crate::Network`].
+    /// Returns [`PeerInfo`] for the p2p network.
     PeerInfo(Sender<PeerInfo>),
     /// Dumps the node's discovery table from the [`crate::Discv5Driver`].
     DiscoveryTable(Sender<Vec<String>>),
@@ -137,11 +131,6 @@ impl P2pRpcRequest {
             Self::BlockSubnet { address } => Self::block_subnet(address, gossip),
             Self::UnblockSubnet { address } => Self::unblock_subnet(address, gossip),
             Self::ListBlockedSubnets(s) => Self::list_blocked_subnets(s, gossip),
-            Self::PostUnsafePayload { payload } => {
-                // Unsafe payload handling happens in the network driver.
-                // This must never be reached.
-                error!(target: "p2p::rpc", ?payload, "PostUnsafePayload request received, but it should not be handled here.");
-            }
         }
     }
 
@@ -204,11 +193,11 @@ impl P2pRpcRequest {
             info!(target: "p2p::rpc", "Disconnected peer {}", peer_id);
             // Record the duration of the peer connection.
             if let Some(start_time) = gossip.peer_connection_start.remove(&peer_id) {
-                let peer_duration = start_time.elapsed();
+                let _peer_duration = start_time.elapsed();
                 kona_macros::record!(
                     histogram,
                     crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
-                    peer_duration.as_secs_f64()
+                    _peer_duration.as_secs_f64()
                 );
             }
         }
@@ -228,13 +217,13 @@ impl P2pRpcRequest {
                 Ok(dt) => dt.into_iter().map(|e| e.to_string()).collect(),
 
                 Err(e) => {
-                    warn!("Failed to receive peer count: {:?}", e);
+                    warn!(target: "p2p_rpc", "Failed to receive peer count: {:?}", e);
                     return;
                 }
             };
 
             if let Err(e) = sender.send(dt) {
-                warn!("Failed to send peer count through response channel: {:?}", e);
+                warn!(target: "p2p_rpc", "Failed to send peer count through response channel: {:?}", e);
             }
         });
     }
@@ -535,7 +524,7 @@ impl P2pRpcRequest {
                 peer_scores: PeerScores::default(),
             };
             if let Err(e) = sender.send(peer_info) {
-                warn!("Failed to send peer info through response channel: {:?}", e);
+                warn!(target: "p2p_rpc", "Failed to send peer info through response channel: {:?}", e);
             }
         });
     }
@@ -634,7 +623,7 @@ impl P2pRpcRequest {
             };
 
             if let Err(e) = sender.send(stats) {
-                warn!("Failed to send peer stats through response channel: {:?}", e);
+                warn!(target: "p2p_rpc", "Failed to send peer stats through response channel: {:?}", e);
             };
         });
     }
@@ -651,12 +640,12 @@ impl P2pRpcRequest {
             let pc = match pc_req.await {
                 Ok(pc) => Some(pc),
                 Err(e) => {
-                    warn!("Failed to receive peer count: {:?}", e);
+                    warn!(target: "p2p_rpc", "Failed to receive peer count: {:?}", e);
                     None
                 }
             };
             if let Err(e) = sender.send((pc, gossip_pc)) {
-                warn!("Failed to send peer count through response channel: {:?}", e);
+                warn!(target: "p2p_rpc", "Failed to send peer count through response channel: {:?}", e);
             }
         });
     }

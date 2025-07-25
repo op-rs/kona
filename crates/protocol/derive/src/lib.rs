@@ -52,5 +52,5 @@ pub use types::{ActivationSignal, PipelineResult, ResetSignal, Signal, StepResul
 mod metrics;
 pub use metrics::Metrics;
 
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

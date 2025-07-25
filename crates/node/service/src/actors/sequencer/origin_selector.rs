@@ -1,8 +1,9 @@
 //! The [`L1OriginSelector`].
 
-use alloy_eips::BlockId;
+use alloy_primitives::B256;
 use alloy_provider::{Provider, RootProvider};
 use alloy_transport::{RpcError, TransportErrorKind};
+use async_trait::async_trait;
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo};
 use std::sync::Arc;
@@ -10,20 +11,20 @@ use std::sync::Arc;
 /// The [`L1OriginSelector`] is responsible for selecting the L1 origin block based on the
 /// current L2 unsafe head's sequence epoch.
 #[derive(Debug)]
-pub struct L1OriginSelector {
+pub struct L1OriginSelector<P: L1OriginSelectorProvider> {
     /// The [`RollupConfig`].
     cfg: Arc<RollupConfig>,
-    /// The L1 [`RootProvider`].
-    l1: RootProvider,
+    /// The [`L1OriginSelectorProvider`].
+    l1: P,
     /// The current L1 origin.
     current: Option<BlockInfo>,
     /// The next L1 origin.
     next: Option<BlockInfo>,
 }
 
-impl L1OriginSelector {
+impl<P: L1OriginSelectorProvider> L1OriginSelector<P> {
     /// Creates a new [`L1OriginSelector`].
-    pub const fn new(cfg: Arc<RollupConfig>, l1: RootProvider) -> Self {
+    pub const fn new(cfg: Arc<RollupConfig>, l1: P) -> Self {
         Self { cfg, l1, current: None, next: None }
     }
 
@@ -50,17 +51,15 @@ impl L1OriginSelector {
     ) -> Result<BlockInfo, L1OriginSelectorError> {
         self.select_origins(&unsafe_head).await?;
 
-        let (current, mut next) = (self.current, self.next);
-
         // Start building on the next L1 origin block if the next L2 block's timestamp is
         // greater than or equal to the next L1 origin's timestamp.
-        if let Some(next) = next {
+        if let Some(next) = self.next {
             if unsafe_head.block_info.timestamp + self.cfg.block_time >= next.timestamp {
                 return Ok(next);
             }
         }
 
-        let Some(current) = current else {
+        let Some(current) = self.current else {
             unreachable!("Current L1 origin should always be set by `select_origins`");
         };
 
@@ -74,20 +73,6 @@ impl L1OriginSelector {
             return Ok(current);
         }
 
-        let next_block_number = current.number.saturating_add(1);
-
-        // If the next L1 origin is not set, fetch the next block after the current L1 origin.
-        if self.next.is_none() {
-            let next_block = self
-                .l1
-                .get_block_by_number(next_block_number.into())
-                .await?
-                .ok_or(L1OriginSelectorError::BlockNotFound(next_block_number.into()))?
-                .into();
-
-            next = Some(next_block);
-        }
-
         warn!(
             target: "l1_origin_selector",
             current_origin_time = current.timestamp,
@@ -96,16 +81,17 @@ impl L1OriginSelector {
             "Next L2 block time is past the sequencer drift"
         );
 
-        if next
+        if self
+            .next
             .map(|n| unsafe_head.block_info.timestamp + self.cfg.block_time < n.timestamp)
             .unwrap_or(false)
         {
-            // If the next L2 block's timestamp is less than the next L1 origin's timestamp,
-            // return the current L1 origin.
+            // If the next L1 origin is ahead of the next L2 block's timestamp, return the current
+            // origin.
             return Ok(current);
         }
 
-        next.ok_or(L1OriginSelectorError::BlockNotFound(next_block_number.into()))
+        self.next.ok_or(L1OriginSelectorError::NotEnoughData(current))
     }
 
     /// Selects the current and next L1 origin blocks based on the unsafe head.
@@ -121,15 +107,33 @@ impl L1OriginSelector {
             self.next = None;
         } else {
             // Find the current origin block, as it is missing.
-            let current: BlockInfo = self
-                .l1
-                .get_block_by_hash(unsafe_head.l1_origin.hash)
-                .await?
-                .ok_or(L1OriginSelectorError::BlockNotFound(unsafe_head.l1_origin.hash.into()))?
-                .into();
+            let current = self.l1.get_block_by_hash(unsafe_head.l1_origin.hash).await?;
 
-            self.current = Some(current);
+            self.current = current;
             self.next = None;
+        }
+
+        self.try_fetch_next_origin().await
+    }
+
+    /// Attempts to fetch the next L1 origin block.
+    async fn try_fetch_next_origin(&mut self) -> Result<(), L1OriginSelectorError> {
+        // If there is no next L1 origin set, attempt to find it. If it's not yet available, leave
+        // it unset.
+        if let Some(current) = self.current.as_ref() {
+            // If the next L1 origin is already set, do nothing.
+            if self.next.is_some() {
+                return Ok(());
+            }
+
+            // If the next L1 origin is a logical extension of the current L1 chain, set it.
+            //
+            // Ignore the eventuality that the block is not found, as the next L1 origin fetch is
+            // performed on a best-effort basis.
+            let next = self.l1.get_block_by_number(current.number + 1).await?;
+            if next.map(|n| n.parent_hash == current.hash).unwrap_or(false) {
+                self.next = next;
+            }
         }
 
         Ok(())
@@ -142,7 +146,280 @@ pub enum L1OriginSelectorError {
     /// An error produced by the [`RootProvider`].
     #[error(transparent)]
     Provider(#[from] RpcError<TransportErrorKind>),
-    /// A block could not be found.
-    #[error("Block {0} could not be found")]
-    BlockNotFound(BlockId),
+    /// The L1 provider does not have enough data to select the next L1 origin block.
+    #[error(
+        "Waiting for more L1 data to be available to select the next L1 origin block. Current L1 origin: {0:?}"
+    )]
+    NotEnoughData(BlockInfo),
+}
+
+/// L1 [`BlockInfo`] provider interface for the [`L1OriginSelector`].
+#[async_trait]
+pub trait L1OriginSelectorProvider {
+    /// Returns a [`BlockInfo`] by its hash.
+    async fn get_block_by_hash(
+        &self,
+        hash: B256,
+    ) -> Result<Option<BlockInfo>, L1OriginSelectorError>;
+
+    /// Returns a [`BlockInfo`] by its number.
+    async fn get_block_by_number(
+        &self,
+        number: u64,
+    ) -> Result<Option<BlockInfo>, L1OriginSelectorError>;
+}
+
+#[async_trait]
+impl L1OriginSelectorProvider for RootProvider {
+    async fn get_block_by_hash(
+        &self,
+        hash: B256,
+    ) -> Result<Option<BlockInfo>, L1OriginSelectorError> {
+        Ok(Provider::get_block_by_hash(self, hash).await?.map(Into::into))
+    }
+
+    async fn get_block_by_number(
+        &self,
+        number: u64,
+    ) -> Result<Option<BlockInfo>, L1OriginSelectorError> {
+        Ok(Provider::get_block_by_number(self, number.into()).await?.map(Into::into))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alloy_eips::NumHash;
+    use rstest::rstest;
+    use std::collections::HashSet;
+
+    /// A mock [`OriginSelectorProvider`] with a local set of [`BlockInfo`]s available.
+    #[derive(Default, Debug, Clone)]
+    struct MockOriginSelectorProvider {
+        blocks: HashSet<BlockInfo>,
+    }
+
+    impl MockOriginSelectorProvider {
+        /// Creates a new [`MockOriginSelectorProvider`].
+        pub(crate) fn with_block(&mut self, block: BlockInfo) {
+            self.blocks.insert(block);
+        }
+    }
+
+    #[async_trait]
+    impl L1OriginSelectorProvider for MockOriginSelectorProvider {
+        async fn get_block_by_hash(
+            &self,
+            hash: B256,
+        ) -> Result<Option<BlockInfo>, L1OriginSelectorError> {
+            Ok(self.blocks.iter().find(|b| b.hash == hash).copied())
+        }
+
+        async fn get_block_by_number(
+            &self,
+            number: u64,
+        ) -> Result<Option<BlockInfo>, L1OriginSelectorError> {
+            Ok(self.blocks.iter().find(|b| b.number == number).copied())
+        }
+    }
+
+    #[tokio::test]
+    #[rstest]
+    #[case::single_epoch(1)]
+    #[case::many_epochs(12)]
+    async fn test_next_l1_origin_several_epochs(#[case] num_epochs: usize) {
+        // Assume an L1 slot time of 12 seconds.
+        const L1_SLOT_TIME: u64 = 12;
+        // Assume an L2 block time of 2 seconds.
+        const L2_BLOCK_TIME: u64 = 2;
+
+        // Initialize the rollup configuration with a block time of 2 seconds and a sequencer drift
+        // of 600 seconds.
+        let cfg = Arc::new(RollupConfig {
+            block_time: L2_BLOCK_TIME,
+            max_sequencer_drift: 600,
+            ..Default::default()
+        });
+
+        // Initialize the provider with mock L1 blocks, equal to the number of epochs + 1
+        // (such that the next logical origin is always available.)
+        let mut provider = MockOriginSelectorProvider::default();
+        for i in 0..num_epochs + 1 {
+            provider.with_block(BlockInfo {
+                parent_hash: B256::with_last_byte(i.saturating_sub(1) as u8),
+                hash: B256::with_last_byte(i as u8),
+                number: i as u64,
+                timestamp: i as u64 * L1_SLOT_TIME,
+            });
+        }
+
+        let mut selector = L1OriginSelector::new(cfg.clone(), provider);
+
+        // Ensure all L1 origin blocks are produced correctly for each L2 block within all available
+        // epochs.
+        for i in 0..(num_epochs as u64 * (L1_SLOT_TIME / cfg.block_time)) {
+            let current_epoch = (i * cfg.block_time) / L1_SLOT_TIME;
+            let unsafe_head = L2BlockInfo {
+                block_info: BlockInfo {
+                    hash: B256::ZERO,
+                    number: i,
+                    timestamp: i * cfg.block_time,
+                    ..Default::default()
+                },
+                l1_origin: NumHash {
+                    number: current_epoch,
+                    hash: B256::with_last_byte(current_epoch as u8),
+                },
+                seq_num: 0,
+            };
+            let next = selector.next_l1_origin(unsafe_head).await.unwrap();
+
+            // The expected L1 origin block is the one corresponding to the epoch of the current L2
+            // block.
+            let expected_epoch = ((i + 1) * cfg.block_time) / L1_SLOT_TIME;
+            assert_eq!(next.hash, B256::with_last_byte(expected_epoch as u8));
+            assert_eq!(next.number, expected_epoch);
+        }
+    }
+
+    #[tokio::test]
+    #[rstest]
+    #[case::not_available(false)]
+    #[case::is_available(true)]
+    async fn test_next_l1_origin_next_maybe_available(#[case] next_l1_origin_available: bool) {
+        // Assume an L2 block time of 2 seconds.
+        const L2_BLOCK_TIME: u64 = 2;
+
+        // Initialize the rollup configuration with a block time of 2 seconds and a sequencer drift
+        // of 600 seconds.
+        let cfg = Arc::new(RollupConfig {
+            block_time: L2_BLOCK_TIME,
+            max_sequencer_drift: 600,
+            ..Default::default()
+        });
+
+        // Initialize the provider with a single L1 block.
+        let mut provider = MockOriginSelectorProvider::default();
+        provider.with_block(BlockInfo {
+            parent_hash: B256::ZERO,
+            hash: B256::ZERO,
+            number: 0,
+            timestamp: 0,
+        });
+
+        if next_l1_origin_available {
+            // If the next L1 origin is available, add it to the provider.
+            provider.with_block(BlockInfo {
+                parent_hash: B256::ZERO,
+                hash: B256::with_last_byte(1),
+                number: 1,
+                timestamp: cfg.block_time,
+            });
+        }
+
+        let mut selector = L1OriginSelector::new(cfg.clone(), provider);
+
+        let current_epoch = 0;
+        let unsafe_head = L2BlockInfo {
+            block_info: BlockInfo {
+                hash: B256::ZERO,
+                number: 5,
+                timestamp: 5 * cfg.block_time,
+                ..Default::default()
+            },
+            l1_origin: NumHash {
+                number: current_epoch,
+                hash: B256::with_last_byte(current_epoch as u8),
+            },
+            seq_num: 0,
+        };
+        let next = selector.next_l1_origin(unsafe_head).await.unwrap();
+
+        // The expected L1 origin block is the one corresponding to the epoch of the current L2
+        // block. Assuming the next L1 origin block is not available from the eyes of the
+        // provider (_and_ it is not past the sequencer drift), the current L1 origin block
+        // will be re-used.
+        let expected_epoch =
+            if next_l1_origin_available { current_epoch + 1 } else { current_epoch };
+        assert_eq!(next.hash, B256::with_last_byte(expected_epoch as u8));
+        assert_eq!(next.number, expected_epoch);
+    }
+
+    #[tokio::test]
+    #[rstest]
+    #[case::next_not_available(false, false)]
+    #[case::next_available_but_behind(true, false)]
+    #[case::next_available_and_ahead(true, true)]
+    async fn test_next_l1_origin_next_past_seq_drift(
+        #[case] next_available: bool,
+        #[case] next_ahead_of_unsafe: bool,
+    ) {
+        // Assume an L2 block time of 2 seconds.
+        const L2_BLOCK_TIME: u64 = 2;
+
+        // Initialize the rollup configuration with a block time of 2 seconds and a sequencer drift
+        // of 600 seconds.
+        let cfg = Arc::new(RollupConfig {
+            block_time: L2_BLOCK_TIME,
+            max_sequencer_drift: 600,
+            ..Default::default()
+        });
+
+        // Initialize the provider with a single L1 block.
+        let mut provider = MockOriginSelectorProvider::default();
+        provider.with_block(BlockInfo {
+            parent_hash: B256::ZERO,
+            hash: B256::ZERO,
+            number: 0,
+            timestamp: 0,
+        });
+
+        if next_available {
+            // If the next L1 origin is to be available, add it to the provider.
+            provider.with_block(BlockInfo {
+                parent_hash: B256::ZERO,
+                hash: B256::with_last_byte(1),
+                number: 1,
+                timestamp: if next_ahead_of_unsafe {
+                    cfg.max_sequencer_drift + cfg.block_time * 2
+                } else {
+                    cfg.block_time
+                },
+            });
+        }
+
+        let mut selector = L1OriginSelector::new(cfg.clone(), provider);
+
+        let current_epoch = 0;
+        let unsafe_head = L2BlockInfo {
+            block_info: BlockInfo { timestamp: cfg.max_sequencer_drift, ..Default::default() },
+            l1_origin: NumHash {
+                number: current_epoch,
+                hash: B256::with_last_byte(current_epoch as u8),
+            },
+            seq_num: 0,
+        };
+
+        if next_available {
+            if next_ahead_of_unsafe {
+                // If the next L1 origin is available and ahead of the unsafe head, the L1 origin
+                // should not change.
+                let next = selector.next_l1_origin(unsafe_head).await.unwrap();
+                assert_eq!(next.hash, B256::ZERO);
+                assert_eq!(next.number, 0);
+            } else {
+                // If the next L1 origin is available and behind the unsafe head, the L1 origin
+                // should advance.
+                let next = selector.next_l1_origin(unsafe_head).await.unwrap();
+                assert_eq!(next.hash, B256::with_last_byte(1));
+                assert_eq!(next.number, 1);
+            }
+        } else {
+            // If we're past the sequencer drift, and the next L1 block is not available, a
+            // `NotEnoughData` error should be returned signifying that we cannot
+            // proceed with the next L1 origin until the block is present.
+            let next_err = selector.next_l1_origin(unsafe_head).await.unwrap_err();
+            assert!(matches!(next_err, L1OriginSelectorError::NotEnoughData(_)));
+        }
+    }
 }

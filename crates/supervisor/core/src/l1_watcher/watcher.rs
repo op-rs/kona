@@ -1,6 +1,6 @@
 use crate::event::ChainEvent;
-use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::ChainId;
+use alloy_eips::{BlockNumHash, BlockNumberOrTag};
+use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
@@ -18,8 +18,9 @@ pub struct L1Watcher<F> {
     rpc_client: RpcClient,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
+    /// The finalized L1 block storage.
     finalized_l1_storage: Arc<F>,
-
+    /// The event senders for each chain.
     event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
 }
 
@@ -37,28 +38,57 @@ where
         Self { rpc_client, finalized_l1_storage, event_txs, cancellation }
     }
 
-    /// Starts polling for finalized blocks and processes them.
+    /// Starts polling for finalized and latest blocks and processes them.
     pub async fn run(&self) {
+        // TODO: Change the polling interval to 1535 seconds with mainnet config.
         let finalized_head_poller = self
             .rpc_client
             .prepare_static_poller::<_, Block>(
                 "eth_getBlockByNumber",
                 (BlockNumberOrTag::Finalized, false),
             )
-            .with_poll_interval(Duration::from_secs(5));
-        let mut finalized_head_stream = finalized_head_poller.into_stream();
+            .with_poll_interval(Duration::from_secs(47));
 
+        let finalized_head_stream = finalized_head_poller.into_stream();
+
+        // TODO: Change the polling interval to 11 seconds with mainnet config.
+        let latest_head_poller = self
+            .rpc_client
+            .prepare_static_poller::<_, Block>(
+                "eth_getBlockByNumber",
+                (BlockNumberOrTag::Latest, false),
+            )
+            .with_poll_interval(Duration::from_secs(5));
+
+        let latest_head_stream = latest_head_poller.into_stream();
+
+        self.poll_blocks(finalized_head_stream, latest_head_stream).await;
+    }
+
+    /// Helper function to poll blocks using a provided stream and handler closure.
+    async fn poll_blocks<S>(&self, mut finalized_head_stream: S, mut latest_head_stream: S)
+    where
+        S: futures::Stream<Item = Block> + Unpin,
+    {
         let mut last_finalized_number = 0;
+        let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
 
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
-                    info!(target: "l1_watcher", "L1Watcher cancellation requested, stopping...");
+                    info!(target: "l1_watcher", "L1Watcher cancellation requested, stopping polling");
                     break;
                 }
+                latest_block = latest_head_stream.next() => {
+                    if let Some(latest_block) = latest_block {
+                        info!(target: "l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
+                        self.handle_new_latest_block(latest_block, &mut last_latest_number);
+                    }
+                }
                 finalized_block = finalized_head_stream.next() => {
-                    if let Some(block) = finalized_block {
-                        self.handle_new_finalized_block(block, &mut last_finalized_number);
+                    if let Some(finalized_block) = finalized_block {
+                        info!(target: "l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
+                        self.handle_new_finalized_block(finalized_block, &mut last_finalized_number);
                     }
                 }
             }
@@ -107,6 +137,37 @@ where
             }
         }
     }
+
+    fn handle_new_latest_block(&self, incoming_block: Block, previous_block: &mut BlockNumHash) {
+        let incoming_block_number = incoming_block.header.number;
+        if incoming_block_number <= previous_block.number {
+            info!(
+                target: "l1_watcher",
+                "Incoming latest L1 block is not greater than the stored latest block"
+            );
+            return;
+        }
+
+        let Header {
+            hash,
+            inner: alloy_consensus::Header { number, parent_hash, timestamp, .. },
+            ..
+        } = incoming_block.header;
+        let latest_block = BlockInfo::new(hash, number, parent_hash, timestamp);
+
+        info!(
+            target: "l1_watcher",
+            block_number = latest_block.number,
+            "New latest L1 block received"
+        );
+
+        if latest_block.parent_hash != previous_block.hash {
+            // TODO: Trigger re-org.
+            // Remove unnecessary fields from latest_block is not required in re-org.
+        }
+
+        *previous_block = latest_block.id();
+    }
 }
 
 #[cfg(test)]
@@ -121,8 +182,8 @@ mod tests {
 
     // Mock the FinalizedL1Storage trait
     mock! {
-        pub db {}
-        impl FinalizedL1Storage for db {
+        pub finalized_l1_storage {}
+        impl FinalizedL1Storage for finalized_l1_storage {
             fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
             fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
         }
@@ -144,7 +205,7 @@ mod tests {
         let watcher = L1Watcher {
             rpc_client,
             cancellation: CancellationToken::new(),
-            finalized_l1_storage: Arc::new(Mockdb::new()),
+            finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
             event_txs,
         };
 
@@ -164,7 +225,7 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(1);
         let event_txs = [(1, tx)].into_iter().collect();
 
-        let mut mock_storage = Mockdb::new();
+        let mut mock_storage = Mockfinalized_l1_storage::new();
         mock_storage.expect_update_finalized_l1().returning(|_block| Ok(()));
 
         let asserter = Asserter::new();
@@ -214,7 +275,7 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(1);
         let event_txs = [(1, tx)].into_iter().collect();
 
-        let mut mock_storage = Mockdb::new();
+        let mut mock_storage = Mockfinalized_l1_storage::new();
         mock_storage
             .expect_update_finalized_l1()
             .returning(|_block| Err(StorageError::DatabaseNotInitialised));
@@ -247,6 +308,42 @@ mod tests {
         watcher.handle_new_finalized_block(block, &mut last_finalized_number);
 
         // Should NOT broadcast if storage update fails
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_new_latest_block_updates() {
+        let (tx, mut rx) = mpsc::channel(1);
+        let event_txs = [(1, tx)].into_iter().collect();
+
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter);
+        let rpc_client = RpcClient::new(transport, false);
+
+        let watcher = L1Watcher {
+            rpc_client,
+            cancellation: CancellationToken::new(),
+            finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
+            event_txs,
+        };
+
+        let block = Block {
+            header: Header {
+                hash: B256::ZERO,
+                inner: alloy_consensus::Header {
+                    number: 1,
+                    parent_hash: B256::ZERO,
+                    timestamp: 123456,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
+        watcher.handle_new_latest_block(block, &mut last_latest_number);
+        assert_eq!(last_latest_number.number, 1);
+        // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
     }
 }

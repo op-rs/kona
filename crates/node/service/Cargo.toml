@@ -1,7 +1,7 @@
 [package]
 name = "kona-node-service"
 description = "An implementation of the OP Stack consensus node service"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -22,9 +22,13 @@ kona-derive.workspace = true
 kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
 kona-rpc.workspace = true
+kona-peers.workspace = true
 kona-macros.workspace = true
 
 # alloy
+alloy-chains.workspace = true
+alloy-signer.workspace = true
+alloy-signer-local.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-client.workspace = true
 alloy-rpc-types-eth.workspace = true
@@ -42,7 +46,10 @@ op-alloy-provider.workspace = true
 # general
 url.workspace = true
 libp2p.workspace = true
+libp2p-stream.workspace = true
+discv5.workspace = true
 futures.workspace = true
+ethereum_ssz.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 tokio-util.workspace = true
@@ -50,6 +57,7 @@ async-trait.workspace = true
 async-stream.workspace = true
 tokio-stream.workspace = true
 strum = { workspace = true, features = ["derive"] }
+backon.workspace = true
 derive_more = { workspace = true, features = ["debug"] }
 jsonrpsee = { workspace = true, features = ["server"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
@@ -58,6 +66,12 @@ http-body-util.workspace = true
 
 # metrics
 metrics = { workspace = true, optional = true }
+
+[dev-dependencies]
+rstest.workspace = true
+arbitrary.workspace = true
+rand.workspace = true
+alloy-rpc-types-engine = { workspace = true, features = ["arbitrary"] }
 
 [features]
 default = []

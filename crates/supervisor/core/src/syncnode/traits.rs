@@ -4,7 +4,7 @@ use alloy_eips::BlockNumHash;
 use alloy_primitives::B256;
 use async_trait::async_trait;
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{OutputV0, Receipts};
+use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::fmt::Debug;
 use tokio::sync::mpsc;
 
@@ -28,13 +28,9 @@ pub trait NodeSubscriber: Send + Sync {
     ) -> Result<(), ManagedNodeError>;
 }
 
-/// [`ReceiptProvider`] abstracts fetching receipts for a given block hash.
-///
-/// This trait exists to decouple the indexing logs from tightly coupling with
-/// the full `ManagedModeApi`. It allows using a minimal provider
-/// focused only on receipt access.
+/// [`BlockProvider`] abstracts fetching blocks and receipts for a given block.
 #[async_trait]
-pub trait ReceiptProvider: Send + Sync + Debug {
+pub trait BlockProvider: Send + Sync + Debug {
     /// Fetch all transaction receipts for the block with the given hash.
     ///
     /// # Arguments
@@ -44,12 +40,15 @@ pub trait ReceiptProvider: Send + Sync + Debug {
     /// [Receipts] representing all transaction receipts in the block,
     /// or an error if the fetch fails.
     async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+
+    /// Returns the block info for the given block number
+    async fn block_by_number(&self, number: u64) -> Result<BlockInfo, ManagedNodeError>;
 }
 
-/// [`ManagedNodeApiProvider`] abstracts the managed node APIs that supervisor uses to fetch info
-/// from the managed node.
+/// [`ManagedNodeDataProvider`] abstracts the managed node data APIs that supervisor uses to fetch
+/// info from the managed node.
 #[async_trait]
-pub trait ManagedNodeApiProvider: Send + Sync + Debug {
+pub trait ManagedNodeDataProvider: Send + Sync + Debug {
     /// Fetch the output v0 at a given timestamp.
     ///
     /// # Arguments
@@ -84,7 +83,12 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
         &self,
         timestamp: u64,
     ) -> Result<BlockInfo, ManagedNodeError>;
+}
 
+/// [`ManagedNodeController`] abstracts the managed node control APIs that supervisor uses to
+/// control the managed node state.
+#[async_trait]
+pub trait ManagedNodeController: Send + Sync + Debug {
     /// Update the finalized block head using the given [`BlockNumHash`].
     ///
     /// # Arguments
@@ -125,6 +129,27 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
         source_block_id: BlockNumHash,
         derived_block_id: BlockNumHash,
     ) -> Result<(), ManagedNodeError>;
+
+    /// Reset the managed node based on the supervisor's state.
+    /// This is typically used to reset the node's state
+    /// when the supervisor detects a misalignment
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the reset fails
+    async fn reset(&self) -> Result<(), ManagedNodeError>;
+
+    /// Instructs the managed node to invalidate a block.
+    /// This is used when the supervisor detects an invalid block
+    /// and needs to roll back the node's state.
+    ///
+    /// # Arguments
+    /// * `seal` - The [`BlockSeal`] of the block.
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ManagedNodeError)` if the invalidation fails
+    async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
 }
 
 /// Composite trait for any node that provides:
@@ -136,12 +161,24 @@ pub trait ManagedNodeApiProvider: Send + Sync + Debug {
 /// within the supervisor context.
 #[async_trait]
 pub trait ManagedNodeProvider:
-    NodeSubscriber + ReceiptProvider + ManagedNodeApiProvider + Send + Sync + Debug
+    NodeSubscriber
+    + BlockProvider
+    + ManagedNodeDataProvider
+    + ManagedNodeController
+    + Send
+    + Sync
+    + Debug
 {
 }
 
 #[async_trait]
 impl<T> ManagedNodeProvider for T where
-    T: NodeSubscriber + ReceiptProvider + ManagedNodeApiProvider + Send + Sync + Debug
+    T: NodeSubscriber
+        + BlockProvider
+        + ManagedNodeDataProvider
+        + ManagedNodeController
+        + Send
+        + Sync
+        + Debug
 {
 }

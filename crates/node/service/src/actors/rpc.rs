@@ -3,7 +3,10 @@
 use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
-use kona_rpc::{HealthzResponse, OpP2PApiServer, RollupNodeApiServer, WsRPC, WsServer};
+use kona_rpc::{
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
+    OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+};
 
 use jsonrpsee::{
     RpcModule,
@@ -11,7 +14,7 @@ use jsonrpsee::{
     server::{Server, ServerHandle},
 };
 use kona_engine::EngineQueries;
-use kona_rpc::{L1WatcherQueries, NetworkRpc, RollupRpc, RpcBuilder};
+use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc, RpcBuilder};
 use tokio::sync::mpsc;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 
@@ -49,8 +52,12 @@ impl RpcActor {
 /// The communication context used by the RPC actor.
 #[derive(Debug)]
 pub struct RpcContext {
-    /// The network rpc sender.
-    pub network: mpsc::Sender<P2pRpcRequest>,
+    /// The network p2p rpc sender.
+    pub p2p_network: mpsc::Sender<P2pRpcRequest>,
+    /// The network admin rpc sender.
+    pub network_admin: mpsc::Sender<NetworkAdminQuery>,
+    /// The sequencer admin rpc sender.
+    pub sequencer_admin: Option<mpsc::Sender<SequencerAdminQuery>>,
     /// The l1 watcher queries sender.
     pub l1_watcher_queries: mpsc::Sender<L1WatcherQueries>,
     /// The engine query sender.
@@ -77,6 +84,13 @@ async fn launch(
     module: RpcModule<()>,
 ) -> Result<ServerHandle, std::io::Error> {
     let server = Server::builder().build(config.socket).await?;
+
+    if let Ok(addr) = server.local_addr() {
+        info!(target: "rpc", addr = ?addr, "RPC server bound to address");
+    } else {
+        error!(target: "rpc", "Failed to get local address for RPC server");
+    }
+
     Ok(server.start(module))
 }
 
@@ -93,7 +107,14 @@ impl NodeActor for RpcActor {
 
     async fn start(
         mut self,
-        RpcContext { cancellation, network, l1_watcher_queries, engine_query }: Self::OutboundData,
+        RpcContext {
+            cancellation,
+            p2p_network,
+            l1_watcher_queries,
+            engine_query,
+            network_admin,
+            sequencer_admin,
+        }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
         let mut modules = RpcModule::new(());
 
@@ -102,11 +123,24 @@ impl NodeActor for RpcActor {
             jsonrpsee::core::RpcResult::Ok(response)
         })?;
 
-        modules.merge(NetworkRpc::new(network).into_rpc())?;
+        // Build the p2p rpc module.
+        modules.merge(P2pRpc::new(p2p_network).into_rpc())?;
+
+        // Build the admin rpc module.
+        modules.merge(
+            AdminRpc { sequencer_sender: sequencer_admin, network_sender: network_admin }
+                .into_rpc(),
+        )?;
 
         // Create context for communication between actors.
         let rollup_rpc = RollupRpc::new(engine_query.clone(), l1_watcher_queries);
         modules.merge(rollup_rpc.into_rpc())?;
+
+        // Add development RPC module for engine state introspection if enabled
+        if self.config.dev_enabled() {
+            let dev_rpc = DevEngineRpc::new(engine_query.clone());
+            modules.merge(dev_rpc.into_rpc())?;
+        }
 
         if self.config.ws_enabled() {
             modules.merge(WsRPC::new(engine_query).into_rpc())?;
@@ -157,6 +191,7 @@ mod tests {
             enable_admin: false,
             admin_persistence: None,
             ws_enabled: false,
+            dev_enabled: false,
         };
         let result = launch(&launcher, RpcModule::new(())).await;
         assert!(result.is_ok());
@@ -170,6 +205,7 @@ mod tests {
             enable_admin: false,
             admin_persistence: None,
             ws_enabled: false,
+            dev_enabled: false,
         };
         let mut modules = RpcModule::new(());
 

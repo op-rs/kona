@@ -14,26 +14,28 @@ impl Metrics {
         "kona_supervisor_storage_duration_seconds";
 
     // List all your ChainDb method names here
-    const METHODS: [&'static str; 18] = [
+    const METHODS: [&'static str; 21] = [
         "derived_to_source",
         "latest_derived_block_at_source",
-        "latest_derived_block_pair",
-        "save_derived_block_pair",
+        "latest_derivation_state",
+        "initialise_derivation_storage",
+        "save_derived_block",
+        "save_source_block",
         "get_latest_block",
         "get_block",
         "get_log",
         "get_logs",
+        "initialise_log_storage",
         "store_block_logs",
-        "get_current_l1",
         "get_safety_head_ref",
         "get_super_head",
-        "update_current_l1",
-        "update_safety_head_ref",
-        "update_finalized_l1",
-        "get_finalized_l1",
+        "update_finalized_using_source",
         "update_current_cross_unsafe",
         "update_current_cross_safe",
-        // Add more as needed
+        "update_finalized_l1",
+        "get_finalized_l1",
+        "rewind_log_storage",
+        "rewind", // Add more as needed
     ];
 
     pub(crate) fn init(chain_id: ChainId) {

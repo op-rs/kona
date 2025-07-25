@@ -17,6 +17,3 @@ pub use metrics::init_unified_metrics;
 
 mod sequencer;
 pub use sequencer::SequencerArgs;
-
-mod supervisor;
-pub use supervisor::SupervisorArgs;

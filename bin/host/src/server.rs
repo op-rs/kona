@@ -72,7 +72,7 @@ where
                 Ok(_) => continue,
                 Err(PreimageOracleError::IOError(_)) => return Ok(()),
                 Err(e) => {
-                    error!("Failed to serve preimage request: {e}");
+                    error!(target: "host_server", "Failed to serve preimage request: {e}");
                     return Err(PreimageServerError::PreimageRequestFailed(e));
                 }
             }
@@ -90,7 +90,7 @@ where
                 Ok(_) => continue,
                 Err(PreimageOracleError::IOError(_)) => return Ok(()),
                 Err(e) => {
-                    error!("Failed to serve route hint: {e}");
+                    error!(target: "host_server", "Failed to serve route hint: {e}");
                     return Err(PreimageServerError::RouteHintFailed(e));
                 }
             }

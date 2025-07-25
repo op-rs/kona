@@ -1,6 +1,7 @@
 [package]
 name = "kona-supervisor-rpc"
-version = "0.1.0"
+description = "Kona Supervisor RPC"
+version = "0.1.1"
 
 edition.workspace = true
 license.workspace = true
@@ -23,15 +24,14 @@ kona-supervisor-types.workspace = true
 
 # jsonrpsee
 serde.workspace = true
+serde_json.workspace = true
 jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"] }
 
 # Alloy
 alloy-eips.workspace = true
+alloy-serde.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 op-alloy-consensus.workspace = true
-
-#[dev-dependencies]
-serde_json.workspace = true
 
 [features]
 serde = [

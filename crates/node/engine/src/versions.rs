@@ -1,19 +1,28 @@
-//! Provides engine api endpoint versions
+//! Engine API version selection based on Optimism hardfork activations.
 //!
-//! Adapted from the [op-node version providers][vp].
+//! Automatically selects the appropriate Engine API method versions based on
+//! the rollup configuration and block timestamps. Different Optimism hardforks
+//! require different Engine API versions to support new features.
 //!
-//! [vp]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/types.go#L546
+//! # Version Mapping
+//!
+//! - **Bedrock, Canyon, Delta** → V2 methods
+//! - **Ecotone (Cancun)** → V3 methods
+//! - **Isthmus** → V4 methods
+//!
+//! Adapted from the [OP Node version providers](https://github.com/ethereum-optimism/optimism/blob/develop/op-node/rollup/types.go#L546).
 
 use kona_genesis::RollupConfig;
 
-/// The method version for the `engine_forkchoiceUpdated` api.
+/// Engine API version for `engine_forkchoiceUpdated` method calls.
+///
+/// Selects between V2 and V3 based on hardfork activation. V3 is required
+/// for Ecotone/Cancun and later hardforks to support new consensus features.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EngineForkchoiceVersion {
-    /// The `engine_forkchoiceUpdated` api version 1.
-    V1,
-    /// The `engine_forkchoiceUpdated` api version 2.
+    /// Version 2: Used for Bedrock, Canyon, and Delta hardforks.
     V2,
-    /// The `engine_forkchoiceUpdated` api version 3.
+    /// Version 3: Required for Ecotone/Cancun and later hardforks.
     V3,
 }
 
@@ -23,27 +32,28 @@ impl EngineForkchoiceVersion {
     /// Uses the [`RollupConfig`] to check which hardfork is active at the given timestamp.
     pub fn from_cfg(cfg: &RollupConfig, timestamp: u64) -> Self {
         if cfg.is_ecotone_active(timestamp) {
-            // Cancun
+            // Cancun+
             Self::V3
-        } else if cfg.is_canyon_active(timestamp) {
-            // Shanghai
-            Self::V2
         } else {
-            // According to Ethereum engine API spec, we can use fcuV2 here,
-            // but Geth v1.13.11 does not accept V2 before Shanghai.
-            Self::V1
+            // Bedrock, Canyon, Delta
+            Self::V2
         }
     }
 }
 
-/// The method version for the `engine_newPayload` api.
+/// Engine API version for `engine_newPayload` method calls.
+///
+/// Progressive version selection based on hardfork activation:
+/// - V2: Basic payload processing
+/// - V3: Adds Cancun/Ecotone support
+/// - V4: Adds Isthmus hardfork features
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EngineNewPayloadVersion {
-    /// The `engine_newPayload` api version 2.
+    /// Version 2: Basic payload processing for early hardforks.
     V2,
-    /// The `engine_newPayload` api version 3.
+    /// Version 3: Adds Cancun/Ecotone consensus features.
     V3,
-    /// The `engine_newPayload` api version 4.
+    /// Version 4: Adds Isthmus hardfork support.
     V4,
 }
 
@@ -63,14 +73,17 @@ impl EngineNewPayloadVersion {
     }
 }
 
-/// The method version for the `engine_getPayload` api.
+/// Engine API version for `engine_getPayload` method calls.
+///
+/// Matches the payload version used for retrieval with the version
+/// used during payload construction, ensuring API compatibility.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EngineGetPayloadVersion {
-    /// The `engine_getPayload` api version 2.
+    /// Version 2: Basic payload retrieval.
     V2,
-    /// The `engine_getPayload` api version 3.
+    /// Version 3: Enhanced payload data for Cancun/Ecotone.
     V3,
-    /// The `engine_getPayload` api version 4.
+    /// Version 4: Extended payload format for Isthmus.
     V4,
 }
 

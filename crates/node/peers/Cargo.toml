@@ -1,6 +1,6 @@
 [package]
 name = "kona-peers"
-version = "0.1.0"
+version = "0.1.1"
 description = "Network peers library for the OP Stack"
 
 edition.workspace = true

@@ -25,3 +25,6 @@ pub mod syncnode;
 
 pub mod safety_checker;
 pub use safety_checker::{CrossSafetyCheckerJob, CrossSafetyError};
+
+mod rewinder;
+pub use rewinder::{ChainRewinder, ChainRewinderError};
