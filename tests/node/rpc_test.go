@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/apis"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,10 +126,8 @@ func p2pBanPeer(t devtest.T, out *MixedOpKonaPreset) {
 		// We pick the first peer that is connected.
 		peerToBan := ""
 		for _, peer := range peers.Peers {
-			if peer.Connectedness == network.Connected {
-				peerToBan = peer.PeerID.String()
-				break
-			}
+			peerToBan = peer.PeerID.String()
+			break
 		}
 
 		require.NotEmpty(t, peerToBan, "no connected peer found")
