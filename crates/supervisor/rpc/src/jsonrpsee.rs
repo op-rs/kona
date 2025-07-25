@@ -13,7 +13,7 @@ use kona_interop::{
     DependencySet, DerivedIdPair, DerivedRefPair, ExecutingDescriptor, ManagedEvent, SafetyLevel,
 };
 use kona_protocol::BlockInfo;
-use kona_supervisor_types::{BlockSeal, HexStringU64, OutputV0, Receipts};
+use kona_supervisor_types::{BlockSeal, HexStringU64, OutputV0, Receipts, SubscriptionEvent};
 use serde::{Deserialize, Serialize};
 
 /// Supervisor API for interop.
