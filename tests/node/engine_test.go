@@ -24,7 +24,7 @@ func TestEngine(gt *testing.T) {
 		clRPC, err := GetNodeRPCEndpoint(t.Ctx(), &node)
 
 		// See if the node supports the dev RPC.
-		if !supportsDevRPC(t, clName, clRPC) {
+		if !supportsDevRPC(clRPC) {
 			t.Log("node does not support dev RPC, skipping engine test for", node.Escape().ID().Key())
 			continue
 		}
