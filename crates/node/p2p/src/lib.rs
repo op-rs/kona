@@ -15,17 +15,17 @@
 //!
 //! The library is organized into four main modules:
 //!
-//! - [`gossip`]: GossipSub-based block propagation and validation
-//! - [`discv5`]: Peer discovery service using Ethereum's Discv5 protocol
-//! - [`rpc`]: Administrative RPC API for network status and peer management
-//! - [`metrics`]: Observability and monitoring capabilities
+//! - **gossip**: GossipSub-based block propagation and validation
+//! - **discv5**: Peer discovery service using Ethereum's Discv5 protocol
+//! - **rpc**: Administrative RPC API for network status and peer management
+//! - **metrics**: Observability and monitoring capabilities
 //!
 //! ## Key Components
 //!
 //! ### GossipDriver
 //! The [`GossipDriver`] manages the libp2p swarm and handles block gossip, implementing
 //! the consensus-layer networking for Optimism. It validates and propagates
-//! [`OpNetworkPayloadEnvelope`] messages across the network.
+//! OP Stack network payload messages across the network.
 //!
 //! ### Discv5Driver
 //! The [`Discv5Driver`] provides peer discovery capabilities, maintaining a distributed
@@ -112,7 +112,7 @@ pub use rpc::{
 /// GossipSub-based consensus layer networking for Optimism.
 ///
 /// Implements block gossip, payload validation, and mesh networking using libp2p's
-/// GossipSub protocol. Handles propagation of [`OpNetworkPayloadEnvelope`] messages
+/// GossipSub protocol. Handles propagation of OP Stack network payload messages
 /// and maintains network health through connection gating and peer scoring.
 mod gossip;
 pub use gossip::{

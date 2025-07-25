@@ -1,7 +1,7 @@
 //! GossipSub-based consensus layer networking for Optimism.
 //!
 //! This module implements the networking layer for Optimism consensus using libp2p's GossipSub
-//! protocol. It handles the propagation and validation of [`OpNetworkPayloadEnvelope`] messages
+//! protocol. It handles the propagation and validation of OP Stack network payload messages
 //! across the network mesh.
 //!
 //! ## Key Components
