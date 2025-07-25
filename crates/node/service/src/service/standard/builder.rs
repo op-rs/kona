@@ -52,11 +52,6 @@ impl RollupNodeBuilder {
         Self { config, ..Self::default() }
     }
 
-    /// Sets the interop mode on the [`RollupNodeBuilder`].
-    pub fn with_interop_mode(self, interop_mode: InteropMode) -> Self {
-        Self { interop_mode, ..self }
-    }
-
     /// Sets the [`NodeMode`] on the [`RollupNodeBuilder`].
     pub fn with_mode(self, mode: NodeMode) -> Self {
         Self { mode, ..self }
