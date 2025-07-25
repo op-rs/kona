@@ -41,22 +41,36 @@ func TestConnDrops(gt *testing.T) {
 			peers := node.Peers()
 			for _, peer := range peers.Peers {
 				t.Log("blacklisting peer %s", peer.PeerID)
-				node.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
+				err := node.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
+				t.Require().NoError(err, "failed to block peer %s", peer.PeerID)
 			}
 
-			// Check that the number of connected peers is correct
-			peers, err := node.Escape().P2PAPI().Peers(t.Ctx(), true)
-			t.Require().NoError(err, "failed to get peers")
-			t.Require().Equal(len(peers.Peers), 0, "expected no peers connected to the node")
+			check := []dsl.CheckFunc{}
 
 			// Wait for the safe chain to advance. The node should _only_ be able to sync the L1 chain: only the safe chain should advance.
 			// The local safe chain may diverge from the reference node, but the unsafe chain should be in sync.
-			dsl.CheckAll(t, node.AdvancedFn(types.LocalSafe, 20, 50), node.NotAdvancedFn(types.LocalUnsafe, 50))
+			check = append(check, node.AdvancedFn(types.LocalSafe, 20, 50))
+
+			// The node should be able to sync the unsafe chain (by consolidating the safe chain)
+			check = append(check, node.AdvancedFn(types.LocalUnsafe, 20, 50))
+
+			dsl.CheckAll(t, check...)
+
+			if !isSequencer(&node) {
+				// The unsafe and safe chains should match
+				syncStatus := node.SyncStatus()
+				t.Require().Equal(syncStatus.UnsafeL2, syncStatus.SafeL2, "expected unsafe and safe chains to be in sync")
+			} else {
+				// The unsafe and safe chains should diverge
+				syncStatus := node.SyncStatus()
+				t.Require().NotEqual(syncStatus.UnsafeL2, syncStatus.SafeL2, "expected unsafe and safe chains to diverge")
+			}
 
 			// Unblock the peers of the node
 			for _, peer := range peers.Peers {
 				t.Log("unblocking peer %s", peer.PeerID)
-				node.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
+				err := node.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
+				t.Require().NoError(err, "failed to unblock peer %s", peer.PeerID)
 			}
 
 			// Wait for the safe and unsafe chains to advance. The node should be able to sync both the safe and unsafe chains.
@@ -89,13 +103,9 @@ func TestConnDropsWithSequencer(gt *testing.T) {
 	peers := sequencer.Peers()
 	for _, peer := range peers.Peers {
 		t.Log("blacklisting peer %s", peer.PeerID)
-		sequencer.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
+		err := sequencer.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
+		t.Require().NoError(err, "failed to block peer %s", peer.PeerID)
 	}
-
-	// Check that the number of connected peers is correct
-	peers, err := sequencer.Escape().P2PAPI().Peers(t.Ctx(), true)
-	t.Require().NoError(err, "failed to get peers")
-	t.Require().Equal(len(peers.Peers), 0, "expected no peers connected to the sequencer")
 
 	// Now:
 	// - The sequencer should be able to sync the L1 chain
@@ -114,10 +124,10 @@ func TestConnDropsWithSequencer(gt *testing.T) {
 		}
 
 		toCheck = append(toCheck, node.AdvancedFn(types.LocalSafe, 20, 50))
-		toCheck = append(toCheck, node.NotAdvancedFn(types.LocalUnsafe, 50))
+		toCheck = append(toCheck, node.AdvancedFn(types.LocalUnsafe, 20, 50))
 
 		// The other nodes should _always_ diverge from the sequencer
-		toCheckErr = append(toCheckErr, node.MatchedFn(&sequencer, types.LocalSafe, 50))
+		toCheckErr = append(toCheckErr, node.MatchedFn(&sequencer, types.LocalUnsafe, 50))
 	}
 
 	dsl.CheckAll(t, toCheck...)
@@ -126,7 +136,8 @@ func TestConnDropsWithSequencer(gt *testing.T) {
 	// Unblock the peers of the sequencer. The network should get back to normal.
 	for _, peer := range peers.Peers {
 		t.Log("unblocking peer %s", peer.PeerID)
-		sequencer.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
+		err := sequencer.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
+		t.Require().NoError(err, "failed to unblock peer %s", peer.PeerID)
 	}
 
 	toCheck = []dsl.CheckFunc{}
@@ -144,7 +155,6 @@ func TestConnDropsWithSequencer(gt *testing.T) {
 	}
 
 	dsl.CheckAll(t, toCheck...)
-	CheckErr(t, toCheckErr...)
 }
 
 // Like CheckAll, but expects an error.
@@ -185,13 +195,9 @@ func TestConnDropsEngineTaskCount(gt *testing.T) {
 			peers := node.Peers()
 			for _, peer := range peers.Peers {
 				t.Log("blacklisting peer %s", peer.PeerID)
-				node.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
+				err := node.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
+				t.Require().NoError(err, "failed to block peer %s", peer.PeerID)
 			}
-
-			// Check that the number of connected peers is correct
-			peers, err := node.Escape().P2PAPI().Peers(t.Ctx(), true)
-			t.Require().NoError(err, "failed to get peers")
-			t.Require().Equal(len(peers.Peers), 0, "expected no peers connected to the node")
 
 			// Check that the engine task count is correct
 			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), &node)
@@ -203,13 +209,14 @@ func TestConnDropsEngineTaskCount(gt *testing.T) {
 
 			// Check that the engine task count is correct
 			for _, q := range queue {
-				t.Require().LessOrEqual(q, 1, "expected at most 1 engine task")
+				t.Require().LessOrEqual(q, uint64(1), "expected at most 1 engine task")
 			}
 
 			// Unblock the peers of the node
 			for _, peer := range peers.Peers {
 				t.Log("unblocking peer %s", peer.PeerID)
-				node.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
+				err := node.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
+				t.Require().NoError(err, "failed to unblock peer %s", peer.PeerID)
 			}
 
 			// Wait for the safe and unsafe chains to advance. The node should be able to sync both the safe and unsafe chains.
