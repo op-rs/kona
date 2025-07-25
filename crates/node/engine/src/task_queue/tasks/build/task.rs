@@ -16,7 +16,30 @@ use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadEnvelope};
 use std::{sync::Arc, time::Instant};
 use tokio::sync::mpsc;
 
-/// The [`BuildTask`] is responsible for building new blocks and importing them via the engine API.
+/// Task for building new blocks with automatic forkchoice synchronization.
+///
+/// The [`BuildTask`] handles the complete block building workflow, including:
+///
+/// 1. **Automatic Forkchoice Updates**: Performs initial `engine_forkchoiceUpdated` call
+///    with payload attributes to initiate block building on the execution layer
+/// 2. **Payload Construction**: Retrieves the built payload using `engine_getPayload`
+/// 3. **Block Import**: Imports the payload using [`InsertTask`] for canonicalization
+///
+/// ## Forkchoice Integration
+///
+/// Unlike previous versions where forkchoice updates required separate tasks,
+/// `BuildTask` now handles forkchoice synchronization automatically as part of
+/// the block building process. This eliminates the need for explicit forkchoice
+/// management and ensures atomic block building operations.
+///
+/// ## Error Handling
+///
+/// The task uses [`EngineBuildError`] for build-specific failures during the forkchoice
+/// update phase, and delegates to [`InsertTaskError`] for payload import failures.
+///
+/// [`InsertTask`]: crate::InsertTask
+/// [`EngineBuildError`]: crate::EngineBuildError
+/// [`InsertTaskError`]: crate::InsertTaskError
 #[derive(Debug, Clone)]
 pub struct BuildTask {
     /// The engine API client.

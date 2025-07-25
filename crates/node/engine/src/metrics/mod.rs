@@ -117,13 +117,11 @@ impl Metrics {
         kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::BUILD_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::FINALIZE_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::FORKCHOICE_TASK_LABEL, 0);
 
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::INSERT_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::BUILD_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::FINALIZE_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::FORKCHOICE_TASK_LABEL, 0);
 
         // Engine reset count
         kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);

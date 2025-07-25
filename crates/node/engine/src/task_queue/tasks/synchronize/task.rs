@@ -10,8 +10,29 @@ use op_alloy_provider::ext::engine::OpEngineApi;
 use std::sync::Arc;
 use tokio::time::Instant;
 
-/// The [`SynchronizeTask`] executes an `engine_forkchoiceUpdated` call with the current
-/// [`EngineState`]'s forkchoice, and no payload attributes.
+/// Internal task for execution layer forkchoice synchronization.
+///
+/// The [`SynchronizeTask`] performs `engine_forkchoiceUpdated` calls to synchronize
+/// the execution layer's forkchoice state with the rollup node's view. This task
+/// operates without payload attributes and is primarily used internally by other
+/// engine tasks rather than being directly enqueued by users.
+///
+/// ## Usage Patterns
+///
+/// - **Internal Synchronization**: Called by [`InsertTask`], [`ConsolidateTask`], and [`FinalizeTask`]
+/// - **Engine Reset**: Used during engine resets to establish initial forkchoice state
+/// - **Safe Head Updates**: Synchronizes safe and finalized head changes
+///
+/// ## Automatic Integration
+///
+/// Unlike the legacy `ForkchoiceTask`, forkchoice updates during block building are now
+/// handled automatically within [`BuildTask`], eliminating the need for explicit
+/// forkchoice management in most user scenarios.
+///
+/// [`InsertTask`]: crate::InsertTask
+/// [`ConsolidateTask`]: crate::ConsolidateTask  
+/// [`FinalizeTask`]: crate::FinalizeTask
+/// [`BuildTask`]: crate::BuildTask
 #[derive(Debug, Clone)]
 pub struct SynchronizeTask {
     /// The engine client.

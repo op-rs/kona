@@ -17,10 +17,19 @@ The `kona-engine` crate provides a task-based engine client for interacting with
 - **[`EngineClient`](crate::EngineClient)** - HTTP client for Engine API communication with JWT authentication
 - **[`EngineState`](crate::EngineState)** - Tracks the current state of the execution layer
 - **Task Types** - Specialized tasks for different engine operations:
-  - [`InsertTask`](crate::InsertTask) - Insert new payloads
-  - [`BuildTask`](crate::BuildTask) - Build new payloads
-  - [`ConsolidateTask`](crate::ConsolidateTask) - Consolidate unsafe payloads
-  - [`FinalizeTask`](crate::FinalizeTask) - Finalize safe payloads
+  - [`InsertTask`](crate::InsertTask) - Insert new payloads into the execution engine
+  - [`BuildTask`](crate::BuildTask) - Build new payloads with automatic forkchoice synchronization
+  - [`ConsolidateTask`](crate::ConsolidateTask) - Consolidate unsafe payloads to advance the safe chain
+  - [`FinalizeTask`](crate::FinalizeTask) - Finalize safe payloads on L1 confirmation
+  - [`SynchronizeTask`](crate::SynchronizeTask) - Internal task for execution layer forkchoice synchronization
+
+## Architecture
+
+The engine implements a task-driven architecture where forkchoice synchronization is handled automatically:
+
+- **Automatic Forkchoice Handling**: The [`BuildTask`](crate::BuildTask) automatically performs forkchoice updates during block building, eliminating the need for explicit forkchoice management in user code.
+- **Internal Synchronization**: [`SynchronizeTask`](crate::SynchronizeTask) handles internal execution layer synchronization and is primarily used by other tasks rather than directly by users.
+- **Priority-Based Execution**: Tasks are executed in priority order to ensure optimal sequencer performance and block processing efficiency.
 
 ## Usage
 

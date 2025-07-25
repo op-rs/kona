@@ -141,17 +141,17 @@ impl PartialOrd for EngineTask {
 
 impl Ord for EngineTask {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Order (descending): ForkchoiceUpdate -> BuildBlock -> InsertUnsafe -> Consolidate
+        // Order (descending): BuildBlock -> InsertUnsafe -> Consolidate -> Finalize
         //
         // https://specs.optimism.io/protocol/derivation.html#forkchoice-synchronization
         //
-        // - Outstanding FCUs are processed before anything else.
-        // - Block building jobs are prioritized above InsertUnsafe and Consolidate tasks, to give
-        //   priority to the sequencer.
+        // - Block building jobs are prioritized above all other tasks, to give
+        //   priority to the sequencer. BuildTask handles forkchoice updates automatically.
         // - InsertUnsafe tasks are prioritized over Consolidate tasks, to ensure that unsafe block
         //   gossip is imported promptly.
-        // - Consolidate tasks are the lowest priority, as they are only used for advancing the safe
+        // - Consolidate tasks are prioritized over Finalize tasks, as they advance the safe
         //   chain via derivation.
+        // - Finalize tasks have the lowest priority, as they only update finalized status.
         match (self, other) {
             // Same variant cases
             (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,

@@ -11,7 +11,20 @@ use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use thiserror::Error;
 use tokio::sync::mpsc;
 
-/// An error that occurs when building a payload in the engine.
+/// An error that occurs during payload building within the engine.
+///
+/// This error type is specific to the block building process and represents failures
+/// that can occur during the automatic forkchoice update phase of [`BuildTask`].
+/// Unlike [`BuildTaskError`], which handles higher-level build orchestration errors,
+/// `EngineBuildError` focuses on low-level engine API communication failures.
+///
+/// ## Error Categories
+///
+/// - **State Validation**: Errors related to inconsistent chain state
+/// - **Engine Communication**: RPC failures during forkchoice updates
+/// - **Payload Validation**: Invalid payload status responses from the execution layer
+///
+/// [`BuildTask`]: crate::BuildTask
 #[derive(Debug, Error)]
 pub enum EngineBuildError {
     /// The finalized head is ahead of the unsafe head.
