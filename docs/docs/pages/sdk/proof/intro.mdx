@@ -34,7 +34,7 @@ In this section of the developer book, we'll dive deep into the Kona SDK, coveri
 Whether you're looking to use Kona as-is, extend its functionality, or create entirely new programs based on its libraries,
 this guide is intended to provide you with the knowledge and tools you need to succeed.
 
-[sp-1]: https://github.com/succinct-labs/sp-1
+[sp-1]: https://github.com/succinctlabs/sp1
 [rzero]: https://github.com/risc0/risc0
 [tdx]: https://www.intel.com/content/www/us/en/developer/tools/trust-domain-extensions/documentation.html
 [sev-snp]: https://www.amd.com/en/developer/sev.html
