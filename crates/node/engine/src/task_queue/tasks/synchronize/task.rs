@@ -19,7 +19,8 @@ use tokio::time::Instant;
 ///
 /// ## Usage Patterns
 ///
-/// - **Internal Synchronization**: Called by [`InsertTask`], [`ConsolidateTask`], and [`FinalizeTask`]
+/// - **Internal Synchronization**: Called by [`InsertTask`], [`ConsolidateTask`], and
+///   [`FinalizeTask`]
 /// - **Engine Reset**: Used during engine resets to establish initial forkchoice state
 /// - **Safe Head Updates**: Synchronizes safe and finalized head changes
 ///

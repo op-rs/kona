@@ -20,8 +20,8 @@ use tokio::sync::mpsc;
 ///
 /// The [`BuildTask`] handles the complete block building workflow, including:
 ///
-/// 1. **Automatic Forkchoice Updates**: Performs initial `engine_forkchoiceUpdated` call
-///    with payload attributes to initiate block building on the execution layer
+/// 1. **Automatic Forkchoice Updates**: Performs initial `engine_forkchoiceUpdated` call with
+///    payload attributes to initiate block building on the execution layer
 /// 2. **Payload Construction**: Retrieves the built payload using `engine_getPayload`
 /// 3. **Block Import**: Imports the payload using [`InsertTask`] for canonicalization
 ///

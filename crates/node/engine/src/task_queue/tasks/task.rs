@@ -145,12 +145,12 @@ impl Ord for EngineTask {
         //
         // https://specs.optimism.io/protocol/derivation.html#forkchoice-synchronization
         //
-        // - Block building jobs are prioritized above all other tasks, to give
-        //   priority to the sequencer. BuildTask handles forkchoice updates automatically.
+        // - Block building jobs are prioritized above all other tasks, to give priority to the
+        //   sequencer. BuildTask handles forkchoice updates automatically.
         // - InsertUnsafe tasks are prioritized over Consolidate tasks, to ensure that unsafe block
         //   gossip is imported promptly.
-        // - Consolidate tasks are prioritized over Finalize tasks, as they advance the safe
-        //   chain via derivation.
+        // - Consolidate tasks are prioritized over Finalize tasks, as they advance the safe chain
+        //   via derivation.
         // - Finalize tasks have the lowest priority, as they only update finalized status.
         match (self, other) {
             // Same variant cases
