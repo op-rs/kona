@@ -15,21 +15,21 @@ pub enum Event {
     /// Used to verify peer connectivity and measure round-trip times.
     #[allow(dead_code)]
     Ping(ping::Event),
-    
+
     /// GossipSub mesh networking event.
     ///
     /// Includes message reception, peer subscription changes, and mesh
     /// topology updates. This is the primary event type for consensus
     /// layer networking.
     Gossipsub(Box<gossipsub::Event>),
-    
+
     /// Peer identification protocol event.
     ///
     /// Contains information about peer capabilities, supported protocols,
     /// and network identity. Used for protocol negotiation and compatibility
     /// checking.
     Identify(Box<identify::Event>),
-    
+
     /// Stream protocol event for request-response communication.
     ///
     /// Handles direct peer-to-peer communication outside of the gossip mesh,

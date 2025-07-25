@@ -18,7 +18,7 @@ pub enum PublishError {
     /// problems, or protocol-level errors in the libp2p stack.
     #[error("Failed to publish payload: {0}")]
     PublishError(#[from] libp2p::gossipsub::PublishError),
-    
+
     /// Failed to encode the payload before publishing.
     ///
     /// Indicates an issue with serializing the payload data structure
@@ -39,7 +39,7 @@ pub enum HandlerEncodeError {
     /// structure, which contains the consensus data being gossiped.
     #[error("Failed to encode payload: {0}")]
     PayloadEncodeError(#[from] op_alloy_rpc_types_engine::PayloadEnvelopeEncodeError),
-    
+
     /// Attempted to publish to an unknown or unsubscribed topic.
     ///
     /// This error occurs when trying to publish to a GossipSub topic that

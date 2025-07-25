@@ -17,19 +17,19 @@ pub enum HandlerRequest {
     /// Returns performance and operational statistics including query counts,
     /// success rates, and table population metrics.
     Metrics(tokio::sync::oneshot::Sender<Metrics>),
-    
+
     /// Get the current number of connected peers in the discovery table.
     ///
     /// Returns the count of peers currently maintained in the routing table,
     /// which indicates the health and connectivity of the discovery service.
     PeerCount(tokio::sync::oneshot::Sender<usize>),
-    
+
     /// Add an ENR to the discovery service's routing table.
     ///
     /// Manually inserts a peer record into the table, typically used for
     /// adding bootstrap nodes or peers discovered through other channels.
     AddEnr(Enr),
-    
+
     /// Request an ENR from a specific network address.
     ///
     /// Initiates a discovery query to retrieve the ENR for a peer at the
@@ -40,25 +40,25 @@ pub enum HandlerRequest {
         /// Network address to query for the ENR.
         addr: String,
     },
-    
+
     /// Get the local node's ENR.
     ///
     /// Returns the ENR that represents this node in the discovery network,
     /// including its network address, capabilities, and cryptographic identity.
     LocalEnr(tokio::sync::oneshot::Sender<Enr>),
-    
+
     /// Get all ENRs currently stored in the routing table.
     ///
     /// Returns a complete dump of peer records known to the discovery service,
     /// useful for debugging and network analysis.
     TableEnrs(tokio::sync::oneshot::Sender<Vec<Enr>>),
-    
+
     /// Get detailed information about nodes in the routing table.
     ///
     /// Returns comprehensive information including node IDs, ENRs, and status
     /// for all peers in the discovery table.
     TableInfos(tokio::sync::oneshot::Sender<Vec<(NodeId, Enr, NodeStatus)>>),
-    
+
     /// Ban specific network addresses for a duration.
     ///
     /// Prevents the discovery service from interacting with the specified

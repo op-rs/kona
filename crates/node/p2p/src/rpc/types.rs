@@ -69,19 +69,19 @@ pub struct TopicScores {
     /// Longer participation indicates stability and commitment to the topic,
     /// contributing positively to the peer's mesh score.
     pub time_in_mesh: f64,
-    
+
     /// Count of first-time message deliveries from this peer.
     ///
     /// Measures how often this peer is the first to deliver new messages,
     /// indicating their connectivity and responsiveness to the network.
     pub first_message_deliveries: f64,
-    
+
     /// Count of messages delivered while in the mesh topology.
     ///
     /// Tracks consistent message forwarding behavior while the peer is
     /// an active participant in the mesh structure.
     pub mesh_message_deliveries: f64,
-    
+
     /// Count of invalid or malicious messages from this peer.
     ///
     /// Penalizes peers that send invalid, duplicate, or malformed messages,
@@ -104,20 +104,20 @@ pub struct GossipScores {
     /// The final computed score that determines this peer's overall
     /// reputation in the gossip network.
     pub total: f64,
-    
+
     /// Block-specific topic scores for consensus messages.
     ///
     /// Tracks peer behavior specifically for block gossip, which is
     /// the primary message type in OP Stack networks.
     pub blocks: TopicScores,
-    
+
     /// Penalty for IP address colocation with other peers.
     ///
     /// Reduces scores for peers sharing IP addresses to prevent
     /// eclipse attacks and improve network decentralization.
     #[serde(rename = "IPColocationFactor")]
     pub ip_colocation_factor: f64,
-    
+
     /// Penalty for problematic behavior patterns.
     ///
     /// Applied to peers exhibiting suspicious or harmful behavior
@@ -139,7 +139,7 @@ pub struct ReqRespScores {
     /// Counts successful request-response exchanges where the peer
     /// provided correct and timely responses to queries.
     pub valid_responses: f64,
-    
+
     /// Number of error responses or failed requests.
     ///
     /// Tracks cases where the peer returned errors, timeouts, or

@@ -22,24 +22,51 @@ The library is organized into four main modules:
 ## Quick Start
 
 ```rust
-use kona_p2p::{GossipDriverBuilder, Discv5Builder};
+use kona_p2p::{GossipDriverBuilder, Discv5Builder, LocalNode};
+use kona_genesis::RollupConfig;
 use libp2p_identity::Keypair;
-use std::net::Ipv4Addr;
+use alloy_primitives::Address;
+use std::net::{IpAddr, Ipv4Addr};
+use discv5::{ConfigBuilder, ListenConfig, enr::k256};
 
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
 // Create a keypair for the node
 let keypair = Keypair::generate_secp256k1();
 
-// Build the gossip driver
-let gossip_driver = GossipDriverBuilder::new()
-    .with_keypair(keypair.clone())
-    .with_addr("127.0.0.1:9000".parse()?)
-    .build()?;
+// Example rollup config and signer address
+let rollup_config = RollupConfig::default();
+let signer = Address::ZERO;
+let listen_addr = "/ip4/127.0.0.1/tcp/9000".parse()?;
 
-// Build the discovery service  
-let discv5_driver = Discv5Builder::new()
-    .with_keypair(keypair)
-    .with_listen_addr(Ipv4Addr::LOCALHOST, 9001)
+// Build the gossip driver
+let (gossip_driver, _signer_tx) = GossipDriverBuilder::new(
+    rollup_config.clone(),
+    signer,
+    listen_addr,
+    keypair.clone()
+).build()?;
+
+// Convert keypair to the required signing key format
+let secp256k1_keypair = keypair.try_into_secp256k1()
+    .map_err(|_| "Failed to convert keypair")?;
+let signing_key = k256::ecdsa::SigningKey::from_bytes(&secp256k1_keypair.secret().to_bytes().into())
+    .map_err(|_| "Failed to create signing key")?;
+
+// Build the discovery service
+let local_node = LocalNode::new(
+    signing_key,
+    IpAddr::V4(Ipv4Addr::LOCALHOST),
+    9000,
+    9001
+);
+let discovery_config = ConfigBuilder::new(
+    ListenConfig::Ipv4 { ip: Ipv4Addr::LOCALHOST, port: 9001 }
+).build();
+
+let discv5_driver = Discv5Builder::new(local_node, rollup_config.l2_chain_id.into(), discovery_config)
     .build()?;
+# Ok(())
+# }
 ```
 
 ## Network Protocol

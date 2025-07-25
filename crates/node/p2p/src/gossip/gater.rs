@@ -41,7 +41,7 @@ pub struct GaterConfig {
     /// If set to `None`, unlimited redials are allowed. When set, prevents
     /// excessive connection attempts to unresponsive or problematic peers.
     pub peer_redialing: Option<u64>,
-    
+
     /// Duration of the rate limiting window for peer connections.
     ///
     /// A peer cannot be dialed more than `peer_redialing` times during this
