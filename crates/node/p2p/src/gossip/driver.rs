@@ -414,7 +414,9 @@ where
                     "peer" => _peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
             }
-            SwarmEvent::IncomingConnectionError { error, connection_id: _connection_id, .. } => {
+            SwarmEvent::IncomingConnectionError {
+                error, connection_id: _connection_id, ..
+            } => {
                 debug!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
