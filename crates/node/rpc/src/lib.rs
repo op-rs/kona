@@ -35,11 +35,6 @@ pub use jsonrpsee::{
     RollupNodeApiServer, WsServer,
 };
 
-#[cfg(feature = "reqwest")]
-pub mod reqwest;
-#[cfg(feature = "reqwest")]
-pub use reqwest::SupervisorClient;
-
 #[cfg(feature = "client")]
 mod interop;
 #[cfg(feature = "client")]
