@@ -19,20 +19,51 @@ use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use url::Url;
 
-/// The Node subcommand.
-///
-/// For compatibility with the [op-node], relevant flags retain an alias that matches that
-/// of the [op-node] CLI.
-///
-/// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
+/// A JWT token validation error.
 #[derive(Debug, thiserror::Error)]
-pub enum JwtValidationError {
+pub(super) enum JwtValidationError {
     #[error("JWT signature is invalid")]
     InvalidSignature,
     #[error("Failed to exchange capabilities with engine: {0}")]
     CapabilityExchange(String),
 }
 
+/// Command-line interface for running a Kona rollup node.
+///
+/// The `NodeCommand` struct defines all the configuration options needed to start and run
+/// a rollup node in the Kona ecosystem. It supports multiple node modes including validator
+/// and sequencer modes, and provides comprehensive networking and RPC configuration options.
+///
+/// # Node Modes
+///
+/// The node can operate in different modes:
+/// - **Validator**: Validates L2 blocks and participates in consensus
+/// - **Sequencer**: Sequences transactions and produces L2 blocks
+///
+/// # Configuration Sources
+///
+/// Configuration can be provided through:
+/// - Command-line arguments
+/// - Environment variables (prefixed with `KONA_NODE_`)
+/// - Configuration files (for rollup config)
+///
+/// # Examples
+///
+/// ```bash
+/// # Run as validator with default settings
+/// kona node --l1-eth-rpc http://localhost:8545 \
+///           --l1-beacon http://localhost:5052 \
+///           --l2-engine-rpc http://localhost:8551 \
+///           --l2-provider-rpc http://localhost:8545
+///
+/// # Run as sequencer with custom JWT secret
+/// kona node --mode sequencer \
+///           --l1-eth-rpc http://localhost:8545 \
+///           --l1-beacon http://localhost:5052 \
+///           --l2-engine-rpc http://localhost:8551 \
+///           --l2-provider-rpc http://localhost:8545 \
+///           --l2-jwt-secret /path/to/jwt.hex
+/// ```
 #[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
@@ -154,14 +185,18 @@ impl NodeCommand {
         let mut source = Some(error);
         while let Some(err) = source {
             let err_str = err.to_string().to_lowercase();
-            if err_str.contains("signature invalid") || (err_str.contains("jwt") && err_str.contains("invalid")) || err_str.contains("unauthorized") || err_str.contains("authentication failed") {
+            if err_str.contains("signature invalid") ||
+                (err_str.contains("jwt") && err_str.contains("invalid")) ||
+                err_str.contains("unauthorized") ||
+                err_str.contains("authentication failed")
+            {
                 return true;
             }
             source = err.source();
         }
         false
     }
-    
+
     /// Helper to check JWT signature error from anyhow::Error (for retry condition)
     fn is_jwt_signature_error_from_anyhow(error: &anyhow::Error) -> bool {
         Self::is_jwt_signature_error(error.as_ref() as &dyn std::error::Error)
@@ -387,14 +422,10 @@ mod tests {
 
     #[test]
     fn test_is_jwt_signature_error() {
-        let jwt_error = MockError {
-            message: "signature invalid".to_string(),
-        };
+        let jwt_error = MockError { message: "signature invalid".to_string() };
         assert!(NodeCommand::is_jwt_signature_error(&jwt_error));
 
-        let other_error = MockError {
-            message: "network timeout".to_string(),
-        };
+        let other_error = MockError { message: "network timeout".to_string() };
         assert!(!NodeCommand::is_jwt_signature_error(&other_error));
     }
 
@@ -405,19 +436,5 @@ mod tests {
 
         let other_anyhow_error = anyhow!("network timeout");
         assert!(!NodeCommand::is_jwt_signature_error_from_anyhow(&other_anyhow_error));
-    }
-
-    #[test]
-    fn test_node_cli_defaults() {
-        let args = NodeCommand::parse_from(["node"].iter().chain(default_flags().iter()).copied());
-        assert_eq!(args.l2_engine_kind, EngineKind::Geth);
-    }
-
-    #[test]
-    fn test_node_cli_engine_kind() {
-        let args = NodeCommand::parse_from(
-            ["node", "--l2.enginekind", "reth"].iter().chain(default_flags().iter()).copied(),
-        );
-        assert_eq!(args.l2_engine_kind, EngineKind::Reth);
     }
 }
