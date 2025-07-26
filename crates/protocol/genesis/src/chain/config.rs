@@ -23,7 +23,7 @@ use crate::{
 /// [opg]: https://github.com/ethereum-optimism/op-geth
 /// [scr]: https://github.com/ethereum-optimism/superchain-registry
 /// [ccg]: https://github.com/ethereum-optimism/op-geth/blob/optimism/params/config.go#L342
-/// [ccr]: https://github.com/ethereum-optimism/superchain-registry/blob/main/superchain/superchain.go#L80
+/// [ccr]: https://github.com/ethereum-optimism/superchain-registry/blob/main/ops/internal/config/superchain.go#L70
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
