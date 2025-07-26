@@ -2,17 +2,34 @@
 
 use derive_more::{Display, FromStr};
 
-/// The engine kind identifies the engine client's kind,
-/// used to control the behavior of optimism in different engine clients.
+/// Identifies the type of execution layer client for behavior customization.
+///
+/// Different execution clients may have slight variations in API behavior
+/// or supported features. This enum allows the engine to adapt its behavior
+/// accordingly, though as of v0.1.0, behavior is equivalent across all types.
+///
+/// # Examples
+///
+/// ```rust
+/// use kona_engine::EngineKind;
+/// use std::str::FromStr;
+///
+/// // Parse from string
+/// let kind = EngineKind::from_str("geth").unwrap();
+/// assert_eq!(kind, EngineKind::Geth);
+///
+/// // Display as string
+/// assert_eq!(EngineKind::Reth.to_string(), "reth");
+/// ```
 #[derive(Debug, Display, FromStr, Clone, Copy, PartialEq, Eq)]
 pub enum EngineKind {
-    /// Geth engine client.
+    /// Geth execution client.
     #[display("geth")]
     Geth,
-    /// Reth engine client.
+    /// Reth execution client.
     #[display("reth")]
     Reth,
-    /// Erigon engine client.
+    /// Erigon execution client.
     #[display("erigon")]
     Erigon,
 }

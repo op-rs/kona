@@ -1,18 +1,59 @@
-//! Frame Types
+//! Frame types for OP Stack L2 data transmission.
+//!
+//! Frames are the fundamental unit of data transmission in the OP Stack derivation
+//! pipeline. They provide a way to split large channel data into smaller, manageable
+//! chunks that can be transmitted via L1 transactions and later reassembled.
+//!
+//! # Frame Structure
+//!
+//! Each frame contains:
+//! - **Channel ID**: Unique identifier linking frames to their parent channel
+//! - **Frame Number**: Sequence number for ordering and reassembly
+//! - **Data Payload**: The actual frame data content
+//! - **Last Flag**: Indicates if this is the final frame in the sequence
+//!
+//! # Transmission Process
+//!
+//! ```text
+//! Channel Data → Split into Frames → Transmit via L1 → Reassemble Channel
+//! ```
+//!
+//! # Error Handling
+//!
+//! Frame processing can fail due to:
+//! - Size constraints (too large or too small)
+//! - Invalid frame identifiers or numbers
+//! - Data length mismatches
+//! - Unsupported versions
 
 use crate::ChannelId;
 use alloc::vec::Vec;
 
-/// The version of the derivation pipeline.
+/// Version identifier for the current derivation pipeline format.
+///
+/// This constant defines the version of the derivation pipeline protocol
+/// that this implementation supports. It's included in frame encoding to
+/// ensure compatibility and enable future protocol upgrades.
 pub const DERIVATION_VERSION_0: u8 = 0;
 
-/// Count the tagging info as 200 in terms of buffer size.
+/// Overhead estimation for frame metadata and tagging information.
+///
+/// This constant provides an estimate of the additional bytes required
+/// for frame metadata (channel ID, frame number, data length, flags) and
+/// L1 transaction overhead. Used for buffer size calculations and gas
+/// estimation when planning frame transmission.
 pub const FRAME_OVERHEAD: usize = 200;
 
-/// Frames cannot be larger than 1MB.
+/// Maximum allowed size for a single frame in bytes.
 ///
-/// Data transactions that carry frames are generally not larger than 128 KB due to L1 network
-/// conditions, but we leave space to grow larger anyway (gas limit allows for more data).
+/// While typical L1 transactions carrying frames are around 128 KB due to
+/// network conditions and gas limits, this larger limit provides headroom
+/// for future growth as L1 gas limits and network conditions improve.
+///
+/// The 1MB limit balances:
+/// - **Transmission efficiency**: Larger frames reduce overhead
+/// - **Network compatibility**: Must fit within reasonable L1 transaction sizes
+/// - **Memory constraints**: Avoid excessive memory usage during processing
 pub const MAX_FRAME_LEN: usize = 1_000_000;
 
 /// A frame decoding error.
@@ -55,24 +96,77 @@ pub enum FrameParseError {
     NoFramesDecoded,
 }
 
-/// A channel frame is a segment of a channel's data.
+/// A channel frame representing a segment of channel data for transmission.
 ///
-/// *Encoding*
-/// frame = `channel_id ++ frame_number ++ frame_data_length ++ frame_data ++ is_last`
-/// * channel_id        = bytes16
-/// * frame_number      = uint16
-/// * frame_data_length = uint32
-/// * frame_data        = bytes
-/// * is_last           = bool
+/// Frames are the atomic units of data transmission in the OP Stack derivation pipeline.
+/// Large channel data is split into multiple frames to fit within L1 transaction size
+/// constraints while maintaining the ability to reassemble the original data.
+///
+/// # Binary Encoding Format
+///
+/// The frame is encoded as a concatenated byte sequence:
+/// ```text
+/// frame = channel_id ++ frame_number ++ frame_data_length ++ frame_data ++ is_last
+/// ```
+///
+/// ## Field Specifications
+/// - **channel_id** (16 bytes): Unique identifier linking this frame to its parent channel
+/// - **frame_number** (2 bytes, uint16): Sequence number for proper reassembly ordering
+/// - **frame_data_length** (4 bytes, uint32): Length of the frame_data field in bytes
+/// - **frame_data** (variable): The actual payload data for this frame segment
+/// - **is_last** (1 byte, bool): Flag indicating if this is the final frame in the sequence
+///
+/// ## Total Overhead
+/// Each frame has a fixed overhead of 23 bytes (16 + 2 + 4 + 1) plus the variable data payload.
+///
+/// # Frame Sequencing
+///
+/// Frames within a channel must be:
+/// 1. **Sequentially numbered**: Starting from 0 and incrementing by 1
+/// 2. **Properly terminated**: Exactly one frame marked with `is_last = true`
+/// 3. **Complete**: All frame numbers from 0 to the last frame must be present
+///
+/// # Reassembly Process
+///
+/// Channel reassembly involves:
+/// 1. **Collection**: Gather all frames with the same channel ID
+/// 2. **Sorting**: Order frames by their frame number
+/// 3. **Validation**: Verify sequential numbering and last frame flag
+/// 4. **Concatenation**: Combine frame data in order to reconstruct channel
+///
+/// # Error Conditions
+///
+/// Frame processing can fail due to:
+/// - Missing frames in the sequence
+/// - Duplicate frame numbers
+/// - Multiple frames marked as last
+/// - Frame data exceeding size limits
+/// - Invalid encoding or corruption
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Frame {
-    /// The unique idetifier for the frame.
+    /// Unique identifier linking this frame to its parent channel.
+    ///
+    /// All frames belonging to the same channel share this identifier,
+    /// enabling proper grouping during the reassembly process. The channel
+    /// ID is typically derived from the first frame's metadata.
     pub id: ChannelId,
-    /// The number of the frame.
+    /// Sequence number for frame ordering within the channel.
+    ///
+    /// Frame numbers start at 0 and increment sequentially. This field
+    /// is critical for proper reassembly ordering and detecting missing
+    /// or duplicate frames during channel reconstruction.
     pub number: u16,
-    /// The data within the frame.
+    /// Payload data carried by this frame.
+    ///
+    /// Contains a segment of the original channel data. When all frames
+    /// in a channel are reassembled, concatenating this data in frame
+    /// number order reconstructs the complete channel payload.
     pub data: Vec<u8>,
-    /// Whether or not the frame is the last in the sequence.
+    /// Flag indicating whether this is the final frame in the channel sequence.
+    ///
+    /// Exactly one frame per channel should have this flag set to `true`.
+    /// This enables detection of complete channel reception and validation
+    /// that no frames are missing from the end of the sequence.
     pub is_last: bool,
 }
 

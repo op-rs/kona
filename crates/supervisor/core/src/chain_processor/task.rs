@@ -50,13 +50,13 @@ where
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
         rollup_config: RollupConfig,
-        chain_id: u64,
+        chain_id: ChainId,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
-        let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
+        let log_indexer = LogIndexer::new(chain_id, managed_node.clone(), state_manager.clone());
         let rewinder = ChainRewinder::new(chain_id, state_manager.clone());
 
         Self {
@@ -475,7 +475,7 @@ mod tests {
     use kona_supervisor_storage::{
         DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
     };
-    use kona_supervisor_types::{Log, OutputV0, Receipts};
+    use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
     use std::time::Duration;
     use tokio::sync::mpsc;
@@ -535,6 +535,8 @@ mod tests {
             ) -> Result<(), ManagedNodeError>;
 
             async fn reset(&self) -> Result<(), ManagedNodeError>;
+
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
         }
     );
 

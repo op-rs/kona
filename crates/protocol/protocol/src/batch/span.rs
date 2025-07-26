@@ -1,4 +1,9 @@
-//! The Span Batch Type
+//! Span Batch implementation for efficient multi-block L2 transaction batching.
+//!
+//! Span batches are an advanced batching format that can contain transactions for multiple
+//! L2 blocks in a single compressed structure. This provides significant efficiency gains
+//! over single batches by amortizing overhead across multiple blocks and enabling
+//! sophisticated compression techniques.
 
 use alloc::vec::Vec;
 use alloy_eips::eip2718::Encodable2718;
@@ -13,68 +18,257 @@ use crate::{
     SpanBatchTransactions,
 };
 
-/// Container of the inputs required to build a span of L2 blocks in derived form.
+/// Container for the inputs required to build a span of L2 blocks in derived form.
+///
+/// A [`SpanBatch`] represents a compressed format for multiple L2 blocks that enables
+/// significant space savings compared to individual single batches. The format uses
+/// differential encoding, bit packing, and shared data structures to minimize the
+/// L1 footprint while maintaining all necessary information for L2 block reconstruction.
+///
+/// # Compression Techniques
+///
+/// ## Temporal Compression
+/// - **Relative timestamps**: Store timestamps relative to genesis to reduce size
+/// - **Differential encoding**: Encode changes between consecutive blocks
+/// - **Epoch sharing**: Multiple blocks can share the same L1 origin
+///
+/// ## Spatial Compression
+/// - **Shared prefixes**: Common data shared across all blocks in span
+/// - **Transaction batching**: Transactions grouped and compressed together
+/// - **Bit packing**: Use minimal bits for frequently-used fields
+///
+/// # Format Structure
+///
+/// ```text
+/// SpanBatch {
+///   prefix: {
+///     rel_timestamp,     // Relative to genesis
+///     l1_origin_num,     // Final L1 block number  
+///     parent_check,      // First 20 bytes of parent hash
+///     l1_origin_check,   // First 20 bytes of L1 origin hash
+///   },
+///   payload: {
+///     block_count,       // Number of blocks in span
+///     origin_bits,       // Bit array indicating L1 origin changes
+///     block_tx_counts,   // Transaction count per block
+///     txs,              // Compressed transaction data
+///   }
+/// }
+/// ```
+///
+/// # Validation and Integrity
+///
+/// The span batch format includes several integrity checks:
+/// - **Parent check**: Validates continuity with previous span
+/// - **L1 origin check**: Ensures proper L1 origin binding
+/// - **Transaction count validation**: Verifies transaction distribution
+/// - **Bit field consistency**: Ensures origin bits match block count
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct SpanBatch {
-    /// First 20 bytes of the first block's parent hash
+    /// First 20 bytes of the parent hash of the first block in the span.
+    ///
+    /// This field provides a collision-resistant check to ensure the span batch
+    /// builds properly on the expected parent block. Using only 20 bytes saves
+    /// space while maintaining strong integrity guarantees.
     pub parent_check: FixedBytes<20>,
-    /// First 20 bytes of the last block's L1 origin hash
+    /// First 20 bytes of the L1 origin hash of the last block in the span.
+    ///
+    /// This field enables validation that the span batch references the correct
+    /// L1 origin block, ensuring proper derivation ordering and preventing
+    /// replay attacks across different L1 contexts.
     pub l1_origin_check: FixedBytes<20>,
-    /// Genesis block timestamp
+    /// Genesis block timestamp for relative timestamp calculations.
+    ///
+    /// All timestamps in the span batch are stored relative to this genesis
+    /// timestamp to minimize storage requirements. This enables efficient
+    /// timestamp compression while maintaining full precision.
     pub genesis_timestamp: u64,
-    /// Chain ID
+    /// Chain ID for transaction validation and network identification.
+    ///
+    /// Required for proper transaction signature validation and to prevent
+    /// cross-chain replay attacks. All transactions in the span must be
+    /// valid for this chain ID.
     pub chain_id: u64,
-    /// List of block input in derived form
+    /// Ordered list of block elements contained in this span.
+    ///
+    /// Each element represents the derived data for one L2 block, including
+    /// timestamp, epoch information, and transaction references. The order
+    /// must match the intended L2 block sequence.
     pub batches: Vec<SpanBatchElement>,
-    /// Caching - origin bits
+    /// Cached bit array indicating L1 origin changes between consecutive blocks.
+    ///
+    /// This compressed representation allows efficient encoding of which blocks
+    /// in the span advance to a new L1 origin. Bit `i` is set if block `i+1`
+    /// has a different L1 origin than block `i`.
     pub origin_bits: SpanBatchBits,
-    /// Caching - block tx counts
+    /// Cached transaction count for each block in the span.
+    ///
+    /// Pre-computed transaction counts enable efficient random access to
+    /// transactions for specific blocks without scanning the entire transaction
+    /// list. Index `i` contains the transaction count for block `i`.
     pub block_tx_counts: Vec<u64>,
-    /// Caching - span batch txs
+    /// Cached compressed transaction data for all blocks in the span.
+    ///
+    /// Contains all transactions from all blocks in a compressed format that
+    /// enables efficient encoding and decoding. Transactions are grouped and
+    /// compressed using span-specific techniques.
     pub txs: SpanBatchTransactions,
 }
 
 impl SpanBatch {
     /// Returns the starting timestamp for the first batch in the span.
     ///
-    /// ## Safety
-    /// Panics if [Self::batches] is empty.
+    /// This is the absolute timestamp (not relative to genesis) of the first
+    /// block in the span batch. Used for validation and block sequencing.
+    ///
+    /// # Panics
+    /// Panics if the span batch contains no elements (`batches` is empty).
+    /// This should never happen in valid span batches as they must contain
+    /// at least one block.
+    ///
+    /// # Usage
+    /// Typically used during span batch validation to ensure proper temporal
+    /// ordering with respect to the parent block and L1 derivation window.
     pub fn starting_timestamp(&self) -> u64 {
         self.batches[0].timestamp
     }
 
     /// Returns the final timestamp for the last batch in the span.
     ///
-    /// ## Safety
-    /// Panics if [Self::batches] is empty.
+    /// This is the absolute timestamp (not relative to genesis) of the last
+    /// block in the span batch. Used for validation and determining the
+    /// span's temporal range.
+    ///
+    /// # Panics
+    /// Panics if the span batch contains no elements (`batches` is empty).
+    /// This should never happen in valid span batches as they must contain
+    /// at least one block.
+    ///
+    /// # Usage
+    /// Used during validation to ensure the span doesn't exceed maximum
+    /// temporal ranges and fits within L1 derivation windows.
     pub fn final_timestamp(&self) -> u64 {
         self.batches[self.batches.len() - 1].timestamp
     }
 
-    /// Returns the epoch number for the first batch in the span.
+    /// Returns the L1 epoch number for the first batch in the span.
     ///
-    /// ## Safety
-    /// Panics if [Self::batches] is empty.
+    /// The epoch number corresponds to the L1 block number that serves as
+    /// the L1 origin for the first L2 block in this span. This establishes
+    /// the L1 derivation context for the span.
+    ///
+    /// # Panics
+    /// Panics if the span batch contains no elements (`batches` is empty).
+    /// This should never happen in valid span batches as they must contain
+    /// at least one block.
+    ///
+    /// # Usage
+    /// Used during validation to ensure proper L1 origin sequencing and
+    /// that the span begins with the expected L1 context.
     pub fn starting_epoch_num(&self) -> u64 {
         self.batches[0].epoch_num
     }
 
-    /// Checks if the first 20 bytes of the given hash match the L1 origin check.
+    /// Validates that the L1 origin hash matches the span's L1 origin check.
+    ///
+    /// Compares the first 20 bytes of the provided hash against the stored
+    /// `l1_origin_check` field. This provides a collision-resistant validation
+    /// that the span batch was derived from the expected L1 context.
+    ///
+    /// # Arguments
+    /// * `hash` - The full 32-byte L1 origin hash to validate
+    ///
+    /// # Returns
+    /// * `true` - If the first 20 bytes match the span's L1 origin check
+    /// * `false` - If there's a mismatch, indicating invalid L1 context
+    ///
+    /// # Algorithm
+    /// ```text
+    /// l1_origin_check[0..20] == hash[0..20]
+    /// ```
+    ///
+    /// Using only 20 bytes provides strong collision resistance (2^160 space)
+    /// while saving 12 bytes per span compared to storing full hashes.
     pub fn check_origin_hash(&self, hash: FixedBytes<32>) -> bool {
         self.l1_origin_check == hash[..20]
     }
 
-    /// Checks if the first 20 bytes of the given hash match the parent check.
+    /// Validates that the parent hash matches the span's parent check.
+    ///
+    /// Compares the first 20 bytes of the provided hash against the stored
+    /// `parent_check` field. This ensures the span batch builds on the
+    /// expected parent block, maintaining chain continuity.
+    ///
+    /// # Arguments
+    /// * `hash` - The full 32-byte parent hash to validate
+    ///
+    /// # Returns
+    /// * `true` - If the first 20 bytes match the span's parent check
+    /// * `false` - If there's a mismatch, indicating discontinuity
+    ///
+    /// # Algorithm
+    /// ```text
+    /// parent_check[0..20] == hash[0..20]
+    /// ```
+    ///
+    /// This validation is critical for maintaining the integrity of the L2
+    /// chain and preventing insertion of span batches in wrong locations.
     pub fn check_parent_hash(&self, hash: FixedBytes<32>) -> bool {
         self.parent_check == hash[..20]
     }
 
-    /// Peek at the `n`th-to-last last element in the batch.
+    /// Accesses the nth element from the end of the batch list.
+    ///
+    /// This is a convenience method for accessing recent elements in the span,
+    /// typically used during validation or processing algorithms that need to
+    /// examine the latest elements in the sequence.
+    ///
+    /// # Arguments
+    /// * `n` - Offset from the end (0 = last element, 1 = second-to-last, etc.)
+    ///
+    /// # Returns
+    /// Reference to the nth element from the end of the batch list
+    ///
+    /// # Panics
+    /// Panics if `n >= batches.len()`, i.e., if trying to access beyond
+    /// the available elements.
+    ///
+    /// # Algorithm
+    /// ```text
+    /// index = batches.len() - 1 - n
+    /// return &batches[index]
+    /// ```
     fn peek(&self, n: usize) -> &SpanBatchElement {
         &self.batches[self.batches.len() - 1 - n]
     }
 
-    /// Constructs a [`RawSpanBatch`] from the [`SpanBatch`].
+    /// Converts this span batch to its raw serializable format.
+    ///
+    /// Transforms the derived span batch into a [`RawSpanBatch`] that can be
+    /// serialized and transmitted over the network. This involves organizing
+    /// the cached data into the proper prefix and payload structure.
+    ///
+    /// # Returns
+    /// * `Ok(RawSpanBatch)` - Successfully converted raw span batch
+    /// * `Err(SpanBatchError)` - Conversion failed, typically due to empty batch
+    ///
+    /// # Errors
+    /// Returns [`SpanBatchError::EmptySpanBatch`] if the span contains no blocks,
+    /// which is invalid as span batches must contain at least one block.
+    ///
+    /// # Algorithm
+    /// The conversion process:
+    /// 1. **Validation**: Ensure the span is not empty
+    /// 2. **Prefix Construction**: Build prefix with temporal and origin data
+    /// 3. **Payload Assembly**: Package cached data into payload structure
+    /// 4. **Relative Timestamp Calculation**: Convert absolute to relative timestamp
+    ///
+    /// The relative timestamp is calculated as:
+    /// ```text
+    /// rel_timestamp = first_block_timestamp - genesis_timestamp
+    /// ```
+    ///
+    /// This enables efficient timestamp encoding in the serialized format.
     pub fn to_raw_span_batch(&self) -> Result<RawSpanBatch, SpanBatchError> {
         if self.batches.is_empty() {
             return Err(SpanBatchError::EmptySpanBatch);

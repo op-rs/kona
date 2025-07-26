@@ -45,7 +45,7 @@ getting started with building your own programs, and a reference for the librari
 
 - [`client`](./bin/client): The bare-metal program that executes the state transition, to be ran on a prover.
 - [`host`](./bin/host): The host program that runs natively alongside the prover, serving as the [Preimage Oracle][g-preimage-oracle] server.
-- [`node`](./bin/node): [WIP] A [Rollup Node][rollup-node-spec] implementation, backed by [`kona-derive`](./crates/protocol/derive).
+- [`node`](./bin/node): [WIP] A [Rollup Node][rollup-node-spec] implementation, backed by [`kona-derive`](./crates/protocol/derive). Supports flexible chain ID specification via `--l2-chain-id` using either numeric IDs (`10`) or chain names (`optimism`).
 - [`supervisor`](./bin/supervisor): [WIP] A [Supervisor][supervisor-spec] implementation.
 
 **Protocol**

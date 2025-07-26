@@ -2,27 +2,31 @@
 //!
 //! [`Engine`]: crate::Engine
 
-use super::{BuildTask, ConsolidateTask, FinalizeTask, ForkchoiceTask, InsertTask};
+use super::{BuildTask, ConsolidateTask, FinalizeTask, InsertTask};
 use crate::{
-    BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, ForkchoiceTaskError,
-    InsertTaskError,
+    BuildTaskError, ConsolidateTaskError, EngineState, FinalizeTaskError, InsertTaskError,
 };
 use async_trait::async_trait;
+use derive_more::Display;
 use std::cmp::Ordering;
 use thiserror::Error;
 
 /// The severity of an engine task error.
 ///
 /// This is used to determine how to handle the error when draining the engine task queue.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Display, Clone, Copy)]
 pub enum EngineTaskErrorSeverity {
     /// The error is temporary and the task is retried.
+    #[display("temporary")]
     Temporary,
     /// The error is critical and is propagated to the engine actor.
+    #[display("critical")]
     Critical,
     /// The error indicates that the engine should be reset.
+    #[display("reset")]
     Reset,
     /// The error indicates that the engine should be flushed.
+    #[display("flush")]
     Flush,
 }
 
@@ -51,9 +55,6 @@ pub trait EngineTaskExt {
 /// An error that may occur during an [`EngineTask`]'s execution.
 #[derive(Error, Debug)]
 pub enum EngineTaskErrors {
-    /// An error that occurred while updating the forkchoice state.
-    #[error(transparent)]
-    Forkchoice(#[from] ForkchoiceTaskError),
     /// An error that occurred while inserting a block into the engine.
     #[error(transparent)]
     Insert(#[from] InsertTaskError),
@@ -71,7 +72,6 @@ pub enum EngineTaskErrors {
 impl EngineTaskError for EngineTaskErrors {
     fn severity(&self) -> EngineTaskErrorSeverity {
         match self {
-            Self::Forkchoice(inner) => inner.severity(),
             Self::Insert(inner) => inner.severity(),
             Self::Build(inner) => inner.severity(),
             Self::Consolidate(inner) => inner.severity(),
@@ -85,9 +85,6 @@ impl EngineTaskError for EngineTaskErrors {
 /// [`Engine`]: crate::Engine
 #[derive(Debug, Clone)]
 pub enum EngineTask {
-    /// Perform a `engine_forkchoiceUpdated` call with the current [`EngineState`]'s forkchoice,
-    /// and no payload attributes.
-    ForkchoiceUpdate(ForkchoiceTask),
     /// Inserts a payload into the execution engine.
     Insert(InsertTask),
     /// Builds a new block with the given attributes, and inserts it into the execution engine.
@@ -103,7 +100,6 @@ impl EngineTask {
     /// Executes the task without consuming it.
     async fn execute_inner(&self, state: &mut EngineState) -> Result<(), EngineTaskErrors> {
         match self.clone() {
-            Self::ForkchoiceUpdate(task) => task.execute(state).await.map(|_| ())?,
             Self::Insert(task) => task.execute(state).await?,
             Self::Build(task) => task.execute(state).await?,
             Self::Consolidate(task) => task.execute(state).await?,
@@ -112,14 +108,22 @@ impl EngineTask {
 
         Ok(())
     }
+
+    const fn task_metrics_label(&self) -> &'static str {
+        match self {
+            Self::Insert(_) => crate::Metrics::INSERT_TASK_LABEL,
+            Self::Consolidate(_) => crate::Metrics::CONSOLIDATE_TASK_LABEL,
+            Self::Build(_) => crate::Metrics::BUILD_TASK_LABEL,
+            Self::Finalize(_) => crate::Metrics::FINALIZE_TASK_LABEL,
+        }
+    }
 }
 
 impl PartialEq for EngineTask {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
-            (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) |
-                (Self::Insert(_), Self::Insert(_)) |
+            (Self::Insert(_), Self::Insert(_)) |
                 (Self::Build(_), Self::Build(_)) |
                 (Self::Consolidate(_), Self::Consolidate(_)) |
                 (Self::Finalize(_), Self::Finalize(_))
@@ -137,28 +141,23 @@ impl PartialOrd for EngineTask {
 
 impl Ord for EngineTask {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Order (descending): ForkchoiceUpdate -> BuildBlock -> InsertUnsafe -> Consolidate
+        // Order (descending): BuildBlock -> InsertUnsafe -> Consolidate -> Finalize
         //
         // https://specs.optimism.io/protocol/derivation.html#forkchoice-synchronization
         //
-        // - Outstanding FCUs are processed before anything else.
-        // - Block building jobs are prioritized above InsertUnsafe and Consolidate tasks, to give
-        //   priority to the sequencer.
+        // - Block building jobs are prioritized above all other tasks, to give priority to the
+        //   sequencer. BuildTask handles forkchoice updates automatically.
         // - InsertUnsafe tasks are prioritized over Consolidate tasks, to ensure that unsafe block
         //   gossip is imported promptly.
-        // - Consolidate tasks are the lowest priority, as they are only used for advancing the safe
-        //   chain via derivation.
+        // - Consolidate tasks are prioritized over Finalize tasks, as they advance the safe chain
+        //   via derivation.
+        // - Finalize tasks have the lowest priority, as they only update finalized status.
         match (self, other) {
             // Same variant cases
             (Self::Insert(_), Self::Insert(_)) => Ordering::Equal,
             (Self::Consolidate(_), Self::Consolidate(_)) => Ordering::Equal,
             (Self::Build(_), Self::Build(_)) => Ordering::Equal,
-            (Self::ForkchoiceUpdate(_), Self::ForkchoiceUpdate(_)) => Ordering::Equal,
             (Self::Finalize(_), Self::Finalize(_)) => Ordering::Equal,
-
-            // Individual ForkchoiceUpdate tasks are the highest priority
-            (Self::ForkchoiceUpdate(_), _) => Ordering::Greater,
-            (_, Self::ForkchoiceUpdate(_)) => Ordering::Less,
 
             // BuildBlock tasks are prioritized over InsertUnsafe and Consolidate tasks
             (Self::Build(_), _) => Ordering::Greater,
@@ -184,7 +183,15 @@ impl EngineTaskExt for EngineTask {
     async fn execute(&self, state: &mut EngineState) -> Result<(), Self::Error> {
         // Retry the task until it succeeds or a critical error occurs.
         while let Err(e) = self.execute_inner(state).await {
-            match e.severity() {
+            let severity = e.severity();
+
+            kona_macros::inc!(
+                counter,
+                crate::Metrics::ENGINE_TASK_FAILURE,
+                self.task_metrics_label() => severity.to_string()
+            );
+
+            match severity {
                 EngineTaskErrorSeverity::Temporary => {
                     trace!(target: "engine", "{e}");
                     continue;
@@ -203,6 +210,8 @@ impl EngineTaskExt for EngineTask {
                 }
             }
         }
+
+        kona_macros::inc!(counter, crate::Metrics::ENGINE_TASK_SUCCESS, self.task_metrics_label());
 
         Ok(())
     }

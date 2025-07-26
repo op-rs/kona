@@ -4,8 +4,8 @@ use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
 use kona_rpc::{
-    AdminApiServer, AdminRpc, HealthzResponse, NetworkAdminQuery, OpP2PApiServer,
-    RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
+    AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
+    OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
 };
 
 use jsonrpsee::{
@@ -136,6 +136,12 @@ impl NodeActor for RpcActor {
         let rollup_rpc = RollupRpc::new(engine_query.clone(), l1_watcher_queries);
         modules.merge(rollup_rpc.into_rpc())?;
 
+        // Add development RPC module for engine state introspection if enabled
+        if self.config.dev_enabled() {
+            let dev_rpc = DevEngineRpc::new(engine_query.clone());
+            modules.merge(dev_rpc.into_rpc())?;
+        }
+
         if self.config.ws_enabled() {
             modules.merge(WsRPC::new(engine_query).into_rpc())?;
         }
@@ -185,6 +191,7 @@ mod tests {
             enable_admin: false,
             admin_persistence: None,
             ws_enabled: false,
+            dev_enabled: false,
         };
         let result = launch(&launcher, RpcModule::new(())).await;
         assert!(result.is_ok());
@@ -198,6 +205,7 @@ mod tests {
             enable_admin: false,
             admin_persistence: None,
             ws_enabled: false,
+            dev_enabled: false,
         };
         let mut modules = RpcModule::new(());
 

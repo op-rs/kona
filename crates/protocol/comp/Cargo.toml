@@ -1,6 +1,6 @@
 [package]
 name = "kona-comp"
-version = "0.4.0"
+version = "0.4.4"
 description = "Compression types for the OP Stack"
 
 edition.workspace = true

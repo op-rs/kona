@@ -103,10 +103,12 @@ impl EngineBuilder {
         let client = self.client();
         let state = InnerEngineState::default();
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
+        let (engine_queue_length_send, _) = tokio::sync::watch::channel(0);
+
         EngineActorState {
             rollup: self.config,
             client,
-            engine: Engine::new(state, engine_state_send),
+            engine: Engine::new(state, engine_state_send, engine_queue_length_send),
         }
     }
 
@@ -204,7 +206,8 @@ impl EngineActorState {
         &self,
         mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
     ) -> JoinHandle<()> {
-        let state_recv = self.engine.subscribe();
+        let state_recv = self.engine.state_subscribe();
+        let queue_length_recv = self.engine.queue_length_subscribe();
         let engine_client = self.client.clone();
         let rollup_config = self.rollup.clone();
 
@@ -213,7 +216,10 @@ impl EngineActorState {
                 {
                     trace!(target: "engine", ?req, "Received engine query request.");
 
-                    if let Err(e) = req.handle(&state_recv, &engine_client, &rollup_config).await {
+                    if let Err(e) = req
+                        .handle(&state_recv, &queue_length_recv, &engine_client, &rollup_config)
+                        .await
+                    {
                         warn!(target: "engine", err = ?e, "Failed to handle engine query request.");
                     }
                 }

@@ -1,4 +1,4 @@
-//! Contains the error from the gossip builder.
+//! Error types for the gossip networking module.
 
 use crate::BehaviourError;
 use derive_more::From;
@@ -6,24 +6,44 @@ use libp2p::{Multiaddr, PeerId};
 use std::net::IpAddr;
 use thiserror::Error;
 
-/// An error publishing a payload.
+/// Error encountered when publishing a payload to the gossip network.
+///
+/// Represents failures in the payload publishing pipeline, including
+/// network-level publishing errors and payload encoding issues.
 #[derive(Debug, Error)]
 pub enum PublishError {
-    /// An error occurred publishing the payload.
+    /// Failed to publish the payload via GossipSub protocol.
+    ///
+    /// This can occur due to network connectivity issues, mesh topology
+    /// problems, or protocol-level errors in the libp2p stack.
     #[error("Failed to publish payload: {0}")]
     PublishError(#[from] libp2p::gossipsub::PublishError),
-    /// An error occurred when encoding the payload.
+
+    /// Failed to encode the payload before publishing.
+    ///
+    /// Indicates an issue with serializing the payload data structure
+    /// into the binary format expected by the network protocol.
     #[error("Failed to encode payload: {0}")]
     EncodeError(#[from] HandlerEncodeError),
 }
 
-/// An error occurred when encoding the payload from the block handler.
+/// Error encountered when encoding payloads in the block handler.
+///
+/// Represents failures in the payload serialization process, typically
+/// occurring when converting OP Stack data structures to network format.
 #[derive(Debug, Error)]
 pub enum HandlerEncodeError {
-    /// Failed to encode the payload envelope.
+    /// Failed to encode the OP Stack payload envelope.
+    ///
+    /// This error indicates issues with serializing the OP Stack network payload
+    /// structure, which contains the consensus data being gossiped.
     #[error("Failed to encode payload: {0}")]
     PayloadEncodeError(#[from] op_alloy_rpc_types_engine::PayloadEnvelopeEncodeError),
-    /// The topic is unknown.
+
+    /// Attempted to publish to an unknown or unsubscribed topic.
+    ///
+    /// This error occurs when trying to publish to a GossipSub topic that
+    /// is not recognized or that the node is not subscribed to.
     #[error("Unknown topic: {0}")]
     UnknownTopic(libp2p::gossipsub::TopicHash),
 }

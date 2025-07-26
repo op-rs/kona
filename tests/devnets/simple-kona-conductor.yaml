@@ -27,6 +27,7 @@ optimism_package:
             image: "kona-node:local"
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
+              KONA_NODE_RPC_DEV_ENABLED: "true"
           sequencer: true
           conductor_params:
             enabled: true

@@ -2,7 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.0] - 2025-07-22
+## [0.1.1] - 2025-07-24
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.3.1
+- Release 0.1.1
+- Release 0.1.1
+- Release 0.1.1
+- Release 0.1.1
+- Release 0.1.1
+- Release 0.3.1
+- Release 0.1.1
+
+## [0.2.1] - 2025-07-24
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.2.1
+
+## [0.3.1] - 2025-07-24
+
+### ⚙️ Miscellaneous Tasks
+
+- Release 0.1.1
+- Release 0.3.1
+
+## [0.1.1] - 2025-07-24
 
 ### 🚀 Features
 
@@ -31,6 +57,16 @@ All notable changes to this project will be documented in this file.
 - *(tests)* Leadership transfer test (#2493)
 - *(node/rpc)* Log rpc server address (#2508)
 - (supervisor/storage): rewind storage (#2484)
+- *(supervisor/core)* Handle unsafe reorg (#2498)
+- *(node/service)* Sequencer state metrics (#2530)
+- *(docker)* Add env var to specify cluster name, docker images, grafana port (#2534)
+- *(node/service)* Sequencer attributes builder duration metrics (#2531)
+- *(node/service)* Sequencer block building job duration (#2532)
+- *(node/service)* Conductor commitment time metric (#2533)
+- *(supervisor/core)* Added invalidated block on managed node (#2541)
+- *(docker)* Sequencer visualizations in `kona-node` dashboard (#2540)
+- *(node/engine)* Add metrics to record task success + failure (#2527)
+- *(node/engine)* Spike a dev rpc api to get inner engine state. (#2519)
 
 ### 🐛 Bug Fixes
 
@@ -51,6 +87,9 @@ All notable changes to this project will be documented in this file.
 - *(node/service)* Fix sequencer build ticker (#2473)
 - *(node/service)* Add latest unsafe block hash to `admin_stopSequencer` response (#2475)
 - *(engine)* Allow `ForkchoiceTask` to drive EL sync (#2514)
+- *(docker)* Prometheus addr (#2515)
+- *(node/engine)* Do not use FCU V1 (#2545)
+- *(node/test)* Increase timeout for e2e test (#2547)
 
 ### 📚 Documentation
 
@@ -62,11 +101,13 @@ All notable changes to this project will be documented in this file.
 - Complete rollup RPC methods documentation (#2491)
 - Complete P2P RPC endpoints documentation (#2489)
 - Comprehensive README for kona-node with installation and usage instructions (#2492)
+- *(docker)* Add default ports to `kona-node` recipe README (#2528)
 
 ### 🧪 Testing
 
 - *(supervisor/core)* Preinterop e2e test (#2420)
 - *(supervisor)* Preinterop acceptance test (#2463)
+- *(node/rpc)* Test rollup config rpc endpoint. fix rollup config metrics (#2509)
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -88,9 +129,12 @@ All notable changes to this project will be documented in this file.
 - *(node/test)* Update monorepo fork (#2505)
 - *(docs)* Update `kona-node` flags (#2507)
 - *(docker)* Don't disable p2p scoring in `kona-node` recipe (#2510)
-- Release 0.4.0
-- Release 0.4.0
-- Release 0.3.0
+- Few Crate Releases (#2517)
+- *(supervisor/storage)* Log improvements (#2525)
+- *(supervisor)* Remove deprecated supervisor api from `kona-node` (#2024)
+- *(supervisor/core)* Log improvements in managed node (#2526)
+- Release 0.4.4
+- Release 0.1.1
 
 ## [kona-node/v0.1.0-beta.5] - 2025-07-08
 
