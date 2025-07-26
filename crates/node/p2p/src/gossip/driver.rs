@@ -289,22 +289,22 @@ where
 
                 // If the peer is connected to gossip, record the connection duration.
                 if let Some(start_time) = self.peer_connection_start.get(&peer) {
-                    let ping_duration = start_time.elapsed();
+                    let _ping_duration = start_time.elapsed();
                     kona_macros::record!(
                         histogram,
                         crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
-                        ping_duration.as_secs_f64()
+                        _ping_duration.as_secs_f64()
                     );
                 }
 
                 // Record the peer score in the metrics if available.
-                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer) {
+                if let Some(_peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer) {
                     kona_macros::record!(
                         histogram,
                         crate::Metrics::PEER_SCORES,
                         "peer",
                         peer.to_string(),
-                        peer_score
+                        _peer_score
                     );
                 }
 
@@ -405,22 +405,24 @@ where
 
                 self.peer_connection_start.insert(peer_id, Instant::now());
             }
-            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+            SwarmEvent::OutgoingConnectionError { peer_id: _peer_id, error, .. } => {
                 debug!(target: "gossip", "Outgoing connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
                     "type" => "outgoing_error",
-                    "peer" => peer_id.map(|p| p.to_string()).unwrap_or_default()
+                    "peer" => _peer_id.map(|p| p.to_string()).unwrap_or_default()
                 );
             }
-            SwarmEvent::IncomingConnectionError { error, connection_id, .. } => {
+            SwarmEvent::IncomingConnectionError {
+                error, connection_id: _connection_id, ..
+            } => {
                 debug!(target: "gossip", "Incoming connection error: {:?}", error);
                 kona_macros::inc!(
                     gauge,
                     crate::Metrics::GOSSIPSUB_CONNECTION,
                     "type" => "incoming_error",
-                    "connection_id" => connection_id.to_string()
+                    "connection_id" => _connection_id.to_string()
                 );
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
@@ -436,22 +438,22 @@ where
 
                 // Record the total connection duration.
                 if let Some(start_time) = self.peer_connection_start.remove(&peer_id) {
-                    let peer_duration = start_time.elapsed();
+                    let _peer_duration = start_time.elapsed();
                     kona_macros::record!(
                         histogram,
                         crate::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
-                        peer_duration.as_secs_f64()
+                        _peer_duration.as_secs_f64()
                     );
                 }
 
                 // Record the peer score in the metrics if available.
-                if let Some(peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer_id) {
+                if let Some(_peer_score) = self.behaviour_mut().gossipsub.peer_score(&peer_id) {
                     kona_macros::record!(
                         histogram,
                         crate::Metrics::PEER_SCORES,
                         "peer",
                         peer_id.to_string(),
-                        peer_score
+                        _peer_score
                     );
                 }
 

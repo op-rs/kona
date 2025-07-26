@@ -190,9 +190,14 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         &mut self,
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
+        in_recovery_mode: bool,
     ) -> Result<(), SequencerActorError> {
         let unsafe_head = *unsafe_head_rx.borrow();
-        let l1_origin = match self.origin_selector.next_l1_origin(unsafe_head).await {
+        let l1_origin = match self
+            .origin_selector
+            .next_l1_origin(unsafe_head, self.is_recovery_mode)
+            .await
+        {
             Ok(l1_origin) => l1_origin,
             Err(err) => {
                 warn!(
@@ -257,6 +262,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                     return Err(err.into());
                 }
             };
+
+        if in_recovery_mode {
+            attributes.no_tx_pool = Some(true);
+        }
 
         // If the next L2 block is beyond the sequencer drift threshold, we must produce an empty
         // block.
@@ -474,7 +483,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                 }
                 // The sequencer must be active to build new blocks.
                 _ = build_ticker.tick(), if state.is_active => {
-                    state.build_block(&mut ctx, &mut self.unsafe_head_rx).await?;
+                    state.build_block(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode).await?;
                 }
             }
         }

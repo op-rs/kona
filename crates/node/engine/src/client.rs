@@ -49,17 +49,42 @@ pub enum EngineClientError {
 /// A Hyper HTTP client with a JWT authentication layer.
 type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpConnector, B>>>;
 
-/// An external engine api client
+/// An Engine API client that provides authenticated HTTP communication with an execution layer.
+///
+/// The [`EngineClient`] handles JWT authentication and manages connections to both L1 and L2
+/// execution layers. It automatically selects the appropriate Engine API version based on the
+/// rollup configuration and block timestamps.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use alloy_rpc_types_engine::JwtSecret;
+/// use kona_engine::EngineClient;
+/// use kona_genesis::RollupConfig;
+/// use std::sync::Arc;
+/// use url::Url;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let engine_url = Url::parse("http://localhost:8551")?;
+/// let l2_url = Url::parse("http://localhost:9545")?;
+/// let l1_url = Url::parse("http://localhost:8545")?;
+/// let config = Arc::new(RollupConfig::default());
+/// let jwt = JwtSecret::from_hex("0xabcd")?;
+///
+/// let client = EngineClient::new_http(engine_url, l2_url, l1_url, config, jwt);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Deref, Clone)]
 pub struct EngineClient {
-    /// The L2 engine provider.
+    /// The L2 engine provider for Engine API calls.
     #[deref]
     engine: RootProvider<AnyNetwork>,
-    /// The L2 chain provider.
+    /// The L2 chain provider for reading chain data.
     l2_provider: RootProvider<Optimism>,
-    /// The L1 chain provider.
+    /// The L1 chain provider for reading L1 data.
     l1_provider: RootProvider,
-    /// The [RollupConfig] for the chain used to timestamp which version of the engine api to use.
+    /// The [`RollupConfig`] for determining Engine API versions based on hardfork activations.
     cfg: Arc<RollupConfig>,
 }
 
@@ -76,7 +101,18 @@ impl EngineClient {
         RootProvider::<T>::new(rpc_client)
     }
 
-    /// Creates a new [`EngineClient`] from the provided [Url] and [JwtSecret].
+    /// Creates a new [`EngineClient`] with authenticated HTTP connections.
+    ///
+    /// Sets up JWT-authenticated connections to the Engine API endpoint and L2 chain,
+    /// along with an unauthenticated connection to the L1 chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `engine` - Engine API endpoint URL (typically port 8551)
+    /// * `l2_rpc` - L2 chain RPC endpoint URL
+    /// * `l1_rpc` - L1 chain RPC endpoint URL
+    /// * `cfg` - Rollup configuration for version selection
+    /// * `jwt` - JWT secret for authentication
     pub fn new_http(
         engine: Url,
         l2_rpc: Url,

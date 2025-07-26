@@ -5,35 +5,68 @@ use libp2p::Multiaddr;
 use std::{collections::HashSet, string::String, sync::Arc, time::Duration};
 use tokio::sync::mpsc::Sender;
 
-/// A request from the [`Discv5Handler`] to the spawned [`discv5::Discv5`] service.
+/// Request message for communicating with the Discv5 discovery service.
+///
+/// These requests are sent from the main application thread to the discovery
+/// service running in a separate task, enabling asynchronous operations on
+/// the discovery table and peer management.
 #[derive(Debug)]
 pub enum HandlerRequest {
-    /// Requests [`Metrics`] from the [`discv5::Discv5`] service.
+    /// Request current metrics from the discovery service.
+    ///
+    /// Returns performance and operational statistics including query counts,
+    /// success rates, and table population metrics.
     Metrics(tokio::sync::oneshot::Sender<Metrics>),
-    /// Returns the number of connected peers.
+
+    /// Get the current number of connected peers in the discovery table.
+    ///
+    /// Returns the count of peers currently maintained in the routing table,
+    /// which indicates the health and connectivity of the discovery service.
     PeerCount(tokio::sync::oneshot::Sender<usize>),
-    /// Request for the [`discv5::Discv5`] service to call [`discv5::Discv5::add_enr`] with the
-    /// specified [`Enr`].
+
+    /// Add an ENR to the discovery service's routing table.
+    ///
+    /// Manually inserts a peer record into the table, typically used for
+    /// adding bootstrap nodes or peers discovered through other channels.
     AddEnr(Enr),
-    /// Requests for the [`discv5::Discv5`] service to call [`discv5::Discv5::request_enr`] with the
-    /// specified string.
+
+    /// Request an ENR from a specific network address.
+    ///
+    /// Initiates a discovery query to retrieve the ENR for a peer at the
+    /// given address. Used for peer verification and metadata retrieval.
     RequestEnr {
-        /// The output channel to send the [`Enr`] to.
+        /// Channel to receive the result of the ENR request.
         out: tokio::sync::oneshot::Sender<Result<Enr, RequestError>>,
-        /// The [`Multiaddr`] to request the [`Enr`] from.
+        /// Network address to query for the ENR.
         addr: String,
     },
-    /// Requests the local [`Enr`].
+
+    /// Get the local node's ENR.
+    ///
+    /// Returns the ENR that represents this node in the discovery network,
+    /// including its network address, capabilities, and cryptographic identity.
     LocalEnr(tokio::sync::oneshot::Sender<Enr>),
-    /// Requests the table ENRs.
+
+    /// Get all ENRs currently stored in the routing table.
+    ///
+    /// Returns a complete dump of peer records known to the discovery service,
+    /// useful for debugging and network analysis.
     TableEnrs(tokio::sync::oneshot::Sender<Vec<Enr>>),
-    /// Request the node infos currently in the routing table.
+
+    /// Get detailed information about nodes in the routing table.
+    ///
+    /// Returns comprehensive information including node IDs, ENRs, and status
+    /// for all peers in the discovery table.
     TableInfos(tokio::sync::oneshot::Sender<Vec<(NodeId, Enr, NodeStatus)>>),
-    /// Bans the nodes matching the given set of [`Multiaddr`] for the given duration.
+
+    /// Ban specific network addresses for a duration.
+    ///
+    /// Prevents the discovery service from interacting with the specified
+    /// addresses, useful for blocking malicious or problematic peers.
     BanAddrs {
-        /// The set of [`Multiaddr`] to ban.
+        /// Set of network addresses to ban.
         addrs_to_ban: Arc<HashSet<Multiaddr>>,
-        /// The duration to ban the nodes for.
+        /// Duration for which the addresses should be banned.
         ban_duration: Duration,
     },
 }

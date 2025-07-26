@@ -34,6 +34,9 @@ pub struct RpcArgs {
     /// Enables websocket rpc server to track block production
     #[arg(long = "rpc.ws-enabled", default_value = "false", env = "KONA_NODE_RPC_WS_ENABLED")]
     pub ws_enabled: bool,
+    /// Enables development RPC endpoints for engine state introspection
+    #[arg(long = "rpc.dev-enabled", default_value = "false", env = "KONA_NODE_RPC_DEV_ENABLED")]
+    pub dev_enabled: bool,
 }
 
 impl Default for RpcArgs {
@@ -47,16 +50,16 @@ impl Default for RpcArgs {
 impl From<RpcArgs> for Option<RpcBuilder> {
     fn from(args: RpcArgs) -> Self {
         if args.rpc_disabled {
-            None
-        } else {
-            Some(RpcBuilder {
-                no_restart: args.no_restart,
-                socket: SocketAddr::from((args.listen_addr, args.listen_port)),
-                enable_admin: args.enable_admin,
-                admin_persistence: args.admin_persistence.clone(),
-                ws_enabled: args.ws_enabled,
-            })
+            return None;
         }
+        Some(RpcBuilder {
+            no_restart: args.no_restart,
+            socket: SocketAddr::new(args.listen_addr, args.listen_port),
+            enable_admin: args.enable_admin,
+            admin_persistence: args.admin_persistence,
+            ws_enabled: args.ws_enabled,
+            dev_enabled: args.dev_enabled,
+        })
     }
 }
 

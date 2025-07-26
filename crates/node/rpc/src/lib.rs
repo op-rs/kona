@@ -29,10 +29,13 @@ pub use response::SafeHeadResponse;
 mod output;
 pub use output::OutputResponse;
 
+mod dev;
+pub use dev::DevEngineRpc;
+
 mod jsonrpsee;
 pub use jsonrpsee::{
-    AdminApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer, RollupNodeApiServer,
-    SupervisorEventsServer, WsServer,
+    AdminApiServer, DevEngineApiServer, MinerApiExtServer, OpAdminApiServer, OpP2PApiServer,
+    RollupNodeApiServer, SupervisorEventsServer, WsServer,
 };
 
 #[cfg(feature = "reqwest")]

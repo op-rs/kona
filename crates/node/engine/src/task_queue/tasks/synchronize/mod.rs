@@ -1,7 +1,7 @@
 //! Task and its associated types for the forkchoice engine update.
 
 mod task;
-pub use task::ForkchoiceTask;
+pub use task::SynchronizeTask;
 
 mod error;
-pub use error::ForkchoiceTaskError;
+pub use error::SynchronizeTaskError;

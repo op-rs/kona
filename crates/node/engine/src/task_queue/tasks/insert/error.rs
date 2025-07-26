@@ -3,7 +3,7 @@
 //! [InsertTask]: crate::InsertTask
 
 use crate::{
-    EngineTaskError, ForkchoiceTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
+    EngineTaskError, SynchronizeTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
 };
 use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
@@ -32,7 +32,7 @@ pub enum InsertTaskError {
     L2BlockInfoConstruction(#[from] FromBlockError),
     /// The forkchoice update call to consolidate the block into the engine state failed.
     #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
+    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
 }
 
 impl EngineTaskError for InsertTaskError {

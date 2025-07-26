@@ -10,12 +10,6 @@ pub use engine::{
     EngineActor, EngineBuilder, EngineContext, EngineError, EngineInboundData, L2Finalizer,
 };
 
-mod supervisor;
-pub use supervisor::{
-    SupervisorActor, SupervisorActorContext, SupervisorActorError, SupervisorExt,
-    SupervisorInboundData, SupervisorRpcServerExt,
-};
-
 mod rpc;
 pub use rpc::{RpcActor, RpcActorError, RpcContext};
 

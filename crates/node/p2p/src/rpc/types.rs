@@ -54,48 +54,96 @@ pub struct PeerInfo {
     pub peer_scores: PeerScores,
 }
 
-/// Topic scores
+/// GossipSub topic-specific scoring metrics.
 ///
-/// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L13>
+/// Tracks peer performance within specific gossip topics, used by the
+/// GossipSub protocol to maintain mesh quality and route messages efficiently.
+/// These scores influence peer selection for the gossip mesh topology.
+///
+/// Reference: <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L13>
 #[derive(Clone, Default, Debug, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TopicScores {
-    /// The time in the mesh.
+    /// Duration the peer has participated in the topic mesh.
+    ///
+    /// Longer participation indicates stability and commitment to the topic,
+    /// contributing positively to the peer's mesh score.
     pub time_in_mesh: f64,
-    /// First message deliveries
+
+    /// Count of first-time message deliveries from this peer.
+    ///
+    /// Measures how often this peer is the first to deliver new messages,
+    /// indicating their connectivity and responsiveness to the network.
     pub first_message_deliveries: f64,
-    /// Mesh message deliveries
+
+    /// Count of messages delivered while in the mesh topology.
+    ///
+    /// Tracks consistent message forwarding behavior while the peer is
+    /// an active participant in the mesh structure.
     pub mesh_message_deliveries: f64,
-    /// Invalid message deliveries
+
+    /// Count of invalid or malicious messages from this peer.
+    ///
+    /// Penalizes peers that send invalid, duplicate, or malformed messages,
+    /// helping maintain network health and preventing spam.
     pub invalid_message_deliveries: f64,
 }
 
-/// Gossip Scores
+/// Comprehensive GossipSub scoring metrics for peer quality assessment.
 ///
-/// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L20C6-L20C18>
+/// Aggregates various scoring factors used by the GossipSub protocol to
+/// evaluate peer quality and determine mesh topology. Higher scores indicate
+/// more reliable and well-behaved peers.
+///
+/// Reference: <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L20C6-L20C18>
 #[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GossipScores {
-    /// The total number of gossip scores
+    /// Aggregate score across all scoring dimensions.
+    ///
+    /// The final computed score that determines this peer's overall
+    /// reputation in the gossip network.
     pub total: f64,
-    /// Blocks involved
+
+    /// Block-specific topic scores for consensus messages.
+    ///
+    /// Tracks peer behavior specifically for block gossip, which is
+    /// the primary message type in OP Stack networks.
     pub blocks: TopicScores,
-    /// The ip colocation factor.
+
+    /// Penalty for IP address colocation with other peers.
+    ///
+    /// Reduces scores for peers sharing IP addresses to prevent
+    /// eclipse attacks and improve network decentralization.
     #[serde(rename = "IPColocationFactor")]
     pub ip_colocation_factor: f64,
-    /// The behavioral penalty.
+
+    /// Penalty for problematic behavior patterns.
+    ///
+    /// Applied to peers exhibiting suspicious or harmful behavior
+    /// that doesn't fit other specific scoring categories.
     pub behavioral_penalty: f64,
 }
 
-/// The request response scores
+/// Request-response protocol scoring metrics.
 ///
-/// <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L31C1-L35C2>
+/// Tracks peer performance in direct request-response interactions outside
+/// of the gossip mesh, such as block synchronization requests.
+///
+/// Reference: <https://github.com/ethereum-optimism/optimism/blob/8dd17a7b114a7c25505cd2e15ce4e3d0f7e3f7c1/op-node/p2p/store/iface.go#L31C1-L35C2>
 #[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReqRespScores {
-    /// Valid response count.
+    /// Number of valid responses provided by this peer.
+    ///
+    /// Counts successful request-response exchanges where the peer
+    /// provided correct and timely responses to queries.
     pub valid_responses: f64,
-    /// Error response count.
+
+    /// Number of error responses or failed requests.
+    ///
+    /// Tracks cases where the peer returned errors, timeouts, or
+    /// otherwise failed to properly respond to requests.
     pub error_responses: f64,
     /// Number of rejected payloads.
     pub rejected_payloads: f64,

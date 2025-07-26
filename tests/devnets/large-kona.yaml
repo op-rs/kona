@@ -37,6 +37,7 @@ optimism_package:
             image: "kona-node:local"
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
+              KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
         kona-2:
@@ -48,6 +49,7 @@ optimism_package:
             image: "kona-node:local"
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
+              KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
         kona-3:
@@ -59,6 +61,7 @@ optimism_package:
             image: "kona-node:local"
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
+              KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
         kona-4:
@@ -70,6 +73,7 @@ optimism_package:
             image: "kona-node:local"
             extra_env_vars:
               KONA_NODE_RPC_WS_ENABLED: "true"
+              KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
       network_params:

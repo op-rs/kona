@@ -2,10 +2,9 @@
 use crate::{
     AttributesBuilderConfig, DerivationContext, EngineContext, L1WatcherRpcContext, NetworkContext,
     NodeActor, NodeMode, RpcContext, SequencerContext, SequencerInboundData,
-    SupervisorActorContext, SupervisorExt,
     actors::{
         DerivationInboundChannels, EngineInboundData, L1WatcherRpcInboundChannels,
-        NetworkInboundData, PipelineBuilder, SupervisorInboundData,
+        NetworkInboundData, PipelineBuilder,
     },
     service::spawn_and_wait,
 };
@@ -38,8 +37,6 @@ use tokio_util::sync::CancellationToken;
 /// - `DataAvailabilityWatcher`: The type of [`NodeActor`] to use for the DA watcher service.
 /// - `DerivationPipeline`: The type of [Pipeline] to use for the service. Can be swapped out from
 ///   the default implementation for the sake of plugins like Alt DA.
-/// - `SupervisorExt`: The type of [`SupervisorExt`] to use for the service, which provides an
-///   interface for sending events to the supervisor.
 /// - `Error`: The type of error for the service's entrypoint.
 #[async_trait]
 pub trait RollupNodeService {
@@ -66,16 +63,6 @@ pub trait RollupNodeService {
 
     /// The type of network actor to use for the service.
     type NetworkActor: NodeActor<Error: Display, OutboundData = NetworkContext, InboundData = NetworkInboundData>;
-
-    /// The supervisor ext provider.
-    type SupervisorExt: SupervisorExt + Send + Sync + 'static;
-
-    /// The type of supervisor actor to use for the service.
-    type SupervisorActor: NodeActor<
-            Error: Display,
-            OutboundData = SupervisorActorContext,
-            InboundData = SupervisorInboundData,
-        >;
 
     /// The type of attributes builder to use for the sequener.
     type AttributesBuilder: AttributesBuilder + Send + Sync + 'static;
@@ -112,9 +99,6 @@ pub trait RollupNodeService {
     /// Returns the sequencer builder for the node.
     fn sequencer_builder(&self) -> <Self::SequencerActor as NodeActor>::Builder;
 
-    /// Creates a new [`Self::SupervisorExt`] to be used in the supervisor rpc actor.
-    async fn supervisor_ext(&self) -> Option<Self::SupervisorExt>;
-
     /// Starts the rollup node service.
     async fn start(&self) -> Result<(), String> {
         // Create a global cancellation token for graceful shutdown of tasks.
@@ -134,13 +118,6 @@ pub trait RollupNodeService {
             },
             derivation,
         ) = Self::DerivationActor::build(self.derivation_builder());
-
-        // TODO: get the supervisor ext.
-        // TODO: use the supervisor ext to create the supervisor actor.
-        // let supervisor_ext = self.supervisor_ext();
-        // let supervisor_rpx = SupervisorActor::new(
-        //
-        // )
 
         // Create the engine actor.
         let (

@@ -10,7 +10,11 @@ use std::{
 };
 use tokio::time::Instant;
 
-/// Dial info for a peer.
+/// Dial information tracking for peer connection management.
+///
+/// Tracks connection attempt statistics for rate limiting and connection gating.
+/// Used to prevent excessive connection attempts to the same peer within a
+/// configured time window.
 #[derive(Debug, Clone)]
 pub struct DialInfo {
     /// Number of times the peer has been dialed during the current dial period.
@@ -26,18 +30,23 @@ impl Default for DialInfo {
     }
 }
 
-/// Configuration for the connection gater.
+/// Configuration parameters for the connection gater.
+///
+/// Controls rate limiting, connection management, and peer protection policies
+/// to maintain network health and prevent abuse.
 #[derive(Debug, Clone)]
 pub struct GaterConfig {
-    /// The number of times to dial a peer.
+    /// Maximum number of connection attempts per dial period for a single peer.
+    ///
+    /// If set to `None`, unlimited redials are allowed. When set, prevents
+    /// excessive connection attempts to unresponsive or problematic peers.
     pub peer_redialing: Option<u64>,
-    /// The duration of a dial period.
+
+    /// Duration of the rate limiting window for peer connections.
     ///
-    /// A peer cannot be dialed more than [`GossipDriverBuilder.peer_redialing`] times during a
-    /// dial period. The dial period is reset once the last time the peer was dialed is longer
-    /// than the dial period. This is to prevent peers from being dialed too often.
-    ///
-    /// By default, the dial period is set to 1 hour.
+    /// A peer cannot be dialed more than `peer_redialing` times during this
+    /// period. The period resets after this duration has elapsed since the
+    /// last dial attempt. Default is 1 hour.
     pub dial_period: Duration,
 }
 

@@ -1,6 +1,32 @@
-//! Metrics for the engine
+//! Prometheus metrics collection for engine operations.
+//!
+//! Provides metric identifiers and labels for monitoring engine performance,
+//! task execution, and block progression through safety levels.
 
-/// Container for metrics.
+/// Metrics container with constants for Prometheus metric collection.
+///
+/// Contains identifiers for gauges, counters, and histograms used to monitor
+/// engine operations when the `metrics` feature is enabled. Metrics track:
+///
+/// - Block progression through safety levels (unsafe → finalized)
+/// - Task execution success/failure rates by type
+/// - Engine API method call latencies
+///
+/// # Usage
+///
+/// ```rust,ignore
+/// use metrics::{counter, gauge, histogram};
+/// use kona_engine::Metrics;
+///
+/// // Track successful task execution
+/// counter!(Metrics::ENGINE_TASK_SUCCESS, "task" => Metrics::INSERT_TASK_LABEL);
+///
+/// // Record block height at safety level
+/// gauge!(Metrics::BLOCK_LABELS, block_num as f64, "level" => Metrics::SAFE_BLOCK_LABEL);
+///
+/// // Time Engine API calls
+/// histogram!(Metrics::ENGINE_METHOD_REQUEST_DURATION, duration.as_secs_f64());
+/// ```
 #[derive(Debug, Clone)]
 pub struct Metrics;
 
@@ -91,13 +117,11 @@ impl Metrics {
         kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::BUILD_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::FINALIZE_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_SUCCESS, Self::FORKCHOICE_TASK_LABEL, 0);
 
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::INSERT_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::CONSOLIDATE_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::BUILD_TASK_LABEL, 0);
         kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::FINALIZE_TASK_LABEL, 0);
-        kona_macros::set!(counter, Self::ENGINE_TASK_FAILURE, Self::FORKCHOICE_TASK_LABEL, 0);
 
         // Engine reset count
         kona_macros::set!(counter, Self::ENGINE_RESET_COUNT, 0);
