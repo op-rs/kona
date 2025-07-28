@@ -2,8 +2,7 @@ use super::{ChainProcessorError, ChainProcessorTask};
 use crate::{config::RollupConfig, event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::{
-    DerivationStorage, DerivationStorageWriter, HeadRefStorageWriter, LogStorage,
-    StorageRewinder,
+    DerivationStorage, DerivationStorageWriter, HeadRefStorageWriter, LogStorage, StorageRewinder,
 };
 use std::sync::Arc;
 use tokio::{
@@ -142,7 +141,8 @@ mod tests {
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter, StorageError,
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+        LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;

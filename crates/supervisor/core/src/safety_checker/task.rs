@@ -1,14 +1,14 @@
 use crate::{
     CrossSafetyError,
-    config::Config, 
-    event::ChainEvent, 
-    safety_checker::{traits::SafetyPromoter, CrossSafetyChecker},
+    config::Config,
+    event::ChainEvent,
+    safety_checker::{CrossSafetyChecker, traits::SafetyPromoter},
 };
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
-use std::{sync::Arc, time::Duration };
+use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};

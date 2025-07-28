@@ -7,8 +7,7 @@ use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    DerivationStorage, HeadRefStorageWriter,
-    LogStorage, StorageError, StorageRewinder,
+    DerivationStorage, HeadRefStorageWriter, LogStorage, StorageError, StorageRewinder,
 };
 use kona_supervisor_types::BlockSeal;
 use std::{fmt::Debug, sync::Arc};
@@ -43,11 +42,7 @@ pub struct ChainProcessorTask<P, W> {
 impl<P, W> ChainProcessorTask<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorage
-        + DerivationStorage
-        + HeadRefStorageWriter
-        + StorageRewinder
-        + 'static,
+    W: LogStorage + DerivationStorage + HeadRefStorageWriter + StorageRewinder + 'static,
 {
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
@@ -632,7 +627,8 @@ mod tests {
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter, StorageError,
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+        LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
