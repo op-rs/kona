@@ -440,14 +440,6 @@ where
             return Ok(derived_ref_pair.derived);
         }
 
-        let latest_derivation_state = self.state_manager.latest_derivation_state()?;
-        info!(
-            target: "chain_processor",
-            chain_id = self.chain_id,
-            latest_derivation_state = ?latest_derivation_state,
-            "Latest derivation state in handle_safe_event"
-        );
-
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
             return self.process_safe_derived_block(derived_ref_pair).await
         }

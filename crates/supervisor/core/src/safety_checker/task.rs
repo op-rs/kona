@@ -1,13 +1,14 @@
 use crate::{
-    config::Config, event::ChainEvent, safety_checker::{traits::SafetyPromoter, CrossSafetyChecker}, CrossSafetyError
+    CrossSafetyError,
+    config::Config, 
+    event::ChainEvent, 
+    safety_checker::{traits::SafetyPromoter, CrossSafetyChecker},
 };
 use alloy_primitives::ChainId;
+use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
-use std::{
-    sync::Arc,
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration };
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -16,7 +17,7 @@ use tracing::{error, info, warn};
 ///
 /// It uses [`CrossChainSafetyProvider`] to fetch candidate blocks and the [`CrossSafetyChecker`]
 /// to validate cross-chain message dependencies.
-#[derive(Debug)]
+#[derive(Debug, Constructor)]
 pub struct CrossSafetyCheckerJob<P, L> {
     chain_id: ChainId,
     provider: Arc<P>,
@@ -32,27 +33,6 @@ where
     P: CrossChainSafetyProvider + Send + Sync + 'static,
     L: SafetyPromoter,
 {
-    /// Creates a new instance of [`CrossSafetyCheckerJob`].
-    pub fn new(
-        chain_id: ChainId,
-        provider: Arc<P>,
-        cancel_token: CancellationToken,
-        interval: Duration,
-        promoter: L,
-        event_tx: mpsc::Sender<ChainEvent>,
-        config: Arc<Config>,
-    ) -> Self {
-        Self {
-            chain_id,
-            provider,
-            cancel_token,
-            interval,
-            promoter,
-            event_tx,
-            config,
-        }
-    }
-
     /// Runs the job loop until cancelled, promoting blocks by Promoter
     ///
     /// On each iteration:
