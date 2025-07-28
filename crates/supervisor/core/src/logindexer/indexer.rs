@@ -100,7 +100,7 @@ where
     ///
     /// # Arguments
     /// - `block`: Metadata about the block being processed.
-    async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
+    pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
         let receipts = self.block_provider.fetch_receipts(block.hash).await?;
         let mut log_entries = Vec::with_capacity(receipts.len());
         let mut log_index: u32 = 0;

@@ -335,48 +335,7 @@ where
         );
 
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
-            match self.state_manager.save_derived_block(derived_ref_pair) {
-                Ok(_) => return Ok(derived_ref_pair.derived),
-                Err(StorageError::BlockOutOfOrder) => {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        block_number = derived_ref_pair.derived.number,
-                        "Block out of order detected, resetting managed node"
-                    );
-
-                    if let Err(err) = self.managed_node.reset().await {
-                        error!(
-                            target: "chain_processor",
-                            chain_id = self.chain_id,
-                            %err,
-                            "Failed to reset managed node after block out of order"
-                        );
-                    }
-                    return Err(StorageError::BlockOutOfOrder.into());
-                }
-
-                Err(StorageError::ReorgRequired) => {
-                    error!(
-                        target: "chain_processor",
-                        chain = self.chain_id,
-                        derived_block = %derived_ref_pair.derived,
-                        "Local derivation conflict detected — rewinding"
-                    );
-                    self.rewinder.handle_local_reorg(&derived_ref_pair)?;
-                }
-
-                Err(err) => {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        block_number = derived_ref_pair.derived.number,
-                        %err,
-                        "Failed to save derived block pair"
-                    );
-                    return Err(err.into());
-                }
-            }
+            return self.process_safe_derived_block(derived_ref_pair).await
         }
 
         if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
@@ -389,6 +348,88 @@ where
             self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
             return Ok(derived_ref_pair.derived);
         }
+
+        Ok(derived_ref_pair.derived)
+    }
+
+    async fn process_safe_derived_block(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
+        match self.state_manager.save_derived_block(derived_ref_pair) {
+            Ok(_) => Ok(derived_ref_pair.derived),
+            Err(StorageError::BlockOutOfOrder) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    "Block out of order detected, resetting managed node"
+                );
+
+                if let Err(err) = self.managed_node.reset().await {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to reset managed node after block out of order"
+                    );
+                }
+                Err(StorageError::BlockOutOfOrder.into())
+            }
+
+            Err(StorageError::ReorgRequired) => {
+                debug!(
+                    target: "chain_processor",
+                    chain = self.chain_id,
+                    derived_block = %derived_ref_pair.derived,
+                    "Local derivation conflict detected — rewinding"
+                );
+                self.rewinder.handle_local_reorg(&derived_ref_pair)?;
+                Ok(self.retry_with_resync_derived_block(derived_ref_pair).await?)
+            }
+
+            Err(StorageError::FutureData) => {
+                Ok(self.retry_with_resync_derived_block(derived_ref_pair).await?)
+            }
+
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Failed to save derived block pair"
+                );
+                Err(err.into())
+            }
+        }
+    }
+    async fn retry_with_resync_derived_block(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
+        self.log_indexer
+            .clone()
+            .process_and_store_logs(&derived_ref_pair.derived)
+            .await
+            .inspect_err(|err| {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Error resyncing logs for derived block"
+                );
+            })?;
+        self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                %err,
+                "Error saving derived block after resync"
+            );
+        })?;
 
         Ok(derived_ref_pair.derived)
     }
@@ -961,7 +1002,7 @@ mod tests {
         };
 
         let mut mockdb = MockDb::new();
-        let mocknode = MockNode::new();
+        let mut mocknode = MockNode::new();
 
         // Simulate ReorgRequired error
         mockdb
@@ -979,6 +1020,73 @@ mod tests {
 
         // Expect reorg on log storage
         mockdb.expect_rewind_log_storage().returning(|_block_id| Ok(()));
+
+        mockdb.expect_store_block_logs().returning(|_block_id, _logs| Ok(()));
+
+        mocknode.expect_fetch_receipts().returning(|_receipts| Ok(Receipts::default()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_resync() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::FutureData));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        mockdb.expect_store_block_logs().returning(|_block_id, _logs| Ok(()));
+
+        mocknode.expect_fetch_receipts().returning(|_receipts| Ok(Receipts::default()));
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);

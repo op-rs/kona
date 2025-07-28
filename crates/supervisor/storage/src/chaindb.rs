@@ -135,7 +135,7 @@ impl DerivationStorageWriter for ChainDb {
                                 incoming_block = %derived_block,
                                 "Derived block not found in log storage: {derived_block:?}"
                             );
-                            StorageError::ConflictError
+                            StorageError::FutureData
                         }
                         other => other, // propagate other errors as-is
                     })?;
