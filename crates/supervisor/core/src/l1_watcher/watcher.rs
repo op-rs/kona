@@ -7,12 +7,12 @@ use futures::StreamExt;
 use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader
+    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
 };
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
@@ -86,8 +86,8 @@ where
     where
         S: futures::Stream<Item = Block> + Unpin,
     {
-        let mut last_finalized_number = 0;
-        let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
+        let mut finalized_number = 0;
+        let mut previous_latest_block = BlockNumHash { number: 0, hash: B256::ZERO };
 
         loop {
             tokio::select! {
@@ -98,13 +98,13 @@ where
                 latest_block = latest_head_stream.next() => {
                     if let Some(latest_block) = latest_block {
                         info!(target: "l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
-                        self.handle_new_latest_block(latest_block, &mut last_latest_number).await;
+                        self.handle_new_latest_block(latest_block, &mut previous_latest_block).await;
                     }
                 }
                 finalized_block = finalized_head_stream.next() => {
                     if let Some(finalized_block) = finalized_block {
                         info!(target: "l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
-                        self.handle_new_finalized_block(finalized_block, &mut last_finalized_number);
+                        self.handle_new_finalized_block(finalized_block, &mut finalized_number);
                     }
                 }
             }
@@ -154,8 +154,14 @@ where
         }
     }
 
-    async fn handle_new_latest_block(&self, incoming_block: Block, previous_block: &mut BlockNumHash) {
+    async fn handle_new_latest_block(
+        &self,
+        incoming_block: Block,
+        previous_block: &mut BlockNumHash,
+    ) {
         let incoming_block_number = incoming_block.header.number;
+
+        // Early exit if the incoming block is not newer than the previous block
         if incoming_block_number <= previous_block.number {
             info!(
                 target: "l1_watcher",
@@ -164,6 +170,12 @@ where
             return;
         }
 
+        info!(
+            target: "l1_watcher",
+            block_number = incoming_block_number,
+            "New latest L1 block received"
+        );
+
         let Header {
             hash,
             inner: alloy_consensus::Header { number, parent_hash, timestamp, .. },
@@ -171,22 +183,52 @@ where
         } = incoming_block.header;
         let latest_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
-        info!(
-            target: "l1_watcher",
-            block_number = latest_block.number,
-            "New latest L1 block received"
-        );
+        // Early exit: check if no reorg is needed
+        if latest_block.parent_hash == previous_block.hash {
+            *previous_block = latest_block.id();
+            return;
+        }
 
-        if latest_block.parent_hash != previous_block.hash {
-            for (chain_id, _) in &self.dependency_set.dependencies {
-                let chain_db = self.db_factory.get_db(*chain_id).unwrap();
-                let Ok(rewind_target_source) = self.find_rewind_target(chain_db.clone()).await else {
-                    error!(target: "l1_watcher", "Failed to find rewind target for chain {}", chain_id);
+        // Process reorg for each chain
+        for (chain_id, _) in &self.dependency_set.dependencies {
+            let chain_db = match self.db_factory.get_db(*chain_id) {
+                Ok(db) => db,
+                Err(err) => {
+                    error!(
+                        target: "l1_watcher",
+                        chain_id = %chain_id,
+                        %err,
+                        "Failed to get chain DB when re-orging"
+                    );
                     continue;
-                };
-                let rewinder = ChainRewinder::new(*chain_id, chain_db);
-                rewinder.handle_l1_reorg(rewind_target_source).unwrap();
-                
+                }
+            };
+
+            match self.find_rewind_target(*chain_id, chain_db.clone()).await {
+                Ok(Some(rewind_target_source)) => {
+                    let rewinder = ChainRewinder::new(*chain_id, chain_db);
+                    if let Err(err) = rewinder.handle_l1_reorg(rewind_target_source) {
+                        error!(
+                            target: "l1_watcher",
+                            chain_id = %chain_id,
+                            %err,
+                            "Rewinder failed to handle DB changes in re-org."
+                        );
+                    }
+                }
+                Ok(None) => {
+                    // No need to re-org for this chain
+                    continue;
+                }
+                Err(err) => {
+                    error!(
+                        target: "l1_watcher",
+                        chain_id = %chain_id,
+                        %err,
+                        "Failed to find rewind target"
+                    );
+                    continue;
+                }
             }
         }
 
@@ -195,8 +237,15 @@ where
 
     async fn find_rewind_target(
         &self,
-        db: Arc<ChainDb>
-    ) -> Result<BlockNumHash, SupervisorError> {
+        chain_id: u64,
+        db: Arc<ChainDb>,
+    ) -> Result<Option<BlockNumHash>, SupervisorError> {
+        info!(
+            target: "l1_watcher",
+            chain_id = %chain_id,
+            "Finding rewind target..."
+        );
+
         let latest_state = db.latest_derivation_state()?;
 
         if let Ok(canonical_l1) = self
@@ -204,30 +253,60 @@ where
             .request::<_, Block>("eth_getBlockByNumber", (latest_state.source.number, false))
             .await
         {
+            // If the latest source block matches the canonical L1 block, we don't need to do
+            // anything for this chain.
             if canonical_l1.hash() == latest_state.source.hash {
-                return Ok(latest_state.source.id());
+                return Ok(None);
             }
         }
 
+        // Get finalized block and derive common ancestor
         let finalized_block = db.get_safety_head_ref(kona_interop::SafetyLevel::Finalized)?;
-
         let mut common_ancestor = db.derived_to_source(finalized_block.id())?.id();
         let mut current_source = latest_state.source.id();
 
         while current_source.number >= common_ancestor.number {
-            if let Ok(canonical_l1) = self
+            match self
                 .rpc_client
                 .request::<_, Block>("eth_getBlockByNumber", (current_source.number, false))
                 .await
             {
-                if canonical_l1.hash() == current_source.hash {
-                    common_ancestor = current_source;
-                    break;
+                Ok(canonical_l1) => {
+                    // If the canonical L1 block matches the current source block, this is the
+                    // rewind target.
+                    if canonical_l1.hash() == current_source.hash {
+                        common_ancestor = current_source;
+                        break;
+                    }
+                }
+                Err(err) => {
+                    warn!(
+                        target: "l1_watcher",
+                        chain_id = %chain_id,
+                        block_number = current_source.number,
+                        %err,
+                        "Failed to fetch canonical L1 block, continuing"
+                    );
                 }
             }
-            current_source = db.get_source_block(current_source.number - 1)?.id();
+
+            // Otherwise, we need to find the previous source block.
+            current_source = match db.get_source_block(current_source.number - 1) {
+                Ok(block) => block.id(),
+                Err(err) => {
+                    error!(
+                        target: "l1_watcher",
+                        chain_id = %chain_id,
+                        block_number = current_source.number - 1,
+                        %err,
+                        "Failed to get source block during rewind target search"
+                    );
+                    return Err(err.into());
+                }
+            };
         }
-        Ok(common_ancestor)
+
+        Ok(Some(common_ancestor))
     }
 }
 
@@ -239,8 +318,8 @@ mod tests {
     use kona_supervisor_storage::{FinalizedL1Storage, StorageError};
     use mockall::{mock, predicate::*};
     use std::sync::Arc;
-    use tokio::sync::mpsc;
     use tempfile::TempDir;
+    use tokio::sync::mpsc;
 
     fn temp_factory() -> Arc<ChainDbFactory> {
         let tmp = TempDir::new().expect("create temp dir");

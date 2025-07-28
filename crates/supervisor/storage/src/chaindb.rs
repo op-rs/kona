@@ -99,7 +99,9 @@ impl DerivationStorageReader for ChainDb {
 
     fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError> {
         self.observe_call("get_source_block", || {
-            self.env.view(|tx| DerivationProvider::new(tx, self.chain_id).get_source_block(source_block_number))
+            self.env.view(|tx| {
+                DerivationProvider::new(tx, self.chain_id).get_source_block(source_block_number)
+            })
         })?
     }
 }
