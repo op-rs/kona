@@ -1,4 +1,4 @@
-use crate::{SupervisorError, event::ChainEvent, rewinder::ChainRewinder};
+use crate::event::ChainEvent;
 use alloy_eips::{BlockNumHash, BlockNumberOrTag};
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
@@ -6,13 +6,13 @@ use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
 use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
-};
+use kona_supervisor_storage::{FinalizedL1Storage, ChainDbFactory};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{error, info};
+
+use super::ReorgHandler;
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
@@ -165,6 +165,8 @@ where
         if incoming_block_number <= previous_block.number {
             info!(
                 target: "l1_watcher",
+                incoming_block_number,
+                previous_block_number = previous_block.number,
                 "Incoming latest L1 block is not greater than the stored latest block"
             );
             return;
@@ -173,6 +175,7 @@ where
         info!(
             target: "l1_watcher",
             block_number = incoming_block_number,
+            block_hash = ?incoming_block.header.hash,
             "New latest L1 block received"
         );
 
@@ -183,70 +186,38 @@ where
         } = incoming_block.header;
         let latest_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
-        // Early exit: check if no reorg is needed
+        // Early exit: check if no reorg is needed (sequential block)
         if latest_block.parent_hash == previous_block.hash {
+            info!(
+                target: "l1_watcher",
+                block_number = latest_block.number,
+                "Sequential block received, no reorg needed"
+            );
             *previous_block = latest_block.id();
             return;
         }
 
-        // Process reorg for each chain.
-        for chain_id in self.dependency_set.dependencies.keys() {
-            let chain_db = match self.db_factory.get_db(*chain_id) {
-                Ok(db) => db,
-                Err(err) => {
-                    error!(
-                        target: "l1_watcher",
-                        chain_id = %chain_id,
-                        %err,
-                        "Failed to get chain DB when re-orging"
-                    );
-                    continue;
-                }
-            };
+        // Process reorg for all chains in the dependency set.
+        let reorg_handler = ReorgHandler::new(
+            self.rpc_client.clone(),
+            self.dependency_set.clone(),
+            self.db_factory.clone(),
+        );
 
-            // Find rewind target for this chain
-            let rewind_target_source =
-                match self.find_rewind_target(*chain_id, chain_db.clone()).await {
-                    Ok(Some(source)) => source,
-                    Ok(None) => {
-                        // No need to re-org for this chain
-                        continue;
-                    }
-                    Err(err) => {
-                        error!(
-                            target: "l1_watcher",
-                            chain_id = %chain_id,
-                            %err,
-                            "Failed to find rewind target"
-                        );
-                        continue;
-                    }
-                };
-
-            // Get the derived block at the source target
-            let rewind_target_derived =
-                match chain_db.latest_derived_block_at_source(rewind_target_source) {
-                    Ok(derived_block) => derived_block,
-                    Err(err) => {
-                        error!(
-                            target: "l1_watcher",
-                            chain_id = %chain_id,
-                            source_block = ?rewind_target_source,
-                            %err,
-                            "Failed to get derived block at rewind target source"
-                        );
-                        continue;
-                    }
-                };
-
-            // Call the rewinder to handle the reorg.
-            let rewinder = ChainRewinder::new(*chain_id, chain_db.clone());
-            if let Err(err) = rewinder.handle_l1_reorg(rewind_target_derived.id()) {
+        match reorg_handler.handle_l1_reorg(latest_block).await {
+            Ok(()) => {
+                info!(
+                    target: "l1_watcher",
+                    block_number = latest_block.number,
+                    "Successfully processed L1 reorg"
+                );
+            }
+            Err(err) => {
                 error!(
                     target: "l1_watcher",
-                    chain_id = %chain_id,
+                    block_number = latest_block.number,
                     %err,
-                    "Rewinder failed to handle DB changes in re-org."
+                    "Failed to handle L1 reorg"
                 );
             }
         }
@@ -254,79 +225,7 @@ where
         *previous_block = latest_block.id();
     }
 
-    async fn find_rewind_target(
-        &self,
-        chain_id: u64,
-        db: Arc<ChainDb>,
-    ) -> Result<Option<BlockNumHash>, SupervisorError> {
-        info!(
-            target: "l1_watcher",
-            chain_id = %chain_id,
-            "Finding rewind target..."
-        );
 
-        let latest_state = db.latest_derivation_state()?;
-
-        if let Ok(canonical_l1) = self
-            .rpc_client
-            .request::<_, Block>("eth_getBlockByNumber", (latest_state.source.number, false))
-            .await
-        {
-            // If the latest source block matches the canonical L1 block, we don't need to do
-            // anything for this chain.
-            if canonical_l1.hash() == latest_state.source.hash {
-                return Ok(None);
-            }
-        }
-
-        // Get finalized block and derive common ancestor
-        let finalized_block = db.get_safety_head_ref(kona_interop::SafetyLevel::Finalized)?;
-        let mut common_ancestor = db.derived_to_source(finalized_block.id())?.id();
-        let mut current_source = latest_state.source.id();
-
-        while current_source.number >= common_ancestor.number {
-            match self
-                .rpc_client
-                .request::<_, Block>("eth_getBlockByNumber", (current_source.number, false))
-                .await
-            {
-                Ok(canonical_l1) => {
-                    // If the canonical L1 block matches the current source block, this is the
-                    // rewind target.
-                    if canonical_l1.hash() == current_source.hash {
-                        common_ancestor = current_source;
-                        break;
-                    }
-                }
-                Err(err) => {
-                    warn!(
-                        target: "l1_watcher",
-                        chain_id = %chain_id,
-                        block_number = current_source.number,
-                        %err,
-                        "Failed to fetch canonical L1 block, continuing"
-                    );
-                }
-            }
-
-            // Otherwise, we need to find the previous source block.
-            current_source = match db.get_source_block(current_source.number - 1) {
-                Ok(block) => block.id(),
-                Err(err) => {
-                    error!(
-                        target: "l1_watcher",
-                        chain_id = %chain_id,
-                        block_number = current_source.number - 1,
-                        %err,
-                        "Failed to get source block during rewind target search"
-                    );
-                    return Err(err.into());
-                }
-            };
-        }
-
-        Ok(Some(common_ancestor))
-    }
 }
 
 #[cfg(test)]
