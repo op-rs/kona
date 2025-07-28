@@ -617,8 +617,8 @@ mod tests {
         config::Genesis,
         event::ChainEvent,
         syncnode::{
-            BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
-            NodeSubscriber,
+            AuthenticationError, BlockProvider, ClientError, ManagedNodeController,
+            ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber,
         },
     };
     use alloy_primitives::B256;
@@ -1514,5 +1514,283 @@ mod tests {
         // Stop the task
         cancel_token.cancel();
         task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_invalidate_block_already_set_skips() {
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
+
+        // Set up state: invalidated_block is already set
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+        {
+            let mut guard = task.invalidated_block.write().await;
+            *guard = Some(DerivedRefPair { source: block, derived: block });
+        }
+
+        let result = task.handle_invalidate_block(block).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_invalidate_block_derived_to_source_error() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
+
+        mockdb.expect_derived_to_source().returning(move |_id| Err(StorageError::FutureData));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        let result = task.handle_invalidate_block(block).await;
+        assert!(matches!(result, Err(ChainProcessorError::StorageError(StorageError::FutureData))));
+
+        // make sure invalidated_block is not set
+        let guard = task.invalidated_block.read().await;
+        assert!(guard.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_handle_invalidate_block_rewind_error() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
+
+        mockdb.expect_derived_to_source().returning(move |_id| Ok(block));
+        mockdb.expect_rewind().returning(move |_to| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        let result = task.handle_invalidate_block(block).await;
+        assert!(matches!(
+            result,
+            Err(ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised))
+        ));
+
+        // make sure invalidated_block is not set
+        let guard = task.invalidated_block.read().await;
+        assert!(guard.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_handle_invalidate_block_managed_node_error() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
+
+        mockdb.expect_derived_to_source().returning(move |_id| Ok(block));
+        mockdb.expect_rewind().returning(move |_to| Ok(()));
+        mocknode.expect_invalidate_block().returning(move |_seal| {
+            Err(ManagedNodeError::ClientError(ClientError::Authentication(
+                AuthenticationError::InvalidHeader,
+            )))
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        let result = task.handle_invalidate_block(block).await;
+        assert!(matches!(result, Err(ChainProcessorError::ManagedNode(_))));
+
+        // make sure invalidated_block is not set
+        let guard = task.invalidated_block.read().await;
+        assert!(guard.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_handle_invalidate_block_success_sets_invalidated() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let derived_block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
+        let source_block = BlockInfo::new(B256::from([2u8; 32]), 41, B256::ZERO, 12344);
+
+        mockdb.expect_derived_to_source().returning(move |_id| Ok(source_block));
+        mockdb.expect_rewind().returning(move |_to| Ok(()));
+        mocknode.expect_invalidate_block().returning(move |_seal| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        let result = task.handle_invalidate_block(derived_block).await;
+        assert!(result.is_ok());
+
+        // make sure invalidated_block is set
+        let guard = task.invalidated_block.read().await;
+        let pair = guard.as_ref().expect("invalidated_block should be set");
+        assert_eq!(pair.derived, derived_block);
+        assert_eq!(pair.source, source_block);
+    }
+
+    #[tokio::test]
+    async fn test_handle_block_replacement_no_invalidated_block() {
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        let replacement = BlockReplacement {
+            invalidated: B256::from([1u8; 32]),
+            replacement: BlockInfo::new(B256::from([2u8; 32]), 43, B256::ZERO, 12346),
+        };
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        let result = task.handle_block_replacement(replacement).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_block_replacement_invalidated_hash_mismatch() {
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+
+        let invalidated_block = BlockInfo::new(B256::from([3u8; 32]), 42, B256::ZERO, 12345);
+        let replacement = BlockReplacement {
+            invalidated: B256::from([1u8; 32]), // does not match invalidated_block.hash
+            replacement: BlockInfo::new(B256::from([2u8; 32]), 43, B256::ZERO, 12346),
+        };
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+        {
+            let mut guard = task.invalidated_block.write().await;
+            *guard = Some(DerivedRefPair { source: invalidated_block, derived: invalidated_block });
+        }
+
+        let result = task.handle_block_replacement(replacement).await;
+        assert!(result.is_ok());
+
+        // invalidated_block should remain set
+        let guard = task.invalidated_block.read().await;
+        assert!(guard.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_handle_block_replacement_success() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        let source_block = BlockInfo::new(B256::from([1u8; 32]), 45, B256::ZERO, 12345);
+        let invalidated_block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
+        let replacement_block = BlockInfo::new(B256::from([2u8; 32]), 42, B256::ZERO, 12346);
+
+        mockdb.expect_save_derived_block().returning(move |_pair| Ok(()));
+        mockdb.expect_store_block_logs().returning(move |_block, _logs| Ok(()));
+
+        mocknode.expect_fetch_receipts().returning(move |_block_hash| {
+            assert_eq!(_block_hash, replacement_block.hash);
+            Ok(Receipts::default())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let cancel_token = CancellationToken::new();
+        let (_tx, rx) = mpsc::channel(10);
+        let rollup_config = RollupConfig::default();
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+        {
+            let mut guard = task.invalidated_block.write().await;
+            *guard = Some(DerivedRefPair { source: source_block, derived: invalidated_block });
+        }
+
+        let replacement = BlockReplacement {
+            invalidated: invalidated_block.hash,
+            replacement: replacement_block,
+        };
+
+        let result = task.handle_block_replacement(replacement).await;
+        assert!(result.is_ok());
+
+        // invalidated_block should be cleared
+        let guard = task.invalidated_block.read().await;
+        assert!(guard.is_none());
     }
 }
