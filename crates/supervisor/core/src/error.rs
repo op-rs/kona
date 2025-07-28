@@ -1,6 +1,8 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
+use crate::{
+    ChainProcessorError, CrossSafetyError, config::ConfigError, syncnode::ManagedNodeError,
+};
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_supervisor_storage::StorageError;
@@ -32,6 +34,10 @@ pub enum SupervisorError {
     /// Indicates that the supervisor was unable to initialise due to an error.
     #[error("unable to initialize the supervisor: {0}")]
     Initialise(String),
+
+    /// Indicates that error occurred while validating interop config.
+    #[error(transparent)]
+    InteropValidationError(#[from] ConfigError),
 
     /// Indicates that error occurred while interacting with the storage layer.
     #[error(transparent)]
@@ -107,6 +113,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) |
             SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::StorageError(_) |
+            SupervisorError::InteropValidationError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SpecError(err) => err.into(),
         }
