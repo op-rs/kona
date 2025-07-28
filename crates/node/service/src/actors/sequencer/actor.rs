@@ -322,10 +322,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             attributes.no_tx_pool = Some(true);
         }
 
-        // TODO: L1 origin in this type must be optional, to account for attributes that weren't
-        // derived.
-        let attrs_with_parent =
-            OpAttributesWithParent::new(attributes, unsafe_head, BlockInfo::default(), false);
+        let attrs_with_parent = OpAttributesWithParent::new(attributes, unsafe_head, None, false);
 
         // Log the attributes build duration, if metrics are enabled.
         kona_macros::set!(
