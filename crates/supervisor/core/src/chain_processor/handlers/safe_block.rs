@@ -1,0 +1,686 @@
+use super::EventHandler;
+use crate::{
+    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState, config::RollupConfig,
+    syncnode::ManagedNodeProvider,
+};
+use alloy_primitives::ChainId;
+use async_trait::async_trait;
+use derive_more::Constructor;
+use kona_interop::DerivedRefPair;
+use kona_protocol::BlockInfo;
+use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
+use std::sync::Arc;
+use tracing::{debug, error, info};
+
+/// Handler for safe blocks.
+#[derive(Debug, Constructor)]
+pub struct SafeBlockHandler<P, W> {
+    rollup_config: RollupConfig,
+    chain_id: ChainId,
+    managed_node: Arc<P>,
+    state_manager: Arc<W>,
+    log_indexer: Arc<LogIndexer<P, W>>,
+    rewinder: Arc<ChainRewinder<W>>,
+}
+
+#[async_trait]
+impl<P, W> EventHandler<DerivedRefPair> for SafeBlockHandler<P, W>
+where
+    P: ManagedNodeProvider + 'static,
+    W: LogStorage + DerivationStorage + StorageRewinder + 'static,
+{
+    async fn handle(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+        state: Arc<ProcessorState>,
+    ) -> Result<(), ChainProcessorError> {
+        debug!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = derived_ref_pair.derived.number,
+            "Processing local safe derived block pair"
+        );
+
+        if state.is_invalidated().await {
+            debug!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Invalidated block already set, skipping safe event processing"
+            );
+            return Ok(());
+        }
+
+        if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
+            self.process_safe_derived_block(derived_ref_pair).await?;
+            return Ok(());
+        }
+
+        if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
+            info!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                "Initialising derivation storage for interop activation block"
+            );
+            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
+            return Ok(());
+        }
+
+        Ok(())
+    }
+}
+
+impl<P, W> SafeBlockHandler<P, W>
+where
+    P: ManagedNodeProvider + 'static,
+    W: LogStorage + DerivationStorage + StorageRewinder + 'static,
+{
+    async fn process_safe_derived_block(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
+        match self.state_manager.save_derived_block(derived_ref_pair) {
+            Ok(_) => Ok(derived_ref_pair.derived),
+            Err(StorageError::BlockOutOfOrder) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    "Block out of order detected, resetting managed node"
+                );
+
+                if let Err(err) = self.managed_node.reset().await {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to reset managed node after block out of order"
+                    );
+                }
+                Err(StorageError::BlockOutOfOrder.into())
+            }
+            Err(StorageError::ReorgRequired) => {
+                debug!(
+                    target: "chain_processor",
+                    chain = self.chain_id,
+                    derived_block = %derived_ref_pair.derived,
+                    "Local derivation conflict detected — rewinding"
+                );
+                self.rewinder.handle_local_reorg(&derived_ref_pair)?;
+                self.retry_with_resync_derived_block(derived_ref_pair).await?;
+                return Ok(derived_ref_pair.derived);
+            }
+            Err(StorageError::FutureData) => {
+                self.retry_with_resync_derived_block(derived_ref_pair).await
+            }
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Failed to save derived block pair"
+                );
+                Err(err.into())
+            }
+        }
+    }
+
+    async fn retry_with_resync_derived_block(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
+        self.log_indexer
+            .clone()
+            .process_and_store_logs(&derived_ref_pair.derived)
+            .await
+            .inspect_err(|err| {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Error resyncing logs for derived block"
+                );
+            })?;
+
+        self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                %err,
+                "Error saving derived block after resync"
+            );
+        })?;
+
+        Ok(derived_ref_pair.derived)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::Genesis,
+        event::ChainEvent,
+        syncnode::{
+            BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
+            NodeSubscriber,
+        },
+    };
+    use alloy_primitives::B256;
+    use alloy_rpc_types_eth::BlockNumHash;
+    use async_trait::async_trait;
+    use kona_interop::DerivedRefPair;
+    use kona_protocol::BlockInfo;
+    use kona_supervisor_storage::{
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+        LogStorageWriter, StorageError,
+    };
+    use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
+    use mockall::mock;
+    use tokio::sync::mpsc;
+
+    mock!(
+        #[derive(Debug)]
+        pub Node {}
+
+        #[async_trait]
+        impl NodeSubscriber for Node {
+            async fn start_subscription(
+                &self,
+                _event_tx: mpsc::Sender<ChainEvent>,
+            ) -> Result<(), ManagedNodeError>;
+        }
+
+        #[async_trait]
+        impl BlockProvider for Node {
+            async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+            async fn block_by_number(&self, _number: u64) -> Result<BlockInfo, ManagedNodeError>;
+        }
+
+        #[async_trait]
+        impl ManagedNodeDataProvider for Node {
+            async fn output_v0_at_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<OutputV0, ManagedNodeError>;
+
+            async fn pending_output_v0_at_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<OutputV0, ManagedNodeError>;
+
+            async fn l2_block_ref_by_timestamp(
+                &self,
+                _timestamp: u64,
+            ) -> Result<BlockInfo, ManagedNodeError>;
+        }
+
+        #[async_trait]
+        impl ManagedNodeController for Node {
+            async fn update_finalized(
+                &self,
+                _finalized_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn update_cross_unsafe(
+                &self,
+                cross_unsafe_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn update_cross_safe(
+                &self,
+                source_block_id: BlockNumHash,
+                derived_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn reset(&self) -> Result<(), ManagedNodeError>;
+
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
+        }
+    );
+
+    mock!(
+        #[derive(Debug)]
+        pub Db {}
+
+        impl LogStorageWriter for Db {
+            fn initialise_log_storage(
+                &self,
+                block: BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn store_block_logs(
+                &self,
+                block: &BlockInfo,
+                logs: Vec<Log>,
+            ) -> Result<(), StorageError>;
+        }
+
+        impl LogStorageReader for Db {
+            fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
+            fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
+            fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
+            fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl DerivationStorageWriter for Db {
+            fn initialise_derivation_storage(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
+
+            fn save_derived_block(
+                &self,
+                incoming_pair: DerivedRefPair,
+            ) -> Result<(), StorageError>;
+
+            fn save_source_block(
+                &self,
+                source: BlockInfo,
+            ) -> Result<(), StorageError>;
+        }
+
+        impl HeadRefStorageWriter for Db {
+            fn update_finalized_using_source(
+                &self,
+                block_info: BlockInfo,
+            ) -> Result<BlockInfo, StorageError>;
+
+            fn update_current_cross_unsafe(
+                &self,
+                block: &BlockInfo,
+            ) -> Result<(), StorageError>;
+
+            fn update_current_cross_safe(
+                &self,
+                block: &BlockInfo,
+            ) -> Result<DerivedRefPair, StorageError>;
+        }
+
+        impl StorageRewinder for Db {
+            fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+        }
+    );
+
+    fn genesis() -> Genesis {
+        let l2 = BlockInfo::new(B256::from([1u8; 32]), 0, B256::ZERO, 50);
+        let l1 = BlockInfo::new(B256::from([2u8; 32]), 10, B256::ZERO, 1000);
+        Genesis::new(l1, l2)
+    }
+
+    fn get_rollup_config(interop_time: u64) -> RollupConfig {
+        RollupConfig::new(genesis(), 2, Some(interop_time))
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_pre_interop() {
+        let mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 999,
+            },
+        };
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_post_interop() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003,
+            },
+        };
+
+        mockdb.expect_save_derived_block().returning(move |_pair: DerivedRefPair| {
+            assert_eq!(_pair, block_pair);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_interop_activation() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1001,
+            },
+        };
+
+        mockdb.expect_initialise_derivation_storage().returning(move |_pair: DerivedRefPair| {
+            assert_eq!(_pair, block_pair);
+            Ok(())
+        });
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_out_of_order_triggers_reset() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        // Simulate BlockOutOfOrder error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::BlockOutOfOrder));
+
+        // Expect reset to be called
+        mocknode.expect_reset().returning(|| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut seq = mockall::Sequence::new();
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        // Expect reorg on log storage
+        mockdb.expect_rewind_log_storage().returning(|_block_id| Ok(()));
+        mockdb.expect_store_block_logs().returning(|_block_id, _logs| Ok(()));
+        mocknode.expect_fetch_receipts().returning(|_receipts| Ok(Receipts::default()));
+
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_resync() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut seq = mockall::Sequence::new();
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::FutureData));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        mockdb.expect_store_block_logs().returning(|_block_id, _logs| Ok(()));
+
+        mocknode.expect_fetch_receipts().returning(|_receipts| Ok(Receipts::default()));
+
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_other_error() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let state = Arc::new(ProcessorState::new());
+        let rollup_config = get_rollup_config(1000);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        // Simulate a different error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            rollup_config,
+            1, // chain_id
+            managed_node.clone(),
+            writer.clone(),
+            log_indexer,
+            rewinder,
+        );
+        let result = handler.handle(block_pair, state).await;
+        assert!(result.is_err());
+    }
+}
