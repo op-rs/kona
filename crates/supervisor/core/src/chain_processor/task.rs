@@ -13,7 +13,7 @@ use kona_supervisor_types::BlockSeal;
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::{RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -277,8 +277,7 @@ where
         &self,
         replacement: BlockReplacement,
     ) -> Result<(), ChainProcessorError> {
-        // Logic to handle block replacement
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             %replacement,
@@ -288,31 +287,31 @@ where
         let mut guard = self.invalidated_block.write().await;
         // check if invalidated block is same as replacement block
         if let Some(invalidated_ref_pair) = *guard {
-            if invalidated_ref_pair.derived.hash == replacement.invalidated {
+            if invalidated_ref_pair.derived.hash != replacement.invalidated {
                 debug!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
                     invalidated_block = %invalidated_ref_pair.derived,
                     replacement_block = %replacement.replacement,
-                    "Invalidated block matches replacement block, processing replacement"
+                    "Replacement block does not match invalidated block, skipping"
                 );
-
-                *guard = None;
-                // save the derived block
-                let derived_ref_pair = DerivedRefPair {
-                    source: invalidated_ref_pair.source,
-                    derived: replacement.replacement,
-                };
-
-                self.retry_with_resync_derived_block(derived_ref_pair).await?;
                 return Ok(());
             }
+
+            // save the derived block
+            let derived_ref_pair = DerivedRefPair {
+                source: invalidated_ref_pair.source,
+                derived: replacement.replacement,
+            };
+            self.retry_with_resync_derived_block(derived_ref_pair).await?;
+            *guard = None;
+            return Ok(());
         }
         Ok(())
     }
 
     async fn handle_invalidate_block(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             invalidated_block = %block,
@@ -372,7 +371,7 @@ where
 
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
-            debug!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = origin.number,
@@ -418,7 +417,7 @@ where
 
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
-            debug!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
@@ -541,7 +540,7 @@ where
 
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
-            debug!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
