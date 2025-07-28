@@ -1,6 +1,6 @@
 //! Provider for derivation-related database operations.
 use crate::{
-    error::StorageError,
+    error::{EntryNotFoundError, StorageError},
     models::{
         BlockTraversal, DerivedBlocks, SourceBlockTraversal, StoredDerivedBlockPair, U64List,
     },
@@ -50,7 +50,7 @@ where
               derived_block_number,
               "Derived block not found"
             );
-            StorageError::EntryNotFound("derived block not found".to_string())
+            EntryNotFoundError::DerivedBlockNotFound(derived_block_number)
         })?;
 
         Ok(derived_block_pair)
@@ -112,7 +112,7 @@ where
                 );
             })?;
 
-        block_traversal.ok_or_else(|| {
+        Ok(block_traversal.ok_or_else(|| {
             warn!(
               target: "supervisor_storage",
               chain_id = %self.chain_id,
@@ -121,8 +121,8 @@ where
             );
 
             // todo: replace with a more specific error
-            StorageError::EntryNotFound("source block not found".to_string())
-        })
+            EntryNotFoundError::SourceBlockNotFound(source_block_number)
+        })?)
     }
 
     /// Gets the latest derived [`BlockInfo`] at the given source [`BlockNumHash`].
@@ -153,10 +153,10 @@ where
             block_traversal = prev_block_traversal;
         }
 
-        let derived_block_number =
-            block_traversal.derived_block_numbers.last().ok_or_else(|| {
-                StorageError::EntryNotFound("no derived blocks for this source block".to_string())
-            })?;
+        let derived_block_number = block_traversal
+            .derived_block_numbers
+            .last()
+            .ok_or(EntryNotFoundError::MissingDerivedBlocks(source_block_id))?;
 
         let derived_block_pair = self.get_derived_block_pair_by_number(*derived_block_number)?;
         Ok(derived_block_pair.derived.into())

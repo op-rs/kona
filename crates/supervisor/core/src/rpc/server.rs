@@ -316,7 +316,7 @@ mod tests {
     use super::*;
     use alloy_primitives::ChainId;
     use kona_protocol::BlockInfo;
-    use kona_supervisor_storage::StorageError;
+    use kona_supervisor_storage::{EntryNotFoundError, StorageError};
     use mockall::*;
     use std::sync::Arc;
 
@@ -400,7 +400,7 @@ mod tests {
                 Ok(super_head)
             } else {
                 Err(SupervisorError::StorageError(StorageError::EntryNotFound(
-                    "superhead not found".to_string(),
+                    EntryNotFoundError::DerivedBlockNotFound(1),
                 )))
             }
         });
