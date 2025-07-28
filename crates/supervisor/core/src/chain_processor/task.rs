@@ -385,11 +385,11 @@ where
                     "Local derivation conflict detected — rewinding"
                 );
                 self.rewinder.handle_local_reorg(&derived_ref_pair)?;
-                Ok(self.retry_with_resync_derived_block(derived_ref_pair).await?)
+                self.retry_with_resync_derived_block(derived_ref_pair).await
             }
 
             Err(StorageError::FutureData) => {
-                Ok(self.retry_with_resync_derived_block(derived_ref_pair).await?)
+                self.retry_with_resync_derived_block(derived_ref_pair).await
             }
 
             Err(err) => {
