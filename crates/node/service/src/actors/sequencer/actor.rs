@@ -1,6 +1,8 @@
 //! The [`SequencerActor`].
 
-use super::{L1OriginSelector, L1OriginSelectorError, SequencerConfig};
+use super::{
+    DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig,
+};
 use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -26,8 +28,8 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 /// blocks.
 #[derive(Debug)]
 pub struct SequencerActor<AB: AttributesBuilderConfig> {
-    /// The [`SequencerActorState`].
-    builder: AB,
+    /// The [`AttributesBuilderConfig`].
+    pub builder: AB,
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
     /// Channel to receive admin queries from the sequencer actor.
@@ -42,7 +44,7 @@ pub(super) struct SequencerActorState<AB: AttributesBuilder> {
     /// The [`AttributesBuilder`].
     pub builder: AB,
     /// The [`L1OriginSelector`].
-    pub origin_selector: L1OriginSelector<RootProvider>,
+    pub origin_selector: L1OriginSelector<DelayedL1OriginSelectorProvider>,
     /// The conductor RPC client.
     pub conductor: Option<ConductorClient>,
     /// Whether the sequencer is active. This is used inside communications between the sequencer
@@ -67,15 +69,24 @@ pub trait AttributesBuilderConfig {
     fn build(self) -> Self::AB;
 }
 
-impl From<SequencerBuilder>
-    for SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>>
-{
-    fn from(seq_builder: SequencerBuilder) -> Self {
-        let SequencerConfig { sequencer_stopped, sequencer_recovery_mode, conductor_rpc_url } =
-            seq_builder.seq_cfg.clone();
+impl SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>> {
+    fn new(
+        seq_builder: SequencerBuilder,
+        l1_head_watcher: watch::Receiver<Option<BlockInfo>>,
+    ) -> Self {
+        let SequencerConfig {
+            sequencer_stopped,
+            sequencer_recovery_mode,
+            conductor_rpc_url,
+            l1_conf_delay,
+        } = seq_builder.seq_cfg.clone();
 
         let cfg = seq_builder.rollup_cfg.clone();
-        let l1_provider = seq_builder.l1_provider.clone();
+        let l1_provider = DelayedL1OriginSelectorProvider::new(
+            seq_builder.l1_provider.clone(),
+            l1_head_watcher,
+            l1_conf_delay,
+        );
         let conductor = conductor_rpc_url.map(ConductorClient::new_http);
 
         let builder = seq_builder.build();
@@ -142,6 +153,8 @@ pub struct SequencerInboundData {
 pub struct SequencerContext {
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
+    /// Watch channel to observe the L1 head of the chain.
+    pub l1_head_rx: watch::Receiver<Option<BlockInfo>>,
     /// Sender to request the engine to reset.
     pub reset_request_tx: mpsc::Sender<()>,
     /// Sender to request the execution layer to build a payload attributes on top of the
@@ -441,7 +454,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         let block_time = self.builder.rollup_cfg.block_time;
         let mut build_ticker = tokio::time::interval(Duration::from_secs(block_time));
 
-        let mut state = SequencerActorState::from(self.builder);
+        let mut state = SequencerActorState::new(self.builder, ctx.l1_head_rx.clone());
 
         // Initialize metrics, if configured.
         #[cfg(feature = "metrics")]
