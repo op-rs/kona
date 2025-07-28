@@ -10,10 +10,9 @@ use jsonrpsee::{
     proc_macros::rpc,
 };
 use kona_genesis::RollupConfig;
-use kona_interop::ExecutingDescriptor;
+use kona_interop::{ExecutingDescriptor, SafetyLevel};
 use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
-use op_alloy_consensus::interop::SafetyLevel;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 
 #[cfg_attr(all(target_arch = "wasm32", target_os = "unknown"), allow(unused_imports))]
@@ -171,6 +170,20 @@ pub trait SupervisorApi {
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()>;
+}
+
+/// Development RPC API for engine state introspection.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "dev"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "dev"))]
+#[async_trait]
+pub trait DevEngineApi {
+    /// Subscribe to engine queue length updates.
+    #[subscription(name = "subscribe_engine_queue_size", item = usize)]
+    async fn dev_subscribe_engine_queue_length(&self) -> SubscriptionResult;
+
+    /// Get the current number of tasks in the engine queue.
+    #[method(name = "taskQueueLength")]
+    async fn dev_task_queue_length(&self) -> RpcResult<usize>;
 }
 
 /// The admin namespace for the consensus node.

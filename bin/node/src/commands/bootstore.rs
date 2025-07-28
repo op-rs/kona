@@ -40,7 +40,7 @@ impl BootstoreCommand {
         if self.all {
             self.all()?;
         } else {
-            self.info(args.l2_chain_id)?;
+            self.info(args.l2_chain_id.into())?;
         }
         Ok(())
     }

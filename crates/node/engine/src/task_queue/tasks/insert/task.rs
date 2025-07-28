@@ -1,7 +1,7 @@
 //! A task to insert an unsafe payload into the execution engine.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskExt, ForkchoiceTask, InsertTaskError, Metrics,
+    EngineClient, EngineState, EngineTaskExt, InsertTaskError, SynchronizeTask,
     state::EngineSyncStateUpdate,
 };
 use alloy_eips::eip7685::EMPTY_REQUESTS_HASH;
@@ -124,7 +124,7 @@ impl EngineTaskExt for InsertTask {
                 .map_err(InsertTaskError::L2BlockInfoConstruction)?;
 
         // Send a FCU to canonicalize the imported block.
-        ForkchoiceTask::new(
+        SynchronizeTask::new(
             Arc::clone(&self.client),
             self.rollup_config.clone(),
             EngineSyncStateUpdate {
@@ -134,7 +134,6 @@ impl EngineTaskExt for InsertTask {
                 safe_head: self.is_payload_safe.then_some(new_unsafe_ref),
                 ..Default::default()
             },
-            None,
         )
         .execute(state)
         .await?;
@@ -149,9 +148,6 @@ impl EngineTaskExt for InsertTask {
             insert_duration = ?insert_duration,
             "Inserted new unsafe block"
         );
-
-        // Update metrics.
-        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::INSERT_TASK_LABEL);
 
         Ok(())
     }

@@ -37,6 +37,10 @@ pub enum StorageError {
     /// Represents an error that occurred while writing to log database.
     #[error("latest stored block is not parent of the incoming block")]
     BlockOutOfOrder,
+
+    /// Represents an error that occurred when there is inconsistency in log storage
+    #[error("reorg required due to inconsistent storage state")]
+    ReorgRequired,
 }
 
 impl PartialEq for StorageError {

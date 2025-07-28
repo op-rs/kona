@@ -2,9 +2,8 @@
 use crate::{
     DerivationActor, DerivationBuilder, EngineActor, EngineBuilder, InteropMode, L1WatcherRpc,
     L1WatcherRpcState, NetworkActor, NetworkBuilder, NetworkConfig, NodeMode, RollupNodeBuilder,
-    RollupNodeService, RpcActor, RuntimeActor, SequencerConfig, SupervisorActor,
-    SupervisorRpcServerExt,
-    actors::{RuntimeState, SequencerActor, SequencerBuilder},
+    RollupNodeService, RpcActor, SequencerConfig,
+    actors::{SequencerActor, SequencerBuilder},
 };
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -16,7 +15,7 @@ use kona_genesis::RollupConfig;
 use kona_providers_alloy::{
     AlloyChainProvider, AlloyL2ChainProvider, OnlineBeaconClient, OnlinePipeline,
 };
-use kona_rpc::{RpcBuilder, SupervisorRpcConfig, SupervisorRpcServer};
+use kona_rpc::RpcBuilder;
 
 /// The standard implementation of the [RollupNode] service, using the governance approved OP Stack
 /// configuration of components.
@@ -38,12 +37,8 @@ pub struct RollupNode {
     pub(crate) rpc_builder: Option<RpcBuilder>,
     /// The P2P [`NetworkConfig`] for the node.
     pub(crate) p2p_config: NetworkConfig,
-    /// The [`RuntimeState`] for the runtime loading service.
-    pub(crate) runtime_builder: Option<RuntimeState>,
     /// The [`SequencerConfig`] for the node.
     pub(crate) sequencer_config: SequencerConfig,
-    /// The supervisor rpc server config.
-    pub(crate) supervisor_rpc: SupervisorRpcConfig,
 }
 
 impl RollupNode {
@@ -63,10 +58,6 @@ impl RollupNodeService for RollupNode {
     type DerivationPipeline = OnlinePipeline;
     type DerivationActor = DerivationActor<DerivationBuilder>;
 
-    type SupervisorExt = SupervisorRpcServerExt;
-    type SupervisorActor = SupervisorActor<Self::SupervisorExt>;
-
-    type RuntimeActor = RuntimeActor;
     type RpcActor = RpcActor;
     type EngineActor = EngineActor;
     type NetworkActor = NetworkActor;
@@ -77,28 +68,6 @@ impl RollupNodeService for RollupNode {
 
     fn da_watcher_builder(&self) -> L1WatcherRpcState {
         L1WatcherRpcState { rollup: self.config.clone(), l1_provider: self.l1_provider.clone() }
-    }
-
-    async fn supervisor_ext(&self) -> Option<Self::SupervisorExt> {
-        if self.supervisor_rpc.is_disabled() {
-            return None;
-        }
-        let (events_tx, events_rx) = tokio::sync::broadcast::channel(1024);
-        let (control_tx, control_rx) = tokio::sync::broadcast::channel(1024);
-        let server = SupervisorRpcServer::new(
-            events_rx,
-            control_tx,
-            self.supervisor_rpc.jwt_secret,
-            self.supervisor_rpc.socket_address,
-        );
-        // TODO: handle this error properly by encapsulating this logic in a trait-abstracted
-        // launcher.
-        let handle = server.launch().await.ok()?;
-        Some(SupervisorRpcServerExt::new(handle, events_tx, control_rx))
-    }
-
-    fn runtime_builder(&self) -> Option<RuntimeState> {
-        self.runtime_builder.clone()
     }
 
     fn engine_builder(&self) -> EngineBuilder {

@@ -57,7 +57,27 @@ test-e2e DEVNET GO_PKG_NAME="" DEVNET_CUSTOM_PATH="" :
     export DISABLE_OP_E2E_LEGACY=true
     export DEVSTACK_ORCHESTRATOR=sysext
 
-    cd {{SOURCE}} && go test -timeout 20m -v ./$GO_PKG_NAME
+    cd {{SOURCE}} && go test -timeout 40m -v ./$GO_PKG_NAME
+
+# Runs a filtered test-e2e test.
+test-e2e-filtered DEVNET FILTER GO_PKG_NAME="" DEVNET_CUSTOM_PATH="" :
+    #!/bin/bash
+    if [ -z "{{GO_PKG_NAME}}" ]; then
+        export GO_PKG_NAME="..."
+    else
+        export GO_PKG_NAME="{{GO_PKG_NAME}}"
+    fi
+
+    export DEVNET_CUSTOM_PATH="{{DEVNET_CUSTOM_PATH}}"
+    if [ -z "{{DEVNET_CUSTOM_PATH}}" ]; then
+        export DEVNET_CUSTOM_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
+    fi
+
+    export DEVNET_ENV_URL="ktnative://{{DEVNET}}$DEVNET_CUSTOM_PATH"
+    export DISABLE_OP_E2E_LEGACY=true
+    export DEVSTACK_ORCHESTRATOR=sysext
+
+    cd {{SOURCE}} && go test -timeout 40m -v ./$GO_PKG_NAME -run {{FILTER}}
 
 build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (devnet DEVNET OP_PACKAGE_PATH)
   

@@ -18,43 +18,24 @@ jobs:
       - name: Close stale PRs
         uses: actions/stale@v9
         with:
-          # Only process pull requests, not issues
-          only: pulls
-          
-          # Days of inactivity before marking PR as stale
-          days-before-stale: 21
-          
-          # Days of inactivity after being marked stale before closing
-          days-before-close: 7
-          
-          # Label to add when marking as stale
-          stale-pr-label: 'status: stale'
-          
-          # Message to post when marking PR as stale
+          # More Operations than default 30
+          operations-per-run: 100
+
+          # Issues should not be stale or closed
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+
+          # Pull Request Stale
+          days-before-pr-stale: 21
+          days-before-pr-close: 7
+          stale-pr-label: 'M-stale'
+          exempt-pr-labels: 'M-prevent-stale'
           stale-pr-message: |
             This pull request has been automatically marked as stale because it has been inactive for 3 weeks.
             It will be closed in 1 week if no further activity occurs.
-            
             If you believe this PR should remain open, please add the `M-prevent-stale` label or leave a comment.
-            
-          # Message to post when closing stale PR
           close-pr-message: |
             This pull request has been automatically closed due to inactivity (4 weeks total).
-            
             If you would like to continue working on this PR, please reopen it and ensure it stays active.
             You can also add the `M-prevent-stale` label to prevent automatic closure in the future.
-            
-          # Labels that prevent a PR from being marked as stale
-          exempt-pr-labels: 'M-prevent-stale'
-          
-          # Don't mark PRs as stale if they have these labels
-          exempt-all-pr-labels: true
-          
-          # Remove stale label when PR becomes active again
-          remove-stale-when-updated: true
-          
-          # Limit to 30 operations per run to avoid API rate limits
-          operations-per-run: 30
-          
-          # Debug mode - set to true to see more detailed logs
-          debug-only: false
+            Thank you for your contributions.

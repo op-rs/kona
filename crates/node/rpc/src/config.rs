@@ -16,12 +16,19 @@ pub struct RpcBuilder {
     pub admin_persistence: Option<PathBuf>,
     /// Enable the websocket rpc server
     pub ws_enabled: bool,
+    /// Enable development RPC endpoints
+    pub dev_enabled: bool,
 }
 
 impl RpcBuilder {
     /// Returns whether WebSocket RPC endpoint is enabled
     pub const fn ws_enabled(&self) -> bool {
         self.ws_enabled
+    }
+
+    /// Returns whether development RPC endpoints are enabled
+    pub const fn dev_enabled(&self) -> bool {
+        self.dev_enabled
     }
 
     /// Returns the socket address of the [`RpcBuilder`].

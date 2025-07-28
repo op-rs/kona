@@ -1,6 +1,6 @@
 use super::Metrics;
 use crate::{
-    ChainProcessorError, LogIndexer, config::RollupConfig, event::ChainEvent,
+    ChainProcessorError, ChainRewinder, LogIndexer, config::RollupConfig, event::ChainEvent,
     syncnode::ManagedNodeProvider,
 };
 use alloy_primitives::ChainId;
@@ -30,6 +30,8 @@ pub struct ChainProcessorTask<P, W> {
 
     log_indexer: Arc<LogIndexer<P, W>>,
 
+    rewinder: Arc<ChainRewinder<W>>,
+
     cancel_token: CancellationToken,
 
     /// The channel for receiving node events.
@@ -52,13 +54,15 @@ where
     /// Creates a new [`ChainProcessorTask`].
     pub fn new(
         rollup_config: RollupConfig,
-        chain_id: u64,
+        chain_id: ChainId,
         managed_node: Arc<P>,
         state_manager: Arc<W>,
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
-        let log_indexer = LogIndexer::new(managed_node.clone(), state_manager.clone());
+        let log_indexer = LogIndexer::new(chain_id, managed_node.clone(), state_manager.clone());
+        let rewinder = ChainRewinder::new(chain_id, state_manager.clone());
+
         Self {
             rollup_config,
             chain_id,
@@ -69,6 +73,7 @@ where
             state_manager,
             log_indexer: Arc::from(log_indexer),
             invalidated_block: RwLock::new(None),
+            rewinder: Arc::from(rewinder),
         }
     }
 
@@ -499,37 +504,7 @@ where
         // }
 
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
-            match self.state_manager.save_derived_block(derived_ref_pair) {
-                Ok(_) => return Ok(derived_ref_pair.derived),
-                Err(StorageError::BlockOutOfOrder) => {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        block_number = derived_ref_pair.derived.number,
-                        "Block out of order detected, resetting managed node"
-                    );
-
-                    if let Err(err) = self.managed_node.reset().await {
-                        error!(
-                            target: "chain_processor",
-                            chain_id = self.chain_id,
-                            %err,
-                            "Failed to reset managed node after block out of order"
-                        );
-                    }
-                    return Err(StorageError::BlockOutOfOrder.into());
-                }
-                Err(err) => {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        block_number = derived_ref_pair.derived.number,
-                        %err,
-                        "Failed to save derived block pair"
-                    );
-                    return Err(err.into());
-                }
-            }
+            return self.process_safe_derived_block(derived_ref_pair).await
         }
 
         if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
@@ -542,6 +517,88 @@ where
             self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
             return Ok(derived_ref_pair.derived);
         }
+
+        Ok(derived_ref_pair.derived)
+    }
+
+    async fn process_safe_derived_block(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
+        match self.state_manager.save_derived_block(derived_ref_pair) {
+            Ok(_) => Ok(derived_ref_pair.derived),
+            Err(StorageError::BlockOutOfOrder) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    "Block out of order detected, resetting managed node"
+                );
+
+                if let Err(err) = self.managed_node.reset().await {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to reset managed node after block out of order"
+                    );
+                }
+                Err(StorageError::BlockOutOfOrder.into())
+            }
+
+            Err(StorageError::ReorgRequired) => {
+                debug!(
+                    target: "chain_processor",
+                    chain = self.chain_id,
+                    derived_block = %derived_ref_pair.derived,
+                    "Local derivation conflict detected — rewinding"
+                );
+                self.rewinder.handle_local_reorg(&derived_ref_pair)?;
+                self.retry_with_resync_derived_block(derived_ref_pair).await
+            }
+
+            Err(StorageError::FutureData) => {
+                self.retry_with_resync_derived_block(derived_ref_pair).await
+            }
+
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Failed to save derived block pair"
+                );
+                Err(err.into())
+            }
+        }
+    }
+    async fn retry_with_resync_derived_block(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<BlockInfo, ChainProcessorError> {
+        self.log_indexer
+            .clone()
+            .process_and_store_logs(&derived_ref_pair.derived)
+            .await
+            .inspect_err(|err| {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    block_number = derived_ref_pair.derived.number,
+                    %err,
+                    "Error resyncing logs for derived block"
+                );
+            })?;
+        self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+            error!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                block_number = derived_ref_pair.derived.number,
+                %err,
+                "Error saving derived block after resync"
+            );
+        })?;
 
         Ok(derived_ref_pair.derived)
     }
@@ -1087,6 +1144,135 @@ mod tests {
 
         // Expect reset to be called
         mocknode.expect_reset().returning(|| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        // Expect reorg on log storage
+        mockdb.expect_rewind_log_storage().returning(|_block_id| Ok(()));
+
+        mockdb.expect_store_block_logs().returning(|_block_id, _logs| Ok(()));
+
+        mocknode.expect_fetch_receipts().returning(|_receipts| Ok(Receipts::default()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let cancel_token = CancellationToken::new();
+        let (tx, rx) = mpsc::channel(10);
+
+        let rollup_config = get_rollup_config(1000);
+        let task = ChainProcessorTask::new(
+            rollup_config,
+            1,
+            managed_node,
+            writer,
+            cancel_token.clone(),
+            rx,
+        );
+
+        tx.send(ChainEvent::DerivedBlock { derived_ref_pair: block_pair }).await.unwrap();
+
+        let task_handle = tokio::spawn(task.run());
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        cancel_token.cancel();
+        task_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_resync() {
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::FutureData));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        mockdb.expect_store_block_logs().returning(|_block_id, _logs| Ok(()));
+
+        mocknode.expect_fetch_receipts().returning(|_receipts| Ok(Receipts::default()));
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
