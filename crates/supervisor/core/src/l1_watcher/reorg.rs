@@ -6,7 +6,9 @@ use alloy_rpc_types_eth::Block;
 use derive_more::Constructor;
 use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader};
+use kona_supervisor_storage::{
+    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader,
+};
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
@@ -31,7 +33,7 @@ impl ReorgHandler {
         );
 
         let mut failed_chains = Vec::new();
-        
+
         for chain_id in self.dependency_set.dependencies.keys() {
             if let Err(err) = self.process_chain_reorg(chain_id, latest_block).await {
                 error!(
@@ -65,16 +67,18 @@ impl ReorgHandler {
         let chain_db = self.db_factory.get_db(*chain_id)?;
 
         // Find last valid source block for this chain
-        let rewind_target_source = match self.find_rewind_target(*chain_id, chain_db.clone()).await? {
-            Some(source) => source,
-            None => {
-                // No need to re-org for this chain
-                return Ok(());
-            }
-        };
+        let rewind_target_source =
+            match self.find_rewind_target(*chain_id, chain_db.clone()).await? {
+                Some(source) => source,
+                None => {
+                    // No need to re-org for this chain
+                    return Ok(());
+                }
+            };
 
         // Get the derived block at the target source block
-        let rewind_target_derived = chain_db.latest_derived_block_at_source(rewind_target_source)?;
+        let rewind_target_derived =
+            chain_db.latest_derived_block_at_source(rewind_target_source)?;
 
         // Call the rewinder to handle the DB rewinding
         let rewinder = ChainRewinder::new(*chain_id, chain_db);
@@ -134,7 +138,11 @@ impl ReorgHandler {
     }
 
     /// Checks if a block is canonical on L1
-    async fn is_block_canonical(&self, block_number: u64, expected_hash: B256) -> Result<bool, SupervisorError> {
+    async fn is_block_canonical(
+        &self,
+        block_number: u64,
+        expected_hash: B256,
+    ) -> Result<bool, SupervisorError> {
         match self
             .rpc_client
             .request::<_, Block>("eth_getBlockByNumber", (block_number, false))
@@ -152,4 +160,4 @@ impl ReorgHandler {
             }
         }
     }
-} 
+}

@@ -6,7 +6,7 @@ use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
 use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{FinalizedL1Storage, ChainDbFactory};
+use kona_supervisor_storage::{ChainDbFactory, FinalizedL1Storage};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -224,8 +224,6 @@ where
 
         *previous_block = latest_block.id();
     }
-
-
 }
 
 #[cfg(test)]
