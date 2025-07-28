@@ -189,8 +189,8 @@ where
             return;
         }
 
-        // Process reorg for each chain
-        for (chain_id, _) in &self.dependency_set.dependencies {
+        // Process reorg for each chain.
+        for chain_id in self.dependency_set.dependencies.keys() {
             let chain_db = match self.db_factory.get_db(*chain_id) {
                 Ok(db) => db,
                 Err(err) => {
@@ -204,31 +204,50 @@ where
                 }
             };
 
-            match self.find_rewind_target(*chain_id, chain_db.clone()).await {
-                Ok(Some(rewind_target_source)) => {
-                    let rewinder = ChainRewinder::new(*chain_id, chain_db);
-                    if let Err(err) = rewinder.handle_l1_reorg(rewind_target_source) {
+            // Find rewind target for this chain
+            let rewind_target_source =
+                match self.find_rewind_target(*chain_id, chain_db.clone()).await {
+                    Ok(Some(source)) => source,
+                    Ok(None) => {
+                        // No need to re-org for this chain
+                        continue;
+                    }
+                    Err(err) => {
                         error!(
                             target: "l1_watcher",
                             chain_id = %chain_id,
                             %err,
-                            "Rewinder failed to handle DB changes in re-org."
+                            "Failed to find rewind target"
                         );
+                        continue;
                     }
-                }
-                Ok(None) => {
-                    // No need to re-org for this chain
-                    continue;
-                }
-                Err(err) => {
-                    error!(
-                        target: "l1_watcher",
-                        chain_id = %chain_id,
-                        %err,
-                        "Failed to find rewind target"
-                    );
-                    continue;
-                }
+                };
+
+            // Get the derived block at the source target
+            let rewind_target_derived =
+                match chain_db.latest_derived_block_at_source(rewind_target_source) {
+                    Ok(derived_block) => derived_block,
+                    Err(err) => {
+                        error!(
+                            target: "l1_watcher",
+                            chain_id = %chain_id,
+                            source_block = ?rewind_target_source,
+                            %err,
+                            "Failed to get derived block at rewind target source"
+                        );
+                        continue;
+                    }
+                };
+
+            // Call the rewinder to handle the reorg.
+            let rewinder = ChainRewinder::new(*chain_id, chain_db.clone());
+            if let Err(err) = rewinder.handle_l1_reorg(rewind_target_derived.id()) {
+                error!(
+                    target: "l1_watcher",
+                    chain_id = %chain_id,
+                    %err,
+                    "Rewinder failed to handle DB changes in re-org."
+                );
             }
         }
 

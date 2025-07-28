@@ -5,7 +5,7 @@ use kona_interop::DerivedRefPair;
 use kona_supervisor_storage::{LogStorageReader, StorageError, StorageRewinder};
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Initiates supervisor-level rewinds based on chain events or storage conflicts.
 ///
@@ -21,7 +21,6 @@ pub struct ChainRewinder<DB> {
     db: Arc<DB>,
 }
 
-#[expect(dead_code)] // todo: to be removed in the follow up PR
 impl<DB> ChainRewinder<DB>
 where
     DB: StorageRewinder + LogStorageReader,
@@ -76,12 +75,26 @@ where
     /// This method is expected to revert supervisor state based on the L1 reorg by finding the new
     /// valid state and removing any derived data that is no longer valid due to upstream
     /// reorganization.
-    pub fn handle_l1_reorg(&self, rewind_to_source: BlockNumHash) -> Result<(), StorageError> {
-        warn!(
+    pub fn handle_l1_reorg(&self, last_valid_derived: BlockNumHash) -> Result<(), StorageError> {
+        info!(
             target: "rewinder",
             chain = self.chain_id,
-            "L1 reorg handling is not yet implemented. Skipping rewind."
+            block_number = last_valid_derived.number,
+            "Started rewinding DB to derived block",
         );
+
+        // rewind_to() method is inclusive, so we need to get the next block.
+        let rewind_to = self.db.get_block(last_valid_derived.number + 1)?;
+
+        self.db.rewind(&rewind_to.id()).inspect_err(|err| {
+            error!(
+                target: "rewinder",
+                chain = self.chain_id,
+                block_number = rewind_to.number,
+                %err,
+                "Error rewinding DB to derived block"
+            );
+        })?;
 
         Ok(())
     }
