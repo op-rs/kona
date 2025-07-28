@@ -86,7 +86,7 @@ mod tests {
     use kona_supervisor_types::Log;
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
-    use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
+    use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::Arc};
 
     mock! (
         #[derive(Debug)]
@@ -125,10 +125,10 @@ mod tests {
             l2_consensus_nodes_config: vec![],
             datadir: PathBuf::new(),
             rpc_addr: SocketAddr::from(([127, 0, 0, 1], 8545)),
-            dependency_set: DependencySet {
+            dependency_set: Arc::new(DependencySet {
                 dependencies: Default::default(),
                 override_message_expiry_window: Some(10),
-            },
+            }),
             rollup_config_set: mock_rollup_config_set(),
         }
     }

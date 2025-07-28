@@ -1,3 +1,4 @@
+use alloy_eips::BlockNumHash;
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
@@ -75,7 +76,7 @@ where
     /// This method is expected to revert supervisor state based on the L1 reorg by finding the new
     /// valid state and removing any derived data that is no longer valid due to upstream
     /// reorganization.
-    fn handle_l1_reorg(&self) -> Result<(), StorageError> {
+    pub fn handle_l1_reorg(&self, rewind_to_source: BlockNumHash) -> Result<(), StorageError> {
         warn!(
             target: "rewinder",
             chain = self.chain_id,

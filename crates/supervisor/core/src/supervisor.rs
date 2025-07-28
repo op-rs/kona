@@ -297,6 +297,8 @@ impl Supervisor {
             self.database_factory.clone(),
             senders,
             self.cancel_token.clone(),
+            self.config.dependency_set.clone(),
+            self.database_factory.clone(),
         );
 
         tokio::spawn(async move {
