@@ -13,7 +13,6 @@ use kona_registry::scr_rollup_config_by_alloy_ident;
 use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
-use url::Url;
 
 /// The `net` Subcommand
 ///
@@ -27,11 +26,6 @@ use url::Url;
 #[derive(Parser, Default, PartialEq, Debug, Clone)]
 #[command(about = "Runs the networking stack for the kona-node.")]
 pub struct NetCommand {
-    /// URL of the L1 execution client RPC API.
-    /// This is used to load the unsafe block signer from runtime.
-    /// Without this, the rollup config unsafe block signer will be used which may be outdated.
-    #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
-    pub l1_eth_rpc: Option<Url>,
     /// P2P CLI Flags
     #[command(flatten)]
     pub p2p: P2PArgs,
@@ -66,7 +60,7 @@ impl NetCommand {
 
         // Start the Network Stack
         self.p2p.check_ports()?;
-        let p2p_config = self.p2p.config(rollup_config, args, self.l1_eth_rpc).await?;
+        let p2p_config = self.p2p.config(rollup_config, args).await?;
 
         let (NetworkInboundData { p2p_rpc: rpc, .. }, network) =
             NetworkActor::new(NetworkBuilder::from(p2p_config));
