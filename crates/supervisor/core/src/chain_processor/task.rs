@@ -337,15 +337,7 @@ where
         self.state_manager.rewind(&to)?;
 
         let block_seal = BlockSeal::new(block.hash, block.number, block.timestamp);
-        self.managed_node.invalidate_block(block_seal).await.inspect_err(|err| {
-            error!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                block_number = block.number,
-                %err,
-                "Failed to invalidate block"
-            );
-        })?;
+        self.managed_node.invalidate_block(block_seal).await?;
 
         *invalidated_block = Some(DerivedRefPair { source: source_block, derived: block });
         Ok(())

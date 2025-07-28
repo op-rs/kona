@@ -26,7 +26,7 @@ pub enum ChainEvent {
         origin: BlockInfo,
     },
 
-    /// A invalidateBlock event, indicating that a block has been invalidated.
+    /// An invalidateBlock event, indicating that a block has been invalidated.
     InvalidateBlock {
         /// The [`BlockInfo`] of the block that has been invalidated.
         block: BlockInfo,
