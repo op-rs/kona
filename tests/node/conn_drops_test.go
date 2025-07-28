@@ -43,6 +43,9 @@ func TestConnDrops(gt *testing.T) {
 				t.Log("blacklisting peer %s", peer.PeerID)
 				err := node.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
 				t.Require().NoError(err, "failed to block peer %s", peer.PeerID)
+				// Disconnect the peer to ensure that the node is not connected to it anymore
+				err = node.Escape().P2PAPI().DisconnectPeer(t.Ctx(), peer.PeerID)
+				t.Require().NoError(err, "failed to disconnect peer %s", peer.PeerID)
 			}
 
 			check := []dsl.CheckFunc{}
@@ -105,6 +108,9 @@ func TestConnDropsWithSequencer(gt *testing.T) {
 		t.Log("blacklisting peer %s", peer.PeerID)
 		err := sequencer.Escape().P2PAPI().BlockPeer(t.Ctx(), peer.PeerID)
 		t.Require().NoError(err, "failed to block peer %s", peer.PeerID)
+		// Disconnect the peer to ensure that the node is not connected to it anymore
+		err = sequencer.Escape().P2PAPI().DisconnectPeer(t.Ctx(), peer.PeerID)
+		t.Require().NoError(err, "failed to disconnect peer %s", peer.PeerID)
 	}
 
 	// Now:
@@ -138,6 +144,9 @@ func TestConnDropsWithSequencer(gt *testing.T) {
 		t.Log("unblocking peer %s", peer.PeerID)
 		err := sequencer.Escape().P2PAPI().UnblockPeer(t.Ctx(), peer.PeerID)
 		t.Require().NoError(err, "failed to unblock peer %s", peer.PeerID)
+		// Reconnect the peer to ensure that the node is connected to it again
+		err = sequencer.Escape().P2PAPI().ConnectPeer(t.Ctx(), peer.Addresses[0])
+		t.Require().NoError(err, "failed to connect peer %s", peer.PeerID)
 	}
 
 	toCheck = []dsl.CheckFunc{}
