@@ -7,14 +7,14 @@ use alloy_primitives::ChainId;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{
-    DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
-    LogStorageWriter, StorageError, StorageRewinder,
+    DerivationStorage, HeadRefStorageWriter,
+    LogStorage, StorageError, StorageRewinder,
 };
 use kona_supervisor_types::BlockSeal;
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::{RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -43,10 +43,8 @@ pub struct ChainProcessorTask<P, W> {
 impl<P, W> ChainProcessorTask<P, W>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter
-        + LogStorageReader
-        + DerivationStorageWriter
-        + DerivationStorageReader
+    W: LogStorage
+        + DerivationStorage
         + HeadRefStorageWriter
         + StorageRewinder
         + 'static,
@@ -299,7 +297,9 @@ where
                 debug!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
-                    "Invalidated block matches replacement block, skipping"
+                    invalidated_block = %invalidated_ref_pair.derived,
+                    replacement_block = %replacement.replacement,
+                    "Invalidated block matches replacement block, processing replacement"
                 );
 
                 *guard = None;
@@ -309,34 +309,10 @@ where
                     derived: replacement.replacement,
                 };
 
-                // todo: index logs if needed
-                // hardcoding logs for now
-                self.state_manager.store_block_logs(&replacement.replacement, Vec::new()).inspect_err(|err| {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        %err,
-                        "Failed to store logs for derived block on replacement"
-                    );
-                })?;
-                self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
-                    error!(
-                        target: "chain_processor",
-                        chain_id = self.chain_id,
-                        %err,
-                        "Failed to save derived block after replacement"
-                    );
-                })?;
+                self.retry_with_resync_derived_block(derived_ref_pair).await?;
                 return Ok(());
             }
-        } else {
-            warn!(
-                target: "chain_processor",
-                chain_id = self.chain_id,
-                "No invalidated block found, but block replacement event received"
-            );
         }
-
         Ok(())
     }
 
@@ -359,29 +335,11 @@ where
             return Ok(());
         }
 
-        // todo: handle error if block is not found or conflict error
         let source_block = self.state_manager.derived_to_source(block.id())?;
 
         // rewind the storage to the block before the invalidated block
         let to = block.id();
         self.state_manager.rewind(&to)?;
-
-        // log latest derivation and log state for debugging
-        let latest_derivation_state = self.state_manager.latest_derivation_state()?;
-        info!(
-            target: "chain_processor",
-            chain_id = self.chain_id,
-            latest_derivation_state = ?latest_derivation_state,
-            "Latest derivation state after rewinding storage"
-        );
-
-        let latest_log_state = self.state_manager.get_latest_block()?;
-        info!(
-            target: "chain_processor",
-            chain_id = self.chain_id,
-            latest_log_state = ?latest_log_state,
-            "Latest log state after rewinding storage"
-        );
 
         let block_seal = BlockSeal::new(block.hash, block.number, block.timestamp);
         self.managed_node.invalidate_block(block_seal).await.inspect_err(|err| {
@@ -490,19 +448,6 @@ where
             "Latest derivation state in handle_safe_event"
         );
 
-        // // for testing purpose
-        // // trigger handle_invalidate with block 15 at block 20
-        // if derived_ref_pair.derived.number == 20 {
-        //     info!(
-        //         target: "chain_processor",
-        //         chain_id = self.chain_id,
-        //         block_number = derived_ref_pair.derived.number,
-        //         "Triggering handle_invalidate for block 15 at block 20"
-        //     );
-        //     let block_15 = self.state_manager.get_block(15)?;
-        //     let _ = self.handle_invalidate_block(block_15).await;
-        // }
-
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
             return self.process_safe_derived_block(derived_ref_pair).await
         }
@@ -573,6 +518,7 @@ where
             }
         }
     }
+
     async fn retry_with_resync_derived_block(
         &self,
         derived_ref_pair: DerivedRefPair,
@@ -694,7 +640,7 @@ mod tests {
     use kona_interop::DerivedRefPair;
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;

@@ -4,9 +4,8 @@ use crate::{
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
-use op_alloy_consensus::interop::SafetyLevel;
 use std::{
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 use tokio::sync::mpsc;
@@ -26,8 +25,6 @@ pub struct CrossSafetyCheckerJob<P, L> {
     promoter: L,
     event_tx: mpsc::Sender<ChainEvent>,
     config: Arc<Config>,
-
-    test_run: Mutex<bool>,
 }
 
 impl<P, L> CrossSafetyCheckerJob<P, L>
@@ -53,7 +50,6 @@ where
             promoter,
             event_tx,
             config,
-            test_run: Mutex::new(true),
         }
     }
 
@@ -129,22 +125,6 @@ where
         checker.validate_block(candidate, self.promoter.target_level())?;
 
         // TODO: Add more checks in future
-
-        // test the invalidate block
-        let mut test_run = self.test_run.lock().unwrap();
-        if *test_run && candidate.number == 20 && self.promoter.target_level() == SafetyLevel::CrossSafe {
-            let event = ChainEvent::InvalidateBlock { block: candidate.clone() };
-            if let Err(err) = self.event_tx.try_send(event) {
-                error!(
-                    target: "safety_checker",
-                    target_level = %self.promoter.target_level(),
-                    %err,
-                    "Failed to broadcast cross head update event",
-                );
-            }
-            *test_run = false;
-            return Ok(candidate);
-        }
 
         let event =
             self.promoter.update_and_emit_event(&*self.provider, self.chain_id, &candidate)?;
