@@ -25,7 +25,7 @@ where
         let head_ref_key = safety_level.into();
         let result = self.tx.get::<SafetyHeadRefs>(head_ref_key).inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %safety_level,
                 %err,
@@ -54,7 +54,7 @@ where
         if let Ok(current_head_ref) = self.get_safety_head_ref(safety_level) {
             if current_head_ref.number > incoming_head_ref.number {
                 warn!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     %current_head_ref,
                     %incoming_head_ref,
@@ -69,7 +69,7 @@ where
             .put::<SafetyHeadRefs>(safety_level.into(), (*incoming_head_ref).into())
             .inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     %incoming_head_ref,
                     %safety_level,
@@ -107,7 +107,7 @@ where
             .put::<SafetyHeadRefs>(safety_level.into(), (*incoming_head_ref).into())
             .inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     %incoming_head_ref,
                     %safety_level,

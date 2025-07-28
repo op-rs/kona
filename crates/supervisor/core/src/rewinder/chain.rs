@@ -34,7 +34,7 @@ where
         let conflicting_block =
             self.db.get_block(derived_pair.derived.number).inspect_err(|err| {
                 error!(
-                    target: "rewinder",
+                    target: "supervisor::rewinder",
                     chain = %self.chain_id,
                     block_number = derived_pair.derived.number,
                     %err,
@@ -50,7 +50,7 @@ where
         // rewind the log storage to remove all the blocks till the conflicting one
         self.db.rewind_log_storage(&conflicting_block.id()).inspect_err(|err| {
             error!(
-                target: "rewinder",
+                target: "supervisor::rewinder",
                 chain = %self.chain_id,
                 block_number = derived_pair.derived.number,
                 %err,
@@ -62,7 +62,7 @@ where
         // todo: save the derived_pair - now it should succeed
 
         info!(
-            target: "rewinder",
+            target: "supervisor::rewinder",
             chain = self.chain_id,
             "Rewind successful after local derivation conflict"
         );
@@ -77,7 +77,7 @@ where
     /// reorganization.
     fn handle_l1_reorg(&self) -> Result<(), StorageError> {
         warn!(
-            target: "rewinder",
+            target: "supervisor::rewinder",
             chain = self.chain_id,
             "L1 reorg handling is not yet implemented. Skipping rewind."
         );
