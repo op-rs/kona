@@ -37,6 +37,17 @@ pub struct EngineSyncState {
 }
 
 impl EngineSyncState {
+    /// Creates a new [`EngineSyncState`] with the given heads.
+    pub const fn new(
+        unsafe_head: L2BlockInfo,
+        cross_unsafe_head: L2BlockInfo,
+        local_safe_head: L2BlockInfo,
+        safe_head: L2BlockInfo,
+        finalized_head: L2BlockInfo,
+    ) -> Self {
+        Self { unsafe_head, cross_unsafe_head, local_safe_head, safe_head, finalized_head }
+    }
+
     /// Returns the current unsafe head.
     pub const fn unsafe_head(&self) -> L2BlockInfo {
         self.unsafe_head
