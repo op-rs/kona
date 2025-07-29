@@ -4,23 +4,18 @@ use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::Block;
 use derive_more::Constructor;
-use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, HeadRefStorageReader,
-};
-use std::sync::Arc;
+use kona_supervisor_storage::{ChainDb, DerivationStorageReader, HeadRefStorageReader};
+use std::{collections::HashMap, sync::Arc};
 use tracing::{error, info, warn};
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
 pub struct ReorgHandler {
     /// The Alloy RPC client for L1.
-    rpc_client: RpcClient,
-    /// The superchain dependency set.
-    dependency_set: Arc<DependencySet>,
-    /// The database factory.
-    db_factory: Arc<ChainDbFactory>,
+    rpc_client: Arc<RpcClient>,
+    /// Per chain dbs.
+    chain_dbs: HashMap<ChainId, Arc<ChainDb>>,
 }
 
 impl ReorgHandler {
@@ -34,8 +29,8 @@ impl ReorgHandler {
 
         let mut failed_chains = Vec::new();
 
-        for chain_id in self.dependency_set.dependencies.keys() {
-            if let Err(err) = self.process_chain_reorg(chain_id, latest_block).await {
+        for (chain_id, chain_db) in self.chain_dbs.iter() {
+            if let Err(err) = self.process_chain_reorg(chain_id, chain_db, latest_block).await {
                 error!(
                     target: "reorg_handler",
                     chain_id = %chain_id,
@@ -61,27 +56,25 @@ impl ReorgHandler {
     /// Processes reorg for a single chain
     async fn process_chain_reorg(
         &self,
-        chain_id: &u64,
+        chain_id: &ChainId,
+        chain_db: &Arc<ChainDb>,
         _latest_block: BlockInfo,
     ) -> Result<(), SupervisorError> {
-        let chain_db = self.db_factory.get_db(*chain_id)?;
-
         // Find last valid source block for this chain
-        let rewind_target_source =
-            match self.find_rewind_target(*chain_id, chain_db.clone()).await? {
-                Some(source) => source,
-                None => {
-                    // No need to re-org for this chain
-                    return Ok(());
-                }
-            };
+        let rewind_target_source = match self.find_rewind_target(*chain_id, chain_db).await? {
+            Some(source) => source,
+            None => {
+                // No need to re-org for this chain
+                return Ok(());
+            }
+        };
 
         // Get the derived block at the target source block
         let rewind_target_derived =
             chain_db.latest_derived_block_at_source(rewind_target_source)?;
 
         // Call the rewinder to handle the DB rewinding
-        let rewinder = ChainRewinder::new(*chain_id, chain_db);
+        let rewinder = ChainRewinder::new(*chain_id, chain_db.clone());
         rewinder.handle_l1_reorg(rewind_target_derived.id())?;
 
         Ok(())
@@ -91,7 +84,7 @@ impl ReorgHandler {
     async fn find_rewind_target(
         &self,
         chain_id: ChainId,
-        db: Arc<ChainDb>,
+        db: &Arc<ChainDb>,
     ) -> Result<Option<BlockNumHash>, SupervisorError> {
         info!(
             target: "reorg_handler",

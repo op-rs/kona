@@ -28,6 +28,7 @@ use crate::{
     config::Config,
     event::ChainEvent,
     l1_watcher::L1Watcher,
+    reorg::ReorgHandler,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
     syncnode::{Client, ManagedNode, ManagedNodeClient, ManagedNodeDataProvider},
 };
@@ -277,7 +278,7 @@ impl Supervisor {
     }
 
     fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
-        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
+        let l1_rpc = Arc::new(RpcClient::new_http(self.config.l1_rpc.parse().unwrap()));
 
         let mut senders = HashMap::<ChainId, mpsc::Sender<ChainEvent>>::new();
         for (chain_id, chain_processor) in &self.chain_processors {
@@ -292,13 +293,20 @@ impl Supervisor {
             }
         }
 
+        let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = self
+            .config
+            .rollup_config_set
+            .rollups
+            .keys()
+            .map(|chain_id| (*chain_id, self.database_factory.get_db(*chain_id).unwrap()))
+            .collect();
+
         let l1_watcher = L1Watcher::new(
-            l1_rpc,
+            l1_rpc.clone(),
             self.database_factory.clone(),
             senders,
             self.cancel_token.clone(),
-            self.config.dependency_set.clone(),
-            self.database_factory.clone(),
+            ReorgHandler::new(l1_rpc, chain_dbs_map),
         );
 
         tokio::spawn(async move {

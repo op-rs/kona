@@ -4,31 +4,28 @@ use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
-use kona_interop::DependencySet;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{ChainDbFactory, FinalizedL1Storage};
+use kona_supervisor_storage::FinalizedL1Storage;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
-use super::ReorgHandler;
+use crate::ReorgHandler;
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
 pub struct L1Watcher<F> {
     /// The Alloy RPC client for L1.
-    rpc_client: RpcClient,
+    rpc_client: Arc<RpcClient>,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
     /// The finalized L1 block storage.
     finalized_l1_storage: Arc<F>,
     /// The event senders for each chain.
     event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
-    /// The superchain dependency set.
-    dependency_set: Arc<DependencySet>,
-    /// The database factory.
-    db_factory: Arc<ChainDbFactory>,
+    /// The reorg handler.
+    reorg_handler: ReorgHandler,
 }
 
 impl<F> L1Watcher<F>
@@ -37,21 +34,13 @@ where
 {
     /// Creates a new [`L1Watcher`] instance.
     pub const fn new(
-        rpc_client: RpcClient,
+        rpc_client: Arc<RpcClient>,
         finalized_l1_storage: Arc<F>,
         event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
         cancellation: CancellationToken,
-        dependency_set: Arc<DependencySet>,
-        db_factory: Arc<ChainDbFactory>,
+        reorg_handler: ReorgHandler,
     ) -> Self {
-        Self {
-            rpc_client,
-            finalized_l1_storage,
-            event_txs,
-            cancellation,
-            dependency_set,
-            db_factory,
-        }
+        Self { rpc_client, finalized_l1_storage, event_txs, cancellation, reorg_handler }
     }
 
     /// Starts polling for finalized and latest blocks and processes them.
@@ -197,14 +186,7 @@ where
             return;
         }
 
-        // Process reorg for all chains in the dependency set.
-        let reorg_handler = ReorgHandler::new(
-            self.rpc_client.clone(),
-            self.dependency_set.clone(),
-            self.db_factory.clone(),
-        );
-
-        match reorg_handler.handle_l1_reorg(latest_block).await {
+        match self.reorg_handler.handle_l1_reorg(latest_block).await {
             Ok(()) => {
                 info!(
                     target: "l1_watcher",
@@ -229,18 +211,24 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ReorgHandler;
     use alloy_primitives::B256;
     use alloy_transport::mock::*;
-    use kona_supervisor_storage::{FinalizedL1Storage, StorageError};
+    use kona_supervisor_storage::{ChainDb, FinalizedL1Storage, StorageError};
     use mockall::{mock, predicate::*};
     use std::sync::Arc;
-    use tempfile::TempDir;
     use tokio::sync::mpsc;
 
-    fn temp_factory() -> Arc<ChainDbFactory> {
-        let tmp = TempDir::new().expect("create temp dir");
-        let factory = ChainDbFactory::new(tmp.path().to_path_buf());
-        Arc::new(factory)
+    fn temp_rpc_client() -> Arc<RpcClient> {
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter);
+        let rpc_client = RpcClient::new(transport, false);
+        Arc::new(rpc_client)
+    }
+
+    fn temp_reorg_handler() -> ReorgHandler {
+        let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = HashMap::new();
+        ReorgHandler::new(temp_rpc_client(), chain_dbs_map)
     }
 
     // Mock the FinalizedL1Storage trait
@@ -261,22 +249,12 @@ mod tests {
         event_txs.insert(1, tx1);
         event_txs.insert(2, tx2);
 
-        let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter);
-        let rpc_client = RpcClient::new(transport, false);
-
-        let depset = DependencySet {
-            dependencies: HashMap::default(),
-            override_message_expiry_window: Some(3600),
-        };
-
         let watcher = L1Watcher {
-            rpc_client,
+            rpc_client: temp_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
             event_txs,
-            dependency_set: Arc::new(depset),
-            db_factory: temp_factory(),
+            reorg_handler: temp_reorg_handler(),
         };
 
         let block = BlockInfo::new(B256::ZERO, 42, B256::ZERO, 12345);
@@ -298,22 +276,12 @@ mod tests {
         let mut mock_storage = Mockfinalized_l1_storage::new();
         mock_storage.expect_update_finalized_l1().returning(|_block| Ok(()));
 
-        let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter);
-        let rpc_client = RpcClient::new(transport, false);
-
-        let depset = DependencySet {
-            dependencies: HashMap::default(),
-            override_message_expiry_window: Some(3600),
-        };
-
         let watcher = L1Watcher {
-            rpc_client,
+            rpc_client: temp_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(mock_storage),
             event_txs,
-            dependency_set: Arc::new(depset),
-            db_factory: temp_factory(),
+            reorg_handler: temp_reorg_handler(),
         };
 
         let block = Block {
@@ -357,22 +325,12 @@ mod tests {
             .expect_update_finalized_l1()
             .returning(|_block| Err(StorageError::DatabaseNotInitialised));
 
-        let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter);
-        let rpc_client = RpcClient::new(transport, false);
-
-        let depset = DependencySet {
-            dependencies: HashMap::default(),
-            override_message_expiry_window: Some(3600),
-        };
-
         let watcher = L1Watcher {
-            rpc_client,
+            rpc_client: temp_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(mock_storage),
             event_txs,
-            dependency_set: Arc::new(depset),
-            db_factory: temp_factory(),
+            reorg_handler: temp_reorg_handler(),
         };
 
         let block = Block {
@@ -400,22 +358,12 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(1);
         let event_txs = [(1, tx)].into_iter().collect();
 
-        let asserter = Asserter::new();
-        let transport = MockTransport::new(asserter);
-        let rpc_client = RpcClient::new(transport, false);
-
-        let depset = DependencySet {
-            dependencies: HashMap::default(),
-            override_message_expiry_window: Some(3600),
-        };
-
         let watcher = L1Watcher {
-            rpc_client,
+            rpc_client: temp_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
             event_txs,
-            dependency_set: Arc::new(depset),
-            db_factory: temp_factory(),
+            reorg_handler: temp_reorg_handler(),
         };
 
         let block = Block {

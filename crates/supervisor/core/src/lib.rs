@@ -28,3 +28,6 @@ pub use safety_checker::{CrossSafetyCheckerJob, CrossSafetyError};
 
 mod rewinder;
 pub use rewinder::{ChainRewinder, ChainRewinderError};
+
+mod reorg;
+pub use reorg::ReorgHandler;
