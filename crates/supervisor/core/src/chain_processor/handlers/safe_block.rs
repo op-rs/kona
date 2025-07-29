@@ -1,16 +1,15 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState, config::RollupConfig,
-    syncnode::ManagedNodeProvider,
+    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState, chain_processor::Metrics,
+    config::RollupConfig, syncnode::ManagedNodeProvider,
 };
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
-use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, trace};
 
 /// Handler for safe blocks.
 #[derive(Debug, Constructor)]
@@ -42,7 +41,7 @@ where
         );
 
         if state.is_invalidated().await {
-            debug!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
@@ -51,13 +50,34 @@ where
             return Ok(());
         }
 
+        let result = self.inner_handle(derived_ref_pair).await;
+        Metrics::record_block_processing(
+            self.chain_id,
+            Metrics::BLOCK_TYPE_LOCAL_SAFE,
+            derived_ref_pair.derived,
+            &result,
+        );
+
+        result
+    }
+}
+
+impl<P, W> SafeBlockHandler<P, W>
+where
+    P: ManagedNodeProvider + 'static,
+    W: LogStorage + DerivationStorage + StorageRewinder + 'static,
+{
+    async fn inner_handle(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<(), ChainProcessorError> {
         if self.rollup_config.is_post_interop(derived_ref_pair.derived.timestamp) {
             self.process_safe_derived_block(derived_ref_pair).await?;
             return Ok(());
         }
 
         if self.rollup_config.is_interop_activation_block(derived_ref_pair.derived) {
-            info!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
@@ -69,21 +89,22 @@ where
 
         Ok(())
     }
-}
 
-impl<P, W> SafeBlockHandler<P, W>
-where
-    P: ManagedNodeProvider + 'static,
-    W: LogStorage + DerivationStorage + StorageRewinder + 'static,
-{
     async fn process_safe_derived_block(
         &self,
         derived_ref_pair: DerivedRefPair,
-    ) -> Result<BlockInfo, ChainProcessorError> {
+    ) -> Result<(), ChainProcessorError> {
+        trace!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            block_number = derived_ref_pair.derived.number,
+            "Processing safe derived block"
+        );
+
         match self.state_manager.save_derived_block(derived_ref_pair) {
-            Ok(_) => Ok(derived_ref_pair.derived),
+            Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder) => {
-                error!(
+                trace!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
@@ -97,21 +118,30 @@ where
                         %err,
                         "Failed to reset managed node after block out of order"
                     );
+                    return Err(err.into());
                 }
-                Err(StorageError::BlockOutOfOrder.into())
+                Ok(())
             }
             Err(StorageError::ReorgRequired) => {
-                debug!(
+                trace!(
                     target: "chain_processor",
                     chain = self.chain_id,
                     derived_block = %derived_ref_pair.derived,
                     "Local derivation conflict detected — rewinding"
                 );
+                
                 self.rewinder.handle_local_reorg(&derived_ref_pair)?;
                 self.retry_with_resync_derived_block(derived_ref_pair).await?;
-                return Ok(derived_ref_pair.derived);
+                Ok(())
             }
             Err(StorageError::FutureData) => {
+                trace!(
+                    target: "chain_processor",
+                    chain = self.chain_id,
+                    derived_block = %derived_ref_pair.derived,
+                    "Future data detected — retrying with resync"
+                );
+
                 self.retry_with_resync_derived_block(derived_ref_pair).await
             }
             Err(err) => {
@@ -130,7 +160,14 @@ where
     async fn retry_with_resync_derived_block(
         &self,
         derived_ref_pair: DerivedRefPair,
-    ) -> Result<BlockInfo, ChainProcessorError> {
+    ) -> Result<(), ChainProcessorError> {
+        trace!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            derived_block_number = derived_ref_pair.derived.number,
+            "Retrying with resync of derived block"
+        );
+
         self.log_indexer
             .clone()
             .process_and_store_logs(&derived_ref_pair.derived)
@@ -155,7 +192,7 @@ where
             );
         })?;
 
-        Ok(derived_ref_pair.derived)
+        Ok(())
     }
 }
 

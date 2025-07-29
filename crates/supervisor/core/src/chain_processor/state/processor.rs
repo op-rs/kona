@@ -3,7 +3,7 @@ use tokio::sync::RwLock;
 
 /// This module contains the state management for the chain processor.
 /// It provides a way to track the invalidated blocks and manage the state of the chain processor
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ProcessorState {
     invalidated_block: RwLock<Option<DerivedRefPair>>,
 }
@@ -11,7 +11,7 @@ pub struct ProcessorState {
 impl ProcessorState {
     /// Creates a new instance of [`ProcessorState`].
     pub fn new() -> Self {
-        Self { invalidated_block: RwLock::new(None) }
+        Self::default()
     }
 
     /// Returns `true` if the state is invalidated, otherwise `false`.
@@ -21,7 +21,7 @@ impl ProcessorState {
 
     /// Returns the invalidated block if it exists.
     pub async fn get_invalidated(&self) -> Option<DerivedRefPair> {
-        self.invalidated_block.read().await.clone()
+        *self.invalidated_block.read().await
     }
 
     /// Sets the invalidated block to the given pair if it is not already set.

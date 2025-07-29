@@ -8,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageRewinder};
 use kona_supervisor_types::BlockSeal;
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::{debug, trace};
 
 /// Handler for block invalidation events.
 /// This handler processes block invalidation by rewinding the state and updating the managed node.
@@ -30,7 +30,7 @@ where
         block: BlockInfo,
         state: Arc<ProcessorState>,
     ) -> Result<(), ChainProcessorError> {
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             block_number = block.number,
@@ -38,7 +38,7 @@ where
         );
 
         if state.is_invalidated().await {
-            debug!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
@@ -78,7 +78,7 @@ where
         replacement: BlockReplacement,
         state: Arc<ProcessorState>,
     ) -> Result<(), ChainProcessorError> {
-        info!(
+        debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
             %replacement,
@@ -90,15 +90,18 @@ where
             None => return Ok(()),
         };
 
-        if invalidated_ref_pair.derived.hash == replacement.invalidated {
-            debug!(
+        if invalidated_ref_pair.derived.hash != replacement.invalidated {
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 invalidated_block = %invalidated_ref_pair.derived,
                 replacement_block = %replacement.replacement,
-                "Processing block replacement"
+                "Invalidated block hash does not match replacement, skipping"
             );
+            return Ok(());
+        }
 
+        if invalidated_ref_pair.derived.hash == replacement.invalidated {
             let derived_ref_pair = DerivedRefPair {
                 source: invalidated_ref_pair.source,
                 derived: replacement.replacement,
@@ -119,11 +122,16 @@ where
     async fn retry_with_resync_derived_block(
         &self,
         derived_ref_pair: DerivedRefPair,
-    ) -> Result<BlockInfo, ChainProcessorError> {
+    ) -> Result<(), ChainProcessorError> {
+        trace!(
+            target: "chain_processor",
+            chain_id = self.chain_id,
+            derived_block_number = derived_ref_pair.derived.number,
+            "Retrying with resync of derived block"
+        );
         self.log_indexer.clone().process_and_store_logs(&derived_ref_pair.derived).await?;
-
         self.state_manager.save_derived_block(derived_ref_pair)?;
-        Ok(derived_ref_pair.derived)
+        Ok(())
     }
 }
 
@@ -281,11 +289,9 @@ mod tests {
             writer.clone(),
         );
 
-        state
-            .set_invalidated(DerivedRefPair { source: block.clone(), derived: block.clone() })
-            .await;
+        state.set_invalidated(DerivedRefPair { source: block, derived: block }).await;
 
-        let result = handler.handle(block.clone(), state.clone()).await;
+        let result = handler.handle(block, state.clone()).await;
         assert!(result.is_ok());
     }
 
@@ -308,7 +314,7 @@ mod tests {
             writer.clone(),
         );
 
-        let result = handler.handle(block.clone(), state.clone()).await;
+        let result = handler.handle(block, state.clone()).await;
         assert!(matches!(result, Err(ChainProcessorError::StorageError(StorageError::FutureData))));
 
         // make sure invalidated_block is not set
@@ -335,7 +341,7 @@ mod tests {
             writer.clone(),
         );
 
-        let result = handler.handle(block.clone(), state.clone()).await;
+        let result = handler.handle(block, state.clone()).await;
         assert!(matches!(
             result,
             Err(ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised))
@@ -370,7 +376,7 @@ mod tests {
             writer.clone(),
         );
 
-        let result = handler.handle(block.clone(), state.clone()).await;
+        let result = handler.handle(block, state.clone()).await;
         assert!(matches!(result, Err(ChainProcessorError::ManagedNode(_))));
 
         // make sure invalidated_block is not set
@@ -399,7 +405,7 @@ mod tests {
             writer.clone(),
         );
 
-        let result = handler.handle(derived_block.clone(), state.clone()).await;
+        let result = handler.handle(derived_block, state.clone()).await;
         assert!(result.is_ok());
 
         // make sure invalidated_block is set
@@ -453,8 +459,8 @@ mod tests {
 
         state
             .set_invalidated(DerivedRefPair {
-                source: invalidated_block.clone(),
-                derived: invalidated_block.clone(),
+                source: invalidated_block,
+                derived: invalidated_block,
             })
             .await;
 
@@ -496,10 +502,7 @@ mod tests {
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
 
         state
-            .set_invalidated(DerivedRefPair {
-                source: source_block.clone(),
-                derived: invalidated_block.clone(),
-            })
+            .set_invalidated(DerivedRefPair { source: source_block, derived: invalidated_block })
             .await;
 
         let handler = ReplacementHandler::new(
@@ -512,7 +515,7 @@ mod tests {
             .handle(
                 BlockReplacement {
                     invalidated: invalidated_block.hash,
-                    replacement: replacement_block.clone(),
+                    replacement: replacement_block,
                 },
                 state.clone(),
             )

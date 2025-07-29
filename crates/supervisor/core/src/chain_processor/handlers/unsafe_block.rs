@@ -1,6 +1,7 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, LogIndexer, ProcessorState, config::RollupConfig, syncnode::BlockProvider,
+    ChainProcessorError, LogIndexer, ProcessorState, chain_processor::Metrics,
+    config::RollupConfig, syncnode::BlockProvider,
 };
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
@@ -23,8 +24,8 @@ pub struct UnsafeBlockHandler<P, W> {
 #[async_trait]
 impl<P, W> EventHandler<BlockInfo> for UnsafeBlockHandler<P, W>
 where
-    P: BlockProvider + Send + Sync + 'static,
-    W: LogStorage + Send + Sync + 'static,
+    P: BlockProvider + 'static,
+    W: LogStorage + 'static,
 {
     async fn handle(
         &self,
@@ -48,6 +49,24 @@ where
             return Ok(());
         }
 
+        let result = self.inner_handle(block).await;
+        Metrics::record_block_processing(
+            self.chain_id,
+            Metrics::BLOCK_TYPE_LOCAL_UNSAFE,
+            block,
+            &result,
+        );
+
+        result
+    }
+}
+
+impl<P, W> UnsafeBlockHandler<P, W>
+where
+    P: BlockProvider + 'static,
+    W: LogStorage + 'static,
+{
+    async fn inner_handle(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
         if self.rollup_config.is_post_interop(block.timestamp) {
             self.log_indexer.clone().sync_logs(block);
             return Ok(());

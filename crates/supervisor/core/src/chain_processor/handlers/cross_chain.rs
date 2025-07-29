@@ -1,5 +1,7 @@
 use super::EventHandler;
-use crate::{ChainProcessorError, ProcessorState, syncnode::ManagedNodeProvider};
+use crate::{
+    ChainProcessorError, ProcessorState, chain_processor::Metrics, syncnode::ManagedNodeProvider,
+};
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
@@ -33,6 +35,23 @@ where
             "Processing cross unsafe block"
         );
 
+        let result = self.inner_handle(block).await;
+        Metrics::record_block_processing(
+            self.chain_id,
+            Metrics::BLOCK_TYPE_CROSS_UNSAFE,
+            block,
+            &result,
+        );
+
+        result
+    }
+}
+
+impl<P> CrossUnsafeHandler<P>
+where
+    P: ManagedNodeProvider + 'static,
+{
+    async fn inner_handle(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
         self.managed_node.update_cross_unsafe(block.id()).await?;
         Ok(())
     }
@@ -63,6 +82,26 @@ where
             "Processing cross safe block"
         );
 
+        let result = self.inner_handle(derived_ref_pair).await;
+        Metrics::record_block_processing(
+            self.chain_id,
+            Metrics::BLOCK_TYPE_CROSS_SAFE,
+            derived_ref_pair.derived,
+            &result,
+        );
+
+        result
+    }
+}
+
+impl<P> CrossSafeHandler<P>
+where
+    P: ManagedNodeProvider + 'static,
+{
+    async fn inner_handle(
+        &self,
+        derived_ref_pair: DerivedRefPair,
+    ) -> Result<(), ChainProcessorError> {
         self.managed_node
             .update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id())
             .await?;

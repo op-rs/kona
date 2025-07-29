@@ -1,5 +1,7 @@
 use super::EventHandler;
-use crate::{ChainProcessorError, ProcessorState, syncnode::ManagedNodeProvider};
+use crate::{
+    ChainProcessorError, ProcessorState, chain_processor::Metrics, syncnode::ManagedNodeProvider,
+};
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
@@ -35,11 +37,30 @@ where
             "Processing finalized L1 update"
         );
 
+        let result = self.inner_handle(finalized_source_block).await;
+        Metrics::record_block_processing(
+            self.chain_id,
+            Metrics::BLOCK_TYPE_FINALIZED,
+            finalized_source_block,
+            &result,
+        );
+
+        result
+    }
+}
+
+impl<P, W> FinalizedHandler<P, W>
+where
+    P: ManagedNodeProvider + 'static,
+    W: HeadRefStorageWriter + Send + Sync + 'static,
+{
+    async fn inner_handle(
+        &self,
+        finalized_source_block: BlockInfo,
+    ) -> Result<(), ChainProcessorError> {
         let finalized_derived_block =
             self.state_manager.update_finalized_using_source(finalized_source_block)?;
-
         self.managed_node.update_finalized(finalized_derived_block.id()).await?;
-
         Ok(())
     }
 }
