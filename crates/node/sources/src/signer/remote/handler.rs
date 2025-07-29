@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use alloy_primitives::{Address, B256, ChainId};
+use alloy_primitives::{Address, B256, ChainId, SignatureError};
 use alloy_rpc_client::RpcClient;
 use alloy_signer::Signature;
 use notify::INotifyWatcher;
 use op_alloy_rpc_types_engine::PayloadHash;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tokio::sync::RwLock;
-
-use crate::RemoteSignerError;
 
 /// Request parameters for signing a block payload
 #[derive(Debug, Serialize)]
@@ -29,8 +28,45 @@ struct SignResponse {
 /// Remote signer that communicates with an external signing service via JSON-RPC
 #[derive(Debug)]
 pub struct RemoteSignerHandler {
+    /// The JSON-RPC client.
     pub(super) client: Arc<RwLock<RpcClient>>,
+    /// The address of the signer.
+    pub(super) address: Address,
+    /// The watcher handle for certificate watching.
     pub(super) watcher_handle: Option<INotifyWatcher>,
+}
+
+/// Errors that can occur when using the remote signer
+#[derive(Debug, Error)]
+pub enum RemoteSignerError {
+    /// JSON-RPC transport error
+    #[error("JSON-RPC transport error: {0}")]
+    SigningRPCError(#[from] alloy_transport::TransportError),
+    /// JSON serialization error
+    #[error("JSON serialization error: {0}")]
+    JsonError(#[from] serde_json::Error),
+    /// Failed to ping signer
+    #[error("Failed to ping signer: {0}")]
+    PingError(alloy_transport::TransportError),
+    /// Invalid signature hex encoding
+    #[error("Invalid signature hex encoding: {0}")]
+    InvalidSignatureHex(alloy_primitives::hex::FromHexError),
+    /// Invalid signature length
+    #[error("Invalid signature length, expected 65 bytes, got {0}")]
+    InvalidSignatureLength(usize),
+    /// Signature error
+    #[error("Signature error: {0}")]
+    SignatureError(#[from] SignatureError),
+    /// Invalid address
+    #[error(
+        "Unsafe block signer address does not match remote signer address: {unsafe_block_signer} != {remote_signer}"
+    )]
+    InvalidAddress {
+        /// The unsafe block signer address.
+        unsafe_block_signer: Address,
+        /// The remote signer address.
+        remote_signer: Address,
+    },
 }
 
 impl RemoteSignerHandler {
@@ -46,6 +82,13 @@ impl RemoteSignerHandler {
         chain_id: ChainId,
         sender_address: Address,
     ) -> Result<Signature, RemoteSignerError> {
+        if sender_address != self.address {
+            return Err(RemoteSignerError::InvalidAddress {
+                unsafe_block_signer: sender_address,
+                remote_signer: self.address,
+            });
+        }
+
         let params = BlockPayloadArgs {
             // For v1 payloads, the domain is always zero
             domain: B256::ZERO,
@@ -65,8 +108,9 @@ impl RemoteSignerHandler {
         };
 
         // Parse the hex signature
-        let signature_bytes = hex::decode(response.signature.trim_start_matches("0x"))
-            .map_err(RemoteSignerError::InvalidSignatureHex)?;
+        let signature_bytes =
+            alloy_primitives::hex::decode(response.signature.trim_start_matches("0x"))
+                .map_err(RemoteSignerError::InvalidSignatureHex)?;
 
         if signature_bytes.len() != 65 {
             return Err(RemoteSignerError::InvalidSignatureLength(signature_bytes.len()));

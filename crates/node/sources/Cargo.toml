@@ -50,7 +50,6 @@ serde_json.workspace = true
 rustls.workspace = true
 rustls-pemfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
-hex.workspace = true
 notify.workspace = true
 
 # `metrics` feature

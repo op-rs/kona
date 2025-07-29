@@ -164,7 +164,6 @@ reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 
 # General
-hex = "0.4"
 notify = "6.1"
 url = "2.5.4"
 lru = "0.16.0"

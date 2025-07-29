@@ -5101,7 +5101,6 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "derive_more",
- "hex",
  "kona-cli",
  "kona-derive",
  "kona-genesis",

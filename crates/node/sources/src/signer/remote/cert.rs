@@ -7,7 +7,7 @@ use rustls::{ClientConfig, RootCertStore};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
-use crate::signer::remote::client::{RemoteSigner, RemoteSignerError};
+use crate::signer::remote::client::RemoteSigner;
 
 /// Client certificate and key pair for mTLS authentication (PEM format)
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ pub enum CertificateError {
 
 impl RemoteSigner {
     /// Builds TLS configuration with certificate handling for the remote signer
-    pub(super) fn build_tls_config(&self) -> Result<ClientConfig, RemoteSignerError> {
+    pub(super) fn build_tls_config(&self) -> Result<ClientConfig, CertificateError> {
         let mut root_store = RootCertStore::empty();
 
         // Add custom CA certificate if provided
@@ -103,7 +103,7 @@ impl RemoteSigner {
     pub(super) async fn start_certificate_watcher(
         &self,
         client: Arc<RwLock<RpcClient>>,
-    ) -> Result<Option<INotifyWatcher>, RemoteSignerError> {
+    ) -> Result<Option<INotifyWatcher>, notify::Error> {
         let Some(ref client_cert) = self.client_cert.clone() else {
             return Ok(None);
         };

@@ -1,6 +1,7 @@
-use alloy_primitives::SignatureError;
+use alloy_primitives::Address;
 use alloy_rpc_client::ClientBuilder;
 use alloy_transport_http::Http;
+use reqwest::header::HeaderMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -30,12 +31,31 @@ use crate::{
 pub struct RemoteSigner {
     /// The URL of the remote signer endpoint
     pub endpoint: Url,
+    /// The address of the signer.
+    pub address: Address,
     /// Optional client certificate for mTLS (PEM format)
     pub client_cert: Option<ClientCert>,
     /// Optional CA certificate for server verification (PEM format)
     pub ca_cert: Option<std::path::PathBuf>,
-    /// Request timeout in seconds
-    pub timeout_secs: Option<u64>,
+    /// Headers to pass to the remote signer.
+    pub headers: HeaderMap,
+}
+
+/// Errors that can occur when starting a remote signer.
+#[derive(Debug, Error)]
+pub enum RemoteSignerStartError {
+    /// Failed to ping signer
+    #[error("Failed to ping signer: {0}")]
+    Ping(alloy_transport::TransportError),
+    /// HTTP client build error
+    #[error("HTTP client build error: {0}")]
+    HTTPClientBuild(#[from] reqwest::Error),
+    /// Invalid certificate error
+    #[error("Invalid certificate: {0}")]
+    Certificate(#[from] CertificateError),
+    /// Certificate watcher error
+    #[error("Certificate watcher error: {0}")]
+    CertificateWatcher(#[from] notify::Error),
 }
 
 impl RemoteSigner {
@@ -60,14 +80,14 @@ impl RemoteSigner {
     /// 4. Replace the existing client atomically
     ///
     /// This enables zero-downtime certificate rotation in production environments.
-    pub async fn start(self) -> Result<RemoteSignerHandler, RemoteSignerError> {
+    pub async fn start(self) -> Result<RemoteSignerHandler, RemoteSignerStartError> {
         let http_client = self.build_http_client()?;
         let transport = Http::with_client(http_client, self.endpoint.clone());
         let client = ClientBuilder::default().transport(transport, true);
 
         // Try to ping the signer to check if it's reachable
         let version: String =
-            client.request("health_status", ()).await.map_err(RemoteSignerError::PingError)?;
+            client.request("health_status", ()).await.map_err(RemoteSignerStartError::Ping)?;
 
         tracing::info!(target: "signer", version, "Connected to op-signer server");
 
@@ -76,17 +96,12 @@ impl RemoteSigner {
         // Start certificate watcher if client certificates are configured
         let watcher_handle = self.start_certificate_watcher(client.clone()).await?;
 
-        Ok(RemoteSignerHandler { client, watcher_handle })
+        Ok(RemoteSignerHandler { client, watcher_handle, address: self.address })
     }
 
     /// Builds an HTTP client with certificate handling for the remote signer
-    pub(super) fn build_http_client(&self) -> Result<reqwest::Client, RemoteSignerError> {
+    pub(super) fn build_http_client(&self) -> Result<reqwest::Client, RemoteSignerStartError> {
         let mut client_builder = reqwest::Client::builder();
-
-        // Set timeout if specified
-        if let Some(timeout_secs) = self.timeout_secs {
-            client_builder = client_builder.timeout(std::time::Duration::from_secs(timeout_secs));
-        }
 
         // Configure TLS if certificates are provided
         if self.client_cert.is_some() || self.ca_cert.is_some() {
@@ -94,38 +109,9 @@ impl RemoteSigner {
             client_builder = client_builder.use_preconfigured_tls(tls_config);
         }
 
-        client_builder.build().map_err(RemoteSignerError::BuildError)
-    }
-}
+        // Set headers
+        client_builder = client_builder.default_headers(self.headers.clone());
 
-/// Errors that can occur when using the remote signer
-#[derive(Debug, Error)]
-pub enum RemoteSignerError {
-    /// JSON-RPC transport error
-    #[error("JSON-RPC transport error: {0}")]
-    SigningRPCError(#[from] alloy_transport::TransportError),
-    /// JSON serialization error
-    #[error("JSON serialization error: {0}")]
-    JsonError(#[from] serde_json::Error),
-    /// HTTP client build error
-    #[error("HTTP client build error: {0}")]
-    BuildError(#[from] reqwest::Error),
-    /// Failed to ping signer
-    #[error("Failed to ping signer: {0}")]
-    PingError(alloy_transport::TransportError),
-    /// Invalid certificate error
-    #[error("Invalid certificate: {0}")]
-    CertificateError(#[from] CertificateError),
-    /// Certificate watcher error
-    #[error("Certificate watcher error: {0}")]
-    CertificateWatcherError(#[from] notify::Error),
-    /// Invalid signature hex encoding
-    #[error("Invalid signature hex encoding: {0}")]
-    InvalidSignatureHex(hex::FromHexError),
-    /// Invalid signature length
-    #[error("Invalid signature length, expected 65 bytes, got {0}")]
-    InvalidSignatureLength(usize),
-    /// Signature error
-    #[error("Signature error: {0}")]
-    SignatureError(#[from] SignatureError),
+        client_builder.build().map_err(RemoteSignerStartError::HTTPClientBuild)
+    }
 }

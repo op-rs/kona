@@ -11,6 +11,12 @@ use derive_more::From;
 use op_alloy_rpc_types_engine::PayloadHash;
 use std::fmt::Debug;
 
+mod remote;
+pub use remote::{
+    CertificateError, ClientCert, RemoteSigner, RemoteSignerError, RemoteSignerHandler,
+    RemoteSignerStartError,
+};
+
 /// A builder for a block signer.
 #[derive(Debug, Clone, From)]
 pub enum BlockSigner {
@@ -29,6 +35,17 @@ pub enum BlockSignerHandler {
     Remote(RemoteSignerHandler),
 }
 
+/// Errors that can occur when starting a block signer.
+#[derive(Debug, thiserror::Error)]
+pub enum BlockSignerStartError {
+    /// An error that can occur when signing a block with a local signer.
+    #[error(transparent)]
+    Local(#[from] alloy_signer::Error),
+    /// An error that can occur when signing a block with a remote signer.
+    #[error(transparent)]
+    Remote(#[from] RemoteSignerStartError),
+}
+
 /// Errors that can occur when signing a block.
 #[derive(Debug, thiserror::Error)]
 pub enum BlockSignerError {
@@ -42,7 +59,7 @@ pub enum BlockSignerError {
 
 impl BlockSigner {
     /// Starts a block signer.
-    pub async fn start(self) -> Result<BlockSignerHandler, BlockSignerError> {
+    pub async fn start(self) -> Result<BlockSignerHandler, BlockSignerStartError> {
         match self {
             Self::Local(signer) => Ok(BlockSignerHandler::Local(signer)),
             Self::Remote(signer) => Ok(BlockSignerHandler::Remote(signer.start().await?)),
@@ -70,8 +87,3 @@ impl BlockSignerHandler {
         Ok(signature)
     }
 }
-
-mod remote;
-pub use remote::{
-    CertificateError, ClientCert, RemoteSigner, RemoteSignerError, RemoteSignerHandler,
-};

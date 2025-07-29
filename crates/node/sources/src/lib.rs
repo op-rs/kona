@@ -21,6 +21,6 @@ pub use metrics::Metrics;
 
 mod signer;
 pub use signer::{
-    BlockSigner, BlockSignerError, BlockSignerHandler, CertificateError, ClientCert, RemoteSigner,
-    RemoteSignerError, RemoteSignerHandler,
+    BlockSigner, BlockSignerError, BlockSignerHandler, BlockSignerStartError, CertificateError,
+    ClientCert, RemoteSigner, RemoteSignerError, RemoteSignerHandler, RemoteSignerStartError,
 };

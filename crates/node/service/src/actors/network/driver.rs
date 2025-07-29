@@ -1,7 +1,7 @@
 use alloy_primitives::Address;
 use futures::future::OptionFuture;
 use kona_p2p::{ConnectionGater, Discv5Driver, GossipDriver, PEER_SCORE_INSPECT_FREQUENCY};
-use kona_sources::{BlockSigner, BlockSignerError};
+use kona_sources::{BlockSigner, BlockSignerStartError};
 use libp2p::TransportError;
 use tokio::sync::watch;
 
@@ -28,7 +28,7 @@ pub enum NetworkDriverError {
     GossipStartError(#[from] TransportError<std::io::Error>),
     /// An error occurred starting the block signer client.
     #[error("error starting block signer client: {0}")]
-    BlockSignerStartError(#[from] BlockSignerError),
+    BlockSignerStartError(#[from] BlockSignerStartError),
 }
 
 impl NetworkDriver {
