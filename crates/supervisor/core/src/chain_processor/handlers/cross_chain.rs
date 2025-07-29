@@ -222,7 +222,7 @@ mod tests {
 
         let handle = CrossUnsafeHandler::new(
             1, // chain_id
-            managed_node.clone(),
+            managed_node,
         );
         let result = handle.handle(block, state).await;
         assert!(result.is_ok());
@@ -248,7 +248,7 @@ mod tests {
 
         let handle = CrossSafeHandler::new(
             1, // chain_id
-            managed_node.clone(),
+            managed_node,
         );
         let result = handle.handle(DerivedRefPair { source, derived }, state).await;
         assert!(result.is_ok());

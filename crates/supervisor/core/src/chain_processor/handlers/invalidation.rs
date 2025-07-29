@@ -164,7 +164,6 @@ where
         );
 
         self.log_indexer
-            .clone()
             .process_and_store_logs(&derived_ref_pair.derived)
             .await
             .inspect_err(|err| {
@@ -340,8 +339,8 @@ mod tests {
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
         );
 
         state.set_invalidated(DerivedRefPair { source: block, derived: block }).await;
@@ -365,8 +364,8 @@ mod tests {
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
         );
 
         let result = handler.handle(block, state.clone()).await;
@@ -392,8 +391,8 @@ mod tests {
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
         );
 
         let result = handler.handle(block, state.clone()).await;
@@ -427,8 +426,8 @@ mod tests {
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
         );
 
         let result = handler.handle(block, state.clone()).await;
@@ -456,8 +455,8 @@ mod tests {
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
         );
 
         let result = handler.handle(derived_block, state.clone()).await;
@@ -488,7 +487,7 @@ mod tests {
         let handler = ReplacementHandler::new(
             1, // chain_id
             log_indexer,
-            writer.clone(),
+            writer,
         );
 
         let result = handler.handle(replacement, state).await;
@@ -522,7 +521,7 @@ mod tests {
         let handler = ReplacementHandler::new(
             1, // chain_id
             log_indexer,
-            writer.clone(),
+            writer,
         );
 
         let result = handler.handle(replacement, state.clone()).await;
@@ -563,7 +562,7 @@ mod tests {
         let handler = ReplacementHandler::new(
             1, // chain_id
             log_indexer,
-            writer.clone(),
+            writer,
         );
 
         let result = handler

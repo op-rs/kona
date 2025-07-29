@@ -172,7 +172,6 @@ where
         );
 
         self.log_indexer
-            .clone()
             .process_and_store_logs(&derived_ref_pair.derived)
             .await
             .inspect_err(|err| {
@@ -405,8 +404,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,
@@ -453,8 +452,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,
@@ -502,8 +501,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,
@@ -553,8 +552,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,
@@ -623,8 +622,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,
@@ -692,8 +691,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,
@@ -739,8 +738,8 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node.clone(),
-            writer.clone(),
+            managed_node,
+            writer,
             Arc::new(mockvalidator),
             log_indexer,
             rewinder,

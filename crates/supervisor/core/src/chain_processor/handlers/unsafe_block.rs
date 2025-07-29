@@ -183,7 +183,7 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
 
         let handler = UnsafeBlockHandler::new(
             1, // chain_id
@@ -220,7 +220,7 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
 
         let handler = UnsafeBlockHandler::new(
             1, // chain_id
@@ -254,7 +254,7 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
 
         let handler = UnsafeBlockHandler::new(
             1, // chain_id
