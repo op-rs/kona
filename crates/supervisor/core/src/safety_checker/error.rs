@@ -1,7 +1,6 @@
 use crate::config::ConfigError;
-use alloy_primitives::ChainId;
+use alloy_primitives::{B256, ChainId};
 use kona_supervisor_storage::StorageError;
-use kona_supervisor_types::AccessListError;
 use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
 
@@ -44,9 +43,16 @@ pub enum ValidationError {
     #[error(transparent)]
     InteropValidationError(#[from] ConfigError),
 
-    /// Indicates the checksum verification for the executing message's access list failed.
-    #[error(transparent)]
-    InvalidMessageChecksum(#[from] AccessListError),
+    /// Indicates a mismatch between the executing message hash and the expected original log hash.
+    #[error(
+        "executing message hash {message_hash} does not match original log hash {original_hash}"
+    )]
+    InvalidMessageHash {
+        /// The hash provided in the executing message.
+        message_hash: B256,
+        /// The expected hash from the original initiating log.
+        original_hash: B256,
+    },
 
     /// Indicates that the timestamp in the executing message does not match the timestamp
     /// of the initiating block, violating the timestamp invariant required for validation.

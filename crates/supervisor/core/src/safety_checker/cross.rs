@@ -1,13 +1,13 @@
 use crate::{
     CrossSafetyError,
     config::Config,
-    safety_checker::{ValidationError::InitiatingMessageNotFound, error::ValidationError},
+    safety_checker::{ValidationError, ValidationError::InitiatingMessageNotFound},
 };
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
-use kona_supervisor_types::{Access, ExecutingMessage};
+use kona_supervisor_types::ExecutingMessage;
 use op_alloy_consensus::interop::SafetyLevel;
 
 /// Uses a [`CrossChainSafetyProvider`] to verify the safety of cross-chain message dependencies.
@@ -104,10 +104,15 @@ where
                 other => other.into(),
             })?;
 
-        // Verify checksum of the message against the original
-        Access::from_executing_message(message)
-            .verify_checksum(&init_msg.hash)
-            .map_err(ValidationError::InvalidMessageChecksum)?;
+        // Verify the hash of the message against the original
+        // Don't need to verify the checksum as we're already verifying all the individual fields.
+        if init_msg.hash != message.hash {
+            return Err(ValidationError::InvalidMessageHash {
+                message_hash: message.hash,
+                original_hash: init_msg.hash,
+            }
+            .into());
+        }
 
         Ok(())
     }
@@ -250,7 +255,7 @@ mod tests {
         let dep_block =
             BlockInfo { number: 100, hash: b256(100), parent_hash: b256(99), timestamp: 195 };
 
-        let mut exec_msg = ExecutingMessage {
+        let exec_msg = ExecutingMessage {
             chain_id: init_chain_id,
             block_number: 100,
             log_index: 0,
@@ -263,10 +268,6 @@ mod tests {
             hash: b256(999), // Matches msg.hash → passes checksum
             executing_message: None,
         };
-
-        // bypass checksum validation
-        let checksum = Access::from_executing_message(&exec_msg).recompute_checksum(&init_log.hash);
-        exec_msg.hash = checksum;
 
         let exec_log = Log { index: 0, hash: b256(999), executing_message: Some(exec_msg) };
 
@@ -368,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_executing_message_checksum_mismatch() {
+    fn validate_executing_message_hash_mismatch() {
         let chain_id = 1;
         let msg = ExecutingMessage {
             chain_id,
@@ -383,7 +384,7 @@ mod tests {
 
         let init_log = Log {
             index: 0,
-            hash: b256(999), // Checksum mismatch
+            hash: b256(990), // Checksum mismatch
             executing_message: None,
         };
 
@@ -399,7 +400,10 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(CrossSafetyError::ValidationError(ValidationError::InvalidMessageChecksum(_)))
+            Err(CrossSafetyError::ValidationError(ValidationError::InvalidMessageHash {
+                message_hash: _,
+                original_hash: _
+            }))
         ));
     }
 
@@ -421,17 +425,13 @@ mod tests {
             executing_message: None,
         };
 
-        let mut msg = ExecutingMessage {
+        let msg = ExecutingMessage {
             chain_id,
             block_number: 100,
             log_index: 0,
             timestamp,
             hash: b256(999),
         };
-
-        // bypass checksum validation
-        let checksum = Access::from_executing_message(&msg).recompute_checksum(&init_log.hash);
-        msg.hash = checksum;
 
         let mut provider = MockProvider::default();
         provider
