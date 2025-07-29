@@ -4,9 +4,8 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
-use crate::flags::GlobalArgs;
+use crate::flags::{GlobalArgs, SignerArgs};
 use alloy_primitives::B256;
-use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
@@ -211,9 +210,10 @@ pub struct P2PArgs {
     #[arg(long = "p2p.discovery.randomize", env = "KONA_NODE_P2P_DISCOVERY_RANDOMIZE")]
     pub discovery_randomize: Option<u64>,
 
-    /// An optional flag to specify the private key of the sequencer, used to sign unsafe blocks.
-    #[arg(long = "p2p.sequencer.key", env = "KONA_NODE_P2P_SEQUENCER_KEY")]
-    pub sequencer_key: Option<B256>,
+    /// Specify optional remote signer configuration. Note that this argument is mutually exclusive
+    /// with `p2p.sequencer.key` that specifies a local sequencer signer.
+    #[command(flatten)]
+    pub signer: SignerArgs,
 }
 
 impl Default for P2PArgs {
@@ -400,12 +400,8 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
-        let local_signer = self
-            .sequencer_key
-            .as_ref()
-            .map(PrivateKeySigner::from_bytes)
-            .transpose()?
-            .map(|s| s.with_chain_id(Some(args.l2_chain_id.into())).into());
+        // The unsafe block signer obtained from the chain config.
+        let chain_unsafe_block_signer = self.unsafe_block_signer(config, args, l1_rpc).await?;
 
         Ok(NetworkConfig {
             discovery_config,
@@ -414,7 +410,7 @@ impl P2PArgs {
             discovery_randomize: self.discovery_randomize.map(Duration::from_secs),
             gossip_address,
             keypair,
-            unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
+            unsafe_block_signer: chain_unsafe_block_signer,
             gossip_config,
             scoring: self.scoring,
             monitor_peers,
@@ -426,7 +422,7 @@ impl P2PArgs {
             },
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
-            signer: local_signer,
+            gossip_signer: self.signer.config(args)?,
         })
     }
 
@@ -547,7 +543,7 @@ mod tests {
             "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a",
         ]);
         let key = b256!("bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a");
-        assert_eq!(args.p2p.sequencer_key, Some(key));
+        assert_eq!(args.p2p.signer.sequencer_key, Some(key));
     }
 
     #[test]

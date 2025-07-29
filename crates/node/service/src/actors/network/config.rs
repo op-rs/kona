@@ -44,8 +44,8 @@ pub struct NetworkConfig {
     pub bootnodes: Vec<Enr>,
     /// The [`RollupConfig`].
     pub rollup_config: RollupConfig,
-    /// A local signer for payloads.
-    pub signer: Option<BlockSigner>,
+    /// A signer for gossip payloads.
+    pub gossip_signer: Option<BlockSigner>,
 }
 
 impl NetworkConfig {
@@ -76,7 +76,7 @@ impl NetworkConfig {
             scoring: Default::default(),
             topic_scoring: Default::default(),
             monitor_peers: Default::default(),
-            signer: Default::default(),
+            gossip_signer: Default::default(),
         }
     }
 }

@@ -44,7 +44,7 @@ impl From<NetworkConfig> for NetworkBuilder {
         .with_peer_monitoring(config.monitor_peers)
         .with_topic_scoring(config.topic_scoring)
         .with_gater_config(config.gater_config)
-        .with_signer(config.signer)
+        .with_signer(config.gossip_signer)
     }
 }
 
@@ -79,7 +79,7 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_gater_config(config), ..self }
     }
 
-    /// Sets the local signer for the [`NetworkBuilder`].
+    /// Sets the signer for the [`NetworkBuilder`].
     pub fn with_signer(self, signer: Option<BlockSigner>) -> Self {
         Self { signer, ..self }
     }

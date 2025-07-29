@@ -102,7 +102,7 @@ impl GossipCommand {
                 gater_config: Default::default(),
                 bootnodes: Default::default(),
                 rollup_config: rollup_config.clone(),
-                signer: None,
+                gossip_signer: None,
             }
             .into(),
         );
