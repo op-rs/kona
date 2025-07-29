@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_interop::{
     DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
-    SuperRoot,
+    SuperRoot, InteropValidator,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{ChainRootInfoRpc, SuperRootOutputRpc};

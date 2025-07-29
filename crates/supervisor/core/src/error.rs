@@ -1,10 +1,11 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
 use crate::{
-    ChainProcessorError, CrossSafetyError, config::ConfigError, syncnode::ManagedNodeError,
+    ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError,
 };
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
+use kona_interop::InteropValidationError;
 use kona_supervisor_storage::StorageError;
 use kona_supervisor_types::AccessListError;
 use op_alloy_rpc_types::SuperchainDAError;
@@ -37,7 +38,7 @@ pub enum SupervisorError {
 
     /// Indicates that error occurred while validating interop config.
     #[error(transparent)]
-    InteropValidationError(#[from] ConfigError),
+    InteropValidationError(#[from] InteropValidationError),
 
     /// Indicates that error occurred while interacting with the storage layer.
     #[error(transparent)]

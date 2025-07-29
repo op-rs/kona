@@ -1,9 +1,10 @@
 use crate::{
-    CrossSafetyError, config::Config,
+    CrossSafetyError,
     safety_checker::error::ValidationError::InteropValidationError,
 };
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
+use kona_interop::InteropValidator;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::CrossChainSafetyProvider;
 use kona_supervisor_types::ExecutingMessage;
@@ -11,15 +12,16 @@ use op_alloy_consensus::interop::SafetyLevel;
 
 /// Uses a [`CrossChainSafetyProvider`] to verify the safety of cross-chain message dependencies.
 #[derive(Debug, Constructor)]
-pub struct CrossSafetyChecker<'a, P> {
+pub struct CrossSafetyChecker<'a, P, V> {
     chain_id: ChainId,
-    config: &'a Config,
+    validator: &'a V,
     provider: &'a P,
 }
 
-impl<P> CrossSafetyChecker<'_, P>
+impl<P, V> CrossSafetyChecker<'_, P, V>
 where
     P: CrossChainSafetyProvider,
+    V: InteropValidator,
 {
     /// Verifies that all executing messages in the given block are valid based on the validity
     /// checks
@@ -34,7 +36,7 @@ where
         for log in executing_logs {
             if let Some(message) = log.executing_message {
                 // Check whether the message passes interop timestamps related validation
-                self.config
+                self.validator
                     .validate_interop_timestamps(
                         message.chain_id,
                         message.timestamp,
@@ -79,15 +81,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{RollupConfig, RollupConfigSet};
     use alloy_primitives::B256;
-    use kona_interop::{DependencySet, DerivedRefPair};
+    use kona_interop::{InteropValidationError, DerivedRefPair};
     use kona_supervisor_storage::StorageError;
     use kona_supervisor_types::Log;
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
-    use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
-
+    
     mock! (
         #[derive(Debug)]
         pub Provider {}
@@ -101,36 +101,30 @@ mod tests {
         }
     );
 
+    mock! (
+        #[derive(Debug)]
+        pub Validator {}
+
+        impl InteropValidator for Validator {
+            fn validate_interop_timestamps(
+                &self,
+                initiating_chain_id: ChainId,
+                initiating_timestamp: u64,
+                executing_chain_id: ChainId,
+                executing_timestamp: u64,
+                timeout: Option<u64>,
+            ) -> Result<(), InteropValidationError>;
+
+            fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;
+
+            fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
+        }
+    );
+
     fn b256(n: u64) -> B256 {
         let mut bytes = [0u8; 32];
         bytes[24..].copy_from_slice(&n.to_be_bytes());
         B256::from(bytes)
-    }
-
-    fn mock_rollup_config_set() -> RollupConfigSet {
-        let chain1 =
-            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(100) };
-        let chain2 =
-            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(105) };
-        let mut config_set = HashMap::<ChainId, RollupConfig>::new();
-        config_set.insert(1, chain1);
-        config_set.insert(2, chain2);
-
-        RollupConfigSet { rollups: config_set }
-    }
-
-    fn mock_config() -> Config {
-        Config {
-            l1_rpc: Default::default(),
-            l2_consensus_nodes_config: vec![],
-            datadir: PathBuf::new(),
-            rpc_addr: SocketAddr::from(([127, 0, 0, 1], 8545)),
-            dependency_set: DependencySet {
-                dependencies: Default::default(),
-                override_message_expiry_window: Some(10),
-            },
-            rollup_config_set: mock_rollup_config_set(),
-        }
     }
 
     #[test]
@@ -151,6 +145,7 @@ mod tests {
             BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 0 };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         provider
             .expect_get_block()
@@ -162,8 +157,7 @@ mod tests {
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head_info));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider);
         let result = checker.verify_message_dependency(&msg, SafetyLevel::CrossSafe);
         assert!(result.is_ok());
     }
@@ -190,6 +184,7 @@ mod tests {
         };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         provider
             .expect_get_block()
@@ -201,8 +196,7 @@ mod tests {
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head_block));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider);
         let result = checker.verify_message_dependency(&msg, SafetyLevel::CrossSafe);
 
         assert!(
@@ -236,6 +230,7 @@ mod tests {
             BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 200 };
 
         let mut provider = MockProvider::default();
+        let mut validator = MockValidator::default();
 
         provider
             .expect_get_block_logs()
@@ -252,8 +247,11 @@ mod tests {
             .withf(move |cid, lvl| *cid == init_chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(exec_chain_id, &config, &provider);
+        validator
+            .expect_validate_interop_timestamps()
+            .returning(move |_, _, _, _, _| Ok(()));
+
+        let checker = CrossSafetyChecker::new(exec_chain_id, &validator, &provider);
         let result = checker.validate_block(block, SafetyLevel::CrossSafe);
         assert!(result.is_ok());
     }
