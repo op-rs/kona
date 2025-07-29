@@ -21,7 +21,6 @@ kona-p2p.workspace = true
 kona-engine.workspace = true
 kona-macros.workspace = true
 kona-genesis = {workspace = true, features = ["serde", "std"]}
-kona-supervisor-rpc = { workspace = true, features = ["client"] }
 
 # `interop` feature
 kona-interop = { workspace = true, features = ["serde"] }

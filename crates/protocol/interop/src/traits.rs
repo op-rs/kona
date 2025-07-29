@@ -59,9 +59,8 @@ pub trait InteropValidator: Send + Sync {
 
     /// Returns `true` if the timestamp is strictly after the interop activation block.
     ///
-    /// Interop activates at [`interop_time`](Self::interop_time). This function checks whether the
-    /// provided timestamp is *after* that activation, skipping the activation block
-    /// itself.
+    /// This function checks whether the provided timestamp is *after* that activation,
+    /// skipping the activation block itself.
     ///
     /// Returns `false` if `interop_time` is not configured.
     fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;

@@ -3,8 +3,7 @@ use crate::{event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
 use kona_interop::InteropValidator;
 use kona_supervisor_storage::{
-    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
-    StorageRewinder,
+    DerivationStorage, DerivationStorageWriter, HeadRefStorageWriter, LogStorage, StorageRewinder,
 };
 use std::sync::Arc;
 use tokio::{
@@ -49,8 +48,8 @@ impl<P, W, V> ChainProcessor<P, W, V>
 where
     P: ManagedNodeProvider + 'static,
     V: InteropValidator + 'static,
-    W: LogStorageWriter
-        + LogStorageReader
+    W: LogStorage
+        + DerivationStorage
         + DerivationStorageWriter
         + HeadRefStorageWriter
         + StorageRewinder
@@ -144,7 +143,8 @@ mod tests {
     use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+        LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
@@ -228,11 +228,17 @@ mod tests {
             ) -> Result<(), StorageError>;
         }
 
-         impl LogStorageReader for Db {
+        impl LogStorageReader for Db {
             fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
             fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {
@@ -268,6 +274,7 @@ mod tests {
                 block: &BlockInfo,
             ) -> Result<DerivedRefPair, StorageError>;
         }
+
         impl StorageRewinder for Db {
             fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
             fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;

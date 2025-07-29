@@ -320,6 +320,23 @@ pub trait CrossChainSafetyProvider {
     /// * `Err(StorageError)` if there is an issue fetching the block.
     fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
 
+    /// Retrieves a [`Log`] by block_number and log_index
+    ///
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block_number` - The block number to search for the log.
+    /// * `log_index` - The index of the log within the block.
+    ///
+    /// # Returns
+    /// * `Ok(Log)` containing the [`Log`] object.
+    /// * `Err(StorageError)` if there is an issue retrieving the log or if the log is not found.
+    fn get_log(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+        log_index: u32,
+    ) -> Result<Log, StorageError>;
+
     /// Retrieves all logs associated with the specified block on the given chain.
     ///
     /// # Arguments
