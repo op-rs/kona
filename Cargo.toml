@@ -128,7 +128,7 @@ alloy-signer = { version = "1.0.18", default-features = false }
 alloy-chains = { version = "0.2.5", default-features = false }
 alloy-network = { version = "1.0.18", default-features = false }
 alloy-provider = { version = "1.0.18", default-features = false }
-alloy-hardforks = { version = "0.2.11", default-features = false }
+alloy-hardforks = { version = "0.2.13", default-features = false }
 alloy-sol-types = { version = "1.2.1", default-features = false }
 alloy-consensus = { version = "1.0.18", default-features = false }
 alloy-transport = { version = "1.0.18", default-features = false }
@@ -146,7 +146,7 @@ alloy-network-primitives = { version = "1.0.18", default-features = false }
 # OP Alloy
 op-alloy-network = { version = "0.18.3", default-features = false }
 op-alloy-provider = { version = "0.18.3", default-features = false }
-alloy-op-hardforks = { version = "0.2.11", default-features = false }
+alloy-op-hardforks = { version = "0.2.13", default-features = false }
 op-alloy-consensus = { version = "0.18.3", default-features = false }
 op-alloy-rpc-types = { version = "0.18.3", default-features = false }
 op-alloy-rpc-jsonrpsee = { version = "0.18.3", default-features = false }
