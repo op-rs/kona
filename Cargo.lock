@@ -5005,7 +5005,6 @@ dependencies = [
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-transport",
- "kona-cli",
  "kona-genesis",
  "kona-protocol",
  "kona-registry",
