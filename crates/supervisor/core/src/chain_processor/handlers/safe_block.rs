@@ -85,6 +85,7 @@ where
                 block_number = derived_ref_pair.derived.number,
                 "Initialising derivation storage for interop activation block"
             );
+
             self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
             return Ok(());
         }
@@ -106,7 +107,7 @@ where
         match self.state_manager.save_derived_block(derived_ref_pair) {
             Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder) => {
-                trace!(
+                debug!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,

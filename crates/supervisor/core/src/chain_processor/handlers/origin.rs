@@ -6,7 +6,7 @@ use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, StorageError};
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 /// Handler for origin updates in the chain.
 #[derive(Debug, Constructor)]
@@ -30,15 +30,15 @@ where
         debug!(
             target: "chain_processor",
             chain_id = self.chain_id,
-            block_number = origin.number,
+            %origin,
             "Processing derivation origin update"
         );
 
         if state.is_invalidated().await {
-            debug!(
+            trace!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
-                block_number = origin.number,
+                %origin,
                 "Invalidated block set, skipping derivation origin update"
             );
             return Ok(());
@@ -47,9 +47,10 @@ where
         match self.state_manager.save_source_block(origin) {
             Ok(()) => Ok(()),
             Err(StorageError::BlockOutOfOrder | StorageError::ConflictError) => {
-                error!(
+                debug!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
+                    %origin,
                     "Block out of order detected, resetting managed node"
                 );
 
@@ -57,13 +58,23 @@ where
                     error!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
+                        %origin,
                         %err,
                         "Failed to reset managed node after block out of order"
                     );
                 }
                 Err(StorageError::BlockOutOfOrder.into())
             }
-            Err(err) => Err(err.into()),
+            Err(err) => {
+                error!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    %origin,
+                    %err,
+                    "Failed to save source block during derivation origin update"
+                );
+                Err(err.into())
+            }
         }
     }
 }

@@ -8,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageRewinder};
 use kona_supervisor_types::BlockSeal;
 use std::sync::Arc;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 /// Handler for block invalidation events.
 /// This handler processes block invalidation by rewinding the state and updating the managed node.
@@ -47,11 +47,36 @@ where
             return Ok(());
         }
 
-        let source_block = self.state_manager.derived_to_source(block.id())?;
-        self.state_manager.rewind(&block.id())?;
+        let source_block = self.state_manager.derived_to_source(block.id()).inspect_err(|err| {
+            warn!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                %block,
+                %err,
+                "Failed to get source block for invalidation"
+            );
+        })?;
+
+        self.state_manager.rewind(&block.id()).inspect_err(|err| {
+            warn!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                %block,
+                %err,
+                "Failed to rewind state for invalidation"
+            );
+        })?;
 
         let block_seal = BlockSeal::new(block.hash, block.number, block.timestamp);
-        self.managed_node.invalidate_block(block_seal).await?;
+        self.managed_node.invalidate_block(block_seal).await.inspect_err(|err| {
+            warn!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                %block,
+                %err,
+                "Failed to invalidate block in managed node"
+            );
+        })?;
 
         state.set_invalidated(DerivedRefPair { source: source_block, derived: block }).await;
         Ok(())
@@ -87,7 +112,15 @@ where
 
         let invalidated_ref_pair = match state.get_invalidated().await {
             Some(block) => block,
-            None => return Ok(()),
+            None => {
+                trace!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    %replacement,
+                    "No invalidated block set, skipping replacement"
+                );
+                return Ok(())
+            }
         };
 
         if invalidated_ref_pair.derived.hash != replacement.invalidated {
@@ -129,8 +162,30 @@ where
             derived_block_number = derived_ref_pair.derived.number,
             "Retrying with resync of derived block"
         );
-        self.log_indexer.clone().process_and_store_logs(&derived_ref_pair.derived).await?;
-        self.state_manager.save_derived_block(derived_ref_pair)?;
+
+        self.log_indexer
+            .clone()
+            .process_and_store_logs(&derived_ref_pair.derived)
+            .await
+            .inspect_err(|err| {
+                warn!(
+                    target: "chain_processor",
+                    chain_id = self.chain_id,
+                    %derived_ref_pair,
+                    %err,
+                    "Failed to process and store logs for derived block"
+                );
+            })?;
+
+        self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+            warn!(
+                target: "chain_processor",
+                chain_id = self.chain_id,
+                %derived_ref_pair,
+                %err,
+                "Failed to save derived block"
+            );
+        })?;
         Ok(())
     }
 }
