@@ -53,7 +53,7 @@ getting started with building your own programs, and a reference for the librari
 - [`genesis`](./crates/protocol/genesis): Genesis types for OP Stack chains.
 - [`protocol`](./crates/protocol/protocol): Core protocol types used across OP Stack rust crates.
 - [`derive`](./crates/protocol/derive): `no_std` compatible implementation of the [derivation pipeline][g-derivation-pipeline].
-- [`driver`](./crates/protocol/driver): Stateful derivation pipeline driver.
+- [`driver`](./crates/proof/driver): Stateful derivation pipeline driver.
 - [`interop`](./crates/protocol/interop): Core functionality and primitives for the [Interop feature](https://specs.optimism.io/interop/overview.html) of the OP Stack.
 - [`registry`](./crates/protocol/registry): Rust bindings for the [superchain-registry][superchain-registry].
 - [`comp`](./crates/protocol/comp): Compression types for the OP Stack.
