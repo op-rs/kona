@@ -175,6 +175,15 @@ impl CrossChainSafetyProvider for ChainDbFactory {
         self.get_db(chain_id)?.get_block(block_number)
     }
 
+    fn get_log(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+        log_index: u32,
+    ) -> Result<Log, StorageError> {
+        self.get_db(chain_id)?.get_log(block_number, log_index)
+    }
+
     fn get_block_logs(
         &self,
         chain_id: ChainId,
