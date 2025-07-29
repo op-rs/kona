@@ -171,10 +171,8 @@ where
             "Retrying with resync of derived block"
         );
 
-        self.log_indexer
-            .process_and_store_logs(&derived_ref_pair.derived)
-            .await
-            .inspect_err(|err| {
+        self.log_indexer.process_and_store_logs(&derived_ref_pair.derived).await.inspect_err(
+            |err| {
                 error!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
@@ -182,7 +180,8 @@ where
                     %err,
                     "Error resyncing logs for derived block"
                 );
-            })?;
+            },
+        )?;
 
         self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
             error!(
