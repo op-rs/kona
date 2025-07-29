@@ -89,7 +89,7 @@ where
         };
         let origin = self.origin().ok_or(PipelineError::MissingOrigin.crit())?;
         let populated_attributes =
-            OpAttributesWithParent::new(attributes, parent, origin, self.is_last_in_span);
+            OpAttributesWithParent::new(attributes, parent, Some(origin), self.is_last_in_span);
         kona_macros::record!(
             histogram,
             crate::metrics::Metrics::PIPELINE_ATTRIBUTES_BUILD_DURATION,
@@ -394,7 +394,7 @@ mod tests {
         let populated_attributes = OpAttributesWithParent {
             inner: pa,
             parent: L2BlockInfo::default(),
-            l1_origin: BlockInfo::default(),
+            derived_from: Some(BlockInfo::default()),
             is_last_in_span: true,
         };
         assert_eq!(attributes, populated_attributes);

@@ -26,6 +26,12 @@ pub enum ChainEvent {
         origin: BlockInfo,
     },
 
+    /// An invalidate Block event, indicating that a block has been invalidated.
+    InvalidateBlock {
+        /// The [`BlockInfo`] of the block that has been invalidated.
+        block: BlockInfo,
+    },
+
     /// A block replacement event, indicating that a block has been replaced with a new one.
     BlockReplaced {
         /// The [`BlockReplacement`] containing the replacement block and the invalidated block

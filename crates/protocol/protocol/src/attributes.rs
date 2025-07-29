@@ -14,7 +14,7 @@ pub struct OpAttributesWithParent {
     /// The parent block reference.
     pub parent: L2BlockInfo,
     /// The L1 block that the attributes were derived from.
-    pub l1_origin: BlockInfo,
+    pub derived_from: Option<BlockInfo>,
     /// Whether the current batch is the last in its span.
     pub is_last_in_span: bool,
 }
@@ -24,10 +24,10 @@ impl OpAttributesWithParent {
     pub const fn new(
         inner: OpPayloadAttributes,
         parent: L2BlockInfo,
-        l1_origin: BlockInfo,
+        derived_from: Option<BlockInfo>,
         is_last_in_span: bool,
     ) -> Self {
-        Self { inner, parent, l1_origin, is_last_in_span }
+        Self { inner, parent, derived_from, is_last_in_span }
     }
 
     /// Returns the L2 block number for the payload attributes if made canonical.
@@ -52,8 +52,8 @@ impl OpAttributesWithParent {
     }
 
     /// Returns the L1 origin block reference.
-    pub const fn l1_origin(&self) -> &BlockInfo {
-        &self.l1_origin
+    pub const fn derived_from(&self) -> Option<&BlockInfo> {
+        self.derived_from.as_ref()
     }
 
     /// Returns whether the current batch is the last in its span.
@@ -81,7 +81,7 @@ impl OpAttributesWithParent {
                 ..self.inner.clone()
             },
             parent: self.parent,
-            l1_origin: self.l1_origin,
+            derived_from: self.derived_from,
             is_last_in_span: self.is_last_in_span,
         }
     }
@@ -95,13 +95,13 @@ mod tests {
     fn test_op_attributes_with_parent() {
         let attributes = OpPayloadAttributes::default();
         let parent = L2BlockInfo::default();
-        let l1_origin = BlockInfo::default();
         let is_last_in_span = true;
         let op_attributes_with_parent =
-            OpAttributesWithParent::new(attributes.clone(), parent, l1_origin, is_last_in_span);
+            OpAttributesWithParent::new(attributes.clone(), parent, None, is_last_in_span);
 
         assert_eq!(op_attributes_with_parent.inner(), &attributes);
         assert_eq!(op_attributes_with_parent.parent(), &parent);
         assert_eq!(op_attributes_with_parent.is_last_in_span(), is_last_in_span);
+        assert_eq!(op_attributes_with_parent.derived_from(), None);
     }
 }

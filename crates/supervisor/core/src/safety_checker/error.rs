@@ -1,6 +1,7 @@
 use crate::config::ConfigError;
 use alloy_primitives::ChainId;
 use kona_supervisor_storage::StorageError;
+use kona_supervisor_types::AccessListError;
 use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
 
@@ -42,4 +43,25 @@ pub enum ValidationError {
     /// Indicates that error occurred while validating interop config for the block messages
     #[error(transparent)]
     InteropValidationError(#[from] ConfigError),
+
+    /// Indicates the checksum verification for the executing message's access list failed.
+    #[error(transparent)]
+    InvalidMessageChecksum(#[from] AccessListError),
+
+    /// Indicates that the timestamp in the executing message does not match the timestamp
+    /// of the initiating block, violating the timestamp invariant required for validation.
+    #[error(
+        "timestamp invariant violated while validating executing message: expected {expected_timestamp}, but found {actual_timestamp}"
+    )]
+    TimestampInvariantViolation {
+        /// The timestamp of the initiating block.
+        expected_timestamp: u64,
+        /// The timestamp found in the executing message.
+        actual_timestamp: u64,
+    },
+
+    /// The initiating message corresponding to the executing message could not be found in log
+    /// storage.
+    #[error("initiating message not found for the executing message")]
+    InitiatingMessageNotFound,
 }

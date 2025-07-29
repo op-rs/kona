@@ -1,3 +1,4 @@
+use crate::ExecutingMessage;
 use alloy_primitives::{B256, keccak256};
 use thiserror::Error;
 
@@ -41,6 +42,20 @@ impl Access {
         }
     }
 
+    /// Constructs a new [`Access`] from a [`ExecutingMessage`]
+    pub fn from_executing_message(message: &ExecutingMessage) -> Self {
+        let mut chain_id = [0u8; 32];
+        chain_id[24..].copy_from_slice(&message.chain_id.to_be_bytes());
+
+        Self {
+            chain_id,
+            block_number: message.block_number,
+            timestamp: message.timestamp,
+            log_index: message.log_index,
+            checksum: message.hash,
+        }
+    }
+
     /// Recomputes the checksum for this access entry.
     ///
     /// This follows the spec:
@@ -52,7 +67,7 @@ impl Access {
     /// Returns the full 32-byte checksum with prefix 0x03.
     ///
     /// Reference: [Checksum Calculation](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/predeploys.md#type-3-checksum)
-    fn recompute_checksum(&self, log_hash: &B256) -> B256 {
+    pub fn recompute_checksum(&self, log_hash: &B256) -> B256 {
         // Step 1: idPacked = [0u8; 12] ++ block_number ++ timestamp ++ log_index
         let mut id_packed = [0u8; 12 + 8 + 8 + 4]; // 32 bytes
         id_packed[12..20].copy_from_slice(&self.block_number.to_be_bytes());

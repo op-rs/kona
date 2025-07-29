@@ -169,6 +169,7 @@ pub trait RollupNodeService {
                 sequencer.map(|s| (
                     s,
                     SequencerContext {
+                        l1_head_rx: l1_head_updates_tx.subscribe(),
                         reset_request_tx: reset_request_tx.clone(),
                         build_request_tx: build_request_tx.expect(
                             "`build_request_tx` not set while in sequencer mode. This should never happen.",

@@ -103,7 +103,6 @@ Key built-in actors include:
 - **NetworkActor**: Handles P2P networking and block gossip.
 - **RpcActor**: Runs the node's RPC server.
 - **SupervisorActor**: Integrates with the supervisor RPC API.
-- **RuntimeActor**: Loads and manages runtime configuration.
 - **L1WatcherRpc**: Watches L1 for new blocks and events.
 
 
@@ -174,7 +173,6 @@ impl RollupNodeService for MyNodeService {
     type NetworkActor = ...;
     type SupervisorExt = ...;
     type SupervisorActor = ...;
-    type RuntimeActor = ...;
     type RpcActor = ...;
     type Error = ...;
 

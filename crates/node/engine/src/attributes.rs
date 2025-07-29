@@ -17,7 +17,7 @@ use op_alloy_rpc_types::Transaction;
 ///
 /// # Examples
 ///
-/// ```rust,ignore  
+/// ```rust,ignore
 /// use kona_engine::AttributesMatch;
 /// use kona_genesis::RollupConfig;
 /// use kona_protocol::OpAttributesWithParent;
@@ -399,7 +399,7 @@ mod tests {
         OpAttributesWithParent {
             inner: OpPayloadAttributes::default(),
             parent: L2BlockInfo::default(),
-            l1_origin: BlockInfo::default(),
+            derived_from: Some(BlockInfo::default()),
             is_last_in_span: true,
         }
     }

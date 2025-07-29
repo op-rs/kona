@@ -4,7 +4,7 @@
 //! and the op-node components in the rollup system. It includes block references,
 //! block seals, derivation events, and event notifications.
 
-use alloy_primitives::{B256, U64};
+use alloy_primitives::B256;
 use kona_interop::ManagedEvent;
 use serde::{Deserialize, Serialize};
 
@@ -18,14 +18,14 @@ pub struct BlockSeal {
     /// The block's hash
     pub hash: B256,
     /// The block number
-    pub number: U64,
+    pub number: u64,
     /// The block's timestamp
-    pub timestamp: U64,
+    pub timestamp: u64,
 }
 
 impl BlockSeal {
     /// Creates a new [`BlockSeal`] with the given hash, number, and timestamp.
-    pub const fn new(hash: B256, number: U64, timestamp: U64) -> Self {
+    pub const fn new(hash: B256, number: u64, timestamp: u64) -> Self {
         Self { hash, number, timestamp }
     }
 }
