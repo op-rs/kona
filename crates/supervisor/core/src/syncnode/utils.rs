@@ -22,26 +22,26 @@ where
 
         loop {
             if cancel_token.is_cancelled() {
-                info!(target: "retrier", "Retry loop cancelled before starting");
+                info!(target: "supervisor::retrier", "Retry loop cancelled before starting");
                 break;
             }
 
             match operation().await {
                 Ok(()) => {
-                    info!(target: "retrier", "Task exited successfully, restarting");
+                    info!(target: "supervisor::retrier", "Task exited successfully, restarting");
                     attempt = 0; // Reset attempt count on success
                 }
                 Err(err) => {
                     attempt += 1;
 
                     if attempt > max_retries {
-                        error!(target: "retrier", %err, "Retry limit ({max_retries}) exceeded");
+                        error!(target: "supervisor::retrier", %err, "Retry limit ({max_retries}) exceeded");
                         break;
                     }
 
                     let delay = backoff_delay(attempt);
                     warn!(
-                        target: "retrier",
+                        target: "supervisor::retrier",
                         %err,
                         ?delay,
                         "Attempt {attempt}/{max_retries} failed, retrying after delay"
@@ -50,7 +50,7 @@ where
                     select! {
                         _ = sleep(delay) => {}
                         _ = cancel_token.cancelled() => {
-                            warn!(target: "retrier", "Retry loop cancelled during backoff");
+                            warn!(target: "supervisor::retrier", "Retry loop cancelled during backoff");
                             break;
                         }
                     }

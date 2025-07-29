@@ -53,7 +53,7 @@ where
             let mut running = self.is_catch_up_running.lock().await;
 
             if *running {
-                debug!(target: "log_indexer", chain_id = %self.chain_id, "Catch-up running log index");
+                debug!(target: "supervisor::log_indexer", chain_id = %self.chain_id, "Catch-up running log index");
                 return;
             }
 
@@ -62,7 +62,7 @@ where
 
             if let Err(err) = self.index_log_upto(&block).await {
                 error!(
-                    target: "log_indexer",
+                    target: "supervisor::log_indexer",
                     chain_id = %self.chain_id,
                     %err,
                     "Log indexer catch-up failed"

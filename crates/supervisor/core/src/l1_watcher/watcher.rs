@@ -76,18 +76,18 @@ where
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
-                    info!(target: "l1_watcher", "L1Watcher cancellation requested, stopping polling");
+                    info!(target: "supervisor::l1_watcher", "L1Watcher cancellation requested, stopping polling");
                     break;
                 }
                 latest_block = latest_head_stream.next() => {
                     if let Some(latest_block) = latest_block {
-                        info!(target: "l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
+                        info!(target: "supervisor::l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
                         self.handle_new_latest_block(latest_block, &mut last_latest_number);
                     }
                 }
                 finalized_block = finalized_head_stream.next() => {
                     if let Some(finalized_block) = finalized_block {
-                        info!(target: "l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
+                        info!(target: "supervisor::l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
                         self.handle_new_finalized_block(finalized_block, &mut last_finalized_number);
                     }
                 }
@@ -109,13 +109,13 @@ where
         let finalized_source_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
         info!(
-            target: "l1_watcher",
+            target: "supervisor::l1_watcher",
             block_number = finalized_source_block.number,
             "New finalized L1 block received"
         );
 
         if let Err(err) = self.finalized_l1_storage.update_finalized_l1(finalized_source_block) {
-            error!(target: "l1_watcher", %err, "Failed to update finalized L1 block");
+            error!(target: "supervisor::l1_watcher", %err, "Failed to update finalized L1 block");
             return;
         }
 
@@ -130,7 +130,7 @@ where
                 sender.try_send(ChainEvent::FinalizedSourceUpdate { finalized_source_block })
             {
                 error!(
-                    target: "l1_watcher",
+                    target: "supervisor::l1_watcher",
                     chain_id = %chain_id,
                     %err, "Failed to send finalized L1 update event",
                 );
@@ -142,7 +142,7 @@ where
         let incoming_block_number = incoming_block.header.number;
         if incoming_block_number <= previous_block.number {
             info!(
-                target: "l1_watcher",
+                target: "supervisor::l1_watcher",
                 "Incoming latest L1 block is not greater than the stored latest block"
             );
             return;
@@ -156,7 +156,7 @@ where
         let latest_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
         info!(
-            target: "l1_watcher",
+            target: "supervisor::l1_watcher",
             block_number = latest_block.number,
             "New latest L1 block received"
         );

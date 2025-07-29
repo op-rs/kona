@@ -131,7 +131,7 @@ impl DerivationStorageWriter for ChainDb {
                     .map_err(|err| match err {
                         StorageError::EntryNotFound(_) => {
                             error!(
-                                target: "supervisor_storage",
+                                target: "supervisor::storage",
                                 incoming_block = %derived_block,
                                 "Derived block not found in log storage: {derived_block:?}"
                             );
@@ -141,7 +141,7 @@ impl DerivationStorageWriter for ChainDb {
                     })?;
                 if block != derived_block {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         incoming_block = %derived_block,
                         stored_log_block = %block,
                         "Derived block does not match the stored log block"
@@ -299,7 +299,7 @@ impl HeadRefStorageWriter for ChainDb {
                 if finalized_source_block.number >= safe_block_pair.source.number {
                     // this could happen during initial sync
                     warn!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         l1_finalized_block_number = finalized_source_block.number,
                         safe_source_block_number = safe_block_pair.source.number,
@@ -327,7 +327,7 @@ impl HeadRefStorageWriter for ChainDb {
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                 if !parent.is_parent_of(block) {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block = %block,
                         latest_block = %parent,
@@ -340,7 +340,7 @@ impl HeadRefStorageWriter for ChainDb {
                 let stored_block = lp.get_block(block.number)?;
                 if stored_block.hash != block.hash {
                     warn!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block_hash = %block.hash,
                         stored_block_hash = %stored_block.hash,
@@ -365,7 +365,7 @@ impl HeadRefStorageWriter for ChainDb {
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
                 if !parent.is_parent_of(block) {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block = %block,
                         latest_block = %parent,
@@ -494,7 +494,7 @@ impl MetricsReporter for ChainDb {
                 Ok::<(), eyre::Report>(())
             })
             .inspect_err(|err| {
-                warn!(target: "supervisor_storage", %err, "Failed to collect database metrics");
+                warn!(target: "supervisor::storage", %err, "Failed to collect database metrics");
             });
 
         for (name, value, labels) in metrics {

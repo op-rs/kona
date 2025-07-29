@@ -106,7 +106,7 @@ impl ClientConfig {
         let cur_dir = std::env::current_dir().ok()?;
         if let Ok(secret) = std::fs::read_to_string(cur_dir.join("jwt.hex")).map_err(|err| {
             error!(
-                target: "managed_node",
+                target: "supervisor::managed_node",
                 %err,
                 "Failed to read JWT file"
             );
@@ -137,14 +137,14 @@ impl Client {
     /// Creates authentication headers using JWT secret.
     fn create_auth_headers(&self) -> Result<HeaderMap, ClientError> {
         let Some(jwt_secret) = self.config.jwt_secret() else {
-            error!(target: "managed_node", "JWT secret not found or invalid");
+            error!(target: "supervisor::managed_node", "JWT secret not found or invalid");
             return Err(AuthenticationError::InvalidJwt.into())
         };
 
         // Create JWT claims with current time
         let claims = Claims::with_current_timestamp();
         let token = jwt_secret.encode(&claims).map_err(|err| {
-            error!(target: "managed_node", %err, "Failed to encode JWT claims");
+            error!(target: "supervisor::managed_node", %err, "Failed to encode JWT claims");
             AuthenticationError::InvalidJwt
         })?;
 
@@ -154,7 +154,7 @@ impl Client {
         headers.insert(
             "Authorization",
             HeaderValue::from_str(&auth_header).map_err(|err| {
-                error!(target: "managed_node", %err, "Invalid authorization header");
+                error!(target: "supervisor::managed_node", %err, "Invalid authorization header");
                 AuthenticationError::InvalidHeader
             })?,
         );
@@ -168,10 +168,10 @@ impl Client {
         let mut ws_client_guard = self.ws_client.lock().await;
         if ws_client_guard.is_none() {
             let headers = self.create_auth_headers().inspect_err(|err| {
-                error!(target: "managed_node", %err, "Failed to create auth headers");
+                error!(target: "supervisor::managed_node", %err, "Failed to create auth headers");
             })?;
 
-            info!(target: "managed_node", ws_url = self.config.url, "Creating a new web socket client");
+            info!(target: "supervisor::managed_node", ws_url = self.config.url, "Creating a new web socket client");
             let client =
                 WsClientBuilder::default().set_headers(headers).build(&self.config.url).await?;
 
@@ -206,11 +206,11 @@ impl ManagedNodeClient for Client {
             "node" => self.config.url.clone()
         )
         .inspect_err(|err| {
-            error!(target: "managed_node", %err, "Failed to get chain ID");
+            error!(target: "supervisor::managed_node", %err, "Failed to get chain ID");
         })?;
 
         let chain_id = chain_id_str.parse::<u64>().inspect_err(|err| {
-            error!(target: "managed_node", %err, "Failed to parse chain ID");
+            error!(target: "supervisor::managed_node", %err, "Failed to parse chain ID");
         })?;
 
         let _ = self.chain_id.set(chain_id);

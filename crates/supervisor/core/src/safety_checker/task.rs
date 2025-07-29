@@ -44,7 +44,7 @@ where
         let chain_id = self.chain_id;
 
         info!(
-            target: "safety_checker",
+            target: "supervisor::safety_checker",
             chain_id,
             %target_level,
             "Started safety checker");
@@ -54,7 +54,7 @@ where
         loop {
             tokio::select! {
                 _ = self.cancel_token.cancelled() => {
-                    info!(target: "safety_checker", chain_id, %target_level, "Canceled safety checker");
+                    info!(target: "supervisor::safety_checker", chain_id, %target_level, "Canceled safety checker");
                     break;
                 }
 
@@ -62,7 +62,7 @@ where
                     match self.promote_next_block(&checker) {
                         Ok(block_info) => {
                             info!(
-                                target: "safety_checker",
+                                target: "supervisor::safety_checker",
                                 chain_id,
                                 %target_level,
                                 %block_info,
@@ -75,7 +75,7 @@ where
                                 CrossSafetyError::NoBlockToPromote => {},
                                 _ => {
                                     warn!(
-                                        target: "safety_checker",
+                                        target: "supervisor::safety_checker",
                                         chain_id,
                                         %target_level,
                                         %err,
@@ -91,7 +91,7 @@ where
             }
         }
 
-        info!(target: "safety_checker", chain_id = self.chain_id, %target_level, "Stopped safety checker");
+        info!(target: "supervisor::safety_checker", chain_id = self.chain_id, %target_level, "Stopped safety checker");
     }
 
     // Attempts to promote the next block by the Promoter
@@ -149,7 +149,7 @@ where
     fn broadcast_event(&self, event: ChainEvent) {
         if let Err(err) = self.event_tx.try_send(event) {
             error!(
-                target: "safety_checker",
+                target: "supervisor::safety_checker",
                 target_level = %self.promoter.target_level(),
                 %err,
                 "Failed to broadcast cross head update event",

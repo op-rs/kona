@@ -28,7 +28,7 @@ impl<T> SupervisorRpc<T> {
     /// Creates a new [`SupervisorRpc`] instance.
     pub fn new(supervisor: Arc<T>) -> Self {
         super::Metrics::init();
-        trace!(target: "supervisor_rpc", "Creating new SupervisorRpc handler");
+        trace!(target: "supervisor::rpc", "Creating new SupervisorRpc handler");
         Self { supervisor }
     }
 }
@@ -48,7 +48,7 @@ where
             "cross_derived_to_source",
             async {
                 trace!(
-                    target: "supervisor_rpc",
+                    target: "supervisor::rpc",
                     %chain_id,
                     ?derived,
                     "Received cross_derived_to_source request"
@@ -57,7 +57,7 @@ where
                 let source_block =
                     self.supervisor.derived_to_source_block(chain_id, derived).map_err(|err| {
                         warn!(
-                            target: "supervisor_rpc",
+                            target: "supervisor::rpc",
                             %chain_id,
                             ?derived,
                             %err,
@@ -77,7 +77,7 @@ where
         crate::observe_rpc_call!(
             "local_unsafe",
             async {
-                trace!(target: "supervisor_rpc",
+                trace!(target: "supervisor::rpc",
                     %chain_id,
                     "Received local_unsafe request"
                 );
@@ -92,7 +92,7 @@ where
         crate::observe_rpc_call!(
             "dependency_set",
             async {
-                trace!(target: "supervisor_rpc",
+                trace!(target: "supervisor::rpc",
                     "Received the dependency set"
                 );
 
@@ -107,7 +107,7 @@ where
         crate::observe_rpc_call!(
             "cross_safe",
             async {
-                trace!(target: "supervisor_rpc",
+                trace!(target: "supervisor::rpc",
                     %chain_id,
                     "Received cross_safe request"
                 );
@@ -126,7 +126,7 @@ where
         crate::observe_rpc_call!(
             "finalized",
             async {
-                trace!(target: "supervisor_rpc",
+                trace!(target: "supervisor::rpc",
                     %chain_id,
                     "Received finalized request"
                 );
@@ -141,7 +141,7 @@ where
         crate::observe_rpc_call!(
             "finalized_l1",
             async {
-                trace!(target: "supervisor_rpc", "Received finalized_l1 request");
+                trace!(target: "supervisor::rpc", "Received finalized_l1 request");
                 Ok(self.supervisor.finalized_l1()?)
             }
             .await
@@ -156,7 +156,7 @@ where
             "super_root_at_timestamp",
             async {
                 let timestamp = u64::from(timestamp_hex);
-                trace!(target: "supervisor_rpc",
+                trace!(target: "supervisor::rpc",
                     %timestamp,
                     "Received super_root_at_timestamp request"
                 );
@@ -164,7 +164,7 @@ where
                 self.supervisor.super_root_at_timestamp(timestamp)
                     .await
                     .map_err(|err| {
-                        warn!(target: "supervisor_rpc", %err, "Error from core supervisor super_root_at_timestamp");
+                        warn!(target: "supervisor::rpc", %err, "Error from core supervisor super_root_at_timestamp");
                         ErrorObject::from(err)
                     })
             }.await
@@ -181,7 +181,7 @@ where
         crate::observe_rpc_call!(
             "check_access_list", 
             async {
-                trace!(target: "supervisor_rpc", 
+                trace!(target: "supervisor::rpc", 
                     num_inbox_entries = inbox_entries.len(),
                     ?min_safety,
                     ?executing_descriptor,
@@ -190,7 +190,7 @@ where
                 self.supervisor
                     .check_access_list(inbox_entries, min_safety, executing_descriptor)
                     .map_err(|err| {
-                        warn!(target: "supervisor_rpc", %err, "Error from core supervisor check_access_list");
+                        warn!(target: "supervisor::rpc", %err, "Error from core supervisor check_access_list");
                         ErrorObject::from(err)
                     })
             }.await
@@ -201,7 +201,7 @@ where
         crate::observe_rpc_call!(
             "sync_status",
             async {
-                trace!(target: "supervisor_rpc", "Received sync_status request");
+                trace!(target: "supervisor::rpc", "Received sync_status request");
 
                 let mut chains = self
                     .supervisor
@@ -261,7 +261,7 @@ where
                 }
 
                 if uninitialized_chain_db_count == chains.len() {
-                    warn!(target: "supervisor_rpc", "No chain db initialized");
+                    warn!(target: "supervisor::rpc", "No chain db initialized");
                     return Err(SuperchainDAError::UninitializedChainDatabase.into());
                 }
 
@@ -283,7 +283,7 @@ where
         crate::observe_rpc_call!(
             "all_safe_derived_at",
             async {
-                trace!(target: "supervisor_rpc",
+                trace!(target: "supervisor::rpc",
                     ?derived_from,
                     "Received all_safe_derived_at request"
                 );
