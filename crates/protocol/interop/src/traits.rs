@@ -1,14 +1,13 @@
 //! Traits for the `kona-interop` crate.
 
+use crate::InteropValidationError;
 use alloc::{boxed::Box, vec::Vec};
 use alloy_consensus::Header;
-use alloy_primitives::B256;
-use alloy_primitives::ChainId;
-use kona_protocol::BlockInfo;
+use alloy_primitives::{B256, ChainId};
 use async_trait::async_trait;
 use core::error::Error;
+use kona_protocol::BlockInfo;
 use op_alloy_consensus::OpReceiptEnvelope;
-use crate::InteropValidationError;
 
 /// Describes the interface of the interop data provider. This provider is multiplexed over several
 /// chains, with each method consuming a chain ID to determine the target chain.
@@ -68,10 +67,10 @@ pub trait InteropValidator: Send + Sync {
     fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;
 
     /// Returns `true` if the block is the interop activation block for the specified chain.
-    /// 
+    ///
     /// An interop activation block is defined as the block that is right after the
     /// interop activation time.
-    /// 
+    ///
     /// Returns `false` if `interop_time` is not configured.
     fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
 }

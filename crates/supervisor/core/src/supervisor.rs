@@ -6,8 +6,8 @@ use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_interop::{
-    DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
-    SuperRoot, InteropValidator,
+    DependencySet, ExecutingDescriptor, InteropValidator, OutputRootWithChain, SUPER_ROOT_VERSION,
+    SafetyLevel, SuperRoot,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{ChainRootInfoRpc, SuperRootOutputRpc};
@@ -107,7 +107,8 @@ pub struct Supervisor {
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
     managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
-    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb, Config>>,
+    chain_processors:
+        HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb, Config>>,
 
     cancel_token: CancellationToken,
 }
@@ -185,7 +186,7 @@ impl Supervisor {
         }
         Ok(())
     }
-    
+
     async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
         for (&chain_id, config) in &self.config.rollup_config_set.rollups {
             let db = Arc::clone(&self.database_factory);

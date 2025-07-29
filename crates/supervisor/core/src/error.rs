@@ -1,8 +1,6 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{
-    ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError,
-};
+use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::InteropValidationError;

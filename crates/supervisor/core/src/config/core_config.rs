@@ -70,13 +70,12 @@ impl InteropValidator for Config {
     fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool {
         self.rollup_config_set.is_interop_activation_block(chain_id, block)
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{RollupConfig};
+    use crate::config::RollupConfig;
     use kona_interop::DependencySet;
     use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
 
@@ -138,7 +137,10 @@ mod tests {
         let res = cfg.validate_interop_timestamps(1, 200, 2, 195, Some(20));
         assert_eq!(
             res,
-            Err(InteropValidationError::InvalidTimestampInvariant { initiating: 200, executing: 195 })
+            Err(InteropValidationError::InvalidTimestampInvariant {
+                initiating: 200,
+                executing: 195
+            })
         );
     }
 

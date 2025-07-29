@@ -1,7 +1,4 @@
-use crate::{
-    CrossSafetyError,
-    safety_checker::error::ValidationError::InteropValidationError,
-};
+use crate::{CrossSafetyError, safety_checker::error::ValidationError::InteropValidationError};
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
 use kona_interop::InteropValidator;
@@ -82,12 +79,12 @@ where
 mod tests {
     use super::*;
     use alloy_primitives::B256;
-    use kona_interop::{InteropValidationError, DerivedRefPair};
+    use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_supervisor_storage::StorageError;
     use kona_supervisor_types::Log;
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
-    
+
     mock! (
         #[derive(Debug)]
         pub Provider {}
@@ -247,9 +244,7 @@ mod tests {
             .withf(move |cid, lvl| *cid == init_chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head));
 
-        validator
-            .expect_validate_interop_timestamps()
-            .returning(move |_, _, _, _, _| Ok(()));
+        validator.expect_validate_interop_timestamps().returning(move |_, _, _, _, _| Ok(()));
 
         let checker = CrossSafetyChecker::new(exec_chain_id, &validator, &provider);
         let result = checker.validate_block(block, SafetyLevel::CrossSafe);

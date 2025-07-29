@@ -162,9 +162,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        safety_checker::promoter::{CrossSafePromoter, CrossUnsafePromoter},
-    };
+    use crate::safety_checker::promoter::{CrossSafePromoter, CrossUnsafePromoter};
     use alloy_primitives::{B256, ChainId};
     use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};

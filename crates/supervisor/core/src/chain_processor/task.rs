@@ -672,9 +672,7 @@ mod tests {
         let mocknode = MockNode::new();
 
         mock_validator.expect_is_post_interop().returning(|_, _| false);
-        mock_validator
-            .expect_is_interop_activation_block()
-            .returning(|_, _| false);
+        mock_validator.expect_is_interop_activation_block().returning(|_, _| false);
 
         // Send unsafe block event
         let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 10);
@@ -757,9 +755,7 @@ mod tests {
         let mocknode = MockNode::new();
 
         mock_validator.expect_is_post_interop().returning(|_, _| false);
-        mock_validator
-            .expect_is_interop_activation_block()
-            .returning(|_, _| true);
+        mock_validator.expect_is_interop_activation_block().returning(|_, _| true);
 
         // Block that triggers interop activation
         let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 1001); // Use timestamp/number that triggers activation
@@ -814,9 +810,7 @@ mod tests {
         let mocknode = MockNode::new();
 
         mock_validator.expect_is_post_interop().returning(|_, _| false);
-        mock_validator
-            .expect_is_interop_activation_block()
-            .returning(|_, _| false);
+        mock_validator.expect_is_interop_activation_block().returning(|_, _| false);
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
@@ -924,9 +918,7 @@ mod tests {
         let mocknode = MockNode::new();
 
         mock_validator.expect_is_post_interop().returning(|_, _| false);
-        mock_validator
-            .expect_is_interop_activation_block()
-            .returning(|_, _| true);
+        mock_validator.expect_is_interop_activation_block().returning(|_, _| true);
 
         mockdb.expect_initialise_derivation_storage().returning(move |_pair: DerivedRefPair| {
             assert_eq!(_pair, block_pair);
