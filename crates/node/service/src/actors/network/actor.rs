@@ -2,6 +2,7 @@ use alloy_primitives::Address;
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
 use kona_rpc::NetworkAdminQuery;
+use kona_sources::BlockSignerError;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
 use thiserror::Error;
@@ -133,7 +134,7 @@ pub enum NetworkActorError {
     ChannelClosed,
     /// Failed to sign the payload.
     #[error("Failed to sign the payload: {0}")]
-    FailedToSignPayload(String),
+    FailedToSignPayload(#[from] BlockSignerError),
 }
 
 #[async_trait]
@@ -206,7 +207,7 @@ impl NodeActor for NetworkActor {
                     let sender_address = *handler.unsafe_block_signer_sender.borrow();
 
                     let payload_hash = block.payload_hash();
-                    let signature = signer.sign_block(payload_hash, chain_id, sender_address).await.map_err(|e| NetworkActorError::FailedToSignPayload(e.to_string()))?;
+                    let signature = signer.sign_block(payload_hash, chain_id, sender_address).await?;
 
                     let payload = OpNetworkPayloadEnvelope {
                         payload: block.execution_payload,
