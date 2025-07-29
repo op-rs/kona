@@ -36,7 +36,7 @@ pub trait InteropProvider {
 }
 
 /// Trait for validating interop-related timestamps and blocks.
-pub trait InteropValidator {
+pub trait InteropValidator: Send + Sync {
     /// Validates that the provided timestamps and chain IDs are eligible for interop execution.
     ///
     /// # Arguments
