@@ -255,7 +255,7 @@ impl NodeCommand {
         let jwt_secret = self.validate_jwt(&cfg).await?;
 
         self.p2p_flags.check_ports()?;
-        let p2p_config = self.p2p_flags.config(&cfg, args, Some(self.l1_eth_rpc.clone())).await?;
+        let p2p_config = self.p2p_flags.config(&cfg, args).await?;
         let rpc_config = self.rpc_flags.into();
 
         info!(

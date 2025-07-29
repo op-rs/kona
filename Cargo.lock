@@ -5005,21 +5005,15 @@ dependencies = [
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-transport",
- "kona-cli",
- "kona-derive",
  "kona-genesis",
  "kona-protocol",
- "kona-providers-alloy",
  "kona-registry",
- "lru 0.16.0",
  "metrics",
  "op-alloy-network",
- "op-alloy-rpc-types-engine",
  "serde_json",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
- "url",
 ]
 
 [[package]]

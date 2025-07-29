@@ -15,17 +15,14 @@ use kona_genesis::RollupConfig;
 use kona_node_service::NetworkConfig;
 use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
-use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
     str::FromStr,
-    sync::Arc,
 };
 use tokio::time::Duration;
-use url::Url;
 
 /// P2P CLI Flags
 #[derive(Parser, Clone, Debug, PartialEq, Eq)]
@@ -318,19 +315,8 @@ impl P2PArgs {
     /// Returns the unsafe block signer from the CLI arguments.
     pub async fn unsafe_block_signer(
         &self,
-        config: &RollupConfig,
         args: &GlobalArgs,
-        l1_rpc: Option<Url>,
     ) -> anyhow::Result<alloy_primitives::Address> {
-        // First attempt to load the unsafe block signer from the runtime loader.
-        if let Some(url) = l1_rpc {
-            let mut loader = RuntimeLoader::new(url, Arc::new(config.clone()));
-            let runtime = loader.load_latest().await.map_err(|e| {
-                anyhow::anyhow!("Failed to load runtime: {} {:?}", e, std::error::Error::source(&e))
-            })?;
-            return Ok(runtime.unsafe_block_signer_address);
-        }
-
         // Otherwise use the genesis signer or the configured unsafe block signer.
         args.genesis_signer().or_else(|_| {
             self.unsafe_block_signer.ok_or(anyhow::anyhow!("Unsafe block signer not provided"))
@@ -348,7 +334,6 @@ impl P2PArgs {
         self,
         config: &RollupConfig,
         args: &GlobalArgs,
-        l1_rpc: Option<Url>,
     ) -> anyhow::Result<NetworkConfig> {
         // Note: the advertised address is contained in the ENR for external peers from the
         // discovery layer to use.
@@ -414,7 +399,7 @@ impl P2PArgs {
             discovery_randomize: self.discovery_randomize.map(Duration::from_secs),
             gossip_address,
             keypair,
-            unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
+            unsafe_block_signer: self.unsafe_block_signer(args).await?,
             gossip_config,
             scoring: self.scoring,
             monitor_peers,
