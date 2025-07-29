@@ -405,7 +405,7 @@ impl P2PArgs {
             .as_ref()
             .map(PrivateKeySigner::from_bytes)
             .transpose()?
-            .map(|s| s.with_chain_id(Some(args.l2_chain_id.into())));
+            .map(|s| s.with_chain_id(Some(args.l2_chain_id.into())).into());
 
         Ok(NetworkConfig {
             discovery_config,
@@ -426,7 +426,7 @@ impl P2PArgs {
             },
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
-            local_signer,
+            signer: local_signer,
         })
     }
 

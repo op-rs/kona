@@ -164,6 +164,8 @@ reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
 
 # General
+hex = "0.4"
+notify = "6.1"
 url = "2.5.4"
 lru = "0.16.0"
 glob = "0.3.2"
@@ -191,6 +193,8 @@ crossterm = "0.29.0"
 color-eyre = "0.6.5"
 jsonrpsee = "0.25.1"
 tokio-util = "0.7.15"
+rustls = "0.23"
+rustls-pemfile = "2.0"
 vergen-git2 = "1.0.7"
 parking_lot = "0.12.4"
 async-trait = "0.1.88"

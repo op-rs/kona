@@ -1,11 +1,11 @@
 //! Configuration for the `Network`.
 
 use alloy_primitives::Address;
-use alloy_signer_local::PrivateKeySigner;
 use discv5::Enr;
 use kona_genesis::RollupConfig;
 use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
 use std::path::PathBuf;
 use tokio::time::Duration;
@@ -45,7 +45,7 @@ pub struct NetworkConfig {
     /// The [`RollupConfig`].
     pub rollup_config: RollupConfig,
     /// A local signer for payloads.
-    pub local_signer: Option<PrivateKeySigner>,
+    pub signer: Option<BlockSigner>,
 }
 
 impl NetworkConfig {
@@ -76,7 +76,7 @@ impl NetworkConfig {
             scoring: Default::default(),
             topic_scoring: Default::default(),
             monitor_peers: Default::default(),
-            local_signer: Default::default(),
+            signer: Default::default(),
         }
     }
 }

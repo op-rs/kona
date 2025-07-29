@@ -1,11 +1,11 @@
 //! Network Builder Module.
 
 use alloy_primitives::Address;
-use alloy_signer_local::PrivateKeySigner;
 use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
 use kona_p2p::{Discv5Builder, GaterConfig, GossipDriverBuilder, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{path::PathBuf, time::Duration};
 
@@ -21,8 +21,8 @@ pub struct NetworkBuilder {
     pub(super) discovery: Discv5Builder,
     /// The gossip driver.
     pub(super) gossip: GossipDriverBuilder,
-    /// A local signer for payloads.
-    pub(super) local_signer: Option<PrivateKeySigner>,
+    /// A signer for payloads.
+    pub(super) signer: Option<BlockSigner>,
 }
 
 impl From<NetworkConfig> for NetworkBuilder {
@@ -44,7 +44,7 @@ impl From<NetworkConfig> for NetworkBuilder {
         .with_peer_monitoring(config.monitor_peers)
         .with_topic_scoring(config.topic_scoring)
         .with_gater_config(config.gater_config)
-        .with_local_signer(config.local_signer)
+        .with_signer(config.signer)
     }
 }
 
@@ -70,7 +70,7 @@ impl NetworkBuilder {
                 gossip_addr,
                 keypair,
             ),
-            local_signer: None,
+            signer: None,
         }
     }
 
@@ -80,8 +80,8 @@ impl NetworkBuilder {
     }
 
     /// Sets the local signer for the [`NetworkBuilder`].
-    pub fn with_local_signer(self, local_signer: Option<PrivateKeySigner>) -> Self {
-        Self { local_signer, ..self }
+    pub fn with_signer(self, signer: Option<BlockSigner>) -> Self {
+        Self { signer, ..self }
     }
 
     /// Sets the bootstore path for the [`Discv5Builder`].
@@ -152,7 +152,7 @@ impl NetworkBuilder {
         let (gossip, unsafe_block_signer_sender) = self.gossip.build()?;
         let discovery = self.discovery.build()?;
 
-        Ok(NetworkDriver { gossip, discovery, unsafe_block_signer_sender })
+        Ok(NetworkDriver { gossip, discovery, unsafe_block_signer_sender, signer: self.signer })
     }
 }
 
