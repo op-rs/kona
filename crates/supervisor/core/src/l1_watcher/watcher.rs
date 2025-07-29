@@ -9,7 +9,7 @@ use kona_supervisor_storage::FinalizedL1Storage;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 use crate::ReorgHandler;
 
@@ -161,7 +161,7 @@ where
             return;
         }
 
-        info!(
+        trace!(
             target: "l1_watcher",
             block_number = incoming_block_number,
             block_hash = ?incoming_block.header.hash,
@@ -177,7 +177,7 @@ where
 
         // Early exit: check if no reorg is needed (sequential block)
         if latest_block.parent_hash == previous_block.hash {
-            info!(
+            trace!(
                 target: "l1_watcher",
                 block_number = latest_block.number,
                 "Sequential block received, no reorg needed"

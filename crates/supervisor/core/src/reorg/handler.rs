@@ -1,13 +1,15 @@
-use crate::{SupervisorError, rewinder::ChainRewinder};
+use crate::SupervisorError;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::Block;
 use derive_more::Constructor;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::{ChainDb, DerivationStorageReader, HeadRefStorageReader};
+use kona_supervisor_storage::{
+    ChainDb, DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageRewinder,
+};
 use std::{collections::HashMap, sync::Arc};
-use tracing::{error, info, warn};
+use tracing::{debug, info, trace, warn};
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
@@ -31,7 +33,7 @@ impl ReorgHandler {
 
         for (chain_id, chain_db) in self.chain_dbs.iter() {
             if let Err(err) = self.process_chain_reorg(chain_id, chain_db, latest_block).await {
-                error!(
+                warn!(
                     target: "reorg_handler",
                     chain_id = %chain_id,
                     %err,
@@ -73,9 +75,18 @@ impl ReorgHandler {
         let rewind_target_derived =
             chain_db.latest_derived_block_at_source(rewind_target_source)?;
 
+        // rewind_to() method is inclusive, so we need to get the next block.
+        let rewind_to = chain_db.get_block(rewind_target_derived.number + 1)?;
+
         // Call the rewinder to handle the DB rewinding
-        let rewinder = ChainRewinder::new(*chain_id, chain_db.clone());
-        rewinder.handle_l1_reorg(rewind_target_derived.id())?;
+        chain_db.rewind(&rewind_to.id()).inspect_err(|err| {
+            warn!(
+                target: "reorg_handler",
+                chain_id = %chain_id,
+                %err,
+                "Failed to rewind DB to derived block"
+            );
+        })?;
 
         Ok(())
     }
@@ -86,7 +97,7 @@ impl ReorgHandler {
         chain_id: ChainId,
         db: &Arc<ChainDb>,
     ) -> Result<Option<BlockNumHash>, SupervisorError> {
-        info!(
+        trace!(
             target: "reorg_handler",
             chain_id = %chain_id,
             "Finding rewind target..."
@@ -96,7 +107,7 @@ impl ReorgHandler {
 
         // Check if the latest source block is still canonical
         if self.is_block_canonical(latest_state.source.number, latest_state.source.hash).await? {
-            info!(
+            debug!(
                 target: "reorg_handler",
                 chain_id = %chain_id,
                 block_number = latest_state.source.number,
