@@ -205,7 +205,7 @@ where
             ChainEvent::InvalidateBlock { block } => {
                 let _ = self.handle_invalidate_block(block).await.inspect_err(|err| {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         block_number = block.number,
                         %err,
@@ -278,7 +278,7 @@ where
         replacement: BlockReplacement,
     ) -> Result<(), ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             %replacement,
             "Handling block replacement"
@@ -289,7 +289,7 @@ where
         if let Some(invalidated_ref_pair) = *guard {
             if invalidated_ref_pair.derived.hash != replacement.invalidated {
                 debug!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     invalidated_block = %invalidated_ref_pair.derived,
                     replacement_block = %replacement.replacement,
@@ -312,7 +312,7 @@ where
 
     async fn handle_invalidate_block(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             invalidated_block = %block,
             "Processing invalidate block"
@@ -321,7 +321,7 @@ where
         let mut invalidated_block = self.invalidated_block.write().await;
         if invalidated_block.is_some() {
             debug!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
                 "Invalidated block already set, skipping"
@@ -372,7 +372,7 @@ where
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = origin.number,
                 "Invalidated block set, skipping derivation origin update"
@@ -418,7 +418,7 @@ where
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 "Invalidated block already set, skipping safe event processing"
@@ -541,7 +541,7 @@ where
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
                 "Invalidated block already set, skipping unsafe event processing"
