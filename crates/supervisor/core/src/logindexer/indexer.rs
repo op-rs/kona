@@ -110,7 +110,8 @@ where
                 let log_hash = log_to_log_hash(log);
 
                 let executing_message = parse_log_to_executing_message(log).map(|msg| {
-                    let payload_hash = payload_hash_to_log_hash(msg.payloadHash, msg.identifier.origin);
+                    let payload_hash =
+                        payload_hash_to_log_hash(msg.payloadHash, msg.identifier.origin);
                     ExecutingMessage {
                         chain_id: msg.identifier.chainId.try_into().unwrap(),
                         block_number: msg.identifier.blockNumber.try_into().unwrap(),
