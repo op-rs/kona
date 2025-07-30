@@ -7,15 +7,13 @@
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::B256;
 use alloy_provider::Provider;
 use alloy_transport::{RpcError, TransportErrorKind};
 use kona_genesis::RollupConfig;
 use kona_protocol::{L2BlockInfo, OutputRoot, Predeploys};
-use kona_sources::{L2ForkchoiceState, SyncStartError};
 use tokio::sync::oneshot::Sender;
 
-use crate::{EngineClient, EngineClientError, EngineState, EngineSyncState};
+use crate::{EngineClient, EngineClientError, EngineState};
 
 /// Channel sender for submitting [`EngineQueries`] to the engine.
 pub type EngineQuerySender = tokio::sync::mpsc::Sender<EngineQueries>;
@@ -51,9 +49,6 @@ pub enum EngineQueries {
 /// An error that can occur when querying the engine.
 #[derive(Debug, thiserror::Error)]
 pub enum EngineQueriesError {
-    /// Failed to retrieve the L2 forkchoice state.
-    #[error("Failed to retrieve L2 forkchoice state: {0}")]
-    FailedToRetrieveL2ForkchoiceState(#[from] SyncStartError),
     /// The output channel was closed unexpectedly. Impossible to send query response.
     #[error("Output channel closed unexpectedly. Impossible to send query response")]
     OutputChannelClosed,
@@ -80,22 +75,7 @@ impl EngineQueries {
         client: &Arc<EngineClient>,
         rollup_config: &Arc<RollupConfig>,
     ) -> Result<(), EngineQueriesError> {
-        let mut state = *state_recv.borrow();
-
-        // If the engine unsafe head is zeroed out (i.e the node has not yet synced and is not
-        // connected to an external sequencer) we should retrieve the unsafe head from the
-        // safe head on the L1.
-        if state.sync_state.unsafe_head().block_info.hash == B256::ZERO {
-            let forkchoice_state =
-                L2ForkchoiceState::current(rollup_config, client.l2_engine()).await?;
-            state.sync_state = EngineSyncState::new(
-                forkchoice_state.un_safe,
-                forkchoice_state.un_safe,
-                forkchoice_state.safe,
-                forkchoice_state.safe,
-                forkchoice_state.finalized,
-            );
-        }
+        let state = *state_recv.borrow();
 
         match self {
             Self::Config(sender) => sender
