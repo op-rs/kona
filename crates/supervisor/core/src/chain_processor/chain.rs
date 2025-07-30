@@ -34,8 +34,8 @@ pub struct ChainProcessor<P, W, V> {
     // The managed node that this processor will handle
     managed_node: Arc<P>,
 
-    // State manager to update and view state
-    state_manager: Arc<W>,
+    // The database provider for storage operations
+    db_provider: Arc<W>,
 
     // Cancellation token to stop the processor
     cancel_token: CancellationToken,
@@ -60,7 +60,7 @@ where
         validator: Arc<V>,
         chain_id: ChainId,
         managed_node: Arc<P>,
-        state_manager: Arc<W>,
+        db_provider: Arc<W>,
         cancel_token: CancellationToken,
     ) -> Self {
         // todo: validate chain_id against managed_node
@@ -70,7 +70,7 @@ where
             event_tx: None,
             metrics_enabled: None,
             managed_node,
-            state_manager,
+            db_provider,
             cancel_token,
             task_handle: Mutex::new(None),
         }
@@ -110,7 +110,7 @@ where
             self.validator.clone(),
             self.chain_id,
             self.managed_node.clone(),
-            self.state_manager.clone(),
+            self.db_provider.clone(),
             self.cancel_token.clone(),
             event_rx,
         );
