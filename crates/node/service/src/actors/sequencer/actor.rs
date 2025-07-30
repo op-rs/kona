@@ -463,7 +463,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         loop {
             select! {
                 // We are using a biased select here to ensure that the admin queries are given priority over the block building task.
-                // This is important to limit the occurence of race conditions where a stopped query is received when a sequencer is building a new block.
+                // This is important to limit the occurrence of race conditions where a stopped query is received when a sequencer is building a new block.
                 biased;
                 _ = ctx.cancellation.cancelled() => {
                     info!(

@@ -161,7 +161,7 @@ pub trait BlobSidecarProvider {
 }
 
 /// Blanket implementation of the [BlobSidecarProvider] trait for all types that
-/// implemend [BeaconClient], which has a superset of the required functionality.
+/// implement [BeaconClient], which has a superset of the required functionality.
 #[async_trait]
 impl<B: BeaconClient + Send + Sync> BlobSidecarProvider for B {
     async fn beacon_blob_side_cars(

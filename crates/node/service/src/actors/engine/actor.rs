@@ -84,8 +84,6 @@ pub struct EngineBuilder {
     pub config: Arc<RollupConfig>,
     /// The engine rpc url.
     pub engine_url: Url,
-    /// The L2 rpc url.
-    pub l2_rpc_url: Url,
     /// The L1 rpc url.
     pub l1_rpc_url: Url,
     /// The engine jwt secret.
@@ -116,7 +114,6 @@ impl EngineBuilder {
     pub fn client(&self) -> Arc<EngineClient> {
         EngineClient::new_http(
             self.engine_url.clone(),
-            self.l2_rpc_url.clone(),
             self.l1_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,

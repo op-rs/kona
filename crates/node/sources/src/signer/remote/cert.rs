@@ -2,7 +2,7 @@ use std::{io::BufReader, sync::Arc};
 
 use alloy_rpc_client::{ClientBuilder, RpcClient};
 use alloy_transport_http::Http;
-use notify::{Event, EventKind, INotifyWatcher, RecursiveMode, Watcher};
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use rustls::{ClientConfig, RootCertStore};
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -103,7 +103,7 @@ impl RemoteSigner {
     pub(super) async fn start_certificate_watcher(
         &self,
         client: Arc<RwLock<RpcClient>>,
-    ) -> Result<Option<INotifyWatcher>, notify::Error> {
+    ) -> Result<Option<RecommendedWatcher>, notify::Error> {
         let Some(ref client_cert) = self.client_cert.clone() else {
             return Ok(None);
         };
