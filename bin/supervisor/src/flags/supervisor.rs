@@ -14,7 +14,6 @@ use serde::de::DeserializeOwned;
 use std::{
     net::{IpAddr, SocketAddr},
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use tokio::{fs::File, io::AsyncReadExt};
 
@@ -79,7 +78,7 @@ impl SupervisorArgs {
     }
 
     /// initialise and return the [`DependencySet`].
-    pub async fn init_dependency_set(&self) -> Result<Arc<DependencySet>> {
+    pub async fn init_dependency_set(&self) -> Result<DependencySet> {
         Self::read_json_file(&self.dependency_set).await
     }
 
@@ -321,7 +320,7 @@ mod tests {
             override_message_expiry_window: Some(3600),
         };
 
-        assert_eq!(loaded_depset, Arc::new(expected_depset));
+        assert_eq!(loaded_depset, expected_depset);
         Ok(())
     }
 

@@ -3,7 +3,7 @@ use crate::syncnode::ClientConfig;
 use alloy_primitives::ChainId;
 use kona_interop::{DependencySet, InteropValidationError, InteropValidator};
 use kona_protocol::BlockInfo;
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf};
 
 /// Configuration for the Supervisor service.
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ pub struct Config {
     pub rpc_addr: SocketAddr,
 
     /// The loaded dependency set configuration.
-    pub dependency_set: Arc<DependencySet>,
+    pub dependency_set: DependencySet,
 
     /// The rollup configuration set.
     pub rollup_config_set: RollupConfigSet,
@@ -97,10 +97,10 @@ mod tests {
             l2_consensus_nodes_config: vec![],
             datadir: PathBuf::new(),
             rpc_addr: SocketAddr::from(([127, 0, 0, 1], 8545)),
-            dependency_set: Arc::new(DependencySet {
+            dependency_set: DependencySet {
                 dependencies: Default::default(),
                 override_message_expiry_window: Some(10),
-            }),
+            },
             rollup_config_set: mock_rollup_config_set(),
         }
     }
