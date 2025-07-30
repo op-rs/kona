@@ -87,7 +87,7 @@ impl EngineQueries {
         // safe head on the L1.
         if state.sync_state.unsafe_head().block_info.hash == B256::ZERO {
             let forkchoice_state =
-                L2ForkchoiceState::current(rollup_config, client.l2_provider()).await?;
+                L2ForkchoiceState::current(rollup_config, client.l2_engine()).await?;
             state.sync_state = EngineSyncState::new(
                 forkchoice_state.un_safe,
                 forkchoice_state.un_safe,
