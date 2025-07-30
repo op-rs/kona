@@ -58,7 +58,7 @@ where
         logs: Vec<Log>,
     ) -> Result<(), StorageError> {
         debug!(
-            target: "supervisor_storage",
+            target: "supervisor::storage",
             chain_id = %self.chain_id,
             block_number = block.number,
             "Storing logs",
@@ -78,7 +78,7 @@ where
                 return Ok(());
             }
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %stored_block,
                 incoming_block = %block,
@@ -89,7 +89,7 @@ where
 
         if !latest_block.is_parent_of(block) {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %latest_block,
                 incoming_block = %block,
@@ -108,7 +108,7 @@ where
     ) -> Result<(), StorageError> {
         self.tx.put::<BlockRefs>(block.number, (*block).into()).inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 block_number = block.number,
                 %err,
@@ -118,7 +118,7 @@ where
 
         let mut cursor = self.tx.cursor_dup_write::<LogEntries>().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get dup cursor"
@@ -128,7 +128,7 @@ where
         for log in logs {
             cursor.append_dup(block.number, log.into()).inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     block_number = block.number,
                     %err,
@@ -148,7 +148,7 @@ where
         while let Some(Ok((key, stored_block))) = walker.next() {
             if key == block.number && block.hash != stored_block.hash {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     %stored_block,
                     incoming_block = ?block,
@@ -169,7 +169,7 @@ where
 {
     pub(crate) fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
         debug!(
-            target: "supervisor_storage",
+            target: "supervisor::storage",
             chain_id = %self.chain_id,
             block_number,
             "Fetching block"
@@ -177,7 +177,7 @@ where
 
         let block_option = self.tx.get::<BlockRefs>(block_number).inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 block_number,
                 %err,
@@ -187,7 +187,7 @@ where
 
         let block = block_option.ok_or_else(|| {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 block_number,
                 "Block not found"
@@ -198,11 +198,11 @@ where
     }
 
     pub(crate) fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
-        debug!(target: "supervisor_storage", chain_id = %self.chain_id, "Fetching latest block");
+        debug!(target: "supervisor::storage", chain_id = %self.chain_id, "Fetching latest block");
 
         let mut cursor = self.tx.cursor_read::<BlockRefs>().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get cursor"
@@ -211,7 +211,7 @@ where
 
         let result = cursor.last().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to seek to last block"
@@ -220,7 +220,7 @@ where
 
         let (_, block) = result.ok_or_else(|| {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 "No blocks found in storage"
             );
@@ -231,7 +231,7 @@ where
 
     pub(crate) fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError> {
         debug!(
-            target: "supervisor_storage",
+            target: "supervisor::storage",
             chain_id = %self.chain_id,
             block_number,
             log_index,
@@ -240,7 +240,7 @@ where
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get cursor for LogEntries"
@@ -249,7 +249,7 @@ where
 
         let result = cursor.seek_by_key_subkey(block_number, log_index).inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 block_number,
                 log_index,
@@ -260,7 +260,7 @@ where
 
         let log_entry = result.ok_or_else(|| {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 block_number,
                 log_index,
@@ -273,11 +273,11 @@ where
     }
 
     pub(crate) fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
-        debug!(target: "supervisor_storage", chain_id = %self.chain_id, block_number, "Fetching logs");
+        debug!(target: "supervisor::storage", chain_id = %self.chain_id, block_number, "Fetching logs");
 
         let mut cursor = self.tx.cursor_dup_read::<LogEntries>().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get dup cursor"
@@ -286,7 +286,7 @@ where
 
         let walker = cursor.walk_range(block_number..=block_number).inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 block_number,
                 %err,
@@ -300,7 +300,7 @@ where
                 Ok((_, entry)) => logs.push(entry.into()),
                 Err(err) => {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         block_number,
                         %err,

@@ -26,6 +26,11 @@ alloy-eips.workspace = true
 alloy-provider = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
+alloy-rpc-client.workspace = true
+alloy-transport-http = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
+
+alloy-signer.workspace = true
+alloy-signer-local.workspace = true
 
 # OP Alloy
 op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
@@ -36,6 +41,16 @@ lru.workspace = true
 url.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+derive_more.workspace = true
+
+# HTTP client and TLS for remote signer
+reqwest = { workspace = true, features = ["json", "rustls-tls", "stream"] }
+serde.workspace = true
+serde_json.workspace = true
+rustls.workspace = true
+rustls-pemfile = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["full"] }
+notify.workspace = true
 
 # `metrics` feature
 metrics = { workspace = true, optional = true }

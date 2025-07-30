@@ -127,7 +127,7 @@ where
                 }
                 _ = self.cancel_token.cancelled() => {
                     info!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         "ChainProcessorTask cancellation requested, stopping..."
                     );
@@ -167,7 +167,7 @@ where
 
         if let Err(err) = result {
             debug!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 %err,
                 ?event,

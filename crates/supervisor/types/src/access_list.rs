@@ -1,4 +1,3 @@
-use crate::ExecutingMessage;
 use alloy_primitives::{B256, keccak256};
 use thiserror::Error;
 
@@ -39,20 +38,6 @@ impl Access {
             timestamp: lookup.timestamp,
             log_index: lookup.log_index,
             checksum: checksum.raw,
-        }
-    }
-
-    /// Constructs a new [`Access`] from a [`ExecutingMessage`]
-    pub fn from_executing_message(message: &ExecutingMessage) -> Self {
-        let mut chain_id = [0u8; 32];
-        chain_id[24..].copy_from_slice(&message.chain_id.to_be_bytes());
-
-        Self {
-            chain_id,
-            block_number: message.block_number,
-            timestamp: message.timestamp,
-            log_index: message.log_index,
-            checksum: message.hash,
         }
     }
 
