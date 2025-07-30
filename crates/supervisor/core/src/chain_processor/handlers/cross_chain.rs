@@ -132,7 +132,8 @@ mod tests {
     use crate::{
         event::ChainEvent,
         syncnode::{
-            AuthenticationError, BlockProvider, ClientError, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber
+            AuthenticationError, BlockProvider, ClientError, ManagedNodeController,
+            ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber,
         },
     };
     use alloy_primitives::B256;
@@ -228,24 +229,25 @@ mod tests {
     }
 
     #[tokio::test]
-async fn test_handle_cross_unsafe_update_error() {
-    let mut mocknode = MockNode::new();
-    let mut state = ProcessorState::new();
+    async fn test_handle_cross_unsafe_update_error() {
+        let mut mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
 
-    let block = BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let block =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
-    mocknode.expect_update_cross_unsafe().returning(move |_cross_unsafe_block| {
-        Err(ManagedNodeError::ClientError(ClientError::Authentication(
-            AuthenticationError::InvalidJwt
-        )))
-    });
+        mocknode.expect_update_cross_unsafe().returning(move |_cross_unsafe_block| {
+            Err(ManagedNodeError::ClientError(ClientError::Authentication(
+                AuthenticationError::InvalidJwt,
+            )))
+        });
 
-    let managed_node = Arc::new(mocknode);
+        let managed_node = Arc::new(mocknode);
 
-    let handle = CrossUnsafeHandler::new(1, managed_node);
-    let result = handle.handle(block, &mut state).await;
-    assert!(result.is_err());
-}
+        let handle = CrossUnsafeHandler::new(1, managed_node);
+        let result = handle.handle(block, &mut state).await;
+        assert!(result.is_err());
+    }
 
     #[tokio::test]
     async fn test_handle_cross_safe_update_triggers() {
@@ -274,23 +276,25 @@ async fn test_handle_cross_unsafe_update_error() {
     }
 
     #[tokio::test]
-async fn test_handle_cross_safe_update_error() {
-    let mut mocknode = MockNode::new();
-    let mut state = ProcessorState::new();
+    async fn test_handle_cross_safe_update_error() {
+        let mut mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
 
-    let derived = BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
-    let source = BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let derived =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let source =
+            BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
-    mocknode.expect_update_cross_safe().returning(move |_source_id, _derived_id| {
-        Err(ManagedNodeError::ClientError(ClientError::Authentication(
-            AuthenticationError::InvalidJwt
-        )))
-    });
+        mocknode.expect_update_cross_safe().returning(move |_source_id, _derived_id| {
+            Err(ManagedNodeError::ClientError(ClientError::Authentication(
+                AuthenticationError::InvalidJwt,
+            )))
+        });
 
-    let managed_node = Arc::new(mocknode);
+        let managed_node = Arc::new(mocknode);
 
-    let handle = CrossSafeHandler::new(1, managed_node);
-    let result = handle.handle(DerivedRefPair { source, derived }, &mut state).await;
-    assert!(result.is_err());
-}
+        let handle = CrossSafeHandler::new(1, managed_node);
+        let result = handle.handle(DerivedRefPair { source, derived }, &mut state).await;
+        assert!(result.is_err());
+    }
 }
