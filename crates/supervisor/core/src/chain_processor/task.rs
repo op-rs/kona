@@ -50,41 +50,40 @@ where
         validator: Arc<V>,
         chain_id: ChainId,
         managed_node: Arc<P>,
-        state_manager: Arc<W>,
+        db_provider: Arc<W>,
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
         let log_indexer =
-            Arc::new(LogIndexer::new(chain_id, managed_node.clone(), state_manager.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(chain_id, state_manager.clone()));
+            Arc::new(LogIndexer::new(chain_id, managed_node.clone(), db_provider.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(chain_id, db_provider.clone()));
 
         let unsafe_handler = UnsafeBlockHandler::new(
             chain_id,
             validator.clone(),
-            state_manager.clone(),
+            db_provider.clone(),
             log_indexer.clone(),
         );
 
         let safe_handler = SafeBlockHandler::new(
             chain_id,
             managed_node.clone(),
-            state_manager.clone(),
+            db_provider.clone(),
             validator,
             log_indexer.clone(),
             rewinder,
         );
 
         let origin_handler =
-            OriginHandler::new(chain_id, managed_node.clone(), state_manager.clone());
+            OriginHandler::new(chain_id, managed_node.clone(), db_provider.clone());
 
         let invalidation_handler =
-            InvalidationHandler::new(chain_id, managed_node.clone(), state_manager.clone());
+            InvalidationHandler::new(chain_id, managed_node.clone(), db_provider.clone());
 
         let replacement_handler =
-            ReplacementHandler::new(chain_id, log_indexer, state_manager.clone());
+            ReplacementHandler::new(chain_id, log_indexer, db_provider.clone());
 
-        let finalized_handler =
-            FinalizedHandler::new(chain_id, managed_node.clone(), state_manager);
+        let finalized_handler = FinalizedHandler::new(chain_id, managed_node.clone(), db_provider);
 
         let cross_unsafe_handler = CrossUnsafeHandler::new(chain_id, managed_node.clone());
         let cross_safe_handler = CrossSafeHandler::new(chain_id, managed_node);

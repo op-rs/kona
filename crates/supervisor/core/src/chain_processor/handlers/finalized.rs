@@ -16,7 +16,7 @@ use tracing::{debug, warn};
 pub struct FinalizedHandler<P, W> {
     chain_id: ChainId,
     managed_node: Arc<P>,
-    state_manager: Arc<W>,
+    db_provider: Arc<W>,
 }
 
 #[async_trait]
@@ -59,7 +59,7 @@ where
         finalized_source_block: BlockInfo,
     ) -> Result<(), ChainProcessorError> {
         let finalized_derived_block = self
-            .state_manager
+            .db_provider
             .update_finalized_using_source(finalized_source_block)
             .inspect_err(|err| {
                 warn!(

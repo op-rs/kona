@@ -9,14 +9,14 @@ use derive_more::Constructor;
 use kona_interop::{DerivedRefPair, InteropValidator};
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
 use std::sync::Arc;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, trace, warn};
 
 /// Handler for safe blocks.
 #[derive(Debug, Constructor)]
 pub struct SafeBlockHandler<P, W, V> {
     chain_id: ChainId,
     managed_node: Arc<P>,
-    state_manager: Arc<W>,
+    db_provider: Arc<W>,
     validator: Arc<V>,
     log_indexer: Arc<LogIndexer<P, W>>,
     rewinder: Arc<ChainRewinder<W>>,
@@ -86,7 +86,16 @@ where
                 "Initialising derivation storage for interop activation block"
             );
 
-            self.state_manager.initialise_derivation_storage(derived_ref_pair)?;
+            self.db_provider.initialise_derivation_storage(derived_ref_pair).inspect_err(
+                |err| {
+                    error!(
+                        target: "chain_processor",
+                        chain_id = self.chain_id,
+                        %err,
+                        "Failed to initialise derivation storage for interop activation block"
+                    );
+                },
+            )?;
             return Ok(());
         }
 
@@ -104,7 +113,7 @@ where
             "Processing safe derived block"
         );
 
-        match self.state_manager.save_derived_block(derived_ref_pair) {
+        match self.db_provider.save_derived_block(derived_ref_pair) {
             Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder) => {
                 debug!(
@@ -115,7 +124,7 @@ where
                 );
 
                 if let Err(err) = self.managed_node.reset().await {
-                    error!(
+                    warn!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
                         %err,
@@ -126,7 +135,7 @@ where
                 Ok(())
             }
             Err(StorageError::ReorgRequired) => {
-                trace!(
+                debug!(
                     target: "chain_processor",
                     chain = self.chain_id,
                     derived_block = %derived_ref_pair.derived,
@@ -183,7 +192,7 @@ where
             },
         )?;
 
-        self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+        self.db_provider.save_derived_block(derived_ref_pair).inspect_err(|err| {
             error!(
                 target: "chain_processor",
                 chain_id = self.chain_id,

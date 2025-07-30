@@ -6,14 +6,14 @@ use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, StorageError};
 use std::sync::Arc;
-use tracing::{debug, error, trace};
+use tracing::{debug, error, trace, warn};
 
 /// Handler for origin updates in the chain.
 #[derive(Debug, Constructor)]
 pub struct OriginHandler<P, W> {
     chain_id: ChainId,
     managed_node: Arc<P>,
-    state_manager: Arc<W>,
+    db_provider: Arc<W>,
 }
 
 #[async_trait]
@@ -44,7 +44,7 @@ where
             return Ok(());
         }
 
-        match self.state_manager.save_source_block(origin) {
+        match self.db_provider.save_source_block(origin) {
             Ok(()) => Ok(()),
             Err(StorageError::BlockOutOfOrder | StorageError::ConflictError) => {
                 debug!(
@@ -55,7 +55,7 @@ where
                 );
 
                 if let Err(err) = self.managed_node.reset().await {
-                    error!(
+                    warn!(
                         target: "chain_processor",
                         chain_id = self.chain_id,
                         %origin,

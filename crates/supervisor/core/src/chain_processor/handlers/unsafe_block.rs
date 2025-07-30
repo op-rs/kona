@@ -10,7 +10,7 @@ use kona_interop::InteropValidator;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::LogStorage;
 use std::sync::Arc;
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, trace};
 
 /// Handler for unsafe blocks.
 /// This handler processes unsafe blocks by syncing logs and initializing log storage.
@@ -18,7 +18,7 @@ use tracing::{debug, trace, warn};
 pub struct UnsafeBlockHandler<P, W, V> {
     chain_id: ChainId,
     validator: Arc<V>,
-    state_manager: Arc<W>,
+    db_provider: Arc<W>,
     log_indexer: Arc<LogIndexer<P, W>>,
 }
 
@@ -83,8 +83,8 @@ where
                 "Initialising log storage for interop activation block"
             );
 
-            self.state_manager.initialise_log_storage(block).inspect_err(|err| {
-                warn!(
+            self.db_provider.initialise_log_storage(block).inspect_err(|err| {
+                error!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
                     %block,

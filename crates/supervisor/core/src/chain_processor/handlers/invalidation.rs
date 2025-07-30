@@ -8,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageRewinder};
 use kona_supervisor_types::BlockSeal;
 use std::sync::Arc;
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 /// Handler for block invalidation events.
 /// This handler processes block invalidation by rewinding the state and updating the managed node.
@@ -16,7 +16,7 @@ use tracing::{debug, trace, warn};
 pub struct InvalidationHandler<P, W> {
     chain_id: ChainId,
     managed_node: Arc<P>,
-    state_manager: Arc<W>,
+    db_provider: Arc<W>,
 }
 
 #[async_trait]
@@ -47,7 +47,7 @@ where
             return Ok(());
         }
 
-        let source_block = self.state_manager.derived_to_source(block.id()).inspect_err(|err| {
+        let source_block = self.db_provider.derived_to_source(block.id()).inspect_err(|err| {
             warn!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
@@ -57,7 +57,7 @@ where
             );
         })?;
 
-        self.state_manager.rewind(&block.id()).inspect_err(|err| {
+        self.db_provider.rewind(&block.id()).inspect_err(|err| {
             warn!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
@@ -165,7 +165,7 @@ where
 
         self.log_indexer.process_and_store_logs(&derived_ref_pair.derived).await.inspect_err(
             |err| {
-                warn!(
+                error!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
                     %derived_ref_pair,
@@ -176,7 +176,7 @@ where
         )?;
 
         self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
-            warn!(
+            error!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 %derived_ref_pair,
