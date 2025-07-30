@@ -13,7 +13,7 @@ use kona_supervisor_storage::{
 use std::{fmt::Debug, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
+use tracing::{debug, info};
 
 /// Represents a task that processes chain events from a managed node.
 /// It listens for events emitted by the managed node and handles them accordingly.
@@ -138,35 +138,35 @@ where
     }
 
     async fn handle_event(&mut self, event: ChainEvent) {
-        use ChainEvent::*;
-
         let result = match event {
-            UnsafeBlock { block } => self.unsafe_handler.handle(block, &mut self.state).await,
-            DerivedBlock { derived_ref_pair } => {
+            ChainEvent::UnsafeBlock { block } => {
+                self.unsafe_handler.handle(block, &mut self.state).await
+            }
+            ChainEvent::DerivedBlock { derived_ref_pair } => {
                 self.safe_handler.handle(derived_ref_pair, &mut self.state).await
             }
-            DerivationOriginUpdate { origin } => {
+            ChainEvent::DerivationOriginUpdate { origin } => {
                 self.origin_handler.handle(origin, &mut self.state).await
             }
-            InvalidateBlock { block } => {
+            ChainEvent::InvalidateBlock { block } => {
                 self.invalidation_handler.handle(block, &mut self.state).await
             }
-            BlockReplaced { replacement } => {
+            ChainEvent::BlockReplaced { replacement } => {
                 self.replacement_handler.handle(replacement, &mut self.state).await
             }
-            FinalizedSourceUpdate { finalized_source_block } => {
+            ChainEvent::FinalizedSourceUpdate { finalized_source_block } => {
                 self.finalized_handler.handle(finalized_source_block, &mut self.state).await
             }
-            CrossUnsafeUpdate { block } => {
+            ChainEvent::CrossUnsafeUpdate { block } => {
                 self.cross_unsafe_handler.handle(block, &mut self.state).await
             }
-            CrossSafeUpdate { derived_ref_pair } => {
+            ChainEvent::CrossSafeUpdate { derived_ref_pair } => {
                 self.cross_safe_handler.handle(derived_ref_pair, &mut self.state).await
             }
         };
 
         if let Err(err) = result {
-            error!(
+            debug!(
                 target: "chain_processor",
                 chain_id = self.chain_id,
                 %err,
