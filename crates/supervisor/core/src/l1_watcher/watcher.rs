@@ -17,7 +17,7 @@ use crate::ReorgHandler;
 #[derive(Debug)]
 pub struct L1Watcher<F, DB> {
     /// The Alloy RPC client for L1.
-    rpc_client: Arc<RpcClient>,
+    rpc_client: RpcClient,
     /// The cancellation token, shared between all tasks.
     cancellation: CancellationToken,
     /// The finalized L1 block storage.
@@ -35,7 +35,7 @@ where
 {
     /// Creates a new [`L1Watcher`] instance.
     pub const fn new(
-        rpc_client: Arc<RpcClient>,
+        rpc_client: RpcClient,
         finalized_l1_storage: Arc<F>,
         event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
         cancellation: CancellationToken,
@@ -234,16 +234,16 @@ mod tests {
         }
     );
 
-    fn temp_rpc_client() -> Arc<RpcClient> {
+    fn mock_rpc_client() -> RpcClient {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter);
         let rpc_client = RpcClient::new(transport, false);
-        Arc::new(rpc_client)
+        rpc_client
     }
 
-    fn temp_reorg_handler() -> ReorgHandler<ChainDb> {
+    fn mock_reorg_handler() -> ReorgHandler<ChainDb> {
         let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = HashMap::new();
-        ReorgHandler::new(temp_rpc_client(), chain_dbs_map)
+        ReorgHandler::new(mock_rpc_client(), chain_dbs_map)
     }
 
     #[tokio::test]
@@ -256,11 +256,11 @@ mod tests {
         event_txs.insert(2, tx2);
 
         let watcher = L1Watcher {
-            rpc_client: temp_rpc_client(),
+            rpc_client: mock_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
             event_txs,
-            reorg_handler: temp_reorg_handler(),
+            reorg_handler: mock_reorg_handler(),
         };
 
         let block = BlockInfo::new(B256::ZERO, 42, B256::ZERO, 12345);
@@ -283,11 +283,11 @@ mod tests {
         mock_storage.expect_update_finalized_l1().returning(|_block| Ok(()));
 
         let watcher = L1Watcher {
-            rpc_client: temp_rpc_client(),
+            rpc_client: mock_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(mock_storage),
             event_txs,
-            reorg_handler: temp_reorg_handler(),
+            reorg_handler: mock_reorg_handler(),
         };
 
         let block = Block {
@@ -332,11 +332,11 @@ mod tests {
             .returning(|_block| Err(StorageError::DatabaseNotInitialised));
 
         let watcher = L1Watcher {
-            rpc_client: temp_rpc_client(),
+            rpc_client: mock_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(mock_storage),
             event_txs,
-            reorg_handler: temp_reorg_handler(),
+            reorg_handler: mock_reorg_handler(),
         };
 
         let block = Block {
@@ -365,11 +365,11 @@ mod tests {
         let event_txs = [(1, tx)].into_iter().collect();
 
         let watcher = L1Watcher {
-            rpc_client: temp_rpc_client(),
+            rpc_client: mock_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
             event_txs,
-            reorg_handler: temp_reorg_handler(),
+            reorg_handler: mock_reorg_handler(),
         };
 
         let block = Block {
@@ -398,11 +398,11 @@ mod tests {
         let event_txs = [(1, tx)].into_iter().collect();
 
         let watcher = L1Watcher {
-            rpc_client: temp_rpc_client(),
+            rpc_client: mock_rpc_client(),
             cancellation: CancellationToken::new(),
             finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
             event_txs,
-            reorg_handler: temp_reorg_handler(),
+            reorg_handler: mock_reorg_handler(),
         };
 
         let block = Block {

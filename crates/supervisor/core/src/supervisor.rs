@@ -273,7 +273,7 @@ impl Supervisor {
     }
 
     fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
-        let l1_rpc = Arc::new(RpcClient::new_http(self.config.l1_rpc.parse().unwrap()));
+        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
 
         let mut senders = HashMap::<ChainId, mpsc::Sender<ChainEvent>>::new();
         for (chain_id, chain_processor) in &self.chain_processors {

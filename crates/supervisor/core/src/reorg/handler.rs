@@ -13,7 +13,7 @@ use tracing::{debug, info, trace, warn};
 #[derive(Debug, Constructor)]
 pub struct ReorgHandler<DB> {
     /// The Alloy RPC client for L1.
-    rpc_client: Arc<RpcClient>,
+    rpc_client: RpcClient,
     /// Per chain dbs.
     chain_dbs: HashMap<ChainId, Arc<DB>>,
 }
@@ -244,7 +244,7 @@ mod tests {
 
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
-        let rpc_client = Arc::new(RpcClient::new(transport, false));
+        let rpc_client = RpcClient::new(transport, false);
         // Mock RPC response
         asserter.push_success(&latest_source);
 
@@ -370,7 +370,7 @@ mod tests {
 
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
-        let rpc_client = Arc::new(RpcClient::new(transport, false));
+        let rpc_client = RpcClient::new(transport, false);
 
         // First return the reorged block
         asserter.push_success(&reorg_source);
@@ -428,7 +428,6 @@ mod tests {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter.clone());
         let rpc_client = RpcClient::new(transport, false);
-        let rpc_client = Arc::new(rpc_client);
         asserter.push_success(&canonical_block);
         asserter.push_success(&non_canonical_block);
 
