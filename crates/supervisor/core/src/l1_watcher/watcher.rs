@@ -5,7 +5,7 @@ use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::FinalizedL1Storage;
+use kona_supervisor_storage::{DbReader, FinalizedL1Storage, StorageRewinder};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -15,7 +15,7 @@ use crate::ReorgHandler;
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
-pub struct L1Watcher<F> {
+pub struct L1Watcher<F, DB> {
     /// The Alloy RPC client for L1.
     rpc_client: Arc<RpcClient>,
     /// The cancellation token, shared between all tasks.
@@ -25,12 +25,13 @@ pub struct L1Watcher<F> {
     /// The event senders for each chain.
     event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
     /// The reorg handler.
-    reorg_handler: ReorgHandler,
+    reorg_handler: ReorgHandler<DB>,
 }
 
-impl<F> L1Watcher<F>
+impl<F, DB> L1Watcher<F, DB>
 where
     F: FinalizedL1Storage + 'static,
+    DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
     /// Creates a new [`L1Watcher`] instance.
     pub const fn new(
@@ -38,7 +39,7 @@ where
         finalized_l1_storage: Arc<F>,
         event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
         cancellation: CancellationToken,
-        reorg_handler: ReorgHandler,
+        reorg_handler: ReorgHandler<DB>,
     ) -> Self {
         Self { rpc_client, finalized_l1_storage, event_txs, cancellation, reorg_handler }
     }
@@ -211,13 +212,27 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ReorgHandler;
+    use crate::SupervisorError;
     use alloy_primitives::B256;
     use alloy_transport::mock::*;
     use kona_supervisor_storage::{ChainDb, FinalizedL1Storage, StorageError};
-    use mockall::{mock, predicate::*};
+    use mockall::{mock, predicate};
     use std::sync::Arc;
     use tokio::sync::mpsc;
+    // Mock the FinalizedL1Storage trait
+    mock! (
+        pub finalized_l1_storage {}
+        impl FinalizedL1Storage for finalized_l1_storage {
+            fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
+            fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
+        }
+    );
+
+    mock! (
+        pub ReorgHandler {
+            fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), SupervisorError>;
+        }
+    );
 
     fn temp_rpc_client() -> Arc<RpcClient> {
         let asserter = Asserter::new();
@@ -226,18 +241,9 @@ mod tests {
         Arc::new(rpc_client)
     }
 
-    fn temp_reorg_handler() -> ReorgHandler {
+    fn temp_reorg_handler() -> ReorgHandler<ChainDb> {
         let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = HashMap::new();
         ReorgHandler::new(temp_rpc_client(), chain_dbs_map)
-    }
-
-    // Mock the FinalizedL1Storage trait
-    mock! {
-        pub finalized_l1_storage {}
-        impl FinalizedL1Storage for finalized_l1_storage {
-            fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
-            fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
-        }
     }
 
     #[tokio::test]
@@ -382,6 +388,68 @@ mod tests {
         let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
         watcher.handle_new_latest_block(block, &mut last_latest_number).await;
         assert_eq!(last_latest_number.number, 1);
+        // Should NOT send any event for latest block
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_trigger_reorg_handler() {
+        let (tx, mut rx) = mpsc::channel(1);
+        let event_txs = [(1, tx)].into_iter().collect();
+
+        let watcher = L1Watcher {
+            rpc_client: temp_rpc_client(),
+            cancellation: CancellationToken::new(),
+            finalized_l1_storage: Arc::new(Mockfinalized_l1_storage::new()),
+            event_txs,
+            reorg_handler: temp_reorg_handler(),
+        };
+
+        let block = Block {
+            header: Header {
+                hash: B256::ZERO,
+                inner: alloy_consensus::Header {
+                    number: 101,
+                    parent_hash: B256::ZERO,
+                    timestamp: 123456,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut last_latest_number = BlockNumHash { number: 100, hash: B256::ZERO };
+        watcher.handle_new_latest_block(block, &mut last_latest_number).await;
+        assert_eq!(last_latest_number.number, 101);
+
+        // Send previous block as latest block
+        let reorg_block = Block {
+            header: Header {
+                hash: B256::ZERO,
+                inner: alloy_consensus::Header {
+                    number: 105,
+                    parent_hash: B256::from([1u8; 32]),
+                    timestamp: 123456,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let reorg_block_info = BlockInfo::new(
+            reorg_block.header.hash,
+            reorg_block.header.number,
+            reorg_block.header.parent_hash,
+            reorg_block.header.timestamp,
+        );
+        let mut mock_reorg_handler = MockReorgHandler::new();
+        mock_reorg_handler
+            .expect_handle_l1_reorg()
+            .with(predicate::eq(reorg_block_info))
+            .returning(|_| Ok(()));
+
+        watcher.handle_new_latest_block(reorg_block, &mut last_latest_number).await;
+        assert_eq!(last_latest_number.number, 105);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
     }

@@ -443,3 +443,11 @@ pub trait StorageRewinder {
     /// Returns a [`StorageError`] if any part of the rewind process fails.
     fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
 }
+
+/// Combines the reader traits for the database.
+///
+/// Any type that implements [`DerivationStorageReader`], [`HeadRefStorageReader`], and
+/// [`LogStorageReader`] automatically implements this trait.
+pub trait DbReader: DerivationStorageReader + HeadRefStorageReader + LogStorageReader {}
+
+impl<T: DerivationStorageReader + HeadRefStorageReader + LogStorageReader> DbReader for T {}
