@@ -84,8 +84,6 @@ pub struct EngineBuilder {
     pub config: Arc<RollupConfig>,
     /// The engine rpc url.
     pub engine_url: Url,
-    /// The L2 rpc url.
-    pub l2_rpc_url: Url,
     /// The L1 rpc url.
     pub l1_rpc_url: Url,
     /// The engine jwt secret.

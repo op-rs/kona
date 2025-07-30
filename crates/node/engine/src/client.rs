@@ -66,12 +66,11 @@ type HyperAuthClient<B = Full<Bytes>> = HyperClient<B, AuthService<Client<HttpCo
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let engine_url = Url::parse("http://localhost:8551")?;
-/// let l2_url = Url::parse("http://localhost:9545")?;
 /// let l1_url = Url::parse("http://localhost:8545")?;
 /// let config = Arc::new(RollupConfig::default());
 /// let jwt = JwtSecret::from_hex("0xabcd")?;
 ///
-/// let client = EngineClient::new_http(engine_url, l2_url, l1_url, config, jwt);
+/// let client = EngineClient::new_http(engine_url, l1_url, config, jwt);
 /// # Ok(())
 /// # }
 /// ```
