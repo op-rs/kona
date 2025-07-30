@@ -27,6 +27,9 @@ pub struct OverrideArgs {
     /// Manually specify the timestamp for the Isthmus fork, overriding the bundled setting.
     #[arg(long, env = "KONA_NODE_OVERRIDE_ISTHMUS")]
     pub isthmus_override: Option<u64>,
+    /// Manually specify the timestamp for the Jovian fork, overriding the bundled setting.
+    #[arg(long, env = "KONA_NODE_OVERRIDE_JOVIAN")]
+    pub jovian_override: Option<u64>,
     /// Manually specify the timestamp for the pectra blob schedule, overriding the bundled
     /// setting.
     #[arg(long, env = "KONA_NODE_OVERRIDE_PECTRA_BLOB_SCHEDULE")]
@@ -63,6 +66,7 @@ impl OverrideArgs {
                 .map(Some)
                 .unwrap_or(config.hardforks.pectra_blob_schedule_time),
             isthmus_time: self.isthmus_override.map(Some).unwrap_or(config.hardforks.isthmus_time),
+            jovian_time: self.jovian_override.map(Some).unwrap_or(config.hardforks.jovian_time),
             interop_time: self.interop_override.map(Some).unwrap_or(config.hardforks.interop_time),
         };
         RollupConfig { hardforks, ..config }
@@ -98,10 +102,12 @@ mod tests {
             "1723478400",
             "--holocene-override",
             "1732633200",
-            "--isthmus-override",
-            "1740000000",
             "--pectra-blob-schedule-override",
             "1745000000",
+            "--isthmus-override",
+            "1740000000",
+            "--jovian-override",
+            "1745000001",
             "--interop-override",
             "1750000000",
         ]);
@@ -119,6 +125,7 @@ mod tests {
                 holocene_time: Some(1732633200),
                 pectra_blob_schedule_time: Some(1745000000),
                 isthmus_time: Some(1740000000),
+                jovian_time: Some(1745000001),
                 interop_time: Some(1750000000),
             }
         );
@@ -149,8 +156,9 @@ mod tests {
                 fjord_override: None,
                 granite_override: None,
                 holocene_override: None,
-                isthmus_override: None,
                 pectra_blob_schedule_override: None,
+                isthmus_override: None,
+                jovian_override: None,
                 interop_override: None,
             }
         );

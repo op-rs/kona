@@ -82,18 +82,18 @@ where
         loop {
             tokio::select! {
                 _ = self.cancellation.cancelled() => {
-                    info!(target: "l1_watcher", "L1Watcher cancellation requested, stopping polling");
+                    info!(target: "supervisor::l1_watcher", "L1Watcher cancellation requested, stopping polling");
                     break;
                 }
                 latest_block = latest_head_stream.next() => {
                     if let Some(latest_block) = latest_block {
-                        info!(target: "l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
+                        info!(target: "supervisor::l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
                         self.handle_new_latest_block(latest_block, &mut previous_latest_block).await;
                     }
                 }
                 finalized_block = finalized_head_stream.next() => {
                     if let Some(finalized_block) = finalized_block {
-                        info!(target: "l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
+                        info!(target: "supervisor::l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
                         self.handle_new_finalized_block(finalized_block, &mut finalized_number);
                     }
                 }
@@ -115,13 +115,13 @@ where
         let finalized_source_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
         info!(
-            target: "l1_watcher",
+            target: "supervisor::l1_watcher",
             block_number = finalized_source_block.number,
             "New finalized L1 block received"
         );
 
         if let Err(err) = self.finalized_l1_storage.update_finalized_l1(finalized_source_block) {
-            error!(target: "l1_watcher", %err, "Failed to update finalized L1 block");
+            error!(target: "supervisor::l1_watcher", %err, "Failed to update finalized L1 block");
             return;
         }
 
@@ -136,7 +136,7 @@ where
                 sender.try_send(ChainEvent::FinalizedSourceUpdate { finalized_source_block })
             {
                 error!(
-                    target: "l1_watcher",
+                    target: "supervisor::l1_watcher",
                     chain_id = %chain_id,
                     %err, "Failed to send finalized L1 update event",
                 );
@@ -154,7 +154,7 @@ where
         // Early exit if the incoming block is not newer than the previous block
         if incoming_block_number <= previous_block.number {
             info!(
-                target: "l1_watcher",
+                target: "supervisor::l1_watcher",
                 incoming_block_number,
                 previous_block_number = previous_block.number,
                 "Incoming latest L1 block is not greater than the stored latest block"
@@ -179,7 +179,7 @@ where
         // Early exit: check if no reorg is needed (sequential block)
         if latest_block.parent_hash == previous_block.hash {
             trace!(
-                target: "l1_watcher",
+                target: "supervisor::l1_watcher",
                 block_number = latest_block.number,
                 "Sequential block received, no reorg needed"
             );
@@ -190,14 +190,14 @@ where
         match self.reorg_handler.handle_l1_reorg(latest_block).await {
             Ok(()) => {
                 info!(
-                    target: "l1_watcher",
+                    target: "supervisor::l1_watcher",
                     block_number = latest_block.number,
                     "Successfully processed L1 reorg"
                 );
             }
             Err(err) => {
                 error!(
-                    target: "l1_watcher",
+                    target: "supervisor::l1_watcher",
                     block_number = latest_block.number,
                     %err,
                     "Failed to handle L1 reorg"

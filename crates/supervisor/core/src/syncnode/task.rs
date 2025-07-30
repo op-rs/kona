@@ -48,18 +48,18 @@ where
 
         let mut subscription = self.client.subscribe_events().await.inspect_err(|err| {
             error!(
-                target: "managed_event_task",
+                target: "supervisor::managed_event_task",
                 %chain_id,
                 %err,
                 "Failed to subscribe to events"
             );
         })?;
 
-        info!(target: "managed_event_task", %chain_id, "Subscription task started");
+        info!(target: "supervisor::managed_event_task", %chain_id, "Subscription task started");
         loop {
             tokio::select! {
                 _ = self.cancel_token.cancelled() => {
-                    info!(target: "managed_event_task", %chain_id, "Cancellation token triggered, shutting down subscription");
+                    info!(target: "supervisor::managed_event_task", %chain_id, "Cancellation token triggered, shutting down subscription");
                     break;
                 }
                 incoming_event = subscription.next() => {
@@ -69,14 +69,14 @@ where
                         }
                         Some(Err(err)) => {
                             error!(
-                                target: "managed_event_task",
+                                target: "supervisor::managed_event_task",
                                 %chain_id,
                                 %err,
                                 "Error in event deserialization"
                             );
                         }
                         None => {
-                            warn!(target: "managed_event_task", %chain_id, "Subscription closed by server");
+                            warn!(target: "supervisor::managed_event_task", %chain_id, "Subscription closed by server");
                             self.client.reset_ws_client().await;
                             break;
                         }
@@ -87,14 +87,14 @@ where
 
         if let Err(err) = subscription.unsubscribe().await {
             warn!(
-                target: "managed_event_task",
+                target: "supervisor::managed_event_task",
                 %chain_id,
                 %err,
                 "Failed to unsubscribe gracefully"
             );
         }
 
-        info!(target: "managed_event_task", %chain_id, "Subscription task finished");
+        info!(target: "supervisor::managed_event_task", %chain_id, "Subscription task finished");
         Ok(())
     }
 
@@ -109,51 +109,51 @@ where
     ) {
         match incoming_event {
             Some(event) => {
-                debug!(target: "managed_event_task", %chain_id, %event, "Handling ManagedEvent");
+                debug!(target: "supervisor::managed_event_task", %chain_id, %event, "Handling ManagedEvent");
 
                 // Process each field of the event if it's present
                 if let Some(reset_id) = &event.reset {
-                    info!(target: "managed_event_task", %chain_id, %reset_id, "Reset event received");
+                    info!(target: "supervisor::managed_event_task", %chain_id, %reset_id, "Reset event received");
                     if let Err(err) = self.resetter.reset().await {
-                        error!(target: "managed_event_task", %chain_id, %err, "Failed to reset node");
+                        error!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to reset node");
                     }
                 }
 
                 if let Some(unsafe_block) = &event.unsafe_block {
-                    info!(target: "managed_event_task", %chain_id, %unsafe_block, "Unsafe block event received");
+                    info!(target: "supervisor::managed_event_task", %chain_id, %unsafe_block, "Unsafe block event received");
 
                     // todo: check any pre processing needed
                     if let Err(err) =
                         self.event_tx.send(ChainEvent::UnsafeBlock { block: *unsafe_block }).await
                     {
-                        warn!(target: "managed_event_task", %chain_id, %err, "Failed to send unsafe block event, channel closed or receiver dropped");
+                        warn!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to send unsafe block event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(derived_ref_pair) = &event.derivation_update {
                     if event.derivation_origin_update.is_none() {
-                        info!(target: "managed_event_task", %chain_id, %event, "Derivation update received without origin update");
+                        info!(target: "supervisor::managed_event_task", %chain_id, %event, "Derivation update received without origin update");
 
                         if let Err(err) = self
                             .event_tx
                             .send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair })
                             .await
                         {
-                            warn!(target: "managed_event_task", %chain_id, %err, "Failed to derivation update event, channel closed or receiver dropped");
+                            warn!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to derivation update event, channel closed or receiver dropped");
                         }
                     }
                 }
 
                 if let Some(derived_ref_pair) = &event.exhaust_l1 {
-                    info!(target: "managed_event_task", %chain_id, %derived_ref_pair, "L1 exhausted event received");
+                    info!(target: "supervisor::managed_event_task", %chain_id, %derived_ref_pair, "L1 exhausted event received");
 
                     if let Err(err) = self.handle_exhaust_l1(chain_id, derived_ref_pair).await {
-                        error!(target: "managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
+                        error!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
                     }
                 }
 
                 if let Some(replacement) = &event.replace_block {
-                    info!(target: "managed_event_task", %chain_id, %replacement, "Block replacement received");
+                    info!(target: "supervisor::managed_event_task", %chain_id, %replacement, "Block replacement received");
 
                     // todo: check any pre processing needed
                     if let Err(err) = self
@@ -161,19 +161,19 @@ where
                         .send(ChainEvent::BlockReplaced { replacement: *replacement })
                         .await
                     {
-                        warn!(target: "managed_event_task", %chain_id, %err, "Failed to send block replacement event, channel closed or receiver dropped");
+                        warn!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to send block replacement event, channel closed or receiver dropped");
                     }
                 }
 
                 if let Some(origin) = &event.derivation_origin_update {
-                    info!(target: "managed_event_task", %chain_id, %origin, "Derivation origin update received");
+                    info!(target: "supervisor::managed_event_task", %chain_id, %origin, "Derivation origin update received");
 
                     if let Err(err) = self
                         .event_tx
                         .send(ChainEvent::DerivationOriginUpdate { origin: *origin })
                         .await
                     {
-                        warn!(target: "managed_event_task", %chain_id, %err, "Failed to send derivation origin update event, channel closed or receiver dropped");
+                        warn!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to send derivation origin update event, channel closed or receiver dropped");
                     }
                 }
 
@@ -185,12 +185,12 @@ where
                     event.replace_block.is_none() &&
                     event.derivation_origin_update.is_none()
                 {
-                    debug!(target: "managed_event_task", %chain_id, "Received empty event with all fields None");
+                    debug!(target: "supervisor::managed_event_task", %chain_id, "Received empty event with all fields None");
                 }
             }
             None => {
                 warn!(
-                    target: "managed_event_task",
+                    target: "supervisor::managed_event_task",
                     %chain_id,
                     "Received None event, possibly an empty notification or an issue with deserialization."
                 );
@@ -211,7 +211,7 @@ where
             .get_block_by_number(BlockNumberOrTag::Number(next_block_number))
             .await
             .map_err(|err| {
-                error!(target: "managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
+                error!(target: "supervisor::managed_event_task", %chain_id, %err, "Failed to fetch next L1 block");
                 ManagedEventTaskError::GetBlockByNumberFailed(next_block_number)
             })?;
 
@@ -227,7 +227,7 @@ where
         if block.header.parent_hash != derived_ref_pair.source.hash {
             // this could happen due to a reorg.
             // this case should be handled by the reorg manager
-            error!(target: "managed_event_task", %chain_id, "L1 Block parent hash mismatch");
+            error!(target: "supervisor::managed_event_task", %chain_id, "L1 Block parent hash mismatch");
             Err(ManagedEventTaskError::BlockHashMismatch {
                 current: derived_ref_pair.source.hash,
                 parent: block.header.parent_hash,
@@ -242,11 +242,11 @@ where
         };
 
         if let Err(err) = self.client.provide_l1(block_info).await {
-            error!(target: "managed_event_task", %chain_id, %err, "Error sending provide_l1 to managed node");
+            error!(target: "supervisor::managed_event_task", %chain_id, %err, "Error sending provide_l1 to managed node");
             Err(ManagedEventTaskError::ManagedNodeAPICallFailed)?
         }
 
-        info!(target: "managed_event_task", %chain_id, "Sent next L1 block to managed node using provide_l1");
+        info!(target: "supervisor::managed_event_task", %chain_id, "Sent next L1 block to managed node using provide_l1");
         Ok(())
     }
 }
