@@ -28,7 +28,7 @@ where
     async fn handle(
         &self,
         block: BlockInfo,
-        state: Arc<ProcessorState>,
+        state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -101,7 +101,7 @@ where
     async fn handle(
         &self,
         replacement: BlockReplacement,
-        state: Arc<ProcessorState>,
+        state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -328,7 +328,7 @@ mod tests {
     async fn test_handle_invalidate_block_already_set_skips() {
         let mockdb = MockDb::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
 
@@ -344,7 +344,7 @@ mod tests {
 
         state.set_invalidated(DerivedRefPair { source: block, derived: block }).await;
 
-        let result = handler.handle(block, state.clone()).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -352,7 +352,7 @@ mod tests {
     async fn test_handle_invalidate_block_derived_to_source_error() {
         let mut mockdb = MockDb::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
 
@@ -367,7 +367,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(block, state.clone()).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(matches!(result, Err(ChainProcessorError::StorageError(StorageError::FutureData))));
 
         // make sure invalidated_block is not set
@@ -378,7 +378,7 @@ mod tests {
     async fn test_handle_invalidate_block_rewind_error() {
         let mut mockdb = MockDb::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
 
@@ -394,7 +394,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(block, state.clone()).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(matches!(
             result,
             Err(ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised))
@@ -408,7 +408,7 @@ mod tests {
     async fn test_handle_invalidate_block_managed_node_error() {
         let mut mockdb = MockDb::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
 
@@ -429,7 +429,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(block, state.clone()).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(matches!(result, Err(ChainProcessorError::ManagedNode(_))));
 
         // make sure invalidated_block is not set
@@ -440,7 +440,7 @@ mod tests {
     async fn test_handle_invalidate_block_success_sets_invalidated() {
         let mut mockdb = MockDb::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let derived_block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
         let source_block = BlockInfo::new(B256::from([2u8; 32]), 41, B256::ZERO, 12344);
@@ -458,7 +458,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(derived_block, state.clone()).await;
+        let result = handler.handle(derived_block, &mut state).await;
         assert!(result.is_ok());
 
         // make sure invalidated_block is set
@@ -471,7 +471,7 @@ mod tests {
     async fn test_handle_block_replacement_no_invalidated_block() {
         let mockdb = MockDb::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let replacement = BlockReplacement {
             invalidated: B256::from([1u8; 32]),
@@ -489,7 +489,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(replacement, state).await;
+        let result = handler.handle(replacement, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -497,7 +497,7 @@ mod tests {
     async fn test_handle_block_replacement_invalidated_hash_mismatch() {
         let mockdb = MockDb::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let invalidated_block = BlockInfo::new(B256::from([3u8; 32]), 42, B256::ZERO, 12345);
         let replacement = BlockReplacement {
@@ -523,7 +523,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(replacement, state.clone()).await;
+        let result = handler.handle(replacement, &mut state).await;
         assert!(result.is_ok());
 
         // invalidated_block should remain set
@@ -535,7 +535,7 @@ mod tests {
     async fn test_handle_block_replacement_success() {
         let mut mockdb = MockDb::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let source_block = BlockInfo::new(B256::from([1u8; 32]), 45, B256::ZERO, 12345);
         let invalidated_block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
@@ -570,7 +570,7 @@ mod tests {
                     invalidated: invalidated_block.hash,
                     replacement: replacement_block,
                 },
-                state.clone(),
+                &mut state,
             )
             .await;
         assert!(result.is_ok());

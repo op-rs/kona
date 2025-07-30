@@ -25,7 +25,7 @@ where
     async fn handle(
         &self,
         origin: BlockInfo,
-        state: Arc<ProcessorState>,
+        state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -185,7 +185,7 @@ mod tests {
     async fn test_handle_derivation_origin_update_triggers() {
         let mut mockdb = MockDb::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let origin =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
@@ -205,7 +205,7 @@ mod tests {
             writer,
         );
 
-        let result = handler.handle(origin, state).await;
+        let result = handler.handle(origin, &mut state).await;
         assert!(result.is_ok());
     }
 }

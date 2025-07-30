@@ -28,7 +28,7 @@ where
     async fn handle(
         &self,
         finalized_source_block: BlockInfo,
-        _state: Arc<ProcessorState>,
+        _state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -192,7 +192,7 @@ mod tests {
     async fn test_handle_finalized_source_update_triggers() {
         let mut mocknode = MockNode::new();
         let mut mockdb = MockDb::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let finalized_source_block =
             BlockInfo { number: 99, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
@@ -222,7 +222,7 @@ mod tests {
             managed_node,
             writer,
         );
-        let result = handler.handle(finalized_source_block, state).await;
+        let result = handler.handle(finalized_source_block, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -230,7 +230,7 @@ mod tests {
     async fn test_handle_finalized_source_update_db_error() {
         let mut mocknode = MockNode::new();
         let mut mockdb = MockDb::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let finalized_source_block =
             BlockInfo { number: 99, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
@@ -251,7 +251,7 @@ mod tests {
             managed_node,
             writer,
         );
-        let result = handler.handle(finalized_source_block, state).await;
+        let result = handler.handle(finalized_source_block, &mut state).await;
         assert!(result.is_err());
     }
 }

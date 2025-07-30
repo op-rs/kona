@@ -32,7 +32,7 @@ where
     async fn handle(
         &self,
         block: BlockInfo,
-        state: Arc<ProcessorState>,
+        state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -175,7 +175,7 @@ mod tests {
         let mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| false);
         mockvalidator.expect_is_interop_activation_block().returning(|_, _| false);
@@ -195,7 +195,7 @@ mod tests {
         // Pre-interop block (timestamp < 1000)
         let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 10);
 
-        let result = handler.handle(block, state).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -204,7 +204,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
 
@@ -229,7 +229,7 @@ mod tests {
             log_indexer,
         );
 
-        let result = handler.handle(block, state).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -238,7 +238,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| false);
         mockvalidator.expect_is_interop_activation_block().returning(|_, _| true);
@@ -263,7 +263,7 @@ mod tests {
             log_indexer,
         );
 
-        let result = handler.handle(block, state).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
     }
 }

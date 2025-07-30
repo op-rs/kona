@@ -32,7 +32,7 @@ where
     async fn handle(
         &self,
         derived_ref_pair: DerivedRefPair,
-        state: Arc<ProcessorState>,
+        state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -375,7 +375,7 @@ mod tests {
         let mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| false);
         mockvalidator.expect_is_interop_activation_block().returning(|_, _| false);
@@ -410,7 +410,7 @@ mod tests {
             rewinder,
         );
 
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -419,7 +419,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
 
@@ -458,7 +458,7 @@ mod tests {
             rewinder,
         );
 
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -467,7 +467,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| false);
         mockvalidator.expect_is_interop_activation_block().returning(|_, _| true);
@@ -507,7 +507,7 @@ mod tests {
             rewinder,
         );
 
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -516,7 +516,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
 
@@ -557,7 +557,7 @@ mod tests {
             log_indexer,
             rewinder,
         );
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_err());
     }
 
@@ -566,7 +566,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
 
@@ -627,7 +627,7 @@ mod tests {
             log_indexer,
             rewinder,
         );
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -636,7 +636,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
 
@@ -696,7 +696,7 @@ mod tests {
             log_indexer,
             rewinder,
         );
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
     }
 
@@ -705,7 +705,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
 
@@ -743,7 +743,7 @@ mod tests {
             log_indexer,
             rewinder,
         );
-        let result = handler.handle(block_pair, state).await;
+        let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_err());
     }
 }

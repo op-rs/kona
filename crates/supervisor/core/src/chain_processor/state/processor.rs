@@ -1,11 +1,10 @@
 use kona_interop::DerivedRefPair;
-use tokio::sync::RwLock;
 
 /// This module contains the state management for the chain processor.
 /// It provides a way to track the invalidated blocks and manage the state of the chain processor
 #[derive(Debug, Default)]
 pub struct ProcessorState {
-    invalidated_block: RwLock<Option<DerivedRefPair>>,
+    invalidated_block: Option<DerivedRefPair>,
 }
 
 impl ProcessorState {
@@ -16,27 +15,26 @@ impl ProcessorState {
 
     /// Returns `true` if the state is invalidated, otherwise `false`.
     pub async fn is_invalidated(&self) -> bool {
-        self.invalidated_block.read().await.is_some()
+        self.invalidated_block.is_some()
     }
 
     /// Returns the invalidated block if it exists.
     pub async fn get_invalidated(&self) -> Option<DerivedRefPair> {
-        *self.invalidated_block.read().await
+        self.invalidated_block
     }
 
     /// Sets the invalidated block to the given pair if it is not already set.
-    pub async fn set_invalidated(&self, pair: DerivedRefPair) -> bool {
-        let mut guard = self.invalidated_block.write().await;
-        if guard.is_some() {
-            false // Already set
-        } else {
-            *guard = Some(pair);
-            true
+    pub async fn set_invalidated(&mut self, pair: DerivedRefPair) -> bool {
+        if self.invalidated_block.is_some() {
+            return false; // Already set
         }
+        // Set the invalidated block
+        self.invalidated_block = Some(pair);
+        true
     }
 
     /// Clears the invalidated block.
-    pub async fn clear_invalidated(&self) {
-        *self.invalidated_block.write().await = None;
+    pub async fn clear_invalidated(&mut self) {
+        self.invalidated_block = None;
     }
 }

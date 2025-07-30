@@ -26,7 +26,7 @@ where
     async fn handle(
         &self,
         block: BlockInfo,
-        _state: Arc<ProcessorState>,
+        _state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -81,7 +81,7 @@ where
     async fn handle(
         &self,
         derived_ref_pair: DerivedRefPair,
-        _state: Arc<ProcessorState>,
+        _state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
         debug!(
             target: "chain_processor",
@@ -208,7 +208,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_cross_unsafe_update_triggers() {
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let block =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
@@ -224,14 +224,14 @@ mod tests {
             1, // chain_id
             managed_node,
         );
-        let result = handle.handle(block, state).await;
+        let result = handle.handle(block, &mut state).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_handle_cross_safe_update_triggers() {
         let mut mocknode = MockNode::new();
-        let state = Arc::new(ProcessorState::new());
+        let mut state = ProcessorState::new();
 
         let derived =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
@@ -250,7 +250,7 @@ mod tests {
             1, // chain_id
             managed_node,
         );
-        let result = handle.handle(DerivedRefPair { source, derived }, state).await;
+        let result = handle.handle(DerivedRefPair { source, derived }, &mut state).await;
         assert!(result.is_ok());
     }
 }

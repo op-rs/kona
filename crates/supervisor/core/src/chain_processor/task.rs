@@ -26,7 +26,7 @@ pub struct ChainProcessorTask<P, W, V> {
     event_rx: mpsc::Receiver<ChainEvent>,
 
     // state
-    state: Arc<ProcessorState>,
+    state: ProcessorState,
 
     // Handlers for different types of chain events.
     unsafe_handler: UnsafeBlockHandler<P, W, V>,
@@ -54,7 +54,6 @@ where
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,
     ) -> Self {
-        let state = Arc::new(ProcessorState::new());
         let log_indexer =
             Arc::new(LogIndexer::new(chain_id, managed_node.clone(), state_manager.clone()));
         let rewinder = Arc::new(ChainRewinder::new(chain_id, state_manager.clone()));
@@ -96,7 +95,7 @@ where
             cancel_token,
             event_rx,
 
-            state,
+            state: ProcessorState::new(),
 
             // Handlers for different types of chain events.
             unsafe_handler,
@@ -138,26 +137,31 @@ where
         }
     }
 
-    async fn handle_event(&self, event: ChainEvent) {
+    async fn handle_event(&mut self, event: ChainEvent) {
         use ChainEvent::*;
-        let state = self.state.clone();
 
         let result = match event {
-            UnsafeBlock { block } => self.unsafe_handler.handle(block, state).await,
+            UnsafeBlock { block } => self.unsafe_handler.handle(block, &mut self.state).await,
             DerivedBlock { derived_ref_pair } => {
-                self.safe_handler.handle(derived_ref_pair, state).await
+                self.safe_handler.handle(derived_ref_pair, &mut self.state).await
             }
-            DerivationOriginUpdate { origin } => self.origin_handler.handle(origin, state).await,
-            InvalidateBlock { block } => self.invalidation_handler.handle(block, state).await,
+            DerivationOriginUpdate { origin } => {
+                self.origin_handler.handle(origin, &mut self.state).await
+            }
+            InvalidateBlock { block } => {
+                self.invalidation_handler.handle(block, &mut self.state).await
+            }
             BlockReplaced { replacement } => {
-                self.replacement_handler.handle(replacement, state).await
+                self.replacement_handler.handle(replacement, &mut self.state).await
             }
             FinalizedSourceUpdate { finalized_source_block } => {
-                self.finalized_handler.handle(finalized_source_block, state).await
+                self.finalized_handler.handle(finalized_source_block, &mut self.state).await
             }
-            CrossUnsafeUpdate { block } => self.cross_unsafe_handler.handle(block, state).await,
+            CrossUnsafeUpdate { block } => {
+                self.cross_unsafe_handler.handle(block, &mut self.state).await
+            }
             CrossSafeUpdate { derived_ref_pair } => {
-                self.cross_safe_handler.handle(derived_ref_pair, state).await
+                self.cross_safe_handler.handle(derived_ref_pair, &mut self.state).await
             }
         };
 
