@@ -30,8 +30,6 @@ pub struct RollupNodeBuilder {
     l1_beacon_api_url: Option<Url>,
     /// The L2 engine RPC URL.
     l2_engine_rpc_url: Option<Url>,
-    /// The L2 EL provider RPC URL.
-    l2_provider_rpc_url: Option<Url>,
     /// The JWT secret.
     jwt_secret: Option<JwtSecret>,
     /// The [`NetworkConfig`].
@@ -72,11 +70,6 @@ impl RollupNodeBuilder {
         Self { l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
     }
 
-    /// Appends an L2 EL provider RPC URL to the builder.
-    pub fn with_l2_provider_rpc_url(self, l2_provider_rpc_url: Url) -> Self {
-        Self { l2_provider_rpc_url: Some(l2_provider_rpc_url), ..self }
-    }
-
     /// Appends a JWT secret to the builder.
     pub fn with_jwt_secret(self, jwt_secret: JwtSecret) -> Self {
         Self { jwt_secret: Some(jwt_secret), ..self }
@@ -115,7 +108,7 @@ impl RollupNodeBuilder {
             self.l1_beacon_api_url.expect("l1 beacon api url not set").to_string(),
         );
 
-        let l2_rpc_url = self.l2_provider_rpc_url.expect("l2 provider rpc url not set");
+        let engine_url = self.l2_engine_rpc_url.expect("l2 engine rpc url not set");
         let jwt_secret = self.jwt_secret.expect("jwt secret not set");
         let hyper_client = Client::builder(TokioExecutor::new()).build_http::<Full<Bytes>>();
 
@@ -123,16 +116,15 @@ impl RollupNodeBuilder {
         let service = ServiceBuilder::new().layer(auth_layer).service(hyper_client);
 
         let layer_transport = HyperClient::with_service(service);
-        let http_hyper = Http::with_client(layer_transport, l2_rpc_url.clone());
+        let http_hyper = Http::with_client(layer_transport, engine_url.clone());
         let rpc_client = RpcClient::new(http_hyper, false);
         let l2_provider = RootProvider::<Optimism>::new(rpc_client);
 
         let rollup_config = Arc::new(self.config);
         let engine_builder = EngineBuilder {
             config: Arc::clone(&rollup_config),
-            l2_rpc_url,
             l1_rpc_url,
-            engine_url: self.l2_engine_rpc_url.expect("missing l2 engine rpc url"),
+            engine_url,
             jwt_secret,
             mode: self.mode,
         };

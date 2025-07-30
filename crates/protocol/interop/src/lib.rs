@@ -21,13 +21,15 @@ mod replacement;
 pub use replacement::BlockReplacement;
 
 mod traits;
-pub use traits::InteropProvider;
+pub use traits::{InteropProvider, InteropValidator};
 
 mod safety;
 pub use safety::SafetyLevelParseError;
 
 mod errors;
-pub use errors::{MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult};
+pub use errors::{
+    InteropValidationError, MessageGraphError, MessageGraphResult, SuperRootError, SuperRootResult,
+};
 
 mod root;
 pub use root::{ChainRootInfo, OutputRootWithChain, SuperRoot, SuperRootOutput};

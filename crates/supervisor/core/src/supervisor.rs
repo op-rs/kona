@@ -6,8 +6,8 @@ use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_interop::{
-    DependencySet, ExecutingDescriptor, OutputRootWithChain, SUPER_ROOT_VERSION, SafetyLevel,
-    SuperRoot,
+    DependencySet, ExecutingDescriptor, InteropValidator, OutputRootWithChain, SUPER_ROOT_VERSION,
+    SafetyLevel, SuperRoot,
 };
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{ChainRootInfoRpc, SuperRootOutputRpc};
@@ -101,13 +101,14 @@ pub trait SupervisorService: Debug + Send + Sync {
 /// The core Supervisor component responsible for monitoring and coordinating chain states.
 #[derive(Debug)]
 pub struct Supervisor {
-    config: Config,
+    config: Arc<Config>,
     database_factory: Arc<ChainDbFactory>,
 
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
     managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
-    chain_processors: HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb>>,
+    chain_processors:
+        HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb, Config>>,
 
     cancel_token: CancellationToken,
 }
@@ -121,7 +122,7 @@ impl Supervisor {
         cancel_token: CancellationToken,
     ) -> Self {
         Self {
-            config,
+            config: Arc::new(config),
             database_factory,
             managed_nodes: HashMap::new(),
             chain_processors: HashMap::new(),
@@ -166,14 +167,9 @@ impl Supervisor {
                     chain_id
                 )))?;
 
-            let rollup_config =
-                self.config.rollup_config_set.get(*chain_id).ok_or(SupervisorError::Initialise(
-                    format!("no rollup config found for chain {}", chain_id),
-                ))?;
-
             // initialise chain processor for the chain.
             let mut processor = ChainProcessor::new(
-                rollup_config.clone(),
+                self.config.clone(),
                 *chain_id,
                 managed_node.clone(),
                 db,
@@ -190,9 +186,8 @@ impl Supervisor {
         }
         Ok(())
     }
-    async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
-        let cfg = Arc::new(self.config.clone());
 
+    async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
         for (&chain_id, config) in &self.config.rollup_config_set.rollups {
             let db = Arc::clone(&self.database_factory);
             let cancel = self.cancel_token.clone();
@@ -216,7 +211,7 @@ impl Supervisor {
                 Duration::from_secs(config.block_time),
                 CrossSafePromoter,
                 event_tx.clone(),
-                cfg.clone(),
+                self.config.clone(),
             );
 
             tokio::spawn(async move {
@@ -230,7 +225,7 @@ impl Supervisor {
                 Duration::from_secs(config.block_time),
                 CrossUnsafePromoter,
                 event_tx,
-                cfg.clone(),
+                self.config.clone(),
             );
 
             tokio::spawn(async move {

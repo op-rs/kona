@@ -53,15 +53,13 @@ pub(super) enum JwtValidationError {
 /// # Run as validator with default settings
 /// kona node --l1-eth-rpc http://localhost:8545 \
 ///           --l1-beacon http://localhost:5052 \
-///           --l2-engine-rpc http://localhost:8551 \
-///           --l2-provider-rpc http://localhost:8545
+///           --l2-engine-rpc http://localhost:8551
 ///
 /// # Run as sequencer with custom JWT secret
 /// kona node --mode sequencer \
 ///           --l1-eth-rpc http://localhost:8545 \
 ///           --l1-beacon http://localhost:5052 \
 ///           --l2-engine-rpc http://localhost:8551 \
-///           --l2-provider-rpc http://localhost:8545 \
 ///           --l2-jwt-secret /path/to/jwt.hex
 /// ```
 #[derive(Parser, PartialEq, Debug, Clone)]
@@ -90,9 +88,6 @@ pub struct NodeCommand {
     /// URL of the engine API endpoint of an L2 execution client.
     #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
-    /// An L2 RPC Url.
-    #[arg(long, visible_alias = "l2.provider", env = "KONA_NODE_L2_ETH_RPC")]
-    pub l2_provider_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
     #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
@@ -118,7 +113,6 @@ impl Default for NodeCommand {
             l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
             l1_beacon: Url::parse("http://localhost:5052").unwrap(),
             l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
-            l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
             l2_engine_jwt_secret: None,
             l2_config_file: None,
             node_mode: NodeMode::Validator,
@@ -209,7 +203,6 @@ impl NodeCommand {
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let engine_client = kona_engine::EngineClient::new_http(
             self.l2_engine_rpc.clone(),
-            self.l2_provider_rpc.clone(),
             self.l1_eth_rpc.clone(),
             Arc::new(config.clone()),
             jwt_secret,
@@ -272,7 +265,6 @@ impl NodeCommand {
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
-            .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
@@ -368,8 +360,6 @@ mod tests {
             "http://localhost:5052",
             "--l2-engine-rpc",
             "http://localhost:8551",
-            "--l2-provider-rpc",
-            "http://localhost:8545",
         ]
     }
 
@@ -403,21 +393,6 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.to_string().contains("--l2-engine-rpc"));
-    }
-
-    #[test]
-    fn test_node_cli_missing_l2_provider_rpc() {
-        let err = NodeCommand::try_parse_from([
-            "node",
-            "--l1-eth-rpc",
-            "http://localhost:8545",
-            "--l1-beacon",
-            "http://localhost:5052",
-            "--l2-engine-rpc",
-            "http://localhost:8551",
-        ])
-        .unwrap_err();
-        assert!(err.to_string().contains("--l2-provider-rpc"));
     }
 
     #[test]

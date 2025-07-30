@@ -56,6 +56,7 @@ pub const OP_SEPOLIA_CONFIG: RollupConfig = RollupConfig {
         holocene_time: Some(OP_SEPOLIA_HOLOCENE_TIMESTAMP),
         pectra_blob_schedule_time: Some(1742486400),
         isthmus_time: Some(OP_SEPOLIA_ISTHMUS_TIMESTAMP),
+        jovian_time: None,
         interop_time: None,
     },
     batch_inbox_address: address!("ff00000000000000000000000000000011155420"),

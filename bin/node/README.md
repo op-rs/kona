@@ -39,7 +39,6 @@ kona-node \
   --l1 <L1_PROVIDER_RPC> \
   --l1-beacon <L1_BEACON_API> \
   --l2 <L2_ENGINE_RPC> \
-  --l2-provider-rpc <L2_PROVIDER_RPC> \
   --l2-engine-jwt-secret /path/to/jwt.hex \
   --port 5060 \
   --p2p.listen.tcp 9223 \
@@ -66,7 +65,6 @@ kona-node \
   --l1 $L1_PROVIDER_RPC \
   --l1-beacon $L1_BEACON_API \
   --l2 http://localhost:8551 \
-  --l2-provider-rpc http://localhost:8545 \
   --l2-engine-jwt-secret ./jwt.hex \
   --port 5060 \
   --p2p.listen.tcp 9223 \
@@ -80,9 +78,8 @@ kona-node \
 Many configuration options can be set via environment variables:
 
 - `KONA_NODE_L1_ETH_RPC` - L1 execution client RPC URL
-- `KONA_NODE_L1_BEACON` - L1 beacon API URL  
+- `KONA_NODE_L1_BEACON` - L1 beacon API URL
 - `KONA_NODE_L2_ENGINE_RPC` - L2 engine API URL
-- `KONA_NODE_L2_ETH_RPC` - L2 provider RPC URL
 - `KONA_NODE_L2_ENGINE_AUTH` - Path to L2 engine JWT secret file
 - `KONA_NODE_MODE` - Node operation mode (default: validator)
 - `RUST_LOG` - Logging configuration

@@ -85,7 +85,7 @@ impl Engine {
         self.clear();
 
         let start =
-            find_starting_forkchoice(&config, client.l1_provider(), client.l2_provider()).await?;
+            find_starting_forkchoice(&config, client.l1_provider(), client.l2_engine()).await?;
 
         // Retry to synchronize the engine until we succeeds or a critical error occurs.
         while let Err(err) = SynchronizeTask::new(
@@ -129,7 +129,7 @@ impl Engine {
             .into_consensus()
             .into();
         let l2_safe_block = client
-            .l2_provider()
+            .l2_engine()
             .get_block(start.safe.block_info.hash.into())
             .full()
             .await
