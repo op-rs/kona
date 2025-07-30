@@ -105,7 +105,7 @@ func testTransferLeadershipAndCheck(t devtest.T, oldLeader, targetLeader conduct
 		require.False(tt, oldLeader.FetchPaused(), "current leader's sequencer is paused, id", oldLeader)
 		require.False(tt, targetLeader.FetchPaused(), "target leader's sequencer is paused, id", targetLeader)
 
-		// ensure that the current leader is the leader before transfering leadership
+		// ensure that the current leader is the leader before transferring leadership
 		require.True(tt, oldLeader.IsLeader(), "current leader was not found to be the leader")
 		require.False(tt, targetLeader.IsLeader(), "target leader was already found to be the leader")
 
