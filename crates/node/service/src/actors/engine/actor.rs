@@ -116,7 +116,6 @@ impl EngineBuilder {
     pub fn client(&self) -> Arc<EngineClient> {
         EngineClient::new_http(
             self.engine_url.clone(),
-            self.l2_rpc_url.clone(),
             self.l1_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,
