@@ -43,7 +43,7 @@ where
             self.validate_executing_message(initiating_block, &message)?;
             // Check weather the message passes the dependency check
             self.verify_message_dependency(initiating_block, &message)?;
-            // check cyclic dependency starting from each dependent block
+            // Check cyclic dependency starting from each dependent block
             self.check_cyclic_dependency(
                 &block,
                 &initiating_block,
