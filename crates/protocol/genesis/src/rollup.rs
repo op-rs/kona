@@ -288,13 +288,25 @@ impl RollupConfig {
     /// Returns true if Isthmus is active at the given timestamp.
     pub fn is_isthmus_active(&self, timestamp: u64) -> bool {
         self.hardforks.isthmus_time.is_some_and(|t| timestamp >= t) ||
-            self.is_interop_active(timestamp)
+            self.is_jovian_active(timestamp)
     }
 
     /// Returns true if the timestamp marks the first Isthmus block.
     pub fn is_first_isthmus_block(&self, timestamp: u64) -> bool {
         self.is_isthmus_active(timestamp) &&
             !self.is_isthmus_active(timestamp.saturating_sub(self.block_time))
+    }
+
+    /// Returns true if Jovian is active at the given timestamp.
+    pub fn is_jovian_active(&self, timestamp: u64) -> bool {
+        self.hardforks.jovian_time.is_some_and(|t| timestamp >= t) ||
+            self.is_interop_active(timestamp)
+    }
+
+    /// Returns true if the timestamp marks the first Jovian block.
+    pub fn is_first_jovian_block(&self, timestamp: u64) -> bool {
+        self.is_jovian_active(timestamp) &&
+            !self.is_jovian_active(timestamp.saturating_sub(self.block_time))
     }
 
     /// Returns true if Interop is active at the given timestamp.
@@ -442,6 +454,11 @@ impl OpHardforks for RollupConfig {
                 .isthmus_time
                 .map(ForkCondition::Timestamp)
                 .unwrap_or(self.op_fork_activation(OpHardfork::Interop)),
+            OpHardfork::Jovian => self
+                .hardforks
+                .jovian_time
+                .map(ForkCondition::Timestamp)
+                .unwrap_or(ForkCondition::Never),
             OpHardfork::Interop => self
                 .hardforks
                 .interop_time
@@ -611,6 +628,24 @@ mod tests {
     }
 
     #[test]
+    fn test_jovian_active() {
+        let mut config = RollupConfig::default();
+        assert!(!config.is_interop_active(0));
+        config.hardforks.jovian_time = Some(10);
+        assert!(config.is_regolith_active(10));
+        assert!(config.is_canyon_active(10));
+        assert!(config.is_delta_active(10));
+        assert!(config.is_ecotone_active(10));
+        assert!(config.is_fjord_active(10));
+        assert!(config.is_granite_active(10));
+        assert!(config.is_holocene_active(10));
+        assert!(!config.is_pectra_blob_schedule_active(10));
+        assert!(config.is_isthmus_active(10));
+        assert!(config.is_jovian_active(10));
+        assert!(!config.is_jovian_active(9));
+    }
+
+    #[test]
     fn test_interop_active() {
         let mut config = RollupConfig::default();
         assert!(!config.is_interop_active(0));
@@ -641,7 +676,8 @@ mod tests {
                 holocene_time: Some(70),
                 pectra_blob_schedule_time: Some(80),
                 isthmus_time: Some(90),
-                interop_time: Some(100),
+                jovian_time: Some(100),
+                interop_time: Some(110),
             },
             block_time: 2,
             ..Default::default()
@@ -691,6 +727,16 @@ mod tests {
         assert!(!cfg.is_first_isthmus_block(88));
         assert!(cfg.is_first_isthmus_block(90));
         assert!(!cfg.is_first_isthmus_block(92));
+
+        // Jovian
+        assert!(!cfg.is_first_jovian_block(98));
+        assert!(cfg.is_first_jovian_block(100));
+        assert!(!cfg.is_first_jovian_block(102));
+
+        // Interop
+        assert!(!cfg.is_first_interop_block(108));
+        assert!(cfg.is_first_interop_block(110));
+        assert!(!cfg.is_first_interop_block(112));
     }
 
     #[test]

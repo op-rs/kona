@@ -97,6 +97,7 @@ mod tests {
                     holocene_time: Some(1732633200),
                     pectra_blob_schedule_time: None,
                     isthmus_time: None,
+                    jovian_time: None,
                     interop_time: None,
                 },
                 protocol_versions_addr: None,

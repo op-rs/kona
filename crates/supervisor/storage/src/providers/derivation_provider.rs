@@ -35,7 +35,7 @@ where
         let derived_block_pair_opt =
             self.tx.get::<DerivedBlocks>(derived_block_number).inspect_err(|err| {
                 error!(
-                  target: "supervisor_storage",
+                  target: "supervisor::storage",
                   chain_id = %self.chain_id,
                   derived_block_number,
                   %err,
@@ -45,7 +45,7 @@ where
 
         let derived_block_pair = derived_block_pair_opt.ok_or_else(|| {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
               chain_id = %self.chain_id,
               derived_block_number,
               "Derived block not found"
@@ -67,7 +67,7 @@ where
 
         if derived_block_pair.derived.hash != derived_block_id.hash {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
               chain_id = %self.chain_id,
               derived_block_number = derived_block_id.number,
               expected_hash = %derived_block_id.hash,
@@ -104,7 +104,7 @@ where
         let block_traversal =
             self.tx.get::<BlockTraversal>(source_block_number).inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     source_block_number,
                     %err,
@@ -114,7 +114,7 @@ where
 
         Ok(block_traversal.ok_or_else(|| {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
               chain_id = %self.chain_id,
               source_block_number,
               "source block not found"
@@ -139,7 +139,7 @@ where
 
         if block_traversal.source.hash != source_block_id.hash {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 source_block_hash = %source_block_id.hash,
                 "Source block hash mismatch"
@@ -170,7 +170,7 @@ where
     pub(crate) fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get cursor for DerivedBlocks"
@@ -179,7 +179,7 @@ where
 
         let result = cursor.last().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to seek to last block"
@@ -188,7 +188,7 @@ where
 
         let (_, block) = result.ok_or_else(|| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 "No blocks found in storage"
             );
@@ -197,7 +197,7 @@ where
 
         let latest_source_block = self.latest_source_block().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get latest source block"
@@ -229,7 +229,7 @@ where
     pub(crate) fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
         let block = self.latest_source_block_traversal().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to get latest source block traversal"
@@ -283,7 +283,7 @@ where
                 .get_derived_block_pair_by_number(incoming_pair.derived.number)
                 .inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     incoming_derived_block_pair = %incoming_pair,
                     %err,
@@ -295,7 +295,7 @@ where
                 return Ok(());
             } else {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     %latest_derivation_state,
                     incoming_derived_block_pair = %incoming_pair,
@@ -308,7 +308,7 @@ where
         // Latest source block must be same as the incoming source block
         if latest_derivation_state.source != incoming_pair.source {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 latest_source_block = %latest_derivation_state.source,
                 incoming_source = %incoming_pair.source,
@@ -319,7 +319,7 @@ where
 
         if !latest_derivation_state.derived.is_parent_of(&incoming_pair.derived) {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
               chain_id = %self.chain_id,
               %latest_derivation_state,
               incoming_derived_block_pair = %incoming_pair,
@@ -341,7 +341,7 @@ where
         // the derived block must be derived from the latest source block
         let mut block_traversal = self.latest_source_block_traversal().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 incoming_derived_block_pair = %incoming_pair,
                 %err,
@@ -352,7 +352,7 @@ where
         let latest_source_block = block_traversal.clone().source.into();
         if incoming_pair.source != latest_source_block {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 latest_source_block = %latest_source_block,
                 incoming_source = %incoming_pair.source,
@@ -369,7 +369,7 @@ where
             .put::<DerivedBlocks>(incoming_pair.derived.number, incoming_pair.into())
             .inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     incoming_derived_block_pair = %incoming_pair,
                     %err,
@@ -381,7 +381,7 @@ where
         self.tx.put::<BlockTraversal>(incoming_pair.source.number, block_traversal).inspect_err(
             |err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     incoming_derived_block_pair = %incoming_pair,
                     %err,
@@ -416,7 +416,7 @@ where
             let source_block =
                 self.get_source_block(incoming_source.number).inspect_err(|err| {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_source = %incoming_source,
                         %err,
@@ -428,7 +428,7 @@ where
                 return Ok(());
             } else {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
                     chain_id = %self.chain_id,
                     latest_source_block = %latest_source_block,
                     incoming_source = %incoming_source,
@@ -440,7 +440,7 @@ where
 
         if !latest_source_block.is_parent_of(&incoming_source) {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
                 chain_id = %self.chain_id,
                 latest_source_block = %latest_source_block,
                 incoming_source = %incoming_source,
@@ -461,7 +461,7 @@ where
 
         self.tx.put::<BlockTraversal>(incoming_source.number, block_traversal).inspect_err(
             |err| {
-                error!(target: "supervisor_storage", chain_id = %self.chain_id, %err, "Failed to save block traversal");
+                error!(target: "supervisor::storage", chain_id = %self.chain_id, %err, "Failed to save block traversal");
             },
         )?;
 
@@ -505,7 +505,7 @@ where
         if !traversal.derived_block_numbers.is_empty() {
             self.tx.put::<BlockTraversal>(block_pair.source.number, traversal).inspect_err(
                 |err| {
-                    error!(target: "supervisor_storage", chain_id = %self.chain_id, %err, "Failed to update block traversal");
+                    error!(target: "supervisor::storage", chain_id = %self.chain_id, %err, "Failed to update block traversal");
                 },
             )?;
             walk_from += 1;

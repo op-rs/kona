@@ -109,7 +109,7 @@ where
                     Ok(duration) => duration.as_secs_f64(),
                     Err(e) => {
                         error!(
-                            target: "chain_processor",
+                            target: "supervisor::chain_processor",
                             chain_id = self.chain_id,
                             "SystemTime error when recording block processing latency: {e}"
                         );
@@ -150,7 +150,7 @@ where
                 }
                 _ = self.cancel_token.cancelled() => {
                     info!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         "ChainProcessorTask cancellation requested, stopping..."
                     );
@@ -167,7 +167,7 @@ where
                     .observe_block_processing("local_unsafe", || async {
                         self.handle_unsafe_event(block).await.inspect_err(|err| {
                             error!(
-                                target: "chain_processor",
+                                target: "supervisor::chain_processor",
                                 chain_id = self.chain_id,
                                 block_number = block.number,
                                 %err,
@@ -182,7 +182,7 @@ where
                     .observe_block_processing("local_safe", || async {
                         self.handle_safe_event(derived_ref_pair).await.inspect_err(|err| {
                             error!(
-                                target: "chain_processor",
+                                target: "supervisor::chain_processor",
                                 chain_id = self.chain_id,
                                 block_number = derived_ref_pair.derived.number,
                                 %err,
@@ -195,7 +195,7 @@ where
             ChainEvent::DerivationOriginUpdate { origin } => {
                 let _ = self.handle_derivation_origin_update(origin).await.inspect_err(|err| {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         block_number = origin.number,
                         %err,
@@ -206,7 +206,7 @@ where
             ChainEvent::InvalidateBlock { block } => {
                 let _ = self.handle_invalidate_block(block).await.inspect_err(|err| {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         block_number = block.number,
                         %err,
@@ -217,7 +217,7 @@ where
             ChainEvent::BlockReplaced { replacement } => {
                 let _ = self.handle_block_replacement(replacement).await.inspect_err(|err| {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         %err,
                         "Failed to handle block replacement"
@@ -230,7 +230,7 @@ where
                         self.handle_finalized_l1_update(finalized_source_block).await.inspect_err(
                             |err| {
                                 error!(
-                                    target: "chain_processor",
+                                    target: "supervisor::chain_processor",
                                     chain_id = self.chain_id,
                                     block_number = finalized_source_block.number,
                                     %err,
@@ -246,7 +246,7 @@ where
                     .observe_block_processing("cross_unsafe", || async {
                         self.handle_cross_unsafe_update(block).await.inspect_err(|err| {
                             error!(
-                                target: "chain_processor",
+                                target: "supervisor::chain_processor",
                                 chain_id = self.chain_id,
                                 block_number = block.number,
                                 %err,
@@ -261,7 +261,7 @@ where
                     .observe_block_processing("cross_safe", || async {
                         self.handle_cross_safe_update(derived_ref_pair).await.inspect_err(|err| {
                             error!(
-                                target: "chain_processor",
+                                target: "supervisor::chain_processor",
                                 chain_id = self.chain_id,
                                 block_number = derived_ref_pair.derived.number,
                                 %err,
@@ -279,7 +279,7 @@ where
         replacement: BlockReplacement,
     ) -> Result<(), ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             %replacement,
             "Handling block replacement"
@@ -290,7 +290,7 @@ where
         if let Some(invalidated_ref_pair) = *guard {
             if invalidated_ref_pair.derived.hash != replacement.invalidated {
                 debug!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     invalidated_block = %invalidated_ref_pair.derived,
                     replacement_block = %replacement.replacement,
@@ -313,7 +313,7 @@ where
 
     async fn handle_invalidate_block(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             invalidated_block = %block,
             "Processing invalidate block"
@@ -322,7 +322,7 @@ where
         let mut invalidated_block = self.invalidated_block.write().await;
         if invalidated_block.is_some() {
             debug!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
                 "Invalidated block already set, skipping"
@@ -348,7 +348,7 @@ where
         finalized_source_block: BlockInfo,
     ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = finalized_source_block.number,
             "Processing finalized L1 update"
@@ -364,7 +364,7 @@ where
         origin: BlockInfo,
     ) -> Result<(), ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = origin.number,
             "Processing derivation origin update"
@@ -373,7 +373,7 @@ where
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = origin.number,
                 "Invalidated block set, skipping derivation origin update"
@@ -385,7 +385,7 @@ where
             Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder | StorageError::ConflictError) => {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     block_number = origin.number,
                     "Source block out of order detected, resetting managed node"
@@ -393,7 +393,7 @@ where
 
                 if let Err(err) = self.managed_node.reset().await {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         %err,
                         "Failed to reset managed node after block out of order"
@@ -410,7 +410,7 @@ where
         derived_ref_pair: DerivedRefPair,
     ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
@@ -419,7 +419,7 @@ where
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 "Invalidated block already set, skipping safe event processing"
@@ -433,7 +433,7 @@ where
 
         if self.validator.is_interop_activation_block(self.chain_id, derived_ref_pair.derived) {
             info!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 "Initialising derivation storage for interop activation block"
@@ -453,7 +453,7 @@ where
             Ok(_) => Ok(derived_ref_pair.derived),
             Err(StorageError::BlockOutOfOrder) => {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
                     "Block out of order detected, resetting managed node"
@@ -461,7 +461,7 @@ where
 
                 if let Err(err) = self.managed_node.reset().await {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor",
                         chain_id = self.chain_id,
                         %err,
                         "Failed to reset managed node after block out of order"
@@ -472,7 +472,7 @@ where
 
             Err(StorageError::ReorgRequired) => {
                 debug!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain = self.chain_id,
                     derived_block = %derived_ref_pair.derived,
                     "Local derivation conflict detected — rewinding"
@@ -487,7 +487,7 @@ where
 
             Err(err) => {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
                     %err,
@@ -508,7 +508,7 @@ where
             .await
             .inspect_err(|err| {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
                     %err,
@@ -517,7 +517,7 @@ where
             })?;
         self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
             error!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 %err,
@@ -533,7 +533,7 @@ where
         block: BlockInfo,
     ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = block.number,
             "Processing unsafe block"
@@ -542,7 +542,7 @@ where
         let invalidated_block = self.invalidated_block.read().await;
         if invalidated_block.is_some() {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
                 "Invalidated block already set, skipping unsafe event processing"
@@ -557,7 +557,7 @@ where
 
         if self.validator.is_interop_activation_block(self.chain_id, block) {
             info!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
                 "Initialising log storage for interop activation block"
@@ -574,7 +574,7 @@ where
         block: BlockInfo,
     ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = block.number,
             "Processing cross unsafe update"
@@ -589,7 +589,7 @@ where
         derived_ref_pair: DerivedRefPair,
     ) -> Result<BlockInfo, ChainProcessorError> {
         debug!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing cross safe update"

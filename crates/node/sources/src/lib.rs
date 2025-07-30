@@ -18,3 +18,9 @@ pub use runtime::{RuntimeConfig, RuntimeLoader, RuntimeLoaderError};
 
 mod metrics;
 pub use metrics::Metrics;
+
+mod signer;
+pub use signer::{
+    BlockSigner, BlockSignerError, BlockSignerHandler, BlockSignerStartError, CertificateError,
+    ClientCert, RemoteSigner, RemoteSignerError, RemoteSignerHandler, RemoteSignerStartError,
+};

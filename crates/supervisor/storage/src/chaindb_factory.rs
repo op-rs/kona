@@ -72,7 +72,7 @@ impl ChainDbFactory {
         {
             // Try to get it without locking for write
             let dbs = self.dbs.read().map_err(|err| {
-                error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
+                error!(target: "supervisor::storage", %err, "Failed to acquire read lock on databases");
                 StorageError::LockPoisoned
             })?;
             if let Some(db) = dbs.get(&chain_id) {
@@ -82,7 +82,7 @@ impl ChainDbFactory {
 
         // Not found, create and insert
         let mut dbs = self.dbs.write().map_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to acquire write lock on databases");
+            error!(target: "supervisor::storage", %err, "Failed to acquire write lock on databases");
             StorageError::LockPoisoned
         })?;
         // Double-check in case another thread inserted
@@ -132,7 +132,7 @@ impl FinalizedL1Storage for ChainDbFactory {
             "get_finalized_l1",
             || {
                 let guard = self.finalized_l1.read().map_err(|err| {
-                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on finalized_l1");
+                    error!(target: "supervisor::storage", %err, "Failed to acquire read lock on finalized_l1");
                     StorageError::LockPoisoned
                 })?;
                 guard.as_ref().cloned().ok_or(StorageError::FutureData)
@@ -148,14 +148,14 @@ impl FinalizedL1Storage for ChainDbFactory {
                     .finalized_l1
                     .write()
                     .map_err(|err| {
-                        error!(target: "supervisor_storage", %err, "Failed to acquire write lock on finalized_l1");
+                        error!(target: "supervisor::storage", %err, "Failed to acquire write lock on finalized_l1");
                         StorageError::LockPoisoned
                     })?;
 
                 // Check if the new block number is greater than the current finalized block
                 if let Some(ref current) = *guard {
                     if block.number <= current.number {
-                        error!(target: "supervisor_storage",
+                        error!(target: "supervisor::storage",
                             current_block_number = current.number,
                             new_block_number = block.number,
                             "New finalized block number is not greater than current finalized block number",
