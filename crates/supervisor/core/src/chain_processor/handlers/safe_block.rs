@@ -41,7 +41,7 @@ where
             "Processing local safe derived block pair"
         );
 
-        if state.is_invalidated().await {
+        if state.is_invalidated() {
             trace!(
                 target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
@@ -387,22 +387,20 @@ mod tests {
         let mut state = ProcessorState::new();
 
         // Simulate invalidated state
-        state
-            .set_invalidated(DerivedRefPair {
-                source: BlockInfo {
-                    number: 1,
-                    hash: B256::ZERO,
-                    parent_hash: B256::ZERO,
-                    timestamp: 0,
-                },
-                derived: BlockInfo {
-                    number: 2,
-                    hash: B256::ZERO,
-                    parent_hash: B256::ZERO,
-                    timestamp: 0,
-                },
-            })
-            .await;
+        state.set_invalidated(DerivedRefPair {
+            source: BlockInfo {
+                number: 1,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 2,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+        });
 
         let block_pair = DerivedRefPair {
             source: BlockInfo {

@@ -34,7 +34,7 @@ where
             "Processing derivation origin update"
         );
 
-        if state.is_invalidated().await {
+        if state.is_invalidated() {
             trace!(
                 target: "supervisor::chain_processor",
                 chain_id = self.chain_id,

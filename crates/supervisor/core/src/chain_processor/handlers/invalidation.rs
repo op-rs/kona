@@ -37,7 +37,7 @@ where
             "Invalidating block"
         );
 
-        if state.is_invalidated().await {
+        if state.is_invalidated() {
             trace!(
                 target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
@@ -78,7 +78,7 @@ where
             );
         })?;
 
-        state.set_invalidated(DerivedRefPair { source: source_block, derived: block }).await;
+        state.set_invalidated(DerivedRefPair { source: source_block, derived: block });
         Ok(())
     }
 }
@@ -110,7 +110,7 @@ where
             "Handling block replacement"
         );
 
-        let invalidated_ref_pair = match state.get_invalidated().await {
+        let invalidated_ref_pair = match state.get_invalidated() {
             Some(block) => block,
             None => {
                 debug!(
@@ -140,7 +140,7 @@ where
         };
 
         self.retry_with_resync_derived_block(derived_ref_pair).await?;
-        state.clear_invalidated().await;
+        state.clear_invalidated();
         Ok(())
     }
 }
@@ -340,7 +340,7 @@ mod tests {
             writer,
         );
 
-        state.set_invalidated(DerivedRefPair { source: block, derived: block }).await;
+        state.set_invalidated(DerivedRefPair { source: block, derived: block });
 
         let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
@@ -369,7 +369,7 @@ mod tests {
         assert!(matches!(result, Err(ChainProcessorError::StorageError(StorageError::FutureData))));
 
         // make sure invalidated_block is not set
-        assert!(state.get_invalidated().await.is_none());
+        assert!(state.get_invalidated().is_none());
     }
 
     #[tokio::test]
@@ -399,7 +399,7 @@ mod tests {
         ));
 
         // make sure invalidated_block is not set
-        assert!(state.get_invalidated().await.is_none());
+        assert!(state.get_invalidated().is_none());
     }
 
     #[tokio::test]
@@ -431,7 +431,7 @@ mod tests {
         assert!(matches!(result, Err(ChainProcessorError::ManagedNode(_))));
 
         // make sure invalidated_block is not set
-        assert!(state.get_invalidated().await.is_none());
+        assert!(state.get_invalidated().is_none());
     }
 
     #[tokio::test]
@@ -460,7 +460,7 @@ mod tests {
         assert!(result.is_ok());
 
         // make sure invalidated_block is set
-        let pair = state.get_invalidated().await.unwrap();
+        let pair = state.get_invalidated().unwrap();
         assert_eq!(pair.derived, derived_block);
         assert_eq!(pair.source, source_block);
     }
@@ -508,12 +508,10 @@ mod tests {
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
 
-        state
-            .set_invalidated(DerivedRefPair {
-                source: invalidated_block,
-                derived: invalidated_block,
-            })
-            .await;
+        state.set_invalidated(DerivedRefPair {
+            source: invalidated_block,
+            derived: invalidated_block,
+        });
 
         let handler = ReplacementHandler::new(
             1, // chain_id
@@ -525,7 +523,7 @@ mod tests {
         assert!(result.is_ok());
 
         // invalidated_block should remain set
-        let invalidated = state.get_invalidated().await;
+        let invalidated = state.get_invalidated();
         assert!(invalidated.is_some());
     }
 
@@ -552,9 +550,7 @@ mod tests {
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
 
-        state
-            .set_invalidated(DerivedRefPair { source: source_block, derived: invalidated_block })
-            .await;
+        state.set_invalidated(DerivedRefPair { source: source_block, derived: invalidated_block });
 
         let handler = ReplacementHandler::new(
             1, // chain_id
@@ -574,6 +570,6 @@ mod tests {
         assert!(result.is_ok());
 
         // invalidated_block should be cleared
-        assert!(state.get_invalidated().await.is_none());
+        assert!(state.get_invalidated().is_none());
     }
 }

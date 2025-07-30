@@ -14,17 +14,17 @@ impl ProcessorState {
     }
 
     /// Returns `true` if the state is invalidated, otherwise `false`.
-    pub async fn is_invalidated(&self) -> bool {
+    pub fn is_invalidated(&self) -> bool {
         self.invalidated_block.is_some()
     }
 
     /// Returns the invalidated block if it exists.
-    pub async fn get_invalidated(&self) -> Option<DerivedRefPair> {
+    pub fn get_invalidated(&self) -> Option<DerivedRefPair> {
         self.invalidated_block
     }
 
     /// Sets the invalidated block to the given pair if it is not already set.
-    pub async fn set_invalidated(&mut self, pair: DerivedRefPair) -> bool {
+    pub fn set_invalidated(&mut self, pair: DerivedRefPair) -> bool {
         if self.invalidated_block.is_some() {
             return false; // Already set
         }
@@ -34,7 +34,7 @@ impl ProcessorState {
     }
 
     /// Clears the invalidated block.
-    pub async fn clear_invalidated(&mut self) {
+    pub fn clear_invalidated(&mut self) {
         self.invalidated_block = None;
     }
 }

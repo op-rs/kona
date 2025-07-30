@@ -41,7 +41,7 @@ where
             "Processing unsafe block"
         );
 
-        if state.is_invalidated().await {
+        if state.is_invalidated() {
             trace!(
                 target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
@@ -178,12 +178,10 @@ mod tests {
         let mut state = ProcessorState::new();
 
         // Simulate invalidated state
-        state
-            .set_invalidated(DerivedRefPair {
-                source: BlockInfo::new(B256::ZERO, 1, B256::ZERO, 0),
-                derived: BlockInfo::new(B256::ZERO, 2, B256::ZERO, 0),
-            })
-            .await;
+        state.set_invalidated(DerivedRefPair {
+            source: BlockInfo::new(B256::ZERO, 1, B256::ZERO, 0),
+            derived: BlockInfo::new(B256::ZERO, 2, B256::ZERO, 0),
+        });
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
