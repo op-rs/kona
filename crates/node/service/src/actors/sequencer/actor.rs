@@ -15,7 +15,7 @@ use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
     sync::Arc,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     select,
@@ -45,6 +45,8 @@ pub(super) struct SequencerActorState<AB: AttributesBuilder> {
     pub builder: AB,
     /// The [`L1OriginSelector`].
     pub origin_selector: L1OriginSelector<DelayedL1OriginSelectorProvider>,
+    /// The ticker for building new blocks.
+    pub build_ticker: tokio::time::Interval,
     /// The conductor RPC client.
     pub conductor: Option<ConductorClient>,
     /// Whether the sequencer is active. This is used inside communications between the sequencer
@@ -90,6 +92,7 @@ impl SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2Ch
         let conductor = conductor_rpc_url.map(ConductorClient::new_http);
 
         let builder = seq_builder.build();
+        let build_ticker = tokio::time::interval(Duration::from_secs(cfg.block_time));
 
         let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
 
@@ -97,6 +100,7 @@ impl SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2Ch
             cfg,
             builder,
             origin_selector,
+            build_ticker,
             conductor,
             is_active: !sequencer_stopped,
             is_recovery_mode: sequencer_recovery_mode,
@@ -365,6 +369,17 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             );
         }
 
+        let now =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
+        let then = payload.execution_payload.timestamp() + self.cfg.block_time;
+        if then.saturating_sub(now) <= self.cfg.block_time {
+            warn!(
+                target: "sequencer",
+                "Next block timestamp is more than a block time away from now, building immediately"
+            );
+            self.build_ticker.reset_immediately();
+        }
+
         self.schedule_gossip(ctx, payload).await
     }
 
@@ -448,9 +463,6 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     }
 
     async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
-        let block_time = self.builder.rollup_cfg.block_time;
-        let mut build_ticker = tokio::time::interval(Duration::from_secs(block_time));
-
         let mut state = SequencerActorState::new(self.builder, ctx.l1_head_rx.clone());
 
         // Initialize metrics, if configured.
@@ -482,9 +494,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
 
                     // Reset the build ticker if the sequencer's activity state has changed.
                     if is_sequencer_active != state.is_active {
-                        build_ticker = tokio::time::interval(Duration::from_secs(
-                            block_time,
-                        ));
+                        state.build_ticker.reset_immediately();
                     }
 
                     // Update metrics, if configured.
@@ -492,7 +502,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                     state.update_metrics();
                 }
                 // The sequencer must be active to build new blocks.
-                _ = build_ticker.tick(), if state.is_active => {
+                _ = state.build_ticker.tick(), if state.is_active => {
                     state.build_block(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode).await?;
                 }
             }
