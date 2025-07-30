@@ -1,10 +1,10 @@
 use crate::{
     CrossSafetyError,
-    config::Config,
     safety_checker::{ValidationError, ValidationError::InitiatingMessageNotFound},
 };
 use alloy_primitives::{BlockHash, ChainId};
 use derive_more::Constructor;
+use kona_interop::InteropValidator;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
 use kona_supervisor_types::ExecutingMessage;
@@ -13,23 +13,24 @@ use std::collections::HashSet;
 
 /// Uses a [`CrossChainSafetyProvider`] to verify the safety of cross-chain message dependencies.
 #[derive(Debug, Constructor)]
-pub struct CrossSafetyChecker<'a, P> {
+pub struct CrossSafetyChecker<'a, P, V> {
     chain_id: ChainId,
-    config: &'a Config,
+    validator: &'a V,
     provider: &'a P,
     required_level: SafetyLevel,
 }
 
-impl<P> CrossSafetyChecker<'_, P>
+impl<P, V> CrossSafetyChecker<'_, P, V>
 where
     P: CrossChainSafetyProvider,
+    V: InteropValidator,
 {
     /// Verifies that all executing messages in the given block are valid based on the validity
     /// checks
     pub fn validate_block(&self, block: BlockInfo) -> Result<(), CrossSafetyError> {
         self.for_each_dependent_block(&block, self.chain_id, |message, initiating_block| {
             // Check whether the message passes interop timestamps related validation
-            self.config
+            self.validator
                 .validate_interop_timestamps(
                     message.chain_id,  // initiating chain id
                     message.timestamp, //initiating block timestamp
@@ -189,14 +190,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{RollupConfig, RollupConfigSet};
     use alloy_primitives::B256;
-    use kona_interop::{DependencySet, DerivedRefPair};
+    use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_supervisor_storage::{EntryNotFoundError, StorageError};
     use kona_supervisor_types::Log;
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
-    use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
 
     mock! (
         #[derive(Debug)]
@@ -212,36 +211,30 @@ mod tests {
         }
     );
 
+    mock! (
+        #[derive(Debug)]
+        pub Validator {}
+
+        impl InteropValidator for Validator {
+            fn validate_interop_timestamps(
+                &self,
+                initiating_chain_id: ChainId,
+                initiating_timestamp: u64,
+                executing_chain_id: ChainId,
+                executing_timestamp: u64,
+                timeout: Option<u64>,
+            ) -> Result<(), InteropValidationError>;
+
+            fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;
+
+            fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
+        }
+    );
+
     fn b256(n: u64) -> B256 {
         let mut bytes = [0u8; 32];
         bytes[24..].copy_from_slice(&n.to_be_bytes());
         B256::from(bytes)
-    }
-
-    fn mock_rollup_config_set() -> RollupConfigSet {
-        let chain1 =
-            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(100) };
-        let chain2 =
-            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(105) };
-        let mut config_set = HashMap::<ChainId, RollupConfig>::new();
-        config_set.insert(1, chain1);
-        config_set.insert(2, chain2);
-
-        RollupConfigSet { rollups: config_set }
-    }
-
-    fn mock_config() -> Config {
-        Config {
-            l1_rpc: Default::default(),
-            l2_consensus_nodes_config: vec![],
-            datadir: PathBuf::new(),
-            rpc_addr: SocketAddr::from(([127, 0, 0, 1], 8545)),
-            dependency_set: DependencySet {
-                dependencies: Default::default(),
-                override_message_expiry_window: Some(10),
-            },
-            rollup_config_set: mock_rollup_config_set(),
-        }
     }
 
     #[test]
@@ -262,14 +255,14 @@ mod tests {
             BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 0 };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         provider
             .expect_get_safety_head_ref()
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head_info));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
         let result = checker.verify_message_dependency(block_info, &msg);
         assert!(result.is_ok());
     }
@@ -296,14 +289,14 @@ mod tests {
         };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         provider
             .expect_get_safety_head_ref()
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head_block));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
         let result = checker.verify_message_dependency(dep_block, &msg);
 
         assert!(
@@ -343,6 +336,7 @@ mod tests {
             BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 200 };
 
         let mut provider = MockProvider::default();
+        let mut validator = MockValidator::default();
 
         provider
             .expect_get_block_logs()
@@ -364,9 +358,10 @@ mod tests {
             .withf(move |cid, lvl| *cid == init_chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head));
 
-        let config = mock_config();
+        validator.expect_validate_interop_timestamps().returning(move |_, _, _, _, _| Ok(()));
+
         let checker =
-            CrossSafetyChecker::new(exec_chain_id, &config, &provider, SafetyLevel::CrossSafe);
+            CrossSafetyChecker::new(exec_chain_id, &validator, &provider, SafetyLevel::CrossSafe);
         let result = checker.validate_block(block);
         assert!(result.is_ok());
     }
@@ -389,9 +384,10 @@ mod tests {
             timestamp: 9999, // Different timestamp to trigger invariant violation
         };
 
-        let config = mock_config();
         let provider = MockProvider::default();
-        let checker = CrossSafetyChecker::new(chain_id, &config, &provider, SafetyLevel::CrossSafe);
+        let validator = MockValidator::default();
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
 
         let result = checker.validate_executing_message(init_block, &msg);
         assert!(matches!(
@@ -427,8 +423,10 @@ mod tests {
                 }))
             });
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(chain_id, &config, &provider, SafetyLevel::CrossSafe);
+        let validator = MockValidator::default();
+
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
         let result = checker.validate_executing_message(init_block, &msg);
 
         assert!(matches!(
@@ -463,8 +461,9 @@ mod tests {
             .withf(move |cid, blk, idx| *cid == chain_id && *blk == 100 && *idx == 0)
             .returning(move |_, _, _| Ok(init_log.clone()));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(chain_id, &config, &provider, SafetyLevel::CrossSafe);
+        let validator = MockValidator::default();
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
         let result = checker.validate_executing_message(init_block, &msg);
 
         assert!(matches!(
@@ -508,8 +507,9 @@ mod tests {
             .withf(move |cid, blk, idx| *cid == chain_id && *blk == 100 && *idx == 0)
             .returning(move |_, _, _| Ok(init_log.clone()));
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(chain_id, &config, &provider, SafetyLevel::CrossSafe);
+        let validator = MockValidator::default();
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
 
         let result = checker.validate_executing_message(init_block, &msg);
         assert!(result.is_ok(), "Expected successful validation");
@@ -535,6 +535,7 @@ mod tests {
             BlockInfo { number: 20, hash: b256(20), parent_hash: b256(19), timestamp: ts };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         // All blocks are below safety head (to allow traversal)
         provider.expect_get_safety_head_ref().returning(|_, _| {
@@ -591,8 +592,7 @@ mod tests {
             }
         });
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
 
         let result = checker.check_cyclic_dependency(&candidate, &block11, 2, &mut HashSet::new());
 
@@ -625,6 +625,7 @@ mod tests {
             BlockInfo { number: 20, hash: b256(20), parent_hash: b256(19), timestamp: ts };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         // All blocks are below safety head (to allow traversal)
         provider.expect_get_safety_head_ref().returning(|_, _| {
@@ -670,8 +671,7 @@ mod tests {
             }
         });
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
 
         let result = checker.check_cyclic_dependency(&candidate, &block11, 2, &mut HashSet::new());
 
@@ -697,6 +697,7 @@ mod tests {
             BlockInfo { number: 20, hash: b256(20), parent_hash: b256(19), timestamp: ts };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
 
         // All blocks are below safety head (so we traverse them)
         provider.expect_get_safety_head_ref().returning(|_, _| {
@@ -755,8 +756,7 @@ mod tests {
             }
         });
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(1, &config, &provider, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
 
         // Start traversal from chain2: block11 is a dependency of candidate
         let result = checker.check_cyclic_dependency(&candidate, &block11, 2, &mut HashSet::new());
@@ -781,9 +781,10 @@ mod tests {
         let dep = BlockInfo { number: 9, hash: b256(9), parent_hash: b256(8), timestamp: 50 };
 
         let provider = MockProvider::default();
+        let validator = MockValidator::default();
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(chain_id, &config, &provider, SafetyLevel::CrossSafe);
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
 
         let result =
             checker.check_cyclic_dependency(&candidate, &dep, chain_id, &mut HashSet::new());
@@ -804,6 +805,8 @@ mod tests {
         let dep = BlockInfo { number: 9, hash: b256(9), parent_hash: b256(8), timestamp: 100 };
 
         let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
+
         provider.expect_get_safety_head_ref().returning(|_, _| {
             Ok(BlockInfo {
                 number: 10,
@@ -813,8 +816,8 @@ mod tests {
             })
         });
 
-        let config = mock_config();
-        let checker = CrossSafetyChecker::new(chain_id, &config, &provider, SafetyLevel::CrossSafe);
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
 
         let result =
             checker.check_cyclic_dependency(&candidate, &dep, chain_id, &mut HashSet::new());

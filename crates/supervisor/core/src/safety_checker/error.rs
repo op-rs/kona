@@ -1,5 +1,5 @@
-use crate::config::ConfigError;
 use alloy_primitives::{B256, ChainId};
+use kona_interop::InteropValidationError;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::StorageError;
 use op_alloy_consensus::interop::SafetyLevel;
@@ -42,7 +42,7 @@ pub enum CrossSafetyError {
 pub enum ValidationError {
     /// Indicates that error occurred while validating interop config for the block messages
     #[error(transparent)]
-    InteropValidationError(#[from] ConfigError),
+    InteropValidationError(#[from] InteropValidationError),
 
     /// Indicates a mismatch between the executing message hash and the expected original log hash.
     #[error(

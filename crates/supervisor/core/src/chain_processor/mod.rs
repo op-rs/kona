@@ -13,3 +13,8 @@ pub use task::ChainProcessorTask;
 
 mod metrics;
 pub(crate) use metrics::Metrics;
+
+mod state;
+pub use state::ProcessorState;
+
+pub mod handlers;

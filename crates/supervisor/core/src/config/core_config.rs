@@ -1,9 +1,9 @@
 use super::RollupConfigSet;
 use crate::syncnode::ClientConfig;
 use alloy_primitives::ChainId;
-use kona_interop::DependencySet;
+use kona_interop::{DependencySet, InteropValidationError, InteropValidator};
+use kona_protocol::BlockInfo;
 use std::{net::SocketAddr, path::PathBuf};
-use thiserror::Error;
 
 /// Configuration for the Supervisor service.
 #[derive(Debug, Clone)]
@@ -27,31 +27,25 @@ pub struct Config {
     pub rollup_config_set: RollupConfigSet,
 }
 
-impl Config {
-    /// Validates that the provided timestamps and chain IDs are eligible for interop execution.
-    ///
-    /// Checks:
-    /// - Interop is enabled on both initiating and executing chains at their respective timestamps.
-    /// - The initiating timestamp is not after the executing timestamp.
-    /// - The message has not expired based on the expiry window and optional timeout.
-    pub fn validate_interop_timestamps(
+impl InteropValidator for Config {
+    fn validate_interop_timestamps(
         &self,
         initiating_chain_id: ChainId,
         initiating_timestamp: u64,
         executing_chain_id: ChainId,
         executing_timestamp: u64,
         timeout: Option<u64>,
-    ) -> Result<(), ConfigError> {
+    ) -> Result<(), InteropValidationError> {
         // Interop must be active on both chains at the relevant times
-        if !self.rollup_config_set.is_interop_enabled(initiating_chain_id, initiating_timestamp) ||
-            !self.rollup_config_set.is_interop_enabled(executing_chain_id, executing_timestamp)
+        if !self.rollup_config_set.is_post_interop(initiating_chain_id, initiating_timestamp) ||
+            !self.rollup_config_set.is_post_interop(executing_chain_id, executing_timestamp)
         {
-            return Err(ConfigError::InteropNotEnabled);
+            return Err(InteropValidationError::InteropNotEnabled);
         }
 
         // Executing timestamp must not be earlier than the initiating timestamp
         if initiating_timestamp > executing_timestamp {
-            return Err(ConfigError::InvalidTimestampInvariant {
+            return Err(InteropValidationError::InvalidTimestampInvariant {
                 initiating: initiating_timestamp,
                 executing: executing_timestamp,
             });
@@ -63,40 +57,25 @@ impl Config {
         let execution_deadline = executing_timestamp.saturating_add(timeout.unwrap_or(0));
 
         if expires_at < execution_deadline {
-            return Err(ConfigError::InvalidInteropTimestamp(executing_timestamp));
+            return Err(InteropValidationError::InvalidInteropTimestamp(executing_timestamp));
         }
 
         Ok(())
     }
-}
 
-/// Custom error type for interop validation via config.
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum ConfigError {
-    /// Interop is not enabled on one or both chains at the required timestamp.
-    #[error("interop not enabled")]
-    InteropNotEnabled,
+    fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool {
+        self.rollup_config_set.is_post_interop(chain_id, timestamp)
+    }
 
-    /// Executing timestamp is earlier than the initiating timestamp.
-    #[error(
-        "executing timestamp is earlier than initiating timestamp, executing: {executing}, initiating: {initiating}"
-    )]
-    InvalidTimestampInvariant {
-        /// Executing timestamp of the message
-        executing: u64,
-        /// Initiating timestamp of the message
-        initiating: u64,
-    },
-
-    /// Timestamp is outside the allowed interop expiry window.
-    #[error("timestamp outside allowed interop window, timestamp: {0}")]
-    InvalidInteropTimestamp(u64),
+    fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool {
+        self.rollup_config_set.is_interop_activation_block(chain_id, block)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{RollupConfig, core_config::ConfigError};
+    use crate::config::RollupConfig;
     use kona_interop::DependencySet;
     use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
 
@@ -143,13 +122,13 @@ mod tests {
     fn test_chain_id_doesnt_exist() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 3, 215, Some(20));
-        assert_eq!(res, Err(ConfigError::InteropNotEnabled));
+        assert_eq!(res, Err(InteropValidationError::InteropNotEnabled));
     }
     #[test]
     fn test_interop_not_enabled_chain1() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 100, 2, 215, Some(20));
-        assert_eq!(res, Err(ConfigError::InteropNotEnabled));
+        assert_eq!(res, Err(InteropValidationError::InteropNotEnabled));
     }
 
     #[test]
@@ -158,7 +137,10 @@ mod tests {
         let res = cfg.validate_interop_timestamps(1, 200, 2, 195, Some(20));
         assert_eq!(
             res,
-            Err(ConfigError::InvalidTimestampInvariant { initiating: 200, executing: 195 })
+            Err(InteropValidationError::InvalidTimestampInvariant {
+                initiating: 200,
+                executing: 195
+            })
         );
     }
 
@@ -166,13 +148,13 @@ mod tests {
     fn test_expired_message_with_timeout() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 250, Some(20));
-        assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp(250)));
+        assert_eq!(res, Err(InteropValidationError::InvalidInteropTimestamp(250)));
     }
 
     #[test]
     fn test_expired_message_without_timeout() {
         let cfg = mock_config();
         let res = cfg.validate_interop_timestamps(1, 200, 2, 215, None);
-        assert_eq!(res, Err(ConfigError::InvalidInteropTimestamp(215)));
+        assert_eq!(res, Err(InteropValidationError::InvalidInteropTimestamp(215)));
     }
 }

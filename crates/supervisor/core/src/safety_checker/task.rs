@@ -1,37 +1,37 @@
 use crate::{
     CrossSafetyError,
-    config::Config,
     event::ChainEvent,
     safety_checker::{CrossSafetyChecker, traits::SafetyPromoter},
 };
 use alloy_primitives::ChainId;
 use derive_more::Constructor;
+use kona_interop::InteropValidator;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
 use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
-use tracing::log::debug;
 
 /// A background job that promotes blocks to a target safety level on a given chain.
 ///
 /// It uses [`CrossChainSafetyProvider`] to fetch candidate blocks and the [`CrossSafetyChecker`]
 /// to validate cross-chain message dependencies.
 #[derive(Debug, Constructor)]
-pub struct CrossSafetyCheckerJob<P, L> {
+pub struct CrossSafetyCheckerJob<P, V, L> {
     chain_id: ChainId,
     provider: Arc<P>,
     cancel_token: CancellationToken,
     interval: Duration,
     promoter: L,
     event_tx: mpsc::Sender<ChainEvent>,
-    config: Arc<Config>,
+    validator: Arc<V>,
 }
 
-impl<P, L> CrossSafetyCheckerJob<P, L>
+impl<P, V, L> CrossSafetyCheckerJob<P, V, L>
 where
     P: CrossChainSafetyProvider + Send + Sync + 'static,
+    V: InteropValidator + Send + Sync + 'static,
     L: SafetyPromoter,
 {
     /// Runs the job loop until cancelled, promoting blocks by Promoter
@@ -51,7 +51,7 @@ where
             "Started safety checker");
 
         let checker =
-            CrossSafetyChecker::new(chain_id, &self.config, &*self.provider, target_level);
+            CrossSafetyChecker::new(chain_id, &*self.validator, &*self.provider, target_level);
 
         loop {
             tokio::select! {
@@ -100,7 +100,7 @@ where
     // after validating cross-chain dependencies.
     fn promote_next_block(
         &self,
-        checker: &CrossSafetyChecker<'_, P>,
+        checker: &CrossSafetyChecker<'_, P, V>,
     ) -> Result<BlockInfo, CrossSafetyError> {
         let candidate = self.find_next_promotable_block()?;
 
@@ -161,17 +161,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        config::{RollupConfig, RollupConfigSet},
-        safety_checker::promoter::{CrossSafePromoter, CrossUnsafePromoter},
-    };
+    use crate::safety_checker::promoter::{CrossSafePromoter, CrossUnsafePromoter};
     use alloy_primitives::{B256, ChainId};
-    use kona_interop::{DependencySet, DerivedRefPair};
+    use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
     use kona_supervisor_types::Log;
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
-    use std::{collections::HashMap, net::SocketAddr, path::PathBuf};
 
     mock! {
         #[derive(Debug)]
@@ -187,6 +183,26 @@ mod tests {
         }
     }
 
+    mock! (
+        #[derive(Debug)]
+        pub Validator {}
+
+        impl InteropValidator for Validator {
+            fn validate_interop_timestamps(
+                &self,
+                initiating_chain_id: ChainId,
+                initiating_timestamp: u64,
+                executing_chain_id: ChainId,
+                executing_timestamp: u64,
+                timeout: Option<u64>,
+            ) -> Result<(), InteropValidationError>;
+
+            fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;
+
+            fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
+        }
+    );
+
     fn b256(n: u64) -> B256 {
         let mut bytes = [0u8; 32];
         bytes[24..].copy_from_slice(&n.to_be_bytes());
@@ -197,36 +213,11 @@ mod tests {
         BlockInfo { number: n, hash: b256(n), parent_hash: b256(n - 1), timestamp: 0 }
     }
 
-    fn mock_rollup_config_set() -> RollupConfigSet {
-        let chain1 =
-            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(100) };
-        let chain2 =
-            RollupConfig { genesis: Default::default(), block_time: 2, interop_time: Some(105) };
-        let mut config_set = HashMap::<ChainId, RollupConfig>::new();
-        config_set.insert(1, chain1);
-        config_set.insert(2, chain2);
-
-        RollupConfigSet { rollups: config_set }
-    }
-
-    fn mock_config() -> Config {
-        Config {
-            l1_rpc: Default::default(),
-            l2_consensus_nodes_config: vec![],
-            datadir: PathBuf::new(),
-            rpc_addr: SocketAddr::from(([127, 0, 0, 1], 8545)),
-            dependency_set: DependencySet {
-                dependencies: Default::default(),
-                override_message_expiry_window: Some(10),
-            },
-            rollup_config_set: mock_rollup_config_set(),
-        }
-    }
-
     #[tokio::test]
     async fn promotes_next_cross_unsafe_successfully() {
         let chain_id = 1;
         let mut mock = MockProvider::default();
+        let mock_validator = MockValidator::default();
         let (event_tx, mut event_rx) = mpsc::channel::<ChainEvent>(10);
 
         mock.expect_get_safety_head_ref()
@@ -249,7 +240,6 @@ mod tests {
             .withf(move |cid, blk| *cid == chain_id && blk.number == 100)
             .returning(|_, _| Ok(()));
 
-        let config = mock_config();
         let job = CrossSafetyCheckerJob::new(
             chain_id,
             Arc::new(mock),
@@ -257,11 +247,11 @@ mod tests {
             Duration::from_secs(1),
             CrossUnsafePromoter,
             event_tx,
-            Arc::new(config),
+            Arc::new(mock_validator),
         );
         let checker = CrossSafetyChecker::new(
             job.chain_id,
-            &job.config,
+            &*job.validator,
             &*job.provider,
             CrossUnsafePromoter.target_level(),
         );
@@ -280,6 +270,7 @@ mod tests {
     async fn promotes_next_cross_safe_successfully() {
         let chain_id = 1;
         let mut mock = MockProvider::default();
+        let mock_validator = MockValidator::default();
         let (event_tx, mut event_rx) = mpsc::channel::<ChainEvent>(10);
 
         mock.expect_get_safety_head_ref()
@@ -302,7 +293,6 @@ mod tests {
             .withf(move |cid, blk| *cid == chain_id && blk.number == 100)
             .returning(|_, _| Ok(DerivedRefPair { derived: block(100), source: block(1) }));
 
-        let config = mock_config();
         let job = CrossSafetyCheckerJob::new(
             chain_id,
             Arc::new(mock),
@@ -310,12 +300,12 @@ mod tests {
             Duration::from_secs(1),
             CrossSafePromoter,
             event_tx,
-            Arc::new(config),
+            Arc::new(mock_validator),
         );
 
         let checker = CrossSafetyChecker::new(
             job.chain_id,
-            &job.config,
+            &*job.validator,
             &*job.provider,
             CrossSafePromoter.target_level(),
         );
@@ -339,6 +329,7 @@ mod tests {
     fn promotes_next_cross_unsafe_failed_with_no_candidates() {
         let chain_id = 1;
         let mut mock = MockProvider::default();
+        let mock_validator = MockValidator::default();
         let (event_tx, _) = mpsc::channel::<ChainEvent>(10);
 
         mock.expect_get_safety_head_ref()
@@ -349,7 +340,6 @@ mod tests {
             .withf(|_, lvl| *lvl == SafetyLevel::LocalSafe)
             .returning(|_, _| Ok(block(200)));
 
-        let config = mock_config();
         let job = CrossSafetyCheckerJob::new(
             chain_id,
             Arc::new(mock),
@@ -357,12 +347,12 @@ mod tests {
             Duration::from_secs(1),
             CrossSafePromoter,
             event_tx,
-            Arc::new(config),
+            Arc::new(mock_validator),
         );
 
         let checker = CrossSafetyChecker::new(
             job.chain_id,
-            &job.config,
+            &*job.validator,
             &*job.provider,
             CrossSafePromoter.target_level(),
         );
