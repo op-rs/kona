@@ -134,15 +134,13 @@ where
             return Ok(());
         }
 
-        if invalidated_ref_pair.derived.hash == replacement.invalidated {
-            let derived_ref_pair = DerivedRefPair {
-                source: invalidated_ref_pair.source,
-                derived: replacement.replacement,
-            };
+        let derived_ref_pair = DerivedRefPair {
+            source: invalidated_ref_pair.source,
+            derived: replacement.replacement,
+        };
 
-            self.retry_with_resync_derived_block(derived_ref_pair).await?;
-            state.clear_invalidated().await;
-        }
+        self.retry_with_resync_derived_block(derived_ref_pair).await?;
+        state.clear_invalidated().await;
         Ok(())
     }
 }
