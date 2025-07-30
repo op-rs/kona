@@ -46,7 +46,7 @@ where
 
         match self.db_provider.save_source_block(origin) {
             Ok(()) => Ok(()),
-            Err(StorageError::BlockOutOfOrder | StorageError::ConflictError) => {
+            Err(StorageError::BlockOutOfOrder) => {
                 debug!(
                     target: "chain_processor",
                     chain_id = self.chain_id,
@@ -62,8 +62,9 @@ where
                         %err,
                         "Failed to reset managed node after block out of order"
                     );
+                    return Err(err.into());
                 }
-                Err(StorageError::BlockOutOfOrder.into())
+                Ok(())
             }
             Err(err) => {
                 error!(
@@ -207,5 +208,67 @@ mod tests {
 
         let result = handler.handle(origin, &mut state).await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derivation_origin_update_block_out_of_order_triggers_reset() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        let origin =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+
+        mockdb.expect_save_source_block().returning(|_| Err(StorageError::BlockOutOfOrder));
+        mocknode.expect_reset().returning(|| Ok(()));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let handler = OriginHandler::new(1, managed_node, writer);
+
+        let result = handler.handle(origin, &mut state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derivation_origin_update_reset_fails() {
+        let mut mockdb = MockDb::new();
+        let mut mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        let origin =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+
+        mockdb.expect_save_source_block().returning(|_| Err(StorageError::BlockOutOfOrder));
+        mocknode.expect_reset().returning(|| Err(ManagedNodeError::ResetFailed));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let handler = OriginHandler::new(1, managed_node, writer);
+
+        let result = handler.handle(origin, &mut state).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derivation_origin_update_other_storage_error() {
+        let mut mockdb = MockDb::new();
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        let origin =
+            BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+
+        mockdb.expect_save_source_block().returning(|_| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let handler = OriginHandler::new(1, managed_node, writer);
+
+        let result = handler.handle(origin, &mut state).await;
+        assert!(result.is_err());
     }
 }

@@ -92,8 +92,8 @@ mod tests {
     use crate::{
         event::ChainEvent,
         syncnode::{
-            BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
-            NodeSubscriber,
+            AuthenticationError, BlockProvider, ManagedNodeController, ManagedNodeDataProvider,
+            ManagedNodeError, NodeSubscriber,
         },
     };
     use alloy_primitives::B256;
@@ -242,6 +242,41 @@ mod tests {
 
         // Managed node's update_finalized should NOT be called
         mocknode.expect_update_finalized().never();
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+
+        let handler = FinalizedHandler::new(
+            1, // chain_id
+            managed_node,
+            writer,
+        );
+        let result = handler.handle(finalized_source_block, &mut state).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_finalized_source_update_managed_node_error() {
+        let mut mocknode = MockNode::new();
+        let mut mockdb = MockDb::new();
+        let mut state = ProcessorState::new();
+
+        let finalized_source_block =
+            BlockInfo { number: 99, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
+
+        let finalized_derived_block =
+            BlockInfo { number: 5, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
+
+        mockdb.expect_update_finalized_using_source().returning(move |block_info: BlockInfo| {
+            assert_eq!(block_info, finalized_source_block);
+            Ok(finalized_derived_block)
+        });
+
+        mocknode.expect_update_finalized().returning(|_| {
+            Err(ManagedNodeError::ClientError(crate::syncnode::ClientError::Authentication(
+                AuthenticationError::InvalidJwt,
+            )))
+        });
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);

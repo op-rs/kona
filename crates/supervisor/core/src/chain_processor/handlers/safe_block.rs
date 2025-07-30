@@ -380,6 +380,64 @@ mod tests {
     );
 
     #[tokio::test]
+    async fn test_handle_derived_event_skips_if_invalidated() {
+        let mockdb = MockDb::new();
+        let mockvalidator = MockValidator::new();
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        // Simulate invalidated state
+        state
+            .set_invalidated(DerivedRefPair {
+                source: BlockInfo {
+                    number: 1,
+                    hash: B256::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: 0,
+                },
+                derived: BlockInfo {
+                    number: 2,
+                    hash: B256::ZERO,
+                    parent_hash: B256::ZERO,
+                    timestamp: 0,
+                },
+            })
+            .await;
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003,
+            },
+        };
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            1,
+            managed_node,
+            writer,
+            Arc::new(mockvalidator),
+            log_indexer,
+            rewinder,
+        );
+
+        let result = handler.handle(block_pair, &mut state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
     async fn test_handle_derived_event_pre_interop() {
         let mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
@@ -567,7 +625,60 @@ mod tests {
             rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
-        assert!(result.is_err());
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_out_of_order_triggers_reset_error() {
+        let mut mockdb = MockDb::new();
+        let mut mockvalidator = MockValidator::new();
+        let mut mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        mockvalidator.expect_is_post_interop().returning(|_, _| true);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        // Simulate BlockOutOfOrder error
+        mockdb
+            .expect_save_derived_block()
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::BlockOutOfOrder));
+
+        // Expect reset to be called
+        mocknode.expect_reset().returning(|| Err(ManagedNodeError::ResetFailed));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            1, // chain_id
+            managed_node,
+            writer,
+            Arc::new(mockvalidator),
+            log_indexer,
+            rewinder,
+        );
+        let result = handler.handle(block_pair, &mut state).await;
+        assert!(matches!(
+            result,
+            Err(ChainProcessorError::ManagedNode(ManagedNodeError::ResetFailed))
+        ));
     }
 
     #[tokio::test]

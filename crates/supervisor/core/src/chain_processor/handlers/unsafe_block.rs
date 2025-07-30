@@ -107,7 +107,7 @@ mod tests {
         syncnode::{BlockProvider, ManagedNodeError},
     };
     use alloy_primitives::B256;
-    use kona_interop::InteropValidationError;
+    use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{LogStorageReader, LogStorageWriter, StorageError};
     use kona_supervisor_types::{Log, Receipts};
@@ -169,6 +169,32 @@ mod tests {
             fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
         }
     );
+
+    #[tokio::test]
+    async fn test_handle_unsafe_event_skips_if_invalidated() {
+        let mockdb = MockDb::new();
+        let mockvalidator = MockValidator::new();
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        // Simulate invalidated state
+        state
+            .set_invalidated(DerivedRefPair {
+                source: BlockInfo::new(B256::ZERO, 1, B256::ZERO, 0),
+                derived: BlockInfo::new(B256::ZERO, 2, B256::ZERO, 0),
+            })
+            .await;
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
+
+        let handler = UnsafeBlockHandler::new(1, Arc::new(mockvalidator), writer, log_indexer);
+
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 10);
+        let result = handler.handle(block, &mut state).await;
+        assert!(result.is_ok());
+    }
 
     #[tokio::test]
     async fn test_handle_unsafe_event_pre_interop() {
@@ -265,5 +291,32 @@ mod tests {
 
         let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_handle_unsafe_event_interop_activation_init_fails() {
+        let mut mockdb = MockDb::new();
+        let mut mockvalidator = MockValidator::new();
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        mockvalidator.expect_is_post_interop().returning(|_, _| false);
+        mockvalidator.expect_is_interop_activation_block().returning(|_, _| true);
+
+        let block = BlockInfo::new(B256::ZERO, 123, B256::ZERO, 1001);
+
+        mockdb
+            .expect_initialise_log_storage()
+            .times(1)
+            .returning(move |_b| Err(StorageError::ConflictError));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
+
+        let handler = UnsafeBlockHandler::new(1, Arc::new(mockvalidator), writer, log_indexer);
+
+        let result = handler.handle(block, &mut state).await;
+        assert!(result.is_err());
     }
 }
