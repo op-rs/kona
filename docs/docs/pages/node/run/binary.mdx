@@ -45,11 +45,9 @@ The `kona-node` requires a few CLI flags.
   URL of the L1 beacon API.
 - `--l2-engine-rpc <L2_ENGINE_RPC>`
   URL of the engine API endpoint of an L2 execution client.
-- `--l2-provider-rpc <L2_PROVIDER_RPC>`
-  An L2 RPC URL.
 
-The L2 engine RPC and L2 provider RPC are both endpoints that
-point to the execution layer client, [`op-reth`][op-reth].
+The L2 engine RPC points to the execution layer client's engine API,
+[`op-reth`][op-reth].
 
 An L1 beacon endpoint and rpc endpoint are also required to
 fetch the L1 chain data that the L2 chain is derived from.
@@ -97,7 +95,6 @@ kona-node node \
     --l1-eth-rpc <L1_RPC_URL> \
     --l1-beacon <L1_BEACON_URL> \
     --l2-engine-rpc http://127.0.0.1:9551 \
-    --l2-provider-rpc http://127.0.0.1:8545
 ```
 
 That's it! Your node should connect to P2P and start syncing
