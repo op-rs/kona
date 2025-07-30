@@ -237,8 +237,7 @@ mod tests {
     fn mock_rpc_client() -> RpcClient {
         let asserter = Asserter::new();
         let transport = MockTransport::new(asserter);
-        let rpc_client = RpcClient::new(transport, false);
-        rpc_client
+        RpcClient::new(transport, false)
     }
 
     fn mock_reorg_handler() -> ReorgHandler<ChainDb> {
