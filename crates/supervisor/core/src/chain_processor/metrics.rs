@@ -1,6 +1,7 @@
 use crate::ChainProcessorError;
 use alloy_primitives::ChainId;
 use kona_protocol::BlockInfo;
+use std::time::SystemTime;
 use tracing::error;
 
 #[derive(Debug)]
@@ -103,7 +104,7 @@ impl Metrics {
                 .increment(1);
 
                 // Calculate latency
-                match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                match SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
                     Ok(duration) => {
                         let now = duration.as_secs_f64();
                         let latency = now - block.timestamp as f64;

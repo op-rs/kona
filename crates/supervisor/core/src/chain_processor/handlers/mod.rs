@@ -16,7 +16,7 @@ pub use unsafe_block::UnsafeBlockHandler;
 use crate::{ChainProcessorError, ProcessorState};
 use async_trait::async_trait;
 
-/// EventHandler trait defines the interface for handling different types of events in the chain
+/// [`EventHandler`] trait defines the interface for handling different types of events in the chain
 /// processor. Each handler will implement this trait to process specific events like block updates,
 /// invalidations, etc.
 #[async_trait]

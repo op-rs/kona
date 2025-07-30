@@ -8,7 +8,7 @@ use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::HeadRefStorageWriter;
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 /// Handler for finalized block updates.
 /// This handler processes finalized block updates by updating the managed node and state manager.
@@ -30,8 +30,8 @@ where
         finalized_source_block: BlockInfo,
         _state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = finalized_source_block.number,
             "Processing finalized L1 update"
@@ -63,7 +63,7 @@ where
             .update_finalized_using_source(finalized_source_block)
             .inspect_err(|err| {
                 warn!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor::db",
                     chain_id = self.chain_id,
                     %finalized_source_block,
                     %err,
@@ -74,7 +74,7 @@ where
         self.managed_node.update_finalized(finalized_derived_block.id()).await.inspect_err(
             |err| {
                 warn!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
                     %finalized_derived_block,
                     %err,

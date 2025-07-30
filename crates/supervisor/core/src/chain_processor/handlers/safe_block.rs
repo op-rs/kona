@@ -9,7 +9,7 @@ use derive_more::Constructor;
 use kona_interop::{DerivedRefPair, InteropValidator};
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
 use std::sync::Arc;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 /// Handler for safe blocks.
 #[derive(Debug, Constructor)]
@@ -34,8 +34,8 @@ where
         derived_ref_pair: DerivedRefPair,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing local safe derived block pair"
@@ -43,7 +43,7 @@ where
 
         if state.is_invalidated().await {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 "Invalidated block already set, skipping safe event processing"
@@ -80,7 +80,7 @@ where
 
         if self.validator.is_interop_activation_block(self.chain_id, derived_ref_pair.derived) {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 "Initialising derivation storage for interop activation block"
@@ -89,7 +89,7 @@ where
             self.db_provider.initialise_derivation_storage(derived_ref_pair).inspect_err(
                 |err| {
                     error!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor::db",
                         chain_id = self.chain_id,
                         %err,
                         "Failed to initialise derivation storage for interop activation block"
@@ -107,7 +107,7 @@ where
         derived_ref_pair: DerivedRefPair,
     ) -> Result<(), ChainProcessorError> {
         trace!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing safe derived block"
@@ -117,7 +117,7 @@ where
             Ok(_) => Ok(()),
             Err(StorageError::BlockOutOfOrder) => {
                 debug!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor::db",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
                     "Block out of order detected, resetting managed node"
@@ -125,7 +125,7 @@ where
 
                 if let Err(err) = self.managed_node.reset().await {
                     warn!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor::managed_node",
                         chain_id = self.chain_id,
                         %err,
                         "Failed to reset managed node after block out of order"
@@ -135,8 +135,8 @@ where
                 Ok(())
             }
             Err(StorageError::ReorgRequired) => {
-                debug!(
-                    target: "chain_processor",
+                info!(
+                    target: "supervisor::chain_processor",
                     chain = self.chain_id,
                     derived_block = %derived_ref_pair.derived,
                     "Local derivation conflict detected — rewinding"
@@ -147,8 +147,8 @@ where
                 Ok(())
             }
             Err(StorageError::FutureData) => {
-                trace!(
-                    target: "chain_processor",
+                debug!(
+                    target: "supervisor::chain_processor",
                     chain = self.chain_id,
                     derived_block = %derived_ref_pair.derived,
                     "Future data detected — retrying with resync"
@@ -158,7 +158,7 @@ where
             }
             Err(err) => {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
                     %err,
@@ -174,7 +174,7 @@ where
         derived_ref_pair: DerivedRefPair,
     ) -> Result<(), ChainProcessorError> {
         trace!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             derived_block_number = derived_ref_pair.derived.number,
             "Retrying with resync of derived block"
@@ -183,7 +183,7 @@ where
         self.log_indexer.process_and_store_logs(&derived_ref_pair.derived).await.inspect_err(
             |err| {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor::log_indexer",
                     chain_id = self.chain_id,
                     block_number = derived_ref_pair.derived.number,
                     %err,
@@ -194,7 +194,7 @@ where
 
         self.db_provider.save_derived_block(derived_ref_pair).inspect_err(|err| {
             error!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor::db",
                 chain_id = self.chain_id,
                 block_number = derived_ref_pair.derived.number,
                 %err,

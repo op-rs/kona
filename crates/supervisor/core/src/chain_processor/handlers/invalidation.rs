@@ -30,8 +30,8 @@ where
         block: BlockInfo,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = block.number,
             "Invalidating block"
@@ -39,7 +39,7 @@ where
 
         if state.is_invalidated().await {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 block_number = block.number,
                 "Invalidated block already set, skipping"
@@ -49,7 +49,7 @@ where
 
         let source_block = self.db_provider.derived_to_source(block.id()).inspect_err(|err| {
             warn!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor::db",
                 chain_id = self.chain_id,
                 %block,
                 %err,
@@ -59,7 +59,7 @@ where
 
         self.db_provider.rewind(&block.id()).inspect_err(|err| {
             warn!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor::db",
                 chain_id = self.chain_id,
                 %block,
                 %err,
@@ -70,7 +70,7 @@ where
         let block_seal = BlockSeal::new(block.hash, block.number, block.timestamp);
         self.managed_node.invalidate_block(block_seal).await.inspect_err(|err| {
             warn!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor::managed_node",
                 chain_id = self.chain_id,
                 %block,
                 %err,
@@ -89,7 +89,7 @@ where
 pub struct ReplacementHandler<P, W> {
     chain_id: ChainId,
     log_indexer: Arc<LogIndexer<P, W>>,
-    state_manager: Arc<W>,
+    db_provider: Arc<W>,
 }
 
 #[async_trait]
@@ -103,8 +103,8 @@ where
         replacement: BlockReplacement,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             %replacement,
             "Handling block replacement"
@@ -113,8 +113,8 @@ where
         let invalidated_ref_pair = match state.get_invalidated().await {
             Some(block) => block,
             None => {
-                trace!(
-                    target: "chain_processor",
+                debug!(
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     %replacement,
                     "No invalidated block set, skipping replacement"
@@ -124,8 +124,8 @@ where
         };
 
         if invalidated_ref_pair.derived.hash != replacement.invalidated {
-            trace!(
-                target: "chain_processor",
+            debug!(
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 invalidated_block = %invalidated_ref_pair.derived,
                 replacement_block = %replacement.replacement,
@@ -157,7 +157,7 @@ where
         derived_ref_pair: DerivedRefPair,
     ) -> Result<(), ChainProcessorError> {
         trace!(
-            target: "chain_processor",
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             derived_block_number = derived_ref_pair.derived.number,
             "Retrying with resync of derived block"
@@ -166,7 +166,7 @@ where
         self.log_indexer.process_and_store_logs(&derived_ref_pair.derived).await.inspect_err(
             |err| {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor::log_indexer",
                     chain_id = self.chain_id,
                     %derived_ref_pair,
                     %err,
@@ -175,9 +175,9 @@ where
             },
         )?;
 
-        self.state_manager.save_derived_block(derived_ref_pair).inspect_err(|err| {
+        self.db_provider.save_derived_block(derived_ref_pair).inspect_err(|err| {
             error!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor::db",
                 chain_id = self.chain_id,
                 %derived_ref_pair,
                 %err,

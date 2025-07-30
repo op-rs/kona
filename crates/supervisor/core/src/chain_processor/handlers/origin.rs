@@ -27,8 +27,8 @@ where
         origin: BlockInfo,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             %origin,
             "Processing derivation origin update"
@@ -36,7 +36,7 @@ where
 
         if state.is_invalidated().await {
             trace!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor",
                 chain_id = self.chain_id,
                 %origin,
                 "Invalidated block set, skipping derivation origin update"
@@ -48,7 +48,7 @@ where
             Ok(()) => Ok(()),
             Err(StorageError::BlockOutOfOrder) => {
                 debug!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     %origin,
                     "Block out of order detected, resetting managed node"
@@ -56,7 +56,7 @@ where
 
                 if let Err(err) = self.managed_node.reset().await {
                     warn!(
-                        target: "chain_processor",
+                        target: "supervisor::chain_processor::managed_node",
                         chain_id = self.chain_id,
                         %origin,
                         %err,
@@ -68,7 +68,7 @@ where
             }
             Err(err) => {
                 error!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor",
                     chain_id = self.chain_id,
                     %origin,
                     %err,

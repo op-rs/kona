@@ -8,7 +8,7 @@ use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 /// Handler for cross unsafe blocks.
 /// This handler processes cross unsafe blocks by updating the managed node.
@@ -28,8 +28,8 @@ where
         block: BlockInfo,
         _state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = block.number,
             "Processing cross unsafe block"
@@ -54,7 +54,7 @@ where
     async fn inner_handle(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
         self.managed_node.update_cross_unsafe(block.id()).await.inspect_err(|err| {
             warn!(
-                target: "chain_processor",
+                target: "supervisor::chain_processor::managed_node",
                 chain_id = self.chain_id,
                 %block,
                 %err,
@@ -83,8 +83,8 @@ where
         derived_ref_pair: DerivedRefPair,
         _state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        debug!(
-            target: "chain_processor",
+        trace!(
+            target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
             "Processing cross safe block"
@@ -115,7 +115,7 @@ where
             .await
             .inspect_err(|err| {
                 warn!(
-                    target: "chain_processor",
+                    target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
                     %derived_ref_pair,
                     %err,
