@@ -92,3 +92,5 @@ vec = "vec"
 
 # Additional allowed words from typos scan
 flate = "flate"      # zlib-flate tool name
+ratatui = "ratatui"  # TUI crate name
+superseed = "superseed"  # Superseed network name (proper noun)
