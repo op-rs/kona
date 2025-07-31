@@ -76,6 +76,7 @@ impl EngineQueries {
         rollup_config: &Arc<RollupConfig>,
     ) -> Result<(), EngineQueriesError> {
         let state = *state_recv.borrow();
+
         match self {
             Self::Config(sender) => sender
                 .send((**rollup_config).clone())
