@@ -26,17 +26,26 @@ kona-supervisor-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 jsonrpsee = { workspace = true, optional = true, features = ["macros", "server"] }
+async-trait.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
 alloy-serde.workspace = true
 alloy-primitives = { workspace = true, features = ["map", "rlp", "serde"] }
 op-alloy-consensus.workspace = true
+alloy-rpc-types-engine = { workspace = true, features = ["jwt", "serde", "std"], optional = true }
+tokio = { workspace = true, features = ["time", "sync"], optional = true }
+derive_more = { workspace = true, default-features = false, features = ["display", "from", "constructor", "std"], optional = true }
+
+# `reqwest` feature dependencies
+alloy-rpc-client = { workspace = true, features = ["reqwest"], optional = true }
+thiserror = { workspace = true, optional = true }
 
 [features]
 serde = [
 	"alloy-eips/serde",
 	"alloy-primitives/serde",
+	"alloy-rpc-types-engine?/serde",
 	"kona-interop/serde",
 	"kona-protocol/serde",
 	"op-alloy-consensus/serde",
@@ -46,3 +55,17 @@ serde = [
 jsonrpsee = [ "dep:jsonrpsee", "serde" ]
 # Client feature builds upon the base jsonrpsee feature
 client = [ "jsonrpsee", "jsonrpsee/client" ]
+# Server feature for supervisor RPC server functionality
+server = [
+	"dep:alloy-rpc-types-engine",
+	"dep:derive_more",
+	"dep:tokio",
+	"jsonrpsee",
+]
+# reqwest client feature
+reqwest = [
+	"client",
+	"dep:alloy-rpc-client",
+	"dep:derive_more",
+	"dep:thiserror",
+]

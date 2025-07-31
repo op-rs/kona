@@ -96,6 +96,14 @@ impl DerivationStorageReader for ChainDb {
             self.env.view(|tx| DerivationProvider::new(tx, self.chain_id).latest_derivation_state())
         })?
     }
+
+    fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError> {
+        self.observe_call("get_source_block", || {
+            self.env.view(|tx| {
+                DerivationProvider::new(tx, self.chain_id).get_source_block(source_block_number)
+            })
+        })?
+    }
 }
 
 impl DerivationStorageWriter for ChainDb {
@@ -117,33 +125,38 @@ impl DerivationStorageWriter for ChainDb {
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
         self.observe_call("save_derived_block", || {
             self.env.update(|ctx| {
+                DerivationProvider::new(ctx, self.chain_id).save_derived_block(incoming_pair)?;
+
+                // Verify the consistency with log storage.
+                // The check is intentionally deferred until after saving the derived block,
+                // ensuring validation only triggers on the committed state to prevent false
+                // positives.
+                // Example: If the parent derived block doesn't exist, it should return error from
+                // derivation provider, not from log provider.
                 let derived_block = incoming_pair.derived;
                 let block = LogProvider::new(ctx, self.chain_id)
                     .get_block(derived_block.number)
                     .map_err(|err| match err {
                         StorageError::EntryNotFound(_) => {
                             error!(
-                                target: "supervisor_storage",
-                                chain_id = %self.chain_id,
+                                target: "supervisor::storage",
                                 incoming_block = %derived_block,
                                 "Derived block not found in log storage: {derived_block:?}"
                             );
-                            StorageError::ConflictError
+                            StorageError::FutureData
                         }
                         other => other, // propagate other errors as-is
                     })?;
-
                 if block != derived_block {
                     error!(
-                        target: "supervisor_storage",
-                        chain_id = %self.chain_id,
+                        target: "supervisor::storage",
                         incoming_block = %derived_block,
                         stored_log_block = %block,
                         "Derived block does not match the stored log block"
                     );
-                    return Err(StorageError::ConflictError);
+                    return Err(StorageError::ReorgRequired);
                 }
-                DerivationProvider::new(ctx, self.chain_id).save_derived_block(incoming_pair)?;
+
                 SafetyHeadRefProvider::new(ctx, self.chain_id)
                     .update_safety_head_ref(SafetyLevel::LocalSafe, &incoming_pair.derived)
             })
@@ -294,7 +307,7 @@ impl HeadRefStorageWriter for ChainDb {
                 if finalized_source_block.number >= safe_block_pair.source.number {
                     // this could happen during initial sync
                     warn!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         l1_finalized_block_number = finalized_source_block.number,
                         safe_source_block_number = safe_block_pair.source.number,
@@ -322,7 +335,7 @@ impl HeadRefStorageWriter for ChainDb {
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                 if !parent.is_parent_of(block) {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block = %block,
                         latest_block = %parent,
@@ -335,7 +348,7 @@ impl HeadRefStorageWriter for ChainDb {
                 let stored_block = lp.get_block(block.number)?;
                 if stored_block.hash != block.hash {
                     warn!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block_hash = %block.hash,
                         stored_block_hash = %stored_block.hash,
@@ -360,7 +373,7 @@ impl HeadRefStorageWriter for ChainDb {
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
                 if !parent.is_parent_of(block) {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block = %block,
                         latest_block = %parent,
@@ -489,7 +502,7 @@ impl MetricsReporter for ChainDb {
                 Ok::<(), eyre::Report>(())
             })
             .inspect_err(|err| {
-                warn!(target: "supervisor_storage", %err, "Failed to collect database metrics");
+                warn!(target: "supervisor::storage", %err, "Failed to collect database metrics");
             });
 
         for (name, value, labels) in metrics {
@@ -687,9 +700,9 @@ mod tests {
         db.initialise_log_storage(anchor.derived).expect("initialise log storage");
         db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
 
-        // Save derived block pair - should error conflict
+        // Save derived block pair - should error BlockOutOfOrder error
         let err = db.save_derived_block(derived_pair).unwrap_err();
-        assert!(matches!(err, StorageError::ConflictError));
+        assert!(matches!(err, StorageError::BlockOutOfOrder));
 
         db.store_block_logs(
             &BlockInfo {

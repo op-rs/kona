@@ -1,8 +1,9 @@
 use super::{ChainProcessorError, ChainProcessorTask};
-use crate::{config::RollupConfig, event::ChainEvent, syncnode::ManagedNodeProvider};
+use crate::{event::ChainEvent, syncnode::ManagedNodeProvider};
 use alloy_primitives::ChainId;
+use kona_interop::InteropValidator;
 use kona_supervisor_storage::{
-    DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader, LogStorageWriter,
+    DerivationStorage, DerivationStorageWriter, HeadRefStorageWriter, LogStorage, StorageRewinder,
 };
 use std::sync::Arc;
 use tokio::{
@@ -17,9 +18,9 @@ use tracing::warn;
 /// and handles them accordingly.
 // chain processor will support multiple managed nodes in the future.
 #[derive(Debug)]
-pub struct ChainProcessor<P, W> {
+pub struct ChainProcessor<P, W, V> {
     // The rollup configuration for the chain
-    rollup_config: RollupConfig,
+    validator: Arc<V>,
 
     // The chainId that this processor is associated with
     chain_id: ChainId,
@@ -33,8 +34,8 @@ pub struct ChainProcessor<P, W> {
     // The managed node that this processor will handle
     managed_node: Arc<P>,
 
-    // State manager to update and view state
-    state_manager: Arc<W>,
+    // The database provider for storage operations
+    db_provider: Arc<W>,
 
     // Cancellation token to stop the processor
     cancel_token: CancellationToken,
@@ -43,31 +44,33 @@ pub struct ChainProcessor<P, W> {
     task_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
-impl<P, W> ChainProcessor<P, W>
+impl<P, W, V> ChainProcessor<P, W, V>
 where
     P: ManagedNodeProvider + 'static,
-    W: LogStorageWriter
-        + LogStorageReader
+    V: InteropValidator + 'static,
+    W: LogStorage
+        + DerivationStorage
         + DerivationStorageWriter
         + HeadRefStorageWriter
+        + StorageRewinder
         + 'static,
 {
     /// Creates a new instance of [`ChainProcessor`].
     pub fn new(
-        rollup_config: RollupConfig,
+        validator: Arc<V>,
         chain_id: ChainId,
         managed_node: Arc<P>,
-        state_manager: Arc<W>,
+        db_provider: Arc<W>,
         cancel_token: CancellationToken,
     ) -> Self {
         // todo: validate chain_id against managed_node
         Self {
-            rollup_config,
+            validator,
             chain_id,
             event_tx: None,
             metrics_enabled: None,
             managed_node,
-            state_manager,
+            db_provider,
             cancel_token,
             task_handle: Mutex::new(None),
         }
@@ -94,7 +97,7 @@ where
     pub async fn start(&mut self) -> Result<(), ChainProcessorError> {
         let mut handle_guard = self.task_handle.lock().await;
         if handle_guard.is_some() {
-            warn!(target: "chain_processor", chain_id = %self.chain_id, "ChainProcessor is already running");
+            warn!(target: "supervisor::chain_processor", chain_id = %self.chain_id, "ChainProcessor is already running");
             return Ok(())
         }
 
@@ -104,10 +107,10 @@ where
         self.managed_node.start_subscription(event_tx.clone()).await?;
 
         let mut task = ChainProcessorTask::new(
-            self.rollup_config.clone(),
+            self.validator.clone(),
             self.chain_id,
             self.managed_node.clone(),
-            self.state_manager.clone(),
+            self.db_provider.clone(),
             self.cancel_token.clone(),
             event_rx,
         );
@@ -137,10 +140,11 @@ mod tests {
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
     use async_trait::async_trait;
-    use kona_interop::DerivedRefPair;
+    use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
-        DerivationStorageWriter, HeadRefStorageWriter, LogStorageWriter, StorageError,
+        DerivationStorageReader, DerivationStorageWriter, HeadRefStorageWriter, LogStorageReader,
+        LogStorageWriter, StorageError,
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
@@ -224,11 +228,18 @@ mod tests {
             ) -> Result<(), StorageError>;
         }
 
-         impl LogStorageReader for Db {
+        impl LogStorageReader for Db {
             fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
             fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
+        }
+
+        impl DerivationStorageReader for Db {
+            fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
+            fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+            fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {
@@ -264,19 +275,44 @@ mod tests {
                 block: &BlockInfo,
             ) -> Result<DerivedRefPair, StorageError>;
         }
+
+        impl StorageRewinder for Db {
+            fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+        }
+    );
+
+    mock! (
+        #[derive(Debug)]
+        pub Validator {}
+
+        impl InteropValidator for Validator {
+            fn validate_interop_timestamps(
+                &self,
+                initiating_chain_id: ChainId,
+                initiating_timestamp: u64,
+                executing_chain_id: ChainId,
+                executing_timestamp: u64,
+                timeout: Option<u64>,
+            ) -> Result<(), InteropValidationError>;
+
+            fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;
+
+            fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
+        }
     );
 
     #[tokio::test]
     async fn test_chain_processor_start_sets_task_and_calls_subscription() {
         let mut mock_node = MockNode::new();
+        let mock_validator = MockValidator::new();
         mock_node.expect_start_subscription().returning(|_| Ok(()));
 
         let storage = Arc::new(MockDb::new());
         let cancel_token = CancellationToken::new();
 
-        let rollup_config = RollupConfig::default();
         let mut processor = ChainProcessor::new(
-            rollup_config,
+            Arc::new(mock_validator),
             1,
             Arc::new(mock_node),
             Arc::clone(&storage),

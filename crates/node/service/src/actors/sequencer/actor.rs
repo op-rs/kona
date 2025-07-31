@@ -1,6 +1,8 @@
 //! The [`SequencerActor`].
 
-use super::{L1OriginSelector, L1OriginSelectorError, SequencerConfig};
+use super::{
+    DelayedL1OriginSelectorProvider, L1OriginSelector, L1OriginSelectorError, SequencerConfig,
+};
 use crate::{CancellableContext, NodeActor, actors::sequencer::conductor::ConductorClient};
 use alloy_provider::RootProvider;
 use async_trait::async_trait;
@@ -13,7 +15,7 @@ use op_alloy_network::Optimism;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::{
     sync::Arc,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     select,
@@ -26,8 +28,8 @@ use tokio_util::sync::{CancellationToken, WaitForCancellationFuture};
 /// blocks.
 #[derive(Debug)]
 pub struct SequencerActor<AB: AttributesBuilderConfig> {
-    /// The [`SequencerActorState`].
-    builder: AB,
+    /// The [`AttributesBuilderConfig`].
+    pub builder: AB,
     /// Watch channel to observe the unsafe head of the engine.
     pub unsafe_head_rx: watch::Receiver<L2BlockInfo>,
     /// Channel to receive admin queries from the sequencer actor.
@@ -42,7 +44,9 @@ pub(super) struct SequencerActorState<AB: AttributesBuilder> {
     /// The [`AttributesBuilder`].
     pub builder: AB,
     /// The [`L1OriginSelector`].
-    pub origin_selector: L1OriginSelector<RootProvider>,
+    pub origin_selector: L1OriginSelector<DelayedL1OriginSelectorProvider>,
+    /// The ticker for building new blocks.
+    pub build_ticker: tokio::time::Interval,
     /// The conductor RPC client.
     pub conductor: Option<ConductorClient>,
     /// Whether the sequencer is active. This is used inside communications between the sequencer
@@ -67,18 +71,28 @@ pub trait AttributesBuilderConfig {
     fn build(self) -> Self::AB;
 }
 
-impl From<SequencerBuilder>
-    for SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>>
-{
-    fn from(seq_builder: SequencerBuilder) -> Self {
-        let SequencerConfig { sequencer_stopped, sequencer_recovery_mode, conductor_rpc_url } =
-            seq_builder.seq_cfg.clone();
+impl SequencerActorState<StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>> {
+    fn new(
+        seq_builder: SequencerBuilder,
+        l1_head_watcher: watch::Receiver<Option<BlockInfo>>,
+    ) -> Self {
+        let SequencerConfig {
+            sequencer_stopped,
+            sequencer_recovery_mode,
+            conductor_rpc_url,
+            l1_conf_delay,
+        } = seq_builder.seq_cfg.clone();
 
         let cfg = seq_builder.rollup_cfg.clone();
-        let l1_provider = seq_builder.l1_provider.clone();
+        let l1_provider = DelayedL1OriginSelectorProvider::new(
+            seq_builder.l1_provider.clone(),
+            l1_head_watcher,
+            l1_conf_delay,
+        );
         let conductor = conductor_rpc_url.map(ConductorClient::new_http);
 
         let builder = seq_builder.build();
+        let build_ticker = tokio::time::interval(Duration::from_secs(cfg.block_time));
 
         let origin_selector = L1OriginSelector::new(cfg.clone(), l1_provider);
 
@@ -86,6 +100,7 @@ impl From<SequencerBuilder>
             cfg,
             builder,
             origin_selector,
+            build_ticker,
             conductor,
             is_active: !sequencer_stopped,
             is_recovery_mode: sequencer_recovery_mode,
@@ -142,6 +157,8 @@ pub struct SequencerInboundData {
 pub struct SequencerContext {
     /// The cancellation token, shared between all tasks.
     pub cancellation: CancellationToken,
+    /// Watch channel to observe the L1 head of the chain.
+    pub l1_head_rx: watch::Receiver<Option<BlockInfo>>,
     /// Sender to request the engine to reset.
     pub reset_request_tx: mpsc::Sender<()>,
     /// Sender to request the execution layer to build a payload attributes on top of the
@@ -190,9 +207,14 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         &mut self,
         ctx: &mut SequencerContext,
         unsafe_head_rx: &mut watch::Receiver<L2BlockInfo>,
+        in_recovery_mode: bool,
     ) -> Result<(), SequencerActorError> {
         let unsafe_head = *unsafe_head_rx.borrow();
-        let l1_origin = match self.origin_selector.next_l1_origin(unsafe_head).await {
+        let l1_origin = match self
+            .origin_selector
+            .next_l1_origin(unsafe_head, self.is_recovery_mode)
+            .await
+        {
             Ok(l1_origin) => l1_origin,
             Err(err) => {
                 warn!(
@@ -258,6 +280,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 }
             };
 
+        if in_recovery_mode {
+            attributes.no_tx_pool = Some(true);
+        }
+
         // If the next L2 block is beyond the sequencer drift threshold, we must produce an empty
         // block.
         attributes.no_tx_pool = (attributes.payload_attributes.timestamp >
@@ -300,10 +326,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
             attributes.no_tx_pool = Some(true);
         }
 
-        // TODO: L1 origin in this type must be optional, to account for attributes that weren't
-        // derived.
-        let attrs_with_parent =
-            OpAttributesWithParent::new(attributes, unsafe_head, BlockInfo::default(), false);
+        let attrs_with_parent = OpAttributesWithParent::new(attributes, unsafe_head, None, false);
 
         // Log the attributes build duration, if metrics are enabled.
         kona_macros::set!(
@@ -344,6 +367,17 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 crate::Metrics::SEQUENCER_CONDUCTOR_COMMITMENT_DURATION,
                 _conductor_commitment_start.elapsed()
             );
+        }
+
+        let now =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
+        let then = payload.execution_payload.timestamp() + self.cfg.block_time;
+        if then.saturating_sub(now) <= self.cfg.block_time {
+            warn!(
+                target: "sequencer",
+                "Next block timestamp is more than a block time away from now, building immediately"
+            );
+            self.build_ticker.reset_immediately();
         }
 
         self.schedule_gossip(ctx, payload).await
@@ -429,10 +463,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
     }
 
     async fn start(mut self, mut ctx: Self::OutboundData) -> Result<(), Self::Error> {
-        let block_time = self.builder.rollup_cfg.block_time;
-        let mut build_ticker = tokio::time::interval(Duration::from_secs(block_time));
-
-        let mut state = SequencerActorState::from(self.builder);
+        let mut state = SequencerActorState::new(self.builder, ctx.l1_head_rx.clone());
 
         // Initialize metrics, if configured.
         #[cfg(feature = "metrics")]
@@ -444,7 +475,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
         loop {
             select! {
                 // We are using a biased select here to ensure that the admin queries are given priority over the block building task.
-                // This is important to limit the occurence of race conditions where a stopped query is received when a sequencer is building a new block.
+                // This is important to limit the occurrence of race conditions where a stopped query is received when a sequencer is building a new block.
                 biased;
                 _ = ctx.cancellation.cancelled() => {
                     info!(
@@ -463,9 +494,7 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
 
                     // Reset the build ticker if the sequencer's activity state has changed.
                     if is_sequencer_active != state.is_active {
-                        build_ticker = tokio::time::interval(Duration::from_secs(
-                            block_time,
-                        ));
+                        state.build_ticker.reset_immediately();
                     }
 
                     // Update metrics, if configured.
@@ -473,8 +502,8 @@ impl NodeActor for SequencerActor<SequencerBuilder> {
                     state.update_metrics();
                 }
                 // The sequencer must be active to build new blocks.
-                _ = build_ticker.tick(), if state.is_active => {
-                    state.build_block(&mut ctx, &mut self.unsafe_head_rx).await?;
+                _ = state.build_ticker.tick(), if state.is_active => {
+                    state.build_block(&mut ctx, &mut self.unsafe_head_rx, state.is_recovery_mode).await?;
                 }
             }
         }

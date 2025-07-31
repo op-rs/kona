@@ -1,6 +1,6 @@
 [package]
 name = "kona-rpc"
-version = "0.3.1"
+version = "0.3.2"
 description = "Optimism RPC Types and API"
 
 edition.workspace = true
@@ -21,7 +21,6 @@ kona-p2p.workspace = true
 kona-engine.workspace = true
 kona-macros.workspace = true
 kona-genesis = {workspace = true, features = ["serde", "std"]}
-kona-supervisor-rpc = { workspace = true, features = ["client"] }
 
 # `interop` feature
 kona-interop = { workspace = true, features = ["serde"] }

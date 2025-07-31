@@ -19,12 +19,49 @@ use strum::IntoEnumIterator;
 use tracing::{debug, error, info};
 use url::Url;
 
-/// The Node subcommand.
+/// A JWT token validation error.
+#[derive(Debug, thiserror::Error)]
+pub(super) enum JwtValidationError {
+    #[error("JWT signature is invalid")]
+    InvalidSignature,
+    #[error("Failed to exchange capabilities with engine: {0}")]
+    CapabilityExchange(String),
+}
+
+/// Command-line interface for running a Kona rollup node.
 ///
-/// For compatibility with the [op-node], relevant flags retain an alias that matches that
-/// of the [op-node] CLI.
+/// The `NodeCommand` struct defines all the configuration options needed to start and run
+/// a rollup node in the Kona ecosystem. It supports multiple node modes including validator
+/// and sequencer modes, and provides comprehensive networking and RPC configuration options.
 ///
-/// [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/flags.go
+/// # Node Modes
+///
+/// The node can operate in different modes:
+/// - **Validator**: Validates L2 blocks and participates in consensus
+/// - **Sequencer**: Sequences transactions and produces L2 blocks
+///
+/// # Configuration Sources
+///
+/// Configuration can be provided through:
+/// - Command-line arguments
+/// - Environment variables (prefixed with `KONA_NODE_`)
+/// - Configuration files (for rollup config)
+///
+/// # Examples
+///
+/// ```bash
+/// # Run as validator with default settings
+/// kona node --l1-eth-rpc http://localhost:8545 \
+///           --l1-beacon http://localhost:5052 \
+///           --l2-engine-rpc http://localhost:8551
+///
+/// # Run as sequencer with custom JWT secret
+/// kona node --mode sequencer \
+///           --l1-eth-rpc http://localhost:8545 \
+///           --l1-beacon http://localhost:5052 \
+///           --l2-engine-rpc http://localhost:8551 \
+///           --l2-jwt-secret /path/to/jwt.hex
+/// ```
 #[derive(Parser, PartialEq, Debug, Clone)]
 #[command(about = "Runs the consensus node")]
 pub struct NodeCommand {
@@ -51,9 +88,6 @@ pub struct NodeCommand {
     /// URL of the engine API endpoint of an L2 execution client.
     #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
-    /// An L2 RPC Url.
-    #[arg(long, visible_alias = "l2.provider", env = "KONA_NODE_L2_ETH_RPC")]
-    pub l2_provider_rpc: Url,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
     #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
@@ -79,7 +113,6 @@ impl Default for NodeCommand {
             l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
             l1_beacon: Url::parse("http://localhost:5052").unwrap(),
             l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
-            l2_provider_rpc: Url::parse("http://localhost:8545").unwrap(),
             l2_engine_jwt_secret: None,
             l2_config_file: None,
             node_mode: NodeMode::Validator,
@@ -141,6 +174,28 @@ impl NodeCommand {
         Ok(())
     }
 
+    /// Check if the error is related to JWT signature validation
+    fn is_jwt_signature_error(error: &(dyn std::error::Error)) -> bool {
+        let mut source = Some(error);
+        while let Some(err) = source {
+            let err_str = err.to_string().to_lowercase();
+            if err_str.contains("signature invalid") ||
+                (err_str.contains("jwt") && err_str.contains("invalid")) ||
+                err_str.contains("unauthorized") ||
+                err_str.contains("authentication failed")
+            {
+                return true;
+            }
+            source = err.source();
+        }
+        false
+    }
+
+    /// Helper to check JWT signature error from anyhow::Error (for retry condition)
+    fn is_jwt_signature_error_from_anyhow(error: &anyhow::Error) -> bool {
+        Self::is_jwt_signature_error(error.as_ref() as &dyn std::error::Error)
+    }
+
     /// Validate the jwt secret if specified by exchanging capabilities with the engine.
     /// Since the engine client will fail if the jwt token is invalid, this allows to ensure
     /// that the jwt token passed as a cli arg is correct.
@@ -148,7 +203,6 @@ impl NodeCommand {
         let jwt_secret = self.jwt_secret().ok_or(anyhow::anyhow!("Invalid JWT secret"))?;
         let engine_client = kona_engine::EngineClient::new_http(
             self.l2_engine_rpc.clone(),
-            self.l2_provider_rpc.clone(),
             self.l1_eth_rpc.clone(),
             Arc::new(config.clone()),
             jwt_secret,
@@ -161,22 +215,23 @@ impl NodeCommand {
                     Ok(jwt_secret)
                 }
                 Err(e) => {
-                    if e.to_string().contains("signature invalid") {
+                    if Self::is_jwt_signature_error(&e) {
                         error!(
                             "Engine API JWT secret differs from the one specified by --l2.jwt-secret"
                         );
                         error!(
                             "Ensure that the JWT secret file specified is correct (by default it is `jwt.hex` in the current directory)"
                         );
+                        return Err(JwtValidationError::InvalidSignature.into())
                     }
-                    bail!("Failed to exchange capabilities with engine: {}", e);
+                    Err(JwtValidationError::CapabilityExchange(e.to_string()).into())
                 }
             }
         };
 
         exchange
             .retry(ExponentialBuilder::default())
-            .when(|e| !e.to_string().contains("signature invalid"))
+            .when(|e| !Self::is_jwt_signature_error_from_anyhow(e))
             .notify(|_, duration| {
                 debug!("Retrying engine capability handshake after {duration:?}");
             })
@@ -210,7 +265,6 @@ impl NodeCommand {
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
-            .with_l2_provider_rpc_url(self.l2_provider_rpc)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
@@ -283,6 +337,20 @@ impl NodeCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::anyhow;
+
+    #[derive(Debug)]
+    struct MockError {
+        message: String,
+    }
+
+    impl std::fmt::Display for MockError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.message)
+        }
+    }
+
+    impl std::error::Error for MockError {}
 
     const fn default_flags() -> &'static [&'static str] {
         &[
@@ -292,8 +360,6 @@ mod tests {
             "http://localhost:5052",
             "--l2-engine-rpc",
             "http://localhost:8551",
-            "--l2-provider-rpc",
-            "http://localhost:8545",
         ]
     }
 
@@ -330,17 +396,20 @@ mod tests {
     }
 
     #[test]
-    fn test_node_cli_missing_l2_provider_rpc() {
-        let err = NodeCommand::try_parse_from([
-            "node",
-            "--l1-eth-rpc",
-            "http://localhost:8545",
-            "--l1-beacon",
-            "http://localhost:5052",
-            "--l2-engine-rpc",
-            "http://localhost:8551",
-        ])
-        .unwrap_err();
-        assert!(err.to_string().contains("--l2-provider-rpc"));
+    fn test_is_jwt_signature_error() {
+        let jwt_error = MockError { message: "signature invalid".to_string() };
+        assert!(NodeCommand::is_jwt_signature_error(&jwt_error));
+
+        let other_error = MockError { message: "network timeout".to_string() };
+        assert!(!NodeCommand::is_jwt_signature_error(&other_error));
+    }
+
+    #[test]
+    fn test_is_jwt_signature_error_from_anyhow() {
+        let jwt_anyhow_error = anyhow!("signature invalid");
+        assert!(NodeCommand::is_jwt_signature_error_from_anyhow(&jwt_anyhow_error));
+
+        let other_anyhow_error = anyhow!("network timeout");
+        assert!(!NodeCommand::is_jwt_signature_error_from_anyhow(&other_anyhow_error));
     }
 }

@@ -1,7 +1,7 @@
 //! This crate contains the core logic for the Optimism Supervisor component.
 
 pub mod chain_processor;
-pub use chain_processor::{ChainProcessor, ChainProcessorError};
+pub use chain_processor::{ChainProcessor, ChainProcessorError, ProcessorState};
 
 pub mod error;
 pub use error::{SpecError, SupervisorError};
@@ -28,3 +28,6 @@ pub use safety_checker::{CrossSafetyCheckerJob, CrossSafetyError};
 
 mod rewinder;
 pub use rewinder::{ChainRewinder, ChainRewinderError};
+
+mod reorg;
+pub use reorg::ReorgHandler;

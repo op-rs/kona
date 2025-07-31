@@ -1,9 +1,8 @@
 use alloy_primitives::Address;
-use alloy_signer::SignerSync;
-use alloy_signer_local::PrivateKeySigner;
 use async_trait::async_trait;
 use kona_p2p::P2pRpcRequest;
 use kona_rpc::NetworkAdminQuery;
+use kona_sources::BlockSignerError;
 use libp2p::TransportError;
 use op_alloy_rpc_types_engine::{OpExecutionPayloadEnvelope, OpNetworkPayloadEnvelope};
 use thiserror::Error;
@@ -95,29 +94,6 @@ impl NetworkActor {
         };
         (outbound_data, actor)
     }
-
-    /// Signs a payload with the given signer and chain id.
-    ///
-    /// Spec: <https://specs.optimism.io/protocol/rollup-node-p2p.html#block-signatures>
-    fn sign_payload(
-        block: OpExecutionPayloadEnvelope,
-        signer: &PrivateKeySigner,
-        chain_id: u64,
-    ) -> Result<OpNetworkPayloadEnvelope, NetworkActorError> {
-        // Computes the payload hash for a given block.
-        let payload_hash = block.payload_hash();
-
-        let Ok(signature) = signer.sign_hash_sync(&payload_hash.signature_message(chain_id)) else {
-            return Err(NetworkActorError::FailedToSignPayload);
-        };
-
-        Ok(OpNetworkPayloadEnvelope {
-            parent_beacon_block_root: block.parent_beacon_block_root,
-            payload: block.execution_payload,
-            signature,
-            payload_hash,
-        })
-    }
 }
 
 /// The communication context used by the network actor.
@@ -157,8 +133,8 @@ pub enum NetworkActorError {
     #[error("Channel closed unexpectedly")]
     ChannelClosed,
     /// Failed to sign the payload.
-    #[error("Failed to sign the payload")]
-    FailedToSignPayload,
+    #[error("Failed to sign the payload: {0}")]
+    FailedToSignPayload(#[from] BlockSignerError),
 }
 
 #[async_trait]
@@ -176,8 +152,6 @@ impl NodeActor for NetworkActor {
         mut self,
         NetworkContext { blocks, cancellation }: Self::OutboundData,
     ) -> Result<(), Self::Error> {
-        let local_signer = self.builder.local_signer.clone();
-
         let mut handler = self.builder.build()?.start().await?;
 
         // New unsafe block channel.
@@ -223,13 +197,24 @@ impl NodeActor for NetworkActor {
                     let selector = |handler: &kona_p2p::BlockHandler| {
                         handler.topic(timestamp)
                     };
-                    let Some(signer) = local_signer.as_ref() else {
+                    let Some(signer) = handler.signer.as_ref() else {
                         warn!(target: "net", "No local signer available to sign the payload");
                         continue;
                     };
 
                     let chain_id = handler.discovery.chain_id;
-                    let payload = Self::sign_payload(block, signer, chain_id)?;
+
+                    let sender_address = *handler.unsafe_block_signer_sender.borrow();
+
+                    let payload_hash = block.payload_hash();
+                    let signature = signer.sign_block(payload_hash, chain_id, sender_address).await?;
+
+                    let payload = OpNetworkPayloadEnvelope {
+                        payload: block.execution_payload,
+                        parent_beacon_block_root: block.parent_beacon_block_root,
+                        signature,
+                        payload_hash,
+                    };
 
                     match handler.gossip.publish(selector, Some(payload)) {
                         Ok(id) => info!("Published unsafe payload | {:?}", id),
@@ -281,6 +266,7 @@ mod tests {
     use super::*;
     use alloy_primitives::B256;
     use alloy_rpc_types_engine::{ExecutionPayloadV1, ExecutionPayloadV3};
+    use alloy_signer::SignerSync;
     use alloy_signer_local::PrivateKeySigner;
     use arbitrary::Arbitrary;
     use op_alloy_rpc_types_engine::OpExecutionPayload;
@@ -302,7 +288,14 @@ mod tests {
             parent_beacon_block_root: None,
         };
 
-        let payload = NetworkActor::sign_payload(block, &pubkey, CHAIN_ID).unwrap();
+        let payload_hash = block.payload_hash();
+        let signature = pubkey.sign_hash_sync(&payload_hash.signature_message(CHAIN_ID)).unwrap();
+        let payload = OpNetworkPayloadEnvelope {
+            payload: block.execution_payload,
+            parent_beacon_block_root: block.parent_beacon_block_root,
+            signature,
+            payload_hash,
+        };
         let encoded_payload = payload.encode_v1().unwrap();
 
         let decoded_payload = OpNetworkPayloadEnvelope::decode_v1(&encoded_payload).unwrap();
@@ -329,7 +322,14 @@ mod tests {
             parent_beacon_block_root: Some(B256::random()),
         };
 
-        let payload = NetworkActor::sign_payload(block, &pubkey, CHAIN_ID).unwrap();
+        let payload_hash = block.payload_hash();
+        let signature = pubkey.sign_hash_sync(&payload_hash.signature_message(CHAIN_ID)).unwrap();
+        let payload = OpNetworkPayloadEnvelope {
+            payload: block.execution_payload,
+            parent_beacon_block_root: block.parent_beacon_block_root,
+            signature,
+            payload_hash,
+        };
         let encoded_payload = payload.encode_v3().unwrap();
 
         let decoded_payload = OpNetworkPayloadEnvelope::decode_v3(&encoded_payload).unwrap();

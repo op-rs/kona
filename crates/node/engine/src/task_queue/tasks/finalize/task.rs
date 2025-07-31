@@ -44,7 +44,7 @@ impl EngineTaskExt for FinalizeTask {
         let block_fetch_start = Instant::now();
         let block = self
             .client
-            .l2_provider()
+            .l2_engine()
             .get_block(self.block_number.into())
             .full()
             .await

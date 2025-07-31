@@ -1,40 +1,57 @@
-use crate::CrossSafetyError;
-use alloy_primitives::ChainId;
+use crate::{
+    CrossSafetyError,
+    safety_checker::{ValidationError, ValidationError::InitiatingMessageNotFound},
+};
+use alloy_primitives::{BlockHash, ChainId};
+use derive_more::Constructor;
+use kona_interop::InteropValidator;
 use kona_protocol::BlockInfo;
-use kona_supervisor_storage::CrossChainSafetyProvider;
+use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
 use kona_supervisor_types::ExecutingMessage;
 use op_alloy_consensus::interop::SafetyLevel;
+use std::collections::HashSet;
 
 /// Uses a [`CrossChainSafetyProvider`] to verify the safety of cross-chain message dependencies.
-#[derive(Debug)]
-pub struct CrossSafetyChecker<'a, P> {
+#[derive(Debug, Constructor)]
+pub struct CrossSafetyChecker<'a, P, V> {
+    chain_id: ChainId,
+    validator: &'a V,
     provider: &'a P,
+    required_level: SafetyLevel,
 }
 
-#[allow(dead_code)]
-impl<'a, P> CrossSafetyChecker<'a, P>
+impl<P, V> CrossSafetyChecker<'_, P, V>
 where
     P: CrossChainSafetyProvider,
+    V: InteropValidator,
 {
-    pub(crate) const fn new(provider: &'a P) -> Self {
-        Self { provider }
-    }
+    /// Verifies that all executing messages in the given block are valid based on the validity
+    /// checks
+    pub fn validate_block(&self, block: BlockInfo) -> Result<(), CrossSafetyError> {
+        self.map_dependent_block(&block, self.chain_id, |message, initiating_block| {
+            // Check whether the message passes interop timestamps related validation
+            self.validator
+                .validate_interop_timestamps(
+                    message.chain_id,  // initiating chain id
+                    message.timestamp, // initiating block timestamp
+                    self.chain_id,     // executing chain id
+                    block.timestamp,   // executing block timestamp
+                    None,
+                )
+                .map_err(ValidationError::InteropValidationError)?;
 
-    /// Verifies that all executing messages in the given block meet the required safety level.
-    pub fn verify_block_dependencies(
-        &self,
-        chain_id: ChainId,
-        block: BlockInfo,
-        required_level: SafetyLevel,
-    ) -> Result<(), CrossSafetyError> {
-        // Retrieve logs emitted in this block
-        let executing_logs = self.provider.get_block_logs(chain_id, block.number)?;
-
-        for log in executing_logs {
-            if let Some(message) = log.executing_message {
-                self.verify_message_dependency(&message, required_level)?;
-            }
-        }
+            // Check weather the message exists and valid
+            self.validate_executing_message(initiating_block, &message)?;
+            // Check weather the message passes the dependency check
+            self.verify_message_dependency(initiating_block, &message)?;
+            // Check cyclic dependency starting from each dependent block
+            self.check_cyclic_dependency(
+                &block,
+                &initiating_block,
+                message.chain_id,
+                &mut HashSet::new(),
+            )
+        })?;
 
         Ok(())
     }
@@ -42,13 +59,12 @@ where
     /// Ensures that the block a message depends on satisfies the given safety level.
     fn verify_message_dependency(
         &self,
+        init_block: BlockInfo,
         message: &ExecutingMessage,
-        required_level: SafetyLevel,
     ) -> Result<(), CrossSafetyError> {
-        let block = self.provider.get_block(message.chain_id, message.block_number)?;
-        let head = self.provider.get_safety_head_ref(message.chain_id, required_level)?;
+        let head = self.provider.get_safety_head_ref(message.chain_id, self.required_level)?;
 
-        if head.number < block.number {
+        if head.number < init_block.number {
             return Err(CrossSafetyError::DependencyNotSafe {
                 chain_id: message.chain_id,
                 block_number: message.block_number,
@@ -57,14 +73,126 @@ where
 
         Ok(())
     }
+
+    /// Recursively checks for a cyclic dependency in cross-chain messages.
+    ///
+    /// # Purpose
+    /// This function walks backwards through message dependencies starting from a candidate block.
+    /// If any dependency chain leads back to the candidate itself (with the same timestamp), it is
+    /// considered a **cycle**, which would make the candidate block invalid for cross-safe
+    /// promotion.
+    ///
+    /// # How It Works
+    /// - It stops recursion if the block is already at required level (cannot be part of a new
+    ///   cycle).
+    /// - It only follows dependencies that occur at the same timestamp as the candidate.
+    /// - It uses a `visited` set to avoid re-processing blocks or getting stuck in infinite loops.
+    ///   It doesn't care about cycle that is created excluding the candidate block as that will be
+    ///   detected by the specific chain's safety checker
+    ///
+    /// Example:
+    /// - A (candidate) → B → C → A → ❌ cycle detected (includes candidate)
+    /// - A → B → C → D (no return to A) → ✅ safe
+    /// - B → C → D → B → ❌ ignored, since candidate is not involved
+    fn check_cyclic_dependency(
+        &self,
+        candidate: &BlockInfo,
+        current: &BlockInfo,
+        chain_id: ChainId,
+        visited: &mut HashSet<(ChainId, BlockHash)>,
+    ) -> Result<(), CrossSafetyError> {
+        // Skipping different timestamps
+        if candidate.timestamp != current.timestamp {
+            return Ok(());
+        }
+
+        // Already visited, avoid infinite loop
+        let current_id = (chain_id, current.hash);
+        if !visited.insert(current_id) {
+            return Ok(());
+        }
+
+        // Reached back to candidate - cycle detected
+        if candidate.hash == current.hash && self.chain_id == chain_id {
+            return Err(ValidationError::CyclicDependency { block: *candidate }.into());
+        }
+
+        let head = self.provider.get_safety_head_ref(chain_id, self.required_level)?;
+        if head.number >= current.number {
+            return Ok(()); // Already at target safety level - cannot form a cycle
+        }
+
+        self.map_dependent_block(current, chain_id, |message, origin_block| {
+            self.check_cyclic_dependency(candidate, &origin_block, message.chain_id, visited)
+        })
+    }
+
+    fn validate_executing_message(
+        &self,
+        init_block: BlockInfo,
+        message: &ExecutingMessage,
+    ) -> Result<(), CrossSafetyError> {
+        // Ensure timestamp invariant
+        if init_block.timestamp != message.timestamp {
+            return Err(ValidationError::TimestampInvariantViolation {
+                expected_timestamp: init_block.timestamp,
+                actual_timestamp: message.timestamp,
+            }
+            .into());
+        }
+
+        // Try to fetch the original log from storage
+        let init_msg = self
+            .provider
+            .get_log(message.chain_id, message.block_number, message.log_index)
+            .map_err(|err| match err {
+                StorageError::EntryNotFound(_) => {
+                    CrossSafetyError::ValidationError(InitiatingMessageNotFound)
+                }
+                other => other.into(),
+            })?;
+
+        // Verify the hash of the message against the original
+        // Don't need to verify the checksum as we're already verifying all the individual fields.
+        if init_msg.hash != message.hash {
+            return Err(ValidationError::InvalidMessageHash {
+                message_hash: message.hash,
+                original_hash: init_msg.hash,
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+
+    /// For each executing log in the block, fetches the initiating block and applies the callback.
+    /// This is the direct dependency walker from executing → initiating blocks.
+    fn map_dependent_block<F>(
+        &self,
+        exec_block: &BlockInfo,
+        chain_id: ChainId,
+        mut f: F,
+    ) -> Result<(), CrossSafetyError>
+    where
+        F: FnMut(ExecutingMessage, BlockInfo) -> Result<(), CrossSafetyError>,
+    {
+        let logs = self.provider.get_block_logs(chain_id, exec_block.number)?;
+        for log in logs {
+            if let Some(msg) = log.executing_message {
+                let init_block = self.provider.get_block(msg.chain_id, msg.block_number)?;
+                f(msg, init_block)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloy_primitives::B256;
-    use kona_interop::DerivedRefPair;
-    use kona_supervisor_storage::StorageError;
+    use kona_interop::{DerivedRefPair, InteropValidationError};
+    use kona_supervisor_storage::{EntryNotFoundError, StorageError};
     use kona_supervisor_types::Log;
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
@@ -75,10 +203,31 @@ mod tests {
 
         impl CrossChainSafetyProvider for Provider {
             fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
+            fn get_log(&self, chain_id: ChainId, block_number: u64, log_index: u32) -> Result<Log, StorageError>;
             fn get_block_logs(&self, chain_id: ChainId, block_number: u64) -> Result<Vec<Log>, StorageError>;
             fn get_safety_head_ref(&self, chain_id: ChainId, level: SafetyLevel) -> Result<BlockInfo, StorageError>;
             fn update_current_cross_unsafe(&self, chain_id: ChainId, block: &BlockInfo) -> Result<(), StorageError>;
             fn update_current_cross_safe(&self, chain_id: ChainId, block: &BlockInfo) -> Result<DerivedRefPair, StorageError>;
+        }
+    );
+
+    mock! (
+        #[derive(Debug)]
+        pub Validator {}
+
+        impl InteropValidator for Validator {
+            fn validate_interop_timestamps(
+                &self,
+                initiating_chain_id: ChainId,
+                initiating_timestamp: u64,
+                executing_chain_id: ChainId,
+                executing_timestamp: u64,
+                timeout: Option<u64>,
+            ) -> Result<(), InteropValidationError>;
+
+            fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool;
+
+            fn is_interop_activation_block(&self, chain_id: ChainId, block: BlockInfo) -> bool;
         }
     );
 
@@ -106,19 +255,15 @@ mod tests {
             BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 0 };
 
         let mut provider = MockProvider::default();
-
-        provider
-            .expect_get_block()
-            .withf(move |cid, num| *cid == chain_id && *num == 100)
-            .returning(move |_, _| Ok(block_info));
+        let validator = MockValidator::default();
 
         provider
             .expect_get_safety_head_ref()
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head_info));
 
-        let checker = CrossSafetyChecker::new(&provider);
-        let result = checker.verify_message_dependency(&msg, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
+        let result = checker.verify_message_dependency(block_info, &msg);
         assert!(result.is_ok());
     }
 
@@ -144,19 +289,15 @@ mod tests {
         };
 
         let mut provider = MockProvider::default();
-
-        provider
-            .expect_get_block()
-            .withf(move |cid, num| *cid == chain_id && *num == 105)
-            .returning(move |_, _| Ok(dep_block));
+        let validator = MockValidator::default();
 
         provider
             .expect_get_safety_head_ref()
             .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head_block));
 
-        let checker = CrossSafetyChecker::new(&provider);
-        let result = checker.verify_message_dependency(&msg, SafetyLevel::CrossSafe);
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
+        let result = checker.verify_message_dependency(dep_block, &msg);
 
         assert!(
             matches!(result, Err(CrossSafetyError::DependencyNotSafe { .. })),
@@ -165,45 +306,521 @@ mod tests {
     }
 
     #[test]
-    fn verify_block_dependencies_success() {
-        let chain_id = 1u64;
+    fn validate_block_success() {
+        let init_chain_id = 1;
+        let exec_chain_id = 2;
+
         let block =
-            BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 0 };
+            BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 200 };
+
+        let dep_block =
+            BlockInfo { number: 100, hash: b256(100), parent_hash: b256(99), timestamp: 195 };
 
         let exec_msg = ExecutingMessage {
-            chain_id,
+            chain_id: init_chain_id,
             block_number: 100,
             log_index: 0,
-            timestamp: 0,
+            timestamp: 195,
             hash: b256(999),
         };
 
-        let log = Log { index: 0, hash: b256(999), executing_message: Some(exec_msg) };
+        let init_log = Log {
+            index: 0,
+            hash: b256(999), // Matches msg.hash → passes checksum
+            executing_message: None,
+        };
 
-        let dep_block =
-            BlockInfo { number: 100, hash: b256(100), parent_hash: b256(99), timestamp: 0 };
+        let exec_log = Log { index: 0, hash: b256(999), executing_message: Some(exec_msg) };
 
-        let head = BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 0 };
+        let head =
+            BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 200 };
 
         let mut provider = MockProvider::default();
+        let mut validator = MockValidator::default();
 
         provider
             .expect_get_block_logs()
-            .withf(move |cid, num| *cid == chain_id && *num == 101)
-            .returning(move |_, _| Ok(vec![log.clone()]));
+            .withf(move |cid, num| *cid == exec_chain_id && *num == 101)
+            .returning(move |_, _| Ok(vec![exec_log.clone()]));
 
         provider
             .expect_get_block()
-            .withf(move |cid, num| *cid == chain_id && *num == 100)
+            .withf(move |cid, num| *cid == init_chain_id && *num == 100)
             .returning(move |_, _| Ok(dep_block));
 
         provider
+            .expect_get_log()
+            .withf(move |cid, blk, idx| *cid == init_chain_id && *blk == 100 && *idx == 0)
+            .returning(move |_, _, _| Ok(init_log.clone()));
+
+        provider
             .expect_get_safety_head_ref()
-            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
+            .withf(move |cid, lvl| *cid == init_chain_id && *lvl == SafetyLevel::CrossSafe)
             .returning(move |_, _| Ok(head));
 
-        let checker = CrossSafetyChecker::new(&provider);
-        let result = checker.verify_block_dependencies(chain_id, block, SafetyLevel::CrossSafe);
+        validator.expect_validate_interop_timestamps().returning(move |_, _, _, _, _| Ok(()));
+
+        let checker =
+            CrossSafetyChecker::new(exec_chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+        let result = checker.validate_block(block);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_executing_message_timestamp_violation() {
+        let chain_id = 1;
+        let msg = ExecutingMessage {
+            chain_id,
+            block_number: 100,
+            log_index: 0,
+            timestamp: 1234,
+            hash: b256(999),
+        };
+
+        let init_block = BlockInfo {
+            number: 100,
+            hash: b256(100),
+            parent_hash: b256(99),
+            timestamp: 9999, // Different timestamp to trigger invariant violation
+        };
+
+        let provider = MockProvider::default();
+        let validator = MockValidator::default();
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+
+        let result = checker.validate_executing_message(init_block, &msg);
+        assert!(matches!(
+            result,
+            Err(CrossSafetyError::ValidationError(
+                ValidationError::TimestampInvariantViolation { .. }
+            ))
+        ));
+    }
+
+    #[test]
+    fn validate_executing_message_initiating_message_not_found() {
+        let chain_id = 1;
+        let msg = ExecutingMessage {
+            chain_id,
+            block_number: 100,
+            log_index: 0,
+            timestamp: 1234,
+            hash: b256(999),
+        };
+
+        let init_block =
+            BlockInfo { number: 100, hash: b256(100), parent_hash: b256(99), timestamp: 1234 };
+
+        let mut provider = MockProvider::default();
+        provider
+            .expect_get_log()
+            .withf(move |cid, blk, idx| *cid == chain_id && *blk == 100 && *idx == 0)
+            .returning(|_, _, _| {
+                Err(StorageError::EntryNotFound(EntryNotFoundError::LogNotFound {
+                    block_number: 100,
+                    log_index: 0,
+                }))
+            });
+
+        let validator = MockValidator::default();
+
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+        let result = checker.validate_executing_message(init_block, &msg);
+
+        assert!(matches!(
+            result,
+            Err(CrossSafetyError::ValidationError(InitiatingMessageNotFound))
+        ));
+    }
+
+    #[test]
+    fn validate_executing_message_hash_mismatch() {
+        let chain_id = 1;
+        let msg = ExecutingMessage {
+            chain_id,
+            block_number: 100,
+            log_index: 0,
+            timestamp: 1234,
+            hash: b256(123),
+        };
+
+        let init_block =
+            BlockInfo { number: 100, hash: b256(100), parent_hash: b256(99), timestamp: 1234 };
+
+        let init_log = Log {
+            index: 0,
+            hash: b256(990), // Checksum mismatch
+            executing_message: None,
+        };
+
+        let mut provider = MockProvider::default();
+        provider
+            .expect_get_log()
+            .withf(move |cid, blk, idx| *cid == chain_id && *blk == 100 && *idx == 0)
+            .returning(move |_, _, _| Ok(init_log.clone()));
+
+        let validator = MockValidator::default();
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+        let result = checker.validate_executing_message(init_block, &msg);
+
+        assert!(matches!(
+            result,
+            Err(CrossSafetyError::ValidationError(ValidationError::InvalidMessageHash {
+                message_hash: _,
+                original_hash: _
+            }))
+        ));
+    }
+
+    #[test]
+    fn validate_executing_message_success() {
+        let chain_id = 1;
+        let timestamp = 1234;
+
+        let init_block = BlockInfo {
+            number: 100,
+            hash: b256(100),
+            parent_hash: b256(99),
+            timestamp, // Matches msg.timestamp
+        };
+
+        let init_log = Log {
+            index: 0,
+            hash: b256(999), // Matches msg.hash → passes checksum
+            executing_message: None,
+        };
+
+        let msg = ExecutingMessage {
+            chain_id,
+            block_number: 100,
+            log_index: 0,
+            timestamp,
+            hash: b256(999),
+        };
+
+        let mut provider = MockProvider::default();
+        provider
+            .expect_get_log()
+            .withf(move |cid, blk, idx| *cid == chain_id && *blk == 100 && *idx == 0)
+            .returning(move |_, _, _| Ok(init_log.clone()));
+
+        let validator = MockValidator::default();
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+
+        let result = checker.validate_executing_message(init_block, &msg);
+        assert!(result.is_ok(), "Expected successful validation");
+    }
+
+    #[test]
+    fn detect_cycle_when_it_loops_back_to_candidate() {
+        // Scenario:
+        // candidate: (chain 1, block 10)
+        // → depends on (chain 2, block 11)
+        // → depends on (chain 3, block 20)
+        // → depends on (chain 1, block 10) ← back to candidate!
+        // Expected result: cyclic dependency detected.
+
+        let ts = 100;
+        let candidate =
+            BlockInfo { number: 10, hash: b256(10), parent_hash: b256(9), timestamp: ts };
+
+        let block11 =
+            BlockInfo { number: 11, hash: b256(11), parent_hash: b256(10), timestamp: ts };
+
+        let block20 =
+            BlockInfo { number: 20, hash: b256(20), parent_hash: b256(19), timestamp: ts };
+
+        let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
+
+        // All blocks are below safety head (to allow traversal)
+        provider.expect_get_safety_head_ref().returning(|_, _| {
+            Ok(BlockInfo { number: 0, hash: b256(0), parent_hash: b256(0), timestamp: 0 })
+        });
+
+        // Define log dependencies
+        provider.expect_get_block_logs().returning(move |chain, number| {
+            match (chain.to_string().as_str(), number) {
+                ("1", 10) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1010),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 2,
+                        block_number: 11,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(222),
+                    }),
+                }]),
+                ("2", 11) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1020),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 3,
+                        block_number: 20,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(333),
+                    }),
+                }]),
+                ("3", 20) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1030),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 1,
+                        block_number: 10,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(444),
+                    }),
+                }]),
+                _ => Ok(vec![]),
+            }
+        });
+
+        // Define block fetch behavior
+        provider.expect_get_block().returning(move |chain, number| {
+            match (chain.to_string().as_str(), number) {
+                ("2", 11) => Ok(block11),
+                ("3", 20) => Ok(block20),
+                ("1", 10) => Ok(candidate),
+                _ => panic!("unexpected block lookup: chain={chain} num={number}"),
+            }
+        });
+
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
+
+        let result = checker.check_cyclic_dependency(&candidate, &block11, 2, &mut HashSet::new());
+
+        assert!(
+            matches!(
+                result,
+                Err(CrossSafetyError::ValidationError(ValidationError::CyclicDependency { .. }))
+            ),
+            "Expected cyclic dependency error"
+        );
+    }
+
+    #[test]
+    fn no_cycle_if_dependency_path_does_not_reach_candidate() {
+        // Scenario:
+        // candidate: (chain 1, block 10)
+        // → depends on (chain 2, block 11)
+        // → depends on (chain 3, block 20)
+        // But no further dependency → path ends safely without cycling back to candidate.
+        // Expected result: no cycle detected.
+
+        let ts = 100;
+        let candidate =
+            BlockInfo { number: 10, hash: b256(10), parent_hash: b256(9), timestamp: ts };
+
+        let block11 =
+            BlockInfo { number: 11, hash: b256(11), parent_hash: b256(10), timestamp: ts };
+
+        let block20 =
+            BlockInfo { number: 20, hash: b256(20), parent_hash: b256(19), timestamp: ts };
+
+        let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
+
+        // All blocks are below safety head (to allow traversal)
+        provider.expect_get_safety_head_ref().returning(|_, _| {
+            Ok(BlockInfo { number: 0, hash: b256(0), parent_hash: b256(0), timestamp: 0 })
+        });
+
+        // Define log dependencies
+        provider.expect_get_block_logs().returning(move |chain, number| {
+            match (chain.to_string().as_str(), number) {
+                ("1", 10) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1010),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 2,
+                        block_number: 11,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(222),
+                    }),
+                }]),
+                ("2", 11) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1020),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 3,
+                        block_number: 20,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(333),
+                    }),
+                }]),
+                ("3", 20) => Ok(vec![]), // No further dependency — traversal ends here
+                _ => Ok(vec![]),
+            }
+        });
+
+        // Define block fetch behavior
+        provider.expect_get_block().returning(move |chain, number| {
+            match (chain.to_string().as_str(), number) {
+                ("2", 11) => Ok(block11),
+                ("3", 20) => Ok(block20),
+                _ => panic!("unexpected block lookup: chain={chain} num={number}"),
+            }
+        });
+
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
+
+        let result = checker.check_cyclic_dependency(&candidate, &block11, 2, &mut HashSet::new());
+
+        assert!(result.is_ok(), "Expected no cycle when dependency path does not reach candidate");
+    }
+
+    #[test]
+    fn ignores_cycle_that_does_not_include_candidate() {
+        // Scenario:
+        // There is a cycle between blocks:
+        // Chain2 block 11 → Chain3 block 20 → Chain2 block 11 (forms a cycle)
+        // But candidate block (Chain1 block 10) is not in the cycle.
+        // Expected result: cycle is ignored since it doesn't involve the candidate.
+
+        let ts = 100;
+        let candidate =
+            BlockInfo { number: 10, hash: b256(10), parent_hash: b256(9), timestamp: ts };
+
+        let block11 =
+            BlockInfo { number: 11, hash: b256(11), parent_hash: b256(10), timestamp: ts };
+
+        let block20 =
+            BlockInfo { number: 20, hash: b256(20), parent_hash: b256(19), timestamp: ts };
+
+        let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
+
+        // All blocks are below safety head (so we traverse them)
+        provider.expect_get_safety_head_ref().returning(|_, _| {
+            Ok(BlockInfo { number: 0, hash: b256(0), parent_hash: b256(0), timestamp: 0 })
+        });
+
+        // Block logs setup:
+        // Chain1 block 10 → Chain2 block 11
+        // Chain2 block 11 → Chain3 block 20
+        // Chain3 block 20 → Chain2 block 11 (cycle here, but no candidate involvement)
+        provider.expect_get_block_logs().returning(move |chain, number| {
+            match (chain.to_string().as_str(), number) {
+                ("1", 10) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1010),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 2,
+                        block_number: 11,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(222),
+                    }),
+                }]),
+                ("2", 11) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1020),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 3,
+                        block_number: 20,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(333),
+                    }),
+                }]),
+                ("3", 20) => Ok(vec![Log {
+                    index: 0,
+                    hash: b256(1030),
+                    executing_message: Some(ExecutingMessage {
+                        chain_id: 2,
+                        block_number: 11,
+                        log_index: 0,
+                        timestamp: ts,
+                        hash: b256(444),
+                    }),
+                }]),
+                _ => Ok(vec![]),
+            }
+        });
+
+        // Block fetches
+        provider.expect_get_block().returning(move |chain, number| {
+            match (chain.to_string().as_str(), number) {
+                ("2", 11) => Ok(block11),
+                ("3", 20) => Ok(block20),
+                _ => panic!("unexpected block lookup"),
+            }
+        });
+
+        let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
+
+        // Start traversal from chain2: block11 is a dependency of candidate
+        let result = checker.check_cyclic_dependency(&candidate, &block11, 2, &mut HashSet::new());
+
+        assert!(
+            result.is_ok(),
+            "Expected no cycle error because candidate is not part of the cycle"
+        );
+    }
+
+    #[test]
+    fn stops_traversal_if_timestamp_differs() {
+        // Scenario:
+        // Candidate and dependency block have different timestamps.
+        // Should short-circuit the check and not recurse further.
+        // Expected result: no cycle detected.
+
+        let chain_id = 1;
+
+        let candidate =
+            BlockInfo { number: 10, hash: b256(10), parent_hash: b256(9), timestamp: 100 };
+        let dep = BlockInfo { number: 9, hash: b256(9), parent_hash: b256(8), timestamp: 50 };
+
+        let provider = MockProvider::default();
+        let validator = MockValidator::default();
+
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+
+        let result =
+            checker.check_cyclic_dependency(&candidate, &dep, chain_id, &mut HashSet::new());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn stops_traversal_if_block_is_already_cross_safe() {
+        // Scenario:
+        // Dependency block is already cross-safe (head is ahead of it).
+        // Should skip further traversal.
+        // Expected result: no cycle detected.
+
+        let chain_id = 1;
+
+        let candidate =
+            BlockInfo { number: 10, hash: b256(10), parent_hash: b256(9), timestamp: 100 };
+        let dep = BlockInfo { number: 9, hash: b256(9), parent_hash: b256(8), timestamp: 100 };
+
+        let mut provider = MockProvider::default();
+        let validator = MockValidator::default();
+
+        provider.expect_get_safety_head_ref().returning(|_, _| {
+            Ok(BlockInfo {
+                number: 10,
+                hash: b256(10),
+                parent_hash: b256(9),
+                timestamp: 100, // head ahead
+            })
+        });
+
+        let checker =
+            CrossSafetyChecker::new(chain_id, &validator, &provider, SafetyLevel::CrossSafe);
+
+        let result =
+            checker.check_cyclic_dependency(&candidate, &dep, chain_id, &mut HashSet::new());
         assert!(result.is_ok());
     }
 }

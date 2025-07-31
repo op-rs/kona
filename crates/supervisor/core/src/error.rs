@@ -3,6 +3,7 @@
 use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
+use kona_interop::InteropValidationError;
 use kona_supervisor_storage::StorageError;
 use kona_supervisor_types::AccessListError;
 use op_alloy_rpc_types::SuperchainDAError;
@@ -33,6 +34,10 @@ pub enum SupervisorError {
     #[error("unable to initialize the supervisor: {0}")]
     Initialise(String),
 
+    /// Indicates that error occurred while validating interop config.
+    #[error(transparent)]
+    InteropValidationError(#[from] InteropValidationError),
+
     /// Indicates that error occurred while interacting with the storage layer.
     #[error(transparent)]
     StorageError(#[from] StorageError),
@@ -53,7 +58,7 @@ pub enum SupervisorError {
     #[error(transparent)]
     CrossSafetyCheckerError(#[from] CrossSafetyError),
 
-    /// Indicates the L1 block does not match the epxected L1 block.
+    /// Indicates the L1 block does not match the expected L1 block.
     #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
     L1BlockMismatch {
         /// Expected L1 block.
@@ -107,6 +112,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::ChainProcessorError(_) |
             SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::StorageError(_) |
+            SupervisorError::InteropValidationError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SpecError(err) => err.into(),
         }
@@ -131,6 +137,8 @@ impl From<StorageError> for SpecError {
 
 #[cfg(test)]
 mod test {
+    use kona_supervisor_storage::EntryNotFoundError;
+
     use super::*;
 
     #[test]
@@ -160,7 +168,7 @@ mod test {
         assert_eq!(spec_err, expected_err.into());
 
         let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::EntryNotFound(
-            "superhead not found".to_string(),
+            EntryNotFoundError::DerivedBlockNotFound(12),
         )));
         let expected_err = SpecError::SuperchainDAError(SuperchainDAError::MissedData);
 

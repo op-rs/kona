@@ -8,7 +8,7 @@ use kona_registry::HashMap;
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ChainDependency {}
 
-/// Configuration for the depedency set
+/// Configuration for the dependency set
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]

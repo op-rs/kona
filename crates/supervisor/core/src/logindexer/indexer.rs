@@ -53,7 +53,7 @@ where
             let mut running = self.is_catch_up_running.lock().await;
 
             if *running {
-                debug!(target: "log_indexer", chain_id = %self.chain_id, "Catch-up running log index");
+                debug!(target: "supervisor::log_indexer", chain_id = %self.chain_id, "Catch-up running log index");
                 return;
             }
 
@@ -62,7 +62,7 @@ where
 
             if let Err(err) = self.index_log_upto(&block).await {
                 error!(
-                    target: "log_indexer",
+                    target: "supervisor::log_indexer",
                     chain_id = %self.chain_id,
                     %err,
                     "Log indexer catch-up failed"
@@ -100,7 +100,7 @@ where
     ///
     /// # Arguments
     /// - `block`: Metadata about the block being processed.
-    async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
+    pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
         let receipts = self.block_provider.fetch_receipts(block.hash).await?;
         let mut log_entries = Vec::with_capacity(receipts.len());
         let mut log_index: u32 = 0;

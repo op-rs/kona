@@ -250,7 +250,7 @@ mod tests {
                 eip_1559_params: None,
             },
             parent: Default::default(),
-            l1_origin: Default::default(),
+            derived_from: Default::default(),
             is_last_in_span: false,
         }
     }

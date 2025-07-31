@@ -1,5 +1,7 @@
 //! Providers that use alloy provider types on the backend.
 
+#[cfg(feature = "metrics")]
+use crate::Metrics;
 use alloy_eips::BlockId;
 use alloy_primitives::Bytes;
 use alloy_provider::{Provider, RootProvider};
@@ -66,28 +68,47 @@ impl AlloyL2ChainProvider {
         &mut self,
         id: BlockId,
     ) -> Result<Option<L2BlockInfo>, RpcError<TransportErrorKind>> {
-        let block = match id {
-            BlockId::Number(num) => self.inner.get_block_by_number(num).full().await?,
-            BlockId::Hash(hash) => self.inner.get_block_by_hash(hash.block_hash).full().await?,
+        #[cfg(feature = "metrics")]
+        let method_name = match id {
+            BlockId::Number(_) => "l2_block_ref_by_number",
+            BlockId::Hash(_) => "l2_block_ref_by_hash",
         };
 
-        match block {
-            Some(block) => {
-                let consensus_block = block.into_consensus().map_transactions(|t| t.inner.inner);
+        kona_macros::inc!(gauge, Metrics::L2_CHAIN_PROVIDER_REQUESTS, "method" => method_name);
 
-                let l2_block = L2BlockInfo::from_block_and_genesis(
-                    &consensus_block,
-                    &self.rollup_config.genesis,
-                )
-                .map_err(|_| {
-                    RpcError::local_usage_str(
-                        "failed to construct L2BlockInfo from block and genesis",
+        let result = async {
+            let block = match id {
+                BlockId::Number(num) => self.inner.get_block_by_number(num).full().await?,
+                BlockId::Hash(hash) => self.inner.get_block_by_hash(hash.block_hash).full().await?,
+            };
+
+            match block {
+                Some(block) => {
+                    let consensus_block =
+                        block.into_consensus().map_transactions(|t| t.inner.inner);
+
+                    let l2_block = L2BlockInfo::from_block_and_genesis(
+                        &consensus_block,
+                        &self.rollup_config.genesis,
                     )
-                })?;
-                Ok(Some(l2_block))
+                    .map_err(|_| {
+                        RpcError::local_usage_str(
+                            "failed to construct L2BlockInfo from block and genesis",
+                        )
+                    })?;
+                    Ok(Some(l2_block))
+                }
+                None => Ok(None),
             }
-            None => Ok(None),
         }
+        .await;
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::L2_CHAIN_PROVIDER_ERRORS, "method" => method_name);
+        }
+
+        result
     }
 
     /// Creates a new [AlloyL2ChainProvider] from the provided [reqwest::Url].
@@ -165,11 +186,17 @@ impl BatchValidationProvider for AlloyL2ChainProvider {
             return Ok(block.clone());
         }
 
+        kona_macros::inc!(gauge, Metrics::L2_CHAIN_PROVIDER_REQUESTS, "method" => "l2_block_ref_by_number");
+
         let block = self
             .inner
             .get_block_by_number(number.into())
             .full()
-            .await?
+            .await
+            .map_err(|e| {
+                kona_macros::inc!(gauge, Metrics::L2_CHAIN_PROVIDER_ERRORS, "method" => "l2_block_ref_by_number");
+                AlloyL2ChainProviderError::Transport(e)
+            })?
             .ok_or(AlloyL2ChainProviderError::BlockNotFound(number))?
             .into_consensus()
             .map_transactions(|t| t.inner.inner.into_inner());
