@@ -1,7 +1,7 @@
 [package]
 name = "kona-derive"
 description = "A no_std derivation pipeline implementation for the OP Stack"
-version = "0.4.4"
+version = "0.4.5"
 resolver = "2"
 edition.workspace = true
 authors.workspace = true

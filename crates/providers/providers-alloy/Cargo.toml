@@ -1,6 +1,6 @@
 [package]
 name = "kona-providers-alloy"
-version = "0.3.1"
+version = "0.3.2"
 description = "Alloy Backed Providers"
 
 edition.workspace = true

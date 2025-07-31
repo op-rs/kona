@@ -2,33 +2,84 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.1] - 2025-07-24
+## [0.1.2] - 2025-07-31
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release 0.3.1
-- Release 0.1.1
-- Release 0.1.1
-- Release 0.1.1
-- Release 0.1.1
-- Release 0.1.1
-- Release 0.3.1
-- Release 0.1.1
+- Release 0.4.5
+- Release 0.4.5
+- Release 0.4.5
+- Release 0.4.5
+- Release 0.4.5
+- Release 0.1.2
+- Release 0.2.2
+- Release 0.3.2
+- Release 0.4.5
+- Release 0.3.2
+- Release 0.1.2
+- Release 0.1.2
+- Release 0.1.2
+- Release 0.1.2
+- Release 0.3.2
+- Release 0.1.2
 
-## [0.2.1] - 2025-07-24
+## [0.4.5] - 2025-07-31
+
+### 🚀 Features
+
+- *(node/service)* Expose standalone `healthz` endpoint (#2603)
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release 0.2.1
+- Fix a large number of spelling issues in comments (#2592)
+- Release 0.4.5
 
-## [0.3.1] - 2025-07-24
+### Patch
+
+- *(node/conductor)* Patch conductor bootstrap (#2589)
+
+## [kona-node/v0.1.1-beta.1] - 2025-07-30
+
+### 🚀 Features
+
+- *(node/service)* Support sequencer recovery mode (#2460)
+- *(supervisor/core)* [Safety Checker] validate interop timestamps (#2537)
+- *(supervisor/core)* Integrate unsafe block reorg (#2539)
+- *(node/service)* Delay sequencer's view of L1 chain (#2568)
+- *(supervisor/core)* Handle invalidate blocks (#2564)
+- *(supervisor/core)* [Safety Checker] executing message validation (#2570)
+- *(protocol)* Add `Jovian` fork definition (#2584)
+- *(node/sequencer)* Implement remote signer skeleton (#2572)
+- *(node/sequencer)* Integrate remote signer in CLI (#2587)
+- Introduce CLAUDE.md file (#2596)
+
+### 🐛 Bug Fixes
+
+- *(node/engine)* Audit engine for bugs. rename forkchoice task -> synchronize task. move block building logic to build task (#2524)
+- *(supervisor/core)* Message checksum validation (#2586)
+
+### 🧪 Testing
+
+- *(node/engine)* Add positive engine test (#2552)
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release 0.1.1
-- Release 0.3.1
+- Fix broken url (#2557)
+- *(bin/node)* Improve error pattern matching when pre-validating jwt (#2367)
+- *(supervisor/storage)* Define `EntryNotFoundError` (#2542)
+- *(docs)* Remove `RuntimeActor` mention (#2567)
+- *(protocol)* Optional `OpAttributesWithParent::derived_from` field (#2569)
+- *(docs)* Replaced the non-working link driver (#2576)
+- *(supervisor)* Add supervisor path to log targets (#2565)
+- *(supervisor)* Refactor interop validation (#2578)
+- *(supervisor)* Refactor chain processor (#2590)
+- *(workspace)* Add `theochap` as author (#2599)
 
-## [0.1.1] - 2025-07-24
+### Patch
+
+- *(node)* Fix macos builds (#2600)
+
+## [kona-node/v0.1.1] - 2025-07-24
 
 ### 🚀 Features
 
@@ -133,8 +184,10 @@ All notable changes to this project will be documented in this file.
 - *(supervisor/storage)* Log improvements (#2525)
 - *(supervisor)* Remove deprecated supervisor api from `kona-node` (#2024)
 - *(supervisor/core)* Log improvements in managed node (#2526)
-- Release 0.4.4
-- Release 0.1.1
+
+### Release
+
+- Kona-node v0.1.1 (#2550)
 
 ## [kona-node/v0.1.0-beta.5] - 2025-07-08
 

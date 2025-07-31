@@ -4315,7 +4315,7 @@ dependencies = [
 
 [[package]]
 name = "kona-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "alloy-primitives",
  "anyhow",
@@ -4372,7 +4372,7 @@ dependencies = [
 
 [[package]]
 name = "kona-comp"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloc-no-stdlib",
  "alloy-consensus",
@@ -4402,7 +4402,7 @@ dependencies = [
 
 [[package]]
 name = "kona-derive"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4450,7 +4450,7 @@ dependencies = [
 
 [[package]]
 name = "kona-engine"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4529,7 +4529,7 @@ dependencies = [
 
 [[package]]
 name = "kona-genesis"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -4551,7 +4551,7 @@ dependencies = [
 
 [[package]]
 name = "kona-hardforks"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -4611,7 +4611,7 @@ dependencies = [
 
 [[package]]
 name = "kona-interop"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4636,7 +4636,7 @@ dependencies = [
 
 [[package]]
 name = "kona-macros"
-version = "0.1.1"
+version = "0.1.2"
 
 [[package]]
 name = "kona-mpt"
@@ -4662,7 +4662,7 @@ dependencies = [
 
 [[package]]
 name = "kona-node"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-chains",
  "alloy-primitives",
@@ -4711,7 +4711,7 @@ dependencies = [
 
 [[package]]
 name = "kona-node-service"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-chains",
  "alloy-eips",
@@ -4765,7 +4765,7 @@ dependencies = [
 
 [[package]]
 name = "kona-p2p"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -4805,7 +4805,7 @@ dependencies = [
 
 [[package]]
 name = "kona-peers"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-consensus",
  "alloy-primitives",
@@ -4918,7 +4918,7 @@ dependencies = [
 
 [[package]]
 name = "kona-protocol"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloc-no-stdlib",
  "alloy-consensus",
@@ -4953,7 +4953,7 @@ dependencies = [
 
 [[package]]
 name = "kona-providers-alloy"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -4982,7 +4982,7 @@ dependencies = [
 
 [[package]]
 name = "kona-registry"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "alloy-chains",
  "alloy-eips",
@@ -4998,7 +4998,7 @@ dependencies = [
 
 [[package]]
 name = "kona-rpc"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -5030,7 +5030,7 @@ dependencies = [
 
 [[package]]
 name = "kona-serde"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -5040,7 +5040,7 @@ dependencies = [
 
 [[package]]
 name = "kona-sources"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
