@@ -183,7 +183,6 @@ impl BatchValidationProvider for AlloyL2ChainProvider {
 
     async fn block_by_number(&mut self, number: u64) -> Result<OpBlock, Self::Error> {
         if let Some(block) = self.block_by_number_cache.get(&number) {
-            kona_macros::inc!(gauge, Metrics::L2_CHAIN_PROVIDER_REQUESTS, "method" => "l2_block_ref_by_number");
             return Ok(block.clone());
         }
 
