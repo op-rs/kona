@@ -1,6 +1,6 @@
 [package]
 name = "kona-node"
-version = "0.1.2"
+version = "1.0.0-rc.1"
 description = "Kona Consensus Node"
 
 edition.workspace = true

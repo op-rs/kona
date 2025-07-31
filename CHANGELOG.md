@@ -2,28 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.2] - 2025-07-31
+## [0.1.3] - 2025-07-31
+
+### 🚀 Features
+
+- *(supervisor:core)* Cyclic dependency checker on block validation (#2597)
 
 ### ⚙️ Miscellaneous Tasks
 
-- Release 0.4.5
-- Release 0.4.5
-- Release 0.4.5
-- Release 0.4.5
-- Release 0.4.5
-- Release 0.1.2
-- Release 0.2.2
-- Release 0.3.2
-- Release 0.4.5
-- Release 0.3.2
-- Release 0.1.2
-- Release 0.1.2
-- Release 0.1.2
-- Release 0.1.2
-- Release 0.3.2
-- Release 0.1.2
+- *(bin)* Remove unused discovery node subcommand (#2609)
+- *(providers)* Metrics with Claude (#2610)
+- *(grafana)* Update Dashboard (#2612)
+- Release 0.3.3
 
-## [0.4.5] - 2025-07-31
+### Release
+
+- *(kona-node)* 1.0.0-rc.1
+- *(kona-node)* 1.0.0-rc.1
+
+## [kona-node/v0.1.2] - 2025-07-31
 
 ### 🚀 Features
 
@@ -32,11 +29,14 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Fix a large number of spelling issues in comments (#2592)
-- Release 0.4.5
 
 ### Patch
 
 - *(node/conductor)* Patch conductor bootstrap (#2589)
+
+### Release
+
+- *(kona-node)* 0.1.2 (#2608)
 
 ## [kona-node/v0.1.1-beta.1] - 2025-07-30
 
