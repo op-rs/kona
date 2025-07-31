@@ -58,7 +58,7 @@ pub enum SupervisorError {
     #[error(transparent)]
     CrossSafetyCheckerError(#[from] CrossSafetyError),
 
-    /// Indicates the L1 block does not match the epxected L1 block.
+    /// Indicates the L1 block does not match the expected L1 block.
     #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
     L1BlockMismatch {
         /// Expected L1 block.
