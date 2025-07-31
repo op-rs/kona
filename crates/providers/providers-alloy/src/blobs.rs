@@ -181,18 +181,8 @@ impl<B: BeaconClient + Send + Sync> BlobSidecarProvider for B {
         slot: u64,
         hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BlobData>, BlobProviderError> {
-        kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCHES);
-
-        let result = self
-            .beacon_blob_side_cars(slot, hashes)
+        self.beacon_blob_side_cars(slot, hashes)
             .await
-            .map_err(|e| BlobProviderError::Backend(e.to_string()));
-
-        #[cfg(feature = "metrics")]
-        if result.is_err() {
-            kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCH_ERRORS);
-        }
-
-        result
+            .map_err(|e| BlobProviderError::Backend(e.to_string()))
     }
 }
