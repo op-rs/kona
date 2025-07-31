@@ -14,7 +14,7 @@ use reth_db_api::{
     cursor::DbCursorRO,
     transaction::{DbTx, DbTxMut},
 };
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 /// Provides access to derivation storage operations within a transaction.
 #[derive(Debug, Constructor)]
@@ -474,18 +474,51 @@ where
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
         let block_pair = self.get_derived_block_pair(*block)?;
 
+        // Count total blocks to rewind for progress tracking
+        let mut total_blocks = 0;
+        {
+            let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
+            let mut walker = cursor.walk(Some(block.number))?;
+            while walker.next().is_some() {
+                total_blocks += 1;
+            }
+        }
+
         // Delete all derived blocks with number ≥ `block_info.number`
         {
             let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
             let mut walker = cursor.walk(Some(block.number))?;
+            let mut processed_blocks = 0;
+            const LOG_INTERVAL: u64 = 100;
+
             while let Some(Ok((_, _))) = walker.next() {
                 walker.delete_current()?; // we’re already walking from the rewind point
+                processed_blocks += 1;
+
+                // Log progress every LOG_INTERVAL blocks
+                if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
+                    let percentage = if total_blocks > 0 {
+                        (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                    } else {
+                        100.0
+                    };
+                    info!(
+                        "Rewind progress: {:.2}% ({}/{} blocks)",
+                        percentage, processed_blocks, total_blocks
+                    );
+                }
+            }
+
+            // Ensure final 100% log if total_blocks > 0 and not already logged
+            if total_blocks > 0 && processed_blocks % LOG_INTERVAL != 0 {
+                info!("Rewind progress: 100.00% ({}/{} blocks)", processed_blocks, total_blocks);
+            } else if total_blocks == 0 {
+                info!("Rewind progress: 100.00% (0/0 blocks)");
             }
         }
 
         self.rewind_block_traversal_to(&block_pair)
     }
-
     /// Rewinds the block traversal for a given derived block pair.
     /// - If only part of the derived list needs to be removed, it updates the list in-place.
     /// - If later source blocks exist, they are removed entirely.
