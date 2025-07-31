@@ -14,6 +14,7 @@ rust-version.workspace = true
 
 [dependencies]
 # Kona
+kona-macros.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
 kona-derive.workspace = true
@@ -42,6 +43,13 @@ async-trait.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 tower.workspace = true
 http-body-util.workspace = true
+
+# `metrics` feature
+metrics = { workspace = true, optional = true }
+
+[features]
+default = []
+metrics = [ "dep:metrics", "kona-derive/metrics" ]
 
 [dev-dependencies]
 tokio.workspace = true
