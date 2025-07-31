@@ -220,7 +220,10 @@ where
     }
 
     /// Gets the source block for the given source block number.
-    fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError> {
+    pub(crate) fn get_source_block(
+        &self,
+        source_block_number: u64,
+    ) -> Result<BlockInfo, StorageError> {
         let block_traversal = self.get_block_traversal(source_block_number)?;
         Ok(block_traversal.source.into())
     }

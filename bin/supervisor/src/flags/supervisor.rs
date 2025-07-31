@@ -49,7 +49,7 @@ pub struct SupervisorArgs {
     pub dependency_set: PathBuf,
 
     /// Path pattern to op-node rollup.json configs to load as a rollup config set.
-    /// The pattern should use the glob sytax, e.g. '/configs/rollup-*.json'
+    /// The pattern should use the glob syntax, e.g. '/configs/rollup-*.json'
     /// When using this flag, the L1 timestamps are loaded from the provided L1 RPC.
     #[arg(long = "rollup-config-paths", env = "ROLLUP_CONFIG_PATHS")]
     pub rollup_config_paths: PathBuf,

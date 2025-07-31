@@ -135,7 +135,7 @@ impl SpanBatchTransactionData {
         }
     }
 
-    /// Converts the [`SpanBatchTransactionData`] into a singed transaction as [`TxEnvelope`].
+    /// Converts the [`SpanBatchTransactionData`] into a signed transaction as [`TxEnvelope`].
     pub fn to_signed_tx(
         &self,
         nonce: u64,
