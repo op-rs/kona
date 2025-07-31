@@ -19,6 +19,10 @@ docs/node_modules
 # npm package lock
 package-lock.json
 
+# Typos binary and downloaded files
+typos
+typos-*.tar.gz
+
 # `optimism-package` workspace
 optimism-package/
 
