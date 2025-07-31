@@ -65,7 +65,7 @@ pub enum BuildTaskError {
     /// A deposit-only payload failed to import.
     #[error("Deposit-only payload failed to import")]
     DepositOnlyPayloadFailed,
-    /// Failed to re-atttempt payload import with deposit-only payload.
+    /// Failed to re-attempt payload import with deposit-only payload.
     #[error("Failed to re-attempt payload import with deposit-only payload")]
     DepositOnlyPayloadReattemptFailed,
     /// The payload is invalid, and the derivation pipeline must

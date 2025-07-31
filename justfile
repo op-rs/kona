@@ -47,7 +47,7 @@ benches:
 # Lint the workspace for all available targets
 lint-all: lint-native lint-cannon lint-asterisc lint-docs lint-typos
 
-# Check spelling with typos
+# Check spelling with typos (`cargo install typos-cli`)
 lint-typos:
   typos
 

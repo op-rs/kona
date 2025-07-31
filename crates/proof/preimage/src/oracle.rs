@@ -101,8 +101,8 @@ where
     C: Channel,
 {
     /// Create a new [OracleServer] from a [Channel].
-    pub const fn new(chanel: C) -> Self {
-        Self { channel: chanel }
+    pub const fn new(channel: C) -> Self {
+        Self { channel }
     }
 }
 
