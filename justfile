@@ -45,7 +45,11 @@ benches:
   cargo bench --no-run --workspace --features test-utils --exclude example-gossip --exclude example-discovery
 
 # Lint the workspace for all available targets
-lint-all: lint-native lint-cannon lint-asterisc lint-docs
+lint-all: lint-native lint-cannon lint-asterisc lint-docs lint-typos
+
+# Check spelling with typos
+lint-typos:
+  typos
 
 # Runs `cargo hack check` against the workspace
 hack:
@@ -60,7 +64,7 @@ fmt-native-check:
   cargo +nightly fmt --all -- --check
 
 # Lint the workspace
-lint-native: fmt-native-check lint-docs
+lint-native: fmt-native-check lint-docs lint-typos
   cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 # Lint the workspace (mips arch). Currently, only the `kona-std-fpvm` crate is linted for the `cannon` target, as it is the only crate with architecture-specific code.
