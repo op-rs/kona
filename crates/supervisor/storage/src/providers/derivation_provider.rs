@@ -519,6 +519,7 @@ where
 
         self.rewind_block_traversal_to(&block_pair)
     }
+
     /// Rewinds the block traversal for a given derived block pair.
     /// - If only part of the derived list needs to be removed, it updates the list in-place.
     /// - If later source blocks exist, they are removed entirely.
