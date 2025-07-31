@@ -80,6 +80,7 @@ metrics = [
 	"kona-derive/metrics",
 	"kona-engine/metrics",
 	"kona-p2p/metrics",
+	"kona-providers-alloy/metrics",
 	"kona-rpc/metrics",
 	"kona-sources/metrics",
 	"libp2p/metrics",
