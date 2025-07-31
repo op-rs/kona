@@ -24,7 +24,7 @@ where
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), SupervisorError> {
         info!(
-            target: "reorg_handler",
+            target: "supervisor::reorg_handler",
             l1_block_number = latest_block.number,
             "Reorg detected, processing..."
         );
@@ -43,7 +43,7 @@ where
 
         if failed_chains > 0 {
             warn!(
-                target: "reorg_handler",
+                target: "supervisor::reorg_handler",
                 no_of_failed_chains = %failed_chains,
                 "Reorg processing completed with failed chains"
             );

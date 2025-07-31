@@ -40,7 +40,7 @@ where
         // Call the rewinder to handle the DB rewinding
         self.db.rewind(&rewind_to.id()).inspect_err(|err| {
             warn!(
-                target: "reorg_handler",
+                target: "supervisor::reorg_handler",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to rewind DB to derived block"
@@ -53,7 +53,7 @@ where
     /// Finds the rewind target for a chain during a reorg
     async fn find_rewind_target(&self) -> Result<Option<BlockNumHash>, SupervisorError> {
         trace!(
-            target: "reorg_handler",
+            target: "supervisor::reorg_handler",
             chain_id = %self.chain_id,
             "Finding rewind target..."
         );
@@ -63,7 +63,7 @@ where
         // Check if the latest source block is still canonical
         if self.is_block_canonical(latest_state.source.number, latest_state.source.hash).await? {
             debug!(
-                target: "reorg_handler",
+                target: "supervisor::reorg_handler",
                 chain_id = %self.chain_id,
                 block_number = latest_state.source.number,
                 "Latest source block is still canonical, no reorg needed"
@@ -80,7 +80,7 @@ where
             // If the current source block is canonical, we found the rewind target
             if self.is_block_canonical(current_source.number, current_source.hash).await? {
                 info!(
-                    target: "reorg_handler",
+                    target: "supervisor::reorg_handler",
                     chain_id = %self.chain_id,
                     block_number = current_source.number,
                     "Found canonical block as rewind target"
@@ -110,7 +110,7 @@ where
             Ok(canonical_l1) => Ok(canonical_l1.hash() == expected_hash),
             Err(err) => {
                 warn!(
-                    target: "reorg_handler",
+                    target: "supervisor::reorg_handler",
                     block_number,
                     %err,
                     "Failed to fetch canonical L1 block"
