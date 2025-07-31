@@ -482,7 +482,7 @@ where
         {
             let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
             let mut walker = cursor.walk(Some(block.number))?;
-            while walker.next().is_some() {
+            while let Some(Ok(_)) = walker.next() {
                 total_blocks += 1;
             }
         }
@@ -494,11 +494,13 @@ where
             let mut processed_blocks = 0;
             const LOG_INTERVAL: u64 = 100;
 
+            info!("Starting rewind of {} blocks...", total_blocks);
+
             while let Some(Ok((_, _))) = walker.next() {
                 walker.delete_current()?; // we’re already walking from the rewind point
                 processed_blocks += 1;
 
-                // Log progress every LOG_INTERVAL blocks
+                // Log progress periodically or on last block
                 if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
                     let percentage = if total_blocks > 0 {
                         (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
@@ -512,12 +514,7 @@ where
                 }
             }
 
-            // Ensure final 100% log if total_blocks > 0 and not already logged
-            if total_blocks > 0 && processed_blocks % LOG_INTERVAL != 0 {
-                info!("Rewind progress: 100.00% ({}/{} blocks)", processed_blocks, total_blocks);
-            } else if total_blocks == 0 {
-                info!("Rewind progress: 100.00% (0/0 blocks)");
-            }
+            info!("Rewind completed successfully");
         }
 
         self.rewind_block_traversal_to(&block_pair)
