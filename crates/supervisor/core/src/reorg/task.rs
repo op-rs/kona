@@ -23,12 +23,9 @@ where
     /// Processes reorg for a single chain
     pub(crate) async fn process_chain_reorg(&self) -> Result<(), SupervisorError> {
         // Find last valid source block for this chain
-        let rewind_target_source = match self.find_rewind_target().await? {
-            Some(source) => source,
-            None => {
-                // No need to re-org for this chain
-                return Ok(());
-            }
+        let Some(rewind_target_source) = self.find_rewind_target().await? else {
+            // No need to re-org for this chain
+            return Ok(());
         };
 
         // Get the derived block at the target source block
@@ -77,6 +74,14 @@ where
         let mut current_source = latest_state.source.id();
 
         while current_source.number > common_ancestor.number {
+            if current_source.number % 5 == 0 {
+                trace!(
+                    target: "supervisor::reorg_handler",
+                    current_block=current_source.number,
+                    common_ancestor=common_ancestor.number,
+                    "Finding rewind target..."
+                )
+            }
             // If the current source block is canonical, we found the rewind target
             if self.is_block_canonical(current_source.number, current_source.hash).await? {
                 info!(
