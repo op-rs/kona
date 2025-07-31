@@ -7,11 +7,12 @@ use kona_rpc::{
     AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
     OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,
 };
+use std::time::Duration;
 
 use jsonrpsee::{
     RpcModule,
     core::RegisterMethodError,
-    server::{Server, ServerHandle},
+    server::{Server, ServerHandle, middleware::http::ProxyGetRequestLayer},
 };
 use kona_engine::EngineQueries;
 use kona_rpc::{L1WatcherQueries, P2pRpc, RollupRpc, RpcBuilder};
@@ -83,7 +84,13 @@ async fn launch(
     config: &RpcBuilder,
     module: RpcModule<()>,
 ) -> Result<ServerHandle, std::io::Error> {
-    let server = Server::builder().build(config.socket).await?;
+    let middleware = tower::ServiceBuilder::new()
+        .layer(
+            ProxyGetRequestLayer::new([("/healthz", "healthz")])
+                .expect("Critical: Failed to build GET method proxy"),
+        )
+        .timeout(Duration::from_secs(2));
+    let server = Server::builder().set_http_middleware(middleware).build(config.socket).await?;
 
     if let Ok(addr) = server.local_addr() {
         info!(target: "rpc", addr = ?addr, "RPC server bound to address");
