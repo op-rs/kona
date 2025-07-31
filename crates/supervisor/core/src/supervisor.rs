@@ -25,11 +25,15 @@ use tracing::{error, info, warn};
 
 use crate::{
     ChainProcessor, CrossSafetyCheckerJob, SpecError, SupervisorError,
+    chain_processor::ChainProcessorActor,
     config::Config,
     event::ChainEvent,
     l1_watcher::L1Watcher,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{Client, ManagedNode, ManagedNodeClient, ManagedNodeDataProvider},
+    syncnode::{
+        Client, ManagedNode, ManagedNodeActor, ManagedNodeClient, ManagedNodeCommand,
+        ManagedNodeDataProvider,
+    },
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -107,8 +111,9 @@ pub struct Supervisor {
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
     managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
-    chain_processors:
-        HashMap<ChainId, ChainProcessor<ManagedNode<ChainDb, Client>, ChainDb, Config>>,
+
+    chain_event_senders: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
+    managed_node_senders: HashMap<ChainId, mpsc::Sender<ManagedNodeCommand>>,
 
     cancel_token: CancellationToken,
 }
@@ -125,16 +130,34 @@ impl Supervisor {
             config: Arc::new(config),
             database_factory,
             managed_nodes: HashMap::new(),
-            chain_processors: HashMap::new(),
+
+            chain_event_senders: HashMap::new(),
+            managed_node_senders: HashMap::new(),
+
             cancel_token,
         }
     }
 
     /// Initialises the Supervisor service.
     pub async fn initialise(&mut self) -> Result<(), SupervisorError> {
+        let mut chain_event_receivers = HashMap::<ChainId, mpsc::Receiver<ChainEvent>>::new();
+        let mut managed_node_receivers =
+            HashMap::<ChainId, mpsc::Receiver<ManagedNodeCommand>>::new();
+
+        // create sender and receiver channels for each chain
+        for chain_id in self.config.rollup_config_set.rollups.keys() {
+            let (chain_tx, chain_rx) = mpsc::channel::<ChainEvent>(100);
+            self.chain_event_senders.insert(*chain_id, chain_tx);
+            chain_event_receivers.insert(*chain_id, chain_rx);
+
+            let (managed_node_tx, managed_node_rx) = mpsc::channel::<ManagedNodeCommand>(100);
+            self.managed_node_senders.insert(*chain_id, managed_node_tx);
+            managed_node_receivers.insert(*chain_id, managed_node_rx);
+        }
+
         self.init_database().await?;
-        self.init_managed_nodes().await?;
-        self.init_chain_processor().await?;
+        self.init_managed_nodes(managed_node_receivers).await?;
+        self.init_chain_processor(chain_event_receivers).await?;
         self.init_l1_watcher()?;
         self.init_cross_safety_checker().await?;
         Ok(())
@@ -156,7 +179,10 @@ impl Supervisor {
         Ok(())
     }
 
-    async fn init_chain_processor(&mut self) -> Result<(), SupervisorError> {
+    async fn init_chain_processor(
+        &mut self,
+        mut chain_event_receivers: HashMap<ChainId, mpsc::Receiver<ChainEvent>>,
+    ) -> Result<(), SupervisorError> {
         // Initialise the service components, such as database connections or other resources.
 
         for (chain_id, _) in self.config.rollup_config_set.rollups.iter() {
@@ -167,22 +193,38 @@ impl Supervisor {
                     chain_id
                 )))?;
 
+            let managed_node_sender = self
+                .managed_node_senders
+                .get(chain_id)
+                .ok_or(SupervisorError::Initialise(format!(
+                    "no managed node sender found for chain {}",
+                    chain_id
+                )))?
+                .clone();
+
             // initialise chain processor for the chain.
             let mut processor = ChainProcessor::new(
                 self.config.clone(),
                 *chain_id,
                 managed_node.clone(),
                 db,
-                self.cancel_token.clone(),
+                managed_node_sender,
             );
 
             // todo: enable metrics only if configured
             processor = processor.with_metrics();
 
-            // Start the chain processors.
-            // Each chain processor will start its own managed nodes and begin processing messages.
-            processor.start().await?;
-            self.chain_processors.insert(*chain_id, processor);
+            // Start the chain processor actor.
+            let chain_event_receiver =
+                chain_event_receivers.remove(chain_id).ok_or(SupervisorError::Initialise(
+                    format!("no chain event receiver found for chain {}", chain_id),
+                ))?;
+
+            tokio::spawn(async move {
+                ChainProcessorActor::new(processor, CancellationToken::new(), chain_event_receiver)
+                    .start()
+                    .await;
+            });
         }
         Ok(())
     }
@@ -192,17 +234,14 @@ impl Supervisor {
             let db = Arc::clone(&self.database_factory);
             let cancel = self.cancel_token.clone();
 
-            // todo: remove dependency from chain processors to get event txs
-            // initialize event txs independently and pass at the time of initialization
-            let processor = self.chain_processors.get(&chain_id).ok_or_else(|| {
-                error!(target: "supervisor::service", %chain_id, "processor not initialized");
-                SupervisorError::Initialise("processor not initialized".into())
-            })?;
-
-            let event_tx = processor.event_sender().ok_or_else(|| {
-                error!(target: "supervisor::service", %chain_id, "no event tx found in chain processor");
-                SupervisorError::Initialise("event sender not found".into())
-            })?;
+            let chain_event_sender = self
+                .chain_event_senders
+                .get(&chain_id)
+                .ok_or(SupervisorError::Initialise(format!(
+                    "no chain event sender found for chain {}",
+                    chain_id
+                )))?
+                .clone();
 
             let cross_safe_job = CrossSafetyCheckerJob::new(
                 chain_id,
@@ -210,7 +249,7 @@ impl Supervisor {
                 cancel.clone(),
                 Duration::from_secs(config.block_time),
                 CrossSafePromoter,
-                event_tx.clone(),
+                chain_event_sender.clone(),
                 self.config.clone(),
             );
 
@@ -224,7 +263,7 @@ impl Supervisor {
                 cancel,
                 Duration::from_secs(config.block_time),
                 CrossUnsafePromoter,
-                event_tx,
+                chain_event_sender,
                 self.config.clone(),
             );
 
@@ -236,7 +275,10 @@ impl Supervisor {
         Ok(())
     }
 
-    async fn init_managed_nodes(&mut self) -> Result<(), SupervisorError> {
+    async fn init_managed_nodes(
+        &mut self,
+        mut managed_node_receivers: HashMap<ChainId, mpsc::Receiver<ManagedNodeCommand>>,
+    ) -> Result<(), SupervisorError> {
         for config in self.config.l2_consensus_nodes_config.iter() {
             let url = Url::parse(&self.config.l1_rpc).map_err(|err| {
                 error!(target: "supervisor::service", %err, "Failed to parse L1 RPC URL");
@@ -251,22 +293,42 @@ impl Supervisor {
             })?;
             let db = self.database_factory.get_db(chain_id)?;
 
+            let chain_event_sender = self
+                .chain_event_senders
+                .get(&chain_id)
+                .ok_or(SupervisorError::Initialise(format!(
+                    "no chain event sender found for chain {}",
+                    chain_id
+                )))?
+                .clone();
+
             let managed_node = ManagedNode::<ChainDb, Client>::new(
-                client,
+                client.clone(),
                 db,
-                self.cancel_token.clone(),
                 provider,
+                chain_event_sender,
             );
 
             if self.managed_nodes.contains_key(&chain_id) {
                 warn!(target: "supervisor::service", %chain_id, "Managed node for chain already exists, skipping initialization");
                 continue;
             }
-            self.managed_nodes.insert(chain_id, Arc::new(managed_node));
+
+            let managed_node = Arc::new(managed_node);
+            self.managed_nodes.insert(chain_id, managed_node.clone());
             info!(target: "supervisor::service",
                  chain_id,
                 "Managed node for chain initialized successfully",
             );
+
+            // start managed node actor
+            let managed_node_receiver = managed_node_receivers.remove(&chain_id).ok_or(
+                SupervisorError::Initialise(format!("no receiver for chain {}", chain_id)),
+            )?;
+
+            // Start the managed node Actor.
+            ManagedNodeActor::new(client, managed_node, self.cancel_token.clone())
+                .start(managed_node_receiver);
         }
         Ok(())
     }
@@ -274,23 +336,10 @@ impl Supervisor {
     fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
         let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
 
-        let mut senders = HashMap::<ChainId, mpsc::Sender<ChainEvent>>::new();
-        for (chain_id, chain_processor) in &self.chain_processors {
-            if let Some(sender) = chain_processor.event_sender() {
-                senders.insert(*chain_id, sender);
-            } else {
-                error!(target: "supervisor::service", chain_id, "No sender found for chain processor");
-                return Err(SupervisorError::Initialise(format!(
-                    "no sender found for chain processor for chain {}",
-                    chain_id
-                )));
-            }
-        }
-
         let l1_watcher = L1Watcher::new(
             l1_rpc,
             self.database_factory.clone(),
-            senders,
+            self.chain_event_senders.clone(),
             self.cancel_token.clone(),
         );
 

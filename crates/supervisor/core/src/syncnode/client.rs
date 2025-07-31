@@ -19,7 +19,7 @@ use tracing::{error, info};
 
 /// Trait for a managed node client that provides various methods to interact with the node.
 #[async_trait]
-pub trait ManagedNodeClient: Debug {
+pub trait ManagedNodeClient: Send + Sync + Debug {
     /// Returns the [`ChainId`] of the managed node.
     async fn chain_id(&self) -> Result<ChainId, ClientError>;
 

@@ -1,7 +1,6 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState, chain_processor::Metrics,
-    syncnode::ManagedNodeProvider,
+    chain_processor::Metrics, syncnode::{BlockProvider, ManagedNodeCommand}, ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState
 };
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
@@ -9,13 +8,14 @@ use derive_more::Constructor;
 use kona_interop::{DerivedRefPair, InteropValidator};
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace, warn};
 
 /// Handler for safe blocks.
 #[derive(Debug, Constructor)]
 pub struct SafeBlockHandler<P, W, V> {
     chain_id: ChainId,
-    managed_node: Arc<P>,
+    managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
     db_provider: Arc<W>,
     validator: Arc<V>,
     log_indexer: Arc<LogIndexer<P, W>>,
@@ -25,7 +25,7 @@ pub struct SafeBlockHandler<P, W, V> {
 #[async_trait]
 impl<P, W, V> EventHandler<DerivedRefPair> for SafeBlockHandler<P, W, V>
 where
-    P: ManagedNodeProvider + 'static,
+    P: BlockProvider + 'static,
     V: InteropValidator + 'static,
     W: LogStorage + DerivationStorage + StorageRewinder + 'static,
 {
@@ -34,7 +34,7 @@ where
         derived_ref_pair: DerivedRefPair,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        trace!(
+        info!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
@@ -65,7 +65,7 @@ where
 
 impl<P, W, V> SafeBlockHandler<P, W, V>
 where
-    P: ManagedNodeProvider + 'static,
+    P: BlockProvider + 'static,
     V: InteropValidator + 'static,
     W: LogStorage + DerivationStorage + StorageRewinder + 'static,
 {
@@ -123,12 +123,12 @@ where
                     "Block out of order detected, resetting managed node"
                 );
 
-                if let Err(err) = self.managed_node.reset().await {
+                if let Err(err) = self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await {
                     warn!(
                         target: "supervisor::chain_processor::managed_node",
                         chain_id = self.chain_id,
                         %err,
-                        "Failed to reset managed node after block out of order"
+                        "Failed to send reset command to managed node"
                     );
                     return Err(err.into());
                 }
@@ -209,12 +209,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        event::ChainEvent,
-        syncnode::{
-            BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
-            NodeSubscriber,
-        },
+    use crate::syncnode::{
+        BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -227,19 +223,10 @@ mod tests {
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
-    use tokio::sync::mpsc;
 
     mock!(
         #[derive(Debug)]
         pub Node {}
-
-        #[async_trait]
-        impl NodeSubscriber for Node {
-            async fn start_subscription(
-                &self,
-                _event_tx: mpsc::Sender<ChainEvent>,
-            ) -> Result<(), ManagedNodeError>;
-        }
 
         #[async_trait]
         impl BlockProvider for Node {
@@ -383,6 +370,7 @@ mod tests {
     async fn test_handle_derived_event_skips_if_invalidated() {
         let mockdb = MockDb::new();
         let mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -424,7 +412,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1,
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -433,12 +421,16 @@ mod tests {
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_pre_interop() {
         let mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -468,7 +460,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -477,12 +469,16 @@ mod tests {
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_post_interop() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -516,7 +512,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -525,12 +521,16 @@ mod tests {
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_interop_activation() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -565,7 +565,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -574,12 +574,16 @@ mod tests {
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_block_out_of_order_triggers_reset() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mut mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -616,7 +620,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -624,12 +628,20 @@ mod tests {
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure reset command was sent
+        if let Some(cmd) = rx.recv().await {
+            assert!(matches!(cmd, ManagedNodeCommand::Reset {}));
+        } else {
+            panic!("Expected reset command to be sent");
+        }
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_block_out_of_order_triggers_reset_error() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, rx) = mpsc::channel(1);
         let mut mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -664,9 +676,11 @@ mod tests {
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
         let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
+        drop(rx); // Simulate a send error by dropping the receiver
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -683,6 +697,7 @@ mod tests {
     async fn test_handle_derived_event_block_triggers_reorg() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mut mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -739,7 +754,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -747,12 +762,16 @@ mod tests {
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_block_triggers_resync() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mut mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -808,7 +827,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -816,12 +835,16 @@ mod tests {
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derived_event_other_error() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
@@ -855,7 +878,7 @@ mod tests {
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
-            managed_node,
+            tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
@@ -863,5 +886,8 @@ mod tests {
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_err());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 }

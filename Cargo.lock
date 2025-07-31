@@ -5135,6 +5135,7 @@ dependencies = [
  "alloy-rpc-types-engine",
  "alloy-rpc-types-eth",
  "alloy-transport",
+ "anyhow",
  "async-trait",
  "auto_impl",
  "derive_more",

@@ -1,6 +1,12 @@
 //! Supervisor core syncnode module
 //! This module provides the core functionality for managing nodes in the supervisor environment.
 
+mod command;
+pub use command::ManagedNodeCommand;
+
+mod actor;
+pub use actor::ManagedNodeActor;
+
 mod node;
 pub use node::ManagedNode;
 
@@ -12,7 +18,7 @@ pub use error::{
 mod traits;
 pub use traits::{
     BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeProvider,
-    NodeSubscriber,
+    SubscriptionHandler,
 };
 
 mod client;
@@ -20,5 +26,4 @@ pub use client::{Client, ClientConfig, ManagedNodeClient};
 
 pub(super) mod metrics;
 pub(super) mod resetter;
-pub(super) mod task;
 pub(super) mod utils;

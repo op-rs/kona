@@ -1,6 +1,9 @@
 use alloy_primitives::B256;
 use kona_supervisor_storage::StorageError;
 use thiserror::Error;
+use tokio::sync::mpsc;
+
+use crate::event::ChainEvent;
 
 /// Represents various errors that can occur during node management,
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -39,6 +42,37 @@ pub enum SubscriptionError {
     /// Subscription is already exists.
     #[error("subscription already active")]
     AlreadyActive,
+
+    /// Represents an error that occurred while starting the managed node.
+    #[error(transparent)]
+    Client(#[from] ClientError),
+
+    /// Unable to successfully fetch next L1 block.
+    #[error("failed to get block by number, number: {0}")]
+    GetBlockByNumberFailed(u64),
+
+    /// Current block hash and parent block hash of next block do not match.
+    #[error(
+        "current block hash and parent hash of next block mismatch, current: {current}, parent: {parent}"
+    )]
+    BlockHashMismatch {
+        /// Current block hash.
+        current: B256,
+        /// Parent block hash of next block (which should be current block hash)
+        parent: B256,
+    },
+
+    /// Managed node api call failed.
+    #[error("managed node api call failed")]
+    ManagedNodeAPICallFailed,
+
+    /// Error fetching data from the storage.
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
+
+    /// Represents an error that occurred while sending an event to the channel.
+    #[error(transparent)]
+    ChannelSendFailed(#[from] mpsc::error::SendError<ChainEvent>),
 }
 
 /// Error handling managed event task.
