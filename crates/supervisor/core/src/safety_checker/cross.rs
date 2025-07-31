@@ -28,12 +28,12 @@ where
     /// Verifies that all executing messages in the given block are valid based on the validity
     /// checks
     pub fn validate_block(&self, block: BlockInfo) -> Result<(), CrossSafetyError> {
-        self.for_each_dependent_block(&block, self.chain_id, |message, initiating_block| {
+        self.map_dependent_block(&block, self.chain_id, |message, initiating_block| {
             // Check whether the message passes interop timestamps related validation
             self.validator
                 .validate_interop_timestamps(
                     message.chain_id,  // initiating chain id
-                    message.timestamp, //initiating block timestamp
+                    message.timestamp, // initiating block timestamp
                     self.chain_id,     // executing chain id
                     block.timestamp,   // executing block timestamp
                     None,
@@ -122,7 +122,7 @@ where
             return Ok(()); // Already at target safety level - cannot form a cycle
         }
 
-        self.for_each_dependent_block(current, chain_id, |message, origin_block| {
+        self.map_dependent_block(current, chain_id, |message, origin_block| {
             self.check_cyclic_dependency(candidate, &origin_block, message.chain_id, visited)
         })
     }
@@ -167,7 +167,7 @@ where
 
     /// For each executing log in the block, fetches the initiating block and applies the callback.
     /// This is the direct dependency walker from executing → initiating blocks.
-    fn for_each_dependent_block<F>(
+    fn map_dependent_block<F>(
         &self,
         exec_block: &BlockInfo,
         chain_id: ChainId,
