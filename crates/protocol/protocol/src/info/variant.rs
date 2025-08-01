@@ -749,13 +749,15 @@ mod test {
         assert_eq!(l1_info.blob_base_fee, l1_header.blob_fee(BlobParams::cancun()).unwrap_or(1));
 
         let scalar = system_config.scalar.to_be_bytes::<32>();
-        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoEcotone::L1_SCALAR)
-            .then(|| {
+        let blob_base_fee_scalar = if scalar[0] == L1BlockInfoEcotone::L1_SCALAR {
+            {
                 u32::from_be_bytes(
                     scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),
                 )
-            })
-            .unwrap_or_default();
+            }
+        } else {
+            Default::default()
+        };
         let base_fee_scalar =
             u32::from_be_bytes(scalar[28..32].try_into().expect("Failed to parse base fee scalar"));
         assert_eq!(l1_info.blob_base_fee_scalar, blob_base_fee_scalar);
@@ -823,13 +825,15 @@ mod test {
         );
 
         let scalar = system_config.scalar.to_be_bytes::<32>();
-        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoEcotone::L1_SCALAR)
-            .then(|| {
+        let blob_base_fee_scalar = if scalar[0] == L1BlockInfoEcotone::L1_SCALAR {
+            {
                 u32::from_be_bytes(
                     scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),
                 )
-            })
-            .unwrap_or_default();
+            }
+        } else {
+            Default::default()
+        };
         let base_fee_scalar =
             u32::from_be_bytes(scalar[28..32].try_into().expect("Failed to parse base fee scalar"));
         assert_eq!(l1_info.blob_base_fee_scalar, blob_base_fee_scalar);
@@ -875,13 +879,15 @@ mod test {
         assert!(matches!(l1_info, L1BlockInfoTx::Isthmus(_)));
 
         let scalar = system_config.scalar.to_be_bytes::<32>();
-        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoIsthmus::L1_SCALAR)
-            .then(|| {
+        let blob_base_fee_scalar = if scalar[0] == L1BlockInfoIsthmus::L1_SCALAR {
+            {
                 u32::from_be_bytes(
                     scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),
                 )
-            })
-            .unwrap_or_default();
+            }
+        } else {
+            Default::default()
+        };
         let base_fee_scalar =
             u32::from_be_bytes(scalar[28..32].try_into().expect("Failed to parse base fee scalar"));
 
@@ -938,13 +944,15 @@ mod test {
         assert!(matches!(l1_info, L1BlockInfoTx::Isthmus(_)));
 
         let scalar = system_config.scalar.to_be_bytes::<32>();
-        let blob_base_fee_scalar = (scalar[0] == L1BlockInfoIsthmus::L1_SCALAR)
-            .then(|| {
+        let blob_base_fee_scalar = if scalar[0] == L1BlockInfoIsthmus::L1_SCALAR {
+            {
                 u32::from_be_bytes(
                     scalar[24..28].try_into().expect("Failed to parse L1 blob base fee scalar"),
                 )
-            })
-            .unwrap_or_default();
+            }
+        } else {
+            Default::default()
+        };
         let base_fee_scalar =
             u32::from_be_bytes(scalar[28..32].try_into().expect("Failed to parse base fee scalar"));
 

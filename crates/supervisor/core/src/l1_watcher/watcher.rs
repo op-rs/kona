@@ -314,9 +314,7 @@ mod tests {
         );
         assert!(
             matches!(event, ChainEvent::FinalizedSourceUpdate { ref finalized_source_block } if *finalized_source_block == expected),
-            "Expected FinalizedSourceUpdate with block {:?}, got {:?}",
-            expected,
-            event
+            "Expected FinalizedSourceUpdate with block {expected:?}, got {event:?}"
         );
     }
 

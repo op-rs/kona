@@ -190,7 +190,7 @@ mod test {
             loop {
                 match oracle_server.next_preimage_request(&test_fetcher).await {
                     Err(PreimageOracleError::IOError(_)) => break,
-                    Err(e) => panic!("Unexpected error: {:?}", e),
+                    Err(e) => panic!("Unexpected error: {e:?}"),
                     Ok(_) => {}
                 }
             }
@@ -234,7 +234,7 @@ mod test {
             loop {
                 match oracle_server.next_preimage_request(&test_fetcher).await {
                     Err(PreimageOracleError::IOError(_)) => break,
-                    Err(e) => panic!("Unexpected error: {:?}", e),
+                    Err(e) => panic!("Unexpected error: {e:?}"),
                     Ok(_) => {}
                 }
             }

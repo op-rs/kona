@@ -258,7 +258,7 @@ impl Frame {
     /// Calculates the size of the frame + overhead for storing the frame. The sum of the frame size
     /// of each frame in a channel determines the channel's size. The sum of the channel sizes
     /// is used for pruning & compared against the max channel bank size.
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.data.len() + FRAME_OVERHEAD
     }
 }
