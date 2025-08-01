@@ -86,7 +86,7 @@ impl DerivationStorageReader for ChainDb {
         self.observe_call("latest_derived_block_at_source", || {
             self.env.view(|tx| {
                 DerivationProvider::new(tx, self.chain_id)
-                    .latest_derived_block_at_source(source_block_id)
+                    .latest_derived_ref_pair_at_source(source_block_id)
             })
         })?
     }
@@ -318,7 +318,7 @@ impl HeadRefStorageWriter for ChainDb {
                 }
 
                 let latest_derived =
-                    dp.latest_derived_block_at_source(finalized_source_block.id())?;
+                    dp.latest_derived_ref_pair_at_source(finalized_source_block.id())?;
                 sp.update_safety_head_ref(SafetyLevel::Finalized, &latest_derived)?;
                 Ok(latest_derived)
             })
