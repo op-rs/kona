@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- *(mpt)* Remove unnused collapse ([#808](https://github.com/op-rs/kona/pull/808))
+- *(mpt)* Remove unused collapse ([#808](https://github.com/op-rs/kona/pull/808))
 
 ### Other
 

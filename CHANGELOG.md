@@ -614,7 +614,7 @@ All notable changes to this project will be documented in this file.
 - *(node)* Build task + consolidate condition (#1804)
 - *(ci)* Free disk space on kurtosis e2e tests (#1821)
 - *(sources)* Stop sync start walkback at genesis (#1818)
-- *(node/kurtosis-e2e-test)* Fixes the versionning for the e2e testing package (#1814)
+- *(node/kurtosis-e2e-test)* Fixes the versioning for the e2e testing package (#1814)
 - *(node/p2p)* Fix node id serialization and connectedness display (#1824)
 - *(p2p/rpc)* Fix formatting for the `opp2p-peers` rpc method (#1827)
 - *(node/async)* Fix cpu usage from future polling (#1848)
@@ -1293,7 +1293,7 @@ All notable changes to this project will be documented in this file.
 - *(client)* Precompile Run Macro (#1014)
 - *(ci)* Bump `codecov-action` to v5 (#1020)
 - Use Updated Maili and op-alloy Deps (#1023)
-- *(book)* Adherance to devdocs (#1026)
+- *(book)* Adherence to devdocs (#1026)
 - *(book)* Devdocs subdirectory (#1027)
 
 ## [kona-providers-alloy-v0.1.0] - 2025-01-26
@@ -1492,7 +1492,7 @@ All notable changes to this project will be documented in this file.
 
 - *(client)* SyncStart Refactor (#797)
 - Mdbook version (#810)
-- *(mpt)* Remove unnused collapse (#808)
+- *(mpt)* Remove unused collapse (#808)
 - Imports (#829)
 
 ### 📚 Documentation

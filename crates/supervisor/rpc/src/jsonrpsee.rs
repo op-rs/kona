@@ -192,7 +192,7 @@ pub trait ManagedModeApi {
     #[method(name = "fetchReceipts")]
     async fn fetch_receipts(&self, block_hash: BlockHash) -> RpcResult<Receipts>;
 
-    /// Get block infor for a given block number
+    /// Get block info for a given block number
     #[method(name = "l2BlockRefByNumber")]
     async fn l2_block_ref_by_number(&self, number: u64) -> RpcResult<BlockInfo>;
 

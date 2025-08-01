@@ -147,6 +147,19 @@ jobs:
       - name: doctest
         run: just test-docs
 
+  typos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install typos
+        run: cargo install typos-cli
+      - name: Check spelling
+        run: typos
+
   cargo-hack:
     runs-on: ubuntu-latest
     timeout-minutes: 40

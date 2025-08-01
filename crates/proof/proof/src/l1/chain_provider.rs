@@ -109,7 +109,7 @@ impl<T: CommsClient + Sync + Send> ChainProvider for OracleL1ChainProvider<T> {
         let transactions = trie_walker
             .into_iter()
             .map(|(_, rlp)| {
-                // note: not short-handed for error type coersion w/ `?`.
+                // note: not short-handed for error type coercion w/ `?`.
                 let rlp = TxEnvelope::decode_2718(&mut rlp.as_ref())?;
                 Ok(rlp)
             })

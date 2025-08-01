@@ -96,11 +96,11 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         // Fetch blob sidecars for the slot using the given blob hashes.
         let sidecars = self.fetch_sidecars(slot, blob_hashes).await?;
 
-        // Filter blob sidecars that match the indicies in the specified list.
-        let blob_hash_indicies = blob_hashes.iter().map(|b| b.index).collect::<Vec<u64>>();
+        // Filter blob sidecars that match the indices in the specified list.
+        let blob_hash_indices = blob_hashes.iter().map(|b| b.index).collect::<Vec<u64>>();
         let filtered = sidecars
             .into_iter()
-            .filter(|s| blob_hash_indicies.contains(&s.index))
+            .filter(|s| blob_hash_indices.contains(&s.index))
             .collect::<Vec<_>>();
 
         // Validate the correct number of blob sidecars were retrieved.
