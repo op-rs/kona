@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info};
 
 #[derive(Debug)]
-pub(super) struct Resetter<DB, C> {
+pub(crate) struct Resetter<DB, C> {
     client: Arc<C>,
     db_provider: Arc<DB>,
     reset_guard: Mutex<()>,
@@ -21,7 +21,7 @@ where
     C: ManagedNodeClient + Send + Sync + 'static,
 {
     /// Creates a new [`Resetter`] with the specified client.
-    pub(super) fn new(client: Arc<C>, db_provider: Arc<DB>) -> Self {
+    pub(crate) fn new(client: Arc<C>, db_provider: Arc<DB>) -> Self {
         Self { client, db_provider, reset_guard: Mutex::new(()) }
     }
 

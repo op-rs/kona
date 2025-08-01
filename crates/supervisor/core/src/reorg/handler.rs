@@ -1,4 +1,8 @@
-use crate::{SupervisorError, reorg::task::ReorgTask};
+use crate::{
+    SupervisorError,
+    reorg::task::ReorgTask,
+    syncnode::{Client, resetter::Resetter},
+};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
@@ -15,6 +19,8 @@ pub struct ReorgHandler<DB> {
     rpc_client: RpcClient,
     /// Per chain dbs.
     chain_dbs: HashMap<ChainId, Arc<DB>>,
+    /// Per chain resetters.
+    resetters: HashMap<ChainId, Arc<Resetter<DB, Client>>>,
 }
 
 impl<DB> ReorgHandler<DB>
@@ -32,8 +38,9 @@ where
         let mut handles = Vec::with_capacity(self.chain_dbs.len());
 
         for (chain_id, chain_db) in &self.chain_dbs {
+            let resetter = Arc::clone(&self.resetters[chain_id]);
             let reorg_task =
-                ReorgTask::new(*chain_id, Arc::clone(chain_db), self.rpc_client.clone());
+                ReorgTask::new(*chain_id, Arc::clone(chain_db), self.rpc_client.clone(), resetter);
             let handle = tokio::spawn(async move { reorg_task.process_chain_reorg().await });
             handles.push(handle);
         }

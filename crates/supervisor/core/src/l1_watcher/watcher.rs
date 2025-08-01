@@ -212,7 +212,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SupervisorError;
+    use crate::{
+        SupervisorError,
+        syncnode::{Client, resetter::Resetter},
+    };
     use alloy_primitives::B256;
     use alloy_transport::mock::*;
     use kona_supervisor_storage::{ChainDb, FinalizedL1Storage, StorageError};
@@ -242,7 +245,8 @@ mod tests {
 
     fn mock_reorg_handler() -> ReorgHandler<ChainDb> {
         let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = HashMap::new();
-        ReorgHandler::new(mock_rpc_client(), chain_dbs_map)
+        let resetters: HashMap<ChainId, Arc<Resetter<ChainDb, Client>>> = HashMap::new();
+        ReorgHandler::new(mock_rpc_client(), chain_dbs_map, resetters)
     }
 
     #[tokio::test]

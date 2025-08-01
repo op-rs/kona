@@ -296,12 +296,18 @@ impl Supervisor {
             .map(|chain_id| (*chain_id, self.database_factory.get_db(*chain_id).unwrap()))
             .collect();
 
+        let resetters = self
+            .managed_nodes
+            .iter()
+            .map(|(chain_id, managed_node)| (*chain_id, managed_node.resetter()))
+            .collect();
+
         let l1_watcher = L1Watcher::new(
             l1_rpc.clone(),
             self.database_factory.clone(),
             senders,
             self.cancel_token.clone(),
-            ReorgHandler::new(l1_rpc, chain_dbs_map),
+            ReorgHandler::new(l1_rpc, chain_dbs_map, resetters),
         );
 
         tokio::spawn(async move {
