@@ -1,7 +1,4 @@
-use crate::{
-    SupervisorError,
-    syncnode::{ManagedNodeClient, resetter::Resetter},
-};
+use crate::{SupervisorError, syncnode::ManagedNodeController};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
@@ -13,17 +10,16 @@ use tracing::{debug, info, trace, warn};
 
 /// Handles reorg for a single chain
 #[derive(Debug, Constructor)]
-pub(crate) struct ReorgTask<DB, C> {
+pub(crate) struct ReorgTask<DB> {
     chain_id: ChainId,
     db: Arc<DB>,
     rpc_client: RpcClient,
-    resetter: Arc<Resetter<DB, C>>,
+    managed_node: Arc<dyn ManagedNodeController>,
 }
 
-impl<DB, C> ReorgTask<DB, C>
+impl<DB> ReorgTask<DB>
 where
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
-    C: ManagedNodeClient + Send + Sync + 'static,
 {
     /// Processes reorg for a single chain
     pub(crate) async fn process_chain_reorg(&self) -> Result<(), SupervisorError> {
@@ -49,14 +45,14 @@ where
             );
         })?;
 
-        debug!(
+        trace!(
             target: "supervisor::reorg_handler",
             chain_id = %self.chain_id,
             "Calling resetter to reset the node after reorg"
         );
 
         // Reset the node after rewinding the DB.
-        self.resetter.reset().await.map_err(|err| {
+        self.managed_node.reset().await.map_err(|err| {
             warn!(
                 target: "supervisor::reorg_handler",
                 chain_id = %self.chain_id,
@@ -151,17 +147,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::{ClientError, ManagedNodeClient};
+    use crate::syncnode::{ManagedNodeController, ManagedNodeError};
     use alloy_rpc_types_eth::Header;
     use alloy_transport::mock::*;
     use async_trait::async_trait;
-    use jsonrpsee::core::client::Subscription;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
         DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageError,
     };
-    use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts, SubscriptionEvent, SuperHead};
+    use kona_supervisor_types::{BlockSeal, Log, SuperHead};
     use mockall::mock;
 
     mock!(
@@ -197,29 +192,19 @@ mod tests {
         pub chain_db {}
     );
 
-    mock! {
+    mock! (
         #[derive(Debug)]
-        pub Client {}
+        pub ManagedNode {}
 
         #[async_trait]
-        impl ManagedNodeClient for Client {
-            async fn chain_id(&self) -> Result<ChainId, ClientError>;
-            async fn subscribe_events(&self) -> Result<Subscription<SubscriptionEvent>, ClientError>;
-            async fn fetch_receipts(&self, block_hash: B256) -> Result<Receipts, ClientError>;
-            async fn output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
-            async fn pending_output_v0_at_timestamp(&self, timestamp: u64) -> Result<OutputV0, ClientError>;
-            async fn l2_block_ref_by_timestamp(&self, timestamp: u64) -> Result<BlockInfo, ClientError>;
-            async fn block_ref_by_number(&self, block_number: u64) -> Result<BlockInfo, ClientError>;
-            async fn reset_pre_interop(&self) -> Result<(), ClientError>;
-            async fn reset(&self, unsafe_id: BlockNumHash, cross_unsafe_id: BlockNumHash, local_safe_id: BlockNumHash, cross_safe_id: BlockNumHash, finalised_id: BlockNumHash) -> Result<(), ClientError>;
-            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ClientError>;
-            async fn provide_l1(&self, block_info: BlockInfo) -> Result<(), ClientError>;
-            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ClientError>;
-            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ClientError>;
-            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ClientError>;
-            async fn reset_ws_client(&self);
+        impl ManagedNodeController for ManagedNode {
+            async fn reset(&self) -> Result<(), ManagedNodeError>;
+            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
         }
-    }
+    );
 
     #[tokio::test]
     async fn test_find_rewind_target_without_reorg() {
@@ -257,9 +242,8 @@ mod tests {
         // Mock RPC response
         asserter.push_success(&latest_source);
 
-        let resetter =
-            Arc::new(Resetter::new(Arc::new(MockClient::new()), Arc::new(MockDb::new())));
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, resetter);
+        let managed_node = Arc::new(MockManagedNode::new());
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
         let rewind_target = reorg_task.find_rewind_target().await;
 
         // Should succeed since the latest source block is still canonical
@@ -393,9 +377,8 @@ mod tests {
         // Finally returning the correct block
         asserter.push_success(&finalized_source);
 
-        let resetter =
-            Arc::new(Resetter::new(Arc::new(MockClient::new()), Arc::new(MockDb::new())));
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, resetter);
+        let managed_node = Arc::new(MockManagedNode::new());
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
         let rewind_target = reorg_task.find_rewind_target().await;
 
         // Should succeed since the latest source block is still canonical
@@ -442,9 +425,8 @@ mod tests {
         asserter.push_success(&canonical_block);
         asserter.push_success(&non_canonical_block);
 
-        let resetter =
-            Arc::new(Resetter::new(Arc::new(MockClient::new()), Arc::new(MockDb::new())));
-        let reorg_task = ReorgTask::new(1, Arc::new(MockDb::new()), rpc_client, resetter);
+        let managed_node = Arc::new(MockManagedNode::new());
+        let reorg_task = ReorgTask::new(1, Arc::new(MockDb::new()), rpc_client, managed_node);
 
         let result = reorg_task.is_block_canonical(100, canonical_hash).await;
         assert!(result.is_ok());

@@ -63,11 +63,6 @@ where
         let chain_id = self.client.chain_id().await?;
         Ok(chain_id)
     }
-
-    /// Returns the [`Resetter`] for the [`ManagedNode`].
-    pub(crate) fn resetter(&self) -> Arc<Resetter<DB, C>> {
-        self.resetter.clone()
-    }
 }
 
 #[async_trait]
