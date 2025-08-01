@@ -1,6 +1,9 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
+use crate::{
+    ChainProcessorError, CrossSafetyError,
+    syncnode::{self, ManagedNodeError},
+};
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::InteropValidationError;
@@ -31,8 +34,8 @@ pub enum SupervisorError {
     SpecError(#[from] SpecError),
 
     /// Indicates that the supervisor was unable to initialise due to an error.
-    #[error("unable to initialize the supervisor: {0}")]
-    Initialise(String),
+    #[error(transparent)]
+    Initialise(#[from] InitError),
 
     /// Indicates that error occurred while validating interop config.
     #[error(transparent)]
@@ -133,6 +136,38 @@ impl From<StorageError> for SpecError {
             _ => Self::ErrorNotInSpec,
         }
     }
+}
+
+/// Represents initialization errors that can occur while starting the supervisor service.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum InitError {
+    /// Indicates that no managed node was found for the given chain ID.
+    #[error("no managed node found for chain: {0}")]
+    NoManagedNode(u64),
+
+    /// Indicates that no rollup config was found for the given chain ID.
+    #[error("no rollup config found for chain: {0}")]
+    NoRollupConfig(u64),
+
+    /// Indicates that the processor component was not properly initialized.
+    #[error("processor not initialized")]
+    ProcessorNotInitialized,
+
+    /// Indicates that the event sender was not found.
+    #[error("event sender not found")]
+    MissingEventSender,
+
+    /// Indicates that the L1 RPC URL is invalid.
+    #[error("invalid l1 rpc url")]
+    InvalidL1RpcUrl,
+
+    /// Indicates that an error occurred while fetching the chain ID from the client.
+    #[error("failed to get chain id from client: {0}")]
+    ClientChainIdError(#[from] syncnode::ClientError),
+
+    /// Indicates that no sender was found for the chain processor for the given chain ID.
+    #[error("no sender found for chain processor for chain: {0}")]
+    NoSenderForChainProcessor(u64),
 }
 
 #[cfg(test)]

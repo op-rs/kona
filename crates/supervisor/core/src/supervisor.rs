@@ -26,6 +26,7 @@ use tracing::{error, info, warn};
 use crate::{
     ChainProcessor, CrossSafetyCheckerJob, SpecError, SupervisorError,
     config::Config,
+    error::InitError,
     event::ChainEvent,
     l1_watcher::L1Watcher,
     reorg::ReorgHandler,
@@ -162,11 +163,10 @@ impl Supervisor {
 
         for (chain_id, _) in self.config.rollup_config_set.rollups.iter() {
             let db = self.database_factory.get_db(*chain_id)?;
-            let managed_node =
-                self.managed_nodes.get(chain_id).ok_or(SupervisorError::Initialise(format!(
-                    "no managed node found for chain {}",
-                    chain_id
-                )))?;
+            let managed_node = self
+                .managed_nodes
+                .get(chain_id)
+                .ok_or(SupervisorError::Initialise(InitError::NoManagedNode(*chain_id)))?;
 
             // initialise chain processor for the chain.
             let mut processor = ChainProcessor::new(
@@ -197,12 +197,12 @@ impl Supervisor {
             // initialize event txs independently and pass at the time of initialization
             let processor = self.chain_processors.get(&chain_id).ok_or_else(|| {
                 error!(target: "supervisor::service", %chain_id, "processor not initialized");
-                SupervisorError::Initialise("processor not initialized".into())
+                SupervisorError::Initialise(InitError::ProcessorNotInitialized)
             })?;
 
             let event_tx = processor.event_sender().ok_or_else(|| {
                 error!(target: "supervisor::service", %chain_id, "no event tx found in chain processor");
-                SupervisorError::Initialise("event sender not found".into())
+                SupervisorError::Initialise(InitError::MissingEventSender)
             })?;
 
             let cross_safe_job = CrossSafetyCheckerJob::new(
@@ -241,14 +241,14 @@ impl Supervisor {
         for config in self.config.l2_consensus_nodes_config.iter() {
             let url = Url::parse(&self.config.l1_rpc).map_err(|err| {
                 error!(target: "supervisor::service", %err, "Failed to parse L1 RPC URL");
-                SupervisorError::Initialise("invalid l1 rpc url".to_string())
+                SupervisorError::Initialise(InitError::InvalidL1RpcUrl)
             })?;
             let provider = RootProvider::<Ethereum>::new_http(url);
             let client = Arc::new(Client::new(config.clone()));
 
             let chain_id = client.chain_id().await.map_err(|err| {
                 error!(target: "supervisor::service", %err, "Failed to get chain ID from client");
-                SupervisorError::Initialise("failed to get chain id from client".to_string())
+                SupervisorError::Initialise(InitError::ClientChainIdError(err))
             })?;
             let db = self.database_factory.get_db(chain_id)?;
 
@@ -281,9 +281,8 @@ impl Supervisor {
                 senders.insert(*chain_id, sender);
             } else {
                 error!(target: "supervisor::service", chain_id, "No sender found for chain processor");
-                return Err(SupervisorError::Initialise(format!(
-                    "no sender found for chain processor for chain {}",
-                    chain_id
+                return Err(SupervisorError::Initialise(InitError::NoSenderForChainProcessor(
+                    *chain_id,
                 )));
             }
         }
