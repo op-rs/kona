@@ -477,24 +477,26 @@ where
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
         let block_pair = self.get_derived_block_pair(*block)?;
 
-        // Count total blocks to rewind for progress tracking
-        let mut total_blocks = 0;
-        {
+        // Get the latest block number from DerivedBlocks
+        let latest_block = {
             let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
-            let mut walker = cursor.walk(Some(block.number))?;
-            while let Some(Ok(_)) = walker.next() {
-                total_blocks += 1;
-            }
-        }
+            cursor.last()?.map(|(num, _)| num).unwrap_or(block.number)
+        };
+        let total_blocks = latest_block.saturating_sub(block.number);
 
-        // Delete all derived blocks with number ≥ `block_info.number`
+        // Delete all derived blocks with number ≥ `block.number`
         {
             let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
             let mut walker = cursor.walk(Some(block.number))?;
             let mut processed_blocks = 0;
             const LOG_INTERVAL: u64 = 100;
 
-            info!("Starting rewind of {} blocks...", total_blocks);
+            info!(
+                target_block = ?block.number,
+                latest_block = ?latest_block,
+                total_blocks = %total_blocks,
+                "Starting rewind"
+            );
 
             while let Some(Ok((_, _))) = walker.next() {
                 walker.delete_current()?; // we’re already walking from the rewind point
@@ -508,13 +510,19 @@ where
                         100.0
                     };
                     info!(
-                        "Rewind progress: {:.2}% ({}/{} blocks)",
-                        percentage, processed_blocks, total_blocks
+                        percentage = %format!("{:.2}", percentage),
+                        processed_blocks = %processed_blocks,
+                        total_blocks = %total_blocks,
+                        "Rewind progress"
                     );
                 }
             }
 
-            info!("Rewind completed successfully");
+            info!(
+                target_block = ?block.number,
+                total_blocks = %total_blocks,
+                "Rewind completed successfully"
+            );
         }
 
         self.rewind_block_traversal_to(&block_pair)
