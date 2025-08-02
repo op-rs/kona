@@ -150,12 +150,20 @@ where
         let mut cursor = self.tx.cursor_read::<BlockTraversal>()?;
         let mut walker = cursor.walk_back(Some(source_block_id.number))?;
 
-        while let Some(Ok((_, block_traversal))) = walker.next() {
-            if let Some(latest_derived_block_number) = block_traversal.derived_block_numbers.last()
-            {
-                let derived_block_pair =
-                    self.get_derived_block_pair_by_number(*latest_derived_block_number)?;
-                return Ok(derived_block_pair.derived.into());
+        while let Some(item) = walker.next() {
+            match item {
+                Ok((_, block_traversal)) => {
+                    if let Some(latest_derived_block_number) =
+                        block_traversal.derived_block_numbers.last()
+                    {
+                        let derived_block_pair =
+                            self.get_derived_block_pair_by_number(*latest_derived_block_number)?;
+                        return Ok(derived_block_pair.derived.into());
+                    }
+                }
+                Err(e) => {
+                    return Err(StorageError::from(e));
+                }
             }
         }
 
@@ -274,7 +282,9 @@ where
         // todo: use cursor to get the last block(performance improvement)
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(e) => return Err(e),
         };
 
@@ -403,7 +413,9 @@ where
     pub(crate) fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
         let latest_source_block = match self.latest_source_block() {
             Ok(latest_source_block) => latest_source_block,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(err) => return Err(err),
         };
 
