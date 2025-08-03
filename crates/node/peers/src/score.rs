@@ -114,7 +114,7 @@ impl PeerScoreLevel {
         let one_hundred_epochs = epoch * 100;
         let penalty_decay = Self::score_decay(ten_epochs, slot);
         let topics =
-            topic_scoring.then(|| Self::topic_scores(topics, block_time)).unwrap_or_default();
+            if topic_scoring { Self::topic_scores(topics, block_time) } else { Default::default() };
         match self {
             Self::Off => None,
             Self::Light => Some(PeerScoreParams {

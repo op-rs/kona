@@ -1,6 +1,6 @@
 //! Multi-chain, interoperable fault proof program entrypoint.
 
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 use alloy_primitives::B256;
 use consolidate::consolidate_dependencies;
 use core::{cmp::Ordering, fmt::Debug};
@@ -33,10 +33,10 @@ pub enum FaultProofProgramError {
     OracleProvider(#[from] OracleProviderError),
     /// An error occurred in the driver.
     #[error(transparent)]
-    Driver(#[from] DriverError<ExecutorError>),
+    Driver(#[from] Box<DriverError<ExecutorError>>),
     /// An error occurred in the derivation pipeline.
     #[error(transparent)]
-    PipelineError(#[from] PipelineErrorKind),
+    PipelineError(#[from] Box<PipelineErrorKind>),
     /// Consolidation error.
     #[error(transparent)]
     Consolidation(#[from] ConsolidationError),

@@ -135,7 +135,7 @@ Block validity in kona follows the [OP Stack block validation specs][validation]
 As of writing these docs, block validation follows a few rules.
 
 - The timestamp is between 60 seconds in the past and at most 5 seconds in the future.
-- The block hash is valid. This is checked by transforming the paylaod into a block
+- The block hash is valid. This is checked by transforming the payload into a block
   and then hashing the block header to produce the payload hash.
 - The contents of the payload envelope are correct for its version. Since different
   versions introduce new contents to the payload from hardforks, the

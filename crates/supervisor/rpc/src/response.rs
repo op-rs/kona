@@ -137,7 +137,7 @@ fn serialize_u8_as_hex<S>(value: &u8, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let hex_string = format!("0x{:02x}", value);
+    let hex_string = format!("0x{value:02x}");
     serializer.serialize_str(&hex_string)
 }
 

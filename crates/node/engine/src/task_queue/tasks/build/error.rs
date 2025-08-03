@@ -58,14 +58,14 @@ pub enum BuildTaskError {
     ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
     /// Impossible to insert the payload into the engine.
     #[error(transparent)]
-    PayloadInsertionFailed(#[from] InsertTaskError),
+    PayloadInsertionFailed(#[from] Box<InsertTaskError>),
     /// The get payload call to the engine api failed.
     #[error(transparent)]
     GetPayloadFailed(RpcError<TransportErrorKind>),
     /// A deposit-only payload failed to import.
     #[error("Deposit-only payload failed to import")]
     DepositOnlyPayloadFailed,
-    /// Failed to re-atttempt payload import with deposit-only payload.
+    /// Failed to re-attempt payload import with deposit-only payload.
     #[error("Failed to re-attempt payload import with deposit-only payload")]
     DepositOnlyPayloadReattemptFailed,
     /// The payload is invalid, and the derivation pipeline must
@@ -80,7 +80,7 @@ pub enum BuildTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] mpsc::error::SendError<OpExecutionPayloadEnvelope>),
+    MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
 }
 
 impl EngineTaskError for BuildTaskError {

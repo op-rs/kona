@@ -1,6 +1,8 @@
 //! Contains an online implementation of the `BlobProvider` trait.
 
 use crate::BeaconClient;
+#[cfg(feature = "metrics")]
+use crate::Metrics;
 use alloy_eips::eip4844::{Blob, BlobTransactionSidecarItem, IndexedBlobHash};
 use alloy_rpc_types_beacon::sidecar::BlobData;
 use async_trait::async_trait;
@@ -50,10 +52,20 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         slot: u64,
         hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BlobData>, BlobProviderError> {
-        self.beacon_client
+        kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCHES);
+
+        let result = self
+            .beacon_client
             .beacon_blob_side_cars(slot, hashes)
             .await
-            .map_err(|e| BlobProviderError::Backend(e.to_string()))
+            .map_err(|e| BlobProviderError::Backend(e.to_string()));
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCH_ERRORS);
+        }
+
+        result
     }
 
     /// Computes the slot for the given timestamp.

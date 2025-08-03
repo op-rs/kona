@@ -2,7 +2,7 @@
 
 use super::FaultProofProgramError;
 use crate::interop::util::fetch_l2_safe_head_hash;
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 use alloy_consensus::Sealed;
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
 use alloy_primitives::B256;
@@ -112,7 +112,8 @@ where
         l1_provider.clone(),
         l2_provider.clone(),
     )
-    .await?;
+    .await
+    .map_err(Box::new)?;
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
         l2_provider.clone(),
@@ -160,7 +161,7 @@ where
                 "Failed to advance derivation pipeline: {:?}",
                 e
             );
-            Err(e.into())
+            Err(Box::new(e).into())
         }
     }
 }

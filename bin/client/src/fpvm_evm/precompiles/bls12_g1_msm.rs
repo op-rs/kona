@@ -32,17 +32,14 @@ where
 {
     if input.len() > BLS12_MAX_G1_MSM_SIZE_ISTHMUS {
         return Err(PrecompileError::Other(alloc::format!(
-            "G1MSM input length must be at most {}",
-            BLS12_MAX_G1_MSM_SIZE_ISTHMUS
+            "G1MSM input length must be at most {BLS12_MAX_G1_MSM_SIZE_ISTHMUS}"
         )));
     }
 
     let input_len = input.len();
     if input_len == 0 || input_len % G1_MSM_INPUT_LENGTH != 0 {
         return Err(PrecompileError::Other(alloc::format!(
-            "G1MSM input length should be multiple of {}, was {}",
-            G1_MSM_INPUT_LENGTH,
-            input_len
+            "G1MSM input length should be multiple of {G1_MSM_INPUT_LENGTH}, was {input_len}"
         )));
     }
 

@@ -72,11 +72,11 @@ impl L2Finalizer {
         // If the highest safe block is found, enqueue a finalization task and drain the
         // queue of all L1 blocks not contained in the finalized L1 chain.
         if let Some((_, highest_safe_number)) = highest_safe {
-            let task = EngineTask::Finalize(FinalizeTask::new(
+            let task = EngineTask::Finalize(Box::new(FinalizeTask::new(
                 engine_state.client.clone(),
                 engine_state.rollup.clone(),
                 *highest_safe_number,
-            ));
+            )));
             engine_state.engine.enqueue(task);
 
             self.awaiting_finalization.retain(|&number, _| number > new_finalized_l1.number);
