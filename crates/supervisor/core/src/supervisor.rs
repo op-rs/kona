@@ -1,8 +1,5 @@
 use alloy_eips::BlockNumHash;
-use alloy_network::Ethereum;
 use alloy_primitives::{B256, Bytes, ChainId, keccak256};
-use alloy_provider::RootProvider;
-use alloy_rpc_client::RpcClient;
 use async_trait::async_trait;
 use core::fmt::Debug;
 use kona_interop::{
@@ -12,29 +9,18 @@ use kona_interop::{
 use kona_protocol::BlockInfo;
 use kona_supervisor_rpc::{ChainRootInfoRpc, SuperRootOutputRpc};
 use kona_supervisor_storage::{
-    ChainDb, ChainDbFactory, DerivationStorageReader, DerivationStorageWriter, FinalizedL1Storage,
-    HeadRefStorageReader, LogStorageReader, LogStorageWriter,
+    ChainDb, ChainDbFactory, DerivationStorageReader, FinalizedL1Storage, HeadRefStorageReader,
+    LogStorageReader,
 };
 use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
-use reqwest::Url;
-use std::{collections::HashMap, sync::Arc, time::Duration};
-use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use std::{collections::HashMap, sync::Arc};
+use tracing::error;
 
 use crate::{
-    ChainProcessor, CrossSafetyCheckerJob, SpecError, SupervisorError,
-    chain_processor::ChainProcessorActor,
+    SpecError, SupervisorError,
     config::Config,
-    event::ChainEvent,
-    l1_watcher::L1Watcher,
-    reorg::ReorgHandler,
-    safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{
-        Client, ManagedNode, ManagedNodeActor, ManagedNodeClient, ManagedNodeCommand,
-        ManagedNodeDataProvider,
-    },
+    syncnode::{Client, ManagedNode, ManagedNodeDataProvider},
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -112,246 +98,13 @@ pub struct Supervisor {
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
     managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
-
-    chain_event_senders: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
-    managed_node_senders: HashMap<ChainId, mpsc::Sender<ManagedNodeCommand>>,
-
-    cancel_token: CancellationToken,
 }
 
 impl Supervisor {
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new(
-        config: Config,
-        database_factory: Arc<ChainDbFactory>,
-        cancel_token: CancellationToken,
-    ) -> Self {
-        Self {
-            config: Arc::new(config),
-            database_factory,
-            managed_nodes: HashMap::new(),
-
-            chain_event_senders: HashMap::new(),
-            managed_node_senders: HashMap::new(),
-
-            cancel_token,
-        }
-    }
-
-    /// Initialises the Supervisor service.
-    pub async fn initialise(&mut self) -> Result<(), SupervisorError> {
-        let mut chain_event_receivers = HashMap::<ChainId, mpsc::Receiver<ChainEvent>>::new();
-        let mut managed_node_receivers =
-            HashMap::<ChainId, mpsc::Receiver<ManagedNodeCommand>>::new();
-
-        // create sender and receiver channels for each chain
-        for chain_id in self.config.rollup_config_set.rollups.keys() {
-            let (chain_tx, chain_rx) = mpsc::channel::<ChainEvent>(100);
-            self.chain_event_senders.insert(*chain_id, chain_tx);
-            chain_event_receivers.insert(*chain_id, chain_rx);
-
-            let (managed_node_tx, managed_node_rx) = mpsc::channel::<ManagedNodeCommand>(100);
-            self.managed_node_senders.insert(*chain_id, managed_node_tx);
-            managed_node_receivers.insert(*chain_id, managed_node_rx);
-        }
-
-        self.init_database().await?;
-        self.init_managed_nodes(managed_node_receivers).await?;
-        self.init_chain_processor(chain_event_receivers).await?;
-        self.init_l1_watcher()?;
-        self.init_cross_safety_checker().await?;
-        Ok(())
-    }
-
-    async fn init_database(&self) -> Result<(), SupervisorError> {
-        for (chain_id, config) in self.config.rollup_config_set.rollups.iter() {
-            // Initialise the database for each chain.
-            let db = self.database_factory.get_or_create_db(*chain_id)?;
-            let interop_time = config.interop_time;
-            let derived_pair = config.genesis.get_derived_pair();
-            if config.is_interop(derived_pair.derived.timestamp) {
-                info!(target: "supervisor::service", chain_id, interop_time, %derived_pair, "Initialising database for interop activation block");
-                db.initialise_log_storage(derived_pair.derived)?;
-                db.initialise_derivation_storage(derived_pair)?;
-            }
-            info!(target: "supervisor::service", chain_id, "Database initialized successfully");
-        }
-        Ok(())
-    }
-
-    async fn init_chain_processor(
-        &mut self,
-        mut chain_event_receivers: HashMap<ChainId, mpsc::Receiver<ChainEvent>>,
-    ) -> Result<(), SupervisorError> {
-        // Initialise the service components, such as database connections or other resources.
-
-        for (chain_id, _) in self.config.rollup_config_set.rollups.iter() {
-            let db = self.database_factory.get_db(*chain_id)?;
-            let managed_node = self.managed_nodes.get(chain_id).ok_or(
-                SupervisorError::Initialise(format!("no managed node found for chain {chain_id}")),
-            )?;
-
-            let managed_node_sender = self
-                .managed_node_senders
-                .get(chain_id)
-                .ok_or(SupervisorError::Initialise(format!(
-                    "no managed node sender found for chain {chain_id}",
-                )))?
-                .clone();
-
-            // initialise chain processor for the chain.
-            let mut processor = ChainProcessor::new(
-                self.config.clone(),
-                *chain_id,
-                managed_node.clone(),
-                db,
-                managed_node_sender,
-            );
-
-            // todo: enable metrics only if configured
-            processor = processor.with_metrics();
-
-            // Start the chain processor actor.
-            let chain_event_receiver =
-                chain_event_receivers.remove(chain_id).ok_or(SupervisorError::Initialise(
-                    format!("no chain event receiver found for chain {chain_id}"),
-                ))?;
-
-            tokio::spawn(async move {
-                ChainProcessorActor::new(processor, CancellationToken::new(), chain_event_receiver)
-                    .start()
-                    .await;
-            });
-        }
-        Ok(())
-    }
-
-    async fn init_cross_safety_checker(&self) -> Result<(), SupervisorError> {
-        for (&chain_id, config) in &self.config.rollup_config_set.rollups {
-            let db = Arc::clone(&self.database_factory);
-            let cancel = self.cancel_token.clone();
-
-            let chain_event_sender = self
-                .chain_event_senders
-                .get(&chain_id)
-                .ok_or(SupervisorError::Initialise(format!(
-                    "no chain event sender found for chain {chain_id}",
-                )))?
-                .clone();
-
-            let cross_safe_job = CrossSafetyCheckerJob::new(
-                chain_id,
-                db.clone(),
-                cancel.clone(),
-                Duration::from_secs(config.block_time),
-                CrossSafePromoter,
-                chain_event_sender.clone(),
-                self.config.clone(),
-            );
-
-            tokio::spawn(async move {
-                cross_safe_job.run().await;
-            });
-
-            let cross_unsafe_job = CrossSafetyCheckerJob::new(
-                chain_id,
-                db,
-                cancel,
-                Duration::from_secs(config.block_time),
-                CrossUnsafePromoter,
-                chain_event_sender,
-                self.config.clone(),
-            );
-
-            tokio::spawn(async move {
-                cross_unsafe_job.run().await;
-            });
-        }
-
-        Ok(())
-    }
-
-    async fn init_managed_nodes(
-        &mut self,
-        mut managed_node_receivers: HashMap<ChainId, mpsc::Receiver<ManagedNodeCommand>>,
-    ) -> Result<(), SupervisorError> {
-        for config in self.config.l2_consensus_nodes_config.iter() {
-            let url = Url::parse(&self.config.l1_rpc).map_err(|err| {
-                error!(target: "supervisor::service", %err, "Failed to parse L1 RPC URL");
-                SupervisorError::Initialise("invalid l1 rpc url".to_string())
-            })?;
-            let provider = RootProvider::<Ethereum>::new_http(url);
-            let client = Arc::new(Client::new(config.clone()));
-
-            let chain_id = client.chain_id().await.map_err(|err| {
-                error!(target: "supervisor::service", %err, "Failed to get chain ID from client");
-                SupervisorError::Initialise("failed to get chain id from client".to_string())
-            })?;
-            let db = self.database_factory.get_db(chain_id)?;
-
-            let chain_event_sender = self
-                .chain_event_senders
-                .get(&chain_id)
-                .ok_or(SupervisorError::Initialise(format!(
-                    "no chain event sender found for chain {chain_id}",
-                )))?
-                .clone();
-
-            let managed_node = ManagedNode::<ChainDb, Client>::new(
-                client.clone(),
-                db,
-                provider,
-                chain_event_sender,
-            );
-
-            if self.managed_nodes.contains_key(&chain_id) {
-                warn!(target: "supervisor::service", %chain_id, "Managed node for chain already exists, skipping initialization");
-                continue;
-            }
-
-            let managed_node = Arc::new(managed_node);
-            self.managed_nodes.insert(chain_id, managed_node.clone());
-            info!(target: "supervisor::service",
-                 chain_id,
-                "Managed node for chain initialized successfully",
-            );
-
-            // start managed node actor
-            let managed_node_receiver = managed_node_receivers
-                .remove(&chain_id)
-                .ok_or(SupervisorError::Initialise(format!("no receiver for chain {chain_id}")))?;
-
-            // Start the managed node Actor.
-            ManagedNodeActor::new(client, managed_node, self.cancel_token.clone())
-                .start(managed_node_receiver);
-        }
-        Ok(())
-    }
-
-    fn init_l1_watcher(&self) -> Result<(), SupervisorError> {
-        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
-
-        let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = self
-            .config
-            .rollup_config_set
-            .rollups
-            .keys()
-            .map(|chain_id| (*chain_id, self.database_factory.get_db(*chain_id).unwrap()))
-            .collect();
-
-        let l1_watcher = L1Watcher::new(
-            l1_rpc.clone(),
-            self.database_factory.clone(),
-            self.chain_event_senders.clone(),
-            self.cancel_token.clone(),
-            ReorgHandler::new(l1_rpc, chain_dbs_map),
-        );
-
-        tokio::spawn(async move {
-            l1_watcher.run().await;
-        });
-        Ok(())
+    pub fn new(config: Arc<Config>, database_factory: Arc<ChainDbFactory>) -> Self {
+        Self { config, database_factory, managed_nodes: HashMap::new() }
     }
 
     fn verify_safety_level(

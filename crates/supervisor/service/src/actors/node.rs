@@ -1,48 +1,57 @@
-use crate::syncnode::{
-    ManagedNodeClient, ManagedNodeCommand, ManagedNodeController, SubscriptionHandler,
-    utils::spawn_task_with_retry,
-};
 use anyhow::Error;
+use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_interop::ManagedEvent;
-use std::sync::Arc;
+use kona_supervisor_core::syncnode::{
+    ManagedNodeClient, ManagedNodeCommand, ManagedNodeController, SubscriptionHandler,
+};
+use std::{io, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
+
+use crate::{SupervisorActor, actors::utils::spawn_task_with_retry};
 
 /// Actor for managing a node in the supervisor environment.
 #[derive(Debug, Constructor)]
 pub struct ManagedNodeActor<C, N> {
     client: Arc<C>,
     node: Arc<N>,
+    command_rx: mpsc::Receiver<ManagedNodeCommand>,
     cancel_token: CancellationToken,
 }
 
-impl<C, N> ManagedNodeActor<C, N>
+#[async_trait]
+impl<C, N> SupervisorActor for ManagedNodeActor<C, N>
 where
     C: ManagedNodeClient + 'static,
     N: ManagedNodeController + SubscriptionHandler + 'static,
 {
-    /// Starts the managed node actor, processing commands from the provided channel.
-    pub fn start(self, command_rx: mpsc::Receiver<ManagedNodeCommand>) {
-        // Task 1: Command handling
-        let node = self.node.clone();
-        let cancel_token = self.cancel_token.clone();
-        tokio::spawn(async move {
-            run_command_task(node, command_rx, cancel_token).await;
-        });
+    type InboundEvent = ManagedNodeCommand;
+    type Error = io::Error;
 
-        // Task 2: Subscription handling
+    async fn start(mut self) -> Result<(), Self::Error> {
+        // Task 1: Subscription handling
+        let node = self.node.clone();
+        let client = self.client.clone();
+        let cancel_token = self.cancel_token.clone();
+
         spawn_task_with_retry(
             move || {
-                let handler = self.node.clone();
-                let client = self.client.clone();
+                let handler = node.clone();
+                let client = client.clone();
 
                 async move { run_subscription_task(client, handler).await }
             },
-            self.cancel_token,
+            cancel_token,
             usize::MAX,
         );
+
+        // Task 2: Command handling
+        let node = self.node.clone();
+        let cancel_token = self.cancel_token.clone();
+        run_command_task(node, self.command_rx, cancel_token).await;
+        Ok(())
     }
 }
 
@@ -241,15 +250,15 @@ async fn handle_subscription_event<N: SubscriptionHandler>(handler: &Arc<N>, eve
 
 #[cfg(test)]
 mod tests {
-    use crate::syncnode::{
-        ClientError, ManagedNodeClient, ManagedNodeCommand, ManagedNodeController,
-        ManagedNodeError, SubscriptionHandler,
-    };
     use alloy_eips::BlockNumHash;
     use alloy_primitives::{B256, ChainId};
     use jsonrpsee::core::client::Subscription;
     use kona_interop::{BlockReplacement, DerivedRefPair};
     use kona_protocol::BlockInfo;
+    use kona_supervisor_core::syncnode::{
+        ClientError, ManagedNodeClient, ManagedNodeCommand, ManagedNodeController,
+        ManagedNodeError, SubscriptionHandler,
+    };
     use kona_supervisor_types::{BlockSeal, OutputV0, Receipts, SubscriptionEvent};
     use mockall::{mock, predicate::*};
     use std::sync::Arc;

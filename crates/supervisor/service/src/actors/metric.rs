@@ -3,6 +3,7 @@ use kona_supervisor_metrics::MetricsReporter;
 use std::{io, sync::Arc, time::Duration};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 
 use crate::SupervisorActor;
 
@@ -22,24 +23,27 @@ where
     type InboundEvent = ();
     type Error = io::Error;
 
-    async fn start(self) -> Result<(), Self::Error> {
+    async fn start(mut self) -> Result<(), Self::Error> {
+        info!(
+            target: "supervisor::metric_worker",
+            "Starting MetricWorker with interval: {:?}",
+            self.interval
+        );
+
         let reporters = self.reporters;
         let interval = self.interval;
 
-        tokio::spawn(async move {
-            loop {
-                if self.cancel_token.is_cancelled() {
-                    tracing::info!("MetricReporter actor is stopping due to cancellation.");
-                    break;
-                }
-
-                for reporter in &reporters {
-                    reporter.report_metrics();
-                }
-                sleep(interval).await;
+        loop {
+            if self.cancel_token.is_cancelled() {
+                info!("MetricReporter actor is stopping due to cancellation.");
+                break;
             }
-        });
 
+            for reporter in &reporters {
+                reporter.report_metrics();
+            }
+            sleep(interval).await;
+        }
         Ok(())
     }
 }

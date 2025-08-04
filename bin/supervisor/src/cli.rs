@@ -5,7 +5,7 @@ use anyhow::Result;
 use clap::Parser;
 use kona_cli::{LogConfig, cli_styles, log::LogArgs, metrics_args::MetricsArgs};
 use kona_supervisor_service::Service;
-use tracing::info;
+use tracing::{error, info};
 
 /// CLI for the Rust implementation of the OP Supervisor.
 #[derive(Parser, Debug)]
@@ -33,13 +33,19 @@ impl Cli {
         Self::run_until_ctrl_c(async move {
             let config = self.supervisor.init_config().await?;
             let mut service = Service::new(config);
-            service.run().await?; // run() now returns Result<()> and populates the handle internally
 
-            tokio::signal::ctrl_c().await?;
-            info!(target: "supervisor", "Shutdown signal received. Initiating service shutdown...");
+            tokio::select! {
+                res = service.run() => {
+                    if let Err(err) = res {
+                        error!(target: "supervisor", %err, "Error running supervisor service");
+                    }
+                }
+                _ = tokio::signal::ctrl_c() => {
+                    info!(target: "supervisor", "Ctrl+C received, initiating service shutdown...");
+                }
+            }
 
             service.shutdown().await?; // Call shutdown on the service instance itself
-
             info!(target: "supervisor", "Supervisor service shut down gracefully.");
             Ok(())
         })

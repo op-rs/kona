@@ -15,6 +15,3 @@ mod state;
 pub use state::ProcessorState;
 
 pub mod handlers;
-
-mod actor;
-pub use actor::ChainProcessorActor;
