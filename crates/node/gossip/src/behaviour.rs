@@ -91,7 +91,7 @@ impl Behaviour {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gossip::{config, handler::BlockHandler};
+    use crate::{config, handler::BlockHandler};
     use alloy_chains::Chain;
     use alloy_primitives::Address;
     use kona_genesis::RollupConfig;

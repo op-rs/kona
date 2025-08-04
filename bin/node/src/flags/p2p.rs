@@ -10,9 +10,10 @@ use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
+use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
+use kona_gossip::GaterConfig;
 use kona_node_service::NetworkConfig;
-use kona_p2p::{GaterConfig, LocalNode};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
@@ -381,7 +382,7 @@ impl P2PArgs {
 
         let discovery_address =
             LocalNode::new(local_node_key, advertise_ip, advertise_tcp_port, advertise_udp_port);
-        let gossip_config = kona_p2p::default_config_builder()
+        let gossip_config = kona_gossip::default_config_builder()
             .mesh_n(self.gossip_mesh_d)
             .mesh_n_low(self.gossip_mesh_dlo)
             .mesh_n_high(self.gossip_mesh_dhi)

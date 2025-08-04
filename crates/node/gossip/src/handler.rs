@@ -141,7 +141,7 @@ mod tests {
     use alloy_rpc_types_engine::{ExecutionPayloadV2, ExecutionPayloadV3};
     use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadV4, PayloadHash};
 
-    use crate::gossip::{v2_valid_block, v3_valid_block, v4_valid_block};
+    use crate::{v2_valid_block, v3_valid_block, v4_valid_block};
 
     use super::*;
     use alloy_primitives::{B256, Signature};

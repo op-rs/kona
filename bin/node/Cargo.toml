@@ -22,7 +22,8 @@ kona-genesis.workspace = true
 kona-protocol.workspace = true
 
 kona-cli = { workspace = true, features = ["secrets"] }
-kona-p2p = { workspace = true, features = ["metrics"] }
+kona-gossip = { workspace = true, features = ["metrics"] }
+kona-disc = { workspace = true, features = ["metrics"] }
 kona-derive = { workspace = true, features = ["metrics"] }
 kona-engine = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }

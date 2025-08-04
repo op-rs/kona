@@ -1,7 +1,7 @@
 [package]
-name = "kona-p2p"
+name = "kona-gossip"
 version = "0.1.2"
-description = "P2P library for the OP Stack"
+description = "Gossip protocol implementation for the OP Stack"
 
 edition.workspace = true
 authors.workspace = true
@@ -20,6 +20,7 @@ workspace = true
 kona-peers.workspace = true
 kona-macros.workspace = true
 kona-genesis.workspace = true
+kona-disc.workspace = true
 
 # Alloy
 alloy-rlp.workspace = true
@@ -49,8 +50,6 @@ tracing.workspace = true
 thiserror.workspace = true
 serde_repr.workspace = true
 lazy_static.workspace = true
-rand = { workspace = true, features = ["thread_rng"] }
-backon = { workspace = true, features = ["std", "tokio", "tokio-sleep"] }
 derive_more = { workspace = true, features = ["display", "deref", "debug"] }
 
 # `metrics` feature
@@ -58,10 +57,9 @@ metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true
-kona-cli.workspace = true
 multihash.workspace = true
-alloy-eips.workspace = true
 serde_json.workspace = true
+alloy-eips.workspace = true
 alloy-chains.workspace = true
 
 rand = { workspace = true, features = ["thread_rng"] }
@@ -73,4 +71,4 @@ op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-metrics = [ "dep:metrics", "libp2p/metrics" ]
+metrics = [ "dep:metrics", "kona-disc/metrics", "libp2p/metrics" ]

@@ -55,7 +55,7 @@ impl AdminApiServer for AdminRpc {
         &self,
         payload: OpExecutionPayloadEnvelope,
     ) -> RpcResult<()> {
-        kona_macros::inc!(gauge, kona_p2p::Metrics::RPC_CALLS, "method" => "admin_postUnsafePayload");
+        kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "admin_postUnsafePayload");
         self.network_sender
             .send(NetworkAdminQuery::PostUnsafePayload { payload })
             .await

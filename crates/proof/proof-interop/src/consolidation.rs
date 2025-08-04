@@ -1,7 +1,7 @@
 //! Interop dependency resolution and consolidation logic.
 
 use crate::{BootInfo, OptimisticBlock, OracleInteropProvider, PreState};
-use alloc::{boxed::Box, vec::Vec};
+use alloc::vec::Vec;
 use alloy_consensus::{Header, Sealed};
 use alloy_eips::Encodable2718;
 use alloy_evm::{EvmFactory, FromRecoveredTx, FromTxWithEncoded};
@@ -65,18 +65,20 @@ where
     pub async fn consolidate(&mut self) -> Result<(), ConsolidationError> {
         info!(target: "superchain_consolidator", "Consolidating superchain");
 
-        match self.consolidate_once().await {
-            Ok(()) => {
-                info!(target: "superchain_consolidator", "Superchain consolidation complete");
-                Ok(())
-            }
-            Err(ConsolidationError::MessageGraph(MessageGraphError::InvalidMessages(_))) => {
-                // If invalid messages are still present in the graph, recurse.
-                Box::pin(self.consolidate()).await
-            }
-            Err(e) => {
-                error!(target: "superchain_consolidator", "Error consolidating superchain: {:?}", e);
-                Err(e)
+        loop {
+            match self.consolidate_once().await {
+                Ok(()) => {
+                    info!(target: "superchain_consolidator", "Superchain consolidation complete");
+                    return Ok(());
+                }
+                Err(ConsolidationError::MessageGraph(MessageGraphError::InvalidMessages(_))) => {
+                    // If invalid messages are still present in the graph, continue the loop.
+                    continue;
+                }
+                Err(e) => {
+                    error!(target: "superchain_consolidator", "Error consolidating superchain: {:?}", e);
+                    return Err(e);
+                }
             }
         }
     }

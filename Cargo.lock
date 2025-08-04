@@ -2867,7 +2867,7 @@ dependencies = [
  "clap",
  "discv5",
  "kona-cli",
- "kona-p2p",
+ "kona-disc",
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
@@ -2881,8 +2881,8 @@ dependencies = [
  "clap",
  "discv5",
  "kona-cli",
+ "kona-disc",
  "kona-node-service",
- "kona-p2p",
  "kona-registry",
  "libp2p",
  "tokio",
@@ -4429,6 +4429,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-disc"
+version = "0.1.2"
+dependencies = [
+ "alloy-rlp",
+ "backon",
+ "derive_more",
+ "discv5",
+ "kona-cli",
+ "kona-genesis",
+ "kona-macros",
+ "kona-peers",
+ "libp2p",
+ "metrics",
+ "rand 0.9.2",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "kona-driver"
 version = "0.4.0"
 dependencies = [
@@ -4547,6 +4569,45 @@ dependencies = [
  "serde_repr",
  "thiserror 2.0.12",
  "toml",
+]
+
+[[package]]
+name = "kona-gossip"
+version = "0.1.2"
+dependencies = [
+ "alloy-chains",
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-rpc-types-engine",
+ "arbitrary",
+ "derive_more",
+ "discv5",
+ "futures",
+ "ipnet",
+ "kona-disc",
+ "kona-genesis",
+ "kona-macros",
+ "kona-peers",
+ "lazy_static",
+ "libp2p",
+ "libp2p-identity",
+ "libp2p-stream",
+ "metrics",
+ "multihash",
+ "op-alloy-consensus",
+ "op-alloy-rpc-types-engine",
+ "openssl",
+ "rand 0.9.2",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "snap",
+ "tempfile",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4680,10 +4741,11 @@ dependencies = [
  "jsonrpsee",
  "kona-cli",
  "kona-derive",
+ "kona-disc",
  "kona-engine",
  "kona-genesis",
+ "kona-gossip",
  "kona-node-service",
- "kona-p2p",
  "kona-peers",
  "kona-protocol",
  "kona-providers-alloy",
@@ -4736,11 +4798,12 @@ dependencies = [
  "http-body-util",
  "jsonrpsee",
  "kona-derive",
+ "kona-disc",
  "kona-engine",
  "kona-genesis",
+ "kona-gossip",
  "kona-interop",
  "kona-macros",
- "kona-p2p",
  "kona-peers",
  "kona-protocol",
  "kona-providers-alloy",
@@ -4762,46 +4825,6 @@ dependencies = [
  "tower",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "kona-p2p"
-version = "0.1.2"
-dependencies = [
- "alloy-chains",
- "alloy-consensus",
- "alloy-eips",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-engine",
- "arbitrary",
- "backon",
- "derive_more",
- "discv5",
- "futures",
- "ipnet",
- "kona-cli",
- "kona-genesis",
- "kona-macros",
- "kona-peers",
- "lazy_static",
- "libp2p",
- "libp2p-identity",
- "libp2p-stream",
- "metrics",
- "multihash",
- "op-alloy-consensus",
- "op-alloy-rpc-types-engine",
- "openssl",
- "rand 0.9.2",
- "serde",
- "serde_json",
- "serde_repr",
- "snap",
- "tempfile",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -5014,9 +5037,9 @@ dependencies = [
  "jsonrpsee",
  "kona-engine",
  "kona-genesis",
+ "kona-gossip",
  "kona-interop",
  "kona-macros",
- "kona-p2p",
  "kona-protocol",
  "libp2p",
  "metrics",
