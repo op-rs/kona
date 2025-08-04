@@ -29,6 +29,8 @@ use tower::ServiceBuilder;
 pub struct AlloyL2ChainProvider {
     /// The inner Ethereum JSON-RPC provider.
     inner: RootProvider<Optimism>,
+    /// Whether to trust the RPC without verification.
+    trust_rpc: bool,
     /// The rollup configuration.
     rollup_config: Arc<RollupConfig>,
     /// The `block_by_number` LRU cache.
@@ -45,8 +47,23 @@ impl AlloyL2ChainProvider {
         rollup_config: Arc<RollupConfig>,
         cache_size: usize,
     ) -> Self {
+        Self::new_with_trust(inner, rollup_config, cache_size, true)
+    }
+
+    /// Creates a new [AlloyL2ChainProvider] with the given alloy provider, [RollupConfig], and
+    /// trust setting.
+    ///
+    /// ## Panics
+    /// - Panics if `cache_size` is zero.
+    pub fn new_with_trust(
+        inner: RootProvider<Optimism>,
+        rollup_config: Arc<RollupConfig>,
+        cache_size: usize,
+        trust_rpc: bool,
+    ) -> Self {
         Self {
             inner,
+            trust_rpc,
             rollup_config,
             block_by_number_cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
         }
@@ -79,7 +96,24 @@ impl AlloyL2ChainProvider {
         let result = async {
             let block = match id {
                 BlockId::Number(num) => self.inner.get_block_by_number(num).full().await?,
-                BlockId::Hash(hash) => self.inner.get_block_by_hash(hash.block_hash).full().await?,
+                BlockId::Hash(hash) => {
+                    let block = self.inner.get_block_by_hash(hash.block_hash).full().await?;
+
+                    // Verify block hash matches if we fetched by hash and trust_rpc is false
+                    if !self.trust_rpc {
+                        if let Some(ref b) = block {
+                            let actual_hash = b.header.hash;
+                            if actual_hash != hash.block_hash {
+                                return Err(RpcError::local_usage_str(&format!(
+                                    "Block hash mismatch: expected {:?}, got {:?}",
+                                    hash.block_hash, actual_hash
+                                )));
+                            }
+                        }
+                    }
+
+                    block
+                }
             };
 
             match block {
