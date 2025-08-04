@@ -11,9 +11,7 @@ mod node;
 pub use node::ManagedNode;
 
 mod error;
-pub use error::{
-    AuthenticationError, ClientError, ManagedEventTaskError, ManagedNodeError, SubscriptionError,
-};
+pub use error::{AuthenticationError, ClientError, ManagedNodeError};
 
 mod traits;
 pub use traits::{

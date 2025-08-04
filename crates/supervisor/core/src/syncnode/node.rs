@@ -15,7 +15,7 @@ use tokio::sync::mpsc;
 
 use super::{
     BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
-    ManagedNodeError, SubscriptionError, SubscriptionHandler, resetter::Resetter,
+    ManagedNodeError, SubscriptionHandler, resetter::Resetter,
 };
 use crate::event::ChainEvent;
 use tracing::{error, info, trace, warn};
@@ -61,52 +61,6 @@ where
     }
 }
 
-// #[async_trait]
-// impl<DB, C> NodeSubscriber for ManagedNode<DB, C>
-// where
-//     DB: LogStorageReader + DerivationStorageReader + HeadRefStorageReader + Send + Sync +
-// 'static,     C: ManagedNodeClient + Send + Sync + 'static,
-// {
-//     /// Starts a subscription to the managed node.
-//     ///
-//     /// Establishes a WebSocket connection and subscribes to node events.
-//     /// Spawns a background task to process incoming events.
-//     async fn start_subscription(
-//         &self,
-//         event_tx: mpsc::Sender<ChainEvent>,
-//     ) -> Result<(), ManagedNodeError> {
-//         let mut task_handle_guard = self.task_handle.lock().await;
-//         if task_handle_guard.is_some() {
-//             Err(SubscriptionError::AlreadyActive)?
-//         }
-
-//         let client = self.client.clone();
-//         let l1_provider = self.l1_provider.clone();
-//         let resetter = self.resetter.clone();
-//         let cancel_token = self.cancel_token.clone();
-
-//         // spawn a task which will be retried in failures
-//         let handle = spawn_task_with_retry(
-//             move || {
-//                 let task = ManagedEventTask::new(
-//                     client.clone(),
-//                     l1_provider.clone(),
-//                     resetter.clone(),
-//                     cancel_token.clone(),
-//                     event_tx.clone(),
-//                 );
-//                 async move { task.run().await }
-//             },
-//             self.cancel_token.clone(),
-//             usize::MAX,
-//         );
-
-//         *task_handle_guard = Some(handle);
-
-//         Ok(())
-//     }
-// }
-
 #[async_trait]
 impl<DB, C> SubscriptionHandler for ManagedNode<DB, C>
 where
@@ -132,7 +86,7 @@ where
             .await
             .map_err(|err| {
                 error!(target: "supervisor::managed_node", %chain_id, %err, "Failed to fetch next L1 block");
-                SubscriptionError::GetBlockByNumberFailed(next_block_number)
+                ManagedNodeError::GetBlockByNumberFailed(next_block_number)
             })?;
 
         let block = match next_block {
@@ -148,7 +102,7 @@ where
             // this could happen due to a reorg.
             // this case should be handled by the reorg manager
             error!(target: "supervisor::managed_node", %chain_id, "L1 Block parent hash mismatch");
-            Err(SubscriptionError::BlockHashMismatch {
+            Err(ManagedNodeError::BlockHashMismatch {
                 current: derived_ref_pair.source.hash,
                 parent: block.header.parent_hash,
             })?
@@ -163,7 +117,7 @@ where
 
         if let Err(err) = self.client.provide_l1(block_info).await {
             error!(target: "supervisor::managed_node", %chain_id, %err, "Error sending provide_l1 to managed node");
-            Err(SubscriptionError::ManagedNodeAPICallFailed)?
+            Err(ManagedNodeError::ManagedNodeAPICallFailed)?
         }
 
         info!(target: "supervisor::managed_node", %chain_id, "Sent next L1 block to managed node using provide_l1");
@@ -184,7 +138,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::UnsafeBlock { block: *unsafe_block }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send unsafe block event");
-            SubscriptionError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err)
         })?;
         Ok(())
     }
@@ -198,7 +152,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send derivation update event");
-            SubscriptionError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err)
         })?;
         Ok(())
     }
@@ -212,7 +166,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::BlockReplaced { replacement: *replacement }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send block replacement event");
-            SubscriptionError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err)
         })?;
         Ok(())
     }
@@ -226,7 +180,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::DerivationOriginUpdate { origin: *origin }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send derivation origin update event");
-            SubscriptionError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err)
         })?;
         Ok(())
     }

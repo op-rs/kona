@@ -217,7 +217,7 @@ mod tests {
 
         // The handler should send the correct command
         if let Some(ManagedNodeCommand::UpdateFinalized { block_id }) = rx.recv().await {
-            assert_eq!(block_id, finalized_source_block.id());
+            assert_eq!(block_id, finalized_derived_block.id());
         } else {
             panic!("Expected UpdateFinalized command");
         }

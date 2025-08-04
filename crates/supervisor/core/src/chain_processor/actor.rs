@@ -34,6 +34,11 @@ where
 
     /// Starts the actor, listening for events and calling handle_event.
     pub async fn start(mut self) {
+        info!(
+            target: "supervisor::chain_processor_actor",
+            "Starting ChainProcessorActor"
+        );
+
         loop {
             tokio::select! {
                 maybe_event = self.event_rx.recv() => {

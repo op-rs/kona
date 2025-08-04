@@ -53,6 +53,7 @@ async fn run_command_task<N>(
 ) where
     N: ManagedNodeController + SubscriptionHandler + 'static,
 {
+    info!(target: "supervisor::syncnode_actor", "Starting command task for managed node");
     loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -129,6 +130,8 @@ async fn run_subscription_task<C: ManagedNodeClient, N: SubscriptionHandler>(
     client: Arc<C>,
     handler: Arc<N>,
 ) -> Result<(), Error> {
+    info!(target: "supervisor::syncnode", "Starting subscription task for managed node");
+
     let mut subscription = client.subscribe_events().await.inspect_err(|err| {
         error!(
             target: "supervisor::syncnode",
@@ -137,7 +140,6 @@ async fn run_subscription_task<C: ManagedNodeClient, N: SubscriptionHandler>(
         );
     })?;
 
-    info!(target: "supervisor::syncnode", "Subscription stream started");
     loop {
         tokio::select! {
             incoming_event = subscription.next() => {
