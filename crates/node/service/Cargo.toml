@@ -79,9 +79,9 @@ default = []
 metrics = [
 	"dep:metrics",
 	"kona-derive/metrics",
+	"kona-disc/metrics",
 	"kona-engine/metrics",
 	"kona-gossip/metrics",
-	"kona-disc/metrics",
 	"kona-providers-alloy/metrics",
 	"kona-rpc/metrics",
 	"kona-sources/metrics",

@@ -46,4 +46,4 @@ kona-cli.workspace = true
 
 [features]
 default = []
-metrics = ["dep:metrics"]
+metrics = [ "dep:metrics", "libp2p/metrics" ]

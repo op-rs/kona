@@ -71,4 +71,4 @@ op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
-metrics = ["dep:metrics", "libp2p/metrics"]
+metrics = [ "dep:metrics", "kona-disc/metrics", "libp2p/metrics" ]
