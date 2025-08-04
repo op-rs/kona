@@ -249,11 +249,7 @@ impl NodeActor for NetworkActor {
                         warn!(target: "node::p2p", "Failed to send unsafe block to network handler");
                     }
                 },
-                req = self.p2p_rpc.recv(), if !self.p2p_rpc.is_closed() => {
-                    let Some(req) = req else {
-                        error!(target: "node::p2p", "The p2p rpc receiver channel has closed");
-                        return Err(NetworkActorError::ChannelClosed);
-                    };
+                Some(req) = self.p2p_rpc.recv(), if !self.p2p_rpc.is_closed() => {
                     req.handle(&mut handler.gossip, &handler.discovery);
                 },
             }

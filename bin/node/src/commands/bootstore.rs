@@ -3,7 +3,7 @@
 use crate::flags::GlobalArgs;
 use clap::Parser;
 use kona_cli::LogConfig;
-use kona_peers::BootStore;
+use kona_peers::{BootStore, BootStoreFile};
 use std::path::PathBuf;
 
 /// The `bootstore` Subcommand
@@ -59,8 +59,12 @@ impl BootstoreCommand {
             .get(&chain_id)
             .ok_or(anyhow::anyhow!("Chain ID {} not found in the registry", chain_id))?;
         println!("{} Bootstore (Chain ID: {})", chain.name, chain_id);
-        let bootstore = BootStore::from_chain_id(chain_id, self.bootstore.clone(), vec![]);
-        println!("Path: {}", bootstore.path.display());
+        let bootstore: BootStoreFile = self
+            .bootstore
+            .clone()
+            .map_or(BootStoreFile::Default { chain_id }, BootStoreFile::Custom);
+        let bootstore: BootStore = bootstore.try_into()?;
+        println!("Path: {}", self.bootstore.clone().unwrap_or_default().display());
         println!("Peer Count: {}", bootstore.peers.len());
         println!("Valid peers: {}", bootstore.valid_peers_with_chain_id(chain_id).len());
         println!("--------------------------");

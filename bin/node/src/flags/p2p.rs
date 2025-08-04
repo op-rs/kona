@@ -13,7 +13,7 @@ use discv5::{Enr, enr::k256};
 use kona_genesis::RollupConfig;
 use kona_node_service::NetworkConfig;
 use kona_p2p::{GaterConfig, LocalNode};
-use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_sources::RuntimeLoader;
 use libp2p::identity::Keypair;
 use std::{
@@ -161,6 +161,9 @@ pub struct P2PArgs {
     /// The directory to store the bootstore.
     #[arg(long = "p2p.bootstore", env = "KONA_NODE_P2P_BOOTSTORE")]
     pub bootstore: Option<PathBuf>,
+    /// Disables the bootstore.
+    #[arg(long = "p2p.no-bootstore", env = "KONA_NODE_P2P_NO_BOOTSTORE")]
+    pub disable_bootstore: bool,
     /// Peer Redialing threshold is the maximum amount of times to attempt to redial a peer that
     /// disconnects. By default, peers are *not* redialed. If set to 0, the peer will be
     /// redialed indefinitely.
@@ -403,6 +406,15 @@ impl P2PArgs {
         // The unsafe block signer obtained from the chain config.
         let chain_unsafe_block_signer = self.unsafe_block_signer(config, args, l1_rpc).await?;
 
+        let bootstore = if self.disable_bootstore {
+            None
+        } else {
+            Some(self.bootstore.map_or(
+                BootStoreFile::Default { chain_id: args.l2_chain_id.into() },
+                BootStoreFile::Custom,
+            ))
+        };
+
         Ok(NetworkConfig {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
@@ -414,7 +426,7 @@ impl P2PArgs {
             gossip_config,
             scoring: self.scoring,
             monitor_peers,
-            bootstore: self.bootstore,
+            bootstore,
             topic_scoring: self.topic_scoring,
             gater_config: GaterConfig {
                 peer_redialing: self.peer_redial,

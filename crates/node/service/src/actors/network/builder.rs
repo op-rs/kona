@@ -4,10 +4,10 @@ use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, Enr};
 use kona_genesis::RollupConfig;
 use kona_p2p::{Discv5Builder, GaterConfig, GossipDriverBuilder, LocalNode};
-use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
 use crate::{
     NetworkBuilderError,
@@ -85,11 +85,8 @@ impl NetworkBuilder {
     }
 
     /// Sets the bootstore path for the [`Discv5Builder`].
-    pub fn with_bootstore(self, bootstore: Option<PathBuf>) -> Self {
-        if let Some(bootstore) = bootstore {
-            return Self { discovery: self.discovery.with_bootstore(bootstore), ..self };
-        }
-        self
+    pub fn with_bootstore(self, bootstore: Option<BootStoreFile>) -> Self {
+        Self { discovery: self.discovery.with_bootstore_file(bootstore), ..self }
     }
 
     /// Sets the interval at which to randomize discovery peers.
