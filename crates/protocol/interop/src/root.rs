@@ -73,7 +73,7 @@ impl SuperRoot {
     }
 
     /// Returns the encoded length of the [SuperRoot].
-    pub fn encoded_length(&self) -> usize {
+    pub const fn encoded_length(&self) -> usize {
         1 + 8 + 64 * self.output_roots.len()
     }
 

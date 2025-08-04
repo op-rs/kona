@@ -841,7 +841,7 @@ mod tests {
         let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let result = provider.latest_derivation_state();
-        print!("{:?}", result);
+        print!("{result:?}");
         assert!(
             matches!(result, Err(StorageError::DatabaseNotInitialised)),
             "Should return DatabaseNotInitialised error when no derivation state exists"

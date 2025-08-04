@@ -187,7 +187,7 @@ impl GossipDriverBuilder {
         // Let's setup the sync request/response protocol stream.
         let mut sync_handler = behaviour.sync_req_resp.new_control();
 
-        let protocol = format!("/opstack/req/payload_by_number/{}/0/", l2_chain_id);
+        let protocol = format!("/opstack/req/payload_by_number/{l2_chain_id}/0/");
         let sync_protocol_name = StreamProtocol::try_from_owned(protocol)
             .map_err(|_| GossipDriverBuilderError::SetupSyncReqRespError)?;
         let sync_protocol = sync_handler

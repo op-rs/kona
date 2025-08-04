@@ -69,7 +69,7 @@ lint-cannon:
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/cannon-builder:0.1.0 cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
+    ghcr.io/op-rs/kona/cannon-builder:0.3.0 cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
 
 # Lint the workspace (risc-v arch). Currently, only the `kona-std-fpvm` crate is linted for the `asterisc` target, as it is the only crate with architecture-specific code.
 lint-asterisc:
@@ -77,7 +77,7 @@ lint-asterisc:
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/asterisc-builder:0.1.0 cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
+    ghcr.io/op-rs/kona/asterisc-builder:0.3.0 cargo clippy -p kona-std-fpvm --all-features -Zbuild-std=core,alloc -- -D warnings
 
 # Lint the Rust documentation
 lint-docs:
@@ -97,7 +97,7 @@ build-cannon-client:
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/cannon-builder:0.1.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
+    ghcr.io/op-rs/kona/cannon-builder:0.3.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
 
 # Build `kona-client` for the `asterisc` target.
 build-asterisc-client:
@@ -105,7 +105,7 @@ build-asterisc-client:
     --rm \
     -v `pwd`/:/workdir \
     -w="/workdir" \
-    ghcr.io/op-rs/kona/asterisc-builder:0.1.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
+    ghcr.io/op-rs/kona/asterisc-builder:0.3.0 cargo build -Zbuild-std=core,alloc -p kona-client --bin kona --profile release-client-lto
 
 # Check for unused dependencies in the crate graph.
 check-udeps:

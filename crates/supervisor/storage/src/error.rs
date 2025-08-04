@@ -49,7 +49,7 @@ impl PartialEq for StorageError {
         use StorageError::*;
         match (self, other) {
             (Database(a), Database(b)) => a == b,
-            (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
+            (DatabaseInit(a), DatabaseInit(b)) => format!("{a}") == format!("{b}"),
             (EntryNotFound(a), EntryNotFound(b)) => a == b,
             (DatabaseNotInitialised, DatabaseNotInitialised) | (ConflictError, ConflictError) => {
                 true

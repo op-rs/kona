@@ -102,11 +102,11 @@ mod tests {
         for (key, expected_encoding) in &cases {
             // Test encoding
             let encoded = key.encode();
-            assert_eq!(encoded, *expected_encoding, "Encoding failed for {:?}", key);
+            assert_eq!(encoded, *expected_encoding, "Encoding failed for {key:?}");
 
             // Test decoding
             let decoded = SafetyHeadRefKey::decode(&encoded).expect("Decoding should succeed");
-            assert_eq!(decoded, *key, "Decoding mismatch for {:?}", key);
+            assert_eq!(decoded, *key, "Decoding mismatch for {key:?}");
         }
     }
     #[test]
@@ -120,7 +120,7 @@ mod tests {
             SafetyLevel::Invalid,
         ] {
             let round_trip = SafetyLevel::from(SafetyHeadRefKey::from(level));
-            assert_eq!(round_trip, level, "Round-trip failed for {:?}", level);
+            assert_eq!(round_trip, level, "Round-trip failed for {level:?}");
         }
 
         for key in [
@@ -132,7 +132,7 @@ mod tests {
             SafetyHeadRefKey::Invalid,
         ] {
             let round_trip = SafetyHeadRefKey::from(SafetyLevel::from(key));
-            assert_eq!(round_trip, key, "Round-trip failed for {:?}", key);
+            assert_eq!(round_trip, key, "Round-trip failed for {key:?}");
         }
     }
 }

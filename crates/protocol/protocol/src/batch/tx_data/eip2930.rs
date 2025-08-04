@@ -68,7 +68,7 @@ mod test {
 
         let decoded = SpanBatchTransactionData::decode(&mut encoded_buf.as_slice()).unwrap();
         let SpanBatchTransactionData::Eip2930(access_list_decoded) = decoded else {
-            panic!("Expected SpanBatchEip2930TransactionData, got {:?}", decoded);
+            panic!("Expected SpanBatchEip2930TransactionData, got {decoded:?}");
         };
 
         assert_eq!(access_list_tx, access_list_decoded);

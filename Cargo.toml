@@ -1,7 +1,7 @@
 [workspace.package]
 edition = "2024"
 license = "MIT"
-rust-version = "1.86"
+rust-version = "1.88"
 authors = ["clabby", "refcell", "theochap"]
 homepage = "https://github.com/op-rs/kona"
 repository = "https://github.com/op-rs/kona"

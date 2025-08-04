@@ -32,8 +32,7 @@ where
 
     if input_len > BLS12_MAX_PAIRING_SIZE_ISTHMUS {
         return Err(PrecompileError::Other(alloc::format!(
-            "Pairing input length must be at most {}",
-            BLS12_MAX_PAIRING_SIZE_ISTHMUS
+            "Pairing input length must be at most {BLS12_MAX_PAIRING_SIZE_ISTHMUS}"
         )));
     }
 
