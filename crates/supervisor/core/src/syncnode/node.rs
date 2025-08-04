@@ -115,7 +115,7 @@ where
 {
     async fn handle_exhaust_l1(
         &self,
-        derived_ref_pair: DerivedRefPair,
+        derived_ref_pair: &DerivedRefPair,
     ) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
         trace!(
@@ -170,10 +170,10 @@ where
         Ok(())
     }
 
-    async fn handle_reset(&self, _reset_id: &String) -> Result<(), ManagedNodeError> {
+    async fn handle_reset(&self, reset_id: &str) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
-        trace!(target: "supervisor::managed_node", %chain_id, "Handling reset event");
-        
+        trace!(target: "supervisor::managed_node", %chain_id, reset_id, "Handling reset event");
+
         self.resetter.reset().await?;
         Ok(())
     }
@@ -305,12 +305,12 @@ where
     ) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
         trace!(
-            target: "supervisor::managed_node", 
-            %chain_id, 
-            finalized_block_number = finalized_block_id.number, 
+            target: "supervisor::managed_node",
+            %chain_id,
+            finalized_block_number = finalized_block_id.number,
             "Updating finalized block"
         );
-        
+
         self.client.update_finalized(finalized_block_id).await?;
         Ok(())
     }
@@ -322,11 +322,11 @@ where
         let chain_id = self.chain_id().await?;
         trace!(
             target: "supervisor::managed_node",
-            %chain_id, 
+            %chain_id,
             cross_unsafe_block_number = cross_unsafe_block_id.number,
             "Updating cross unsafe block",
         );
-        
+
         self.client.update_cross_unsafe(cross_unsafe_block_id).await?;
         Ok(())
     }
@@ -338,10 +338,10 @@ where
     ) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
         trace!(
-            target: "supervisor::managed_node", 
+            target: "supervisor::managed_node",
             %chain_id,
-            source_block_number = source_block_id.number, 
-            derived_block_number = derived_block_id.number, 
+            source_block_number = source_block_id.number,
+            derived_block_number = derived_block_id.number,
             "Updating cross safe block"
         );
         self.client.update_cross_safe(source_block_id, derived_block_id).await?;
@@ -351,7 +351,7 @@ where
     async fn reset(&self) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
         trace!(target: "supervisor::managed_node", %chain_id, "Resetting managed node state");
-        
+
         self.resetter.reset().await?;
         Ok(())
     }
@@ -359,12 +359,12 @@ where
     async fn invalidate_block(&self, block_seal: BlockSeal) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
         info!(
-            target: "supervisor::managed_node", 
+            target: "supervisor::managed_node",
             %chain_id,
-            block_number = block_seal.number, 
+            block_number = block_seal.number,
             "Invalidating block"
         );
-        
+
         self.client.invalidate_block(block_seal).await?;
         Ok(())
     }

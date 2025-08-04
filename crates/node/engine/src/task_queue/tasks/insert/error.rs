@@ -24,7 +24,7 @@ pub enum InsertTaskError {
     /// Unexpected payload status
     #[error("Unexpected payload status: {0}")]
     UnexpectedPayloadStatus(PayloadStatusEnum),
-    /// Inconsistent forchoice state.
+    /// Inconsistent forkchoice state.
     #[error("Inconsistent forkchoice state; Pipeline reset required")]
     InconsistentForkchoiceState,
     /// Error converting the payload + chain genesis into an L2 block info.

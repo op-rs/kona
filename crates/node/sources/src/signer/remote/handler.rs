@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, B256, ChainId, SignatureError};
 use alloy_rpc_client::RpcClient;
 use alloy_signer::Signature;
-use notify::INotifyWatcher;
+use notify::RecommendedWatcher;
 use op_alloy_rpc_types_engine::PayloadHash;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -33,7 +33,7 @@ pub struct RemoteSignerHandler {
     /// The address of the signer.
     pub(super) address: Address,
     /// The watcher handle for certificate watching.
-    pub(super) watcher_handle: Option<INotifyWatcher>,
+    pub(super) watcher_handle: Option<RecommendedWatcher>,
 }
 
 /// Errors that can occur when using the remote signer

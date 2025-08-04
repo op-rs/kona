@@ -199,7 +199,7 @@ mod tests {
         let mut state = ProcessorState::new();
 
         // Call the handler
-        let result = handler.handle(block.clone(), &mut state).await;
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
 
         // The handler should send the correct command
@@ -240,11 +240,11 @@ mod tests {
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
         let source =
             BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
-        let derived_ref_pair = DerivedRefPair { source: source.clone(), derived: derived.clone() };
+        let derived_ref_pair = DerivedRefPair { source, derived };
         let mut state = ProcessorState::new();
 
         // Call the handler
-        let result = handler.handle(derived_ref_pair.clone(), &mut state).await;
+        let result = handler.handle(derived_ref_pair, &mut state).await;
         assert!(result.is_ok());
 
         // The handler should send the correct command

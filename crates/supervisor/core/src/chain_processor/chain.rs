@@ -3,7 +3,9 @@ use super::handlers::{
     OriginHandler, ReplacementHandler, SafeBlockHandler, UnsafeBlockHandler,
 };
 use crate::{
-    event::ChainEvent, syncnode::{BlockProvider, ManagedNodeCommand}, ChainRewinder, LogIndexer, ProcessorState
+    ChainRewinder, LogIndexer, ProcessorState,
+    event::ChainEvent,
+    syncnode::{BlockProvider, ManagedNodeCommand},
 };
 use alloy_primitives::ChainId;
 use kona_interop::InteropValidator;
@@ -41,7 +43,7 @@ where
     V: InteropValidator + 'static,
     W: LogStorage + DerivationStorage + HeadRefStorageWriter + StorageRewinder + 'static,
 {
-    /// Creates a new [`ChainProcessorTask`].
+    /// Creates a new [`ChainProcessor`].
     pub fn new(
         validator: Arc<V>,
         chain_id: ChainId,
@@ -49,8 +51,7 @@ where
         db_provider: Arc<W>,
         managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
     ) -> Self {
-        let log_indexer =
-            Arc::new(LogIndexer::new(chain_id, managed_node.clone(), db_provider.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(chain_id, managed_node, db_provider.clone()));
         let rewinder = Arc::new(ChainRewinder::new(chain_id, db_provider.clone()));
 
         let unsafe_handler = UnsafeBlockHandler::new(

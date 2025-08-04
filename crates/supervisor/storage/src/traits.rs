@@ -51,6 +51,16 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
     fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+
+    /// Gets the source block for the given source block number.
+    ///
+    /// # Arguments
+    /// * `source_block_number` - The number of the source block to retrieve.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the source block information if it exists.
+    /// * `Err(StorageError)` if there is an issue retrieving the source block.
+    fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
@@ -433,3 +443,11 @@ pub trait StorageRewinder {
     /// Returns a [`StorageError`] if any part of the rewind process fails.
     fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
 }
+
+/// Combines the reader traits for the database.
+///
+/// Any type that implements [`DerivationStorageReader`], [`HeadRefStorageReader`], and
+/// [`LogStorageReader`] automatically implements this trait.
+pub trait DbReader: DerivationStorageReader + HeadRefStorageReader + LogStorageReader {}
+
+impl<T: DerivationStorageReader + HeadRefStorageReader + LogStorageReader> DbReader for T {}

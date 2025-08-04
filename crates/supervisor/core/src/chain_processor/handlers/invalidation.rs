@@ -290,6 +290,7 @@ mod tests {
             fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+            fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {
@@ -441,14 +442,14 @@ mod tests {
         let writer = Arc::new(mockdb);
 
         // Spawn a background task to receive and check the command
-        let derived_block_clone = derived_block.clone();
+        let derived_block_clone = derived_block;
 
         let handler = InvalidationHandler::new(
             1, // chain_id
             tx, writer,
         );
 
-        let result = handler.handle(derived_block.clone(), &mut state).await;
+        let result = handler.handle(derived_block, &mut state).await;
         assert!(result.is_ok());
 
         // make sure invalidated_block is set

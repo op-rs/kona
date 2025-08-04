@@ -1,5 +1,6 @@
 use alloy_primitives::{B256, ChainId};
 use kona_interop::InteropValidationError;
+use kona_protocol::BlockInfo;
 use kona_supervisor_storage::StorageError;
 use op_alloy_consensus::interop::SafetyLevel;
 use thiserror::Error;
@@ -70,4 +71,11 @@ pub enum ValidationError {
     /// storage.
     #[error("initiating message not found for the executing message")]
     InitiatingMessageNotFound,
+
+    /// Cyclic dependency detected involving the candidate block
+    #[error("cyclic dependency detected while promoting block {block}")]
+    CyclicDependency {
+        /// The candidate block which is creating cyclic dependency
+        block: BlockInfo,
+    },
 }

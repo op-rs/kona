@@ -69,7 +69,7 @@ impl FieldVisitor {
 
 impl Visit for FieldVisitor {
     fn record_debug(&mut self, _field: &Field, value: &dyn core::fmt::Debug) {
-        self.message = format!("{:?}", value);
+        self.message = format!("{value:?}");
     }
 
     fn record_str(&mut self, _field: &Field, value: &str) {

@@ -1,6 +1,8 @@
 use super::EventHandler;
 use crate::{
-    chain_processor::Metrics, syncnode::{BlockProvider, ManagedNodeCommand}, ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState
+    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState,
+    chain_processor::Metrics,
+    syncnode::{BlockProvider, ManagedNodeCommand},
 };
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
@@ -34,7 +36,7 @@ where
         derived_ref_pair: DerivedRefPair,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
-        info!(
+        trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
             block_number = derived_ref_pair.derived.number,
@@ -123,7 +125,8 @@ where
                     "Block out of order detected, resetting managed node"
                 );
 
-                if let Err(err) = self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await {
+                if let Err(err) = self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await
+                {
                     warn!(
                         target: "supervisor::chain_processor::managed_node",
                         chain_id = self.chain_id,
@@ -229,12 +232,6 @@ mod tests {
         pub Node {}
 
         #[async_trait]
-        impl BlockProvider for Node {
-            async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
-            async fn block_by_number(&self, _number: u64) -> Result<BlockInfo, ManagedNodeError>;
-        }
-
-        #[async_trait]
         impl ManagedNodeDataProvider for Node {
             async fn output_v0_at_timestamp(
                 &self,
@@ -250,6 +247,12 @@ mod tests {
                 &self,
                 _timestamp: u64,
             ) -> Result<BlockInfo, ManagedNodeError>;
+        }
+
+        #[async_trait]
+        impl BlockProvider for Node {
+            async fn fetch_receipts(&self, _block_hash: B256) -> Result<Receipts, ManagedNodeError>;
+            async fn block_by_number(&self, _number: u64) -> Result<BlockInfo, ManagedNodeError>;
         }
 
         #[async_trait]
@@ -304,6 +307,7 @@ mod tests {
             fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+            fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {
@@ -410,14 +414,8 @@ mod tests {
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
         let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
-        let handler = SafeBlockHandler::new(
-            1,
-            tx,
-            writer,
-            Arc::new(mockvalidator),
-            log_indexer,
-            rewinder,
-        );
+        let handler =
+            SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer, rewinder);
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());

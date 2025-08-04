@@ -149,7 +149,7 @@ impl Client {
         })?;
 
         let mut headers = HeaderMap::new();
-        let auth_header = format!("Bearer {}", token);
+        let auth_header = format!("Bearer {token}");
 
         headers.insert(
             "Authorization",
@@ -446,7 +446,7 @@ mod tests {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
         // Create a valid 32-byte hex string for JWT secret
         let hex_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        writeln!(file, "{}", hex_secret).expect("Failed to write to temp file");
+        writeln!(file, "{hex_secret}").expect("Failed to write to temp file");
         file
     }
 

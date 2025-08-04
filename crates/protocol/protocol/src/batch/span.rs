@@ -1486,8 +1486,7 @@ mod tests {
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
         let str = alloc::format!(
-            "batch is for different L1 chain, epoch hash does not match, expected: {}",
-            l1_block_hash,
+            "batch is for different L1 chain, epoch hash does not match, expected: {l1_block_hash}",
         );
         assert!(logs[0].contains(&str));
     }

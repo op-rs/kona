@@ -40,7 +40,7 @@ where
 
                 async move { run_subscription_task(client, handler).await }
             },
-            self.cancel_token.clone(),
+            self.cancel_token,
             usize::MAX,
         );
     }
@@ -215,7 +215,7 @@ async fn handle_subscription_event<N: SubscriptionHandler>(handler: &Arc<N>, eve
     }
 
     if let Some(derived_ref_pair) = &event.exhaust_l1 {
-        if let Err(err) = handler.handle_exhaust_l1(derived_ref_pair.clone()).await {
+        if let Err(err) = handler.handle_exhaust_l1(derived_ref_pair).await {
             warn!(
                 target: "supervisor::syncnode",
                 %err,
@@ -270,8 +270,8 @@ mod tests {
 
         #[async_trait::async_trait]
         impl SubscriptionHandler for Node {
-            async fn handle_exhaust_l1(&self, derived_ref_pair: DerivedRefPair) -> Result<(), ManagedNodeError>;
-            async fn handle_reset(&self, reset_id: &String) -> Result<(), ManagedNodeError>;
+            async fn handle_exhaust_l1(&self, derived_ref_pair: &DerivedRefPair) -> Result<(), ManagedNodeError>;
+            async fn handle_reset(&self, reset_id: &str) -> Result<(), ManagedNodeError>;
             async fn handle_unsafe_block(&self, block: &BlockInfo) -> Result<(), ManagedNodeError>;
             async fn handle_derivation_update(&self, derived_ref_pair: &DerivedRefPair) -> Result<(), ManagedNodeError>;
             async fn handle_replace_block(&self, replacement: &BlockReplacement) -> Result<(), ManagedNodeError>;

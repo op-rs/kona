@@ -1,5 +1,7 @@
 //! Contains an online implementation of the `BeaconClient` trait.
 
+#[cfg(feature = "metrics")]
+use crate::Metrics;
 use alloy_eips::eip4844::IndexedBlobHash;
 use alloy_rpc_types_beacon::sidecar::{BeaconBlobBundle, BlobData};
 use async_trait::async_trait;
@@ -108,13 +110,37 @@ impl BeaconClient for OnlineBeaconClient {
     type Error = reqwest::Error;
 
     async fn config_spec(&self) -> Result<APIConfigResponse, Self::Error> {
-        let first = self.inner.get(format!("{}/{}", self.base, SPEC_METHOD)).send().await?;
-        first.json::<APIConfigResponse>().await
+        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "spec");
+
+        let result = async {
+            let first = self.inner.get(format!("{}/{}", self.base, SPEC_METHOD)).send().await?;
+            first.json::<APIConfigResponse>().await
+        }
+        .await;
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "spec");
+        }
+
+        result
     }
 
     async fn beacon_genesis(&self) -> Result<APIGenesisResponse, Self::Error> {
-        let first = self.inner.get(format!("{}/{}", self.base, GENESIS_METHOD)).send().await?;
-        first.json::<APIGenesisResponse>().await
+        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "genesis");
+
+        let result = async {
+            let first = self.inner.get(format!("{}/{}", self.base, GENESIS_METHOD)).send().await?;
+            first.json::<APIGenesisResponse>().await
+        }
+        .await;
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "genesis");
+        }
+
+        result
     }
 
     async fn beacon_blob_side_cars(
@@ -122,23 +148,35 @@ impl BeaconClient for OnlineBeaconClient {
         slot: u64,
         hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BlobData>, Self::Error> {
-        let raw_response = self
-            .inner
-            .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX, slot))
-            .send()
-            .await?;
-        let raw_response = raw_response.json::<BeaconBlobBundle>().await?;
+        kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_REQUESTS, "method" => "blob_sidecars");
 
-        // Filter the sidecars by the hashes, in-order.
-        let mut sidecars = Vec::with_capacity(hashes.len());
-        hashes.iter().for_each(|hash| {
-            if let Some(sidecar) =
-                raw_response.data.iter().find(|sidecar| sidecar.index == hash.index)
-            {
-                sidecars.push(sidecar.clone());
-            }
-        });
+        let result = async {
+            let raw_response = self
+                .inner
+                .get(format!("{}/{}/{}", self.base, SIDECARS_METHOD_PREFIX, slot))
+                .send()
+                .await?;
+            let raw_response = raw_response.json::<BeaconBlobBundle>().await?;
 
-        Ok(sidecars)
+            // Filter the sidecars by the hashes, in-order.
+            let mut sidecars = Vec::with_capacity(hashes.len());
+            hashes.iter().for_each(|hash| {
+                if let Some(sidecar) =
+                    raw_response.data.iter().find(|sidecar| sidecar.index == hash.index)
+                {
+                    sidecars.push(sidecar.clone());
+                }
+            });
+
+            Ok(sidecars)
+        }
+        .await;
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BEACON_CLIENT_ERRORS, "method" => "blob_sidecars");
+        }
+
+        result
     }
 }

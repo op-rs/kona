@@ -1,6 +1,6 @@
 [package]
 name = "kona-sources"
-version = "0.1.1"
+version = "0.1.2"
 description = "Data source types and utilities for the kona-node"
 
 edition.workspace = true
@@ -57,7 +57,11 @@ metrics = { workspace = true, optional = true }
 
 [features]
 default = []
-metrics = [ "dep:metrics", "kona-derive/metrics" ]
+metrics = [
+	"dep:metrics",
+	"kona-derive/metrics",
+	"kona-providers-alloy/metrics",
+]
 
 [dev-dependencies]
 tokio.workspace = true

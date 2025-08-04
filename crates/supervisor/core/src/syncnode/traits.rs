@@ -13,11 +13,11 @@ pub trait SubscriptionHandler: Send + Sync {
     /// Handles the exhaustion L1 exhaust event from the node.
     async fn handle_exhaust_l1(
         &self,
-        derived_ref_pair: DerivedRefPair,
+        derived_ref_pair: &DerivedRefPair,
     ) -> Result<(), ManagedNodeError>;
 
     /// Handles the reset event from the node.
-    async fn handle_reset(&self, reset_id: &String) -> Result<(), ManagedNodeError>;
+    async fn handle_reset(&self, reset_id: &str) -> Result<(), ManagedNodeError>;
 
     /// Handles the unsafe block event from the node.
     async fn handle_unsafe_block(&self, block: &BlockInfo) -> Result<(), ManagedNodeError>;

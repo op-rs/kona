@@ -91,7 +91,7 @@ where
                 target: "batch_validator",
                 "Advancing batch validator origin to L1 block #{}.{}",
                 self.origin.map(|b| b.number).unwrap_or_default(),
-                origin_behind.then_some(" (origin behind)").unwrap_or_default()
+                if origin_behind { " (origin behind)" } else { Default::default() }
             );
         }
 

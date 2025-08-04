@@ -54,10 +54,7 @@ where
                     "Block out of order detected, resetting managed node"
                 );
 
-                if let Err(err) = self
-                    .managed_node_sender
-                    .send(ManagedNodeCommand::Reset{})
-                    .await
+                if let Err(err) = self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await
                 {
                     warn!(
                         target: "supervisor::chain_processor::managed_node",
@@ -190,11 +187,10 @@ mod tests {
         });
 
         let writer = Arc::new(mockdb);
-        
+
         let handler = OriginHandler::new(
             1, // chain_id
-            tx,
-            writer,
+            tx, writer,
         );
 
         let result = handler.handle(origin, &mut state).await;
@@ -214,9 +210,9 @@ mod tests {
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
         mockdb.expect_save_source_block().returning(|_| Err(StorageError::BlockOutOfOrder));
-        
+
         let writer = Arc::new(mockdb);
-        
+
         let handler = OriginHandler::new(1, tx, writer);
 
         let result = handler.handle(origin, &mut state).await;
@@ -240,9 +236,9 @@ mod tests {
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
         mockdb.expect_save_source_block().returning(|_| Err(StorageError::BlockOutOfOrder));
-        
+
         let writer = Arc::new(mockdb);
-        
+
         drop(rx); // Simulate a send error by dropping the receiver
 
         let handler = OriginHandler::new(1, tx, writer);
@@ -263,7 +259,7 @@ mod tests {
         mockdb.expect_save_source_block().returning(|_| Err(StorageError::DatabaseNotInitialised));
 
         let writer = Arc::new(mockdb);
-        
+
         let handler = OriginHandler::new(1, tx, writer);
 
         let result = handler.handle(origin, &mut state).await;

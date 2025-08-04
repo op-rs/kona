@@ -24,7 +24,7 @@ where
     W: LogStorage + DerivationStorage + HeadRefStorageWriter + StorageRewinder + 'static,
 {
     /// Creates a new [`ChainProcessorActor`].
-    pub fn new(
+    pub const fn new(
         chain_processor: ChainProcessor<P, W, V>,
         cancel_token: CancellationToken,
         event_rx: mpsc::Receiver<ChainEvent>,

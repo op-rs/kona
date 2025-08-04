@@ -1,6 +1,6 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
+use crate::{CrossSafetyError, syncnode::ManagedNodeError};
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::InteropValidationError;
@@ -46,10 +46,6 @@ pub enum SupervisorError {
     #[error(transparent)]
     ManagedNodeError(#[from] ManagedNodeError),
 
-    /// Indicates the error occurred while processing the chain.
-    #[error(transparent)]
-    ChainProcessorError(#[from] ChainProcessorError),
-
     /// Indicates the error occurred while parsing the access_list
     #[error(transparent)]
     AccessListError(#[from] AccessListError),
@@ -58,7 +54,7 @@ pub enum SupervisorError {
     #[error(transparent)]
     CrossSafetyCheckerError(#[from] CrossSafetyError),
 
-    /// Indicates the L1 block does not match the epxected L1 block.
+    /// Indicates the L1 block does not match the expected L1 block.
     #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
     L1BlockMismatch {
         /// Expected L1 block.
@@ -109,7 +105,6 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::L1BlockMismatch { .. } |
             SupervisorError::Initialise(_) |
             SupervisorError::ManagedNodeError(_) |
-            SupervisorError::ChainProcessorError(_) |
             SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::InteropValidationError(_) |

@@ -49,7 +49,7 @@ pub struct SupervisorArgs {
     pub dependency_set: PathBuf,
 
     /// Path pattern to op-node rollup.json configs to load as a rollup config set.
-    /// The pattern should use the glob sytax, e.g. '/configs/rollup-*.json'
+    /// The pattern should use the glob syntax, e.g. '/configs/rollup-*.json'
     /// When using this flag, the L1 timestamps are loaded from the provided L1 RPC.
     #[arg(long = "rollup-config-paths", env = "ROLLUP_CONFIG_PATHS")]
     pub rollup_config_paths: PathBuf,
@@ -341,7 +341,7 @@ mod tests {
         let result = args.init_dependency_set().await;
         let err = result.expect_err("init_dependency_set should have failed due to file not found");
         let io_error = err.downcast_ref::<std::io::Error>();
-        assert!(io_error.is_some(), "Error should be an std::io::Error, but was: {:?}", err);
+        assert!(io_error.is_some(), "Error should be an std::io::Error, but was: {err:?}");
         assert_eq!(io_error.unwrap().kind(), std::io::ErrorKind::NotFound);
         Ok(())
     }
@@ -366,7 +366,7 @@ mod tests {
         let result = args.init_dependency_set().await;
         let err = result.expect_err("init_dependency_set should have failed due to invalid JSON");
         let json_error = err.downcast_ref::<serde_json::Error>();
-        assert!(json_error.is_some(), "Error should be a serde_json::Error, but was: {:?}", err);
+        assert!(json_error.is_some(), "Error should be a serde_json::Error, but was: {err:?}");
         Ok(())
     }
 

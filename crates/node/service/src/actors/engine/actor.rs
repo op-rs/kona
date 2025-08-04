@@ -84,8 +84,6 @@ pub struct EngineBuilder {
     pub config: Arc<RollupConfig>,
     /// The engine rpc url.
     pub engine_url: Url,
-    /// The L2 rpc url.
-    pub l2_rpc_url: Url,
     /// The L1 rpc url.
     pub l1_rpc_url: Url,
     /// The engine jwt secret.
@@ -116,7 +114,6 @@ impl EngineBuilder {
     pub fn client(&self) -> Arc<EngineClient> {
         EngineClient::new_http(
             self.engine_url.clone(),
-            self.l2_rpc_url.clone(),
             self.l1_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,
@@ -434,14 +431,14 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     };
 
-                    let task = EngineTask::Build(BuildTask::new(
+                    let task = EngineTask::Build(Box::new(BuildTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
                         // The payload is not derived in this case.
                         false,
                         Some(response_tx),
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
@@ -450,12 +447,12 @@ impl NodeActor for EngineActor {
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    let task = EngineTask::Insert(InsertTask::new(
+                    let task = EngineTask::Insert(Box::new(InsertTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         envelope,
                         false, // The payload is not derived in this case. This is an unsafe block.
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 attributes = self.attributes_rx.recv() => {
@@ -466,12 +463,12 @@ impl NodeActor for EngineActor {
                     };
                     self.finalizer.enqueue_for_finalization(&attributes);
 
-                    let task = EngineTask::Consolidate(ConsolidateTask::new(
+                    let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
                         true,
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 msg = self.finalizer.new_finalized_block() => {

@@ -50,7 +50,8 @@ where
             %target_level,
             "Started safety checker");
 
-        let checker = CrossSafetyChecker::new(chain_id, &*self.validator, &*self.provider);
+        let checker =
+            CrossSafetyChecker::new(chain_id, &*self.validator, &*self.provider, target_level);
 
         loop {
             tokio::select! {
@@ -103,9 +104,7 @@ where
     ) -> Result<BlockInfo, CrossSafetyError> {
         let candidate = self.find_next_promotable_block()?;
 
-        checker.validate_block(candidate, self.promoter.target_level())?;
-
-        // TODO: Add more checks in future
+        checker.validate_block(candidate)?;
 
         let event =
             self.promoter.update_and_emit_event(&*self.provider, self.chain_id, &candidate)?;
@@ -250,7 +249,12 @@ mod tests {
             event_tx,
             Arc::new(mock_validator),
         );
-        let checker = CrossSafetyChecker::new(job.chain_id, &*job.validator, &*job.provider);
+        let checker = CrossSafetyChecker::new(
+            job.chain_id,
+            &*job.validator,
+            &*job.provider,
+            CrossUnsafePromoter.target_level(),
+        );
         let result = job.promote_next_block(&checker);
 
         assert!(result.is_ok());
@@ -299,7 +303,12 @@ mod tests {
             Arc::new(mock_validator),
         );
 
-        let checker = CrossSafetyChecker::new(job.chain_id, &*job.validator, &*job.provider);
+        let checker = CrossSafetyChecker::new(
+            job.chain_id,
+            &*job.validator,
+            &*job.provider,
+            CrossSafePromoter.target_level(),
+        );
         let result = job.promote_next_block(&checker);
 
         assert!(result.is_ok());
@@ -341,7 +350,12 @@ mod tests {
             Arc::new(mock_validator),
         );
 
-        let checker = CrossSafetyChecker::new(job.chain_id, &*job.validator, &*job.provider);
+        let checker = CrossSafetyChecker::new(
+            job.chain_id,
+            &*job.validator,
+            &*job.provider,
+            CrossSafePromoter.target_level(),
+        );
         let result = job.promote_next_block(&checker);
 
         assert!(matches!(result, Err(CrossSafetyError::NoBlockToPromote)));
