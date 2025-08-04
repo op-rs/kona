@@ -54,8 +54,7 @@ where
                     "Block out of order detected, resetting managed node"
                 );
 
-                if let Err(err) = self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await
-                {
+                self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await.map_err(|err| {
                     warn!(
                         target: "supervisor::chain_processor::managed_node",
                         chain_id = self.chain_id,
@@ -63,9 +62,8 @@ where
                         %err,
                         "Failed to send reset command to managed node"
                     );
-
-                    return Err(err.into());
-                }
+                    ChainProcessorError::ChannelSendFailed(err.to_string())
+                })?;
                 Ok(())
             }
             Err(err) => {

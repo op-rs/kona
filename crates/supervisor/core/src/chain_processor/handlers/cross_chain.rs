@@ -49,7 +49,7 @@ impl CrossUnsafeHandler {
         self.managed_node_sender
             .send(ManagedNodeCommand::UpdateCrossUnsafe { block_id: block.id() })
             .await
-            .inspect_err(|err| {
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
@@ -57,6 +57,7 @@ impl CrossUnsafeHandler {
                     %err,
                     "Failed to send cross unsafe block update"
                 );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
         Ok(())
     }
@@ -107,7 +108,7 @@ impl CrossSafeHandler {
                 derived_block_id: derived_ref_pair.derived.id(),
             })
             .await
-            .inspect_err(|err| {
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
@@ -115,6 +116,7 @@ impl CrossSafeHandler {
                     %err,
                     "Failed to send cross safe block update"
                 );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
         Ok(())
     }

@@ -1,9 +1,5 @@
-use alloy_primitives::B256;
 use kona_supervisor_storage::StorageError;
 use thiserror::Error;
-use tokio::sync::mpsc;
-
-use crate::event::ChainEvent;
 
 /// Represents various errors that can occur during node management,
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -20,24 +16,9 @@ pub enum ManagedNodeError {
     #[error("failed to get block by number, number: {0}")]
     GetBlockByNumberFailed(u64),
 
-    /// Current block hash and parent block hash of next block do not match.
-    #[error(
-        "current block hash and parent hash of next block mismatch, current: {current}, parent: {parent}"
-    )]
-    BlockHashMismatch {
-        /// Current block hash.
-        current: B256,
-        /// Parent block hash of next block (which should be current block hash)
-        parent: B256,
-    },
-
-    /// Managed node api call failed.
-    #[error("managed node api call failed")]
-    ManagedNodeAPICallFailed,
-
     /// Represents an error that occurred while sending an event to the channel.
-    #[error(transparent)]
-    ChannelSendFailed(#[from] mpsc::error::SendError<ChainEvent>),
+    #[error("failed to send event to channel: {0}")]
+    ChannelSendFailed(String),
 
     /// Represents an error that occurred while resetting the managed node.
     #[error("failed to reset the managed node")]

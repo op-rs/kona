@@ -98,29 +98,35 @@ where
             }
         };
 
-        if block.header.parent_hash != derived_ref_pair.source.hash {
-            // this could happen due to a reorg.
-            // this case should be handled by the reorg manager
-            error!(target: "supervisor::managed_node", %chain_id, "L1 Block parent hash mismatch");
-            Err(ManagedNodeError::BlockHashMismatch {
-                current: derived_ref_pair.source.hash,
-                parent: block.header.parent_hash,
-            })?
-        }
-
-        let block_info = BlockInfo {
+        let new_source = BlockInfo {
             hash: block.header.hash,
             number: block.header.number,
             parent_hash: block.header.parent_hash,
             timestamp: block.header.timestamp,
         };
 
-        if let Err(err) = self.client.provide_l1(block_info).await {
-            error!(target: "supervisor::managed_node", %chain_id, %err, "Error sending provide_l1 to managed node");
-            Err(ManagedNodeError::ManagedNodeAPICallFailed)?
+        if block.header.parent_hash != derived_ref_pair.source.hash {
+            // this could happen due to a reorg.
+            // this case should be handled by the reorg manager
+            warn!(
+                target: "supervisor::managed_node",
+                %chain_id,
+                %new_source,
+                current_source = %derived_ref_pair.source,
+                "Parent hash mismatch. Possible reorg detected"
+            );
+            return Ok(());
         }
 
-        info!(target: "supervisor::managed_node", %chain_id, "Sent next L1 block to managed node using provide_l1");
+        self.client.provide_l1(new_source).await.inspect_err(|err| {
+            error!(
+                target: "supervisor::managed_node",
+                %chain_id,
+                %new_source,
+                %err,
+                "Failed to provide L1 block"
+            );
+        })?;
         Ok(())
     }
 
@@ -138,7 +144,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::UnsafeBlock { block: *unsafe_block }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send unsafe block event");
-            ManagedNodeError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err.to_string())
         })?;
         Ok(())
     }
@@ -152,7 +158,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::DerivedBlock { derived_ref_pair: *derived_ref_pair }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send derivation update event");
-            ManagedNodeError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err.to_string())
         })?;
         Ok(())
     }
@@ -166,7 +172,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::BlockReplaced { replacement: *replacement }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send block replacement event");
-            ManagedNodeError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err.to_string())
         })?;
         Ok(())
     }
@@ -180,7 +186,7 @@ where
 
         self.chain_event_sender.send(ChainEvent::DerivationOriginUpdate { origin: *origin }).await.map_err(|err| {
             warn!(target: "supervisor::managed_node", %chain_id, %err, "Failed to send derivation origin update event");
-            ManagedNodeError::ChannelSendFailed(err)
+            ManagedNodeError::ChannelSendFailed(err.to_string())
         })?;
         Ok(())
     }

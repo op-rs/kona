@@ -125,16 +125,15 @@ where
                     "Block out of order detected, resetting managed node"
                 );
 
-                if let Err(err) = self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await
-                {
+                self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await.map_err(|err| {
                     warn!(
                         target: "supervisor::chain_processor::managed_node",
                         chain_id = self.chain_id,
                         %err,
                         "Failed to send reset command to managed node"
                     );
-                    return Err(err.into());
-                }
+                    ChainProcessorError::ChannelSendFailed(err.to_string())
+                })?;
                 Ok(())
             }
             Err(StorageError::ReorgRequired) => {
@@ -667,7 +666,7 @@ mod tests {
 
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
-        
+
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
         let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
@@ -682,7 +681,7 @@ mod tests {
             log_indexer,
             rewinder,
         );
-        
+
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_err());
     }

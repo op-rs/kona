@@ -74,7 +74,7 @@ where
         self.managed_node_sender
             .send(ManagedNodeCommand::InvalidateBlock { seal: block_seal })
             .await
-            .inspect_err(|err| {
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
@@ -82,6 +82,7 @@ where
                     %err,
                     "Failed to send invalidate block command to managed node"
                 );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
 
         state.set_invalidated(DerivedRefPair { source: source_block, derived: block });

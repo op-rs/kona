@@ -73,7 +73,7 @@ where
         self.managed_node_sender
             .send(ManagedNodeCommand::UpdateFinalized { block_id: finalized_derived_block.id() })
             .await
-            .inspect_err(|err| {
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
@@ -81,6 +81,7 @@ where
                     %err,
                     "Failed to send finalized block update"
                 );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
         Ok(())
     }
