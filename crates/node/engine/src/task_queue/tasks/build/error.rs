@@ -58,7 +58,7 @@ pub enum BuildTaskError {
     ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
     /// Impossible to insert the payload into the engine.
     #[error(transparent)]
-    PayloadInsertionFailed(#[from] InsertTaskError),
+    PayloadInsertionFailed(#[from] Box<InsertTaskError>),
     /// The get payload call to the engine api failed.
     #[error(transparent)]
     GetPayloadFailed(RpcError<TransportErrorKind>),
@@ -80,7 +80,7 @@ pub enum BuildTaskError {
     FromBlock(#[from] FromBlockError),
     /// Error sending the built payload envelope.
     #[error(transparent)]
-    MpscSend(#[from] mpsc::error::SendError<OpExecutionPayloadEnvelope>),
+    MpscSend(#[from] Box<mpsc::error::SendError<OpExecutionPayloadEnvelope>>),
 }
 
 impl EngineTaskError for BuildTaskError {

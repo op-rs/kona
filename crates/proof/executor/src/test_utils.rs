@@ -89,7 +89,7 @@ pub struct ExecutorTestFixtureCreator {
 impl ExecutorTestFixtureCreator {
     /// Creates a new [`ExecutorTestFixtureCreator`] with the given parameters.
     pub fn new(provider_url: &str, block_number: u64, base_fixture_directory: PathBuf) -> Self {
-        let base = base_fixture_directory.join(format!("block-{}", block_number));
+        let base = base_fixture_directory.join(format!("block-{block_number}"));
 
         let url = provider_url.parse().expect("Invalid provider URL");
         let http = Http::<Client>::new(url);

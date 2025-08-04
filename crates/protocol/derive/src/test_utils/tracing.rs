@@ -49,7 +49,7 @@ impl<S: Subscriber> Layer<S> for CollectingLayer {
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
         let metadata = event.metadata();
         let level = *metadata.level();
-        let message = format!("{:?}", event);
+        let message = format!("{event:?}");
 
         let mut storage = self.storage.0.lock();
         storage.push((level, message));

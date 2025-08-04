@@ -22,13 +22,13 @@ const projects: SdkProject[] = [
   },
   {
     name: 'OP Succinct',
-    description: 'zkVM-based fault proof system using Kona',
+    description: 'zkVM-based proof system using Kona',
     linesOfCode: '~2K LoC',
     githubUrl: 'https://github.com/succinctlabs/op-succinct'
   },
   {
     name: 'Kailua',
-    description: 'Alternative OP Stack node built with Kona',
+    description: 'zkVM-based proof system using Kona',
     linesOfCode: '~5K LoC',
     githubUrl: 'https://github.com/op-rs/kailua'
   }

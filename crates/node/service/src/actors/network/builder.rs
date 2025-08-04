@@ -2,8 +2,9 @@
 
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, Enr};
+use kona_disc::{Discv5Builder, LocalNode};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Discv5Builder, GaterConfig, GossipDriverBuilder, LocalNode};
+use kona_gossip::{GaterConfig, GossipDriverBuilder};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
@@ -237,14 +238,14 @@ mod tests {
 
         // Block Handler Assertions
         assert_eq!(driver.gossip.handler.rollup_config.l2_chain_id, id);
-        let v1 = IdentTopic::new(format!("/optimism/{}/0/blocks", id));
+        let v1 = IdentTopic::new(format!("/optimism/{id}/0/blocks"));
         println!("{:?}", driver.gossip.handler.blocks_v1_topic);
         assert_eq!(driver.gossip.handler.blocks_v1_topic.hash(), v1.hash());
-        let v2 = IdentTopic::new(format!("/optimism/{}/1/blocks", id));
+        let v2 = IdentTopic::new(format!("/optimism/{id}/1/blocks"));
         assert_eq!(driver.gossip.handler.blocks_v2_topic.hash(), v2.hash());
-        let v3 = IdentTopic::new(format!("/optimism/{}/2/blocks", id));
+        let v3 = IdentTopic::new(format!("/optimism/{id}/2/blocks"));
         assert_eq!(driver.gossip.handler.blocks_v3_topic.hash(), v3.hash());
-        let v4 = IdentTopic::new(format!("/optimism/{}/3/blocks", id));
+        let v4 = IdentTopic::new(format!("/optimism/{id}/3/blocks"));
         assert_eq!(driver.gossip.handler.blocks_v4_topic.hash(), v4.hash());
     }
 

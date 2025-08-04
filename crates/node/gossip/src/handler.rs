@@ -94,10 +94,10 @@ impl BlockHandler {
         Self {
             rollup_config,
             signer_recv,
-            blocks_v1_topic: IdentTopic::new(format!("/optimism/{}/0/blocks", chain_id)),
-            blocks_v2_topic: IdentTopic::new(format!("/optimism/{}/1/blocks", chain_id)),
-            blocks_v3_topic: IdentTopic::new(format!("/optimism/{}/2/blocks", chain_id)),
-            blocks_v4_topic: IdentTopic::new(format!("/optimism/{}/3/blocks", chain_id)),
+            blocks_v1_topic: IdentTopic::new(format!("/optimism/{chain_id}/0/blocks")),
+            blocks_v2_topic: IdentTopic::new(format!("/optimism/{chain_id}/1/blocks")),
+            blocks_v3_topic: IdentTopic::new(format!("/optimism/{chain_id}/2/blocks")),
+            blocks_v4_topic: IdentTopic::new(format!("/optimism/{chain_id}/3/blocks")),
             seen_hashes: BTreeMap::new(),
         }
     }
@@ -141,7 +141,7 @@ mod tests {
     use alloy_rpc_types_engine::{ExecutionPayloadV2, ExecutionPayloadV3};
     use op_alloy_rpc_types_engine::{OpExecutionPayload, OpExecutionPayloadV4, PayloadHash};
 
-    use crate::gossip::{v2_valid_block, v3_valid_block, v4_valid_block};
+    use crate::{v2_valid_block, v3_valid_block, v4_valid_block};
 
     use super::*;
     use alloy_primitives::{B256, Signature};

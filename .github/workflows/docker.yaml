@@ -57,7 +57,7 @@ jobs:
           echo "target=$TARGET" >> $GITHUB_OUTPUT
 
           # Check if target is in valid targets list
-          if echo "${{ steps.get-targets.outputs.targets }}" | jq -e 'contains(["'"$TARGET"'"])' > /dev/null; then
+          if echo '${{ steps.get-targets.outputs.targets }}' | jq -e 'contains(["'$TARGET'"])' > /dev/null; then
             echo "bake_target=$TARGET" >> $GITHUB_OUTPUT
             echo "bin_target=" >> $GITHUB_OUTPUT
             echo "Target '$TARGET' is a valid bake target"

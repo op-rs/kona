@@ -162,11 +162,9 @@ impl Supervisor {
 
         for (chain_id, _) in self.config.rollup_config_set.rollups.iter() {
             let db = self.database_factory.get_db(*chain_id)?;
-            let managed_node =
-                self.managed_nodes.get(chain_id).ok_or(SupervisorError::Initialise(format!(
-                    "no managed node found for chain {}",
-                    chain_id
-                )))?;
+            let managed_node = self.managed_nodes.get(chain_id).ok_or(
+                SupervisorError::Initialise(format!("no managed node found for chain {chain_id}")),
+            )?;
 
             // initialise chain processor for the chain.
             let mut processor = ChainProcessor::new(
@@ -282,8 +280,7 @@ impl Supervisor {
             } else {
                 error!(target: "supervisor::service", chain_id, "No sender found for chain processor");
                 return Err(SupervisorError::Initialise(format!(
-                    "no sender found for chain processor for chain {}",
-                    chain_id
+                    "no sender found for chain processor for chain {chain_id}"
                 )));
             }
         }
