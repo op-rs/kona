@@ -11,7 +11,7 @@ use tokio::sync::watch::Receiver;
 /// This trait defines the functionality required to process incoming messages
 /// and determine their acceptance within the network.
 ///
-/// Implementors of this trait can specify how messages are handled and which
+/// Implementers of this trait can specify how messages are handled and which
 /// topics they are interested in.
 pub trait Handler: Send {
     /// Manages validation and further processing of messages
