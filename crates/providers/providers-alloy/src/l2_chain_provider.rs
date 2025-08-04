@@ -3,7 +3,7 @@
 #[cfg(feature = "metrics")]
 use crate::Metrics;
 use alloy_eips::BlockId;
-use alloy_primitives::Bytes;
+use alloy_primitives::{B256, Bytes};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_engine::JwtSecret;
@@ -79,6 +79,25 @@ impl AlloyL2ChainProvider {
         self.inner.get_block_number().await
     }
 
+    /// Verifies that a block's hash matches the expected hash when trust_rpc is false.
+    fn verify_block_hash(
+        &self,
+        block_hash: B256,
+        expected_hash: B256,
+    ) -> Result<(), RpcError<TransportErrorKind>> {
+        if self.trust_rpc {
+            return Ok(());
+        }
+
+        if block_hash != expected_hash {
+            return Err(RpcError::local_usage_str(&format!(
+                "Block hash mismatch: expected {expected_hash:?}, got {block_hash:?}"
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Returns the [L2BlockInfo] for the given [BlockId]. [None] is returned if the block
     /// does not exist.
     pub async fn block_info_by_id(
@@ -99,17 +118,9 @@ impl AlloyL2ChainProvider {
                 BlockId::Hash(hash) => {
                     let block = self.inner.get_block_by_hash(hash.block_hash).full().await?;
 
-                    // Verify block hash matches if we fetched by hash and trust_rpc is false
-                    if !self.trust_rpc {
-                        if let Some(ref b) = block {
-                            let actual_hash = b.header.hash;
-                            if actual_hash != hash.block_hash {
-                                return Err(RpcError::local_usage_str(&format!(
-                                    "Block hash mismatch: expected {:?}, got {:?}",
-                                    hash.block_hash, actual_hash
-                                )));
-                            }
-                        }
+                    // Verify block hash matches if we fetched by hash
+                    if let Some(ref b) = block {
+                        self.verify_block_hash(b.header.hash, hash.block_hash)?;
                     }
 
                     block
