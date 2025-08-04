@@ -5,10 +5,10 @@ use clap::Parser;
 use futures::future::OptionFuture;
 use jsonrpsee::{RpcModule, server::Server};
 use kona_cli::LogConfig;
+use kona_gossip::P2pRpcRequest;
 use kona_node_service::{
     NetworkActor, NetworkBuilder, NetworkContext, NetworkInboundData, NodeActor,
 };
-use kona_p2p::P2pRpcRequest;
 use kona_registry::scr_rollup_config_by_alloy_ident;
 use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
 use tokio_util::sync::CancellationToken;

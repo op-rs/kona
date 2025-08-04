@@ -13,7 +13,8 @@ workspace = true
 
 [dependencies]
 # workspace
-kona-p2p.workspace = true
+kona-gossip.workspace = true
+kona-disc.workspace = true
 kona-engine.workspace = true
 kona-sources.workspace = true
 kona-genesis.workspace = true
@@ -79,7 +80,8 @@ metrics = [
 	"dep:metrics",
 	"kona-derive/metrics",
 	"kona-engine/metrics",
-	"kona-p2p/metrics",
+	"kona-gossip/metrics",
+	"kona-disc/metrics",
 	"kona-providers-alloy/metrics",
 	"kona-rpc/metrics",
 	"kona-sources/metrics",
