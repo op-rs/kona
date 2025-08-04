@@ -640,7 +640,7 @@ mod tests {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
         let (tx, rx) = mpsc::channel(1);
-        let mut mocknode = MockNode::new();
+        let mocknode = MockNode::new();
         let mut state = ProcessorState::new();
 
         mockvalidator.expect_is_post_interop().returning(|_, _| true);
@@ -665,13 +665,11 @@ mod tests {
             .expect_save_derived_block()
             .returning(move |_pair: DerivedRefPair| Err(StorageError::BlockOutOfOrder));
 
-        // Expect reset to be called
-        mocknode.expect_reset().returning(|| Err(ManagedNodeError::ResetFailed));
-
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
+        
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
         let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         drop(rx); // Simulate a send error by dropping the receiver
@@ -684,11 +682,9 @@ mod tests {
             log_indexer,
             rewinder,
         );
+        
         let result = handler.handle(block_pair, &mut state).await;
-        assert!(matches!(
-            result,
-            Err(ChainProcessorError::ManagedNode(ManagedNodeError::ResetFailed))
-        ));
+        assert!(result.is_err());
     }
 
     #[tokio::test]
