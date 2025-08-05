@@ -1,4 +1,4 @@
-use crate::{SupervisorError, reorg::task::ReorgTask};
+use crate::{SupervisorError, reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
@@ -15,6 +15,8 @@ pub struct ReorgHandler<DB> {
     rpc_client: RpcClient,
     /// Per chain dbs.
     chain_dbs: HashMap<ChainId, Arc<DB>>,
+    /// Per chain managed nodes
+    managed_nodes: HashMap<ChainId, Arc<dyn ManagedNodeController>>,
 }
 
 impl<DB> ReorgHandler<DB>
@@ -32,8 +34,17 @@ where
         let mut handles = Vec::with_capacity(self.chain_dbs.len());
 
         for (chain_id, chain_db) in &self.chain_dbs {
-            let reorg_task =
-                ReorgTask::new(*chain_id, Arc::clone(chain_db), self.rpc_client.clone());
+            let managed_node = self.managed_nodes.get(chain_id).ok_or(
+                SupervisorError::Initialise("no managed node found for chain".to_string()),
+            )?;
+
+            let reorg_task = ReorgTask::new(
+                *chain_id,
+                Arc::clone(chain_db),
+                self.rpc_client.clone(),
+                Arc::clone(managed_node),
+            );
+
             let handle = tokio::spawn(async move { reorg_task.process_chain_reorg().await });
             handles.push(handle);
         }
