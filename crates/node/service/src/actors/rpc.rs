@@ -2,7 +2,7 @@
 
 use crate::{NodeActor, actors::CancellableContext};
 use async_trait::async_trait;
-use kona_p2p::P2pRpcRequest;
+use kona_gossip::P2pRpcRequest;
 use kona_rpc::{
     AdminApiServer, AdminRpc, DevEngineApiServer, DevEngineRpc, HealthzResponse, NetworkAdminQuery,
     OpP2PApiServer, RollupNodeApiServer, SequencerAdminQuery, WsRPC, WsServer,

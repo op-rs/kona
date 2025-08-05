@@ -2,8 +2,9 @@
 
 use alloy_primitives::Address;
 use discv5::{Config as Discv5Config, Enr};
+use kona_disc::{Discv5Builder, LocalNode};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Discv5Builder, GaterConfig, GossipDriverBuilder, LocalNode};
+use kona_gossip::{GaterConfig, GossipDriverBuilder};
 use kona_peers::{PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
