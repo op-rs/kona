@@ -62,6 +62,10 @@ pub enum SupervisorError {
         /// Received L1 block.
         got: u64,
     },
+
+    /// Indicates that the chain ID could not be parsed from the access list.
+    #[error("failed to parse chain id from access list")]
+    ChainIdParseError(),
 }
 
 impl PartialEq for SupervisorError {
@@ -132,6 +136,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::StorageError(_) |
             SupervisorError::InteropValidationError(_) |
             SupervisorError::AccessListError(_) |
+            SupervisorError::ChainIdParseError() |
             SupervisorError::SerdeJson(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SpecError(err) => err.into(),
         }

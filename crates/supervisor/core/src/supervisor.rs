@@ -290,8 +290,13 @@ where
 
             // TODO: support 32 bytes chain id and convert to u64 via dependency set to be usable
             // across services
-            let initiating_chain_id =
-                u64::from_be_bytes(access.chain_id[24..32].try_into().unwrap());
+            let initiating_chain_id = access.chain_id[24..32]
+                .try_into()
+                .map(u64::from_be_bytes)
+                .map_err(|err| {
+                    error!(target: "supervisor::service", %err, "Failed to parse initiating chain id from access list");
+                    SupervisorError::ChainIdParseError()
+                })?;
 
             let executing_chain_id = executing_descriptor.chain_id.unwrap_or(initiating_chain_id);
 

@@ -5,7 +5,8 @@ use kona_interop::ManagedEvent;
 use kona_supervisor_core::syncnode::{
     ManagedNodeClient, ManagedNodeCommand, ManagedNodeController, SubscriptionHandler,
 };
-use std::{io, sync::Arc};
+use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
@@ -28,7 +29,7 @@ where
     N: ManagedNodeController + SubscriptionHandler + 'static,
 {
     type InboundEvent = ManagedNodeCommand;
-    type Error = io::Error;
+    type Error = SupervisorRpcActorError;
 
     async fn start(mut self) -> Result<(), Self::Error> {
         // Task 1: Subscription handling
@@ -50,7 +51,7 @@ where
         // Task 2: Command handling
         let node = self.node.clone();
         let cancel_token = self.cancel_token.clone();
-        run_command_task(node, self.command_rx, cancel_token).await;
+        run_command_task(node, self.command_rx, cancel_token).await?;
         Ok(())
     }
 }
@@ -59,7 +60,8 @@ async fn run_command_task<N>(
     node: Arc<N>,
     mut command_rx: mpsc::Receiver<ManagedNodeCommand>,
     cancel_token: CancellationToken,
-) where
+) -> Result<(), SupervisorRpcActorError>
+where
     N: ManagedNodeController + SubscriptionHandler + 'static,
 {
     info!(target: "supervisor::syncnode_actor", "Starting command task for managed node");
@@ -67,7 +69,7 @@ async fn run_command_task<N>(
         tokio::select! {
             _ = cancel_token.cancelled() => {
                 info!(target: "supervisor::syncnode", "Cancellation requested, shutting down command task");
-                break;
+                return Ok(());
             }
             maybe_cmd = command_rx.recv() => {
                 match maybe_cmd {
@@ -127,7 +129,7 @@ async fn run_command_task<N>(
                     }
                     None => {
                         info!(target: "supervisor::syncnode", "Command channel closed, shutting down command task");
-                        break;
+                        return Err(SupervisorRpcActorError::CommandReceiverClosed);
                     }
                 }
             }
@@ -248,8 +250,16 @@ async fn handle_subscription_event<N: SubscriptionHandler>(handler: &Arc<N>, eve
     }
 }
 
+#[derive(Debug, Error)]
+pub enum SupervisorRpcActorError {
+    /// Error indicating that command receiver is closed.
+    #[error("managed node command receiver closed")]
+    CommandReceiverClosed,
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use alloy_eips::BlockNumHash;
     use alloy_primitives::{B256, ChainId};
     use jsonrpsee::core::client::Subscription;
@@ -346,6 +356,7 @@ mod tests {
         drop(tx);
 
         // Wait for the task to finish
-        handle.await.unwrap();
+        let result = handle.await.unwrap();
+        assert!(matches!(result, Err(SupervisorRpcActorError::CommandReceiverClosed)));
     }
 }
