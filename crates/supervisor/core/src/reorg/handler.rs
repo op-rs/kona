@@ -1,4 +1,4 @@
-use crate::{SupervisorError, reorg::task::ReorgTask};
+use crate::{reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
@@ -6,23 +6,35 @@ use futures::future;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc};
+use thiserror::Error;
 use tracing::{info, warn};
+
+/// Error type for reorg handling
+#[derive(Debug, Error)]
+pub enum ReorgHandlerError {
+    /// Indicates managed node not found for the chain.
+    #[error("managed node not found for chain: {0}")]
+    ManagedNodeMissing(u64),
+}
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
-pub struct ReorgHandler<DB> {
+pub struct ReorgHandler<C, DB> {
     /// The Alloy RPC client for L1.
     rpc_client: RpcClient,
     /// Per chain dbs.
     chain_dbs: HashMap<ChainId, Arc<DB>>,
+    /// Per chain managed nodes
+    managed_nodes: HashMap<ChainId, Arc<C>>,
 }
 
-impl<DB> ReorgHandler<DB>
+impl<C, DB> ReorgHandler<C, DB>
 where
+    C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
     /// Processes a reorg for all chains when a new latest L1 block is received
-    pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), SupervisorError> {
+    pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
         info!(
             target: "supervisor::reorg_handler",
             l1_block_number = latest_block.number,
@@ -32,8 +44,18 @@ where
         let mut handles = Vec::with_capacity(self.chain_dbs.len());
 
         for (chain_id, chain_db) in &self.chain_dbs {
-            let reorg_task =
-                ReorgTask::new(*chain_id, Arc::clone(chain_db), self.rpc_client.clone());
+            let managed_node = self
+                .managed_nodes
+                .get(chain_id)
+                .ok_or(ReorgHandlerError::ManagedNodeMissing(*chain_id))?;
+
+            let reorg_task = ReorgTask::new(
+                *chain_id,
+                Arc::clone(chain_db),
+                self.rpc_client.clone(),
+                managed_node.clone(),
+            );
+
             let handle = tokio::spawn(async move { reorg_task.process_chain_reorg().await });
             handles.push(handle);
         }

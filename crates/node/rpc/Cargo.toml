@@ -17,7 +17,7 @@ workspace = true
 [dependencies]
 # Workspace
 kona-protocol = {workspace = true, features = ["serde", "std"]}
-kona-p2p.workspace = true
+kona-gossip.workspace = true
 kona-engine.workspace = true
 kona-macros.workspace = true
 kona-genesis = {workspace = true, features = ["serde", "std"]}
@@ -78,6 +78,6 @@ client = [
 metrics = [
 	"dep:metrics",
 	"kona-engine/metrics",
-	"kona-p2p/metrics",
+	"kona-gossip/metrics",
 	"libp2p/metrics",
 ]

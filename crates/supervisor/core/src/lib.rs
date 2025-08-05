@@ -30,4 +30,4 @@ mod rewinder;
 pub use rewinder::{ChainRewinder, ChainRewinderError};
 
 mod reorg;
-pub use reorg::ReorgHandler;
+pub use reorg::{ReorgHandler, ReorgHandlerError};
