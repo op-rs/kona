@@ -1,6 +1,6 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{CrossSafetyError, syncnode::ManagedNodeError};
+use crate::syncnode::ManagedNodeError;
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
 use kona_interop::InteropValidationError;
@@ -30,10 +30,6 @@ pub enum SupervisorError {
     #[error(transparent)]
     SpecError(#[from] SpecError),
 
-    /// Indicates that the supervisor was unable to initialise due to an error.
-    #[error("unable to initialize the supervisor: {0}")]
-    Initialise(String),
-
     /// Indicates that error occurred while validating interop config.
     #[error(transparent)]
     InteropValidationError(#[from] InteropValidationError),
@@ -49,10 +45,6 @@ pub enum SupervisorError {
     /// Indicates the error occurred while parsing the access_list
     #[error(transparent)]
     AccessListError(#[from] AccessListError),
-
-    /// Indicated the error occurred while initializing the safety checker jobs
-    #[error(transparent)]
-    CrossSafetyCheckerError(#[from] CrossSafetyError),
 
     /// Indicates the L1 block does not match the expected L1 block.
     #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
@@ -103,9 +95,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::EmptyDependencySet |
             SupervisorError::InteropNotEnabled |
             SupervisorError::L1BlockMismatch { .. } |
-            SupervisorError::Initialise(_) |
             SupervisorError::ManagedNodeError(_) |
-            SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::InteropValidationError(_) |
             SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),

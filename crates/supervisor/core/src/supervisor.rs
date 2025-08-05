@@ -20,7 +20,7 @@ use tracing::error;
 use crate::{
     SpecError, SupervisorError,
     config::Config,
-    syncnode::{Client, ManagedNode, ManagedNodeDataProvider},
+    syncnode::{BlockProvider, ManagedNodeDataProvider},
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -91,20 +91,27 @@ pub trait SupervisorService: Debug + Send + Sync {
 
 /// The core Supervisor component responsible for monitoring and coordinating chain states.
 #[derive(Debug)]
-pub struct Supervisor {
+pub struct Supervisor<M> {
     config: Arc<Config>,
     database_factory: Arc<ChainDbFactory>,
 
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
-    managed_nodes: HashMap<ChainId, Arc<ManagedNode<ChainDb, Client>>>,
+    managed_nodes: HashMap<ChainId, Arc<M>>,
 }
 
-impl Supervisor {
+impl<M> Supervisor<M>
+where
+    M: ManagedNodeDataProvider + BlockProvider + Send + Sync + Debug,
+{
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new(config: Arc<Config>, database_factory: Arc<ChainDbFactory>) -> Self {
-        Self { config, database_factory, managed_nodes: HashMap::new() }
+    pub fn new(
+        config: Arc<Config>,
+        database_factory: Arc<ChainDbFactory>,
+        managed_nodes: HashMap<ChainId, Arc<M>>,
+    ) -> Self {
+        Self { config, database_factory, managed_nodes }
     }
 
     fn verify_safety_level(
@@ -131,7 +138,10 @@ impl Supervisor {
 }
 
 #[async_trait]
-impl SupervisorService for Supervisor {
+impl<M> SupervisorService for Supervisor<M>
+where
+    M: ManagedNodeDataProvider + BlockProvider + Send + Sync + Debug,
+{
     fn chain_ids(&self) -> impl Iterator<Item = ChainId> {
         self.config.dependency_set.dependencies.keys().copied()
     }

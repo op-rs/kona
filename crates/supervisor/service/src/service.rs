@@ -321,8 +321,11 @@ impl Service {
     }
 
     async fn init_rpc_server(&mut self) -> Result<()> {
-        let supervisor =
-            Arc::new(Supervisor::new(self.config.clone(), self.database_factory.clone()));
+        let supervisor = Arc::new(Supervisor::new(
+            self.config.clone(),
+            self.database_factory.clone(),
+            self.managed_nodes.clone(),
+        ));
         let rpc_addr = self.config.rpc_addr;
         let cancel_token = self.cancel_token.clone();
         self.join_set.spawn(async move {
