@@ -11,7 +11,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, LogStorageReader};
 use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::sync::Arc;
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex, mpsc};
 
 use super::{
     BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
@@ -33,6 +33,9 @@ pub struct ManagedNode<DB, C> {
     resetter: Arc<Resetter<DB, C>>,
     /// Channel for sending events to the chain processor
     chain_event_sender: mpsc::Sender<ChainEvent>,
+
+    /// Cached chain ID
+    chain_id: Mutex<Option<ChainId>>,
 }
 
 impl<DB, C> ManagedNode<DB, C>
@@ -49,15 +52,24 @@ where
     ) -> Self {
         let resetter = Arc::new(Resetter::new(client.clone(), db_provider));
 
-        Self { client, resetter, l1_provider, chain_event_sender }
+        Self { client, resetter, l1_provider, chain_event_sender, chain_id: Mutex::new(None) }
     }
 
     /// Returns the [`ChainId`] of the [`ManagedNode`].
     /// If the chain ID is already cached, it returns that.
     /// If not, it fetches the chain ID from the managed node.
     pub async fn chain_id(&self) -> Result<ChainId, ManagedNodeError> {
-        let chain_id = self.client.chain_id().await?;
-        Ok(chain_id)
+        // we are caching the chain ID here to avoid multiple calls to the client
+        // there is a possibility that chain ID might be being cached in the client already
+        // but we are caching it here to make sure it caches in the `ManagedNode` context
+        let mut cache = self.chain_id.lock().await;
+        if let Some(chain_id) = *cache {
+            Ok(chain_id)
+        } else {
+            let chain_id = self.client.chain_id().await?;
+            *cache = Some(chain_id);
+            Ok(chain_id)
+        }
     }
 }
 

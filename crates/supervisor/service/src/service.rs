@@ -64,11 +64,11 @@ impl Service {
 
         // create sender and receiver channels for each chain
         for chain_id in self.config.rollup_config_set.rollups.keys() {
-            let (chain_tx, chain_rx) = mpsc::channel::<ChainEvent>(100);
+            let (chain_tx, chain_rx) = mpsc::channel::<ChainEvent>(1000);
             chain_event_senders.insert(*chain_id, chain_tx);
             chain_event_receivers.insert(*chain_id, chain_rx);
 
-            let (managed_node_tx, managed_node_rx) = mpsc::channel::<ManagedNodeCommand>(100);
+            let (managed_node_tx, managed_node_rx) = mpsc::channel::<ManagedNodeCommand>(1000);
             managed_node_senders.insert(*chain_id, managed_node_tx);
             managed_node_receivers.insert(*chain_id, managed_node_rx);
         }

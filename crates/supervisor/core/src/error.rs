@@ -10,7 +10,7 @@ use op_alloy_rpc_types::SuperchainDAError;
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
@@ -38,6 +38,10 @@ pub enum SupervisorError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
+    /// Indicates that managed node not found for the chain.
+    #[error("managed node not found for chain: {0}")]
+    ManagedNodeMissing(u64),
+
     /// Indicates the error occurred while interacting with the managed node.
     #[error(transparent)]
     ManagedNodeError(#[from] ManagedNodeError),
@@ -45,6 +49,10 @@ pub enum SupervisorError {
     /// Indicates the error occurred while parsing the access_list
     #[error(transparent)]
     AccessListError(#[from] AccessListError),
+
+    /// Indicates the error occurred while serializing or deserializing JSON.
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
 
     /// Indicates the L1 block does not match the expected L1 block.
     #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
@@ -55,6 +63,30 @@ pub enum SupervisorError {
         got: u64,
     },
 }
+
+impl PartialEq for SupervisorError {
+    fn eq(&self, other: &Self) -> bool {
+        use SupervisorError::*;
+        match (self, other) {
+            (Unimplemented, Unimplemented) => true,
+            (EmptyDependencySet, EmptyDependencySet) => true,
+            (InteropNotEnabled, InteropNotEnabled) => true,
+            (SpecError(a), SpecError(b)) => a == b,
+            (InteropValidationError(a), InteropValidationError(b)) => a == b,
+            (StorageError(a), StorageError(b)) => a == b,
+            (ManagedNodeMissing(a), ManagedNodeMissing(b)) => a == b,
+            (ManagedNodeError(a), ManagedNodeError(b)) => a == b,
+            (AccessListError(a), AccessListError(b)) => a == b,
+            (SerdeJson(a), SerdeJson(b)) => a.to_string() == b.to_string(),
+            (L1BlockMismatch { expected: a, got: b }, L1BlockMismatch { expected: c, got: d }) => {
+                a == c && b == d
+            }
+            _ => false,
+        }
+    }
+}
+
+impl Eq for SupervisorError {}
 
 /// Extending the [`SuperchainDAError`] to include errors not in the spec.
 #[derive(Error, Debug, PartialEq, Eq, derive_more::TryFrom)]
@@ -95,10 +127,12 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::EmptyDependencySet |
             SupervisorError::InteropNotEnabled |
             SupervisorError::L1BlockMismatch { .. } |
+            SupervisorError::ManagedNodeMissing(_) |
             SupervisorError::ManagedNodeError(_) |
             SupervisorError::StorageError(_) |
             SupervisorError::InteropValidationError(_) |
-            SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
+            SupervisorError::AccessListError(_) |
+            SupervisorError::SerdeJson(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SpecError(err) => err.into(),
         }
     }

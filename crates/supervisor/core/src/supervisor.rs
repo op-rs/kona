@@ -224,15 +224,24 @@ where
         let mut cross_safe_source = BlockNumHash::default();
 
         for id in chain_ids {
-            let managed_node = self.managed_nodes.get(id).unwrap();
+            let Some(managed_node) = self.managed_nodes.get(id) else {
+                error!(target: "supervisor::service", chain_id = %id, "Managed node not found for chain");
+                return Err(SupervisorError::ManagedNodeMissing(*id));
+            };
             let output_v0 = managed_node.output_v0_at_timestamp(timestamp).await?;
-            let output_v0_string = serde_json::to_string(&output_v0).unwrap();
+            let output_v0_string = serde_json::to_string(&output_v0)
+                .inspect_err(|err| {
+                    error!(target: "supervisor::service", chain_id = %id, %err, "Failed to serialize output_v0 for chain");
+                })?;
             let canonical_root = keccak256(output_v0_string.as_bytes());
 
             let pending_output_v0 = managed_node.pending_output_v0_at_timestamp(timestamp).await?;
-            let pending_output_v0_bytes = Bytes::copy_from_slice(
-                serde_json::to_string(&pending_output_v0).unwrap().as_bytes(),
-            );
+            let pending_output_v0_string = serde_json::to_string(&pending_output_v0)
+                .inspect_err(|err| {
+                    error!(target: "supervisor::service", chain_id = %id, %err, "Failed to serialize pending_output_v0 for chain");
+                })?;
+            let pending_output_v0_bytes =
+                Bytes::copy_from_slice(pending_output_v0_string.as_bytes());
 
             chain_infos.push(ChainRootInfoRpc {
                 chain_id: *id,
