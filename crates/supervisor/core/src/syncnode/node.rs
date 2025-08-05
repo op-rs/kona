@@ -18,7 +18,7 @@ use super::{
     ManagedNodeError, SubscriptionHandler, resetter::Resetter,
 };
 use crate::event::ChainEvent;
-use tracing::{error, info, trace, warn};
+use tracing::{error, trace, warn};
 
 /// [`ManagedNode`] handles the subscription to managed node events.
 ///
@@ -330,7 +330,7 @@ where
 
     async fn invalidate_block(&self, block_seal: BlockSeal) -> Result<(), ManagedNodeError> {
         let chain_id = self.chain_id().await?;
-        info!(
+        trace!(
             target: "supervisor::managed_node",
             %chain_id,
             block_number = block_seal.number,
