@@ -42,7 +42,7 @@ where
     prev: P,
     /// The batch reader.
     next_batch: Option<BatchReader>,
-    /// The rollup coonfiguration.
+    /// The rollup configuration.
     cfg: Arc<RollupConfig>,
 }
 
