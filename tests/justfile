@@ -36,6 +36,9 @@ devnet DEVNET OP_PACKAGE_PATH="" CUSTOM_DEVNET_PATH="":
   # Run the kurtosis test
   kurtosis run $OP_PACKAGE_PATH --args-file $DEVNET_PATH $DEVNET
 
+  # Fix Traefik Routes
+  cd {{SOURCE}} && go run cmd/main.go
+
 # Winds down kurtosis, cleaning up the network
 cleanup-kurtosis:
   kurtosis clean -a

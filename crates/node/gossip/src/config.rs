@@ -51,7 +51,7 @@ lazy_static! {
     /// Limits the duration that message IDs are remembered for gossip deduplication purposes.
     pub static ref SEEN_MESSAGES_TTL: Duration = 130 * *GOSSIP_HEARTBEAT;
 
-    /// The pper score inspect frequency.
+    /// The peer score inspect frequency.
     /// The frequency at which peer scores are inspected.
     pub static ref PEER_SCORE_INSPECT_FREQUENCY: Duration = 15 * Duration::from_secs(1);
 }
