@@ -73,9 +73,6 @@ impl Service {
             managed_node_receivers.insert(*chain_id, managed_node_rx);
         }
 
-        self.database_factory =
-            Arc::new(ChainDbFactory::new(self.config.datadir.clone()).with_metrics());
-
         self.init_database().await?;
         self.init_managed_nodes(managed_node_receivers, &chain_event_senders).await?;
         self.init_chain_processor(chain_event_receivers, &managed_node_senders).await?;
@@ -230,15 +227,26 @@ impl Service {
     ) -> Result<()> {
         info!(target: "supervisor::service", "Initialising L1 watcher...");
 
-        let l1_rpc = RpcClient::new_http(self.config.l1_rpc.parse().unwrap());
+        let l1_rpc_url = Url::parse(&self.config.l1_rpc).map_err(|err| {
+            error!(target: "supervisor::service", %err, "Failed to parse L1 RPC URL");
+            anyhow::anyhow!("failed to parse L1 RPC URL: {err}")
+        })?;
+        let l1_rpc = RpcClient::new_http(l1_rpc_url);
 
         let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = self
             .config
             .rollup_config_set
             .rollups
             .keys()
-            .map(|chain_id| (*chain_id, self.database_factory.get_db(*chain_id).unwrap()))
-            .collect();
+            .map(|chain_id| {
+                self.database_factory.get_db(*chain_id)
+                    .map(|db| (*chain_id, db)) // <-- FIX: remove Arc::new(db)
+                    .map_err(|err| {
+                        error!(target: "supervisor::service", %err, "Failed to get database for chain {chain_id}");
+                        anyhow::anyhow!("failed to get database for chain {chain_id}: {err}")
+                })
+            })
+            .collect::<Result<HashMap<ChainId, Arc<ChainDb>>>>()?;
 
         let l1_watcher = L1Watcher::new(
             l1_rpc.clone(),
