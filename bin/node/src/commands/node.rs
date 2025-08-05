@@ -175,7 +175,7 @@ impl NodeCommand {
     }
 
     /// Check if the error is related to JWT signature validation
-    fn is_jwt_signature_error(error: &(dyn std::error::Error)) -> bool {
+    fn is_jwt_signature_error(error: &dyn std::error::Error) -> bool {
         let mut source = Some(error);
         while let Some(err) = source {
             let err_str = err.to_string().to_lowercase();
