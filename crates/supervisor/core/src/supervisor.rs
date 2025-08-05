@@ -30,7 +30,9 @@ use crate::{
     l1_watcher::L1Watcher,
     reorg::ReorgHandler,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{Client, ManagedNode, ManagedNodeClient, ManagedNodeDataProvider},
+    syncnode::{
+        Client, ManagedNode, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
+    },
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -293,12 +295,20 @@ impl Supervisor {
             .map(|chain_id| (*chain_id, self.database_factory.get_db(*chain_id).unwrap()))
             .collect();
 
+        let managed_nodes = self
+            .managed_nodes
+            .iter()
+            .map(|(chain_id, managed_node)| {
+                (*chain_id, managed_node.clone() as Arc<dyn ManagedNodeController>)
+            })
+            .collect();
+
         let l1_watcher = L1Watcher::new(
             l1_rpc.clone(),
             self.database_factory.clone(),
             senders,
             self.cancel_token.clone(),
-            ReorgHandler::new(l1_rpc, chain_dbs_map),
+            ReorgHandler::new(l1_rpc, chain_dbs_map, managed_nodes),
         );
 
         tokio::spawn(async move {
