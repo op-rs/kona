@@ -493,8 +493,8 @@ where
 
             info!(
                 target_block = ?block.number,
-                latest_block = ?latest_block,
-                total_blocks = %total_blocks,
+                ?latest_block,
+                %total_blocks,
                 "Starting rewind"
             );
 
