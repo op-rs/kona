@@ -1,6 +1,7 @@
 use alloy_primitives::Address;
 use futures::future::OptionFuture;
-use kona_p2p::{ConnectionGater, Discv5Driver, GossipDriver, PEER_SCORE_INSPECT_FREQUENCY};
+use kona_disc::Discv5Driver;
+use kona_gossip::{ConnectionGater, GossipDriver, PEER_SCORE_INSPECT_FREQUENCY};
 use kona_sources::{BlockSigner, BlockSignerStartError};
 use libp2p::TransportError;
 use tokio::sync::watch;

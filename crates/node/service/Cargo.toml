@@ -1,7 +1,7 @@
 [package]
 name = "kona-node-service"
 description = "An implementation of the OP Stack consensus node service"
-version = "0.1.1"
+version = "0.1.3"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -13,7 +13,8 @@ workspace = true
 
 [dependencies]
 # workspace
-kona-p2p.workspace = true
+kona-gossip.workspace = true
+kona-disc.workspace = true
 kona-engine.workspace = true
 kona-sources.workspace = true
 kona-genesis.workspace = true
@@ -78,8 +79,10 @@ default = []
 metrics = [
 	"dep:metrics",
 	"kona-derive/metrics",
+	"kona-disc/metrics",
 	"kona-engine/metrics",
-	"kona-p2p/metrics",
+	"kona-gossip/metrics",
+	"kona-providers-alloy/metrics",
 	"kona-rpc/metrics",
 	"kona-sources/metrics",
 	"libp2p/metrics",

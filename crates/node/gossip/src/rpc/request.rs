@@ -7,13 +7,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Discv5Handler, GossipDriver, GossipScores};
+use crate::{GossipDriver, GossipScores};
 use alloy_primitives::map::foldhash::fast::RandomState;
 use discv5::{
     enr::{NodeId, k256::ecdsa},
     multiaddr::Protocol,
 };
 use ipnet::IpNet;
+use kona_disc::Discv5Handler;
 use kona_peers::OpStackEnr;
 use libp2p::{Multiaddr, PeerId, gossipsub::TopicHash};
 use tokio::sync::oneshot::Sender;
@@ -29,10 +30,10 @@ use crate::ConnectionGate;
 pub enum P2pRpcRequest {
     /// Returns [`PeerInfo`] for the p2p network.
     PeerInfo(Sender<PeerInfo>),
-    /// Dumps the node's discovery table from the [`crate::Discv5Driver`].
+    /// Dumps the node's discovery table from the [`kona_disc::Discv5Driver`].
     DiscoveryTable(Sender<Vec<String>>),
     /// Returns the current peer count for both the
-    /// - Discovery Service ([`crate::Discv5Driver`])
+    /// - Discovery Service ([`kona_disc::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
     PeerCount(Sender<(Option<usize>, usize)>),
     /// Returns a [`PeerDump`] containing detailed information about connected peers.
@@ -101,7 +102,7 @@ pub enum P2pRpcRequest {
     /// Request to list all blocked Subnets.
     ListBlockedSubnets(Sender<Vec<IpNet>>),
     /// Returns the current peer stats for both the
-    /// - Discovery Service ([`crate::Discv5Driver`])
+    /// - Discovery Service ([`kona_disc::Discv5Driver`])
     /// - Gossip Service ([`crate::GossipDriver`])
     ///
     /// This information can be used to briefly monitor the current state of the p2p network for a

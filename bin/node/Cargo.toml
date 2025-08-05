@@ -1,6 +1,6 @@
 [package]
 name = "kona-node"
-version = "0.1.1"
+version = "1.0.0-rc.1"
 description = "Kona Consensus Node"
 
 edition.workspace = true
@@ -22,12 +22,14 @@ kona-genesis.workspace = true
 kona-protocol.workspace = true
 
 kona-cli = { workspace = true, features = ["secrets"] }
-kona-p2p = { workspace = true, features = ["metrics"] }
+kona-gossip = { workspace = true, features = ["metrics"] }
+kona-disc = { workspace = true, features = ["metrics"] }
 kona-derive = { workspace = true, features = ["metrics"] }
 kona-engine = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }
 kona-sources = { workspace = true, features = ["metrics"] }
 kona-node-service = { workspace = true, features = ["metrics"] }
+kona-providers-alloy = { workspace = true, features = ["metrics"] }
 
 # alloy
 alloy-chains.workspace = true

@@ -69,7 +69,7 @@ where
         let mut parts = s.split(' ').collect::<Vec<_>>();
 
         if parts.len() != 2 {
-            return Err(HintParsingError(alloc::format!("Invalid hint format: {}", s)));
+            return Err(HintParsingError(alloc::format!("Invalid hint format: {s}")));
         }
 
         let hint_type = parts.remove(0).parse::<HT>()?;
@@ -172,6 +172,6 @@ impl From<HintType> for &str {
 impl Display for HintType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s: &str = (*self).into();
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }

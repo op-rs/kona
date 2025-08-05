@@ -28,8 +28,11 @@ use crate::{
     config::Config,
     event::ChainEvent,
     l1_watcher::L1Watcher,
+    reorg::ReorgHandler,
     safety_checker::{CrossSafePromoter, CrossUnsafePromoter},
-    syncnode::{Client, ManagedNode, ManagedNodeClient, ManagedNodeDataProvider},
+    syncnode::{
+        Client, ManagedNode, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
+    },
 };
 
 /// Defines the service for the Supervisor core logic.
@@ -161,11 +164,9 @@ impl Supervisor {
 
         for (chain_id, _) in self.config.rollup_config_set.rollups.iter() {
             let db = self.database_factory.get_db(*chain_id)?;
-            let managed_node =
-                self.managed_nodes.get(chain_id).ok_or(SupervisorError::Initialise(format!(
-                    "no managed node found for chain {}",
-                    chain_id
-                )))?;
+            let managed_node = self.managed_nodes.get(chain_id).ok_or(
+                SupervisorError::Initialise(format!("no managed node found for chain {chain_id}")),
+            )?;
 
             // initialise chain processor for the chain.
             let mut processor = ChainProcessor::new(
@@ -281,17 +282,33 @@ impl Supervisor {
             } else {
                 error!(target: "supervisor::service", chain_id, "No sender found for chain processor");
                 return Err(SupervisorError::Initialise(format!(
-                    "no sender found for chain processor for chain {}",
-                    chain_id
+                    "no sender found for chain processor for chain {chain_id}"
                 )));
             }
         }
 
+        let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = self
+            .config
+            .rollup_config_set
+            .rollups
+            .keys()
+            .map(|chain_id| (*chain_id, self.database_factory.get_db(*chain_id).unwrap()))
+            .collect();
+
+        let managed_nodes = self
+            .managed_nodes
+            .iter()
+            .map(|(chain_id, managed_node)| {
+                (*chain_id, managed_node.clone() as Arc<dyn ManagedNodeController>)
+            })
+            .collect();
+
         let l1_watcher = L1Watcher::new(
-            l1_rpc,
+            l1_rpc.clone(),
             self.database_factory.clone(),
             senders,
             self.cancel_token.clone(),
+            ReorgHandler::new(l1_rpc, chain_dbs_map, managed_nodes),
         );
 
         tokio::spawn(async move {

@@ -1,6 +1,6 @@
-//! Peer discovery service using Ethereum's Discv5 protocol.
+//! Discovery service for the OP Stack.
 //!
-//! This module provides decentralized peer discovery capabilities using the Discv5 distributed
+//! This crate provides decentralized peer discovery capabilities using the Discv5 distributed
 //! hash table (DHT) protocol, as defined in the Ethereum networking specifications.
 //!
 //! ## Overview
@@ -45,6 +45,17 @@
 //! - Storage location for persistent peer cache
 //! - Network interface and port bindings
 
+#![doc(html_logo_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/kona-logo.png")]
+#![doc(issue_tracker_base_url = "https://github.com/op-rs/kona/issues/")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(test), warn(unused_crate_dependencies))]
+
+// Logging
+#[macro_use]
+extern crate tracing;
+// Used in tests
+use kona_genesis as _;
+
 mod builder;
 pub use builder::{Discv5Builder, LocalNode};
 
@@ -56,3 +67,6 @@ pub use driver::Discv5Driver;
 
 mod handler;
 pub use handler::{Discv5Handler, HandlerRequest};
+
+mod metrics;
+pub use metrics::Metrics;

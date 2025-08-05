@@ -10,7 +10,7 @@ use jsonrpsee::{
     proc_macros::rpc,
 };
 use kona_genesis::RollupConfig;
-use kona_p2p::{PeerCount, PeerDump, PeerInfo, PeerStats};
+use kona_gossip::{PeerCount, PeerDump, PeerInfo, PeerStats};
 use kona_protocol::SyncStatus;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 

@@ -65,7 +65,7 @@ mod test {
 
         let decoded = SpanBatchTransactionData::decode(&mut encoded_buf.as_slice()).unwrap();
         let SpanBatchTransactionData::Legacy(legacy_decoded) = decoded else {
-            panic!("Expected SpanBatchLegacyTransactionData, got {:?}", decoded);
+            panic!("Expected SpanBatchLegacyTransactionData, got {decoded:?}");
         };
 
         assert_eq!(legacy_tx, legacy_decoded);

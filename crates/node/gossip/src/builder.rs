@@ -10,9 +10,7 @@ use libp2p::{
 use std::time::Duration;
 use tokio::sync::watch::{self};
 
-use crate::{
-    Behaviour, BlockHandler, GossipDriver, GossipDriverBuilderError, gossip::gater::GaterConfig,
-};
+use crate::{Behaviour, BlockHandler, GaterConfig, GossipDriver, GossipDriverBuilderError};
 
 /// A builder for the [`GossipDriver`].
 #[derive(Debug)]
@@ -173,7 +171,7 @@ impl GossipDriverBuilder {
                 info!(target: "scoring", level = ?PeerScoreLevel::Off, "Peer scoring explicitly disabled")
             }
             Some(level) => {
-                use crate::gossip::handler::Handler;
+                use crate::handler::Handler;
                 let params = level
                     .to_params(handler.topics(), self.topic_scoring, block_time)
                     .unwrap_or_default();
@@ -187,7 +185,7 @@ impl GossipDriverBuilder {
         // Let's setup the sync request/response protocol stream.
         let mut sync_handler = behaviour.sync_req_resp.new_control();
 
-        let protocol = format!("/opstack/req/payload_by_number/{}/0/", l2_chain_id);
+        let protocol = format!("/opstack/req/payload_by_number/{l2_chain_id}/0/");
         let sync_protocol_name = StreamProtocol::try_from_owned(protocol)
             .map_err(|_| GossipDriverBuilderError::SetupSyncReqRespError)?;
         let sync_protocol = sync_handler
