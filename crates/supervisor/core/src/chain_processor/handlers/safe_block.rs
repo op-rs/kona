@@ -1,6 +1,6 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState,
+    ChainProcessorError, LogIndexer, ProcessorState,
     chain_processor::Metrics,
     syncnode::{BlockProvider, ManagedNodeCommand},
 };
@@ -21,7 +21,6 @@ pub struct SafeBlockHandler<P, W, V> {
     db_provider: Arc<W>,
     validator: Arc<V>,
     log_indexer: Arc<LogIndexer<P, W>>,
-    rewinder: Arc<ChainRewinder<W>>,
 }
 
 #[async_trait]
@@ -146,7 +145,8 @@ where
                     "Local derivation conflict detected — rewinding"
                 );
 
-                self.rewinder.handle_local_reorg(&derived_ref_pair)?;
+                let block = self.db_provider.get_block(derived_ref_pair.derived.number)?;
+                self.db_provider.rewind_log_storage(&block.id())?;
                 self.retry_with_resync_derived_block(derived_ref_pair).await?;
                 Ok(())
             }
@@ -413,10 +413,9 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler =
-            SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer, rewinder);
+            SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer);
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -455,15 +454,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -507,15 +504,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -560,15 +555,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -615,15 +608,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -671,8 +662,7 @@ mod tests {
 
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         drop(rx); // Simulate a send error by dropping the receiver
 
         let handler = SafeBlockHandler::new(
@@ -681,7 +671,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -745,15 +734,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -818,15 +805,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -869,15 +854,13 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
-
+        
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_err());
