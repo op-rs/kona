@@ -403,6 +403,9 @@ impl StorageRewinder for ChainDb {
                 // Ensure we don't rewind past the local safe head.
                 match hp.get_safety_head_ref(SafetyLevel::LocalSafe) {
                     Ok(local_safe) => {
+                    // If the target block is less than or equal to the local safe head,
+                    // we cannot rewind to it, as this would mean losing logs for the local safe head.
+                    // The check is inclusive since the rewind operation removes the target block as well.
                         if to.number <= local_safe.number {
                             return Err(StorageError::RewindBeyondLocalSafeHead {
                                 to: to.number,
@@ -1065,11 +1068,17 @@ mod tests {
         let result = db.store_block_logs(&block2, Vec::new());
         assert!(result.is_ok(), "Should store block logs successfully");
 
-        // Attempt to rewind log storage to future_block (beyond derivation head)
+        // Attempt to rewind log storage beyond local safe head
         let err = db.rewind_log_storage(&anchor.derived.id()).unwrap_err();
         assert!(
             matches!(err, StorageError::RewindBeyondLocalSafeHead { to, local_safe } if to == anchor.derived.number && local_safe == block1.number),
             "Should not allow rewinding log storage beyond derivation head"
+        );
+
+        // Attempt to rewind log storage to the local safe head
+        let result = db.rewind_log_storage(&block1.id()).unwrap_err();
+        assert!(matches!(result, StorageError::RewindBeyondLocalSafeHead { to, local_safe } if to == block1.number && local_safe == block1.number),
+            "Should not allow rewinding log storage to the local safe head"
         );
     }
 
