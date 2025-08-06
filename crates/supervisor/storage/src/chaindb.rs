@@ -400,12 +400,12 @@ impl StorageRewinder for ChainDb {
                 let lp = LogProvider::new(tx, self.chain_id);
                 let hp = SafetyHeadRefProvider::new(tx, self.chain_id);
 
-                // Ensure we don't rewind past the local safe head.
+                // Ensure we don't rewind to or before the LocalSafe head.
                 match hp.get_safety_head_ref(SafetyLevel::LocalSafe) {
                     Ok(local_safe) => {
                         // If the target block is less than or equal to the local safe head,
-                        // we cannot rewind to it, as this would mean losing logs for the local safe
-                        // head. The check is inclusive since the rewind
+                        // we cannot rewind to it, as this would mean losing logs for the safe
+                        // blocks. The check is inclusive since the rewind
                         // operation removes the target block as well.
                         if to.number <= local_safe.number {
                             return Err(StorageError::RewindBeyondLocalSafeHead {
