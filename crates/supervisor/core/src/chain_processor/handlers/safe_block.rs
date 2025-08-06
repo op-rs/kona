@@ -8,6 +8,7 @@ use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_interop::{DerivedRefPair, InteropValidator};
+use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -145,8 +146,7 @@ where
                     "Local derivation conflict detected — rewinding"
                 );
 
-                let block = self.db_provider.get_block(derived_ref_pair.derived.number)?;
-                self.db_provider.rewind_log_storage(&block.id())?;
+                self.rewind_log_storage(&derived_ref_pair.derived).await?;
                 self.retry_with_resync_derived_block(derived_ref_pair).await?;
                 Ok(())
             }
@@ -171,6 +171,39 @@ where
                 Err(err.into())
             }
         }
+    }
+
+    async fn rewind_log_storage(
+        &self,
+        derived_block: &BlockInfo,
+    ) -> Result<(), ChainProcessorError> {
+        trace!(
+            target: "supervisor::chain_processor",
+            chain_id = self.chain_id,
+            block_number = derived_block.number,
+            "Rewinding log storage for derived block"
+        );
+
+        let log_block = self.db_provider.get_block(derived_block.number).inspect_err(|err| {
+            warn!(
+                target: "supervisor::chain_processor::db",
+                chain_id = self.chain_id,
+                block_number = derived_block.number,
+                %err,
+                "Failed to get block for rewinding log storage"
+            );
+        })?;
+
+        self.db_provider.rewind_log_storage(&log_block.id()).inspect_err(|err| {
+            warn!(
+                target: "supervisor::chain_processor::db",
+                chain_id = self.chain_id,
+                block_number = derived_block.number,
+                %err,
+                "Failed to rewind log storage for derived block"
+            );
+        })?;
+        Ok(())
     }
 
     async fn retry_with_resync_derived_block(
@@ -413,9 +446,8 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
-        let handler =
-            SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer);
+
+        let handler = SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer);
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -454,7 +486,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
@@ -504,7 +536,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
@@ -555,7 +587,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
@@ -608,7 +640,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
@@ -662,7 +694,7 @@ mod tests {
 
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
-        
+
         drop(rx); // Simulate a send error by dropping the receiver
 
         let handler = SafeBlockHandler::new(
@@ -734,7 +766,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
@@ -805,7 +837,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
@@ -854,7 +886,7 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        
+
         let handler = SafeBlockHandler::new(
             1, // chain_id
             tx,
