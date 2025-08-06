@@ -421,6 +421,9 @@ pub trait CrossChainSafetyProvider {
 /// to be rolled back.
 pub trait StorageRewinder {
     /// Rewinds the log storage from the latest block down to the specified block (inclusive).
+    /// This method ensures that log storage is never rewound to(since it's inclusive) and beyond
+    /// the local safe head. If the target block is beyond the local safe head, an error is
+    /// returned. Use [`StorageRewinder::rewind`] to rewind to and beyond the local safe head.
     ///
     /// # Arguments
     /// * `to` - The block id to rewind to.

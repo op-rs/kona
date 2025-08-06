@@ -1,6 +1,6 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, ChainRewinder, LogIndexer, ProcessorState,
+    ChainProcessorError, LogIndexer, ProcessorState,
     chain_processor::Metrics,
     syncnode::{BlockProvider, ManagedNodeCommand},
 };
@@ -8,6 +8,7 @@ use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_interop::{DerivedRefPair, InteropValidator};
+use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageError, StorageRewinder};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -21,7 +22,6 @@ pub struct SafeBlockHandler<P, W, V> {
     db_provider: Arc<W>,
     validator: Arc<V>,
     log_indexer: Arc<LogIndexer<P, W>>,
-    rewinder: Arc<ChainRewinder<W>>,
 }
 
 #[async_trait]
@@ -146,7 +146,7 @@ where
                     "Local derivation conflict detected — rewinding"
                 );
 
-                self.rewinder.handle_local_reorg(&derived_ref_pair)?;
+                self.rewind_log_storage(&derived_ref_pair.derived).await?;
                 self.retry_with_resync_derived_block(derived_ref_pair).await?;
                 Ok(())
             }
@@ -171,6 +171,39 @@ where
                 Err(err.into())
             }
         }
+    }
+
+    async fn rewind_log_storage(
+        &self,
+        derived_block: &BlockInfo,
+    ) -> Result<(), ChainProcessorError> {
+        trace!(
+            target: "supervisor::chain_processor",
+            chain_id = self.chain_id,
+            block_number = derived_block.number,
+            "Rewinding log storage for derived block"
+        );
+
+        let log_block = self.db_provider.get_block(derived_block.number).inspect_err(|err| {
+            warn!(
+                target: "supervisor::chain_processor::db",
+                chain_id = self.chain_id,
+                block_number = derived_block.number,
+                %err,
+                "Failed to get block for rewinding log storage"
+            );
+        })?;
+
+        self.db_provider.rewind_log_storage(&log_block.id()).inspect_err(|err| {
+            warn!(
+                target: "supervisor::chain_processor::db",
+                chain_id = self.chain_id,
+                block_number = derived_block.number,
+                %err,
+                "Failed to rewind log storage for derived block"
+            );
+        })?;
+        Ok(())
     }
 
     async fn retry_with_resync_derived_block(
@@ -413,10 +446,8 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
-        let handler =
-            SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer, rewinder);
+        let handler = SafeBlockHandler::new(1, tx, writer, Arc::new(mockvalidator), log_indexer);
 
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -455,7 +486,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -463,7 +493,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -507,7 +536,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -515,7 +543,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -560,7 +587,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -568,7 +594,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -615,7 +640,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -623,7 +647,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -671,7 +694,6 @@ mod tests {
 
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node, writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         drop(rx); // Simulate a send error by dropping the receiver
 
@@ -681,7 +703,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
 
         let result = handler.handle(block_pair, &mut state).await;
@@ -745,7 +766,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -753,10 +773,135 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg_block_error() {
+        let mut mockdb = MockDb::new();
+        let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        mockvalidator.expect_is_post_interop().returning(|_, _| true);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut seq = mockall::Sequence::new();
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |_| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            1, // chain_id
+            tx,
+            writer,
+            Arc::new(mockvalidator),
+            log_indexer,
+        );
+        let result = handler.handle(block_pair, &mut state).await.unwrap_err();
+        assert!(matches!(
+            result,
+            ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised)
+        ));
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg_rewind_error() {
+        let mut mockdb = MockDb::new();
+        let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        mockvalidator.expect_is_post_interop().returning(|_, _| true);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut seq = mockall::Sequence::new();
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        // Expect reorg on log storage
+        mockdb
+            .expect_rewind_log_storage()
+            .returning(|_block_id| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            1, // chain_id
+            tx,
+            writer,
+            Arc::new(mockvalidator),
+            log_indexer,
+        );
+        let result = handler.handle(block_pair, &mut state).await;
+        assert!(matches!(
+            result,
+            Err(ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised))
+        ));
 
         // Ensure no command was sent
         assert!(rx.try_recv().is_err());
@@ -818,7 +963,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -826,7 +970,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_ok());
@@ -869,7 +1012,6 @@ mod tests {
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
         let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(1, writer.clone()));
 
         let handler = SafeBlockHandler::new(
             1, // chain_id
@@ -877,7 +1019,6 @@ mod tests {
             writer,
             Arc::new(mockvalidator),
             log_indexer,
-            rewinder,
         );
         let result = handler.handle(block_pair, &mut state).await;
         assert!(result.is_err());

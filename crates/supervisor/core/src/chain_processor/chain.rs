@@ -3,7 +3,7 @@ use super::handlers::{
     OriginHandler, ReplacementHandler, SafeBlockHandler, UnsafeBlockHandler,
 };
 use crate::{
-    ChainRewinder, LogIndexer, ProcessorState,
+    LogIndexer, ProcessorState,
     event::ChainEvent,
     syncnode::{BlockProvider, ManagedNodeCommand},
 };
@@ -52,7 +52,6 @@ where
         managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
     ) -> Self {
         let log_indexer = Arc::new(LogIndexer::new(chain_id, managed_node, db_provider.clone()));
-        let rewinder = Arc::new(ChainRewinder::new(chain_id, db_provider.clone()));
 
         let unsafe_handler = UnsafeBlockHandler::new(
             chain_id,
@@ -67,7 +66,6 @@ where
             db_provider.clone(),
             validator,
             log_indexer.clone(),
-            rewinder,
         );
 
         let origin_handler =
