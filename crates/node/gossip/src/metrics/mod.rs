@@ -1,4 +1,4 @@
-//! Metrics for the P2P stack.
+//! Metrics for the Gossip stack.
 
 /// Container for metrics.
 #[derive(Debug, Clone)]
@@ -26,18 +26,6 @@ impl Metrics {
     /// Identifier for the gauge that tracks the number of errors when dialing peers.
     pub const DIAL_PEER_ERROR: &str = "kona_node_dial_peer_error";
 
-    /// Identifier for discv5 events.
-    pub const DISCOVERY_EVENT: &str = "kona_node_discovery_events";
-
-    /// Counter for the number of FIND_NODE requests.
-    pub const FIND_NODE_REQUEST: &str = "kona_node_find_node_requests";
-
-    /// Timer for the time taken to store ENRs in the bootstore.
-    pub const ENR_STORE_TIME: &str = "kona_node_enr_store_time";
-
-    /// Identifier for the gauge that tracks the number of peers in the discovery service.
-    pub const DISCOVERY_PEER_COUNT: &str = "kona_node_discovery_peer_count";
-
     /// Identifier for the gauge that tracks RPC calls.
     pub const RPC_CALLS: &str = "kona_node_rpc_calls";
 
@@ -51,7 +39,7 @@ impl Metrics {
     pub const GOSSIP_PEER_CONNECTION_DURATION_SECONDS: &str =
         "kona_node_gossip_peer_connection_duration_seconds";
 
-    /// Initializes metrics for the P2P stack.
+    /// Initializes metrics for the Gossip stack.
     ///
     /// This does two things:
     /// * Describes various metrics.
@@ -62,10 +50,10 @@ impl Metrics {
         Self::zero();
     }
 
-    /// Describes metrics used in [`kona_p2p`][crate].
+    /// Describes metrics used in [`kona_gossip`][crate].
     #[cfg(feature = "metrics")]
     pub fn describe() {
-        metrics::describe_gauge!(Self::RPC_CALLS, "Calls made to the P2P RPC module");
+        metrics::describe_gauge!(Self::RPC_CALLS, "Calls made to the Gossip RPC module");
         metrics::describe_gauge!(
             Self::GOSSIPSUB_EVENT,
             "Events received by the libp2p gossipsub Swarm"
@@ -75,19 +63,6 @@ impl Metrics {
             Self::UNSAFE_BLOCK_PUBLISHED,
             "Number of OpNetworkPayloadEnvelope gossipped out through the libp2p Swarm"
         );
-        metrics::describe_gauge!(Self::DISCOVERY_EVENT, "Events received by the discv5 service");
-        metrics::describe_histogram!(
-            Self::ENR_STORE_TIME,
-            "Observations of elapsed time to store ENRs in the on-disk bootstore"
-        );
-        metrics::describe_gauge!(
-            Self::DISCOVERY_PEER_COUNT,
-            "Number of peers connected to the discv5 service"
-        );
-        metrics::describe_gauge!(
-            Self::FIND_NODE_REQUEST,
-            "Requests made to find a node through the discv5 peer discovery service"
-        );
         metrics::describe_gauge!(
             Self::GOSSIP_PEER_COUNT,
             "Number of peers connected to the libp2p gossip Swarm"
@@ -96,7 +71,10 @@ impl Metrics {
             Self::GOSSIPSUB_CONNECTION,
             "Connections made to the libp2p Swarm"
         );
-        metrics::describe_gauge!(Self::BANNED_PEERS, "Number of peers banned by kona's P2P stack");
+        metrics::describe_gauge!(
+            Self::BANNED_PEERS,
+            "Number of peers banned by kona's gossip stack"
+        );
         metrics::describe_histogram!(
             Self::PEER_SCORES,
             "Observations of peer scores in the gossipsub mesh"
@@ -144,15 +122,8 @@ impl Metrics {
         // Unsafe Blocks
         kona_macros::set!(gauge, Self::UNSAFE_BLOCK_PUBLISHED, 0);
 
-        // Discovery Event
-        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "type", "discovered", 0);
-        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "type", "session_established", 0);
-        kona_macros::set!(gauge, Self::DISCOVERY_EVENT, "type", "unverifiable_enr", 0);
-
         // Peer Counts
         kona_macros::set!(gauge, Self::GOSSIP_PEER_COUNT, 0);
-        kona_macros::set!(gauge, Self::DISCOVERY_PEER_COUNT, 0);
-        kona_macros::set!(gauge, Self::FIND_NODE_REQUEST, 0);
 
         // Connection
         kona_macros::set!(gauge, Self::GOSSIPSUB_CONNECTION, "type", "connected", 0);

@@ -1,4 +1,4 @@
 mod task;
 
 mod handler;
-pub use handler::ReorgHandler;
+pub use handler::{ReorgHandler, ReorgHandlerError};

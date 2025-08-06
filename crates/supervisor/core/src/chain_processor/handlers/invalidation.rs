@@ -1,5 +1,8 @@
 use super::EventHandler;
-use crate::{ChainProcessorError, LogIndexer, ProcessorState, syncnode::ManagedNodeProvider};
+use crate::{
+    ChainProcessorError, LogIndexer, ProcessorState,
+    syncnode::{BlockProvider, ManagedNodeCommand},
+};
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
@@ -8,21 +11,21 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageRewinder};
 use kona_supervisor_types::BlockSeal;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::{debug, error, trace, warn};
 
 /// Handler for block invalidation events.
 /// This handler processes block invalidation by rewinding the state and updating the managed node.
 #[derive(Debug, Constructor)]
-pub struct InvalidationHandler<P, W> {
+pub struct InvalidationHandler<W> {
     chain_id: ChainId,
-    managed_node: Arc<P>,
+    managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
     db_provider: Arc<W>,
 }
 
 #[async_trait]
-impl<P, W> EventHandler<BlockInfo> for InvalidationHandler<P, W>
+impl<W> EventHandler<BlockInfo> for InvalidationHandler<W>
 where
-    P: ManagedNodeProvider + 'static,
     W: DerivationStorage + StorageRewinder + Send + Sync + 'static,
 {
     async fn handle(
@@ -68,15 +71,19 @@ where
         })?;
 
         let block_seal = BlockSeal::new(block.hash, block.number, block.timestamp);
-        self.managed_node.invalidate_block(block_seal).await.inspect_err(|err| {
-            warn!(
-                target: "supervisor::chain_processor::managed_node",
-                chain_id = self.chain_id,
-                %block,
-                %err,
-                "Failed to invalidate block in managed node"
-            );
-        })?;
+        self.managed_node_sender
+            .send(ManagedNodeCommand::InvalidateBlock { seal: block_seal })
+            .await
+            .map_err(|err| {
+                warn!(
+                    target: "supervisor::chain_processor::managed_node",
+                    chain_id = self.chain_id,
+                    %block,
+                    %err,
+                    "Failed to send invalidate block command to managed node"
+                );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
+            })?;
 
         state.set_invalidated(DerivedRefPair { source: source_block, derived: block });
         Ok(())
@@ -95,7 +102,7 @@ pub struct ReplacementHandler<P, W> {
 #[async_trait]
 impl<P, W> EventHandler<BlockReplacement> for ReplacementHandler<P, W>
 where
-    P: ManagedNodeProvider + 'static,
+    P: BlockProvider + 'static,
     W: LogStorage + DerivationStorage + 'static,
 {
     async fn handle(
@@ -147,7 +154,7 @@ where
 
 impl<P, W> ReplacementHandler<P, W>
 where
-    P: ManagedNodeProvider + 'static,
+    P: BlockProvider + 'static,
     W: LogStorage + DerivationStorage + 'static,
 {
     async fn retry_with_resync_derived_block(
@@ -189,12 +196,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        event::ChainEvent,
-        syncnode::{
-            AuthenticationError, BlockProvider, ClientError, ManagedNodeController,
-            ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber,
-        },
+    use crate::syncnode::{
+        BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -207,19 +210,10 @@ mod tests {
     };
     use kona_supervisor_types::{BlockSeal, Log, OutputV0, Receipts};
     use mockall::mock;
-    use tokio::sync::mpsc;
 
     mock!(
         #[derive(Debug)]
         pub Node {}
-
-        #[async_trait]
-        impl NodeSubscriber for Node {
-            async fn start_subscription(
-                &self,
-                _event_tx: mpsc::Sender<ChainEvent>,
-            ) -> Result<(), ManagedNodeError>;
-        }
 
         #[async_trait]
         impl BlockProvider for Node {
@@ -297,7 +291,7 @@ mod tests {
             fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
-            fn get_source_block(&self, source_block_id: u64) -> Result<BlockInfo, StorageError>;
+            fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {
@@ -326,31 +320,32 @@ mod tests {
     #[tokio::test]
     async fn test_handle_invalidate_block_already_set_skips() {
         let mockdb = MockDb::new();
-        let mocknode = MockNode::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
 
         // Set up state: invalidated_block is already set
+        state.set_invalidated(DerivedRefPair { source: block, derived: block });
+
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
-
-        state.set_invalidated(DerivedRefPair { source: block, derived: block });
 
         let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_invalidate_block_derived_to_source_error() {
         let mut mockdb = MockDb::new();
-        let mocknode = MockNode::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
@@ -358,12 +353,10 @@ mod tests {
         mockdb.expect_derived_to_source().returning(move |_id| Err(StorageError::FutureData));
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
 
         let result = handler.handle(block, &mut state).await;
@@ -371,12 +364,15 @@ mod tests {
 
         // make sure invalidated_block is not set
         assert!(state.get_invalidated().is_none());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_invalidate_block_rewind_error() {
         let mut mockdb = MockDb::new();
-        let mocknode = MockNode::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
@@ -385,12 +381,10 @@ mod tests {
         mockdb.expect_rewind().returning(move |_to| Err(StorageError::DatabaseNotInitialised));
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
 
         let result = handler.handle(block, &mut state).await;
@@ -401,35 +395,34 @@ mod tests {
 
         // make sure invalidated_block is not set
         assert!(state.get_invalidated().is_none());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_invalidate_block_managed_node_error() {
         let mut mockdb = MockDb::new();
-        let mut mocknode = MockNode::new();
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
 
         mockdb.expect_derived_to_source().returning(move |_id| Ok(block));
         mockdb.expect_rewind().returning(move |_to| Ok(()));
-        mocknode.expect_invalidate_block().returning(move |_seal| {
-            Err(ManagedNodeError::ClientError(ClientError::Authentication(
-                AuthenticationError::InvalidHeader,
-            )))
-        });
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
+
+        // Drop the receiver to simulate a send error to the managed node
+        drop(rx);
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
 
         let result = handler.handle(block, &mut state).await;
-        assert!(matches!(result, Err(ChainProcessorError::ManagedNode(_))));
+        assert!(result.is_err());
 
         // make sure invalidated_block is not set
         assert!(state.get_invalidated().is_none());
@@ -438,7 +431,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_invalidate_block_success_sets_invalidated() {
         let mut mockdb = MockDb::new();
-        let mut mocknode = MockNode::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let derived_block = BlockInfo::new(B256::from([1u8; 32]), 42, B256::ZERO, 12345);
@@ -446,15 +439,15 @@ mod tests {
 
         mockdb.expect_derived_to_source().returning(move |_id| Ok(source_block));
         mockdb.expect_rewind().returning(move |_to| Ok(()));
-        mocknode.expect_invalidate_block().returning(move |_seal| Ok(()));
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
+
+        // Spawn a background task to receive and check the command
+        let derived_block_clone = derived_block;
 
         let handler = InvalidationHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
 
         let result = handler.handle(derived_block, &mut state).await;
@@ -464,6 +457,14 @@ mod tests {
         let pair = state.get_invalidated().unwrap();
         assert_eq!(pair.derived, derived_block);
         assert_eq!(pair.source, source_block);
+
+        if let Some(ManagedNodeCommand::InvalidateBlock { seal }) = rx.recv().await {
+            assert_eq!(seal.hash, derived_block_clone.hash);
+            assert_eq!(seal.number, derived_block_clone.number);
+            assert_eq!(seal.timestamp, derived_block_clone.timestamp);
+        } else {
+            panic!("Expected InvalidateBlock command");
+        }
     }
 
     #[tokio::test]

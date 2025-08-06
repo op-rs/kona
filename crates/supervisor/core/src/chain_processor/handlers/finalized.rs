@@ -1,6 +1,6 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, ProcessorState, chain_processor::Metrics, syncnode::ManagedNodeProvider,
+    ChainProcessorError, ProcessorState, chain_processor::Metrics, syncnode::ManagedNodeCommand,
 };
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
@@ -8,21 +8,21 @@ use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::HeadRefStorageWriter;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::{trace, warn};
 
 /// Handler for finalized block updates.
 /// This handler processes finalized block updates by updating the managed node and state manager.
 #[derive(Debug, Constructor)]
-pub struct FinalizedHandler<P, W> {
+pub struct FinalizedHandler<W> {
     chain_id: ChainId,
-    managed_node: Arc<P>,
+    managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
     db_provider: Arc<W>,
 }
 
 #[async_trait]
-impl<P, W> EventHandler<BlockInfo> for FinalizedHandler<P, W>
+impl<W> EventHandler<BlockInfo> for FinalizedHandler<W>
 where
-    P: ManagedNodeProvider + 'static,
     W: HeadRefStorageWriter + Send + Sync + 'static,
 {
     async fn handle(
@@ -49,9 +49,8 @@ where
     }
 }
 
-impl<P, W> FinalizedHandler<P, W>
+impl<W> FinalizedHandler<W>
 where
-    P: ManagedNodeProvider + 'static,
     W: HeadRefStorageWriter + Send + Sync + 'static,
 {
     async fn inner_handle(
@@ -71,17 +70,19 @@ where
                 );
             })?;
 
-        self.managed_node.update_finalized(finalized_derived_block.id()).await.inspect_err(
-            |err| {
+        self.managed_node_sender
+            .send(ManagedNodeCommand::UpdateFinalized { block_id: finalized_derived_block.id() })
+            .await
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
                     %finalized_derived_block,
                     %err,
-                    "Failed to update finalized block"
+                    "Failed to send finalized block update"
                 );
-            },
-        )?;
+                ChainProcessorError::ChannelSendFailed(err.to_string())
+            })?;
         Ok(())
     }
 }
@@ -89,12 +90,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        event::ChainEvent,
-        syncnode::{
-            AuthenticationError, BlockProvider, ManagedNodeController, ManagedNodeDataProvider,
-            ManagedNodeError, NodeSubscriber,
-        },
+    use crate::syncnode::{
+        BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -104,19 +101,10 @@ mod tests {
     use kona_supervisor_storage::{HeadRefStorageWriter, StorageError};
     use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
     use mockall::mock;
-    use tokio::sync::mpsc;
 
     mock!(
         #[derive(Debug)]
         pub Node {}
-
-        #[async_trait]
-        impl NodeSubscriber for Node {
-            async fn start_subscription(
-                &self,
-                _event_tx: mpsc::Sender<ChainEvent>,
-            ) -> Result<(), ManagedNodeError>;
-        }
 
         #[async_trait]
         impl BlockProvider for Node {
@@ -190,6 +178,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_finalized_source_update_triggers() {
+        use crate::syncnode::ManagedNodeCommand;
+
         let mut mocknode = MockNode::new();
         let mut mockdb = MockDb::new();
         let mut state = ProcessorState::new();
@@ -215,15 +205,23 @@ mod tests {
         });
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
+
+        // Set up the channel and spawn a task to handle the command
+        let (tx, mut rx) = mpsc::channel(8);
 
         let handler = FinalizedHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
         let result = handler.handle(finalized_source_block, &mut state).await;
         assert!(result.is_ok());
+
+        // The handler should send the correct command
+        if let Some(ManagedNodeCommand::UpdateFinalized { block_id }) = rx.recv().await {
+            assert_eq!(block_id, finalized_derived_block.id());
+        } else {
+            panic!("Expected UpdateFinalized command");
+        }
     }
 
     #[tokio::test]
@@ -244,20 +242,21 @@ mod tests {
         mocknode.expect_update_finalized().never();
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
+        let (tx, mut rx) = mpsc::channel(8);
 
         let handler = FinalizedHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
         let result = handler.handle(finalized_source_block, &mut state).await;
         assert!(result.is_err());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_finalized_source_update_managed_node_error() {
-        let mut mocknode = MockNode::new();
         let mut mockdb = MockDb::new();
         let mut state = ProcessorState::new();
 
@@ -267,24 +266,21 @@ mod tests {
         let finalized_derived_block =
             BlockInfo { number: 5, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 1234578 };
 
+        // DB returns the derived block as usual
         mockdb.expect_update_finalized_using_source().returning(move |block_info: BlockInfo| {
             assert_eq!(block_info, finalized_source_block);
             Ok(finalized_derived_block)
         });
 
-        mocknode.expect_update_finalized().returning(|_| {
-            Err(ManagedNodeError::ClientError(crate::syncnode::ClientError::Authentication(
-                AuthenticationError::InvalidJwt,
-            )))
-        });
-
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
+
+        // Set up the channel and immediately drop the receiver to simulate a send error
+        let (tx, rx) = mpsc::channel(8);
+        drop(rx);
 
         let handler = FinalizedHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
         let result = handler.handle(finalized_source_block, &mut state).await;
         assert!(result.is_err());
