@@ -148,9 +148,9 @@ where
         }
 
         let mut cursor = self.tx.cursor_read::<BlockTraversal>()?;
-        let mut walker = cursor.walk_back(Some(source_block_id.number))?;
+        let walker = cursor.walk_back(Some(source_block_id.number))?;
 
-        while let Some(item) = walker.next() {
+        for item in walker {
             let (_, block_traversal) = item?;
             if let Some(latest_derived_block_number) = block_traversal.derived_block_numbers.last()
             {
