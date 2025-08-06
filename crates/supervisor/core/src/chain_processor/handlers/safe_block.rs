@@ -782,6 +782,132 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg_block_error() {
+        let mut mockdb = MockDb::new();
+        let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        mockvalidator.expect_is_post_interop().returning(|_, _| true);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut seq = mockall::Sequence::new();
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |_| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            1, // chain_id
+            tx,
+            writer,
+            Arc::new(mockvalidator),
+            log_indexer,
+        );
+        let result = handler.handle(block_pair, &mut state).await.unwrap_err();
+        assert!(matches!(
+            result,
+            ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised)
+        ));
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn test_handle_derived_event_block_triggers_reorg_rewind_error() {
+        let mut mockdb = MockDb::new();
+        let mut mockvalidator = MockValidator::new();
+        let (tx, mut rx) = mpsc::channel(1);
+        let mocknode = MockNode::new();
+        let mut state = ProcessorState::new();
+
+        mockvalidator.expect_is_post_interop().returning(|_, _| true);
+
+        let block_pair = DerivedRefPair {
+            source: BlockInfo {
+                number: 123,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                number: 1234,
+                hash: B256::ZERO,
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            },
+        };
+
+        let mut seq = mockall::Sequence::new();
+        // Simulate ReorgRequired error
+        mockdb
+            .expect_save_derived_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(move |_pair: DerivedRefPair| Err(StorageError::ReorgRequired));
+
+        mockdb.expect_get_block().returning(move |num| {
+            Ok(BlockInfo {
+                number: num,
+                hash: B256::random(), // different hash from safe derived block
+                parent_hash: B256::ZERO,
+                timestamp: 1003, // post-interop
+            })
+        });
+
+        // Expect reorg on log storage
+        mockdb
+            .expect_rewind_log_storage()
+            .returning(|_block_id| Err(StorageError::DatabaseNotInitialised));
+
+        let writer = Arc::new(mockdb);
+        let managed_node = Arc::new(mocknode);
+        // Create a mock log indexer
+        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+
+        let handler = SafeBlockHandler::new(
+            1, // chain_id
+            tx,
+            writer,
+            Arc::new(mockvalidator),
+            log_indexer,
+        );
+        let result = handler.handle(block_pair, &mut state).await;
+        assert!(matches!(
+            result,
+            Err(ChainProcessorError::StorageError(StorageError::DatabaseNotInitialised))
+        ));
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
     async fn test_handle_derived_event_block_triggers_resync() {
         let mut mockdb = MockDb::new();
         let mut mockvalidator = MockValidator::new();
