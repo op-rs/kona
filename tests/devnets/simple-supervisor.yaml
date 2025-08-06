@@ -59,6 +59,10 @@ optimism_package:
       type: kona-supervisor
       image: kona-supervisor:local
       superchain: superchain
+  test-sequencers:
+    op-test-sequencer:
+      enabled: true
+      superchain: superchain
   global_log_level: "info"
   global_node_selectors: {}
   global_tolerations: []
