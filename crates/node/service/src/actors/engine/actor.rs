@@ -431,14 +431,14 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     };
 
-                    let task = EngineTask::Build(BuildTask::new(
+                    let task = EngineTask::Build(Box::new(BuildTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
                         // The payload is not derived in this case.
                         false,
                         Some(response_tx),
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
@@ -447,12 +447,12 @@ impl NodeActor for EngineActor {
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    let task = EngineTask::Insert(InsertTask::new(
+                    let task = EngineTask::Insert(Box::new(InsertTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         envelope,
                         false, // The payload is not derived in this case. This is an unsafe block.
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 attributes = self.attributes_rx.recv() => {
@@ -463,12 +463,12 @@ impl NodeActor for EngineActor {
                     };
                     self.finalizer.enqueue_for_finalization(&attributes);
 
-                    let task = EngineTask::Consolidate(ConsolidateTask::new(
+                    let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
                         true,
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 msg = self.finalizer.new_finalized_block() => {

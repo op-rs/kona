@@ -86,14 +86,14 @@ impl EngineTaskError for EngineTaskErrors {
 #[derive(Debug, Clone)]
 pub enum EngineTask {
     /// Inserts a payload into the execution engine.
-    Insert(InsertTask),
+    Insert(Box<InsertTask>),
     /// Builds a new block with the given attributes, and inserts it into the execution engine.
-    Build(BuildTask),
+    Build(Box<BuildTask>),
     /// Performs consolidation on the engine state, reverting to payload attribute processing
     /// via the [`BuildTask`] if consolidation fails.
-    Consolidate(ConsolidateTask),
+    Consolidate(Box<ConsolidateTask>),
     /// Finalizes an L2 block
-    Finalize(FinalizeTask),
+    Finalize(Box<FinalizeTask>),
 }
 
 impl EngineTask {

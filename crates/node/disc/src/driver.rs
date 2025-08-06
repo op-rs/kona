@@ -540,8 +540,7 @@ mod tests {
         for public_key in testnet {
             assert!(
                 disc_enrs.iter().any(|enr| enr.public_key() == public_key),
-                "Discovery table does not contain testnet ENR: {:?}",
-                public_key
+                "Discovery table does not contain testnet ENR: {public_key:?}"
             );
         }
     }
@@ -606,8 +605,7 @@ mod tests {
         for public_key in mainnet {
             assert!(
                 disc_enrs.iter().any(|enr| enr.public_key() == public_key),
-                "Discovery table does not contain testnet ENR: {:?}",
-                public_key
+                "Discovery table does not contain testnet ENR: {public_key:?}"
             );
         }
     }

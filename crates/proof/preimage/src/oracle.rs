@@ -101,8 +101,8 @@ where
     C: Channel,
 {
     /// Create a new [OracleServer] from a [Channel].
-    pub const fn new(chanel: C) -> Self {
-        Self { channel: chanel }
+    pub const fn new(channel: C) -> Self {
+        Self { channel }
     }
 }
 
@@ -190,7 +190,7 @@ mod test {
             loop {
                 match oracle_server.next_preimage_request(&test_fetcher).await {
                     Err(PreimageOracleError::IOError(_)) => break,
-                    Err(e) => panic!("Unexpected error: {:?}", e),
+                    Err(e) => panic!("Unexpected error: {e:?}"),
                     Ok(_) => {}
                 }
             }
@@ -234,7 +234,7 @@ mod test {
             loop {
                 match oracle_server.next_preimage_request(&test_fetcher).await {
                     Err(PreimageOracleError::IOError(_)) => break,
-                    Err(e) => panic!("Unexpected error: {:?}", e),
+                    Err(e) => panic!("Unexpected error: {e:?}"),
                     Ok(_) => {}
                 }
             }

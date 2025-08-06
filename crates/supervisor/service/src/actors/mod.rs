@@ -5,5 +5,16 @@
 mod traits;
 pub use traits::SupervisorActor;
 
-mod metric_worker;
-pub use metric_worker::MetricWorker;
+mod metric;
+pub use metric::MetricWorker;
+
+mod processor;
+pub use processor::ChainProcessorActor;
+
+mod node;
+pub use node::ManagedNodeActor;
+
+mod rpc;
+pub use rpc::SupervisorRpcActor;
+
+pub(super) mod utils;

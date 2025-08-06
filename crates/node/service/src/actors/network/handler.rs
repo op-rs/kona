@@ -2,7 +2,8 @@ use std::collections::HashSet;
 
 use alloy_primitives::Address;
 use discv5::Enr;
-use kona_p2p::{ConnectionGater, Discv5Handler, GossipDriver, HandlerRequest};
+use kona_disc::{Discv5Handler, HandlerRequest};
+use kona_gossip::{ConnectionGater, GossipDriver};
 use kona_sources::BlockSignerHandler;
 use tokio::sync::{mpsc, watch};
 
@@ -44,7 +45,7 @@ impl NetworkHandler {
                 // Record the peer score in the metrics.
                 kona_macros::record!(
                     histogram,
-                    kona_p2p::Metrics::PEER_SCORES,
+                    kona_gossip::Metrics::PEER_SCORES,
                     "peer",
                     peer_id.to_string(),
                     score
@@ -72,16 +73,16 @@ impl NetworkHandler {
                             let peer_duration = start_time.elapsed();
                             kona_macros::record!(
                                 histogram,
-                                kona_p2p::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
+                                kona_gossip::Metrics::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
                                 peer_duration.as_secs_f64()
                             );
                         }
 
                         if let Some(info) = self.gossip.peerstore.remove(&peer_to_remove){
-                            use kona_p2p::ConnectionGate;
+                            use kona_gossip::ConnectionGate;
                             self.gossip.connection_gate.remove_dial(&peer_to_remove);
                             let score = self.gossip.swarm.behaviour().gossipsub.peer_score(&peer_to_remove).unwrap_or_default();
-                            kona_macros::inc!(gauge, kona_p2p::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
+                            kona_macros::inc!(gauge, kona_gossip::Metrics::BANNED_PEERS, "peer_id" => peer_to_remove.to_string(), "score" => score.to_string());
                             return Some(info.listen_addrs);
                         }
 

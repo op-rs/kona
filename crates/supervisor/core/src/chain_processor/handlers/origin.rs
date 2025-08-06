@@ -1,25 +1,25 @@
 use super::EventHandler;
-use crate::{ChainProcessorError, ProcessorState, syncnode::ManagedNodeProvider};
+use crate::{ChainProcessorError, ProcessorState, syncnode::ManagedNodeCommand};
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DerivationStorageWriter, StorageError};
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::{debug, error, trace, warn};
 
 /// Handler for origin updates in the chain.
 #[derive(Debug, Constructor)]
-pub struct OriginHandler<P, W> {
+pub struct OriginHandler<W> {
     chain_id: ChainId,
-    managed_node: Arc<P>,
+    managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
     db_provider: Arc<W>,
 }
 
 #[async_trait]
-impl<P, W> EventHandler<BlockInfo> for OriginHandler<P, W>
+impl<W> EventHandler<BlockInfo> for OriginHandler<W>
 where
-    P: ManagedNodeProvider + 'static,
     W: DerivationStorageWriter + Send + Sync + 'static,
 {
     async fn handle(
@@ -54,16 +54,18 @@ where
                     "Block out of order detected, resetting managed node"
                 );
 
-                if let Err(err) = self.managed_node.reset().await {
-                    warn!(
-                        target: "supervisor::chain_processor::managed_node",
-                        chain_id = self.chain_id,
-                        %origin,
-                        %err,
-                        "Failed to reset managed node after block out of order"
-                    );
-                    return Err(err.into());
-                }
+                self.managed_node_sender.send(ManagedNodeCommand::Reset {}).await.map_err(
+                    |err| {
+                        warn!(
+                            target: "supervisor::chain_processor::managed_node",
+                            chain_id = self.chain_id,
+                            %origin,
+                            %err,
+                            "Failed to send reset command to managed node"
+                        );
+                        ChainProcessorError::ChannelSendFailed(err.to_string())
+                    },
+                )?;
                 Ok(())
             }
             Err(err) => {
@@ -83,12 +85,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        event::ChainEvent,
-        syncnode::{
-            BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
-            NodeSubscriber,
-        },
+    use crate::syncnode::{
+        BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -98,19 +96,10 @@ mod tests {
     use kona_supervisor_storage::{DerivationStorageWriter, StorageError};
     use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
     use mockall::mock;
-    use tokio::sync::mpsc;
 
     mock!(
         #[derive(Debug)]
         pub Node {}
-
-        #[async_trait]
-        impl NodeSubscriber for Node {
-            async fn start_subscription(
-                &self,
-                _event_tx: mpsc::Sender<ChainEvent>,
-            ) -> Result<(), ManagedNodeError>;
-        }
 
         #[async_trait]
         impl BlockProvider for Node {
@@ -185,7 +174,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_derivation_origin_update_triggers() {
         let mut mockdb = MockDb::new();
-        let mocknode = MockNode::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let origin =
@@ -198,55 +187,61 @@ mod tests {
         });
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
         let handler = OriginHandler::new(
             1, // chain_id
-            managed_node,
-            writer,
+            tx, writer,
         );
 
         let result = handler.handle(origin, &mut state).await;
         assert!(result.is_ok());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 
     #[tokio::test]
     async fn test_handle_derivation_origin_update_block_out_of_order_triggers_reset() {
         let mut mockdb = MockDb::new();
-        let mut mocknode = MockNode::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let origin =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
         mockdb.expect_save_source_block().returning(|_| Err(StorageError::BlockOutOfOrder));
-        mocknode.expect_reset().returning(|| Ok(()));
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
-        let handler = OriginHandler::new(1, managed_node, writer);
+        let handler = OriginHandler::new(1, tx, writer);
 
         let result = handler.handle(origin, &mut state).await;
         assert!(result.is_ok());
+
+        // The handler should send the reset command
+        if let Some(ManagedNodeCommand::Reset {}) = rx.recv().await {
+            // Command received successfully
+        } else {
+            panic!("Expected Reset command");
+        }
     }
 
     #[tokio::test]
     async fn test_handle_derivation_origin_update_reset_fails() {
         let mut mockdb = MockDb::new();
-        let mut mocknode = MockNode::new();
+        let (tx, rx) = mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let origin =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
 
         mockdb.expect_save_source_block().returning(|_| Err(StorageError::BlockOutOfOrder));
-        mocknode.expect_reset().returning(|| Err(ManagedNodeError::ResetFailed));
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
-        let handler = OriginHandler::new(1, managed_node, writer);
+        drop(rx); // Simulate a send error by dropping the receiver
+
+        let handler = OriginHandler::new(1, tx, writer);
 
         let result = handler.handle(origin, &mut state).await;
         assert!(result.is_err());
@@ -255,7 +250,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_derivation_origin_update_other_storage_error() {
         let mut mockdb = MockDb::new();
-        let mocknode = MockNode::new();
+        let (tx, mut rx) = mpsc::channel(1);
         let mut state = ProcessorState::new();
 
         let origin =
@@ -264,11 +259,13 @@ mod tests {
         mockdb.expect_save_source_block().returning(|_| Err(StorageError::DatabaseNotInitialised));
 
         let writer = Arc::new(mockdb);
-        let managed_node = Arc::new(mocknode);
 
-        let handler = OriginHandler::new(1, managed_node, writer);
+        let handler = OriginHandler::new(1, tx, writer);
 
         let result = handler.handle(origin, &mut state).await;
         assert!(result.is_err());
+
+        // Ensure no command was sent
+        assert!(rx.try_recv().is_err());
     }
 }

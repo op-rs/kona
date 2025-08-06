@@ -19,7 +19,7 @@ use tracing::{error, info};
 
 /// Trait for a managed node client that provides various methods to interact with the node.
 #[async_trait]
-pub trait ManagedNodeClient: Debug {
+pub trait ManagedNodeClient: Send + Sync + Debug {
     /// Returns the [`ChainId`] of the managed node.
     async fn chain_id(&self) -> Result<ChainId, ClientError>;
 
@@ -149,7 +149,7 @@ impl Client {
         })?;
 
         let mut headers = HeaderMap::new();
-        let auth_header = format!("Bearer {}", token);
+        let auth_header = format!("Bearer {token}");
 
         headers.insert(
             "Authorization",
@@ -446,7 +446,7 @@ mod tests {
         let mut file = NamedTempFile::new().expect("Failed to create temp file");
         // Create a valid 32-byte hex string for JWT secret
         let hex_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        writeln!(file, "{}", hex_secret).expect("Failed to write to temp file");
+        writeln!(file, "{hex_secret}").expect("Failed to write to temp file");
         file
     }
 

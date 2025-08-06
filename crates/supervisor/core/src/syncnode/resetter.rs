@@ -6,7 +6,7 @@ use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, Sto
 use kona_supervisor_types::SuperHead;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub(super) struct Resetter<DB, C> {
@@ -32,8 +32,6 @@ where
         let chain_id = self.client.chain_id().await?;
         let _guard = self.reset_guard.lock().await;
 
-        debug!(target: "supervisor::resetter", %chain_id, "Resetting the node");
-
         let local_safe = match self.get_latest_valid_local_safe(chain_id).await {
             Ok(block) => block,
             // todo: require refactor and corner case handling
@@ -42,14 +40,14 @@ where
                 return Ok(());
             }
             Err(err) => {
-                error!(target: "supervisor::resetter", %chain_id, %err, "Failed to get latest valid derived block");
+                error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to get latest valid derived block");
                 return Err(ManagedNodeError::ResetFailed);
             }
         };
 
         let SuperHead { cross_unsafe, cross_safe, finalized, .. } =
             self.db_provider.get_super_head().inspect_err(
-                |err| error!(target: "supervisor::resetter", %chain_id, %err, "Failed to get super head"),
+                |err| error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to get super head"),
             )?;
 
         // using the local safe block as the local unsafe as well
@@ -70,7 +68,7 @@ where
             finalized = local_safe;
         }
 
-        info!(target: "supervisor::resetter",
+        info!(target: "supervisor::syncnode_resetter",
             %chain_id,
             %local_unsafe,
             %cross_unsafe,
@@ -90,16 +88,16 @@ where
             )
             .await
             .inspect_err(|err| {
-                error!(target: "supervisor::resetter", %chain_id, %err, "Failed to reset managed node");
+                error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to reset managed node");
             })?;
         Ok(())
     }
 
     async fn reset_pre_interop(&self, chain_id: ChainId) -> Result<(), ManagedNodeError> {
-        info!(target: "supervisor::resetter", %chain_id, "Resetting the node to pre-interop state");
+        info!(target: "supervisor::syncnode_resetter", %chain_id, "Resetting the node to pre-interop state");
 
         self.client.reset_pre_interop().await.inspect_err(|err| {
-            error!(target: "supervisor::resetter", %chain_id, %err, "Failed to reset managed node to pre-interop state");
+            error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to reset managed node to pre-interop state");
         })?;
         Ok(())
     }
@@ -113,7 +111,7 @@ where
 
         loop {
             let node_block = self.client.block_ref_by_number(local_safe.number).await.inspect_err(
-                |err| error!(target: "supervisor::resetter", %chain_id, %err, "Failed to get block by number"),
+                |err| error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to get block by number"),
             )?;
 
             // If the local safe block matches the node block, we can return the super
@@ -127,7 +125,7 @@ where
             let source_block = self
                 .db_provider
                 .derived_to_source(local_safe.id())
-                .inspect_err(|err| error!(target: "supervisor::resetter", %chain_id, %err, "Failed to get source block for the local safe head ref"))?;
+                .inspect_err(|err| error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to get source block for the local safe head ref"))?;
 
             // Get the previous source block id
             let prev_source_id =
@@ -136,7 +134,7 @@ where
             // If the previous source block id is 0, we cannot reset further. This should not happen
             // in prod, added for safety during dev environment.
             if prev_source_id.number == 0 {
-                error!(target: "supervisor::resetter", %chain_id, "Source block number is 0, cannot reset further");
+                error!(target: "supervisor::syncnode_resetter", %chain_id, "Source block number is 0, cannot reset further");
                 return Err(ManagedNodeError::ResetFailed);
             }
 
@@ -148,7 +146,7 @@ where
                 .db_provider
                 .latest_derived_block_at_source(prev_source_id)
                 .inspect_err(|err| {
-                    error!(target: "supervisor::resetter", %chain_id, %err, "Failed to get latest derived block for the previous source block")
+                    error!(target: "supervisor::syncnode_resetter", %chain_id, %err, "Failed to get latest derived block for the previous source block")
                 })?;
         }
     }

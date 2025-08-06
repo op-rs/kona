@@ -177,7 +177,7 @@ where
         min_safety: SafetyLevel,
         executing_descriptor: ExecutingDescriptor,
     ) -> RpcResult<()> {
-        // TODO:: refcator, maybe build proc macro to record metrics
+        // TODO:: refactor, maybe build proc macro to record metrics
         crate::observe_rpc_call!(
             "check_access_list", 
             async {

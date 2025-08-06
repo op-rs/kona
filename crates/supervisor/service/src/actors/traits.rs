@@ -7,5 +7,5 @@ pub trait SupervisorActor {
     /// The error type for the actor.
     type Error: std::fmt::Debug;
     /// Starts the actor.
-    async fn start(self) -> Result<(), Self::Error>;
+    async fn start(mut self) -> Result<(), Self::Error>;
 }

@@ -42,6 +42,16 @@ pub enum StorageError {
     /// Represents an error that occurred when there is inconsistency in log storage
     #[error("reorg required due to inconsistent storage state")]
     ReorgRequired,
+
+    /// Represents an error that occurred when attempting to rewind log storage beyond the local
+    /// safe head.
+    #[error("rewinding log storage beyond local safe head. to: {to}, local_safe: {local_safe}")]
+    RewindBeyondLocalSafeHead {
+        /// The target block number to rewind to.
+        to: u64,
+        /// The local safe head block number.
+        local_safe: u64,
+    },
 }
 
 impl PartialEq for StorageError {
@@ -49,7 +59,7 @@ impl PartialEq for StorageError {
         use StorageError::*;
         match (self, other) {
             (Database(a), Database(b)) => a == b,
-            (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
+            (DatabaseInit(a), DatabaseInit(b)) => format!("{a}") == format!("{b}"),
             (EntryNotFound(a), EntryNotFound(b)) => a == b,
             (DatabaseNotInitialised, DatabaseNotInitialised) | (ConflictError, ConflictError) => {
                 true

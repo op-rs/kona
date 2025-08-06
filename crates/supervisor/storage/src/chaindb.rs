@@ -400,6 +400,26 @@ impl StorageRewinder for ChainDb {
                 let lp = LogProvider::new(tx, self.chain_id);
                 let hp = SafetyHeadRefProvider::new(tx, self.chain_id);
 
+                // Ensure we don't rewind to or before the LocalSafe head.
+                match hp.get_safety_head_ref(SafetyLevel::LocalSafe) {
+                    Ok(local_safe) => {
+                        // If the target block is less than or equal to the local safe head,
+                        // we cannot rewind to it, as this would mean losing logs for the safe
+                        // blocks. The check is inclusive since the rewind
+                        // operation removes the target block as well.
+                        if to.number <= local_safe.number {
+                            return Err(StorageError::RewindBeyondLocalSafeHead {
+                                to: to.number,
+                                local_safe: local_safe.number,
+                            });
+                        }
+                    }
+                    Err(StorageError::FutureData) => {
+                        // If LocalSafe is not set, we can rewind to any point.
+                    }
+                    Err(err) => return Err(err),
+                }
+
                 lp.rewind_to(to)?;
 
                 // get the current latest block to update the safety head refs
@@ -992,6 +1012,121 @@ mod tests {
 
         assert_eq!(local_unsafe, anchor);
         assert_eq!(cross_unsafe, anchor);
+    }
+
+    #[test]
+    fn test_rewind_log_storage_beyond_derivation_head_should_error() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb_rewind_beyond_derivation");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        // Initialise anchor derived block and derivation storage
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        db.initialise_log_storage(anchor.derived).unwrap();
+        db.initialise_derivation_storage(anchor).unwrap();
+
+        let block1 = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
+        let source1 = BlockInfo {
+            hash: B256::from([0u8; 32]),
+            number: 100,
+            parent_hash: B256::from([1u8; 32]),
+            timestamp: 0,
+        };
+
+        let result = db.store_block_logs(&block1, Vec::new());
+        assert!(result.is_ok(), "Should store block logs successfully");
+        let result = db.save_source_block(source1);
+        assert!(result.is_ok(), "Should save source block successfully");
+        let result = db.save_derived_block(DerivedRefPair { source: source1, derived: block1 });
+        assert!(result.is_ok(), "Should save derived block successfully");
+
+        let block2 = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 2,
+            parent_hash: block1.hash,
+            timestamp: 0,
+        };
+
+        let result = db.store_block_logs(&block2, Vec::new());
+        assert!(result.is_ok(), "Should store block logs successfully");
+
+        // Attempt to rewind log storage beyond local safe head
+        let err = db.rewind_log_storage(&anchor.derived.id()).unwrap_err();
+        assert!(
+            matches!(err, StorageError::RewindBeyondLocalSafeHead { to, local_safe } if to == anchor.derived.number && local_safe == block1.number),
+            "Should not allow rewinding log storage beyond derivation head"
+        );
+
+        // Attempt to rewind log storage to the local safe head
+        let result = db.rewind_log_storage(&block1.id()).unwrap_err();
+        assert!(
+            matches!(result, StorageError::RewindBeyondLocalSafeHead { to, local_safe } if to == block1.number && local_safe == block1.number),
+            "Should not allow rewinding log storage to the local safe head"
+        );
+    }
+
+    #[test]
+    fn test_rewind_log_local_safe_future() {
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let db_path = tmp_dir.path().join("chaindb_rewind_beyond_derivation");
+        let db = ChainDb::new(1, &db_path).unwrap();
+
+        // Initialise anchor derived block and derivation storage
+        let block0 = BlockInfo {
+            hash: B256::from([2u8; 32]),
+            number: 0,
+            parent_hash: B256::ZERO,
+            timestamp: 0,
+        };
+
+        let result = db.initialise_log_storage(block0);
+        assert!(result.is_ok(), "Should initialise log storage successfully");
+
+        let block1 = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 1,
+            parent_hash: block0.hash,
+            timestamp: 0,
+        };
+
+        let result = db.store_block_logs(&block1, Vec::new());
+        assert!(result.is_ok(), "Should store block logs successfully");
+
+        let block2 = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 2,
+            parent_hash: block1.hash,
+            timestamp: 0,
+        };
+
+        let result = db.store_block_logs(&block2, Vec::new());
+        assert!(result.is_ok(), "Should store block logs successfully");
+
+        // Attempt to rewind log storage to future_block (beyond derivation head)
+        let result = db.rewind_log_storage(&block2.id());
+        assert!(result.is_ok(), "Should rewind log storage successfully");
+
+        let result = db.rewind_log_storage(&block1.id());
+        assert!(result.is_ok(), "Should rewind log storage successfully");
     }
 
     #[test]

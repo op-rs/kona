@@ -1,4 +1,4 @@
-use crate::event::ChainEvent;
+use crate::{event::ChainEvent, syncnode::ManagedNodeController};
 use alloy_eips::{BlockNumHash, BlockNumberOrTag};
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
@@ -15,7 +15,7 @@ use crate::ReorgHandler;
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
-pub struct L1Watcher<F, DB> {
+pub struct L1Watcher<C, DB, F> {
     /// The Alloy RPC client for L1.
     rpc_client: RpcClient,
     /// The cancellation token, shared between all tasks.
@@ -25,11 +25,12 @@ pub struct L1Watcher<F, DB> {
     /// The event senders for each chain.
     event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
     /// The reorg handler.
-    reorg_handler: ReorgHandler<DB>,
+    reorg_handler: ReorgHandler<C, DB>,
 }
 
-impl<F, DB> L1Watcher<F, DB>
+impl<C, DB, F> L1Watcher<C, DB, F>
 where
+    C: ManagedNodeController + Send + Sync + 'static,
     F: FinalizedL1Storage + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
@@ -39,7 +40,7 @@ where
         finalized_l1_storage: Arc<F>,
         event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
         cancellation: CancellationToken,
-        reorg_handler: ReorgHandler<DB>,
+        reorg_handler: ReorgHandler<C, DB>,
     ) -> Self {
         Self { rpc_client, finalized_l1_storage, event_txs, cancellation, reorg_handler }
     }
@@ -212,10 +213,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SupervisorError;
+    use crate::{
+        SupervisorError,
+        syncnode::{ManagedNodeController, ManagedNodeError},
+    };
     use alloy_primitives::B256;
     use alloy_transport::mock::*;
+    use async_trait::async_trait;
     use kona_supervisor_storage::{ChainDb, FinalizedL1Storage, StorageError};
+    use kona_supervisor_types::BlockSeal;
     use mockall::{mock, predicate};
     use std::sync::Arc;
     use tokio::sync::mpsc;
@@ -225,6 +231,34 @@ mod tests {
         impl FinalizedL1Storage for finalized_l1_storage {
             fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError>;
             fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError>;
+        }
+    );
+
+    mock!(
+        #[derive(Debug)]
+        pub Node {}
+
+        #[async_trait]
+        impl ManagedNodeController for Node {
+            async fn update_finalized(
+                &self,
+                _finalized_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn update_cross_unsafe(
+                &self,
+                cross_unsafe_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn update_cross_safe(
+                &self,
+                source_block_id: BlockNumHash,
+                derived_block_id: BlockNumHash,
+            ) -> Result<(), ManagedNodeError>;
+
+            async fn reset(&self) -> Result<(), ManagedNodeError>;
+
+            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
         }
     );
 
@@ -240,9 +274,10 @@ mod tests {
         RpcClient::new(transport, false)
     }
 
-    fn mock_reorg_handler() -> ReorgHandler<ChainDb> {
+    fn mock_reorg_handler() -> ReorgHandler<MockNode, ChainDb> {
         let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = HashMap::new();
-        ReorgHandler::new(mock_rpc_client(), chain_dbs_map)
+        let managed_nodes: HashMap<ChainId, Arc<MockNode>> = HashMap::new();
+        ReorgHandler::new(mock_rpc_client(), chain_dbs_map, managed_nodes)
     }
 
     #[tokio::test]
@@ -314,9 +349,7 @@ mod tests {
         );
         assert!(
             matches!(event, ChainEvent::FinalizedSourceUpdate { ref finalized_source_block } if *finalized_source_block == expected),
-            "Expected FinalizedSourceUpdate with block {:?}, got {:?}",
-            expected,
-            event
+            "Expected FinalizedSourceUpdate with block {expected:?}, got {event:?}"
         );
     }
 
