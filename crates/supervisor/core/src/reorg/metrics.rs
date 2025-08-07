@@ -101,7 +101,6 @@ impl Metrics {
                     "chain_id" => chain_id.to_string(),
                 )
                 .record(latency);
-
             }
             Err(_) => {
                 metrics::counter!(

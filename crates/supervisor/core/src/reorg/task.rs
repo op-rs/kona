@@ -67,8 +67,8 @@ where
         })?;
 
         Ok((
-            latest_state.derived.number - rewind_target_derived.number,
-            latest_state.source.number - rewind_target_source.number,
+            latest_state.derived.number - rewind_target_derived.number, // L2 depth
+            latest_state.source.number - rewind_target_source.number, // L1 depth
         ))
     }
 
