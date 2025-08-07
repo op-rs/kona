@@ -14,7 +14,7 @@ cargo build --release --bin kona-supervisor
 
 Run the supervisor using the following command
 
-```
+```bash
 kona-supervisor \
   --metric.enabled \
   --metrics.port 9090 \
