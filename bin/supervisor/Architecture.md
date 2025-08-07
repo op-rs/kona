@@ -91,13 +91,13 @@ flowchart TD
 
 ### **Per-Chain Modules**
 
-- **ManagedNodeGroup**
+- **Managed Node Modules**
   - **ManagedNode (`MNODE`)**  
     Represents a node for a specific chain, handling chain-specific logic and state.
   - **ManagedNodeActor (`MN`)**  
     The actor responsible for executing commands and managing the lifecycle of the ManagedNode.
 
-- **ChainProcessorGroup**
+- **Chain Processor modules**
   - **ChainProcessorActor (`CPA`)**  
     Listens for chain events and delegates processing to the ChainProcessor.
   - **ChainProcessor (`CP`)**  
