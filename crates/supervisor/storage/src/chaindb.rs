@@ -72,7 +72,7 @@ impl ChainDb {
 // todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
 impl DerivationStorageReader for ChainDb {
     fn derived_to_source(&self, derived_block_id: BlockNumHash) -> Result<BlockInfo, StorageError> {
-        self.observe_call("derived_to_source", || {
+        self.observe_call(Metrics::STORAGE_METHOD_DERIVED_TO_SOURCE, || {
             self.env.view(|tx| {
                 DerivationProvider::new(tx, self.chain_id).derived_to_source(derived_block_id)
             })
@@ -83,7 +83,7 @@ impl DerivationStorageReader for ChainDb {
         &self,
         source_block_id: BlockNumHash,
     ) -> Result<BlockInfo, StorageError> {
-        self.observe_call("latest_derived_block_at_source", || {
+        self.observe_call(Metrics::STORAGE_METHOD_LATEST_DERIVED_BLOCK_AT_SOURCE, || {
             self.env.view(|tx| {
                 DerivationProvider::new(tx, self.chain_id)
                     .latest_derived_block_at_source(source_block_id)
@@ -92,13 +92,13 @@ impl DerivationStorageReader for ChainDb {
     }
 
     fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError> {
-        self.observe_call("latest_derivation_state", || {
+        self.observe_call(Metrics::STORAGE_METHOD_LATEST_DERIVATION_STATE, || {
             self.env.view(|tx| DerivationProvider::new(tx, self.chain_id).latest_derivation_state())
         })?
     }
 
     fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError> {
-        self.observe_call("get_source_block", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_SOURCE_BLOCK, || {
             self.env.view(|tx| {
                 DerivationProvider::new(tx, self.chain_id).get_source_block(source_block_number)
             })
@@ -111,7 +111,7 @@ impl DerivationStorageWriter for ChainDb {
         &self,
         incoming_pair: DerivedRefPair,
     ) -> Result<(), StorageError> {
-        self.observe_call("initialise_derivation_storage", || {
+        self.observe_call(Metrics::STORAGE_METHOD_INITIALISE_DERIVATION_STORAGE, || {
             self.env.update(|ctx| {
                 DerivationProvider::new(ctx, self.chain_id).initialise(incoming_pair)?;
                 SafetyHeadRefProvider::new(ctx, self.chain_id)
@@ -123,7 +123,7 @@ impl DerivationStorageWriter for ChainDb {
     }
 
     fn save_derived_block(&self, incoming_pair: DerivedRefPair) -> Result<(), StorageError> {
-        self.observe_call("save_derived_block", || {
+        self.observe_call(Metrics::STORAGE_METHOD_SAVE_DERIVED_BLOCK, || {
             self.env.update(|ctx| {
                 DerivationProvider::new(ctx, self.chain_id).save_derived_block(incoming_pair)?;
 
@@ -164,7 +164,7 @@ impl DerivationStorageWriter for ChainDb {
     }
 
     fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
-        self.observe_call("save_source_block", || {
+        self.observe_call(Metrics::STORAGE_METHOD_SAVE_SOURCE_BLOCK, || {
             self.env.update(|ctx| {
                 DerivationProvider::new(ctx, self.chain_id).save_source_block(incoming_source)
             })
@@ -175,25 +175,25 @@ impl DerivationStorageWriter for ChainDb {
 // todo: make sure all get method return DatabaseNotInitialised error if db is not initialised
 impl LogStorageReader for ChainDb {
     fn get_latest_block(&self) -> Result<BlockInfo, StorageError> {
-        self.observe_call("get_latest_block", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_LATEST_BLOCK, || {
             self.env.view(|tx| LogProvider::new(tx, self.chain_id).get_latest_block())
         })?
     }
 
     fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError> {
-        self.observe_call("get_block", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_BLOCK, || {
             self.env.view(|tx| LogProvider::new(tx, self.chain_id).get_block(block_number))
         })?
     }
 
     fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError> {
-        self.observe_call("get_log", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_LOG, || {
             self.env.view(|tx| LogProvider::new(tx, self.chain_id).get_log(block_number, log_index))
         })?
     }
 
     fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError> {
-        self.observe_call("get_logs", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_LOGS, || {
             self.env.view(|tx| LogProvider::new(tx, self.chain_id).get_logs(block_number))
         })?
     }
@@ -201,7 +201,7 @@ impl LogStorageReader for ChainDb {
 
 impl LogStorageWriter for ChainDb {
     fn initialise_log_storage(&self, block: BlockInfo) -> Result<(), StorageError> {
-        self.observe_call("initialise_log_storage", || {
+        self.observe_call(Metrics::STORAGE_METHOD_INITIALISE_LOG_STORAGE, || {
             self.env.update(|ctx| {
                 LogProvider::new(ctx, self.chain_id).initialise(block)?;
                 SafetyHeadRefProvider::new(ctx, self.chain_id)
@@ -213,7 +213,7 @@ impl LogStorageWriter for ChainDb {
     }
 
     fn store_block_logs(&self, block: &BlockInfo, logs: Vec<Log>) -> Result<(), StorageError> {
-        self.observe_call("store_block_logs", || {
+        self.observe_call(Metrics::STORAGE_METHOD_STORE_BLOCK_LOGS, || {
             self.env.update(|ctx| {
                 LogProvider::new(ctx, self.chain_id).store_block_logs(block, logs)?;
 
@@ -226,7 +226,7 @@ impl LogStorageWriter for ChainDb {
 
 impl HeadRefStorageReader for ChainDb {
     fn get_safety_head_ref(&self, safety_level: SafetyLevel) -> Result<BlockInfo, StorageError> {
-        self.observe_call("get_safety_head_ref", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_SAFETY_HEAD_REF, || {
             self.env.view(|tx| {
                 SafetyHeadRefProvider::new(tx, self.chain_id).get_safety_head_ref(safety_level)
             })
@@ -235,7 +235,7 @@ impl HeadRefStorageReader for ChainDb {
 
     /// Fetches all safety heads and current L1 state
     fn get_super_head(&self) -> Result<SuperHead, StorageError> {
-        self.observe_call("get_super_head", || {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_SUPER_HEAD, || {
             self.env.view(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx, self.chain_id);
                 let local_unsafe =
@@ -296,7 +296,7 @@ impl HeadRefStorageWriter for ChainDb {
         &self,
         finalized_source_block: BlockInfo,
     ) -> Result<BlockInfo, StorageError> {
-        self.observe_call("update_finalized_using_source", || {
+        self.observe_call(Metrics::STORAGE_METHOD_UPDATE_FINALIZED_USING_SOURCE, || {
             self.env.update(|tx| {
                 let sp = SafetyHeadRefProvider::new(tx, self.chain_id);
                 let safe = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
@@ -326,7 +326,7 @@ impl HeadRefStorageWriter for ChainDb {
     }
 
     fn update_current_cross_unsafe(&self, block: &BlockInfo) -> Result<(), StorageError> {
-        self.observe_call("update_current_cross_unsafe", || {
+        self.observe_call(Metrics::STORAGE_METHOD_UPDATE_CURRENT_CROSS_UNSAFE, || {
             self.env.update(|tx| {
                 let lp = LogProvider::new(tx, self.chain_id);
                 let sp = SafetyHeadRefProvider::new(tx, self.chain_id);
@@ -364,7 +364,7 @@ impl HeadRefStorageWriter for ChainDb {
     }
 
     fn update_current_cross_safe(&self, block: &BlockInfo) -> Result<DerivedRefPair, StorageError> {
-        self.observe_call("update_current_cross_safe", || {
+        self.observe_call(Metrics::STORAGE_METHOD_UPDATE_CURRENT_CROSS_SAFE, || {
             self.env.update(|tx| {
                 let dp = DerivationProvider::new(tx, self.chain_id);
                 let sp = SafetyHeadRefProvider::new(tx, self.chain_id);
@@ -395,7 +395,7 @@ impl HeadRefStorageWriter for ChainDb {
 
 impl StorageRewinder for ChainDb {
     fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError> {
-        self.observe_call("rewind_log_storage", || {
+        self.observe_call(Metrics::STORAGE_METHOD_REWIND_LOG_STORAGE, || {
             self.env.update(|tx| {
                 let lp = LogProvider::new(tx, self.chain_id);
                 let hp = SafetyHeadRefProvider::new(tx, self.chain_id);
@@ -432,7 +432,7 @@ impl StorageRewinder for ChainDb {
     }
 
     fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError> {
-        self.observe_call("rewind", || {
+        self.observe_call(Metrics::STORAGE_METHOD_REWIND, || {
             self.env.update(|tx| {
                 let lp = LogProvider::new(tx, self.chain_id);
                 let dp = DerivationProvider::new(tx, self.chain_id);
