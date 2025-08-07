@@ -7,7 +7,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc, time::Instant};
 use thiserror::Error;
-use tracing::info;
+use tracing::{error, info};
 
 /// Error type for reorg handling
 #[derive(Debug, Error)]
