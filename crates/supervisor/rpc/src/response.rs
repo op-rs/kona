@@ -86,7 +86,7 @@ impl From<SuperHead> for SupervisorChainSyncStatus {
     }
 }
 
-/// This is same as [`kona_interop::ChainRootInfo`] but with [`u64`] serializeing as a valid hex
+/// This is same as [`kona_interop::ChainRootInfo`] but with [`u64`] serializing as a valid hex
 /// string.
 ///
 /// Required by
