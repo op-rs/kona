@@ -23,7 +23,15 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
+    /// Sets up metrics for the reorg task
+    pub(crate) fn with_metrics(self) -> Self {
+        super::Metrics::init(self.chain_id);
+        self
+    }
+
     /// Processes reorg for a single chain
+    /// Returns the L2 and L1 reorg depths
+    /// If the reorg is not needed, returns (0, 0)
     pub(crate) async fn process_chain_reorg(&self) -> Result<(u64, u64), SupervisorError> {
         let latest_state = self.db.latest_derivation_state()?;
 

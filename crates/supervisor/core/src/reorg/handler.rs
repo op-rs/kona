@@ -33,12 +33,6 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
-    /// Sets up metrics for the reorg handler
-    pub fn with_metrics(self) -> Self {
-        super::Metrics::init();
-        self
-    }
-
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
         info!(
@@ -65,6 +59,7 @@ where
             let chain_id = *chain_id;
 
             let handle = tokio::spawn(async move {
+                let reorg_task = reorg_task.with_metrics();
                 let start_time = Instant::now();
                 let result = reorg_task.process_chain_reorg().await;
                 super::metrics::Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
