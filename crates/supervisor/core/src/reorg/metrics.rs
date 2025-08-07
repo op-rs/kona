@@ -1,7 +1,6 @@
 use crate::SupervisorError;
 use alloy_primitives::ChainId;
-use std::time::SystemTime;
-use tracing::error;
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Metrics;
@@ -69,7 +68,7 @@ impl Metrics {
 
     pub(crate) fn record_l1_reorg_processing(
         chain_id: ChainId,
-        start_time: f64,
+        start_time: Instant,
         result: &Result<(u64, u64), SupervisorError>,
     ) {
         match result {
@@ -93,26 +92,14 @@ impl Metrics {
                 .record(*l2_depth as f64);
 
                 // Calculate latency
-                match SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-                    Ok(duration) => {
-                        let now = duration.as_secs_f64();
-                        let latency = now - start_time;
+                let latency = start_time.elapsed().as_secs_f64();
 
-                        metrics::histogram!(
-                            Self::SUPERVISOR_L1_REORG_DURATION_SECONDS,
-                            "chain_id" => chain_id.to_string(),
-                        )
-                        .record(latency);
-                    }
-                    Err(err) => {
-                        error!(
-                            target: "supervisor::reorg_handler",
-                            chain_id = chain_id,
-                            %err,
-                            "Failed to get current time for reorg latency"
-                        );
-                    }
-                }
+                metrics::histogram!(
+                    Self::SUPERVISOR_L1_REORG_DURATION_SECONDS,
+                    "chain_id" => chain_id.to_string(),
+                )
+                .record(latency);
+
             }
             Err(_) => {
                 metrics::counter!(

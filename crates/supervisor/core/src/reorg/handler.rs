@@ -5,7 +5,7 @@ use derive_more::Constructor;
 use futures::future;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
-use std::{collections::HashMap, sync::Arc, time::SystemTime};
+use std::{collections::HashMap, sync::Arc, time::Instant};
 use thiserror::Error;
 use tracing::info;
 
@@ -65,8 +65,7 @@ where
             let chain_id = *chain_id;
 
             let handle = tokio::spawn(async move {
-                let start_time =
-                    SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
+                let start_time = Instant::now();
                 let result = reorg_task.process_chain_reorg().await;
                 super::metrics::Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
                 result
@@ -74,7 +73,12 @@ where
             handles.push(handle);
         }
 
-        future::join_all(handles).await;
+        let results = future::join_all(handles).await;
+        for result in results {
+            if let Err(err) = result {
+                error!(target: "supervisor::reorg_handler", %err, "Error processing reorg task");
+            }
+        }
 
         Ok(())
     }
