@@ -248,12 +248,16 @@ impl Service {
             })
             .collect::<Result<HashMap<ChainId, Arc<ChainDb>>>>()?;
 
+        let reorg_handler =
+            ReorgHandler::new(l1_rpc.clone(), chain_dbs_map, self.managed_nodes.clone());
+        let reorg_handler = reorg_handler.with_metrics();
+
         let l1_watcher = L1Watcher::new(
             l1_rpc.clone(),
             self.database_factory.clone(),
             chain_event_senders.clone(),
             self.cancel_token.clone(),
-            ReorgHandler::new(l1_rpc, chain_dbs_map, self.managed_nodes.clone()),
+            reorg_handler,
         );
 
         self.join_set.spawn(async move {

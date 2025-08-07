@@ -5,9 +5,9 @@ use derive_more::Constructor;
 use futures::future;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::SystemTime};
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::info;
 
 /// Error type for reorg handling
 #[derive(Debug, Error)]
@@ -33,6 +33,12 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
+    /// Sets up metrics for the reorg handler
+    pub fn with_metrics(self) -> Self {
+        super::Metrics::init();
+        self
+    }
+
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
         info!(
@@ -56,20 +62,19 @@ where
                 managed_node.clone(),
             );
 
-            let handle = tokio::spawn(async move { reorg_task.process_chain_reorg().await });
+            let chain_id = *chain_id;
+
+            let handle = tokio::spawn(async move {
+                let start_time =
+                    SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
+                let result = reorg_task.process_chain_reorg().await;
+                super::metrics::Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
+                result
+            });
             handles.push(handle);
         }
 
-        let results = future::join_all(handles).await;
-        let failed_chains = results.into_iter().filter(|result| result.is_err()).count();
-
-        if failed_chains > 0 {
-            warn!(
-                target: "supervisor::reorg_handler",
-                no_of_failed_chains = %failed_chains,
-                "Reorg processing completed with failed chains"
-            );
-        }
+        future::join_all(handles).await;
 
         Ok(())
     }
