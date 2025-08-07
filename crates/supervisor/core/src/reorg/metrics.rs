@@ -66,6 +66,8 @@ impl Metrics {
         metrics::histogram!(Self::SUPERVISOR_L1_REORG_DURATION_SECONDS,).record(0.0);
     }
 
+    /// Records metrics for a L1 reorg processing operation.
+    /// Takes the result of the processing and extracts the reorg depth if successful.
     pub(crate) fn record_l1_reorg_processing(
         chain_id: ChainId,
         start_time: Instant,
