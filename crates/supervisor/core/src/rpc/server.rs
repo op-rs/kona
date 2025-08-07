@@ -1,5 +1,6 @@
 //! Server-side implementation of the Supervisor RPC API.
 
+use super::Metrics;
 use crate::{SpecError, SupervisorError, SupervisorService};
 use alloy_eips::eip1898::BlockNumHash;
 use alloy_primitives::{B256, ChainId, map::HashMap};
@@ -27,7 +28,7 @@ pub struct SupervisorRpc<T> {
 impl<T> SupervisorRpc<T> {
     /// Creates a new [`SupervisorRpc`] instance.
     pub fn new(supervisor: Arc<T>) -> Self {
-        super::Metrics::init();
+        Metrics::init();
         trace!(target: "supervisor::rpc", "Creating new SupervisorRpc handler");
         Self { supervisor }
     }
@@ -45,7 +46,7 @@ where
     ) -> RpcResult<BlockInfo> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
-            "cross_derived_to_source",
+            Metrics::SUPERVISOR_RPC_METHOD_CROSS_DERIVED_TO_SOURCE,
             async {
                 trace!(
                     target: "supervisor::rpc",
@@ -75,7 +76,7 @@ where
     async fn local_unsafe(&self, chain_id_hex: HexStringU64) -> RpcResult<BlockNumHash> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
-            "local_unsafe",
+            Metrics::SUPERVISOR_RPC_METHOD_LOCAL_UNSAFE,
             async {
                 trace!(target: "supervisor::rpc",
                     %chain_id,
@@ -90,7 +91,7 @@ where
 
     async fn dependency_set_v1(&self) -> RpcResult<DependencySet> {
         crate::observe_rpc_call!(
-            "dependency_set",
+            Metrics::SUPERVISOR_RPC_METHOD_DEPENDENCY_SET,
             async {
                 trace!(target: "supervisor::rpc",
                     "Received the dependency set"
@@ -105,7 +106,7 @@ where
     async fn cross_safe(&self, chain_id_hex: HexStringU64) -> RpcResult<DerivedIdPair> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
-            "cross_safe",
+            Metrics::SUPERVISOR_RPC_METHOD_CROSS_SAFE,
             async {
                 trace!(target: "supervisor::rpc",
                     %chain_id,
@@ -124,7 +125,7 @@ where
     async fn finalized(&self, chain_id_hex: HexStringU64) -> RpcResult<BlockNumHash> {
         let chain_id = ChainId::from(chain_id_hex);
         crate::observe_rpc_call!(
-            "finalized",
+            Metrics::SUPERVISOR_RPC_METHOD_FINALIZED,
             async {
                 trace!(target: "supervisor::rpc",
                     %chain_id,
@@ -139,7 +140,7 @@ where
 
     async fn finalized_l1(&self) -> RpcResult<BlockInfo> {
         crate::observe_rpc_call!(
-            "finalized_l1",
+            Metrics::SUPERVISOR_RPC_METHOD_FINALIZED_L1,
             async {
                 trace!(target: "supervisor::rpc", "Received finalized_l1 request");
                 Ok(self.supervisor.finalized_l1()?)
@@ -153,7 +154,7 @@ where
         timestamp_hex: HexStringU64,
     ) -> RpcResult<SuperRootOutputRpc> {
         crate::observe_rpc_call!(
-            "super_root_at_timestamp",
+            Metrics::SUPERVISOR_RPC_METHOD_SUPER_ROOT_AT_TIMESTAMP,
             async {
                 let timestamp = u64::from(timestamp_hex);
                 trace!(target: "supervisor::rpc",
@@ -179,7 +180,7 @@ where
     ) -> RpcResult<()> {
         // TODO:: refactor, maybe build proc macro to record metrics
         crate::observe_rpc_call!(
-            "check_access_list", 
+            Metrics::SUPERVISOR_RPC_METHOD_CHECK_ACCESS_LIST,
             async {
                 trace!(target: "supervisor::rpc", 
                     num_inbox_entries = inbox_entries.len(),
@@ -199,7 +200,7 @@ where
 
     async fn sync_status(&self) -> RpcResult<SupervisorSyncStatus> {
         crate::observe_rpc_call!(
-            "sync_status",
+            Metrics::SUPERVISOR_RPC_METHOD_SYNC_STATUS,
             async {
                 trace!(target: "supervisor::rpc", "Received sync_status request");
 
@@ -281,7 +282,7 @@ where
         derived_from: BlockNumHash,
     ) -> RpcResult<HashMap<ChainId, BlockNumHash>> {
         crate::observe_rpc_call!(
-            "all_safe_derived_at",
+            Metrics::SUPERVISOR_RPC_METHOD_ALL_SAFE_DERIVED_AT,
             async {
                 trace!(target: "supervisor::rpc",
                     ?derived_from,
