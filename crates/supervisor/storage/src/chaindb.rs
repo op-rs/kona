@@ -429,8 +429,8 @@ impl StorageRewinder for ChainDb {
                         hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)?;
                     }
                     Err(StorageError::DatabaseNotInitialised) => {
-                        // If the database is not initialized, it means the activation block has
-                        // been rewound
+                        // If the database returns DatabaseNotInitialised, it means we have rewound
+                        // past the activation block
                         hp.remove_safety_head_ref(SafetyLevel::LocalUnsafe)?;
                         hp.remove_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                     }
@@ -461,7 +461,8 @@ impl StorageRewinder for ChainDb {
                         hp.reset_safety_head_ref_if_ahead(SafetyLevel::Finalized, &latest_block)?;
                     }
                     Err(StorageError::DatabaseNotInitialised) => {
-                        // If the database is not initialized, we can reset all safety heads
+                        // If the database returns DatabaseNotInitialised, it means we have rewound
+                        // past the activation block
                         hp.remove_safety_head_ref(SafetyLevel::LocalUnsafe)?;
                         hp.remove_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                         hp.remove_safety_head_ref(SafetyLevel::LocalSafe)?;
@@ -1142,6 +1143,8 @@ mod tests {
 
         let result = db.store_block_logs(&block2, Vec::new());
         assert!(result.is_ok(), "Should store block logs successfully");
+
+        db.update_current_cross_unsafe(&block1).expect("update cross unsafe");
 
         let result = db.rewind_log_storage(&block2.id());
         assert!(result.is_ok(), "Should rewind log storage successfully");
