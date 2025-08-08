@@ -1,3 +1,4 @@
+use super::metrics::Metrics;
 use crate::{reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
@@ -7,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc, time::Instant};
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::{info, warn};
 
 /// Error type for reorg handling
 #[derive(Debug, Error)]
@@ -62,7 +63,7 @@ where
                 let reorg_task = reorg_task.with_metrics();
                 let start_time = Instant::now();
                 let result = reorg_task.process_chain_reorg().await;
-                super::metrics::Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
+                Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
                 result
             });
             handles.push(handle);
@@ -71,7 +72,7 @@ where
         let results = future::join_all(handles).await;
         for result in results {
             if let Err(err) = result {
-                error!(target: "supervisor::reorg_handler", %err, "Error processing reorg task");
+                warn!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
             }
         }
 

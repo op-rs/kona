@@ -11,16 +11,15 @@ use tracing::{debug, info, trace, warn};
 
 /// Handles reorg for a single chain
 #[derive(Debug, Constructor)]
-pub(crate) struct ReorgTask<C, DB> {
+pub(crate) struct ReorgTask<DB> {
     chain_id: ChainId,
     db: Arc<DB>,
     rpc_client: RpcClient,
-    managed_node: Arc<C>,
+    managed_node: Arc<dyn ManagedNodeController>,
 }
 
-impl<C, DB> ReorgTask<C, DB>
+impl<DB> ReorgTask<DB>
 where
-    C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
     /// Sets up metrics for the reorg task
