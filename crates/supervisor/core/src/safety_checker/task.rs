@@ -8,10 +8,11 @@ use derive_more::Constructor;
 use kona_interop::InteropValidator;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
+use op_alloy_consensus::interop::SafetyLevel;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info};
 
 /// A background job that promotes blocks to a target safety level on a given chain.
 ///
@@ -63,7 +64,7 @@ where
                 _ = async {
                     match self.promote_next_block(&checker) {
                         Ok(block_info) => {
-                            info!(
+                            debug!(
                                 target: "supervisor::safety_checker",
                                 chain_id,
                                 %target_level,
@@ -73,18 +74,30 @@ where
                         }
                         Err(err) => {
                             match err {
-                                 // don't spam warnings if head is already on top - nothing to promote
-                                CrossSafetyError::NoBlockToPromote => {},
-                                _ => {
-                                    warn!(
+                                // Expected / non-fatal errors:
+                                //  - no candidate is ready right now
+                                //  - validation failed (we already emitted invalidate event in promote_next_block for CrossSafe)
+                                //  - dependency not yet safe on another chain
+                                CrossSafetyError::NoBlockToPromote |
+                                CrossSafetyError::ValidationError(_) |
+                                CrossSafetyError::DependencyNotSafe { .. }   => {
+                                    debug!(
                                         target: "supervisor::safety_checker",
                                         chain_id,
                                         %target_level,
                                         %err,
                                         "Error promoting next candidate block"
                                     );
+                                },
+                                _ => {
+                                    error!(
+                                        target: "supervisor::safety_checker",
+                                        chain_id,
+                                        %target_level,
+                                        %err,
+                                        "Unexpected error promoting next candidate block"
+                                    );
                                 }
-                                // todo: CrossSafetyError::ValidationError => Trigger block invalidation
                             }
                             tokio::time::sleep(self.interval).await;
                         }
@@ -104,13 +117,35 @@ where
     ) -> Result<BlockInfo, CrossSafetyError> {
         let candidate = self.find_next_promotable_block()?;
 
-        checker.validate_block(candidate)?;
+        match checker.validate_block(candidate) {
+            Ok(_) => {
+                // Success: promote + emit
+                let ev = self.promoter.update_and_emit_event(
+                    &*self.provider,
+                    self.chain_id,
+                    &candidate,
+                )?;
+                self.broadcast_event(ev);
+                Ok(candidate)
+            }
 
-        let event =
-            self.promoter.update_and_emit_event(&*self.provider, self.chain_id, &candidate)?;
-        self.broadcast_event(event);
-
-        Ok(candidate)
+            Err(err @ CrossSafetyError::ValidationError(_)) => {
+                // Only invalidate if we are targeting CrossSafe
+                if self.promoter.target_level() == SafetyLevel::CrossSafe {
+                    info!(
+                        target: "supervisor::safety_checker",
+                        chain_id = self.chain_id,
+                        target_level = %self.promoter.target_level(),
+                        block_info = %candidate,
+                        %err,
+                        "Triggering block invalidation for the invalid block"
+                    );
+                    self.broadcast_event(ChainEvent::InvalidateBlock { block: candidate });
+                }
+                Err(err) // propagate the error for logging
+            }
+            Err(err) => Err(err),
+        }
     }
 
     // Finds the next block that is eligible for promotion at the configured target level.
