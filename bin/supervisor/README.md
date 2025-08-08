@@ -7,7 +7,7 @@ A binary that runs OP Stack supervisor.
 Build from source 
 
 ```
-cargo build --release --bin kona-supervisor
+cargo build --profile release-perf --bin kona-supervisor
 ```
 
 ### Usage
