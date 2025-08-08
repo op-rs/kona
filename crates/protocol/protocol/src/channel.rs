@@ -1,4 +1,49 @@
-//! Channel Types
+//! Channel types for ordered frame assembly in the OP Stack.
+//!
+//! Channels are the intermediate layer in the derivation pipeline that collect
+//! and reassemble frames into complete batch data. They handle out-of-order
+//! frame delivery, validate frame sequencing, and manage memory constraints.
+//!
+//! # Channel Lifecycle
+//!
+//! 1. **Creation**: New channel opened when first frame arrives
+//! 2. **Frame Collection**: Frames added as they arrive (possibly out-of-order)
+//! 3. **Completion**: Channel closed when final frame received
+//! 4. **Reading**: Complete batch data extracted once all frames present
+//!
+//! # Key Features
+//!
+//! - **Out-of-Order Support**: Frames can arrive in any sequence
+//! - **Memory Management**: Automatic pruning when size limits exceeded
+//! - **Timeout Handling**: Channels expire after configurable duration
+//! - **Compression Support**: Built-in handling for compressed batch data
+//!
+//! # Size Limits
+//!
+//! Channels enforce size limits to prevent memory exhaustion:
+//! - Pre-Fjord: 10 MB maximum channel size
+//! - Post-Fjord: 100 MB maximum channel size
+//!
+//! # Example
+//!
+//! ```rust,ignore
+//! use kona_protocol::{Channel, Frame, ChannelId};
+//! 
+//! // Create new channel
+//! let channel_id: ChannelId = [0u8; 16];
+//! let mut channel = Channel::new(channel_id, origin);
+//!
+//! // Add frames as they arrive
+//! channel.add_frame(frame1)?;
+//! channel.add_frame(frame3)?; // Out of order is OK
+//! channel.add_frame(frame2)?;
+//!
+//! // Check if ready to read
+//! if channel.is_ready() {
+//!     let batch_data = channel.bytes();
+//!     // Process batch data...
+//! }
+//! ```
 
 use alloc::vec::Vec;
 use alloy_primitives::{Bytes, map::HashMap};

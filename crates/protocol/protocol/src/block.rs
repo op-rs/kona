@@ -1,4 +1,41 @@
-//! Block Types for Optimism.
+//! Block information types and utilities for the OP Stack.
+//!
+//! This module provides core block-related types that bridge L1 and L2 chains
+//! in the OP Stack architecture. These types are essential for tracking chain
+//! state, validating derivation, and maintaining the connection between layers.
+//!
+//! # Core Types
+//!
+//! - [`BlockInfo`]: Lightweight block metadata used throughout the derivation pipeline
+//! - [`L2BlockInfo`]: Extended L2 block information including L1 origin tracking
+//!
+//! # L1-L2 Relationship
+//!
+//! L2 blocks are derived from L1 data, maintaining a parent-child relationship:
+//! - Each L2 block references its L1 origin block
+//! - L1 attributes influence L2 block properties (timestamp, etc.)
+//! - The derivation pipeline ensures L2 follows L1 ordering
+//!
+//! # Conversion Support
+//!
+//! This module provides conversions from various block formats:
+//! - Alloy consensus blocks
+//! - RPC block types
+//! - Execution payloads
+//!
+//! # Example
+//!
+//! ```rust,ignore
+//! use kona_protocol::BlockInfo;
+//!
+//! // Create block info from chain data
+//! let block_info = BlockInfo::new(hash, number, parent_hash, timestamp);
+//!
+//! // Check parent-child relationship
+//! if parent_block.is_parent_of(&child_block) {
+//!     // Blocks are directly connected
+//! }
+//! ```
 
 use crate::{DecodeError, L1BlockInfoTx};
 use alloc::vec::Vec;

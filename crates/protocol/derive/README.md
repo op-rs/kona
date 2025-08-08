@@ -7,7 +7,24 @@
 
 A `no_std` compatible implementation of the OP Stack's [derivation pipeline][derive].
 
-[derive]: (https://specs.optimism.io/protocol/derivation.html#l2-chain-derivation-specification).
+This crate provides the core derivation logic that transforms raw L1 data into 
+L2 block inputs. It handles the complex process of extracting, decoding, and 
+validating transaction data from L1 to produce deterministic L2 state transitions.
+
+## What is Derivation?
+
+Derivation is the process by which L2 blocks are produced from L1 data:
+
+1. **L1 Data Retrieval**: Fetch transactions and blobs from L1 blocks
+2. **Frame Extraction**: Extract frame data from batcher transactions
+3. **Channel Assembly**: Reconstruct channels from ordered frames
+4. **Batch Decoding**: Decode batches containing L2 transactions
+5. **Attribute Building**: Generate L2 block attributes for execution
+
+This process ensures that all OP Stack nodes derive identical L2 state from L1,
+providing the foundation for the rollup's security and decentralization.
+
+[derive]: https://specs.optimism.io/protocol/derivation.html#l2-chain-derivation-specification
 
 ## Usage
 
@@ -52,6 +69,22 @@ let pipeline = PipelineBuilder::new()
 [pb]: ./src/pipeline/builder.rs
 [dp]: ./src/pipeline/core.rs
 
+## Architecture
+
+The derivation pipeline is composed of several stages that process data sequentially:
+
+- **L1 Retrieval**: Fetches L1 blocks and extracts relevant data
+- **Frame Queue**: Buffers and orders frames from L1 transactions
+- **Channel Bank**: Assembles frames into complete channels
+- **Channel Reader**: Decompresses and validates channel data
+- **Batch Queue**: Decodes batches from channel data
+- **Attributes Queue**: Builds execution attributes for the L2 engine
+
+Each stage implements the `OriginAdvancer` trait, allowing the pipeline to:
+- Progress through L1 blocks systematically
+- Handle reorgs and reset to valid states
+- Maintain consistency across all stages
+
 ## Features
 
 The most up-to-date feature list will be available on the [docs.rs `Feature Flags` tab][ff] of the `kona-derive` crate.
@@ -59,6 +92,7 @@ The most up-to-date feature list will be available on the [docs.rs `Feature Flag
 Some features include the following.
 - `serde`: Serialization and Deserialization support for `kona-derive` types.
 - `test-utils`: Test utilities for downstream libraries.
+- `metrics`: Enable metrics collection for monitoring derivation performance.
 
 By default, `kona-derive` enables the `serde` feature.
 
