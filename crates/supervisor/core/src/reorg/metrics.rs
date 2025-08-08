@@ -3,6 +3,13 @@ use alloy_primitives::ChainId;
 use std::time::Instant;
 
 #[derive(Debug, Clone)]
+pub(crate) struct ReorgDepth {
+    pub(crate) l1_depth: u64,
+    pub(crate) l2_depth: u64,
+}
+
+/// Metrics for reorg operations
+#[derive(Debug, Clone)]
 pub(crate) struct Metrics;
 
 impl Metrics {
@@ -72,10 +79,10 @@ impl Metrics {
     pub(crate) fn record_l1_reorg_processing(
         chain_id: ChainId,
         start_time: Instant,
-        result: &Result<(u64, u64), SupervisorError>,
+        result: &Result<ReorgDepth, SupervisorError>,
     ) {
         match result {
-            Ok((l2_depth, l1_depth)) => {
+            Ok(reorg_depth) => {
                 metrics::counter!(
                     Self::SUPERVISOR_REORG_SUCCESS,
                     "chain_id" => chain_id.to_string(),
@@ -86,13 +93,13 @@ impl Metrics {
                     Self::SUPERVISOR_REORG_L1_DEPTH,
                     "chain_id" => chain_id.to_string(),
                 )
-                .record(*l1_depth as f64);
+                .record(reorg_depth.l1_depth as f64);
 
                 metrics::histogram!(
                     Self::SUPERVISOR_REORG_L2_DEPTH,
                     "chain_id" => chain_id.to_string(),
                 )
-                .record(*l2_depth as f64);
+                .record(reorg_depth.l2_depth as f64);
 
                 // Calculate latency
                 let latency = start_time.elapsed().as_secs_f64();

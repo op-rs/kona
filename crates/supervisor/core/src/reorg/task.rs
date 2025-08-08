@@ -1,3 +1,4 @@
+use super::metrics::{Metrics, ReorgDepth};
 use crate::{SupervisorError, syncnode::ManagedNodeController};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
@@ -25,20 +26,20 @@ where
 {
     /// Sets up metrics for the reorg task
     pub(crate) fn with_metrics(self) -> Self {
-        super::Metrics::init(self.chain_id);
+        Metrics::init(self.chain_id);
         self
     }
 
     /// Processes reorg for a single chain
     /// Returns the L2 and L1 reorg depths
     /// If the reorg is not needed, returns (0, 0)
-    pub(crate) async fn process_chain_reorg(&self) -> Result<(u64, u64), SupervisorError> {
+    pub(crate) async fn process_chain_reorg(&self) -> Result<ReorgDepth, SupervisorError> {
         let latest_state = self.db.latest_derivation_state()?;
 
         // Find last valid source block for this chain
         let Some(rewind_target_source) = self.find_rewind_target(latest_state).await? else {
             // No need to re-org for this chain
-            return Ok((0, 0));
+            return Ok(ReorgDepth { l1_depth: 0, l2_depth: 0 });
         };
 
         // Get the derived block at the target source block
@@ -74,10 +75,10 @@ where
             SupervisorError::from(err)
         })?;
 
-        Ok((
-            latest_state.derived.number - rewind_target_derived.number, // L2 depth
-            latest_state.source.number - rewind_target_source.number,   // L1 depth
-        ))
+        Ok(ReorgDepth {
+            l1_depth: latest_state.source.number - rewind_target_source.number,
+            l2_depth: latest_state.derived.number - rewind_target_derived.number,
+        })
     }
 
     /// Finds the rewind target for a chain during a reorg
