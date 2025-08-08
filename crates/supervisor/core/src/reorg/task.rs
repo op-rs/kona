@@ -1,9 +1,11 @@
+use super::metrics::{Metrics, ReorgDepth};
 use crate::{SupervisorError, syncnode::ManagedNodeController};
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::Block;
 use derive_more::Constructor;
+use kona_interop::DerivedRefPair;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::sync::Arc;
 use tracing::{debug, info, trace, warn};
@@ -22,12 +24,22 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
+    /// Sets up metrics for the reorg task
+    pub(crate) fn with_metrics(self) -> Self {
+        Metrics::init(self.chain_id);
+        self
+    }
+
     /// Processes reorg for a single chain
-    pub(crate) async fn process_chain_reorg(&self) -> Result<(), SupervisorError> {
+    /// Returns the L2 and L1 reorg depths
+    /// If the reorg is not needed, returns (0, 0)
+    pub(crate) async fn process_chain_reorg(&self) -> Result<ReorgDepth, SupervisorError> {
+        let latest_state = self.db.latest_derivation_state()?;
+
         // Find last valid source block for this chain
-        let Some(rewind_target_source) = self.find_rewind_target().await? else {
+        let Some(rewind_target_source) = self.find_rewind_target(latest_state).await? else {
             // No need to re-org for this chain
-            return Ok(());
+            return Ok(ReorgDepth { l1_depth: 0, l2_depth: 0 });
         };
 
         // Get the derived block at the target source block
@@ -63,18 +75,22 @@ where
             SupervisorError::from(err)
         })?;
 
-        Ok(())
+        Ok(ReorgDepth {
+            l1_depth: latest_state.source.number - rewind_target_source.number,
+            l2_depth: latest_state.derived.number - rewind_target_derived.number,
+        })
     }
 
     /// Finds the rewind target for a chain during a reorg
-    async fn find_rewind_target(&self) -> Result<Option<BlockNumHash>, SupervisorError> {
+    async fn find_rewind_target(
+        &self,
+        latest_state: DerivedRefPair,
+    ) -> Result<Option<BlockNumHash>, SupervisorError> {
         trace!(
             target: "supervisor::reorg_handler",
             chain_id = %self.chain_id,
             "Finding rewind target..."
         );
-
-        let latest_state = self.db.latest_derivation_state()?;
 
         // Check if the latest source block is still canonical
         if self.is_block_canonical(latest_state.source.number, latest_state.source.hash).await? {
@@ -245,7 +261,7 @@ mod tests {
 
         let managed_node = Arc::new(MockManagedNode::new());
         let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
-        let rewind_target = reorg_task.find_rewind_target().await;
+        let rewind_target = reorg_task.process_chain_reorg().await;
 
         // Should succeed since the latest source block is still canonical
         assert!(rewind_target.is_ok());
@@ -346,7 +362,7 @@ mod tests {
             ..Default::default()
         };
 
-        mock_db.expect_latest_derivation_state().times(1).returning(move || Ok(latest_state));
+        mock_db.expect_latest_derivation_state().returning(move || Ok(latest_state));
         mock_db
             .expect_get_safety_head_ref()
             .times(1)
@@ -380,7 +396,7 @@ mod tests {
 
         let managed_node = Arc::new(MockManagedNode::new());
         let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
-        let rewind_target = reorg_task.find_rewind_target().await;
+        let rewind_target = reorg_task.find_rewind_target(latest_state).await;
 
         // Should succeed since the latest source block is still canonical
         assert!(rewind_target.is_ok());
