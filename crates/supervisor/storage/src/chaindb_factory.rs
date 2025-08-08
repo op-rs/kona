@@ -129,7 +129,7 @@ impl MetricsReporter for ChainDbFactory {
 impl FinalizedL1Storage for ChainDbFactory {
     fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError> {
         self.observe_call(
-            "get_finalized_l1",
+            Metrics::STORAGE_METHOD_GET_FINALIZED_L1,
             || {
                 let guard = self.finalized_l1.read().map_err(|err| {
                     error!(target: "supervisor::storage", %err, "Failed to acquire read lock on finalized_l1");
@@ -142,7 +142,7 @@ impl FinalizedL1Storage for ChainDbFactory {
 
     fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
         self.observe_call(
-            "update_finalized_l1",
+            Metrics::STORAGE_METHOD_UPDATE_FINALIZED_L1,
             || {
                 let mut guard = self
                     .finalized_l1

@@ -189,6 +189,7 @@ impl ManagedNodeClient for Client {
             *ws_client_guard = None;
         };
     }
+
     async fn chain_id(&self) -> Result<ChainId, ClientError> {
         if let Some(chain_id) = self.chain_id.get() {
             return Ok(*chain_id);
@@ -199,7 +200,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "chain_id",
+            Metrics::RPC_METHOD_CHAIN_ID,
             async {
               client.chain_id().await
             },
@@ -223,7 +224,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "subscribe_events",
+            Metrics::RPC_METHOD_SUBSCRIBE_EVENTS,
             async {
               ManagedModeApiClient::subscribe_events(client.as_ref(), SubscriptionTopic::Events).await
             },
@@ -239,7 +240,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "fetch_receipts",
+            Metrics::RPC_METHOD_FETCH_RECEIPTS,
             async {
               ManagedModeApiClient::fetch_receipts(client.as_ref(), block_hash).await
             },
@@ -255,7 +256,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "output_v0_at_timestamp",
+            Metrics::RPC_METHOD_OUTPUT_V0_AT_TIMESTAMP,
             async {
               ManagedModeApiClient::output_v0_at_timestamp(client.as_ref(), timestamp).await
             },
@@ -274,7 +275,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "pending_output_v0_at_timestamp",
+            Metrics::RPC_METHOD_PENDING_OUTPUT_V0_AT_TIMESTAMP,
             async {
               ManagedModeApiClient::pending_output_v0_at_timestamp(client.as_ref(), timestamp).await
             },
@@ -290,7 +291,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "l2_block_ref_by_timestamp",
+            Metrics::RPC_METHOD_L2_BLOCK_REF_BY_TIMESTAMP,
             async {
               ManagedModeApiClient::l2_block_ref_by_timestamp(client.as_ref(), timestamp).await
             },
@@ -306,7 +307,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "block_ref_by_number",
+            Metrics::RPC_METHOD_BLOCK_REF_BY_NUMBER,
             async {
               ManagedModeApiClient::l2_block_ref_by_number(client.as_ref(), block_number).await
             },
@@ -322,7 +323,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "reset_pre_interop",
+            Metrics::RPC_METHOD_RESET_PRE_INTEROP,
             async {
               ManagedModeApiClient::reset_pre_interop(client.as_ref()).await
             },
@@ -344,7 +345,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "reset",
+            Metrics::RPC_METHOD_RESET,
             async {
               ManagedModeApiClient::reset(client.as_ref(), unsafe_id, cross_unsafe_id, local_safe_id, cross_safe_id, finalised_id).await
             },
@@ -359,7 +360,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "invalidate_block",
+            Metrics::RPC_METHOD_INVALIDATE_BLOCK,
             async {
               ManagedModeApiClient::invalidate_block(client.as_ref(), seal).await
             },
@@ -374,7 +375,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "provide_l1",
+            Metrics::RPC_METHOD_PROVIDE_L1,
             async {
               ManagedModeApiClient::provide_l1(client.as_ref(), block_info).await
             },
@@ -389,7 +390,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "update_finalized",
+            Metrics::RPC_METHOD_UPDATE_FINALIZED,
             async {
               ManagedModeApiClient::update_finalized(client.as_ref(), finalized_block_id).await
             },
@@ -407,7 +408,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "update_cross_unsafe",
+            Metrics::RPC_METHOD_UPDATE_CROSS_UNSAFE,
             async {
               ManagedModeApiClient::update_cross_unsafe(client.as_ref(), cross_unsafe_block_id).await
             },
@@ -426,7 +427,7 @@ impl ManagedNodeClient for Client {
             Metrics::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
             Metrics::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-            "update_cross_safe",
+            Metrics::RPC_METHOD_UPDATE_CROSS_SAFE,
             async {
               ManagedModeApiClient::update_cross_safe(client.as_ref(), derived_block_id, source_block_id).await
             },

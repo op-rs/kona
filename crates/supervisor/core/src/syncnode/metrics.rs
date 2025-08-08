@@ -16,24 +16,22 @@ impl Metrics {
     pub(crate) const MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS: &'static str =
         "managed_node_rpc_request_duration_seconds";
 
-    // --- RPC Method Names (for zeroing) ---
-    /// Lists all managed mode RPC methods here to ensure they are pre-registered.
-    const RPC_METHODS: [&'static str; 14] = [
-        "chain_id",
-        "subscribe_events",
-        "fetch_receipts",
-        "output_v0_at_timestamp",
-        "pending_output_v0_at_timestamp",
-        "l2_block_ref_by_timestamp",
-        "block_ref_by_number",
-        "reset_pre_interop",
-        "reset",
-        "invalidate_block",
-        "provide_l1",
-        "update_finalized",
-        "update_cross_unsafe",
-        "update_cross_safe",
-    ];
+    pub(crate) const RPC_METHOD_CHAIN_ID: &'static str = "chain_id";
+    pub(crate) const RPC_METHOD_SUBSCRIBE_EVENTS: &'static str = "subscribe_events";
+    pub(crate) const RPC_METHOD_FETCH_RECEIPTS: &'static str = "fetch_receipts";
+    pub(crate) const RPC_METHOD_OUTPUT_V0_AT_TIMESTAMP: &'static str = "output_v0_at_timestamp";
+    pub(crate) const RPC_METHOD_PENDING_OUTPUT_V0_AT_TIMESTAMP: &'static str =
+        "pending_output_v0_at_timestamp";
+    pub(crate) const RPC_METHOD_L2_BLOCK_REF_BY_TIMESTAMP: &'static str =
+        "l2_block_ref_by_timestamp";
+    pub(crate) const RPC_METHOD_BLOCK_REF_BY_NUMBER: &'static str = "block_ref_by_number";
+    pub(crate) const RPC_METHOD_RESET_PRE_INTEROP: &'static str = "reset_pre_interop";
+    pub(crate) const RPC_METHOD_RESET: &'static str = "reset";
+    pub(crate) const RPC_METHOD_INVALIDATE_BLOCK: &'static str = "invalidate_block";
+    pub(crate) const RPC_METHOD_PROVIDE_L1: &'static str = "provide_l1";
+    pub(crate) const RPC_METHOD_UPDATE_FINALIZED: &'static str = "update_finalized";
+    pub(crate) const RPC_METHOD_UPDATE_CROSS_UNSAFE: &'static str = "update_cross_unsafe";
+    pub(crate) const RPC_METHOD_UPDATE_CROSS_SAFE: &'static str = "update_cross_safe";
 
     /// Initializes metrics for the Supervisor RPC service.
     ///
@@ -64,27 +62,42 @@ impl Metrics {
         );
     }
 
+    fn zero_rpc_method(method: &str, node: &str) {
+        metrics::counter!(
+            Self::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
+            "method" => method.to_string(),
+            "node" => node.to_string()
+        )
+        .increment(0);
+        metrics::counter!(
+            Self::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
+            "method" => method.to_string(),
+            "node" => node.to_string()
+        )
+        .increment(0);
+        metrics::histogram!(
+            Self::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
+            "method" => method.to_string(),
+            "node" => node.to_string()
+        )
+        .record(0.0);
+    }
+
     /// Initializes metrics with their labels to `0` so they appear in Prometheus from the start.
     fn zero(node: &str) {
-        for method_name in Self::RPC_METHODS.iter() {
-            metrics::counter!(
-                Self::MANAGED_NODE_RPC_REQUESTS_SUCCESS_TOTAL,
-                "method" => *method_name,
-                "node" => node.to_string()
-            )
-            .increment(0);
-            metrics::counter!(
-                Self::MANAGED_NODE_RPC_REQUESTS_ERROR_TOTAL,
-                "method" => *method_name,
-                "node" => node.to_string()
-            )
-            .increment(0);
-            metrics::histogram!(
-                Self::MANAGED_NODE_RPC_REQUEST_DURATION_SECONDS,
-                "method" => *method_name,
-                "node" => node.to_string()
-            )
-            .record(0.0); // Record a zero value to ensure the label combination is present
-        }
+        Self::zero_rpc_method(Self::RPC_METHOD_CHAIN_ID, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_SUBSCRIBE_EVENTS, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_FETCH_RECEIPTS, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_OUTPUT_V0_AT_TIMESTAMP, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_PENDING_OUTPUT_V0_AT_TIMESTAMP, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_L2_BLOCK_REF_BY_TIMESTAMP, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_BLOCK_REF_BY_NUMBER, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_RESET_PRE_INTEROP, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_RESET, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_INVALIDATE_BLOCK, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_PROVIDE_L1, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_UPDATE_FINALIZED, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_UPDATE_CROSS_UNSAFE, node);
+        Self::zero_rpc_method(Self::RPC_METHOD_UPDATE_CROSS_SAFE, node);
     }
 }
