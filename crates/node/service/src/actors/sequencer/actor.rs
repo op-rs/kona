@@ -119,20 +119,28 @@ pub struct SequencerBuilder {
     pub rollup_cfg: Arc<RollupConfig>,
     /// The L1 provider.
     pub l1_provider: RootProvider,
+    /// Whether to trust the L1 RPC.
+    pub l1_trust_rpc: bool,
     /// The L2 provider.
     pub l2_provider: RootProvider<Optimism>,
+    /// Whether to trust the L2 RPC.
+    pub l2_trust_rpc: bool,
 }
 
 impl AttributesBuilderConfig for SequencerBuilder {
     type AB = StatefulAttributesBuilder<AlloyChainProvider, AlloyL2ChainProvider>;
 
     fn build(self) -> Self::AB {
-        let l1_derivation_provider =
-            AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
-        let l2_derivation_provider = AlloyL2ChainProvider::new(
+        let l1_derivation_provider = AlloyChainProvider::new_with_trust(
+            self.l1_provider.clone(),
+            DERIVATION_PROVIDER_CACHE_SIZE,
+            self.l1_trust_rpc,
+        );
+        let l2_derivation_provider = AlloyL2ChainProvider::new_with_trust(
             self.l2_provider.clone(),
             self.rollup_cfg.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
+            self.l2_trust_rpc,
         );
         StatefulAttributesBuilder::new(
             self.rollup_cfg,

@@ -26,10 +26,14 @@ pub struct RollupNodeBuilder {
     config: RollupConfig,
     /// The L1 EL provider RPC URL.
     l1_provider_rpc_url: Option<Url>,
+    /// Whether to trust the L1 RPC.
+    l1_trust_rpc: bool,
     /// The L1 beacon API URL.
     l1_beacon_api_url: Option<Url>,
     /// The L2 engine RPC URL.
     l2_engine_rpc_url: Option<Url>,
+    /// Whether to trust the L2 RPC.
+    l2_trust_rpc: bool,
     /// The JWT secret.
     jwt_secret: Option<JwtSecret>,
     /// The [`NetworkConfig`].
@@ -60,6 +64,11 @@ impl RollupNodeBuilder {
         Self { l1_provider_rpc_url: Some(l1_provider_rpc_url), ..self }
     }
 
+    /// Sets whether to trust the L1 RPC.
+    pub fn with_l1_trust_rpc(self, l1_trust_rpc: bool) -> Self {
+        Self { l1_trust_rpc, ..self }
+    }
+
     /// Appends an L1 beacon API URL to the builder.
     pub fn with_l1_beacon_api_url(self, l1_beacon_api_url: Url) -> Self {
         Self { l1_beacon_api_url: Some(l1_beacon_api_url), ..self }
@@ -68,6 +77,11 @@ impl RollupNodeBuilder {
     /// Appends an L2 engine RPC URL to the builder.
     pub fn with_l2_engine_rpc_url(self, l2_engine_rpc_url: Url) -> Self {
         Self { l2_engine_rpc_url: Some(l2_engine_rpc_url), ..self }
+    }
+
+    /// Sets whether to trust the L2 RPC.
+    pub fn with_l2_trust_rpc(self, l2_trust_rpc: bool) -> Self {
+        Self { l2_trust_rpc, ..self }
     }
 
     /// Appends a JWT secret to the builder.
@@ -136,8 +150,10 @@ impl RollupNodeBuilder {
             config: rollup_config,
             interop_mode: self.interop_mode,
             l1_provider,
+            l1_trust_rpc: self.l1_trust_rpc,
             l1_beacon,
             l2_provider,
+            l2_trust_rpc: self.l2_trust_rpc,
             engine_builder,
             rpc_builder: self.rpc_config,
             p2p_config,

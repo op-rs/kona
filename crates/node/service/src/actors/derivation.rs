@@ -98,10 +98,14 @@ pub trait PipelineBuilder: Send + Sync + 'static {
 pub struct DerivationBuilder {
     /// The L1 provider.
     pub l1_provider: RootProvider,
+    /// Whether to trust the L1 RPC.
+    pub l1_trust_rpc: bool,
     /// The L1 beacon client.
     pub l1_beacon: OnlineBeaconClient,
     /// The L2 provider.
     pub l2_provider: RootProvider<Optimism>,
+    /// Whether to trust the L2 RPC.
+    pub l2_trust_rpc: bool,
     /// The rollup config.
     pub rollup_config: Arc<RollupConfig>,
     /// The interop mode.
@@ -114,12 +118,16 @@ impl PipelineBuilder for DerivationBuilder {
 
     async fn build(self) -> DerivationState<OnlinePipeline> {
         // Create the caching L1/L2 EL providers for derivation.
-        let l1_derivation_provider =
-            AlloyChainProvider::new(self.l1_provider.clone(), DERIVATION_PROVIDER_CACHE_SIZE);
-        let l2_derivation_provider = AlloyL2ChainProvider::new(
+        let l1_derivation_provider = AlloyChainProvider::new_with_trust(
+            self.l1_provider.clone(),
+            DERIVATION_PROVIDER_CACHE_SIZE,
+            self.l1_trust_rpc,
+        );
+        let l2_derivation_provider = AlloyL2ChainProvider::new_with_trust(
             self.l2_provider.clone(),
             self.rollup_config.clone(),
             DERIVATION_PROVIDER_CACHE_SIZE,
+            self.l2_trust_rpc,
         );
 
         let pipeline = match self.interop_mode {
