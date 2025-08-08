@@ -16,19 +16,19 @@ impl Metrics {
     pub(crate) const SUPERVISOR_RPC_REQUEST_DURATION_SECONDS: &'static str =
         "supervisor_rpc_request_duration_seconds";
 
-    // --- RPC Method Names (for zeroing) ---
-    // List all your supervisor RPC methods here to ensure they are pre-registered.
-    const RPC_METHODS: [&'static str; 9] = [
-        "cross_derived_to_source",
-        "local_unsafe",
-        "cross_safe",
-        "finalized",
-        "finalized_l1",
-        "super_root_at_timestamp",
-        "sync_status",
-        "all_safe_derived_at",
-        "check_access_list",
-    ];
+    pub(crate) const SUPERVISOR_RPC_METHOD_CROSS_DERIVED_TO_SOURCE: &'static str =
+        "cross_derived_to_source";
+    pub(crate) const SUPERVISOR_RPC_METHOD_DEPENDENCY_SET: &'static str = "dependency_set";
+    pub(crate) const SUPERVISOR_RPC_METHOD_LOCAL_UNSAFE: &'static str = "local_unsafe";
+    pub(crate) const SUPERVISOR_RPC_METHOD_CROSS_SAFE: &'static str = "cross_safe";
+    pub(crate) const SUPERVISOR_RPC_METHOD_FINALIZED: &'static str = "finalized";
+    pub(crate) const SUPERVISOR_RPC_METHOD_FINALIZED_L1: &'static str = "finalized_l1";
+    pub(crate) const SUPERVISOR_RPC_METHOD_SUPER_ROOT_AT_TIMESTAMP: &'static str =
+        "super_root_at_timestamp";
+    pub(crate) const SUPERVISOR_RPC_METHOD_SYNC_STATUS: &'static str = "sync_status";
+    pub(crate) const SUPERVISOR_RPC_METHOD_ALL_SAFE_DERIVED_AT: &'static str =
+        "all_safe_derived_at";
+    pub(crate) const SUPERVISOR_RPC_METHOD_CHECK_ACCESS_LIST: &'static str = "check_access_list";
 
     /// Initializes metrics for the Supervisor RPC service.
     ///
@@ -59,25 +59,37 @@ impl Metrics {
         );
     }
 
+    fn zero_rpc_method(method: &str) {
+        metrics::counter!(
+            Self::SUPERVISOR_RPC_REQUESTS_SUCCESS_TOTAL,
+            "method" => method.to_string()
+        )
+        .increment(0);
+
+        metrics::counter!(
+            Self::SUPERVISOR_RPC_REQUESTS_ERROR_TOTAL,
+            "method" => method.to_string()
+        )
+        .increment(0);
+
+        metrics::histogram!(
+            Self::SUPERVISOR_RPC_REQUEST_DURATION_SECONDS,
+            "method" => method.to_string()
+        )
+        .record(0.0); // Record a zero value to ensure the label combination is present
+    }
+
     /// Initializes metrics with their labels to `0` so they appear in Prometheus from the start.
     fn zero() {
-        for method_name in Self::RPC_METHODS.iter() {
-            metrics::counter!(
-                Self::SUPERVISOR_RPC_REQUESTS_SUCCESS_TOTAL,
-                "method" => *method_name
-            )
-            .increment(0);
-            metrics::counter!(
-                Self::SUPERVISOR_RPC_REQUESTS_ERROR_TOTAL,
-                "method" => *method_name
-            )
-            .increment(0);
-            metrics::histogram!(
-                Self::SUPERVISOR_RPC_REQUEST_DURATION_SECONDS,
-                "method" => *method_name
-            )
-            .record(0.0); // Record a zero value to ensure the label combination is present
-        }
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_CROSS_DERIVED_TO_SOURCE);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_LOCAL_UNSAFE);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_CROSS_SAFE);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_FINALIZED);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_FINALIZED_L1);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_SUPER_ROOT_AT_TIMESTAMP);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_SYNC_STATUS);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_ALL_SAFE_DERIVED_AT);
+        Self::zero_rpc_method(Self::SUPERVISOR_RPC_METHOD_CHECK_ACCESS_LIST);
     }
 }
 
