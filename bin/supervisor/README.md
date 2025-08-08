@@ -1,6 +1,6 @@
 # `kona-supervisor`
 
-A binary that runs OP Stack supervisor.
+A supervisor implementation for the OP stack built in rust.
 
 ## Installation
 
@@ -12,7 +12,7 @@ cargo build --profile release-perf --bin kona-supervisor
 
 ### Usage
 
-Run the supervisor using the following command
+Run the `kona-supervisor` using the following command
 
 ```bash
 kona-supervisor \
