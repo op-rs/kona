@@ -270,26 +270,6 @@ impl P2PArgs {
         Ok(())
     }
 
-    /// Returns the [`discv5::Config`] from the CLI arguments.
-    pub fn discv5_config(
-        &self,
-        listen_config: discv5::ListenConfig,
-        static_ip: bool,
-    ) -> discv5::Config {
-        // We can use a default listen config here since it
-        // will be overridden by the discovery service builder.
-        let mut builder = discv5::ConfigBuilder::new(listen_config);
-
-        if static_ip {
-            builder.disable_enr_update();
-
-            // If we have a static IP, we don't want to use any kind of NAT discovery mechanism.
-            builder.auto_nat_listen_duration(None);
-        }
-
-        builder.build()
-    }
-
     /// Returns the private key as specified in the raw cli flag or via file path.
     pub fn private_key(&self) -> Option<PrivateKeySigner> {
         if let Some(key) = self.private_key {
@@ -399,7 +379,8 @@ impl P2PArgs {
         });
 
         let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
-        let discovery_config = self.discv5_config(discovery_listening_address.into(), static_ip);
+        let discovery_config =
+            NetworkConfig::discv5_config(discovery_listening_address.into(), static_ip);
 
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));

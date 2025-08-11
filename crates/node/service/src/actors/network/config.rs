@@ -52,6 +52,22 @@ impl NetworkConfig {
     const DEFAULT_DISCOVERY_INTERVAL: Duration = Duration::from_secs(5);
     const DEFAULT_DISCOVERY_RANDOMIZE: Option<Duration> = None;
 
+    /// Returns the [`discv5::Config`] from the CLI arguments.
+    pub fn discv5_config(listen_config: discv5::ListenConfig, static_ip: bool) -> discv5::Config {
+        // We can use a default listen config here since it
+        // will be overridden by the discovery service builder.
+        let mut builder = discv5::ConfigBuilder::new(listen_config);
+
+        if static_ip {
+            builder.disable_enr_update();
+
+            // If we have a static IP, we don't want to use any kind of NAT discovery mechanism.
+            builder.auto_nat_listen_duration(None);
+        }
+
+        builder.build()
+    }
+
     /// Creates a new [`NetworkConfig`] with the given [`RollupConfig`] with the minimum required
     /// fields. Generates a random keypair for the node.
     pub fn new(
