@@ -118,7 +118,7 @@ where
         let candidate = self.find_next_promotable_block()?;
 
         match checker.validate_block(candidate) {
-            Ok(_) => {
+            Ok(()) => {
                 // Success: promote + emit
                 let ev = self.promoter.update_and_emit_event(
                     &*self.provider,
@@ -200,7 +200,7 @@ mod tests {
     use alloy_primitives::{B256, ChainId};
     use kona_interop::{DerivedRefPair, InteropValidationError};
     use kona_supervisor_storage::{CrossChainSafetyProvider, StorageError};
-    use kona_supervisor_types::Log;
+    use kona_supervisor_types::{ExecutingMessage, Log};
     use mockall::mock;
     use op_alloy_consensus::interop::SafetyLevel;
 
@@ -358,6 +358,77 @@ mod tests {
                 derived_ref_pair: DerivedRefPair { derived: block(100), source: block(1) }
             }
         );
+    }
+
+    #[tokio::test]
+    async fn promotes_next_cross_safe_triggers_block_invalidation() {
+        let chain_id = 1;
+        let mut mock = MockProvider::default();
+        let mut mock_validator = MockValidator::default();
+        let (event_tx, mut event_rx) = mpsc::channel::<ChainEvent>(10);
+
+        let exec_msg = ExecutingMessage {
+            chain_id: 2,
+            block_number: 99,
+            log_index: 0,
+            timestamp: 195,
+            hash: b256(99),
+        };
+
+        let exec_log = Log { index: 0, hash: b256(100), executing_message: Some(exec_msg) };
+
+        mock.expect_get_safety_head_ref()
+            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::CrossSafe)
+            .returning(|_, _| Ok(block(99)));
+
+        mock.expect_get_safety_head_ref()
+            .withf(move |cid, lvl| *cid == chain_id && *lvl == SafetyLevel::LocalSafe)
+            .returning(|_, _| Ok(block(100)));
+
+        mock.expect_get_block()
+            .withf(move |cid, num| *cid == 2 && *num == 99)
+            .returning(|_, _| Ok(block(99)));
+
+        mock.expect_get_block()
+            .withf(move |cid, num| *cid == chain_id && *num == 100)
+            .returning(|_, _| Ok(block(100)));
+
+        mock.expect_get_block_logs()
+            .withf(move |cid, num| *cid == chain_id && *num == 100)
+            .returning(move |_, _| Ok(vec![exec_log.clone()]));
+
+        mock_validator.expect_validate_interop_timestamps().returning(move |_, _, _, _, _| {
+            Err(InteropValidationError::InvalidTimestampInvariant { executing: 0, initiating: 0 })
+        });
+
+        let job = CrossSafetyCheckerJob::new(
+            chain_id,
+            Arc::new(mock),
+            CancellationToken::new(),
+            Duration::from_secs(1),
+            CrossSafePromoter,
+            event_tx,
+            Arc::new(mock_validator),
+        );
+
+        let checker = CrossSafetyChecker::new(
+            job.chain_id,
+            &*job.validator,
+            &*job.provider,
+            CrossSafePromoter.target_level(),
+        );
+        let result = job.promote_next_block(&checker);
+
+        assert!(result.is_err());
+        assert!(
+            matches!(result, Err(CrossSafetyError::ValidationError(_))),
+            "Expected validation error"
+        );
+
+        // Receive and assert the correct event
+        let received_event = event_rx.recv().await.expect("expected event not received");
+
+        assert_eq!(received_event, ChainEvent::InvalidateBlock { block: block(100) });
     }
 
     #[test]
