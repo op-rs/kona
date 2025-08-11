@@ -18,8 +18,12 @@ pub enum ReorgHandlerError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    /// Indicates and error which find rewind target for reorg.
-    /// This can happen if the rewind target block is in the pre-interop.
+    /// Indicates an error occurred while interacting with the l1 RPC client.
+    #[error("failed to interact with l1 RPC client: {0}")]
+    RPCError(String),
+
+    /// Indicates an error occured while finding rewind target for reorg.
+    /// This can happen if the rewind target block is pre-interop.
     #[error("rewind target is pre-interop")]
     RewindTargetPreInterop,
 }

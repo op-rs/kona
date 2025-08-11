@@ -236,22 +236,20 @@ where
         block_number: u64,
         expected_hash: B256,
     ) -> Result<bool, ReorgHandlerError> {
-        match self
+        let canonical_l1 = self
             .rpc_client
             .request::<_, Block>("eth_getBlockByNumber", (block_number, false))
             .await
-        {
-            Ok(canonical_l1) => Ok(canonical_l1.hash() == expected_hash),
-            Err(err) => {
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::reorg_handler",
                     block_number,
                     %err,
-                    "Failed to fetch canonical L1 block"
+                    "Failed to fetch L1 block from RPC"
                 );
-                Ok(false)
-            }
-        }
+                ReorgHandlerError::RPCError(err.to_string())
+            })?;
+        Ok(canonical_l1.hash() == expected_hash)
     }
 }
 
@@ -269,7 +267,7 @@ mod tests {
         DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageError,
     };
     use kona_supervisor_types::{BlockSeal, Log, SuperHead};
-    use mockall::mock;
+    use mockall::{mock, predicate};
 
     mock!(
         #[derive(Debug)]
@@ -798,5 +796,321 @@ mod tests {
         let result = reorg_task.is_block_canonical(100, canonical_hash).await;
         assert!(result.is_ok());
         assert!(!result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_activation_block_success() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let activation_block =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let activation_source =
+            BlockInfo::new(B256::from([3u8; 32]), 200, B256::from([4u8; 32]), 12346);
+
+        // Expect get_activation_block to be called
+        mock_db.expect_get_activation_block().times(1).returning(move || Ok(activation_block));
+
+        // Expect derived_to_source to be called
+        mock_db
+            .expect_derived_to_source()
+            .times(1)
+            .with(mockall::predicate::eq(activation_block.id()))
+            .returning(move |_| Ok(activation_source));
+
+        // Expect rewind to be called
+        mock_db
+            .expect_rewind()
+            .times(1)
+            .with(mockall::predicate::eq(activation_block.id()))
+            .returning(|_| Ok(()));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_activation_block().await;
+
+        assert!(result.is_ok());
+        let pair = result.unwrap().unwrap();
+        assert_eq!(pair.source, activation_source);
+        assert_eq!(pair.derived, activation_block);
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_activation_block_database_not_initialized() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        // Expect get_activation_block to return DatabaseNotInitialised
+        mock_db
+            .expect_get_activation_block()
+            .times(1)
+            .returning(|| Err(StorageError::DatabaseNotInitialised));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_activation_block().await;
+
+        // Should succeed with None (no-op case)
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_activation_block_storage_error() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        // Expect get_activation_block to return a different storage error
+        mock_db
+            .expect_get_activation_block()
+            .times(1)
+            .returning(|| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_activation_block().await;
+
+        // Should return storage error
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_activation_block_derived_to_source_fails() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let activation_block =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        // Expect get_activation_block to succeed
+        mock_db.expect_get_activation_block().times(1).returning(move || Ok(activation_block));
+
+        // Expect derived_to_source to fail
+        mock_db.expect_derived_to_source().times(1).returning(|_| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_activation_block().await;
+
+        // Should return storage error
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_activation_block_rewind_fails() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let activation_block =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let activation_source =
+            BlockInfo::new(B256::from([3u8; 32]), 200, B256::from([4u8; 32]), 12346);
+
+        // Expect get_activation_block to succeed
+        mock_db.expect_get_activation_block().times(1).returning(move || Ok(activation_block));
+
+        // Expect derived_to_source to succeed
+        mock_db.expect_derived_to_source().times(1).returning(move |_| Ok(activation_source));
+
+        // Expect rewind to fail
+        mock_db.expect_rewind().times(1).returning(|_| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_activation_block().await;
+
+        // Should return storage error
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_target_source_success() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let rewind_target_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let rewind_target_derived =
+            BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346);
+
+        let next_block = BlockInfo::new(B256::from([5u8; 32]), 51, B256::from([3u8; 32]), 12347);
+
+        // Expect latest_derived_block_at_source to be called
+        mock_db
+            .expect_latest_derived_block_at_source()
+            .times(1)
+            .with(predicate::eq(rewind_target_source.id()))
+            .returning(move |_| Ok(rewind_target_derived));
+
+        // Expect get_block to be called for the next block
+        mock_db
+            .expect_get_block()
+            .times(1)
+            .with(predicate::eq(51))
+            .returning(move |_| Ok(next_block));
+
+        // Expect rewind to be called
+        mock_db.expect_rewind().times(1).with(predicate::eq(next_block.id())).returning(|_| Ok(()));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
+
+        assert!(result.is_ok());
+        let pair = result.unwrap();
+        assert_eq!(pair.source, rewind_target_source);
+        assert_eq!(pair.derived, rewind_target_derived);
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_target_source_latest_derived_block_fails() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let rewind_target_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        // Expect latest_derived_block_at_source to fail
+        mock_db
+            .expect_latest_derived_block_at_source()
+            .times(1)
+            .returning(|_| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_target_source_get_block_fails() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let rewind_target_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let rewind_target_derived =
+            BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346);
+
+        // Expect latest_derived_block_at_source to succeed
+        mock_db
+            .expect_latest_derived_block_at_source()
+            .times(1)
+            .returning(move |_| Ok(rewind_target_derived));
+
+        // Expect get_block to fail
+        mock_db.expect_get_block().times(1).returning(|_| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_rewind_to_target_source_rewind_fails() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        let rewind_target_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let rewind_target_derived =
+            BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346);
+
+        let next_block = BlockInfo::new(B256::from([5u8; 32]), 51, B256::from([3u8; 32]), 12347);
+
+        // Expect latest_derived_block_at_source to succeed
+        mock_db
+            .expect_latest_derived_block_at_source()
+            .times(1)
+            .returning(move |_| Ok(rewind_target_derived));
+
+        // Expect get_block to succeed
+        mock_db.expect_get_block().times(1).returning(move |_| Ok(next_block));
+
+        // Expect rewind to fail
+        mock_db.expect_rewind().times(1).returning(|_| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
     }
 }
