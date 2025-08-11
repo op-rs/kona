@@ -1,3 +1,4 @@
+use super::metrics::Metrics;
 use crate::{reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
@@ -5,7 +6,7 @@ use derive_more::Constructor;
 use futures::future;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Instant};
 use thiserror::Error;
 use tracing::{info, warn};
 
@@ -56,19 +57,23 @@ where
                 managed_node.clone(),
             );
 
-            let handle = tokio::spawn(async move { reorg_task.process_chain_reorg().await });
+            let chain_id = *chain_id;
+
+            let handle = tokio::spawn(async move {
+                let reorg_task = reorg_task.with_metrics();
+                let start_time = Instant::now();
+                let result = reorg_task.process_chain_reorg().await;
+                Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
+                result
+            });
             handles.push(handle);
         }
 
         let results = future::join_all(handles).await;
-        let failed_chains = results.into_iter().filter(|result| result.is_err()).count();
-
-        if failed_chains > 0 {
-            warn!(
-                target: "supervisor::reorg_handler",
-                no_of_failed_chains = %failed_chains,
-                "Reorg processing completed with failed chains"
-            );
+        for result in results {
+            if let Err(err) = result {
+                warn!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
+            }
         }
 
         Ok(())

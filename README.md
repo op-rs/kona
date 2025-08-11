@@ -158,7 +158,7 @@ Licensed under the [MIT license.](https://github.com/op-rs/kona/blob/main/LICENS
 [rollup-node-spec]: https://specs.optimism.io/protocol/rollup-node.html
 [supervisor-spec]: https://specs.optimism.io/interop/supervisor.html
 [badboi-cannon-rs]: https://github.com/BadBoiLabs/cannon-rs
-[asterisc]: https://github.com/etheruem-optimism/asterisc
+[asterisc]: https://github.com/ethereum-optimism/asterisc
 [fpp-specs]: https://specs.optimism.io/fault-proof/index.html
 [site]: https://rollup.yoga
 [op-succinct]: https://github.com/succinctlabs/op-succinct
