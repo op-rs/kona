@@ -344,7 +344,7 @@ mod tests {
                 inner: alloy_consensus::Header {
                     number: latest_source.number,
                     parent_hash: latest_source.parent_hash,
-                    timestamp: latest_source.timestamp as u64,
+                    timestamp: latest_source.timestamp,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -418,7 +418,7 @@ mod tests {
                 inner: alloy_consensus::Header {
                     number: latest_source.number,
                     parent_hash: latest_source.parent_hash,
-                    timestamp: latest_source.timestamp as u64,
+                    timestamp: latest_source.timestamp,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -438,7 +438,7 @@ mod tests {
                 inner: alloy_consensus::Header {
                     number: rewind_target_source.number,
                     parent_hash: rewind_target_source.parent_hash,
-                    timestamp: rewind_target_source.timestamp as u64,
+                    timestamp: rewind_target_source.timestamp,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -514,7 +514,7 @@ mod tests {
                 inner: alloy_consensus::Header {
                     number: latest_source.number,
                     parent_hash: latest_source.parent_hash,
-                    timestamp: latest_source.timestamp as u64,
+                    timestamp: latest_source.timestamp,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -530,7 +530,7 @@ mod tests {
                 inner: alloy_consensus::Header {
                     number: activation_source.number,
                     parent_hash: activation_source.parent_hash,
-                    timestamp: activation_source.timestamp as u64,
+                    timestamp: activation_source.timestamp,
                     ..Default::default()
                 },
                 ..Default::default()
