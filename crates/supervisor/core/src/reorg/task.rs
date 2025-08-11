@@ -1,10 +1,10 @@
-use crate::{SupervisorError, syncnode::ManagedNodeController};
-use alloy_eips::BlockNumHash;
+use crate::{ReorgHandlerError, syncnode::ManagedNodeController};
+use alloy_eips::{BlockNumHash, NumHash};
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::Block;
 use derive_more::Constructor;
-use kona_supervisor_storage::{DbReader, StorageRewinder};
+use kona_supervisor_storage::{DbReader, StorageError, StorageRewinder};
 use std::sync::Arc;
 use tracing::{debug, info, trace, warn};
 
@@ -22,58 +22,111 @@ where
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
     /// Processes reorg for a single chain
-    pub(crate) async fn process_chain_reorg(&self) -> Result<(), SupervisorError> {
+    pub(crate) async fn process_chain_reorg(&self) -> Result<(), ReorgHandlerError> {
         // Find last valid source block for this chain
-        let Some(rewind_target_source) = self.find_rewind_target().await? else {
-            // No need to re-org for this chain
-            return Ok(());
+        match self.find_rewind_target().await {
+            Ok(Some(rewind_target_source)) => {
+                self.rewind_to_target_source(rewind_target_source).await?;
+            }
+            Ok(None) => {
+                // No reorg needed, latest source block is still canonical
+                return Ok(());
+            }
+            Err(ReorgHandlerError::RewindTargetPreInterop) => {
+                self.rewind_to_activation_block().await?;
+            }
+            Err(err) => {
+                return Err(err);
+            }
         };
 
+        // Reset the node after rewinding the DB.
+        self.managed_node.reset().await.inspect_err(|err| {
+            warn!(
+                target: "supervisor::reorg_handler::managed_node",
+                chain_id = %self.chain_id,
+                %err,
+                "Failed to reset node after reorg"
+            );
+        })?;
+        Ok(())
+    }
+
+    async fn rewind_to_target_source(
+        &self,
+        rewind_target_source: BlockNumHash,
+    ) -> Result<(), ReorgHandlerError> {
         // Get the derived block at the target source block
         let rewind_target_derived = self.db.latest_derived_block_at_source(rewind_target_source)?;
 
         // rewind_to() method is inclusive, so we need to get the next block.
         let rewind_to = self.db.get_block(rewind_target_derived.number + 1)?;
-
         // Call the rewinder to handle the DB rewinding
         self.db.rewind(&rewind_to.id()).inspect_err(|err| {
             warn!(
-                target: "supervisor::reorg_handler",
+                target: "supervisor::reorg_handler::db",
                 chain_id = %self.chain_id,
                 %err,
                 "Failed to rewind DB to derived block"
             );
         })?;
+        Ok(())
+    }
 
-        trace!(
-            target: "supervisor::reorg_handler",
-            chain_id = %self.chain_id,
-            "Calling resetter to reset the node after reorg"
-        );
-
-        // Reset the node after rewinding the DB.
-        self.managed_node.reset().await.map_err(|err| {
-            warn!(
-                target: "supervisor::reorg_handler",
-                chain_id = %self.chain_id,
-                %err,
-                "Failed to reset node after reorg"
-            );
-            SupervisorError::from(err)
-        })?;
+    async fn rewind_to_activation_block(&self) -> Result<(), ReorgHandlerError> {
+        // If the rewind target is pre-interop, we need to rewind to the activation block
+        match self.db.get_activation_block() {
+            Ok(activation_block) => {
+                self.db.rewind(&activation_block.id()).inspect_err(|err| {
+                    warn!(
+                        target: "supervisor::reorg_handler::db",
+                        chain_id = %self.chain_id,
+                        %err,
+                        "Failed to rewind DB to activation block"
+                    );
+                })?;
+            }
+            Err(StorageError::DatabaseNotInitialised) => {
+                debug!(
+                    target: "supervisor::reorg_handler",
+                    chain_id = %self.chain_id,
+                    "No activation block found, no rewind required"
+                );
+            }
+            Err(err) => {
+                return Err(ReorgHandlerError::StorageError(err));
+            }
+        }
 
         Ok(())
     }
 
     /// Finds the rewind target for a chain during a reorg
-    async fn find_rewind_target(&self) -> Result<Option<BlockNumHash>, SupervisorError> {
+    ///
+    /// Returns `None` if no rewind is needed, or the target block to rewind to.
+    /// Returns ReorgHandlerError::RewindTargetPreInterop if the rewind target is before the interop
+    /// activation block.
+    async fn find_rewind_target(&self) -> Result<Option<BlockNumHash>, ReorgHandlerError> {
         trace!(
             target: "supervisor::reorg_handler",
             chain_id = %self.chain_id,
             "Finding rewind target..."
         );
 
-        let latest_state = self.db.latest_derivation_state()?;
+        let latest_state = match self.db.latest_derivation_state() {
+            Ok(state) => state,
+            Err(StorageError::DatabaseNotInitialised) => {
+                debug!(
+                    target: "supervisor::reorg_handler",
+                    chain_id = %self.chain_id,
+                    "No derivation state found, rewind target is pre-interop"
+                );
+                return Err(ReorgHandlerError::RewindTargetPreInterop);
+            }
+            Err(err) => {
+                return Err(ReorgHandlerError::StorageError(err));
+            }
+        };
 
         // Check if the latest source block is still canonical
         if self.is_block_canonical(latest_state.source.number, latest_state.source.hash).await? {
@@ -86,9 +139,7 @@ where
             return Ok(None);
         }
 
-        // Get finalized block and derive common ancestor
-        let finalized_block = self.db.get_safety_head_ref(kona_interop::SafetyLevel::Finalized)?;
-        let mut common_ancestor = self.db.derived_to_source(finalized_block.id())?.id();
+        let mut common_ancestor = self.find_common_ancestor().await?;
         let mut current_source = latest_state.source.id();
 
         while current_source.number > common_ancestor.number {
@@ -100,6 +151,7 @@ where
                     "Finding rewind target..."
                 )
             }
+
             // If the current source block is canonical, we found the rewind target
             if self.is_block_canonical(current_source.number, current_source.hash).await? {
                 info!(
@@ -119,12 +171,63 @@ where
         Ok(Some(common_ancestor))
     }
 
+    async fn find_common_ancestor(&self) -> Result<NumHash, ReorgHandlerError> {
+        trace!(
+            target: "supervisor::reorg_handler",
+            chain_id = %self.chain_id,
+            "Finding common ancestor."
+        );
+
+        match self.db.get_safety_head_ref(kona_interop::SafetyLevel::Finalized) {
+            Ok(finalized_block) => {
+                let common_ancestor = self.db.derived_to_source(finalized_block.id())?;
+                return Ok(common_ancestor.id())
+            }
+            Err(StorageError::FutureData) => { /* fall through to activation block */ }
+            Err(err) => {
+                return Err(ReorgHandlerError::StorageError(err));
+            }
+        }
+
+        debug!(
+            target: "supervisor::reorg_handler",
+            chain_id = %self.chain_id,
+            "No finalized block found, checking activation block."
+        );
+
+        match self.db.get_activation_block() {
+            Ok(activation_block) => {
+                let activation_source_block = self.db.derived_to_source(activation_block.id())?;
+                if self
+                    .is_block_canonical(
+                        activation_source_block.number,
+                        activation_source_block.hash,
+                    )
+                    .await?
+                {
+                    Ok(activation_source_block.id())
+                } else {
+                    debug!(
+                        target: "supervisor::reorg_handler",
+                        chain_id = %self.chain_id,
+                        "Activation block is not canonical, no common ancestor found"
+                    );
+                    Err(ReorgHandlerError::RewindTargetPreInterop)
+                }
+            }
+            Err(StorageError::DatabaseNotInitialised) => {
+                Err(ReorgHandlerError::RewindTargetPreInterop)
+            }
+            Err(err) => Err(ReorgHandlerError::StorageError(err)),
+        }
+    }
+
     /// Checks if a block is canonical on L1
     async fn is_block_canonical(
         &self,
         block_number: u64,
         expected_hash: B256,
-    ) -> Result<bool, SupervisorError> {
+    ) -> Result<bool, ReorgHandlerError> {
         match self
             .rpc_client
             .request::<_, Block>("eth_getBlockByNumber", (block_number, false))
@@ -175,6 +278,7 @@ mod tests {
             fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
             fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
+            fn get_activation_block(&self) -> Result<BlockInfo, StorageError>;
         }
 
         impl HeadRefStorageReader for Db {
@@ -211,7 +315,7 @@ mod tests {
         let mut mock_db = MockDb::new();
         let latest_source: Block = Block {
             header: Header {
-                hash: B256::ZERO,
+                hash: B256::from([1u8; 32]),
                 inner: alloy_consensus::Header {
                     number: 42,
                     parent_hash: B256::ZERO,
@@ -248,6 +352,7 @@ mod tests {
 
         // Should succeed since the latest source block is still canonical
         assert!(rewind_target.is_ok());
+        assert!(rewind_target.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -384,6 +489,278 @@ mod tests {
         // Should succeed since the latest source block is still canonical
         assert!(rewind_target.is_ok());
         assert_eq!(rewind_target.unwrap(), Some(finalized_state.source.id()));
+    }
+
+    #[tokio::test]
+    async fn test_find_rewind_target_database_not_initialized() {
+        let mut mock_db = MockDb::new();
+
+        mock_db
+            .expect_latest_derivation_state()
+            .times(1)
+            .returning(|| Err(StorageError::DatabaseNotInitialised));
+
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let rpc_client = RpcClient::new(transport, false);
+
+        let reorg_task =
+            ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(MockManagedNode::new()));
+        let result = reorg_task.find_rewind_target().await;
+
+        assert!(matches!(result, Err(ReorgHandlerError::RewindTargetPreInterop)));
+    }
+
+    #[tokio::test]
+    async fn test_find_rewind_target_with_finalized_future_activation_canonical() {
+        let mut mock_db = MockDb::new();
+        let latest_source: Block = Block {
+            header: Header {
+                hash: B256::from([1u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 41,
+                    parent_hash: B256::from([2u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let latest_state = DerivedRefPair {
+            source: BlockInfo::new(
+                latest_source.header.hash,
+                latest_source.header.number,
+                latest_source.header.parent_hash,
+                latest_source.header.timestamp,
+            ),
+            derived: BlockInfo::new(B256::from([10u8; 32]), 200, B256::ZERO, 1100),
+        };
+
+        let activation_source: Block = Block {
+            header: Header {
+                hash: B256::from([2u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 38,
+                    parent_hash: B256::from([1u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let activation_state = DerivedRefPair {
+            source: BlockInfo::new(
+                activation_source.header.hash,
+                activation_source.header.number,
+                activation_source.header.parent_hash,
+                activation_source.header.timestamp,
+            ),
+            derived: BlockInfo::new(B256::from([20u8; 32]), 200, B256::ZERO, 1100),
+        };
+
+        let reorg_source: Block = Block {
+            header: Header {
+                hash: B256::from([14u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 40,
+                    parent_hash: B256::from([13u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let reorg_source_info = BlockInfo::new(
+            reorg_source.header.hash,
+            reorg_source.header.number,
+            reorg_source.header.parent_hash,
+            reorg_source.header.timestamp,
+        );
+
+        let mut source_39: Block = reorg_source.clone();
+        source_39.header.inner.number = 39;
+        let source_39_info = BlockInfo::new(
+            source_39.header.hash,
+            source_39.header.number,
+            source_39.header.parent_hash,
+            source_39.header.timestamp,
+        );
+
+        let incorrect_source: Block = Block {
+            header: Header {
+                hash: B256::from([15u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 5000,
+                    parent_hash: B256::from([13u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        mock_db.expect_latest_derivation_state().times(1).returning(move || Ok(latest_state));
+        mock_db
+            .expect_get_safety_head_ref()
+            .times(1)
+            .returning(move |_| Err(StorageError::FutureData));
+        mock_db
+            .expect_get_activation_block()
+            .times(1)
+            .returning(move || Ok(activation_state.derived));
+        mock_db.expect_derived_to_source().times(1).returning(move |_| Ok(activation_state.source));
+
+        mock_db.expect_get_source_block().times(3).returning(
+            move |block_number| match block_number {
+                41 => Ok(latest_state.source),
+                40 => Ok(reorg_source_info),
+                39 => Ok(source_39_info),
+                38 => Ok(activation_state.source),
+                _ => Ok(activation_state.source),
+            },
+        );
+
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let rpc_client = RpcClient::new(transport, false);
+
+        // First return the reorged block
+        asserter.push_success(&reorg_source);
+
+        // Return the activation block source to make sure it is canonical
+        // Used in `find_common_ancestor`
+        asserter.push_success(&activation_source);
+
+        // Then returning some random incorrect blocks 3 times till it reaches the finalized block
+        asserter.push_success(&incorrect_source);
+        asserter.push_success(&incorrect_source);
+        asserter.push_success(&incorrect_source);
+
+        // Finally returning the correct block
+        asserter.push_success(&activation_source);
+
+        let managed_node = Arc::new(MockManagedNode::new());
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
+        let rewind_target = reorg_task.find_rewind_target().await;
+
+        // Should succeed since the latest source block is still canonical
+        assert!(rewind_target.is_ok());
+        assert_eq!(rewind_target.unwrap(), Some(activation_state.source.id()));
+    }
+
+    #[tokio::test]
+    async fn test_find_rewind_target_with_finalized_future_activation_not_canonical() {
+        let mut mock_db = MockDb::new();
+        let latest_source: Block = Block {
+            header: Header {
+                hash: B256::from([1u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 41,
+                    parent_hash: B256::from([2u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let latest_state = DerivedRefPair {
+            source: BlockInfo::new(
+                latest_source.header.hash,
+                latest_source.header.number,
+                latest_source.header.parent_hash,
+                latest_source.header.timestamp,
+            ),
+            derived: BlockInfo::new(B256::from([10u8; 32]), 200, B256::ZERO, 1100),
+        };
+
+        let activation_source: Block = Block {
+            header: Header {
+                hash: B256::from([2u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 38,
+                    parent_hash: B256::from([1u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let activation_state = DerivedRefPair {
+            source: BlockInfo::new(
+                activation_source.header.hash,
+                activation_source.header.number,
+                activation_source.header.parent_hash,
+                activation_source.header.timestamp,
+            ),
+            derived: BlockInfo::new(B256::from([20u8; 32]), 200, B256::ZERO, 1100),
+        };
+
+        let reorg_source: Block = Block {
+            header: Header {
+                hash: B256::from([14u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 40,
+                    parent_hash: B256::from([13u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let incorrect_source: Block = Block {
+            header: Header {
+                hash: B256::from([15u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: 5000,
+                    parent_hash: B256::from([13u8; 32]),
+                    timestamp: 12345,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        mock_db.expect_latest_derivation_state().times(1).returning(move || Ok(latest_state));
+        mock_db
+            .expect_get_safety_head_ref()
+            .times(1)
+            .returning(move |_| Err(StorageError::FutureData));
+        mock_db
+            .expect_get_activation_block()
+            .times(1)
+            .returning(move || Ok(activation_state.derived));
+        mock_db.expect_derived_to_source().times(1).returning(move |_| Ok(activation_state.source));
+
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let rpc_client = RpcClient::new(transport, false);
+
+        // First return the reorged block
+        asserter.push_success(&reorg_source);
+
+        // Return the incorrect source to make sure activation block is not canonical
+        // Used in `find_common_ancestor`
+        asserter.push_success(&incorrect_source);
+
+        let managed_node = Arc::new(MockManagedNode::new());
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
+        let rewind_target = reorg_task.find_rewind_target().await;
+
+        assert!(matches!(rewind_target, Err(ReorgHandlerError::RewindTargetPreInterop)));
     }
 
     #[tokio::test]

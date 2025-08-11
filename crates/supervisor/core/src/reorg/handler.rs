@@ -1,4 +1,4 @@
-use crate::{reorg::task::ReorgTask, syncnode::ManagedNodeController};
+use crate::{ReorgHandlerError, reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
@@ -6,16 +6,7 @@ use futures::future;
 use kona_protocol::BlockInfo;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc};
-use thiserror::Error;
 use tracing::{info, warn};
-
-/// Error type for reorg handling
-#[derive(Debug, Error)]
-pub enum ReorgHandlerError {
-    /// Indicates managed node not found for the chain.
-    #[error("managed node not found for chain: {0}")]
-    ManagedNodeMissing(u64),
-}
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
