@@ -175,8 +175,6 @@ where
         Ok(())
     }
 
-    /// For each executing log in the block, fetches the initiating block and applies the callback.
-    /// This is the direct dependency walker from executing → initiating blocks.
     /// For each executing log in the block, provide a lazy fetcher for the initiating block.
     /// The callback decides if/when to fetch the initiating block.
     fn map_dependent_block<F>(
