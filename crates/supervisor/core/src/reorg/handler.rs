@@ -1,9 +1,11 @@
+use super::metrics::Metrics;
 use crate::{ReorgHandlerError, reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
 use futures::future;
 use kona_protocol::BlockInfo;
+use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc};
 use tracing::{info, warn};
@@ -24,6 +26,16 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
+    /// Initializes the metrics for the reorg handler
+    pub fn with_metrics(self) -> Self {
+        // Initialize metrics for all chains
+        for chain_id in self.chain_dbs.keys() {
+            Metrics::init(*chain_id);
+        }
+
+        self
+    }
+
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
         info!(
@@ -47,19 +59,28 @@ where
                 managed_node.clone(),
             );
 
-            let handle = tokio::spawn(async move { reorg_task.process_chain_reorg().await });
+            let chain_id = *chain_id;
+
+            let handle = tokio::spawn(async move {
+                observe_metrics_for_result_async!(
+                    Metrics::SUPERVISOR_REORG_SUCCESS,
+                    Metrics::SUPERVISOR_REORG_ERROR,
+                    Metrics::SUPERVISOR_REORG_DURATION_SECONDS,
+                    "process_chain_reorg",
+                    async {
+                        reorg_task.process_chain_reorg().await
+                    },
+                    "chain_id" => chain_id.to_string()
+                )
+            });
             handles.push(handle);
         }
 
         let results = future::join_all(handles).await;
-        let failed_chains = results.into_iter().filter(|result| result.is_err()).count();
-
-        if failed_chains > 0 {
-            warn!(
-                target: "supervisor::reorg_handler",
-                no_of_failed_chains = %failed_chains,
-                "Reorg processing completed with failed chains"
-            );
+        for result in results {
+            if let Err(err) = result {
+                warn!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
+            }
         }
 
         Ok(())
