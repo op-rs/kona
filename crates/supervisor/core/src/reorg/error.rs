@@ -22,7 +22,7 @@ pub enum ReorgHandlerError {
     #[error("failed to interact with l1 RPC client: {0}")]
     RPCError(String),
 
-    /// Indicates an error occured while finding rewind target for reorg.
+    /// Indicates an error occurred while finding rewind target for reorg.
     /// This can happen if the rewind target block is pre-interop.
     #[error("rewind target is pre-interop")]
     RewindTargetPreInterop,

@@ -318,6 +318,267 @@ mod tests {
     );
 
     #[tokio::test]
+    async fn test_process_chain_reorg_no_reorg_needed() {
+        let mut mock_db = MockDb::new();
+        let mut managed_node = MockManagedNode::new();
+
+        let latest_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let latest_state = DerivedRefPair {
+            source: latest_source,
+            derived: BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346),
+        };
+
+        // Mock the latest derivation state
+        mock_db.expect_latest_derivation_state().times(1).returning(move || Ok(latest_state));
+
+        // Mock the RPC to return the same block (no reorg)
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let rpc_client = RpcClient::new(transport, false);
+
+        let canonical_block: Block = Block {
+            header: Header {
+                hash: latest_source.hash,
+                inner: alloy_consensus::Header {
+                    number: latest_source.number,
+                    parent_hash: latest_source.parent_hash,
+                    timestamp: latest_source.timestamp as u64,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        asserter.push_success(&canonical_block);
+
+        // Managed node should not be reset
+        managed_node.expect_reset().times(0);
+
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(managed_node));
+
+        let result = reorg_task.process_chain_reorg().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_process_chain_reorg_with_rewind() {
+        let mut mock_db = MockDb::new();
+        let mut managed_node = MockManagedNode::new();
+
+        let latest_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let latest_state = DerivedRefPair {
+            source: latest_source,
+            derived: BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346),
+        };
+
+        let rewind_target_source =
+            BlockInfo::new(B256::from([10u8; 32]), 95, B256::from([11u8; 32]), 12340);
+
+        let rewind_target_derived =
+            BlockInfo::new(B256::from([12u8; 32]), 45, B256::from([13u8; 32]), 12341);
+
+        let next_block = BlockInfo::new(B256::from([14u8; 32]), 46, B256::from([12u8; 32]), 12342);
+
+        let finalized_block =
+            BlockInfo::new(B256::from([20u8; 32]), 40, B256::from([21u8; 32]), 12330);
+
+        // Mock the latest derivation state
+        mock_db.expect_latest_derivation_state().times(1).returning(move || Ok(latest_state));
+
+        // Mock finding common ancestor
+        mock_db.expect_get_safety_head_ref().times(1).returning(move |_| Ok(finalized_block));
+
+        mock_db.expect_derived_to_source().times(1).returning(move |_| Ok(rewind_target_source));
+
+        mock_db.expect_get_source_block().times(5).returning(
+            move |block_number| match block_number {
+                99 => Ok(BlockInfo::new(B256::from([16u8; 32]), 99, B256::from([17u8; 32]), 12344)),
+                98 => Ok(BlockInfo::new(B256::from([17u8; 32]), 98, B256::from([18u8; 32]), 12343)),
+                97 => Ok(BlockInfo::new(B256::from([18u8; 32]), 97, B256::from([19u8; 32]), 12342)),
+                96 => Ok(BlockInfo::new(B256::from([19u8; 32]), 96, B256::from([20u8; 32]), 12341)),
+                95 => Ok(rewind_target_source),
+                _ => Err(StorageError::ConflictError),
+            },
+        );
+
+        // Mock the RPC to show reorg happened
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let rpc_client = RpcClient::new(transport, false);
+
+        // First call shows different hash (reorg detected)
+        let different_block: Block = Block {
+            header: Header {
+                hash: B256::from([99u8; 32]), // Different hash
+                inner: alloy_consensus::Header {
+                    number: latest_source.number,
+                    parent_hash: latest_source.parent_hash,
+                    timestamp: latest_source.timestamp as u64,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        asserter.push_success(&different_block);
+        asserter.push_success(&different_block);
+        asserter.push_success(&different_block);
+        asserter.push_success(&different_block);
+        asserter.push_success(&different_block);
+
+        // Second call for checking if rewind target is canonical
+        let canonical_block: Block = Block {
+            header: Header {
+                hash: rewind_target_source.hash,
+                inner: alloy_consensus::Header {
+                    number: rewind_target_source.number,
+                    parent_hash: rewind_target_source.parent_hash,
+                    timestamp: rewind_target_source.timestamp as u64,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        asserter.push_success(&canonical_block);
+
+        // Mock rewind operations
+        mock_db
+            .expect_latest_derived_block_at_source()
+            .times(1)
+            .returning(move |_| Ok(rewind_target_derived));
+
+        mock_db.expect_get_block().times(1).returning(move |_| Ok(next_block));
+
+        mock_db.expect_rewind().times(1).returning(|_| Ok(()));
+
+        // Managed node should be reset
+        managed_node.expect_reset().times(1).returning(|| Ok(()));
+
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(managed_node));
+
+        let result = reorg_task.process_chain_reorg().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_process_chain_reorg_rewind_pre_interop() {
+        let mut mock_db = MockDb::new();
+        let mut managed_node = MockManagedNode::new();
+
+        let latest_source =
+            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
+
+        let latest_state = DerivedRefPair {
+            source: latest_source,
+            derived: BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346),
+        };
+
+        let activation_block =
+            BlockInfo::new(B256::from([10u8; 32]), 1, B256::from([11u8; 32]), 12000);
+
+        let activation_source =
+            BlockInfo::new(B256::from([12u8; 32]), 10, B256::from([13u8; 32]), 11999);
+
+        // Mock the latest derivation state
+        mock_db.expect_latest_derivation_state().times(1).returning(move || Ok(latest_state));
+
+        // Mock finding common ancestor fails with pre-interop
+        mock_db.expect_get_safety_head_ref().times(1).returning(|_| Err(StorageError::FutureData));
+
+        mock_db
+            .expect_get_activation_block()
+            .times(2) // Once in find_common_ancestor, once in rewind_to_activation_block
+            .returning(move || Ok(activation_block));
+
+        mock_db
+            .expect_derived_to_source()
+            .times(2) // Once in find_common_ancestor, once in rewind_to_activation_block
+            .returning(move |_| Ok(activation_source));
+
+        // Mock the RPC calls
+        let asserter = Asserter::new();
+        let transport = MockTransport::new(asserter.clone());
+        let rpc_client = RpcClient::new(transport, false);
+
+        // First call shows different hash (reorg detected)
+        let different_block: Block = Block {
+            header: Header {
+                hash: B256::from([99u8; 32]),
+                inner: alloy_consensus::Header {
+                    number: latest_source.number,
+                    parent_hash: latest_source.parent_hash,
+                    timestamp: latest_source.timestamp as u64,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        asserter.push_success(&different_block);
+
+        // Activation block is not canonical
+        let non_canonical_activation: Block = Block {
+            header: Header {
+                hash: B256::from([99u8; 32]), // Different from expected
+                inner: alloy_consensus::Header {
+                    number: activation_source.number,
+                    parent_hash: activation_source.parent_hash,
+                    timestamp: activation_source.timestamp as u64,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        asserter.push_success(&non_canonical_activation);
+
+        // Mock rewind to activation block
+        mock_db.expect_rewind().times(1).returning(|_| Ok(()));
+
+        // Managed node should be reset
+        managed_node.expect_reset().times(1).returning(|| Ok(()));
+
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(managed_node));
+
+        let result = reorg_task.process_chain_reorg().await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_process_chain_reorg_storage_error() {
+        let mut mock_db = MockDb::new();
+        let managed_node = Arc::new(MockManagedNode::new());
+
+        // DB fails to get latest derivation state
+        mock_db
+            .expect_latest_derivation_state()
+            .times(1)
+            .returning(|| Err(StorageError::LockPoisoned));
+
+        let reorg_task = ReorgTask::new(
+            1,
+            Arc::new(mock_db),
+            RpcClient::new(MockTransport::new(Asserter::new()), false),
+            managed_node,
+        );
+
+        let result = reorg_task.process_chain_reorg().await;
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
+        ));
+    }
+
+    #[tokio::test]
     async fn test_find_rewind_target_without_reorg() {
         let mut mock_db = MockDb::new();
         let latest_source: Block = Block {
