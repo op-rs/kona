@@ -1,5 +1,5 @@
 use crate::{SupervisorError, syncnode::ManagedNodeController};
-use alloy_eips::BlockNumHash;
+use alloy_eips::{BlockNumHash, BlockNumberOrTag};
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::Block;
@@ -128,7 +128,10 @@ where
     ) -> Result<bool, SupervisorError> {
         match self
             .rpc_client
-            .request::<_, Block>("eth_getBlockByNumber", (block_number, false))
+            .request::<_, Block>(
+                "eth_getBlockByNumber",
+                (BlockNumberOrTag::Number(block_number), false),
+            )
             .await
         {
             Ok(canonical_l1) => Ok(canonical_l1.hash() == expected_hash),
