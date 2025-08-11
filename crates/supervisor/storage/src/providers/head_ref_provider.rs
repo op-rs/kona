@@ -117,6 +117,23 @@ where
             })?;
         Ok(())
     }
+
+    /// Removes the safety head reference for the specified safety level.
+    pub(crate) fn remove_safety_head_ref(
+        &self,
+        safety_level: SafetyLevel,
+    ) -> Result<(), StorageError> {
+        self.tx.delete::<SafetyHeadRefs>(safety_level.into(), None).inspect_err(|err| {
+            error!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                %safety_level,
+                %err,
+                "Failed to remove head reference"
+            )
+        })?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -270,5 +287,45 @@ mod tests {
         assert!(matches!(result.unwrap_err(), StorageError::FutureData));
 
         tx.commit().expect("commit failed");
+    }
+
+    #[test]
+    fn test_remove_safety_head_ref_removes_existing() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to start write tx");
+        let provider = SafetyHeadRefProvider::new(&tx, CHAIN_ID);
+
+        // Set a head ref
+        let block_info = BlockInfo {
+            hash: Default::default(),
+            number: 42,
+            parent_hash: Default::default(),
+            timestamp: 1234,
+        };
+        provider
+            .update_safety_head_ref(SafetyLevel::CrossSafe, &block_info)
+            .expect("update failed");
+
+        // Remove it
+        provider.remove_safety_head_ref(SafetyLevel::CrossSafe).expect("remove failed");
+
+        // Should now return FutureData error
+        let result = provider.get_safety_head_ref(SafetyLevel::CrossSafe);
+        assert!(matches!(result, Err(StorageError::FutureData)));
+    }
+
+    #[test]
+    fn test_remove_safety_head_ref_no_existing() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to start write tx");
+        let provider = SafetyHeadRefProvider::new(&tx, CHAIN_ID);
+
+        // Remove when nothing exists
+        let result = provider.remove_safety_head_ref(SafetyLevel::CrossSafe);
+        assert!(result.is_ok());
+
+        // Still returns FutureData error
+        let result = provider.get_safety_head_ref(SafetyLevel::CrossSafe);
+        assert!(matches!(result, Err(StorageError::FutureData)));
     }
 }

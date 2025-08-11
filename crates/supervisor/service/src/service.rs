@@ -253,7 +253,7 @@ impl Service {
             self.database_factory.clone(),
             chain_event_senders.clone(),
             self.cancel_token.clone(),
-            ReorgHandler::new(l1_rpc, chain_dbs_map, self.managed_nodes.clone()),
+            ReorgHandler::new(l1_rpc.clone(), chain_dbs_map, self.managed_nodes.clone()),
         );
 
         self.join_set.spawn(async move {
