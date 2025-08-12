@@ -1,0 +1,30 @@
+name: Link Checker
+
+on:
+  push:
+    branches: [main]
+  merge_group:
+  pull_request:
+
+jobs:
+  lychee:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+      
+      - name: Link Checker
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Check all markdown and HTML files
+          args: --verbose --no-progress --accept 200,201,202,203,204,300,301,302,303,304,307,308,429 '**/*.md' '**/*.html'
+          # Fail on broken links
+          fail: true
+          # Format for GitHub Actions
+          format: markdown
+        env:
+          # Use GITHUB_TOKEN to avoid rate limiting
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
