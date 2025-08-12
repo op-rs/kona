@@ -1,6 +1,6 @@
 use crate::{event::ChainEvent, syncnode::ManagedNodeController};
 use alloy_eips::{BlockNumHash, BlockNumberOrTag};
-use alloy_primitives::{B256, ChainId};
+use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::{Block, Header};
 use futures::StreamExt;
@@ -78,7 +78,7 @@ where
         S: futures::Stream<Item = Block> + Unpin,
     {
         let mut finalized_number = 0;
-        let mut previous_latest_block = BlockNumHash { number: 0, hash: B256::ZERO };
+        let mut previous_latest_block: Option<BlockNumHash> = None;
 
         loop {
             tokio::select! {
@@ -148,28 +148,8 @@ where
     async fn handle_new_latest_block(
         &self,
         incoming_block: Block,
-        previous_block: &mut BlockNumHash,
+        previous_block: &mut Option<BlockNumHash>,
     ) {
-        let incoming_block_number = incoming_block.header.number;
-
-        // Early exit if the incoming block is not newer than the previous block
-        if incoming_block_number <= previous_block.number {
-            info!(
-                target: "supervisor::l1_watcher",
-                incoming_block_number,
-                previous_block_number = previous_block.number,
-                "Incoming latest L1 block is not greater than the stored latest block"
-            );
-            return;
-        }
-
-        trace!(
-            target: "l1_watcher",
-            block_number = incoming_block_number,
-            block_hash = ?incoming_block.header.hash,
-            "New latest L1 block received"
-        );
-
         let Header {
             hash,
             inner: alloy_consensus::Header { number, parent_hash, timestamp, .. },
@@ -177,14 +157,40 @@ where
         } = incoming_block.header;
         let latest_block = BlockInfo::new(hash, number, parent_hash, timestamp);
 
+        let prev = match previous_block {
+            Some(prev) => prev,
+            None => {
+                *previous_block = Some(latest_block.id());
+                return;
+            }
+        };
+
+        // Early exit if the incoming block is not newer than the previous block
+        if latest_block.number <= prev.number {
+            info!(
+                target: "supervisor::l1_watcher",
+                incoming_block_number = latest_block.number,
+                previous_block_number = prev.number,
+                "Incoming latest L1 block is not greater than the stored latest block"
+            );
+            return;
+        }
+
+        trace!(
+            target: "l1_watcher",
+            block_number = latest_block.number,
+            block_hash = ?incoming_block.header.hash,
+            "New latest L1 block received"
+        );
+
         // Early exit: check if no reorg is needed (sequential block)
-        if latest_block.parent_hash == previous_block.hash {
+        if latest_block.parent_hash == prev.hash {
             trace!(
                 target: "supervisor::l1_watcher",
                 block_number = latest_block.number,
                 "Sequential block received, no reorg needed"
             );
-            *previous_block = latest_block.id();
+            *previous_block = Some(latest_block.id());
             return;
         }
 
@@ -206,7 +212,7 @@ where
             }
         }
 
-        *previous_block = latest_block.id();
+        *previous_block = Some(latest_block.id());
     }
 }
 
@@ -417,9 +423,9 @@ mod tests {
             },
             ..Default::default()
         };
-        let mut last_latest_number = BlockNumHash { number: 0, hash: B256::ZERO };
+        let mut last_latest_number = None;
         watcher.handle_new_latest_block(block, &mut last_latest_number).await;
-        assert_eq!(last_latest_number.number, 1);
+        assert_eq!(last_latest_number.unwrap().number, 1);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
     }
@@ -450,9 +456,9 @@ mod tests {
             },
             ..Default::default()
         };
-        let mut last_latest_number = BlockNumHash { number: 100, hash: B256::ZERO };
+        let mut last_latest_number = Some(BlockNumHash { number: 100, hash: B256::ZERO });
         watcher.handle_new_latest_block(block, &mut last_latest_number).await;
-        assert_eq!(last_latest_number.number, 101);
+        assert_eq!(last_latest_number.unwrap().number, 101);
 
         // Send previous block as latest block
         let reorg_block = Block {
@@ -481,7 +487,7 @@ mod tests {
             .returning(|_| Ok(()));
 
         watcher.handle_new_latest_block(reorg_block, &mut last_latest_number).await;
-        assert_eq!(last_latest_number.number, 105);
+        assert_eq!(last_latest_number.unwrap().number, 105);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
     }
