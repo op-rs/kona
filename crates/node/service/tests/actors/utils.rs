@@ -42,8 +42,8 @@ impl SeedGenerator {
     }
 
     pub(crate) fn next_port(&mut self) -> u16 {
-        let next_u64 = self.0.next_u32();
+        let next_u32 = self.0.next_u32();
 
-        next_u64 as u16
+        next_u32 as u16
     }
 }
