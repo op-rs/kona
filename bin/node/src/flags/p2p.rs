@@ -5,24 +5,25 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
 use crate::flags::{GlobalArgs, SignerArgs};
-use alloy_primitives::B256;
+use alloy_primitives::{B256, b256};
+use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
+use kona_derive::ChainProvider;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_gossip::GaterConfig;
 use kona_node_service::NetworkConfig;
 use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
-use kona_sources::RuntimeLoader;
+use kona_providers_alloy::AlloyChainProvider;
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
     str::FromStr,
-    sync::Arc,
 };
 use tokio::time::Duration;
 use url::Url;
@@ -322,17 +323,34 @@ impl P2PArgs {
     /// Returns the unsafe block signer from the CLI arguments.
     pub async fn unsafe_block_signer(
         &self,
-        config: &RollupConfig,
         args: &GlobalArgs,
-        l1_rpc: Option<Url>,
+        rollup_config: &RollupConfig,
+        l1_eth_rpc: Option<Url>,
     ) -> anyhow::Result<alloy_primitives::Address> {
-        // First attempt to load the unsafe block signer from the runtime loader.
-        if let Some(url) = l1_rpc {
-            let mut loader = RuntimeLoader::new(url, Arc::new(config.clone()));
-            let runtime = loader.load_latest().await.map_err(|e| {
-                anyhow::anyhow!("Failed to load runtime: {} {:?}", e, std::error::Error::source(&e))
-            })?;
-            return Ok(runtime.unsafe_block_signer_address);
+        if let Some(l1_eth_rpc) = l1_eth_rpc {
+            /// The storage slot that the unsafe block signer address is stored at.
+            /// Computed as: `bytes32(uint256(keccak256("systemconfig.unsafeblocksigner")) - 1)`
+            const UNSAFE_BLOCK_SIGNER_ADDRESS_STORAGE_SLOT: B256 =
+                b256!("0x65a7ed542fb37fe237fdfbdd70b31598523fe5b32879e307bae27a0bd9581c08");
+
+            let mut provider = AlloyChainProvider::new_http(l1_eth_rpc, 1024);
+            let latest_block_num = provider.latest_block_number().await?;
+            let block_info = provider.block_info_by_number(latest_block_num).await?;
+
+            // Fetch the unsafe block signer address from the system config.
+            let unsafe_block_signer_address = provider
+                .inner
+                .get_storage_at(
+                    rollup_config.l1_system_config_address,
+                    UNSAFE_BLOCK_SIGNER_ADDRESS_STORAGE_SLOT.into(),
+                )
+                .hash(block_info.hash)
+                .await?;
+
+            // Convert the unsafe block signer address to the correct type.
+            return Ok(alloy_primitives::Address::from_slice(
+                &unsafe_block_signer_address.to_be_bytes_vec()[12..],
+            ));
         }
 
         // Otherwise use the genesis signer or the configured unsafe block signer.
@@ -404,8 +422,7 @@ impl P2PArgs {
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
-        // The unsafe block signer obtained from the chain config.
-        let chain_unsafe_block_signer = self.unsafe_block_signer(config, args, l1_rpc).await?;
+        let unsafe_block_signer = self.unsafe_block_signer(args, config, l1_rpc).await?;
 
         let bootstore = if self.disable_bootstore {
             None
@@ -423,7 +440,7 @@ impl P2PArgs {
             discovery_randomize: self.discovery_randomize.map(Duration::from_secs),
             gossip_address,
             keypair,
-            unsafe_block_signer: chain_unsafe_block_signer,
+            unsafe_block_signer,
             gossip_config,
             scoring: self.scoring,
             monitor_peers,
