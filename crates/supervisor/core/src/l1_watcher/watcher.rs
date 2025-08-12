@@ -102,6 +102,14 @@ where
         }
     }
 
+    /// Handles a new finalized [`Block`], updating the storage and broadcasting the event.
+    ///
+    /// Arguments:
+    /// - `block`: The finalized block to process.
+    /// - `last_finalized_number`: The last finalized block number.
+    ///
+    /// Returns:
+    /// - `u64`: The new finalized block number.
     fn handle_new_finalized_block(&self, block: Block, last_finalized_number: u64) -> u64 {
         let block_number = block.header.number;
         if block_number == last_finalized_number {
@@ -145,6 +153,15 @@ where
         }
     }
 
+    /// Handles a new latest [`Block`], checking if it requires a reorg or is sequential.
+    ///
+    /// Arguments:
+    /// - `incoming_block`: The incoming block to process.
+    /// - `previous_block`: The previously stored latest block, if any.
+    ///
+    /// Returns:
+    /// - `Option<BlockNumHash>`: The ID of the new latest block if processed successfully, or the
+    ///   previous block if no changes were made.
     async fn handle_new_latest_block(
         &self,
         incoming_block: Block,
