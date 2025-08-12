@@ -242,6 +242,15 @@ where
 
         Ok(block.source.into())
     }
+
+    /// Gets the activation block, which is the first block in the database.
+    pub(crate) fn get_activation_block(&self) -> Result<BlockInfo, StorageError> {
+        let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
+        let result = cursor.first()?;
+
+        let (_, derived_block_pair) = result.ok_or_else(|| StorageError::DatabaseNotInitialised)?;
+        Ok(derived_block_pair.derived.into())
+    }
 }
 
 impl<TX> DerivationProvider<'_, TX>
@@ -1117,5 +1126,36 @@ mod tests {
         let new_state = provider.latest_derivation_state().expect("should succeed");
         assert_eq!(new_state.derived, derived_genesis);
         assert_eq!(new_state.source, genesis_block());
+    }
+
+    #[test]
+    fn test_get_activation_block_returns_error_if_empty() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let result = provider.get_activation_block();
+        assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
+    }
+
+    #[test]
+    fn test_get_activation_block_with_multiple_blocks_returns_first() {
+        let db = setup_db();
+
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived1 = block_info(0, genesis_block().hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let derived2 = block_info(1, derived1.hash, 300);
+        let pair2 = derived_pair(source1, derived2);
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let activation = provider.get_activation_block().expect("should exist");
+        assert_eq!(activation, derived1);
     }
 }

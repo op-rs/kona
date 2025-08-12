@@ -1,12 +1,4 @@
-use crate::SupervisorError;
 use alloy_primitives::ChainId;
-use std::time::Instant;
-
-#[derive(Debug, Clone)]
-pub(crate) struct ReorgDepth {
-    pub(crate) l1_depth: u64,
-    pub(crate) l2_depth: u64,
-}
 
 /// Metrics for reorg operations
 #[derive(Debug, Clone)]
@@ -74,49 +66,17 @@ impl Metrics {
             .record(0.0);
     }
 
-    /// Records metrics for a L1 reorg processing operation.
-    /// Takes the result of the processing and extracts the reorg depth if successful.
-    pub(crate) fn record_l1_reorg_processing(
-        chain_id: ChainId,
-        start_time: Instant,
-        result: &Result<ReorgDepth, SupervisorError>,
-    ) {
-        match result {
-            Ok(reorg_depth) => {
-                metrics::counter!(
-                    Self::SUPERVISOR_REORG_SUCCESS,
-                    "chain_id" => chain_id.to_string(),
-                )
-                .increment(1);
+    pub(crate) fn record_block_depth(chain_id: ChainId, l1_depth: u64, l2_depth: u64) {
+        metrics::histogram!(
+            Self::SUPERVISOR_REORG_L1_DEPTH,
+            "chain_id" => chain_id.to_string(),
+        )
+        .record(l1_depth as f64);
 
-                metrics::histogram!(
-                    Self::SUPERVISOR_REORG_L1_DEPTH,
-                    "chain_id" => chain_id.to_string(),
-                )
-                .record(reorg_depth.l1_depth as f64);
-
-                metrics::histogram!(
-                    Self::SUPERVISOR_REORG_L2_DEPTH,
-                    "chain_id" => chain_id.to_string(),
-                )
-                .record(reorg_depth.l2_depth as f64);
-
-                // Calculate latency
-                let latency = start_time.elapsed().as_secs_f64();
-
-                metrics::histogram!(
-                    Self::SUPERVISOR_REORG_DURATION_SECONDS,
-                    "chain_id" => chain_id.to_string(),
-                )
-                .record(latency);
-            }
-            Err(_) => {
-                metrics::counter!(
-                    Self::SUPERVISOR_REORG_ERROR,
-                    "chain_id" => chain_id.to_string(),
-                )
-                .increment(1);
-            }
-        }
+        metrics::histogram!(
+            Self::SUPERVISOR_REORG_L2_DEPTH,
+            "chain_id" => chain_id.to_string(),
+        )
+        .record(l2_depth as f64);
     }
 }

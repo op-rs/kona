@@ -61,6 +61,13 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(BlockInfo)` containing the source block information if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the source block.
     fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
+
+    /// Gets the interop activation [`BlockInfo`].
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the activation block information if it exists.
+    /// * `Err(StorageError)` if there is an issue retrieving the activation block.
+    fn get_activation_block(&self) -> Result<BlockInfo, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
