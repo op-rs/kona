@@ -35,6 +35,7 @@ impl From<NetworkConfig> for NetworkBuilder {
             config.keypair,
             config.discovery_address,
             config.discovery_config,
+            config.gossip_signer,
         )
         .with_discovery_randomize(config.discovery_randomize)
         .with_bootstore(config.bootstore)
@@ -45,7 +46,6 @@ impl From<NetworkConfig> for NetworkBuilder {
         .with_peer_monitoring(config.monitor_peers)
         .with_topic_scoring(config.topic_scoring)
         .with_gater_config(config.gater_config)
-        .with_signer(config.gossip_signer)
     }
 }
 
@@ -58,6 +58,7 @@ impl NetworkBuilder {
         keypair: Keypair,
         discovery_address: LocalNode,
         discovery_config: discv5::Config,
+        signer: Option<BlockSigner>,
     ) -> Self {
         Self {
             discovery: Discv5Builder::new(
@@ -71,7 +72,7 @@ impl NetworkBuilder {
                 gossip_addr,
                 keypair,
             ),
-            signer: None,
+            signer,
         }
     }
 
@@ -199,6 +200,7 @@ mod tests {
             keypair,
             discovery_address,
             discovery_config,
+            None,
         )
     }
 

@@ -4777,6 +4777,7 @@ name = "kona-node-service"
 version = "0.1.3"
 dependencies = [
  "alloy-chains",
+ "alloy-consensus",
  "alloy-eips",
  "alloy-primitives",
  "alloy-provider",
@@ -4813,6 +4814,7 @@ dependencies = [
  "libp2p",
  "libp2p-stream",
  "metrics",
+ "op-alloy-consensus",
  "op-alloy-network",
  "op-alloy-provider",
  "op-alloy-rpc-types-engine",
