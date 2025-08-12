@@ -19,6 +19,7 @@ impl Metrics {
     pub(crate) const STORAGE_METHOD_LATEST_DERIVATION_STATE: &'static str =
         "latest_derivation_state";
     pub(crate) const STORAGE_METHOD_GET_SOURCE_BLOCK: &'static str = "get_source_block";
+    pub(crate) const STORAGE_METHOD_GET_ACTIVATION_BLOCK: &'static str = "get_activation_block";
     pub(crate) const STORAGE_METHOD_INITIALISE_DERIVATION_STORAGE: &'static str =
         "initialise_derivation_storage";
     pub(crate) const STORAGE_METHOD_SAVE_DERIVED_BLOCK: &'static str = "save_derived_block";

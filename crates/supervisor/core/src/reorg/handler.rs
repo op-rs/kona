@@ -1,22 +1,14 @@
 use super::metrics::Metrics;
-use crate::{reorg::task::ReorgTask, syncnode::ManagedNodeController};
+use crate::{ReorgHandlerError, reorg::task::ReorgTask, syncnode::ManagedNodeController};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
 use futures::future;
 use kona_protocol::BlockInfo;
+use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
-use std::{collections::HashMap, sync::Arc, time::Instant};
-use thiserror::Error;
+use std::{collections::HashMap, sync::Arc};
 use tracing::{info, warn};
-
-/// Error type for reorg handling
-#[derive(Debug, Error)]
-pub enum ReorgHandlerError {
-    /// Indicates managed node not found for the chain.
-    #[error("managed node not found for chain: {0}")]
-    ManagedNodeMissing(u64),
-}
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
@@ -34,6 +26,16 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
+    /// Initializes the metrics for the reorg handler
+    pub fn with_metrics(self) -> Self {
+        // Initialize metrics for all chains
+        for chain_id in self.chain_dbs.keys() {
+            Metrics::init(*chain_id);
+        }
+
+        self
+    }
+
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
         info!(
@@ -60,11 +62,16 @@ where
             let chain_id = *chain_id;
 
             let handle = tokio::spawn(async move {
-                let reorg_task = reorg_task.with_metrics();
-                let start_time = Instant::now();
-                let result = reorg_task.process_chain_reorg().await;
-                Metrics::record_l1_reorg_processing(chain_id, start_time, &result);
-                result
+                observe_metrics_for_result_async!(
+                    Metrics::SUPERVISOR_REORG_SUCCESS,
+                    Metrics::SUPERVISOR_REORG_ERROR,
+                    Metrics::SUPERVISOR_REORG_DURATION_SECONDS,
+                    "process_chain_reorg",
+                    async {
+                        reorg_task.process_chain_reorg().await
+                    },
+                    "chain_id" => chain_id.to_string()
+                )
             });
             handles.push(handle);
         }
