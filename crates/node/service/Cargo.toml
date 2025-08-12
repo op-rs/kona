@@ -74,7 +74,6 @@ arbitrary.workspace = true
 rand.workspace = true
 anyhow.workspace = true
 backon.workspace = true
-kona-cli.workspace = true
 alloy-primitives = { workspace = true, features = ["k256"] }
 alloy-rpc-types-engine = { workspace = true, features = ["arbitrary"] }
 

@@ -4798,7 +4798,6 @@ dependencies = [
  "futures",
  "http-body-util",
  "jsonrpsee",
- "kona-cli",
  "kona-derive",
  "kona-disc",
  "kona-engine",
