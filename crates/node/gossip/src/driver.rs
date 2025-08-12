@@ -185,7 +185,7 @@ where
     /// - Tells the swarm to listen on the given [`Multiaddr`].
     ///
     /// Waits for the swarm to start listen before returning and connecting to peers.
-    pub async fn start(&mut self) -> Result<(), TransportError<std::io::Error>> {
+    pub async fn start(&mut self) -> Result<Multiaddr, TransportError<std::io::Error>> {
         // Start the sync request/response protocol handler.
         self.sync_protocol_handler();
 
@@ -196,16 +196,18 @@ where
                 {
                     if id == listener_id {
                         info!(target: "gossip", "Swarm now listening on: {address}");
-                        break;
+
+                        self.addr = address.clone();
+
+                        return Ok(address);
                     }
                 }
             },
             Err(err) => {
                 error!(target: "gossip", "Fail to listen on {}: {err}", self.addr);
-                return Err(err);
+                Err(err)
             }
         }
-        Ok(())
     }
 
     /// Returns the local peer id.

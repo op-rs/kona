@@ -22,6 +22,8 @@ pub struct NetworkConfig {
     pub discovery_interval: Duration,
     /// The interval to remove peers from the discovery service.
     pub discovery_randomize: Option<Duration>,
+    /// Whether to update the ENR socket when the gossip listen address changes.
+    pub enr_update: bool,
     /// The gossip address.
     pub gossip_address: libp2p::Multiaddr,
     /// The unsafe block signer.
@@ -84,6 +86,7 @@ impl NetworkConfig {
             discovery_randomize: Self::DEFAULT_DISCOVERY_RANDOMIZE,
             gossip_address,
             unsafe_block_signer,
+            enr_update: true,
             keypair: Keypair::generate_secp256k1(),
             bootnodes: Default::default(),
             bootstore: Default::default(),

@@ -1,3 +1,5 @@
+use std::net::{IpAddr, Ipv4Addr};
+
 use alloy_chains::Chain;
 use alloy_signer::k256;
 use discv5::{ConfigBuilder, Enr, ListenConfig};
@@ -8,10 +10,11 @@ use kona_genesis::RollupConfig;
 use kona_node_service::{NetworkActor, NetworkBuilder, NetworkContext, NodeActor};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair, multiaddr::Protocol};
+use rand::RngCore;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::actors::network::{mocks::allocator::NetworkAllocator, TestNetwork};
+use crate::actors::network::TestNetwork;
 
 pub(crate) struct TestNetworkBuilder {
     chain_id: u64,
@@ -25,7 +28,7 @@ impl TestNetworkBuilder {
     }
 
     pub(crate) fn new() -> Self {
-        let chain_id = NetworkAllocator::next_chain_id();
+        let chain_id = rand::rng().next_u64();
 
         Self { chain_id, unsafe_block_signer: Address::ZERO, custom_keypair: None }
     }
@@ -60,11 +63,9 @@ impl TestNetworkBuilder {
         let local_node_key = k256::ecdsa::SigningKey::from_bytes(&secp256k1_key.into())
         .map_err(|e| anyhow::anyhow!("Impossible to convert keypair to k256 signing key. This is a bug since we only support secp256k1 keys: {e}")).unwrap();
 
-        let node_addr = NetworkAllocator::next_loopback_address();
+        let node_addr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
-        let discovery_port = NetworkAllocator::next_port();
-
-        let discovery_config = ConfigBuilder::new(ListenConfig::from_ip(node_addr, discovery_port))
+        let discovery_config = ConfigBuilder::new(ListenConfig::from_ip(node_addr, 0))
             // Only allow loopback addresses.
             .table_filter(|enr| {
                 let Some(ip) = enr.ip4() else {
@@ -75,9 +76,8 @@ impl TestNetworkBuilder {
             })
             .build();
 
-        let gossip_port = NetworkAllocator::next_port();
         let mut gossip_multiaddr = Multiaddr::from(node_addr);
-        gossip_multiaddr.push(Protocol::Tcp(gossip_port));
+        gossip_multiaddr.push(Protocol::Tcp(0));
 
         // Create a new network actor. No external connections
         let builder = NetworkBuilder::new(
@@ -86,7 +86,7 @@ impl TestNetworkBuilder {
             self.unsafe_block_signer,
             gossip_multiaddr,
             keypair,
-            LocalNode::new(local_node_key.clone(), node_addr, gossip_port, discovery_port),
+            LocalNode::new(local_node_key.clone(), node_addr, 0, 0),
             discovery_config,
             Some(BlockSigner::Local(local_node_key.into())),
         )

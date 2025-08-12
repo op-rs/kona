@@ -12,7 +12,6 @@ use tokio::{
     task::JoinHandle,
 };
 
-pub(crate) mod allocator;
 pub(crate) mod builder;
 
 pub(crate) struct TestNetwork {
@@ -79,9 +78,10 @@ impl TestNetwork {
         other: &Self,
     ) -> Result<(), TestNetworkError> {
         (async || self.is_connected_to(other).await)
-            .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(60))))
+            .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(360))))
             // When to retry
             .when(|e| matches!(e, TestNetworkError::PeerNotConnected))
+            .notify(|e, duration| tracing::info!(target: "network", "Retrying connection. Error: {e:?}, duration: {duration:?}"))
             .await
     }
 
