@@ -10,7 +10,7 @@ To install the dependencies, install [`mise`](https://mise.jdx.dev/) run the fol
 mise install
 ```
 
-The [`mise file`](./mise.toml) contains the dependencies and the tools used in the e2e testing. This aims to replicate the one used in the [`monorepo`](https://github.com/ethereum-optimism/optimism/blob/develop/mise.toml).
+The [`mise file`](../mise.toml) contains the dependencies and the tools used in the e2e testing. This aims to replicate the one used in the [`monorepo`](https://github.com/ethereum-optimism/optimism/blob/develop/mise.toml).
 
 ## Description
 
