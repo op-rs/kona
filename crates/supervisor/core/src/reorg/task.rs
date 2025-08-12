@@ -1,5 +1,6 @@
 use super::metrics::Metrics;
 use crate::{ReorgHandlerError, syncnode::ManagedNodeController};
+use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
 use alloy_rpc_types_eth::Block;
@@ -238,7 +239,10 @@ where
     ) -> Result<bool, ReorgHandlerError> {
         let canonical_l1 = self
             .rpc_client
-            .request::<_, Block>("eth_getBlockByNumber", (block_number, false))
+            .request::<_, Block>(
+                "eth_getBlockByNumber",
+                (BlockNumberOrTag::Number(block_number), false),
+            )
             .await
             .map_err(|err| {
                 warn!(
