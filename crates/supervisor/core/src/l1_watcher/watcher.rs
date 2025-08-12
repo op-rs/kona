@@ -89,23 +89,23 @@ where
                 latest_block = latest_head_stream.next() => {
                     if let Some(latest_block) = latest_block {
                         info!(target: "supervisor::l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
-                        self.handle_new_latest_block(latest_block, &mut previous_latest_block).await;
+                        previous_latest_block = self.handle_new_latest_block(latest_block, previous_latest_block).await;
                     }
                 }
                 finalized_block = finalized_head_stream.next() => {
                     if let Some(finalized_block) = finalized_block {
                         info!(target: "supervisor::l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
-                        self.handle_new_finalized_block(finalized_block, &mut finalized_number);
+                        finalized_number = self.handle_new_finalized_block(finalized_block, finalized_number);
                     }
                 }
             }
         }
     }
 
-    fn handle_new_finalized_block(&self, block: Block, last_finalized_number: &mut u64) {
+    fn handle_new_finalized_block(&self, block: Block, last_finalized_number: u64) -> u64 {
         let block_number = block.header.number;
-        if block_number == *last_finalized_number {
-            return;
+        if block_number == last_finalized_number {
+            return last_finalized_number;
         }
 
         let Header {
@@ -123,12 +123,12 @@ where
 
         if let Err(err) = self.finalized_l1_storage.update_finalized_l1(finalized_source_block) {
             error!(target: "supervisor::l1_watcher", %err, "Failed to update finalized L1 block");
-            return;
+            return last_finalized_number;
         }
 
         self.broadcast_finalized_source_update(finalized_source_block);
 
-        *last_finalized_number = block_number;
+        block_number
     }
 
     fn broadcast_finalized_source_update(&self, finalized_source_block: BlockInfo) {
@@ -148,8 +148,8 @@ where
     async fn handle_new_latest_block(
         &self,
         incoming_block: Block,
-        previous_block: &mut Option<BlockNumHash>,
-    ) {
+        previous_block: Option<BlockNumHash>,
+    ) -> Option<BlockNumHash> {
         let Header {
             hash,
             inner: alloy_consensus::Header { number, parent_hash, timestamp, .. },
@@ -160,8 +160,7 @@ where
         let prev = match previous_block {
             Some(prev) => prev,
             None => {
-                *previous_block = Some(latest_block.id());
-                return;
+                return Some(latest_block.id());
             }
         };
 
@@ -173,7 +172,7 @@ where
                 previous_block_number = prev.number,
                 "Incoming latest L1 block is not greater than the stored latest block"
             );
-            return;
+            return previous_block;
         }
 
         trace!(
@@ -190,8 +189,7 @@ where
                 block_number = latest_block.number,
                 "Sequential block received, no reorg needed"
             );
-            *previous_block = Some(latest_block.id());
-            return;
+            return Some(latest_block.id());
         }
 
         match self.reorg_handler.handle_l1_reorg(latest_block).await {
@@ -212,7 +210,7 @@ where
             }
         }
 
-        *previous_block = Some(latest_block.id());
+        Some(latest_block.id())
     }
 }
 
@@ -344,7 +342,8 @@ mod tests {
             ..Default::default()
         };
         let mut last_finalized_number = 0;
-        watcher.handle_new_finalized_block(block.clone(), &mut last_finalized_number);
+        last_finalized_number =
+            watcher.handle_new_finalized_block(block.clone(), last_finalized_number);
 
         let event = rx.recv().await.unwrap();
         let expected = BlockInfo::new(
@@ -357,6 +356,7 @@ mod tests {
             matches!(event, ChainEvent::FinalizedSourceUpdate { ref finalized_source_block } if *finalized_source_block == expected),
             "Expected FinalizedSourceUpdate with block {expected:?}, got {event:?}"
         );
+        assert_eq!(last_finalized_number, block.header.number);
     }
 
     #[tokio::test]
@@ -391,8 +391,9 @@ mod tests {
             ..Default::default()
         };
         let mut last_finalized_number = 0;
-        watcher.handle_new_finalized_block(block, &mut last_finalized_number);
+        last_finalized_number = watcher.handle_new_finalized_block(block, last_finalized_number);
 
+        assert_eq!(last_finalized_number, 0);
         // Should NOT broadcast if storage update fails
         assert!(rx.try_recv().is_err());
     }
@@ -424,7 +425,7 @@ mod tests {
             ..Default::default()
         };
         let mut last_latest_number = None;
-        watcher.handle_new_latest_block(block, &mut last_latest_number).await;
+        last_latest_number = watcher.handle_new_latest_block(block, last_latest_number).await;
         assert_eq!(last_latest_number.unwrap().number, 1);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
@@ -457,7 +458,7 @@ mod tests {
             ..Default::default()
         };
         let mut last_latest_number = Some(BlockNumHash { number: 100, hash: B256::ZERO });
-        watcher.handle_new_latest_block(block, &mut last_latest_number).await;
+        last_latest_number = watcher.handle_new_latest_block(block, last_latest_number).await;
         assert_eq!(last_latest_number.unwrap().number, 101);
 
         // Send previous block as latest block
@@ -486,7 +487,7 @@ mod tests {
             .with(predicate::eq(reorg_block_info))
             .returning(|_| Ok(()));
 
-        watcher.handle_new_latest_block(reorg_block, &mut last_latest_number).await;
+        last_latest_number = watcher.handle_new_latest_block(reorg_block, last_latest_number).await;
         assert_eq!(last_latest_number.unwrap().number, 105);
         // Should NOT send any event for latest block
         assert!(rx.try_recv().is_err());
