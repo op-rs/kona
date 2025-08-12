@@ -9,10 +9,3 @@
 Core protocol types for Optimism.
 
 These include types, constants, and methods for derivation as well as batch-submission.
-
-### Provenance
-
-This code was initially ported from [kona-primitives] to [op-alloy] as part of maili migrations.
-
-[kona-primitives]: https://github.com/ethereum-optimism/kona/tree/main/crates/kona-primitives
-[op-alloy]: https://github.com/alloy-rs/op-alloy
