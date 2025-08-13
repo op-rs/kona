@@ -1,13 +1,10 @@
 //! Contains the main Supervisor service runner.
 
-use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::ChainId;
 use alloy_provider::{RootProvider, network::Ethereum};
 use alloy_rpc_client::RpcClient;
-use alloy_rpc_types_eth::Block;
 use anyhow::Result;
 use jsonrpsee::client_transport::ws::Url;
-use kona_protocol::BlockInfo;
 use kona_supervisor_core::{
     ChainProcessor, CrossSafetyCheckerJob, ReorgHandler, Supervisor,
     config::Config,
@@ -261,28 +258,12 @@ impl Service {
             // Perform one-shot L1 consistency verification at startup to detect any
             // reorgs that occurred while the supervisor was offline, ensuring all
             // chains are in sync with the current canonical L1 state before processing.
-            if let Ok(latest_block) = l1_rpc
-                .request::<_, Block>("eth_getBlockByNumber", (BlockNumberOrTag::Latest, false))
-                .await
-            {
-                let header = latest_block.header;
-                let latest_info = BlockInfo::new(
-                    header.hash,
-                    header.number,
-                    header.parent_hash,
-                    header.timestamp,
-                );
-
-                // Check for reorgs at startup
-                let reorg_handler =
-                    ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone(), managed_nodes.clone());
-                if let Err(err) = reorg_handler.handle_l1_reorg(latest_info).await {
-                    warn!(target: "supervisor::service", %err, "Startup reorg check failed");
-                } else {
-                    trace!(target: "supervisor::service", "Startup reorg check completed");
-                }
+            let reorg_handler =
+                ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone(), managed_nodes.clone());
+            if let Err(err) = reorg_handler.verify_l1_consistency().await {
+                warn!(target: "supervisor::service", %err, "Startup reorg check failed");
             } else {
-                warn!(target: "supervisor::service", "Failed to fetch latest L1 block for startup reorg check");
+                trace!(target: "supervisor::service", "Startup reorg check completed");
             }
 
             // Start the L1 watcher streaming loop.
