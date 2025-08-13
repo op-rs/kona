@@ -278,26 +278,14 @@ impl Service {
                     ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone(), managed_nodes.clone());
                 if let Err(err) = reorg_handler.handle_l1_reorg(latest_info).await {
                     warn!(target: "supervisor::service", %err, "Startup reorg check failed");
-                    return Err(anyhow::anyhow!(err));
                 } else {
                     trace!(target: "supervisor::service", "Startup reorg check completed");
                 }
-
-                let l1_watcher = L1Watcher::new(
-                    l1_rpc.clone(),
-                    database_factory,
-                    event_senders,
-                    cancel_token,
-                    reorg_handler,
-                );
-
-                l1_watcher.run().await;
-                return Ok(());
             } else {
                 warn!(target: "supervisor::service", "Failed to fetch latest L1 block for startup reorg check");
             }
 
-            // Fallback: start the watcher even if startup fetch failed (new handler instance)
+            // Start the L1 watcher streaming loop.
             let l1_watcher = L1Watcher::new(
                 l1_rpc.clone(),
                 database_factory,
