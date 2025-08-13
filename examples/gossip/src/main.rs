@@ -103,6 +103,7 @@ impl GossipCommand {
                 bootnodes: Default::default(),
                 rollup_config: rollup_config.clone(),
                 gossip_signer: None,
+                enr_update: true,
             }
             .into(),
         );

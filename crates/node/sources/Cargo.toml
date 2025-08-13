@@ -16,10 +16,8 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-derive.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
-kona-providers-alloy.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
@@ -33,18 +31,17 @@ alloy-signer.workspace = true
 alloy-signer-local.workspace = true
 
 # OP Alloy
-op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 op-alloy-network.workspace = true
+op-alloy-rpc-types-engine.workspace = true
 
 # Misc
-lru.workspace = true
-url.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 derive_more.workspace = true
 
 # HTTP client and TLS for remote signer
 reqwest = { workspace = true, features = ["json", "rustls-tls", "stream"] }
+url.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rustls.workspace = true
@@ -57,15 +54,10 @@ metrics = { workspace = true, optional = true }
 
 [features]
 default = []
-metrics = [
-	"dep:metrics",
-	"kona-derive/metrics",
-	"kona-providers-alloy/metrics",
-]
+metrics = [ "dep:metrics" ]
 
 [dev-dependencies]
 tokio.workspace = true
-kona-cli.workspace = true
 kona-registry.workspace = true
 serde_json.workspace = true
 alloy-rpc-types = { workspace = true, features = ["eth"] }
