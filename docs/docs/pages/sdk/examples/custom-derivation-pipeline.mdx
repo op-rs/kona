@@ -1,8 +1,8 @@
 import { Callout } from 'vocs/components'
 
-# Custom Derivation Pipeline with New Stage
+# Custom Derivation Pipeline Stage
 
-Custom pipeline stages enable developers to extend Kona's derivation pipeline with specialized logic for monitoring, validation, or data transformation. By implementing a few key traits, you can insert custom stages that intercept and process data flowing through the pipeline.
+Extend Kona's derivation pipeline by wrapping the top-level `AttributesQueue` stage with custom logic for monitoring, validation, or transformation.
 
 ## Core Concepts
 
@@ -15,40 +15,15 @@ ChannelReader → BatchStream → BatchProvider → AttributesQueue
 
 ### Key Traits
 
-Every pipeline stage must implement these traits:
+Custom stages that wrap the `AttributesQueue` must implement:
+- `NextAttributes` - Provides payload attributes for block building
+- `OriginProvider` - Provides current L1 origin
+- `SignalReceiver` - Handles pipeline resets
+- `OriginAdvancer` - Advances L1 origin
 
-```rust
-use kona_derive::{
-    NextAttributes, OriginProvider, SignalReceiver, OriginAdvancer,
-    PipelineResult, Signal, OpAttributesWithParent
-};
-use kona_protocol::{BlockInfo, L2BlockInfo};
+## Example: Monitoring Stage
 
-// Provides next attributes for block building
-trait NextAttributes {
-    async fn next_attributes(&mut self, parent: L2BlockInfo) 
-        -> PipelineResult<OpAttributesWithParent>;
-}
-
-// Provides current L1 origin
-trait OriginProvider {
-    fn origin(&self) -> Option<BlockInfo>;
-}
-
-// Handles pipeline signals (reset, activation)
-trait SignalReceiver {
-    async fn signal(&mut self, signal: Signal) -> PipelineResult<()>;
-}
-
-// Advances to next L1 origin
-trait OriginAdvancer {
-    async fn advance_origin(&mut self) -> PipelineResult<()>;
-}
-```
-
-## Custom Stage Example
-
-Here's a logging stage that wraps another stage to track metrics:
+Wrap the `AttributesQueue` to add metrics tracking:
 
 ```rust
 use kona_derive::{
@@ -158,52 +133,38 @@ where
 ```
 
 <Callout type="info">
-  Custom stages can implement additional logic like validation, caching, or rate limiting.
-  The key is properly delegating to the inner stage while adding your custom behavior.
+  Custom stages wrap the `AttributesQueue` (top-level stage). For deeper pipeline modifications, you'd need to rebuild the entire pipeline.
 </Callout>
 
 ## Integration
-
-Build a pipeline with your custom stage:
 
 ```rust
 use kona_derive::{PipelineBuilder, DerivationPipeline};
 use kona_node::{StatefulAttributesBuilder};
 use alloc::sync::Arc;
 
-async fn build_custom_pipeline(
-    rollup_config: Arc<RollupConfig>,
-    chain_provider: impl ChainProvider,
-    l2_chain_provider: impl L2ChainProvider,
-    dap_source: impl DataAvailabilityProvider,
-    attributes_builder: StatefulAttributesBuilder,
-    origin: BlockInfo,
-) -> DerivationPipeline<LoggingStage<impl NextAttributes>, impl L2ChainProvider> {
-    // Build standard pipeline
-    let standard_pipeline = PipelineBuilder::new()
-        .rollup_config(rollup_config.clone())
-        .origin(origin)
-        .chain_provider(chain_provider)
-        .l2_chain_provider(l2_chain_provider.clone())
-        .dap_source(dap_source)
-        .builder(attributes_builder)
-        .build_polled();
-    
-    // Wrap attributes stage with logging
-    let logging_stage = LoggingStage::new(standard_pipeline.attributes);
-    
-    // Create new pipeline with custom stage
-    DerivationPipeline::new(
-        logging_stage,
-        rollup_config,
-        l2_chain_provider,
-    )
-}
+// Build standard pipeline
+let pipeline = PipelineBuilder::new()
+    .rollup_config(rollup_config.clone())
+    .origin(origin)
+    .chain_provider(chain_provider)
+    .l2_chain_provider(l2_chain_provider.clone())
+    .dap_source(dap_source)
+    .builder(attributes_builder)
+    .build_polled();
+
+// Wrap with monitoring
+let monitoring_stage = LoggingStage::new(pipeline.attributes);
+
+// Create new pipeline
+let custom_pipeline = DerivationPipeline::new(
+    monitoring_stage,
+    rollup_config,
+    l2_chain_provider,
+);
 ```
 
-## Testing Custom Stages
-
-Test your custom stage in isolation:
+## Testing
 
 ```rust
 #[cfg(test)]
