@@ -29,6 +29,7 @@ tracing = { workspace = true}
 alloy-eips = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
+alloy-rpc-types-eth = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 kona-genesis = { workspace = true }

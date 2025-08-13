@@ -5218,6 +5218,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-client",
+ "alloy-rpc-types-eth",
  "anyhow",
  "async-trait",
  "derive_more",

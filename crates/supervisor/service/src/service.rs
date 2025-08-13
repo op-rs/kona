@@ -1,10 +1,13 @@
 //! Contains the main Supervisor service runner.
 
+use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::ChainId;
 use alloy_provider::{RootProvider, network::Ethereum};
 use alloy_rpc_client::RpcClient;
+use alloy_rpc_types_eth::Block;
 use anyhow::Result;
 use jsonrpsee::client_transport::ws::Url;
+use kona_protocol::BlockInfo;
 use kona_supervisor_core::{
     ChainProcessor, CrossSafetyCheckerJob, ReorgHandler, Supervisor,
     config::Config,
@@ -248,15 +251,58 @@ impl Service {
             })
             .collect::<Result<HashMap<ChainId, Arc<ChainDb>>>>()?;
 
-        let l1_watcher = L1Watcher::new(
-            l1_rpc.clone(),
-            self.database_factory.clone(),
-            chain_event_senders.clone(),
-            self.cancel_token.clone(),
-            ReorgHandler::new(l1_rpc.clone(), chain_dbs_map, self.managed_nodes.clone()),
-        );
-
+        // Spawn a task that first performs a one-shot startup reorg across all chains,
+        // (does nothing if the reorg is not detected) then starts the L1 watcher streaming loop.
+        let database_factory = self.database_factory.clone();
+        let cancel_token = self.cancel_token.clone();
+        let event_senders = chain_event_senders.clone();
+        let managed_nodes = self.managed_nodes.clone();
         self.join_set.spawn(async move {
+            // One-shot reorg at startup
+            if let Ok(latest_block) = l1_rpc
+                .request::<_, Block>("eth_getBlockByNumber", (BlockNumberOrTag::Latest, false))
+                .await
+            {
+                let header = latest_block.header;
+                let latest_info = BlockInfo::new(
+                    header.hash,
+                    header.number,
+                    header.parent_hash,
+                    header.timestamp,
+                );
+
+                // Check for reorgs at startup
+                let reorg_handler =
+                    ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone(), managed_nodes.clone());
+                if let Err(err) = reorg_handler.handle_l1_reorg(latest_info).await {
+                    warn!(target: "supervisor::service", %err, "Startup reorg check failed");
+                } else {
+                    info!(target: "supervisor::service", "Startup reorg check completed");
+                }
+
+                let l1_watcher = L1Watcher::new(
+                    l1_rpc.clone(),
+                    database_factory,
+                    event_senders,
+                    cancel_token,
+                    reorg_handler,
+                );
+
+                l1_watcher.run().await;
+                return Ok(());
+            } else {
+                warn!(target: "supervisor::service", "Failed to fetch latest L1 block for startup reorg check");
+            }
+
+            // Fallback: start the watcher even if startup fetch failed (new handler instance)
+            let l1_watcher = L1Watcher::new(
+                l1_rpc.clone(),
+                database_factory,
+                event_senders,
+                cancel_token,
+                ReorgHandler::new(l1_rpc, chain_dbs_map, managed_nodes),
+            );
+
             l1_watcher.run().await;
             Ok(())
         });
