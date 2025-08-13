@@ -36,7 +36,7 @@ jobs:
       bin_target: ${{ steps.target-spec.outputs.bin_target }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get Valid Targets
         id: get-targets
@@ -112,7 +112,7 @@ jobs:
         platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Prepare
         run: |

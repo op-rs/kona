@@ -28,8 +28,8 @@ where
     /// Verifies that all executing messages in the given block are valid based on the validity
     /// checks
     pub fn validate_block(&self, block: BlockInfo) -> Result<(), CrossSafetyError> {
-        self.map_dependent_block(&block, self.chain_id, |message, initiating_block| {
-            // Check whether the message passes interop timestamps related validation
+        self.map_dependent_block(&block, self.chain_id, |message, initiating_block_fetcher| {
+            // Step 1: Validate interop timestamps before any dependency checks
             self.validator
                 .validate_interop_timestamps(
                     message.chain_id,  // initiating chain id
@@ -40,11 +40,21 @@ where
                 )
                 .map_err(ValidationError::InteropValidationError)?;
 
-            // Check weather the message exists and valid
+            // Step 2: Verify message dependency without fetching the initiating block.
+            // This avoids unnecessary I/O and ensures we skip validation when:
+            //  - The current target head of the chain is behind the initiating block (must wait for
+            //    that chain to process further)
+            // Only if the target head is ahead but the initiating block is missing, we return a
+            // validation error.
+            self.verify_message_dependency(&message)?;
+
+            // Step 3: Lazily fetch the initiating block only after dependency checks pass.
+            let initiating_block = initiating_block_fetcher()?;
+
+            // Step 4: Validate message existence and integrity.
             self.validate_executing_message(initiating_block, &message)?;
-            // Check weather the message passes the dependency check
-            self.verify_message_dependency(initiating_block, &message)?;
-            // Check cyclic dependency starting from each dependent block
+
+            // Step 5: Perform cyclic dependency detection starting from the dependent block.
             self.check_cyclic_dependency(
                 &block,
                 &initiating_block,
@@ -59,12 +69,11 @@ where
     /// Ensures that the block a message depends on satisfies the given safety level.
     fn verify_message_dependency(
         &self,
-        init_block: BlockInfo,
         message: &ExecutingMessage,
     ) -> Result<(), CrossSafetyError> {
         let head = self.provider.get_safety_head_ref(message.chain_id, self.required_level)?;
 
-        if head.number < init_block.number {
+        if head.number < message.block_number {
             return Err(CrossSafetyError::DependencyNotSafe {
                 chain_id: message.chain_id,
                 block_number: message.block_number,
@@ -122,7 +131,8 @@ where
             return Ok(()); // Already at target safety level - cannot form a cycle
         }
 
-        self.map_dependent_block(current, chain_id, |message, origin_block| {
+        self.map_dependent_block(current, chain_id, |message, origin_block_fetcher| {
+            let origin_block = origin_block_fetcher()?;
             self.check_cyclic_dependency(candidate, &origin_block, message.chain_id, visited)
         })
     }
@@ -165,8 +175,8 @@ where
         Ok(())
     }
 
-    /// For each executing log in the block, fetches the initiating block and applies the callback.
-    /// This is the direct dependency walker from executing → initiating blocks.
+    /// For each executing log in the block, provide a lazy fetcher for the initiating block.
+    /// The callback decides if/when to fetch the initiating block.
     fn map_dependent_block<F>(
         &self,
         exec_block: &BlockInfo,
@@ -174,13 +184,25 @@ where
         mut f: F,
     ) -> Result<(), CrossSafetyError>
     where
-        F: FnMut(ExecutingMessage, BlockInfo) -> Result<(), CrossSafetyError>,
+        F: for<'a> FnMut(
+            ExecutingMessage,
+            &'a dyn Fn() -> Result<BlockInfo, CrossSafetyError>,
+        ) -> Result<(), CrossSafetyError>,
     {
         let logs = self.provider.get_block_logs(chain_id, exec_block.number)?;
         for log in logs {
             if let Some(msg) = log.executing_message {
-                let init_block = self.provider.get_block(msg.chain_id, msg.block_number)?;
-                f(msg, init_block)?;
+                // Capture what we need for a lazy fetch.
+                let provider = &self.provider;
+                let chain = msg.chain_id;
+                let number = msg.block_number;
+
+                // Zero-arg closure that fetches the initiating block on demand.
+                let fetcher =
+                    || provider.get_block(chain, number).map_err(CrossSafetyError::Storage);
+
+                // Pass the message and the reference to the fetcher.
+                f(msg, &fetcher)?;
             }
         }
         Ok(())
@@ -248,9 +270,6 @@ mod tests {
             hash: b256(0),
         };
 
-        let block_info =
-            BlockInfo { number: 100, hash: b256(100), parent_hash: b256(99), timestamp: 0 };
-
         let head_info =
             BlockInfo { number: 101, hash: b256(101), parent_hash: b256(100), timestamp: 0 };
 
@@ -263,7 +282,7 @@ mod tests {
             .returning(move |_, _| Ok(head_info));
 
         let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
-        let result = checker.verify_message_dependency(block_info, &msg);
+        let result = checker.verify_message_dependency(&msg);
         assert!(result.is_ok());
     }
 
@@ -277,9 +296,6 @@ mod tests {
             timestamp: 0,
             hash: b256(123),
         };
-
-        let dep_block =
-            BlockInfo { number: 105, hash: b256(105), parent_hash: b256(104), timestamp: 0 };
 
         let head_block = BlockInfo {
             number: 100, // safety head is behind the message dependency
@@ -297,7 +313,7 @@ mod tests {
             .returning(move |_, _| Ok(head_block));
 
         let checker = CrossSafetyChecker::new(1, &validator, &provider, SafetyLevel::CrossSafe);
-        let result = checker.verify_message_dependency(dep_block, &msg);
+        let result = checker.verify_message_dependency(&msg);
 
         assert!(
             matches!(result, Err(CrossSafetyError::DependencyNotSafe { .. })),

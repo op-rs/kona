@@ -100,6 +100,24 @@ kona-node node \
 That's it! Your node should connect to P2P and start syncing
 quickly.
 
+#### RPC Trust Configuration
+
+By default, `kona-node` trusts RPC providers and doesn't perform additional verification. 
+This is suitable for local nodes but should be changed when using public RPC endpoints:
+
+```
+kona-node node \
+    --chain 8453 \
+    --l1-eth-rpc https://public-eth-rpc.com \
+    --l1-trust-rpc false \
+    --l1-beacon https://public-beacon-api.com \
+    --l2-engine-rpc http://127.0.0.1:9551 \
+    # L2 trust-rpc defaults to true for local engine
+```
+
+The `--l1-trust-rpc false` flag enables block hash verification for the L1 RPC, 
+protecting against malicious or faulty public RPC providers.
+
 
 #### Debugging
 

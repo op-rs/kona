@@ -78,8 +78,10 @@ kona-node \
 Many configuration options can be set via environment variables:
 
 - `KONA_NODE_L1_ETH_RPC` - L1 execution client RPC URL
+- `KONA_NODE_L1_TRUST_RPC` - Whether to trust the L1 RPC without verification (default: true)
 - `KONA_NODE_L1_BEACON` - L1 beacon API URL
 - `KONA_NODE_L2_ENGINE_RPC` - L2 engine API URL
+- `KONA_NODE_L2_TRUST_RPC` - Whether to trust the L2 RPC without verification (default: true)
 - `KONA_NODE_L2_ENGINE_AUTH` - Path to L2 engine JWT secret file
 - `KONA_NODE_MODE` - Node operation mode (default: validator)
 - `RUST_LOG` - Logging configuration
@@ -142,5 +144,27 @@ kona-node info --help
 - **JWT Secret**: A JWT secret file for authenticated communication with the L2 execution client
 
 ## Advanced Configuration
+
+### RPC Trust Configuration
+
+By default, Kona trusts RPC providers and does not perform additional block hash verification, optimizing for performance. This can be configured using trust flags:
+
+```bash
+# For untrusted/public RPC providers (adds verification)
+kona-node node \
+  --l1 https://public-rpc-endpoint.com \
+  --l1-trust-rpc false \
+  --l2 https://another-public-rpc.com \
+  --l2-trust-rpc false \
+  # ... other options
+```
+
+**Security Considerations:**
+- Default behavior (`true`): No additional verification, assumes RPC is trustworthy
+- Verification mode (`false`): All block hashes are verified against requested hashes
+- Use verification (`false`) for public or third-party RPC endpoints
+- Default trust (`true`) is suitable for local nodes and trusted infrastructure
+
+### Production Deployments
 
 For production deployments and advanced configurations, refer to the docker recipe in the main repository at `docker/recipes/kona-node/` which provides a complete setup example with monitoring and multiple services.

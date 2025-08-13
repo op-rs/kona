@@ -5,10 +5,9 @@ use discv5::Enr;
 use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
 use kona_gossip::GaterConfig;
-use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
-use std::path::PathBuf;
 use tokio::time::Duration;
 
 /// Configuration for kona's P2P stack.
@@ -23,6 +22,8 @@ pub struct NetworkConfig {
     pub discovery_interval: Duration,
     /// The interval to remove peers from the discovery service.
     pub discovery_randomize: Option<Duration>,
+    /// Whether to update the ENR socket when the gossip listen address changes.
+    pub enr_update: bool,
     /// The gossip address.
     pub gossip_address: libp2p::Multiaddr,
     /// The unsafe block signer.
@@ -38,7 +39,7 @@ pub struct NetworkConfig {
     /// Peer score monitoring config.
     pub monitor_peers: Option<PeerMonitoring>,
     /// An optional path to the bootstore.
-    pub bootstore: Option<PathBuf>,
+    pub bootstore: Option<BootStoreFile>,
     /// The configuration for the connection gater.
     pub gater_config: GaterConfig,
     /// An optional list of bootnode ENRs to start the node with.
@@ -52,6 +53,22 @@ pub struct NetworkConfig {
 impl NetworkConfig {
     const DEFAULT_DISCOVERY_INTERVAL: Duration = Duration::from_secs(5);
     const DEFAULT_DISCOVERY_RANDOMIZE: Option<Duration> = None;
+
+    /// Returns the [`discv5::Config`] from the CLI arguments.
+    pub fn discv5_config(listen_config: discv5::ListenConfig, static_ip: bool) -> discv5::Config {
+        // We can use a default listen config here since it
+        // will be overridden by the discovery service builder.
+        let mut builder = discv5::ConfigBuilder::new(listen_config);
+
+        if static_ip {
+            builder.disable_enr_update();
+
+            // If we have a static IP, we don't want to use any kind of NAT discovery mechanism.
+            builder.auto_nat_listen_duration(None);
+        }
+
+        builder.build()
+    }
 
     /// Creates a new [`NetworkConfig`] with the given [`RollupConfig`] with the minimum required
     /// fields. Generates a random keypair for the node.
@@ -69,6 +86,7 @@ impl NetworkConfig {
             discovery_randomize: Self::DEFAULT_DISCOVERY_RANDOMIZE,
             gossip_address,
             unsafe_block_signer,
+            enr_update: true,
             keypair: Keypair::generate_secp256k1(),
             bootnodes: Default::default(),
             bootstore: Default::default(),

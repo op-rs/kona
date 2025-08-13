@@ -13,9 +13,6 @@ extern crate tracing;
 mod sync;
 pub use sync::{L2ForkchoiceState, SyncStartError, find_starting_forkchoice};
 
-mod runtime;
-pub use runtime::{RuntimeConfig, RuntimeLoader, RuntimeLoaderError};
-
 mod metrics;
 pub use metrics::Metrics;
 

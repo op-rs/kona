@@ -82,12 +82,30 @@ pub struct NodeCommand {
     /// URL of the L1 execution client RPC API.
     #[arg(long, visible_alias = "l1", env = "KONA_NODE_L1_ETH_RPC")]
     pub l1_eth_rpc: Url,
+    /// Whether to trust the L1 RPC.
+    /// If false, block hash verification is performed for all retrieved blocks.
+    #[arg(
+        long,
+        visible_alias = "l1.trust-rpc",
+        env = "KONA_NODE_L1_TRUST_RPC",
+        default_value = "true"
+    )]
+    pub l1_trust_rpc: bool,
     /// URL of the L1 beacon API.
     #[arg(long, visible_alias = "l1.beacon", env = "KONA_NODE_L1_BEACON")]
     pub l1_beacon: Url,
     /// URL of the engine API endpoint of an L2 execution client.
     #[arg(long, visible_alias = "l2", env = "KONA_NODE_L2_ENGINE_RPC")]
     pub l2_engine_rpc: Url,
+    /// Whether to trust the L2 RPC.
+    /// If false, block hash verification is performed for all retrieved blocks.
+    #[arg(
+        long,
+        visible_alias = "l2.trust-rpc",
+        env = "KONA_NODE_L2_TRUST_RPC",
+        default_value = "true"
+    )]
+    pub l2_trust_rpc: bool,
     /// JWT secret for the auth-rpc endpoint of the execution client.
     /// This MUST be a valid path to a file containing the hex-encoded JWT secret.
     #[arg(long, visible_alias = "l2.jwt-secret", env = "KONA_NODE_L2_ENGINE_AUTH")]
@@ -111,8 +129,10 @@ impl Default for NodeCommand {
     fn default() -> Self {
         Self {
             l1_eth_rpc: Url::parse("http://localhost:8545").unwrap(),
+            l1_trust_rpc: true,
             l1_beacon: Url::parse("http://localhost:5052").unwrap(),
             l2_engine_rpc: Url::parse("http://localhost:8551").unwrap(),
+            l2_trust_rpc: true,
             l2_engine_jwt_secret: None,
             l2_config_file: None,
             node_mode: NodeMode::Validator,
@@ -264,8 +284,10 @@ impl NodeCommand {
             .with_mode(self.node_mode)
             .with_jwt_secret(jwt_secret)
             .with_l1_provider_rpc_url(self.l1_eth_rpc)
+            .with_l1_trust_rpc(self.l1_trust_rpc)
             .with_l1_beacon_api_url(self.l1_beacon)
             .with_l2_engine_rpc_url(self.l2_engine_rpc)
+            .with_l2_trust_rpc(self.l2_trust_rpc)
             .with_p2p_config(p2p_config)
             .with_rpc_config(rpc_config)
             .with_sequencer_config(self.sequencer_flags.config())

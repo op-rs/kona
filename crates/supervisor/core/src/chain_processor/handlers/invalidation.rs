@@ -292,6 +292,7 @@ mod tests {
             fn latest_derived_block_at_source(&self, source_block_id: BlockNumHash) -> Result<BlockInfo, StorageError>;
             fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
             fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
+            fn get_activation_block(&self) -> Result<BlockInfo, StorageError>;
         }
 
         impl DerivationStorageWriter for Db {

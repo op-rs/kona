@@ -64,7 +64,7 @@ driver.
 - Every Y seconds it evicts a random ENR from the discovery
   table to keep peer discovery fresh. This is configurable
   using `Discv5Builder::with_discovery_randomize`.
-- Every Z seconds it stores it's ENR table at a configurable
+- Every Z seconds it stores its ENR table at a configurable
   location so if the service is restarted, it doesn't need to
   rediscover peers, it can just use the stored peers. The
   interval is configurable using

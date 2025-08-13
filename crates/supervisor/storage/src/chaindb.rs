@@ -104,6 +104,12 @@ impl DerivationStorageReader for ChainDb {
             })
         })?
     }
+
+    fn get_activation_block(&self) -> Result<BlockInfo, StorageError> {
+        self.observe_call(Metrics::STORAGE_METHOD_GET_ACTIVATION_BLOCK, || {
+            self.env.view(|tx| DerivationProvider::new(tx, self.chain_id).get_activation_block())
+        })?
+    }
 }
 
 impl DerivationStorageWriter for ChainDb {
