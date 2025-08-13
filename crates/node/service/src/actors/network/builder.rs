@@ -5,10 +5,10 @@ use discv5::{Config as Discv5Config, Enr};
 use kona_disc::{Discv5Builder, LocalNode};
 use kona_genesis::RollupConfig;
 use kona_gossip::{GaterConfig, GossipDriverBuilder};
-use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
 use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
 use crate::{
     NetworkBuilderError,
@@ -24,6 +24,11 @@ pub struct NetworkBuilder {
     pub(super) gossip: GossipDriverBuilder,
     /// A signer for payloads.
     pub(super) signer: Option<BlockSigner>,
+    /// Whether to update the ENR socket after the libp2p Swarm is started.
+    /// This is set to true by default.
+    /// This may be set to false if the node is configured to use a static advertised address (when
+    /// used with a nat for example).
+    pub(super) enr_update: bool,
 }
 
 impl From<NetworkConfig> for NetworkBuilder {
@@ -35,7 +40,9 @@ impl From<NetworkConfig> for NetworkBuilder {
             config.keypair,
             config.discovery_address,
             config.discovery_config,
+            config.gossip_signer,
         )
+        .with_enr_update(config.enr_update)
         .with_discovery_randomize(config.discovery_randomize)
         .with_bootstore(config.bootstore)
         .with_bootnodes(config.bootnodes)
@@ -45,7 +52,6 @@ impl From<NetworkConfig> for NetworkBuilder {
         .with_peer_monitoring(config.monitor_peers)
         .with_topic_scoring(config.topic_scoring)
         .with_gater_config(config.gater_config)
-        .with_signer(config.gossip_signer)
     }
 }
 
@@ -58,6 +64,7 @@ impl NetworkBuilder {
         keypair: Keypair,
         discovery_address: LocalNode,
         discovery_config: discv5::Config,
+        signer: Option<BlockSigner>,
     ) -> Self {
         Self {
             discovery: Discv5Builder::new(
@@ -71,8 +78,14 @@ impl NetworkBuilder {
                 gossip_addr,
                 keypair,
             ),
-            signer: None,
+            signer,
+            enr_update: true,
         }
+    }
+
+    /// Sets the ENR update flag for the [`NetworkBuilder`].
+    pub fn with_enr_update(self, enr_update: bool) -> Self {
+        Self { enr_update, ..self }
     }
 
     /// Sets the configuration for the connection gater.
@@ -86,11 +99,8 @@ impl NetworkBuilder {
     }
 
     /// Sets the bootstore path for the [`Discv5Builder`].
-    pub fn with_bootstore(self, bootstore: Option<PathBuf>) -> Self {
-        if let Some(bootstore) = bootstore {
-            return Self { discovery: self.discovery.with_bootstore(bootstore), ..self };
-        }
-        self
+    pub fn with_bootstore(self, bootstore: Option<BootStoreFile>) -> Self {
+        Self { discovery: self.discovery.with_bootstore_file(bootstore), ..self }
     }
 
     /// Sets the interval at which to randomize discovery peers.
@@ -153,7 +163,13 @@ impl NetworkBuilder {
         let (gossip, unsafe_block_signer_sender) = self.gossip.build()?;
         let discovery = self.discovery.build()?;
 
-        Ok(NetworkDriver { gossip, discovery, unsafe_block_signer_sender, signer: self.signer })
+        Ok(NetworkDriver {
+            gossip,
+            discovery,
+            unsafe_block_signer_sender,
+            signer: self.signer,
+            enr_update: self.enr_update,
+        })
     }
 }
 
@@ -202,6 +218,7 @@ mod tests {
             keypair,
             discovery_address,
             discovery_config,
+            None,
         )
     }
 
