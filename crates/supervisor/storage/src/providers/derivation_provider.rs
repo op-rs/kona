@@ -495,7 +495,7 @@ where
                 target_block = ?block.number,
                 ?latest_block,
                 %total_blocks,
-                "Starting rewind"
+                "Starting rewind derived block storage"
             );
 
             while let Some(Ok((_, _))) = walker.next() {
