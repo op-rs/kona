@@ -272,7 +272,7 @@ impl Service {
                 database_factory,
                 event_senders,
                 cancel_token,
-                ReorgHandler::new(l1_rpc, chain_dbs_map, managed_nodes),
+                reorg_handler,
             );
 
             l1_watcher.run().await;
