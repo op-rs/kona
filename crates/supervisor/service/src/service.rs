@@ -20,7 +20,7 @@ use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageWriter, 
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::mpsc, task::JoinSet, time::Duration};
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{error, info, trace, warn};
 
 use crate::actors::{
     ChainProcessorActor, ManagedNodeActor, MetricWorker, SupervisorActor, SupervisorRpcActor,
@@ -258,7 +258,9 @@ impl Service {
         let event_senders = chain_event_senders.clone();
         let managed_nodes = self.managed_nodes.clone();
         self.join_set.spawn(async move {
-            // One-shot reorg at startup
+            // Perform one-shot L1 consistency verification at startup to detect any
+            // reorgs that occurred while the supervisor was offline, ensuring all
+            // chains are in sync with the current canonical L1 state before processing.
             if let Ok(latest_block) = l1_rpc
                 .request::<_, Block>("eth_getBlockByNumber", (BlockNumberOrTag::Latest, false))
                 .await
@@ -276,8 +278,9 @@ impl Service {
                     ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone(), managed_nodes.clone());
                 if let Err(err) = reorg_handler.handle_l1_reorg(latest_info).await {
                     warn!(target: "supervisor::service", %err, "Startup reorg check failed");
+                    return Err(anyhow::anyhow!(err));
                 } else {
-                    info!(target: "supervisor::service", "Startup reorg check completed");
+                    trace!(target: "supervisor::service", "Startup reorg check completed");
                 }
 
                 let l1_watcher = L1Watcher::new(
