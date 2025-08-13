@@ -184,17 +184,25 @@ run-client-asterisc-offline block_number l2_claim l2_output_root l2_head l1_head
     {{verbosity}}
 
 # Run the client program on cannon with the host in detached server mode.
-run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc verbosity='':
+run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc rollup_config_path='' verbosity='':
   #!/usr/bin/env bash
+  set -o errexit -o nounset -o pipefail
+
+  HOST_BIN_PATH="./target/release/kona-host"
+  CLIENT_BIN_PATH="./target/mips64-unknown-none/release-client-lto/kona"
+  STATE_PATH="./state.bin.gz"
 
   L1_NODE_ADDRESS="{{l1_rpc}}"
   L1_BEACON_ADDRESS="{{l1_beacon_rpc}}"
   L2_NODE_ADDRESS="{{l2_rpc}}"
   OP_NODE_ADDRESS="{{rollup_node_rpc}}"
 
-  HOST_BIN_PATH="./target/release/kona-host"
-  CLIENT_BIN_PATH="./target/mips64-unknown-none/release-client-lto/kona"
-  STATE_PATH="./state.bin.gz"
+  L2_CHAIN_ID=$(cast chain-id --rpc-url $L2_NODE_ADDRESS)
+  if [ -z "{{rollup_config_path}}" ]; then
+    CHAIN_ID_OR_ROLLUP_CONFIG_ARG="--l2-chain-id $L2_CHAIN_ID"
+  else
+    CHAIN_ID_OR_ROLLUP_CONFIG_ARG="--rollup-config-path $(realpath {{rollup_config_path}})"
+  fi
 
   CLAIMED_L2_BLOCK_NUMBER={{block_number}}
   echo "Fetching configuration for block #$CLAIMED_L2_BLOCK_NUMBER..."
@@ -207,7 +215,6 @@ run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc verbo
   AGREED_L2_HEAD_HASH=$(cast block --rpc-url $L2_NODE_ADDRESS $((CLAIMED_L2_BLOCK_NUMBER - 1)) --json | jq -r .hash)
   L1_ORIGIN_NUM=$(cast rpc --rpc-url $OP_NODE_ADDRESS "optimism_outputAtBlock" $(cast 2h $((CLAIMED_L2_BLOCK_NUMBER - 1))) | jq -r .blockRef.l1origin.number)
   L1_HEAD=$(cast block --rpc-url $L1_NODE_ADDRESS $((L1_ORIGIN_NUM + 30)) --json | jq -r .hash)
-  L2_CHAIN_ID=$(cast chain-id --rpc-url $L2_NODE_ADDRESS)
 
   # Move to the workspace root
   cd $(git rev-parse --show-toplevel)
@@ -264,7 +271,7 @@ run-client-cannon-offline block_number l2_claim l2_output_root l2_head l1_head l
   just build-cannon-client
 
   echo "Loading client program into Cannon state format..."
-  cannon load-elf --path=$CLIENT_BIN_PATH --type multithreaded64-4
+  cannon load-elf --path=$CLIENT_BIN_PATH --type multithreaded64-5
 
   echo "Building host program for native target..."
   cargo build --bin kona-host
