@@ -74,7 +74,9 @@ getting started with building your own programs, and a reference for the librari
 - [`service`](./crates/node/service): The OP Stack rollup node service.
 - [`engine`](./crates/node/engine): An extensible implementation of the [OP Stack][op-stack] rollup node engine client
 - [`rpc`](./crates/node/rpc): OP Stack RPC types and extensions.
-- [`p2p`](./crates/node/p2p): OP Stack P2P Networking including Gossip and Discovery.
+- [`peers`](./crates/node/peers): Network peers library for the OP Stack.
+- [`disc`](./crates/node/disc): Discovery service for the OP Stack.
+- [`gossip`](./crates/node/gossip): Gossip protocol implementation for the OP Stack.
 - [`sources`](./crates/node/sources): Data source types and utilities for the kona-node.
 
 **Providers**
