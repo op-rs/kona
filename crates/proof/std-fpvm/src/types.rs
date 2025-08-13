@@ -5,7 +5,7 @@
 pub enum FileDescriptor {
     /// Read-only standard input stream.
     StdIn,
-    /// Write-only standaard output stream.
+    /// Write-only standard output stream.
     StdOut,
     /// Write-only standard error stream.
     StdErr,
