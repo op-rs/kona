@@ -5082,7 +5082,6 @@ dependencies = [
  "kona-genesis",
  "kona-protocol",
  "kona-registry",
- "metrics",
  "notify",
  "op-alloy-network",
  "op-alloy-rpc-types-engine",
