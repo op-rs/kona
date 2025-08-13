@@ -12,6 +12,7 @@ optimism_package:
             type: op-node
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
             log_level: debug
+            extra_params: [--experimental.sequencer-api=true]
       network_params:
         network: "kurtosis"
         network_id: "2151908"
@@ -36,6 +37,7 @@ optimism_package:
             type: op-node
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
             log_level: debug
+            extra_params: [--experimental.sequencer-api=true]
       network_params:
         network: "kurtosis"
         network_id: "2151909"
@@ -59,6 +61,9 @@ optimism_package:
       type: kona-supervisor
       image: kona-supervisor:local
       superchain: superchain
+  test-sequencers:
+    sequencer:
+      enabled: true
   global_log_level: "info"
   global_node_selectors: {}
   global_tolerations: []

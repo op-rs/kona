@@ -3,9 +3,8 @@
 use backon::{ExponentialBuilder, RetryableWithContext};
 use derive_more::Debug;
 use discv5::{Config, Discv5, Enr, enr::NodeId};
-use kona_peers::{BootNode, BootNodes, BootStore, EnrValidation, enr_to_multiaddr};
+use kona_peers::{BootNode, BootNodes, BootStore, BootStoreFile, EnrValidation, enr_to_multiaddr};
 use libp2p::Multiaddr;
-use std::path::PathBuf;
 use tokio::{
     sync::mpsc::channel,
     time::{Duration, sleep},
@@ -65,11 +64,18 @@ impl Discv5Driver {
         disc: Discv5,
         interval: Duration,
         chain_id: u64,
-        bootstore: Option<PathBuf>,
+        bootstore: Option<BootStoreFile>,
         bootnodes: Vec<Enr>,
-    ) -> Self {
-        let store = BootStore::from_chain_id(chain_id, bootstore, bootnodes.clone());
-        Self {
+    ) -> Result<Self, std::io::Error> {
+        let mut store = if let Some(bootstore) = bootstore {
+            bootstore.try_into()?
+        } else {
+            BootStore::default()
+        };
+
+        store.merge(bootnodes.clone());
+
+        Ok(Self {
             disc,
             chain_id,
             bootnodes,
@@ -78,7 +84,7 @@ impl Discv5Driver {
             forward: true,
             remove_interval: None,
             store_interval: Duration::from_secs(60),
-        }
+        })
     }
 
     /// Starts the inner [`Discv5`] service.
@@ -424,7 +430,11 @@ impl Discv5Driver {
                         let start = std::time::Instant::now();
                         let enrs = self.disc.table_entries_enr();
                         self.store.merge(enrs);
-                        self.store.sync();
+
+                        if let Err(e) = self.store.sync() {
+                            warn!(target: "discovery", "Failed to sync bootstore: {:?}", e);
+                        }
+
                         let elapsed = start.elapsed();
                         debug!(target: "discovery", "Bootstore ENRs stored in {:?}", elapsed);
                         kona_macros::record!(histogram, crate::Metrics::ENR_STORE_TIME, "store_time", "store_time", elapsed.as_secs_f64());
@@ -460,6 +470,7 @@ mod tests {
         handler::NodeContact,
     };
     use kona_genesis::{OP_MAINNET_CHAIN_ID, OP_SEPOLIA_CHAIN_ID};
+    use tempfile::tempfile;
 
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -483,10 +494,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_online_discv5_driver_bootstrap_testnet() {
-        // Use a test directory to make sure bootstore
+        // Use a test file to make sure bootstore
         // doesn't conflict with a local bootstore.
-        let dir = std::env::temp_dir();
-        assert!(std::env::set_current_dir(&dir).is_ok());
+        let file = tempfile().unwrap();
 
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
         let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
@@ -499,7 +509,7 @@ mod tests {
         )
         .build()
         .expect("Failed to build discovery service");
-        discovery.store.path = dir.join("bootstore.json");
+        discovery.store.file = Some(file);
 
         discovery = discovery.init().await.expect("Failed to initialize discovery service");
 
@@ -549,10 +559,9 @@ mod tests {
     async fn test_online_discv5_driver_bootstrap_mainnet() {
         kona_cli::init_test_tracing();
 
-        // Use a test directory to make sure bootstore
+        // Use a test file to make sure bootstore
         // doesn't conflict with a local bootstore.
-        let dir = std::env::temp_dir();
-        assert!(std::env::set_current_dir(&dir).is_ok());
+        let file = tempfile().unwrap();
 
         // Filter out ENRs that are not valid.
         let mainnet = BootNodes::mainnet();
@@ -587,7 +596,7 @@ mod tests {
         )
         .build()
         .expect("Failed to build discovery service");
-        discovery.store.path = dir.join("bootstore.json");
+        discovery.store.file = Some(file);
 
         discovery = discovery.init().await.expect("Failed to initialize discovery service");
 

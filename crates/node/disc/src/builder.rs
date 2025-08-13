@@ -1,8 +1,8 @@
 //! Contains a builder for the discovery service.
 
 use discv5::{Config, Discv5, Enr, enr::k256};
-use kona_peers::OpStackEnr;
-use std::{net::IpAddr, path::PathBuf};
+use kona_peers::{BootStoreFile, OpStackEnr};
+use std::net::IpAddr;
 use tokio::time::Duration;
 
 use crate::{Discv5BuilderError, Discv5Driver};
@@ -82,7 +82,7 @@ pub struct Discv5Builder {
     /// The interval to randomize discovery peers.
     randomize: Option<Duration>,
     /// An optional path to the bootstore.
-    bootstore: Option<PathBuf>,
+    bootstore: Option<BootStoreFile>,
     /// Additional bootnodes to manually add to the initial bootstore
     bootnodes: Vec<Enr>,
     /// The interval to store the bootnodes to disk.
@@ -107,9 +107,9 @@ impl Discv5Builder {
         }
     }
 
-    /// Sets the bootstore path.
-    pub fn with_bootstore(mut self, bootstore: PathBuf) -> Self {
-        self.bootstore = Some(bootstore);
+    /// Sets a bootstore file.
+    pub fn with_bootstore_file(mut self, bootstore: Option<BootStoreFile>) -> Self {
+        self.bootstore = bootstore;
         self
     }
 
@@ -176,7 +176,8 @@ impl Discv5Builder {
         let disc = Discv5::new(enr, key.into(), config)
             .map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
         let mut driver =
-            Discv5Driver::new(disc, interval, chain_id, self.bootstore.clone(), self.bootnodes);
+            Discv5Driver::new(disc, interval, chain_id, self.bootstore, self.bootnodes)
+                .map_err(|_| Discv5BuilderError::Discv5CreationFailed)?;
         driver.store_interval = self.store_interval.unwrap_or(Duration::from_secs(60));
         driver.forward = self.forward;
         driver.remove_interval = self.randomize;

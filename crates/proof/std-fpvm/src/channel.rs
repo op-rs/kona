@@ -1,4 +1,4 @@
-//! This module contains a rudamentary channel between two file descriptors, using [crate::io]
+//! This module contains a rudimentary channel between two file descriptors, using [crate::io]
 //! for reading and writing from the file descriptors.
 
 use crate::{FileDescriptor, io};

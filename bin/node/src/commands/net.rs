@@ -28,7 +28,7 @@ use url::Url;
 #[command(about = "Runs the networking stack for the kona-node.")]
 pub struct NetCommand {
     /// URL of the L1 execution client RPC API.
-    /// This is used to load the unsafe block signer from runtime.
+    /// This is used to load the unsafe block signer at startup.
     /// Without this, the rollup config unsafe block signer will be used which may be outdated.
     #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
     pub l1_eth_rpc: Option<Url>,

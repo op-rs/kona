@@ -4,8 +4,8 @@ use discv5::Enr;
 use std::{
     collections::VecDeque,
     fs::File,
-    io::BufReader,
-    path::{Path, PathBuf},
+    io::{BufReader, Seek, SeekFrom},
+    path::PathBuf,
 };
 
 /// The maximum number of peers that can be stored in the bootstore.
@@ -18,13 +18,84 @@ const MAX_PEERS: usize = 2048;
 ///
 /// When the number of peers within the [`BootStore`] exceeds `MAX_PEERS`, the oldest peers are
 /// removed to make room for new ones.
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Default)]
 pub struct BootStore {
-    /// The file path for the [`BootStore`].
+    /// The file for the [`BootStore`].
     #[serde(skip)]
-    pub path: PathBuf,
+    pub file: Option<File>,
     /// [`Enr`]s for peers.
     pub peers: VecDeque<Enr>,
+}
+
+/// The bootstore caching policy.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BootStoreFile {
+    /// Default path for the bootstore, ie `~/.kona/<chain_id>/bootstore.json`.
+    Default {
+        /// The l2 chain ID.
+        chain_id: u64,
+    },
+    /// A custom bootstore path is used. This must be a valid path to a file.
+    Custom(PathBuf),
+}
+
+impl TryInto<BootStore> for File {
+    type Error = std::io::Error;
+
+    fn try_into(self) -> Result<BootStore, std::io::Error> {
+        let peers = peers_from_file(&self);
+        Ok(BootStore { file: Some(self), peers })
+    }
+}
+
+impl TryInto<File> for BootStoreFile {
+    type Error = std::io::Error;
+
+    /// Returns a pointer to the bootstore file for the given combination of chain id and bootstore
+    /// file type.
+    fn try_into(self) -> Result<File, std::io::Error> {
+        let path = TryInto::<PathBuf>::try_into(self)?;
+        File::options().read(true).write(true).create(true).truncate(false).open(path)
+    }
+}
+
+impl TryInto<BootStore> for BootStoreFile {
+    type Error = std::io::Error;
+
+    fn try_into(self) -> Result<BootStore, std::io::Error> {
+        let file = TryInto::<File>::try_into(self)?;
+        file.try_into()
+    }
+}
+
+impl TryInto<PathBuf> for BootStoreFile {
+    type Error = std::io::Error;
+
+    fn try_into(self) -> Result<PathBuf, std::io::Error> {
+        match self {
+            Self::Default { chain_id } => {
+                let mut path = dirs::home_dir()
+                    .ok_or(std::io::Error::other("Failed to get home directory"))?;
+                path.push(".kona");
+                path.push(chain_id.to_string());
+                path.push("bootstore.json");
+                Ok(path)
+            }
+            Self::Custom(path) => Ok(path),
+        }
+    }
+}
+
+fn peers_from_file(file: &File) -> VecDeque<Enr> {
+    debug!(target: "bootstore", "Reading boot store from disk: {:?}", file);
+    let reader = BufReader::new(file);
+    match serde_json::from_reader(reader).map(|s: BootStore| s.peers) {
+        Ok(peers) => peers,
+        Err(e) => {
+            warn!(target: "bootstore", "Failed to read boot store from disk: {:?}", e);
+            VecDeque::new()
+        }
+    }
 }
 
 // This custom implementation of `Deserialize` allows us to ignore
@@ -32,7 +103,7 @@ pub struct BootStore {
 impl<'de> serde::Deserialize<'de> for BootStore {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let peers: Vec<serde_json::Value> = serde::Deserialize::deserialize(deserializer)?;
-        let mut store = Self { path: PathBuf::new(), peers: VecDeque::new() };
+        let mut store = Self { file: None, peers: VecDeque::new() };
         for peer in peers {
             match serde_json::from_value::<Enr>(peer) {
                 Ok(enr) => {
@@ -55,9 +126,6 @@ impl BootStore {
     /// [`BootStore::sync`] prior to dropping the store.
     pub fn add_enr(&mut self, enr: Enr) {
         self.add_rotate(enr);
-        if let Err(e) = self.write_to_file() {
-            warn!(target: "bootstore", "Failed to write boot store to disk: {:?}", e);
-        }
     }
 
     /// Returns the number of peers in the bootstore that
@@ -89,36 +157,21 @@ impl BootStore {
         self.peers.is_empty()
     }
 
-    /// Returns the list of peer [`Enr`]s.
-    ///
-    /// This method will **note** panic on failure to read from disk.
-    pub fn peers(&mut self) -> &VecDeque<Enr> {
-        let store = Self::from_file(&self.path);
-        self.merge(store.peers);
-        &self.peers
-    }
-
     /// Merges the given list of [`Enr`]s with the current list of peers.
     pub fn merge(&mut self, peers: impl IntoIterator<Item = Enr>) {
         peers.into_iter().for_each(|peer| self.add_rotate(peer));
     }
 
     /// Syncs the [`BootStore`] with the contents on disk.
-    pub fn sync(&mut self) {
-        let _ = self.peers();
-        if let Err(e) = self.write_to_file() {
-            warn!(target: "bootstore", "Failed to write boot store to disk: {:?}", e);
-        }
-    }
+    pub fn sync(&mut self) -> Result<(), std::io::Error> {
+        if let Some(file) = &mut self.file {
+            // Reset the file pointer to the beginning of the file to overwrite the file.
+            // Reset file pointer AND truncate
+            file.seek(SeekFrom::Start(0))?;
+            file.set_len(0)?;
 
-    /// Writes the store to disk.
-    fn write_to_file(&mut self) -> Result<(), std::io::Error> {
-        // If the directory does not exist, create it.
-        if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent)?;
+            serde_json::to_writer(file, &self.peers)?;
         }
-        let file = File::create(&self.path)?;
-        serde_json::to_writer(file, &self.peers)?;
         Ok(())
     }
 
@@ -138,52 +191,6 @@ impl BootStore {
             }
         }
         bootstores
-    }
-
-    /// Returns the [`PathBuf`] for the given chain id.
-    pub fn path(chain_id: u64, datadir: Option<PathBuf>) -> PathBuf {
-        let mut path = datadir.unwrap_or_else(|| {
-            let mut home = dirs::home_dir().expect("Failed to get home directory");
-            home.push(".kona");
-            home
-        });
-        path.push(chain_id.to_string());
-        path.push("bootstore.json");
-        path
-    }
-
-    /// Reads a new [`BootStore`] from the given chain id and data directory.
-    ///
-    /// If the file cannot be read, an empty [`BootStore`] is returned.
-    pub fn from_chain_id(chain_id: u64, datadir: Option<PathBuf>, bootnodes: Vec<Enr>) -> Self {
-        let path = Self::path(chain_id, datadir);
-        let mut store = Self::from_file(&path);
-
-        // Add the bootnodes to the bootstore.
-        store.merge(bootnodes);
-
-        store
-    }
-
-    /// Reads a new [`BootStore`] from the given chain id and data directory.
-    ///
-    /// If the file cannot be read, an empty [`BootStore`] is returned.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Self {
-        let p = path.as_ref().to_path_buf();
-        let peers = File::open(path)
-            .map(|file| {
-                let reader = BufReader::new(file);
-                debug!(target: "bootstore", "Reading boot store from disk: {:?}", p);
-                match serde_json::from_reader(reader).map(|s: Self| s.peers) {
-                    Ok(peers) => peers,
-                    Err(e) => {
-                        warn!(target: "bootstore", "Failed to read boot store from disk: {:?}", e);
-                        VecDeque::new()
-                    }
-                }
-            })
-            .unwrap_or_default();
-        Self { path: p, peers }
     }
 
     /// Adds an [`Enr`] to the store, rotating the oldest peer out if necessary.
