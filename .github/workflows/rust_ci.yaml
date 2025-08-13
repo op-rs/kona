@@ -272,7 +272,7 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           # Check all markdown and HTML files
-          args: --verbose --no-progress --insecure --exclude './target/**' --exclude './crates/protocol/registry/superchain-registry/**' --exclude 'localhost' --accept 200,201,202,203,204,300,301,302,303,304,307,308,429 '**/*.md' '**/*.html'
+          args: --verbose --no-progress --insecure --exclude './target/**' --exclude './crates/protocol/registry/**' --exclude 'localhost' --accept 200,201,202,203,204,300,301,302,303,304,307,308,429 '**/*.md' '**/*.html'
           # Fail on broken links
           fail: true
           # Format for GitHub Actions
