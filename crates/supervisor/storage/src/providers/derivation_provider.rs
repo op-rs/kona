@@ -520,7 +520,7 @@ where
 
             info!(
                 target_block = ?block.number,
-                total_blocks = %total_blocks,
+                %total_blocks,
                 "Rewind completed successfully"
             );
         }
