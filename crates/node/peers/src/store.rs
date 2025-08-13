@@ -39,12 +39,10 @@ pub enum BootStoreFile {
     Custom(PathBuf),
 }
 
-impl TryInto<BootStore> for File {
-    type Error = std::io::Error;
-
-    fn try_into(self) -> Result<BootStore, std::io::Error> {
-        let peers = peers_from_file(&self);
-        Ok(BootStore { file: Some(self), peers })
+impl From<File> for BootStore {
+    fn from(file: File) -> Self {
+        let peers = peers_from_file(&file);
+        Self { file: Some(file), peers }
     }
 }
 
@@ -64,7 +62,7 @@ impl TryInto<BootStore> for BootStoreFile {
 
     fn try_into(self) -> Result<BootStore, std::io::Error> {
         let file = TryInto::<File>::try_into(self)?;
-        file.try_into()
+        Ok(file.into())
     }
 }
 
