@@ -511,8 +511,8 @@ where
                     };
                     info!(
                         percentage = %format!("{:.2}", percentage),
-                        processed_blocks = %processed_blocks,
-                        total_blocks = %total_blocks,
+                        %processed_blocks,
+                        %total_blocks,
                         "Rewind progress"
                     );
                 }
