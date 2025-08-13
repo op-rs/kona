@@ -185,7 +185,8 @@ export const sidebar: SidebarItem[] = [
           { text: "Create a new L1BlockInfoTx Hardfork Variant", link: "/sdk/examples/new-l1-block-info-tx-hardfork" },
           { text: "Create a new kona-executor test fixture", link: "/sdk/examples/executor-test-fixtures" },
           { text: "Configuring P2P Network Peer Scoring", link: "/sdk/examples/p2p-peer-scoring" },
-          { text: "Custom Derivation Pipeline Stage", link: "/sdk/examples/custom-derivation-pipeline" }
+          { text: "Custom Derivation Pipeline with New Stage", link: "/sdk/examples/custom-derivation-pipeline" },
+          { text: "Testing Kona Sequencing with Kurtosis", link: "/sdk/examples/kurtosis-sequencing-test" }
         ]
       }
     ]
