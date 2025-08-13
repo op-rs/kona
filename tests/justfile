@@ -1,6 +1,6 @@
 SOURCE := source_directory()
 DEFAULT_DEVNET_PATH := source_directory() + "/devnets/simple-kona.yaml"
-DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package"
+DEFAULT_OP_PACKAGE_PATH := "github.com/ethpandaops/optimism-package@219d5f9e104951d0ef6ed9586f9f6baa0ecbd980"
 
 build-devnet BINARY:
     #!/usr/bin/env bash
