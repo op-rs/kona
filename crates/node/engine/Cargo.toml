@@ -63,4 +63,4 @@ metrics-exporter-prometheus.workspace = true
 rstest.workspace = true
 
 [features]
-metrics = [ "dep:metrics", "kona-sources/metrics" ]
+metrics = [ "dep:metrics" ]

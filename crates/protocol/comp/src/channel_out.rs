@@ -42,7 +42,7 @@ where
     pub id: ChannelId,
     /// A reference to the [RollupConfig] used to
     /// check the max RLP bytes per channel when
-    /// encoding and accepting the
+    /// encoding and accepting the batch.
     pub config: &'a RollupConfig,
     /// The rlp length of the channel.
     pub rlp_length: u64,
