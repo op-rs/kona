@@ -290,7 +290,7 @@ impl EngineTaskExt for BuildTask {
                 if self.attributes.is_deposits_only() =>
             {
                 error!(target: "engine_builder", error = ?e, "Critical: Deposit-only payload import failed");
-                return Err(BuildTaskError::DepositOnlyPayloadFailed)
+                return Err(BuildTaskError::DepositOnlyPayloadFailed);
             }
             // HOLOCENE: Re-attempt payload import with deposits only
             Err(InsertTaskError::UnexpectedPayloadStatus(e))
@@ -315,11 +315,11 @@ impl EngineTaskExt for BuildTask {
                     }
                     Err(_) => return Err(BuildTaskError::DepositOnlyPayloadReattemptFailed),
                 }
-                return Err(BuildTaskError::HoloceneInvalidFlush)
+                return Err(BuildTaskError::HoloceneInvalidFlush);
             }
             Err(e) => {
                 error!(target: "engine_builder", "Payload import failed: {e}");
-                return Err(e.into())
+                return Err(Box::new(e).into());
             }
             Ok(_) => {
                 info!(target: "engine_builder", "Successfully imported payload")
@@ -330,7 +330,7 @@ impl EngineTaskExt for BuildTask {
 
         // If a channel was provided, send the built payload envelope to it.
         if let Some(tx) = &self.payload_tx {
-            tx.send(new_payload).await.map_err(BuildTaskError::MpscSend)?;
+            tx.send(new_payload).await.map_err(Box::new).map_err(BuildTaskError::MpscSend)?;
         }
 
         info!(

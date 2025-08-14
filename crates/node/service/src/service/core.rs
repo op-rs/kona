@@ -30,7 +30,9 @@ use tokio_util::sync::CancellationToken;
 ///
 /// ## Sequencer Mode
 ///
-/// _Unimplemented - coming soon_.
+/// In sequencer mode, the node is responsible for producing unsafe L2 blocks and sending them to
+/// the network over p2p gossip. The node also listens for L1 finalized block updates and finalizes
+/// `safe` blocks that it has derived when L1 finalized block updates are received.
 ///
 /// ## Types
 ///

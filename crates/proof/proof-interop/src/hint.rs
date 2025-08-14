@@ -109,6 +109,6 @@ impl From<HintType> for &str {
 impl Display for HintType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let s: &str = (*self).into();
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }

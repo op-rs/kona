@@ -19,9 +19,11 @@ kona-supervisor-rpc = { workspace = true, features = ["jsonrpsee"] }
 kona-supervisor-storage = { workspace = true }
 kona-supervisor-metrics = { workspace = true }
 kona-interop.workspace = true
+kona-supervisor-types.workspace = true
 
 # External dependencies
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
+mockall = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true}
 alloy-eips = { workspace = true }

@@ -135,7 +135,7 @@ where
         &self,
         source_block_id: BlockNumHash,
     ) -> Result<BlockInfo, StorageError> {
-        let mut block_traversal = self.get_block_traversal(source_block_id.number)?;
+        let block_traversal = self.get_block_traversal(source_block_id.number)?;
 
         if block_traversal.source.hash != source_block_id.hash {
             warn!(
@@ -147,19 +147,20 @@ where
             return Err(StorageError::ConflictError);
         }
 
-        while block_traversal.derived_block_numbers.is_empty() {
-            let prev_block_traversal =
-                self.get_block_traversal(block_traversal.source.number - 1)?;
-            block_traversal = prev_block_traversal;
+        let mut cursor = self.tx.cursor_read::<BlockTraversal>()?;
+        let walker = cursor.walk_back(Some(source_block_id.number))?;
+
+        for item in walker {
+            let (_, block_traversal) = item?;
+            if let Some(latest_derived_block_number) = block_traversal.derived_block_numbers.last()
+            {
+                let derived_block_pair =
+                    self.get_derived_block_pair_by_number(*latest_derived_block_number)?;
+                return Ok(derived_block_pair.derived.into());
+            }
         }
 
-        let derived_block_number = block_traversal
-            .derived_block_numbers
-            .last()
-            .ok_or(EntryNotFoundError::MissingDerivedBlocks(source_block_id))?;
-
-        let derived_block_pair = self.get_derived_block_pair_by_number(*derived_block_number)?;
-        Ok(derived_block_pair.derived.into())
+        Err(EntryNotFoundError::MissingDerivedBlocks(source_block_id).into())
     }
 
     /// Gets the latest derivation state [`DerivedRefPair`], which includes the latest source block
@@ -241,6 +242,15 @@ where
 
         Ok(block.source.into())
     }
+
+    /// Gets the activation block, which is the first block in the database.
+    pub(crate) fn get_activation_block(&self) -> Result<BlockInfo, StorageError> {
+        let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
+        let result = cursor.first()?;
+
+        let (_, derived_block_pair) = result.ok_or_else(|| StorageError::DatabaseNotInitialised)?;
+        Ok(derived_block_pair.derived.into())
+    }
 }
 
 impl<TX> DerivationProvider<'_, TX>
@@ -274,7 +284,9 @@ where
         // todo: use cursor to get the last block(performance improvement)
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(e) => return Err(e),
         };
 
@@ -403,7 +415,9 @@ where
     pub(crate) fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
         let latest_source_block = match self.latest_source_block() {
             Ok(latest_source_block) => latest_source_block,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(err) => return Err(err),
         };
 
@@ -880,7 +894,7 @@ mod tests {
         let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let result = provider.latest_derivation_state();
-        print!("{:?}", result);
+        print!("{result:?}");
         assert!(
             matches!(result, Err(StorageError::DatabaseNotInitialised)),
             "Should return DatabaseNotInitialised error when no derivation state exists"
@@ -1151,5 +1165,36 @@ mod tests {
         let new_state = provider.latest_derivation_state().expect("should succeed");
         assert_eq!(new_state.derived, derived_genesis);
         assert_eq!(new_state.source, genesis_block());
+    }
+
+    #[test]
+    fn test_get_activation_block_returns_error_if_empty() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let result = provider.get_activation_block();
+        assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
+    }
+
+    #[test]
+    fn test_get_activation_block_with_multiple_blocks_returns_first() {
+        let db = setup_db();
+
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived1 = block_info(0, genesis_block().hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let derived2 = block_info(1, derived1.hash, 300);
+        let pair2 = derived_pair(source1, derived2);
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let activation = provider.get_activation_block().expect("should exist");
+        assert_eq!(activation, derived1);
     }
 }

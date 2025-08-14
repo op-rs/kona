@@ -36,7 +36,7 @@ jobs:
       bin_target: ${{ steps.target-spec.outputs.bin_target }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get Valid Targets
         id: get-targets
@@ -57,7 +57,7 @@ jobs:
           echo "target=$TARGET" >> $GITHUB_OUTPUT
 
           # Check if target is in valid targets list
-          if echo "${{ steps.get-targets.outputs.targets }}" | jq -e 'contains(["'"$TARGET"'"])' > /dev/null; then
+          if echo '${{ steps.get-targets.outputs.targets }}' | jq -e 'contains(["'$TARGET'"])' > /dev/null; then
             echo "bake_target=$TARGET" >> $GITHUB_OUTPUT
             echo "bin_target=" >> $GITHUB_OUTPUT
             echo "Target '$TARGET' is a valid bake target"
@@ -112,7 +112,7 @@ jobs:
         platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Prepare
         run: |

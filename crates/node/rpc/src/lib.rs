@@ -35,11 +35,6 @@ pub use jsonrpsee::{
     RollupNodeApiServer, WsServer,
 };
 
-#[cfg(feature = "client")]
-mod interop;
-#[cfg(feature = "client")]
-pub use interop::{CheckAccessListClient, InteropTxValidator, InteropTxValidatorError};
-
 mod rollup;
 pub use rollup::RollupRpc;
 

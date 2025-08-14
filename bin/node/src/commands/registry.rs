@@ -33,7 +33,7 @@ impl RegistryCommand {
             tabled::settings::object::Columns::first(),
             tabled::settings::Alignment::right(),
         );
-        println!("{}", table);
+        println!("{table}");
         Ok(())
     }
 }

@@ -20,8 +20,8 @@
 use clap::Parser;
 use discv5::enr::CombinedKey;
 use kona_cli::{LogConfig, log::LogArgs};
+use kona_disc::LocalNode;
 use kona_node_service::{NetworkActor, NetworkConfig, NetworkContext, NodeActor};
-use kona_p2p::LocalNode;
 use kona_registry::ROLLUP_CONFIGS;
 use libp2p::{Multiaddr, identity::Keypair};
 use std::{
@@ -103,6 +103,7 @@ impl GossipCommand {
                 bootnodes: Default::default(),
                 rollup_config: rollup_config.clone(),
                 gossip_signer: None,
+                enr_update: true,
             }
             .into(),
         );

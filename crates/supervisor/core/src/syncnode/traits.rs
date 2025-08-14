@@ -1,30 +1,43 @@
 use super::ManagedNodeError;
-use crate::event::ChainEvent;
 use alloy_eips::BlockNumHash;
 use alloy_primitives::B256;
 use async_trait::async_trait;
+use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
 use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::fmt::Debug;
-use tokio::sync::mpsc;
 
-/// Represents a node that can subscribe to L2 events from the chain.
-///
-/// This trait is responsible for setting up event subscriptions and
-/// streaming them through a Tokio MPSC channel. Must be thread-safe.
+/// Represents a handler for subscription events.
 #[async_trait]
-pub trait NodeSubscriber: Send + Sync {
-    /// Starts a subscription to the node's event stream.
-    ///
-    /// # Arguments
-    /// * `event_tx` - A Tokio MPSC sender through which [`ChainEvent`]s will be emitted.
-    ///
-    /// # Returns
-    /// * `Ok(())` on successful subscription
-    /// * `Err(ManagedNodeError)` if subscription setup fails
-    async fn start_subscription(
+pub trait SubscriptionHandler: Send + Sync {
+    /// Handles the exhaustion L1 exhaust event from the node.
+    async fn handle_exhaust_l1(
         &self,
-        event_tx: mpsc::Sender<ChainEvent>,
+        derived_ref_pair: &DerivedRefPair,
+    ) -> Result<(), ManagedNodeError>;
+
+    /// Handles the reset event from the node.
+    async fn handle_reset(&self, reset_id: &str) -> Result<(), ManagedNodeError>;
+
+    /// Handles the unsafe block event from the node.
+    async fn handle_unsafe_block(&self, block: &BlockInfo) -> Result<(), ManagedNodeError>;
+
+    /// Handles the derivation update event from the node.
+    async fn handle_derivation_update(
+        &self,
+        derived_ref_pair: &DerivedRefPair,
+    ) -> Result<(), ManagedNodeError>;
+
+    /// Handles the block replacement event from the node.
+    async fn handle_replace_block(
+        &self,
+        replacement: &BlockReplacement,
+    ) -> Result<(), ManagedNodeError>;
+
+    /// Handles the derivation origin update event from the node.
+    async fn handle_derivation_origin_update(
+        &self,
+        origin: &BlockInfo,
     ) -> Result<(), ManagedNodeError>;
 }
 
@@ -161,7 +174,7 @@ pub trait ManagedNodeController: Send + Sync + Debug {
 /// within the supervisor context.
 #[async_trait]
 pub trait ManagedNodeProvider:
-    NodeSubscriber
+    SubscriptionHandler
     + BlockProvider
     + ManagedNodeDataProvider
     + ManagedNodeController
@@ -173,7 +186,7 @@ pub trait ManagedNodeProvider:
 
 #[async_trait]
 impl<T> ManagedNodeProvider for T where
-    T: NodeSubscriber
+    T: SubscriptionHandler
         + BlockProvider
         + ManagedNodeDataProvider
         + ManagedNodeController

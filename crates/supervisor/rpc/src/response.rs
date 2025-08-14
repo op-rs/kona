@@ -86,7 +86,7 @@ impl From<SuperHead> for SupervisorChainSyncStatus {
     }
 }
 
-/// This is same as [`kona_interop::ChainRootInfo`] but with [`u64`] serializeing as a valid hex
+/// This is same as [`kona_interop::ChainRootInfo`] but with [`u64`] serializing as a valid hex
 /// string.
 ///
 /// Required by
@@ -137,7 +137,7 @@ fn serialize_u8_as_hex<S>(value: &u8, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let hex_string = format!("0x{:02x}", value);
+    let hex_string = format!("0x{value:02x}");
     serializer.serialize_str(&hex_string)
 }
 

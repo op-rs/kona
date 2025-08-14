@@ -1,28 +1,25 @@
 use super::EventHandler;
 use crate::{
-    ChainProcessorError, ProcessorState, chain_processor::Metrics, syncnode::ManagedNodeProvider,
+    ChainProcessorError, ProcessorState, chain_processor::Metrics, syncnode::ManagedNodeCommand,
 };
 use alloy_primitives::ChainId;
 use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
-use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::{trace, warn};
 
 /// Handler for cross unsafe blocks.
 /// This handler processes cross unsafe blocks by updating the managed node.
 #[derive(Debug, Constructor)]
-pub struct CrossUnsafeHandler<P> {
+pub struct CrossUnsafeHandler {
     chain_id: ChainId,
-    managed_node: Arc<P>,
+    managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
 }
 
 #[async_trait]
-impl<P> EventHandler<BlockInfo> for CrossUnsafeHandler<P>
-where
-    P: ManagedNodeProvider + 'static,
-{
+impl EventHandler<BlockInfo> for CrossUnsafeHandler {
     async fn handle(
         &self,
         block: BlockInfo,
@@ -47,20 +44,21 @@ where
     }
 }
 
-impl<P> CrossUnsafeHandler<P>
-where
-    P: ManagedNodeProvider + 'static,
-{
+impl CrossUnsafeHandler {
     async fn inner_handle(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
-        self.managed_node.update_cross_unsafe(block.id()).await.inspect_err(|err| {
-            warn!(
-                target: "supervisor::chain_processor::managed_node",
-                chain_id = self.chain_id,
-                %block,
-                %err,
-                "Failed to update cross unsafe block"
-            );
-        })?;
+        self.managed_node_sender
+            .send(ManagedNodeCommand::UpdateCrossUnsafe { block_id: block.id() })
+            .await
+            .map_err(|err| {
+                warn!(
+                    target: "supervisor::chain_processor::managed_node",
+                    chain_id = self.chain_id,
+                    %block,
+                    %err,
+                    "Failed to send cross unsafe block update"
+                );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
+            })?;
         Ok(())
     }
 }
@@ -68,16 +66,13 @@ where
 /// Handler for cross safe blocks.
 /// This handler processes cross safe blocks by updating the managed node.
 #[derive(Debug, Constructor)]
-pub struct CrossSafeHandler<P> {
+pub struct CrossSafeHandler {
     chain_id: ChainId,
-    managed_node: Arc<P>,
+    managed_node_sender: mpsc::Sender<ManagedNodeCommand>,
 }
 
 #[async_trait]
-impl<P> EventHandler<DerivedRefPair> for CrossSafeHandler<P>
-where
-    P: ManagedNodeProvider + 'static,
-{
+impl EventHandler<DerivedRefPair> for CrossSafeHandler {
     async fn handle(
         &self,
         derived_ref_pair: DerivedRefPair,
@@ -102,25 +97,26 @@ where
     }
 }
 
-impl<P> CrossSafeHandler<P>
-where
-    P: ManagedNodeProvider + 'static,
-{
+impl CrossSafeHandler {
     async fn inner_handle(
         &self,
         derived_ref_pair: DerivedRefPair,
     ) -> Result<(), ChainProcessorError> {
-        self.managed_node
-            .update_cross_safe(derived_ref_pair.source.id(), derived_ref_pair.derived.id())
+        self.managed_node_sender
+            .send(ManagedNodeCommand::UpdateCrossSafe {
+                source_block_id: derived_ref_pair.source.id(),
+                derived_block_id: derived_ref_pair.derived.id(),
+            })
             .await
-            .inspect_err(|err| {
+            .map_err(|err| {
                 warn!(
                     target: "supervisor::chain_processor::managed_node",
                     chain_id = self.chain_id,
                     %derived_ref_pair,
                     %err,
-                    "Failed to update cross safe block"
+                    "Failed to send cross safe block update"
                 );
+                ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
         Ok(())
     }
@@ -129,12 +125,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        event::ChainEvent,
-        syncnode::{
-            AuthenticationError, BlockProvider, ClientError, ManagedNodeController,
-            ManagedNodeDataProvider, ManagedNodeError, NodeSubscriber,
-        },
+    use crate::syncnode::{
+        BlockProvider, ManagedNodeController, ManagedNodeDataProvider, ManagedNodeError,
     };
     use alloy_primitives::B256;
     use alloy_rpc_types_eth::BlockNumHash;
@@ -143,19 +135,10 @@ mod tests {
     use kona_protocol::BlockInfo;
     use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
     use mockall::mock;
-    use tokio::sync::mpsc;
 
     mock!(
         #[derive(Debug)]
         pub Node {}
-
-        #[async_trait]
-        impl NodeSubscriber for Node {
-            async fn start_subscription(
-                &self,
-                _event_tx: mpsc::Sender<ChainEvent>,
-            ) -> Result<(), ManagedNodeError>;
-        }
 
         #[async_trait]
         impl BlockProvider for Node {
@@ -207,94 +190,94 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_cross_unsafe_update_triggers() {
-        let mut mocknode = MockNode::new();
-        let mut state = ProcessorState::new();
+        use crate::syncnode::ManagedNodeCommand;
+
+        let (tx, mut rx) = mpsc::channel(8);
+        let chain_id = 1;
+        let handler = CrossUnsafeHandler::new(chain_id, tx);
 
         let block =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let mut state = ProcessorState::new();
 
-        mocknode.expect_update_cross_unsafe().returning(move |cross_unsafe_block| {
-            assert_eq!(cross_unsafe_block, block.id());
-            Ok(())
-        });
-
-        let managed_node = Arc::new(mocknode);
-
-        let handle = CrossUnsafeHandler::new(
-            1, // chain_id
-            managed_node,
-        );
-        let result = handle.handle(block, &mut state).await;
+        // Call the handler
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_ok());
+
+        // The handler should send the correct command
+        if let Some(ManagedNodeCommand::UpdateCrossUnsafe { block_id }) = rx.recv().await {
+            assert_eq!(block_id, block.id());
+        } else {
+            panic!("Expected UpdateCrossUnsafe command");
+        }
     }
 
     #[tokio::test]
     async fn test_handle_cross_unsafe_update_error() {
-        let mut mocknode = MockNode::new();
-        let mut state = ProcessorState::new();
+        let (tx, rx) = mpsc::channel(8);
+        let chain_id = 1;
+        let handler = CrossUnsafeHandler::new(chain_id, tx);
+
+        // Drop the receiver to simulate a send error
+        drop(rx);
 
         let block =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let mut state = ProcessorState::new();
 
-        mocknode.expect_update_cross_unsafe().returning(move |_cross_unsafe_block| {
-            Err(ManagedNodeError::ClientError(ClientError::Authentication(
-                AuthenticationError::InvalidJwt,
-            )))
-        });
-
-        let managed_node = Arc::new(mocknode);
-
-        let handle = CrossUnsafeHandler::new(1, managed_node);
-        let result = handle.handle(block, &mut state).await;
+        // Call the handler, which should now error
+        let result = handler.handle(block, &mut state).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_handle_cross_safe_update_triggers() {
-        let mut mocknode = MockNode::new();
-        let mut state = ProcessorState::new();
+        use crate::syncnode::ManagedNodeCommand;
+
+        let (tx, mut rx) = mpsc::channel(8);
+        let chain_id = 1;
+        let handler = CrossSafeHandler::new(chain_id, tx);
 
         let derived =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
         let source =
             BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let derived_ref_pair = DerivedRefPair { source, derived };
+        let mut state = ProcessorState::new();
 
-        mocknode.expect_update_cross_safe().returning(move |source_id, derived_id| {
-            assert_eq!(derived_id, derived.id());
-            assert_eq!(source_id, source.id());
-            Ok(())
-        });
-
-        let managed_node = Arc::new(mocknode);
-
-        let handle = CrossSafeHandler::new(
-            1, // chain_id
-            managed_node,
-        );
-        let result = handle.handle(DerivedRefPair { source, derived }, &mut state).await;
+        // Call the handler
+        let result = handler.handle(derived_ref_pair, &mut state).await;
         assert!(result.is_ok());
+
+        // The handler should send the correct command
+        if let Some(ManagedNodeCommand::UpdateCrossSafe { source_block_id, derived_block_id }) =
+            rx.recv().await
+        {
+            assert_eq!(source_block_id, source.id());
+            assert_eq!(derived_block_id, derived.id());
+        } else {
+            panic!("Expected UpdateCrossSafe command");
+        }
     }
 
     #[tokio::test]
     async fn test_handle_cross_safe_update_error() {
-        let mut mocknode = MockNode::new();
-        let mut state = ProcessorState::new();
+        let (tx, rx) = mpsc::channel(8);
+        let chain_id = 1;
+        let handler = CrossSafeHandler::new(chain_id, tx);
+
+        // Drop the receiver to simulate a send error
+        drop(rx);
 
         let derived =
             BlockInfo { number: 42, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
         let source =
             BlockInfo { number: 1, hash: B256::ZERO, parent_hash: B256::ZERO, timestamp: 123456 };
+        let derived_ref_pair = DerivedRefPair { source, derived };
+        let mut state = ProcessorState::new();
 
-        mocknode.expect_update_cross_safe().returning(move |_source_id, _derived_id| {
-            Err(ManagedNodeError::ClientError(ClientError::Authentication(
-                AuthenticationError::InvalidJwt,
-            )))
-        });
-
-        let managed_node = Arc::new(mocknode);
-
-        let handle = CrossSafeHandler::new(1, managed_node);
-        let result = handle.handle(DerivedRefPair { source, derived }, &mut state).await;
+        // Call the handler, which should now error
+        let result = handler.handle(derived_ref_pair, &mut state).await;
         assert!(result.is_err());
     }
 }

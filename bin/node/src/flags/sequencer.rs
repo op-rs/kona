@@ -39,7 +39,7 @@ pub struct SequencerArgs {
     #[arg(
         long = "sequencer.recover",
         default_value = "false",
-        env = "KONA_NODE_SSEQUENCER_RECOVER"
+        env = "KONA_NODE_SEQUENCER_RECOVER"
     )]
     pub recover: bool,
 

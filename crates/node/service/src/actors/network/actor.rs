@@ -1,6 +1,6 @@
 use alloy_primitives::Address;
 use async_trait::async_trait;
-use kona_p2p::P2pRpcRequest;
+use kona_gossip::P2pRpcRequest;
 use kona_rpc::NetworkAdminQuery;
 use kona_sources::BlockSignerError;
 use libp2p::TransportError;
@@ -25,7 +25,7 @@ use crate::{
 /// ## Example
 ///
 /// ```rust,ignore
-/// use kona_p2p::NetworkDriver;
+/// use kona_gossip::NetworkDriver;
 /// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 ///
 /// let chain_id = 10;
@@ -194,7 +194,7 @@ impl NodeActor for NetworkActor {
                 }
                 Some(block) = self.publish_rx.recv(), if !self.publish_rx.is_closed() => {
                     let timestamp = block.execution_payload.timestamp();
-                    let selector = |handler: &kona_p2p::BlockHandler| {
+                    let selector = |handler: &kona_gossip::BlockHandler| {
                         handler.topic(timestamp)
                     };
                     let Some(signer) = handler.signer.as_ref() else {
@@ -249,11 +249,7 @@ impl NodeActor for NetworkActor {
                         warn!(target: "node::p2p", "Failed to send unsafe block to network handler");
                     }
                 },
-                req = self.p2p_rpc.recv(), if !self.p2p_rpc.is_closed() => {
-                    let Some(req) = req else {
-                        error!(target: "node::p2p", "The p2p rpc receiver channel has closed");
-                        return Err(NetworkActorError::ChannelClosed);
-                    };
+                Some(req) = self.p2p_rpc.recv(), if !self.p2p_rpc.is_closed() => {
                     req.handle(&mut handler.gossip, &handler.discovery);
                 },
             }

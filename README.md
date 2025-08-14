@@ -105,7 +105,7 @@ see the [SDK section of the docs](https://rollup.yoga/node/design/intro).
 
 ## MSRV
 
-The current MSRV (minimum supported rust version) is `1.86`.
+The current MSRV (minimum supported rust version) is `1.88`.
 
 The MSRV is not increased automatically, and will be updated
 only as part of a patch (pre-1.0) or minor (post-1.0) release.
@@ -158,7 +158,7 @@ Licensed under the [MIT license.](https://github.com/op-rs/kona/blob/main/LICENS
 [rollup-node-spec]: https://specs.optimism.io/protocol/rollup-node.html
 [supervisor-spec]: https://specs.optimism.io/interop/supervisor.html
 [badboi-cannon-rs]: https://github.com/BadBoiLabs/cannon-rs
-[asterisc]: https://github.com/etheruem-optimism/asterisc
+[asterisc]: https://github.com/ethereum-optimism/asterisc
 [fpp-specs]: https://specs.optimism.io/fault-proof/index.html
 [site]: https://rollup.yoga
 [op-succinct]: https://github.com/succinctlabs/op-succinct

@@ -61,6 +61,13 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(BlockInfo)` containing the source block information if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the source block.
     fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
+
+    /// Gets the interop activation [`BlockInfo`].
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the activation block information if it exists.
+    /// * `Err(StorageError)` if there is an issue retrieving the activation block.
+    fn get_activation_block(&self) -> Result<BlockInfo, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
@@ -421,6 +428,9 @@ pub trait CrossChainSafetyProvider {
 /// to be rolled back.
 pub trait StorageRewinder {
     /// Rewinds the log storage from the latest block down to the specified block (inclusive).
+    /// This method ensures that log storage is never rewound to(since it's inclusive) and beyond
+    /// the local safe head. If the target block is beyond the local safe head, an error is
+    /// returned. Use [`StorageRewinder::rewind`] to rewind to and beyond the local safe head.
     ///
     /// # Arguments
     /// * `to` - The block id to rewind to.

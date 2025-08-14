@@ -5,10 +5,10 @@ use clap::Parser;
 use futures::future::OptionFuture;
 use jsonrpsee::{RpcModule, server::Server};
 use kona_cli::LogConfig;
+use kona_gossip::P2pRpcRequest;
 use kona_node_service::{
     NetworkActor, NetworkBuilder, NetworkContext, NetworkInboundData, NodeActor,
 };
-use kona_p2p::P2pRpcRequest;
 use kona_registry::scr_rollup_config_by_alloy_ident;
 use kona_rpc::{OpP2PApiServer, P2pRpc, RpcBuilder};
 use tokio_util::sync::CancellationToken;
@@ -28,7 +28,7 @@ use url::Url;
 #[command(about = "Runs the networking stack for the kona-node.")]
 pub struct NetCommand {
     /// URL of the L1 execution client RPC API.
-    /// This is used to load the unsafe block signer from runtime.
+    /// This is used to load the unsafe block signer at startup.
     /// Without this, the rollup config unsafe block signer will be used which may be outdated.
     #[arg(long, visible_alias = "l1", env = "L1_ETH_RPC")]
     pub l1_eth_rpc: Option<Url>,

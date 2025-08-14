@@ -30,7 +30,7 @@ RUN git clone https://github.com/ethereum-optimism/asterisc && \
 #               Build kona-client @ `CLIENT_TAG`               #
 ################################################################
 
-FROM ghcr.io/op-rs/kona/asterisc-builder:0.1.0 AS client-build
+FROM ghcr.io/op-rs/kona/asterisc-builder:0.3.0 AS client-build
 SHELL ["/bin/bash", "-c"]
 
 ARG CLIENT_BIN

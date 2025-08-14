@@ -65,7 +65,7 @@ impl Isthmus {
     pub const GAS_PRICE_ORACLE_CODE_HASH: B256 = alloy_primitives::b256!(
         "0x4d195a9d7caf9fb6d4beaf80de252c626c853afd5868c4f4f8d19c9d301c2679"
     );
-    /// The Isthmus Operatpr Fee Vault Code Hash
+    /// The Isthmus Operator Fee Vault Code Hash
     /// See: <https://specs.optimism.io/protocol/isthmus/derivation.html#operator-fee-vault-deployment>
     pub const OPERATOR_FEE_VAULT_CODE_HASH: B256 = alloy_primitives::b256!(
         "0x57dc55c9c09ca456fa728f253fe7b895d3e6aae0706104935fe87c7721001971"

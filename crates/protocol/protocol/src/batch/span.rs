@@ -791,7 +791,7 @@ mod tests {
         assert_eq!(batch.batches.len(), 1);
         assert_eq!(batch.origin_bits.get_bit(0), Some(1));
         assert_eq!(batch.block_tx_counts, vec![0]);
-        assert_eq!(batch.txs.tx_datas.len(), 0);
+        assert_eq!(batch.txs.tx_data.len(), 0);
 
         // Add another empty single batch.
         let singular_batch = SingleBatch {
@@ -1486,8 +1486,7 @@ mod tests {
         let logs = trace_store.get_by_level(Level::WARN);
         assert_eq!(logs.len(), 1);
         let str = alloc::format!(
-            "batch is for different L1 chain, epoch hash does not match, expected: {}",
-            l1_block_hash,
+            "batch is for different L1 chain, epoch hash does not match, expected: {l1_block_hash}",
         );
         assert!(logs[0].contains(&str));
     }
