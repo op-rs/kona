@@ -88,6 +88,5 @@ metrics = [
 	"kona-gossip/metrics",
 	"kona-providers-alloy/metrics",
 	"kona-rpc/metrics",
-	"kona-sources/metrics",
 	"libp2p/metrics",
 ]

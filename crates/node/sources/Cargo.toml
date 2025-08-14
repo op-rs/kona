@@ -49,12 +49,8 @@ rustls-pemfile = { workspace = true, features = ["std"] }
 tokio = { workspace = true, features = ["full"] }
 notify.workspace = true
 
-# `metrics` feature
-metrics = { workspace = true, optional = true }
-
 [features]
 default = []
-metrics = [ "dep:metrics" ]
 
 [dev-dependencies]
 tokio.workspace = true

@@ -27,7 +27,7 @@ kona-disc = { workspace = true, features = ["metrics"] }
 kona-derive = { workspace = true, features = ["metrics"] }
 kona-engine = { workspace = true, features = ["metrics"] }
 kona-registry = { workspace = true, features = ["tabled"] }
-kona-sources = { workspace = true, features = ["metrics"] }
+kona-sources = { workspace = true }
 kona-node-service = { workspace = true, features = ["metrics"] }
 kona-providers-alloy = { workspace = true, features = ["metrics"] }
 
