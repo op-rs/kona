@@ -25,7 +25,8 @@ where
     C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
-    /// Processes reorg for a single chain
+    /// Processes reorg for a single chain. If the chain is consistent with the L1 chain,
+    /// does nothing.
     pub(crate) async fn process_chain_reorg(&self) -> Result<(), ReorgHandlerError> {
         let latest_state = self.db.latest_derivation_state()?;
 
