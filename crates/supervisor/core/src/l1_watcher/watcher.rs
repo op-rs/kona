@@ -180,6 +180,13 @@ where
             }
         };
 
+        trace!(
+            target: "l1_watcher",
+            block_number = latest_block.number,
+            block_hash = ?incoming_block.header.hash,
+            "New latest L1 block received"
+        );
+
         // Early exit if the incoming block is not newer than the previous block
         if latest_block.number <= prev.number {
             trace!(
@@ -190,14 +197,6 @@ where
             );
             return previous_block;
         }
-
-        trace!(
-            target: "l1_watcher",
-            incoming_block_number = latest_block.number,
-            incoming_block_hash = %latest_block.hash,
-            previous_block_number = prev.number,
-            "New latest L1 block received"
-        );
 
         // Early exit: check if no reorg is needed (sequential block)
         if latest_block.parent_hash == prev.hash {
