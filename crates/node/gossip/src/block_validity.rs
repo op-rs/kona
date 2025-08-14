@@ -1,3 +1,5 @@
+#[cfg(feature = "metrics")]
+use std::time::Instant;
 use std::time::SystemTime;
 
 use alloy_consensus::Block;
@@ -11,6 +13,8 @@ use op_alloy_rpc_types_engine::{
 };
 
 use super::BlockHandler;
+#[cfg(feature = "metrics")]
+use crate::Metrics;
 
 /// Error that can occur when validating a block.
 #[derive(Debug, thiserror::Error)]
@@ -111,6 +115,81 @@ impl BlockHandler {
         &mut self,
         envelope: &OpNetworkPayloadEnvelope,
     ) -> Result<(), BlockInvalidError> {
+        // Start timing for the validation duration
+        #[cfg(feature = "metrics")]
+        let validation_start = Instant::now();
+
+        // Record total validation attempts
+        #[cfg(feature = "metrics")]
+        kona_macros::inc!(counter, Metrics::BLOCK_VALIDATION_TOTAL);
+
+        // Record block version distribution
+        #[cfg(feature = "metrics")]
+        {
+            let version = match &envelope.payload {
+                OpExecutionPayload::V1(_) => "v1",
+                OpExecutionPayload::V2(_) => "v2",
+                OpExecutionPayload::V3(_) => "v3",
+                OpExecutionPayload::V4(_) => "v4",
+            };
+            kona_macros::inc!(counter, Metrics::BLOCK_VERSION, "version" => version);
+        }
+
+        let validation_result = self.validate_block_internal(envelope);
+
+        // Record validation duration
+        #[cfg(feature = "metrics")]
+        {
+            let duration = validation_start.elapsed();
+            kona_macros::record!(
+                histogram,
+                Metrics::BLOCK_VALIDATION_DURATION_SECONDS,
+                duration.as_secs_f64()
+            );
+        }
+
+        // Record success/failure metrics
+        match &validation_result {
+            Ok(()) => {
+                #[cfg(feature = "metrics")]
+                kona_macros::inc!(counter, Metrics::BLOCK_VALIDATION_SUCCESS);
+            }
+            Err(_err) => {
+                #[cfg(feature = "metrics")]
+                {
+                    let reason = match _err {
+                        BlockInvalidError::Timestamp { current, received } => {
+                            if *received > *current + 5 {
+                                "timestamp_future"
+                            } else {
+                                "timestamp_past"
+                            }
+                        }
+                        BlockInvalidError::BlockHash { .. } => "invalid_hash",
+                        BlockInvalidError::Signature => "invalid_signature",
+                        BlockInvalidError::Signer { .. } => "invalid_signer",
+                        BlockInvalidError::TooManyBlocks { .. } => "too_many_blocks",
+                        BlockInvalidError::BlockSeen { .. } => "block_seen",
+                        BlockInvalidError::InvalidBlock(_) => "invalid_block",
+                        BlockInvalidError::ParentBeaconRoot => "parent_beacon_root",
+                        BlockInvalidError::BlobGasUsed => "blob_gas_used",
+                        BlockInvalidError::ExcessBlobGas => "excess_blob_gas",
+                        BlockInvalidError::WithdrawalsRoot => "withdrawals_root",
+                        BlockInvalidError::BaseFeePerGasOverflow(_) => "invalid_block",
+                    };
+                    kona_macros::inc!(counter, Metrics::BLOCK_VALIDATION_FAILED, "reason" => reason);
+                }
+            }
+        }
+
+        validation_result
+    }
+
+    /// Internal validation logic extracted for cleaner metrics instrumentation.
+    fn validate_block_internal(
+        &mut self,
+        envelope: &OpNetworkPayloadEnvelope,
+    ) -> Result<(), BlockInvalidError> {
         let current_timestamp =
             SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
@@ -190,7 +269,7 @@ impl BlockHandler {
     }
 
     /// Validate version specific contents of the payload.
-    pub const fn validate_version_specific_payload(
+    const fn validate_version_specific_payload(
         envelope: &OpNetworkPayloadEnvelope,
     ) -> Result<(), BlockInvalidError> {
         // Validation for v1 payloads are mostly ensured by type-safety, by decoding the
@@ -847,6 +926,81 @@ pub(crate) mod tests {
             unsafe_signer,
         );
 
+        assert!(handler.block_valid(&envelope).is_ok());
+    }
+
+    #[test]
+    #[cfg(feature = "metrics")]
+    fn test_metrics_instrumentation() {
+        // This test verifies that metrics code compiles and doesn't panic
+        // The actual metric values would require a metrics registry setup in a real test
+        // environment
+
+        use crate::Metrics;
+
+        // Initialize metrics (this should not panic)
+        Metrics::init();
+
+        let block = v1_valid_block();
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
+            unsafe_signer,
+        );
+
+        // Test successful validation metrics
+        assert!(handler.block_valid(&envelope).is_ok());
+
+        // Test failed validation metrics
+        let mut invalid_block = v1_valid_block();
+        invalid_block.header.timestamp = 0; // Invalid timestamp
+
+        let v1_invalid = ExecutionPayloadV1::from_block_slow(&invalid_block);
+        let payload_invalid = OpExecutionPayload::V1(v1_invalid);
+        let envelope_invalid = OpNetworkPayloadEnvelope {
+            payload: payload_invalid,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        // This should increment failure metrics
+        assert!(handler.block_valid(&envelope_invalid).is_err());
+    }
+
+    #[test]
+    fn test_metrics_feature_gating() {
+        // Verify the code compiles and runs without panics even when metrics feature is disabled
+        let block = v1_valid_block();
+        let v1 = ExecutionPayloadV1::from_block_slow(&block);
+        let payload = OpExecutionPayload::V1(v1);
+        let envelope = OpNetworkPayloadEnvelope {
+            payload,
+            signature: Signature::test_signature(),
+            payload_hash: PayloadHash(B256::ZERO),
+            parent_beacon_block_root: None,
+        };
+
+        let msg = envelope.payload_hash.signature_message(10);
+        let signer = envelope.signature.recover_address_from_prehash(&msg).unwrap();
+        let (_, unsafe_signer) = tokio::sync::watch::channel(signer);
+        let mut handler = BlockHandler::new(
+            RollupConfig { l2_chain_id: Chain::optimism_mainnet(), ..Default::default() },
+            unsafe_signer,
+        );
+
+        // Should work regardless of metrics feature
         assert!(handler.block_valid(&envelope).is_ok());
     }
 }
