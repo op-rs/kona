@@ -27,10 +27,14 @@ pub struct RollupNode {
     pub(crate) interop_mode: InteropMode,
     /// The L1 EL provider.
     pub(crate) l1_provider: RootProvider,
+    /// Whether to trust the L1 RPC.
+    pub(crate) l1_trust_rpc: bool,
     /// The L1 beacon API.
     pub(crate) l1_beacon: OnlineBeaconClient,
     /// The L2 EL provider.
     pub(crate) l2_provider: RootProvider<Optimism>,
+    /// Whether to trust the L2 RPC.
+    pub(crate) l2_trust_rpc: bool,
     /// The [`EngineBuilder`] for the node.
     pub(crate) engine_builder: EngineBuilder,
     /// The [`RpcBuilder`] for the node.
@@ -79,7 +83,9 @@ impl RollupNodeService for RollupNode {
             seq_cfg: self.sequencer_config.clone(),
             rollup_cfg: self.config.clone(),
             l1_provider: self.l1_provider.clone(),
+            l1_trust_rpc: self.l1_trust_rpc,
             l2_provider: self.l2_provider.clone(),
+            l2_trust_rpc: self.l2_trust_rpc,
         }
     }
 
@@ -94,8 +100,10 @@ impl RollupNodeService for RollupNode {
     fn derivation_builder(&self) -> DerivationBuilder {
         DerivationBuilder {
             l1_provider: self.l1_provider.clone(),
+            l1_trust_rpc: self.l1_trust_rpc,
             l1_beacon: self.l1_beacon.clone(),
             l2_provider: self.l2_provider.clone(),
+            l2_trust_rpc: self.l2_trust_rpc,
             rollup_config: self.config.clone(),
             interop_mode: self.interop_mode,
         }

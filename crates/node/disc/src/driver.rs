@@ -67,11 +67,9 @@ impl Discv5Driver {
         bootstore: Option<BootStoreFile>,
         bootnodes: Vec<Enr>,
     ) -> Result<Self, std::io::Error> {
-        let mut store = if let Some(bootstore) = bootstore {
-            bootstore.try_into()?
-        } else {
-            BootStore::default()
-        };
+        // Note: if the bootstore file cannot be created, we use a default bootstore.
+        let mut store = bootstore
+            .map_or_else(BootStore::default, |bootstore| bootstore.try_into().unwrap_or_default());
 
         store.merge(bootnodes.clone());
 

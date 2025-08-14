@@ -23,8 +23,10 @@ For more details on each flag, see the inline help (`kona-node node --help`) or 
 |------|-----|-------------|----------|---------|
 | `--mode <verifier/sequencer>` | `KONA_NODE_MODE` | Mode of operation for the node | Yes | `verifier` |
 | `--l1-eth-rpc <URL>` | `KONA_NODE_L1_ETH_RPC` | URL of the L1 execution client RPC API | Yes | - |
+| `--l1-trust-rpc <true/false>` | `KONA_NODE_L1_TRUST_RPC` | Whether to trust the L1 RPC without verification | No | `true` |
 | `--l1-beacon <URL>` | `KONA_NODE_L1_BEACON` | URL of the L1 beacon API | Yes | - |
 | `--l2-engine-rpc <URL>` | `KONA_NODE_L2_ENGINE_RPC` | URL of the engine API endpoint of an L2 execution client | Yes | - |
+| `--l2-trust-rpc <true/false>` | `KONA_NODE_L2_TRUST_RPC` | Whether to trust the L2 RPC without verification | No | `true` |
 | `--l2-engine-jwt-secret <PATH>` | `KONA_NODE_L2_ENGINE_AUTH` | Path to file containing the hex-encoded JWT secret for the execution client | No | - |
 | `--l2-config-file <PATH>` | `KONA_NODE_ROLLUP_CONFIG` | Path to a custom L2 rollup configuration file | No | - |
 | `--l1-runtime-config-reload-interval <SECONDS>` | `KONA_NODE_L1_RUNTIME_CONFIG_RELOAD_INTERVAL` | Poll interval for reloading runtime config | No | `600` |
@@ -127,4 +129,57 @@ Supported chain names include all those recognized by `alloy_chains` (e.g., `opt
 | `--supervisor.port <PORT>` | `KONA_NODE_SUPERVISOR_PORT` | TCP port for supervisor RPC | `9333` |
 | `--supervisor.jwt.secret <HEX>` | `KONA_NODE_SUPERVISOR_JWT_SECRET` | JWT secret for supervisor websocket authentication | - |
 | `--supervisor.jwt.secret.file <PATH>` | `KONA_NODE_SUPERVISOR_JWT_SECRET_FILE` | Path to file containing JWT secret | - |
+
+## RPC Trust Configuration
+
+The `--l1-trust-rpc` and `--l2-trust-rpc` flags control whether Kona performs additional verification on RPC responses to protect against malicious or faulty RPC providers.
+
+### Trust Modes
+
+**Default Behavior (trust enabled, `true`):**
+- No additional block hash verification is performed
+- Optimized for performance
+- Suitable for local nodes and trusted infrastructure
+- Assumes the RPC provider is reliable and honest
+
+**Verification Mode (trust disabled, `false`):**
+- All fetched blocks have their hashes verified against the requested hashes
+- Protects against malicious RPC providers returning incorrect blocks
+- Recommended for public or third-party RPC endpoints
+- Small performance overhead due to hash verification
+
+### Examples
+
+**Using trusted local RPCs (default):**
+```bash
+kona-node node \
+  --l1-eth-rpc http://localhost:8545 \
+  --l2-engine-rpc http://localhost:8551 \
+  # trust-rpc defaults to true, no need to specify
+```
+
+**Using untrusted public RPCs:**
+```bash
+kona-node node \
+  --l1-eth-rpc https://public-eth-rpc.com \
+  --l1-trust-rpc false \
+  --l2-engine-rpc https://public-l2-rpc.com \
+  --l2-trust-rpc false
+```
+
+**Mixed trust configuration:**
+```bash
+kona-node node \
+  --l1-eth-rpc https://public-eth-rpc.com \
+  --l1-trust-rpc false \
+  --l2-engine-rpc http://localhost:8551 \
+  # L2 trust-rpc defaults to true for local engine
+```
+
+### Security Recommendations
+
+1. **Local Infrastructure**: Keep the default `true` setting for RPCs you control
+2. **Public RPCs**: Always set `--trust-rpc false` when using third-party endpoints
+3. **Shared Infrastructure**: Consider setting `--trust-rpc false` as a precaution
+4. **Performance Testing**: The verification overhead is minimal but can be measured in high-throughput scenarios
 
