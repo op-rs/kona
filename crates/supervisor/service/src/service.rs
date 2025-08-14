@@ -17,7 +17,7 @@ use kona_supervisor_storage::{ChainDb, ChainDbFactory, DerivationStorageWriter, 
 use std::{collections::HashMap, sync::Arc};
 use tokio::{sync::mpsc, task::JoinSet, time::Duration};
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, warn};
 
 use crate::actors::{
     ChainProcessorActor, ManagedNodeActor, MetricWorker, SupervisorActor, SupervisorRpcActor,
@@ -263,7 +263,7 @@ impl Service {
             if let Err(err) = reorg_handler.verify_l1_consistency().await {
                 warn!(target: "supervisor::service", %err, "Startup reorg check failed");
             } else {
-                trace!(target: "supervisor::service", "Startup reorg check completed");
+                info!(target: "supervisor::service", "Startup reorg check completed");
             }
 
             // Start the L1 watcher streaming loop.

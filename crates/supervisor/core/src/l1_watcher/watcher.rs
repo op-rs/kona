@@ -88,13 +88,13 @@ where
                 }
                 latest_block = latest_head_stream.next() => {
                     if let Some(latest_block) = latest_block {
-                        info!(target: "supervisor::l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
+                        trace!(target: "supervisor::l1_watcher", "Latest L1 block received: {:?}", latest_block.header.number);
                         previous_latest_block = self.handle_new_latest_block(latest_block, previous_latest_block).await;
                     }
                 }
                 finalized_block = finalized_head_stream.next() => {
                     if let Some(finalized_block) = finalized_block {
-                        info!(target: "supervisor::l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
+                        trace!(target: "supervisor::l1_watcher", "Finalized L1 block received: {:?}", finalized_block.header.number);
                         finalized_number = self.handle_new_finalized_block(finalized_block, finalized_number);
                     }
                 }
@@ -122,12 +122,6 @@ where
             ..
         } = block.header;
         let finalized_source_block = BlockInfo::new(hash, number, parent_hash, timestamp);
-
-        info!(
-            target: "supervisor::l1_watcher",
-            block_number = finalized_source_block.number,
-            "New finalized L1 block received"
-        );
 
         if let Err(err) = self.finalized_l1_storage.update_finalized_l1(finalized_source_block) {
             error!(target: "supervisor::l1_watcher", %err, "Failed to update finalized L1 block");
@@ -183,7 +177,7 @@ where
 
         // Early exit if the incoming block is not newer than the previous block
         if latest_block.number <= prev.number {
-            info!(
+            trace!(
                 target: "supervisor::l1_watcher",
                 incoming_block_number = latest_block.number,
                 previous_block_number = prev.number,
