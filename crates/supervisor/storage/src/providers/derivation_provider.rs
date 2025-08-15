@@ -526,6 +526,7 @@ where
                     };
                     info!(
                         percentage = %format!("{:.2}", percentage),
+                        chain_id = %self.chain_id,
                         %processed_blocks,
                         %total_blocks,
                         "Rewind progress"
