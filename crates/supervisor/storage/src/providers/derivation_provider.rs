@@ -536,6 +536,7 @@ where
 
             info!(
                 target_block = ?block.number,
+                chain_id = %self.chain_id,
                 %total_blocks,
                 "Rewind completed successfully"
             );
