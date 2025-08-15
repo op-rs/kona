@@ -214,11 +214,11 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opNodes, konaNo
 		opt.Add(sysgo.WithL2ELNode(node, nil))
 	}
 	for i, node := range ids.L2CLOpNodes {
-		opt.Add(sysgo.WithL2CLNode(node, true, false, ids.L1CL, ids.L1EL, ids.L2ELOpNodes[i]))
+		opt.Add(sysgo.WithL2CLNode(node, ids.L1CL, ids.L1EL, ids.L2ELOpNodes[i]))
 	}
 
 	opt.Add(sysgo.WithL2ELNode(ids.L2ELKonaNodes[0], nil))
-	opt.Add(sysgo.WithL2CLNode(ids.L2CLKonaNodes[0], false, false, ids.L1CL, ids.L1EL, ids.L2ELKonaNodes[0]))
+	opt.Add(sysgo.WithL2CLNode(ids.L2CLKonaNodes[0], ids.L1CL, ids.L1EL, ids.L2ELKonaNodes[0]))
 
 	opt.Add(sysgo.WithBatcher(ids.L2Batcher, ids.L1EL, ids.L2CLOpNodes[0], ids.L2ELOpNodes[0]))
 	opt.Add(sysgo.WithProposer(ids.L2Proposer, ids.L1EL, &ids.L2CLOpNodes[0], nil))
