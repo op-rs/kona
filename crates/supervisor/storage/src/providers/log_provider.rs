@@ -27,7 +27,7 @@ use reth_db_api::{
     transaction::{DbTx, DbTxMut},
 };
 use std::fmt::Debug;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 /// A log storage that wraps a transactional reference to the MDBX backend.
 #[derive(Debug, Constructor)]
@@ -84,7 +84,7 @@ where
                 incoming_block = %block,
                 "Incoming log block is not consistent with the stored log block",
             );
-            return Err(StorageError::ConflictError)
+            return Err(StorageError::ConflictError);
         }
 
         if !latest_block.is_parent_of(block) {
@@ -142,23 +142,91 @@ where
     /// Rewinds the log storage by deleting all blocks and logs from the given block onward.
     /// Fails if the given block exists with a mismatching hash (to prevent unsafe deletion).
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
-        let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
-        let mut walker = cursor.walk(Some(block.number))?;
+        info!(
+            target: "supervisor::storage",
+            chain_id = %self.chain_id,
+            target_block_number = %block.number,
+            target_block_hash = %block.hash,
+            "Starting rewind of log storage"
+        );
 
-        while let Some(Ok((key, stored_block))) = walker.next() {
-            if key == block.number && block.hash != stored_block.hash {
-                error!(
+        // Get the latest block number from BlockRefs
+        let latest_block = {
+            let mut cursor = self.tx.cursor_read::<BlockRefs>()?;
+            cursor.last()?.map(|(num, _)| num).unwrap_or(block.number)
+        };
+        let total_blocks = latest_block.saturating_sub(block.number);
+        const LOG_INTERVAL: u64 = 100;
+        let mut processed_blocks = 0;
+
+        // Delete all blocks and logs with number ≥ `block.number`
+        {
+            let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
+            let mut walker = cursor.walk(Some(block.number))?;
+
+            info!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                target_block_hash = %block.hash,
+                latest_block,
+                total_blocks,
+                "Starting rewind of block storage"
+            );
+
+            while let Some(Ok((key, stored_block))) = walker.next() {
+                if key == block.number && block.hash != stored_block.hash {
+                    error!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        %stored_block,
+                        incoming_block = ?block,
+                        "Requested block to rewind does not match stored block"
+                    );
+                    return Err(StorageError::ConflictError);
+                }
+                info!(
                     target: "supervisor::storage",
                     chain_id = %self.chain_id,
-                    %stored_block,
-                    incoming_block = ?block,
-                    "Requested block to rewind does not match stored block",
+                    block_number = %key,
+                    block_hash = %stored_block.hash,
+                    "Validated block for rewind"
                 );
-                return Err(StorageError::ConflictError)
+                // remove the block
+                walker.delete_current()?;
+                // remove the logs of that block
+                self.tx.delete::<LogEntries>(key, None)?;
+                processed_blocks += 1;
+
+                // Log progress periodically or on last block
+                if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
+                    let percentage = if total_blocks > 0 {
+                        (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                    } else {
+                        100.0
+                    };
+                    info!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        block_number = %key,
+                        percentage = %format!("{:.2}", percentage),
+                        processed_blocks,
+                        total_blocks,
+                        "Rewind progress"
+                    );
+                }
             }
-            walker.delete_current()?; // remove the block
-            self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block
+
+            info!(
+                target: "supervisor::storage",
+                target_block_number = ?block.number,
+                target_block_hash = %block.hash,
+                chain_id = %self.chain_id,
+                total_blocks,
+                "Rewind completed successfully"
+            );
         }
+
         Ok(())
     }
 }
