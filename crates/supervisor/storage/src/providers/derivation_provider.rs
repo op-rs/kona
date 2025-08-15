@@ -507,8 +507,9 @@ where
 
             info!(
                 target_block = ?block.number,
-                ?latest_block,
-                %total_blocks,
+                chain_id = %self.chain_id,
+                latest_block,
+                total_blocks,
                 "Starting rewind derived block storage"
             );
 
