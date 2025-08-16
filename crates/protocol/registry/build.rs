@@ -72,6 +72,5 @@ fn main() {
     }
 
     let output_path = std::path::Path::new("etc/configs.json");
-    std::fs::write(output_path, serde_json::to_string_pretty(&superchains).unwrap())
-        .unwrap();
+    std::fs::write(output_path, serde_json::to_string_pretty(&superchains).unwrap()).unwrap();
 }
