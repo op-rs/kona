@@ -223,7 +223,7 @@ run-client-cannon block_number l1_rpc l1_beacon_rpc l2_rpc rollup_node_rpc rollu
   just build-cannon-client
 
   echo "Loading client program into Cannon state format..."
-  cannon load-elf --path=$CLIENT_BIN_PATH --type multithreaded64-4
+  cannon load-elf --path=$CLIENT_BIN_PATH --type multithreaded64-5
 
   echo "Building host program for native target..."
   cargo build --bin kona-host --release

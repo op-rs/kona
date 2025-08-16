@@ -71,7 +71,7 @@ jobs:
             *.cache-to=type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
       
       - name: deploy ${{ matrix.devnet-config }} devnet
-        run: just devnet "${{ matrix.devnet-config }}" github.com/dhyaniarun1993/optimism-package@kona-supervisor
+        run: just devnet "${{ matrix.devnet-config }}" github.com/ethpandaops/optimism-package@main
 
       - name: test ${{ matrix.test-pkg }} with ${{ matrix.devnet-config }} devnet
         run: just test-e2e "${{ matrix.devnet-config }}" "/supervisor/${{ matrix.test-pkg }}" 

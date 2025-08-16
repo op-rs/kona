@@ -3,7 +3,7 @@ module github.com/op-rs/kona
 go 1.24.3
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
-require github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
+require github.com/ethereum-optimism/optimism v1.13.6-0.20250815152137-c12091dfd6a8
 
 require github.com/stretchr/testify v1.10.0
 
@@ -279,10 +279,5 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
-
-replace github.com/ethereum-optimism/optimism/op-node => github.com/ethereum-optimism/optimism v1.13.4-0.20250610133734-335f05b575d0
-
-// Patched version of the Optimism repo that includes the latest changes of the `devstack` package to enable testing for the CL clients.
-replace github.com/ethereum-optimism/optimism => github.com/theochap/optimism v0.0.0-20250722140414-a9cde29cbe46
 
 replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101511.1-dev.1.0.20250608235258-6005dd53e1b5

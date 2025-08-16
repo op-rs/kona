@@ -97,7 +97,7 @@ jobs:
     name: FPP e2e - ${{ matrix.target}} | ${{ matrix.name }}
     strategy:
       matrix:
-        target: ["native", "asterisc"]
+        target: ["native", "asterisc", "cannon"]
         name: ["OP Sepolia (Holocene) - Block #26215604"]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -117,21 +117,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Clone `asterisc` repository
-        if: "!contains(matrix.target, 'native')"
+        if: "contains(matrix.target, 'asterisc')"
         run: |
           git clone https://github.com/ethereum-optimism/asterisc.git
-      - name: Setup Go toolchain
-        if: "!contains(matrix.target, 'native')"
+      - name: Clone `optimism` repository
+        if: "contains(matrix.target, 'cannon')"
+        run: |
+          git clone https://github.com/ethereum-optimism/optimism.git
+      - name: Setup Go toolchain (asterisc cache)
+        if: "contains(matrix.target, 'asterisc')"
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21.6"
+          go-version: "1.23.8"
           cache-dependency-path: |
             asterisc/go.sum
+      - name: Setup Go toolchain (cannon cache)
+        if: "contains(matrix.target, 'cannon')"
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.8"
+          cache-dependency-path: |
+            optimism/go.sum
       - name: Build `asterisc`
-        if: "!contains(matrix.target, 'native')"
+        if: "contains(matrix.target, 'asterisc')"
         run: |
           cd asterisc && git checkout v1.3.0 && make build-rvgo
           mv ./rvgo/bin/asterisc /usr/local/bin/
+      - name: Build `cannon`
+        if: "contains(matrix.target, 'cannon')"
+        run: |
+          cd optimism/cannon && make && mv ./bin/cannon /usr/local/bin/
       - name: Set run environment
         run: |
           if [[ ${{ contains(matrix.name, 26215604) }} == true ]]; then

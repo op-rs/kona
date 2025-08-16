@@ -116,7 +116,7 @@ pub enum AlloyChainProviderError {
     #[error("Block not found: {0}")]
     BlockNotFound(BlockId),
     /// Failed to convert RPC receipts into consensus receipts.
-    #[error("Failed to convert RPC receipts into consensus receipts {0}")]
+    #[error("Failed to convert RPC receipts into consensus receipts: {0}")]
     ReceiptsConversion(B256),
 }
 

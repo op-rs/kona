@@ -39,6 +39,22 @@ impl Metrics {
     pub const GOSSIP_PEER_CONNECTION_DURATION_SECONDS: &str =
         "kona_node_gossip_peer_connection_duration_seconds";
 
+    /// Identifier for the counter that tracks total block validation attempts.
+    pub const BLOCK_VALIDATION_TOTAL: &str = "kona_node_block_validation_total";
+
+    /// Identifier for the counter that tracks successful block validations.
+    pub const BLOCK_VALIDATION_SUCCESS: &str = "kona_node_block_validation_success";
+
+    /// Identifier for the counter that tracks failed block validations by reason.
+    pub const BLOCK_VALIDATION_FAILED: &str = "kona_node_block_validation_failed";
+
+    /// Identifier for the histogram that tracks block validation duration in seconds.
+    pub const BLOCK_VALIDATION_DURATION_SECONDS: &str =
+        "kona_node_block_validation_duration_seconds";
+
+    /// Identifier for the counter that tracks block version distribution.
+    pub const BLOCK_VERSION: &str = "kona_node_block_version";
+
     /// Initializes metrics for the Gossip stack.
     ///
     /// This does two things:
@@ -83,6 +99,23 @@ impl Metrics {
             Self::GOSSIP_PEER_CONNECTION_DURATION_SECONDS,
             "Duration of peer connections in seconds"
         );
+        metrics::describe_counter!(
+            Self::BLOCK_VALIDATION_TOTAL,
+            "Total number of block validation attempts"
+        );
+        metrics::describe_counter!(
+            Self::BLOCK_VALIDATION_SUCCESS,
+            "Number of successful block validations"
+        );
+        metrics::describe_counter!(
+            Self::BLOCK_VALIDATION_FAILED,
+            "Number of failed block validations by reason"
+        );
+        metrics::describe_histogram!(
+            Self::BLOCK_VALIDATION_DURATION_SECONDS,
+            "Duration of block validation in seconds"
+        );
+        metrics::describe_counter!(Self::BLOCK_VERSION, "Distribution of block versions");
     }
 
     /// Initializes metrics to `0` so they can be queried immediately by consumers of prometheus
@@ -140,5 +173,35 @@ impl Metrics {
 
         // Banned Peers
         kona_macros::set!(gauge, Self::BANNED_PEERS, 0);
+
+        // Block validation metrics
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_TOTAL, 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_SUCCESS, 0);
+
+        // Block validation failures by reason
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "timestamp_future", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "timestamp_past", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "invalid_hash", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "invalid_signature", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "invalid_signer", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "too_many_blocks", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "block_seen", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "invalid_block", 0);
+        kona_macros::set!(
+            counter,
+            Self::BLOCK_VALIDATION_FAILED,
+            "reason",
+            "parent_beacon_root",
+            0
+        );
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "blob_gas_used", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "excess_blob_gas", 0);
+        kona_macros::set!(counter, Self::BLOCK_VALIDATION_FAILED, "reason", "withdrawals_root", 0);
+
+        // Block versions
+        kona_macros::set!(counter, Self::BLOCK_VERSION, "version", "v1", 0);
+        kona_macros::set!(counter, Self::BLOCK_VERSION, "version", "v2", 0);
+        kona_macros::set!(counter, Self::BLOCK_VERSION, "version", "v3", 0);
+        kona_macros::set!(counter, Self::BLOCK_VERSION, "version", "v4", 0);
     }
 }

@@ -28,7 +28,7 @@ pub enum ManagedNodeCommand {
     /// Resets the managed node.
     Reset {},
 
-    /// Asks managed node to invalidates the block.
+    /// Asks managed node to invalidate the block.
     InvalidateBlock {
         /// [`BlockSeal`] of the block to invalidate.
         seal: BlockSeal,
