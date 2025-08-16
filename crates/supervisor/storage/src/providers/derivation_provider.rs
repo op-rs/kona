@@ -14,7 +14,7 @@ use reth_db_api::{
     cursor::DbCursorRO,
     transaction::{DbTx, DbTxMut},
 };
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 /// Provides access to derivation storage operations within a transaction.
 #[derive(Debug, Constructor)]
@@ -491,13 +491,55 @@ where
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
         let block_pair = self.get_derived_block_pair(*block)?;
 
-        // Delete all derived blocks with number ≥ `block_info.number`
+        // Get the latest block number from DerivedBlocks
+        let latest_block = {
+            let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
+            cursor.last()?.map(|(num, _)| num).unwrap_or(block.number)
+        };
+        let total_blocks = latest_block.saturating_sub(block.number);
+
+        // Delete all derived blocks with number ≥ `block.number`
         {
             let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
             let mut walker = cursor.walk(Some(block.number))?;
+            let mut processed_blocks = 0;
+            const LOG_INTERVAL: u64 = 100;
+
+            info!(
+                target_block = ?block.number,
+                chain_id = %self.chain_id,
+                latest_block,
+                total_blocks,
+                "Starting rewind derived block storage"
+            );
+
             while let Some(Ok((_, _))) = walker.next() {
                 walker.delete_current()?; // we’re already walking from the rewind point
+                processed_blocks += 1;
+
+                // Log progress periodically or on last block
+                if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
+                    let percentage = if total_blocks > 0 {
+                        (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                    } else {
+                        100.0
+                    };
+                    info!(
+                        percentage = %format!("{:.2}", percentage),
+                        chain_id = %self.chain_id,
+                        %processed_blocks,
+                        %total_blocks,
+                        "Rewind progress"
+                    );
+                }
             }
+
+            info!(
+                target_block = ?block.number,
+                chain_id = %self.chain_id,
+                %total_blocks,
+                "Rewind completed successfully"
+            );
         }
 
         self.rewind_block_traversal_to(&block_pair)
