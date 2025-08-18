@@ -7,7 +7,7 @@ exclude = [
     "./target/**",
     "localhost",
     "foo.bar",
-    "CHANGELOG.md"
+    "./CHANGELOG.md"
 ]
 
 # Accepted HTTP status codes
