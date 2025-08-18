@@ -1,10 +1,13 @@
+verbose = "debug"
+
 progress = true
 
 # Files or directories to exclude
 exclude = [
     "./target/**",
     "localhost",
-    "foo.bar"
+    "foo.bar",
+    "CHANGELOG.md"
 ]
 
 # Accepted HTTP status codes
