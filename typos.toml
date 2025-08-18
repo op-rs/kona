@@ -1,7 +1,21 @@
 [files]
 extend-exclude = [
+    ".git",
     "target",
     "Cargo.lock",
+    "assets/",
+    "tests/",
+    "examples/",
+    "docs/dist/",
+    "crates/protocol/registry/registry/",
+    "monorepo/",
+    "*.go",
+]
+
+[default]
+extend-ignore-re = [
+    # Base64 encoded strings (common in tests and configs)
+    "[A-Za-z0-9+/]{20,}={0,2}",
 ]
 
 [default.extend-words]
