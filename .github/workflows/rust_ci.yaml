@@ -151,14 +151,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v5
-        with:
-          submodules: true
-      - name: Install typos
-        run: cargo install typos-cli
-      - name: Check spelling
-        run: typos
+      - uses: actions/checkout@v5
+      - uses: crate-ci/typos@v1
 
   cargo-hack:
     runs-on: ubuntu-latest

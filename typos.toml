@@ -1,15 +1,7 @@
 [files]
 extend-exclude = [
-    ".git",
     "target",
     "Cargo.lock",
-    "assets/",
-    "tests/",
-    "examples/",
-    "docs/dist/",
-    "crates/protocol/registry/registry/",
-    "monorepo/",
-    "*.go",
 ]
 
 [default]
