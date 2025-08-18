@@ -1,17 +1,15 @@
+# Config example at: https://lychee.cli.rs/usage/config/
+
 verbose = "debug"
 
-progress = true
+no_progress = false
+
+exclude_all_private = false
 
 # Files or directories to exclude
-exclude = [
-    "./target/**",
-    "localhost",
-    "foo.bar",
+exclude_path = [
     "./CHANGELOG.md"
 ]
-
-# Accepted HTTP status codes
-accept = [200, 201, 202, 203, 204, 300, 301, 302, 303, 304, 307, 308, 429]
 
 # Files to scan
 files = [
