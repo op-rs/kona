@@ -1,8 +1,5 @@
 progress = true
 
-# required to check liveness of RPC endpoints
-insecure = true
-
 # Files or directories to exclude
 exclude = [
     "./target/**",
