@@ -13,5 +13,5 @@ exclude = [
 
 # Files or directories to exclude
 exclude_path = [
-    'CHANGELOG.md'
+    '**/CHANGELOG.md'
 ]
