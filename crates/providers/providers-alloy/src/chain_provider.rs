@@ -19,6 +19,8 @@ use std::{boxed::Box, num::NonZeroUsize, vec::Vec};
 pub struct AlloyChainProvider {
     /// The inner Ethereum JSON-RPC provider.
     pub inner: RootProvider,
+    /// Whether to trust the RPC without verification.
+    pub trust_rpc: bool,
     /// `header_by_hash` LRU cache.
     header_by_hash_cache: LruCache<B256, Header>,
     /// `receipts_by_hash_cache` LRU cache.
@@ -33,8 +35,17 @@ impl AlloyChainProvider {
     /// ## Panics
     /// - Panics if `cache_size` is zero.
     pub fn new(inner: RootProvider, cache_size: usize) -> Self {
+        Self::new_with_trust(inner, cache_size, true)
+    }
+
+    /// Creates a new [AlloyChainProvider] with the given alloy provider and trust setting.
+    ///
+    /// ## Panics
+    /// - Panics if `cache_size` is zero.
+    pub fn new_with_trust(inner: RootProvider, cache_size: usize, trust_rpc: bool) -> Self {
         Self {
             inner,
+            trust_rpc,
             header_by_hash_cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
             receipts_by_hash_cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
             block_info_and_transactions_by_hash_cache: LruCache::new(
@@ -67,6 +78,31 @@ impl AlloyChainProvider {
     pub async fn chain_id(&mut self) -> Result<u64, RpcError<TransportErrorKind>> {
         self.inner.get_chain_id().await
     }
+
+    /// Verifies that a header's hash matches the expected hash when trust_rpc is false.
+    fn verify_header_hash(
+        &self,
+        header: &Header,
+        expected_hash: B256,
+    ) -> Result<(), AlloyChainProviderError> {
+        if self.trust_rpc {
+            return Ok(());
+        }
+
+        let actual_hash = header.hash_slow();
+        if actual_hash != expected_hash {
+            return Err(AlloyChainProviderError::Transport(RpcError::Transport(
+                TransportErrorKind::Custom(
+                    format!(
+                        "Header hash mismatch: expected {expected_hash:?}, got {actual_hash:?}"
+                    )
+                    .into(),
+                ),
+            )));
+        }
+
+        Ok(())
+    }
 }
 
 /// An error for the [AlloyChainProvider].
@@ -80,7 +116,7 @@ pub enum AlloyChainProviderError {
     #[error("Block not found: {0}")]
     BlockNotFound(BlockId),
     /// Failed to convert RPC receipts into consensus receipts.
-    #[error("Failed to convert RPC receipts into consensus receipts {0}")]
+    #[error("Failed to convert RPC receipts into consensus receipts: {0}")]
     ReceiptsConversion(B256),
 }
 
@@ -125,6 +161,9 @@ impl ChainProvider for AlloyChainProvider {
             })?
             .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?;
         let header = block.header.into_consensus();
+
+        // Verify the header hash matches what we requested
+        self.verify_header_hash(&header, hash)?;
 
         self.header_by_hash_cache.put(hash, header.clone());
 
@@ -211,6 +250,9 @@ impl ChainProvider for AlloyChainProvider {
             .ok_or(AlloyChainProviderError::BlockNotFound(hash.into()))?
             .into_consensus()
             .map_transactions(|t| t.inner.into_inner());
+
+        // Verify the block hash matches what we requested
+        self.verify_header_hash(&block.header, hash)?;
 
         let block_info = BlockInfo {
             hash: block.header.hash_slow(),

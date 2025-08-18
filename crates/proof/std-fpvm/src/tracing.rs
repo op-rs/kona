@@ -4,6 +4,7 @@ use crate::io;
 use alloc::{
     format,
     string::{String, ToString},
+    vec::Vec,
 };
 use tracing::{
     Event, Level, Metadata, Subscriber,
@@ -48,7 +49,16 @@ impl Subscriber for FpvmTracingSubscriber {
 
         let mut visitor = FieldVisitor::new();
         event.record(&mut visitor);
-        io::print(&format!("[{}] {}: {}", metadata.level(), metadata.target(), visitor.message));
+
+        let formatted_message = if visitor.fields.is_empty() {
+            visitor.message
+        } else if visitor.message.is_empty() {
+            visitor.fields.join(", ")
+        } else {
+            format!("{} {}", visitor.message, visitor.fields.join(", "))
+        };
+
+        io::print(&format!("[{}] {}: {}", metadata.level(), metadata.target(), formatted_message));
     }
 
     fn enter(&self, _span: &Id) {}
@@ -56,23 +66,32 @@ impl Subscriber for FpvmTracingSubscriber {
     fn exit(&self, _span: &Id) {}
 }
 
-/// Custom [Visit] implementation to extract log  field values.
+/// Custom [`Visit`] implementation to extract log field values.
 struct FieldVisitor {
     message: String,
+    fields: Vec<String>,
 }
 
 impl FieldVisitor {
     const fn new() -> Self {
-        Self { message: String::new() }
+        Self { message: String::new(), fields: Vec::new() }
     }
 }
 
 impl Visit for FieldVisitor {
-    fn record_debug(&mut self, _field: &Field, value: &dyn core::fmt::Debug) {
-        self.message = format!("{value:?}");
+    fn record_debug(&mut self, field: &Field, value: &dyn core::fmt::Debug) {
+        if field.name() == "message" {
+            self.message = format!("{value:?}");
+        } else {
+            self.fields.push(format!("{}={:?}", field.name(), value));
+        }
     }
 
-    fn record_str(&mut self, _field: &Field, value: &str) {
-        self.message = value.to_string();
+    fn record_str(&mut self, field: &Field, value: &str) {
+        if field.name() == "message" {
+            self.message = value.to_string();
+        } else {
+            self.fields.push(format!("{}={}", field.name(), value));
+        }
     }
 }

@@ -91,7 +91,7 @@ pub trait ManagedNodeDataProvider: Send + Sync + Debug {
     /// * `timestamp` - The timestamp to fetch the l2 block ref at.
     ///
     /// # Returns
-    /// The l2 block ref at the given timestamp,
+    /// The l2 block ref at the given timestamp.
     async fn l2_block_ref_by_timestamp(
         &self,
         timestamp: u64,
