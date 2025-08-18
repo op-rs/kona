@@ -11,8 +11,8 @@ exclude = [
 ]
 
 include = [
-    "**/*.mdx",
-    "**/*.rs"
+    "*.mdx",
+    "*.rs"
 ]
 
 # Accepted HTTP status codes
