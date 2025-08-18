@@ -1,0 +1,22 @@
+verbose = true
+
+progress = true
+
+# required to check liveness of RPC endpoints
+insecure = true
+
+# Files or directories to exclude
+exclude = [
+    "./target/**",
+    "localhost",
+    "foo.bar"
+]
+
+# Accepted HTTP status codes
+accept = [200, 201, 202, 203, 204, 300, 301, 302, 303, 304, 307, 308, 429]
+
+# Files to scan
+files = [
+    "**/*.md",
+    "**/*.html"
+]
