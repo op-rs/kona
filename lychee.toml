@@ -1,5 +1,3 @@
-verbose = true
-
 progress = true
 
 # required to check liveness of RPC endpoints
