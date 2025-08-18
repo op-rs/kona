@@ -6,14 +6,11 @@ no_progress = false
 
 exclude_all_private = false
 
-# Files or directories to exclude
-exclude_path = [
-    "./CHANGELOG.md"
+exclude = [
+    'foo.bar'
 ]
 
-# Files to scan
-files = [
-    "**/*.md",
-    "**/*.mdx",
-    "**/*.html"
+# Files or directories to exclude
+exclude_path = [
+    './CHANGELOG.md'
 ]

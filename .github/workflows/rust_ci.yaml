@@ -268,3 +268,5 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --config ./lychee.toml '**/*.md' '**/*.mdx' '**/*.html'
