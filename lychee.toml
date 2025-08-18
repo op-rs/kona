@@ -7,7 +7,8 @@ no_progress = false
 exclude_all_private = false
 
 exclude = [
-    'foo.bar'
+    'foo.bar',
+    'localhost'
 ]
 
 # Files or directories to exclude
