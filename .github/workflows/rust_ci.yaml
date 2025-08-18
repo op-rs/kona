@@ -265,7 +265,5 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v5
-        with:
-          submodules: true
       - name: Link Checker
         uses: lycheeverse/lychee-action@v2
