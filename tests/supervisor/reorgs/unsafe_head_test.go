@@ -14,6 +14,7 @@ import (
 )
 
 // TestReorgUnsafeHead starts an interop chain with an op-test-sequencer, which takes control over sequencing the L2 chain and introduces a reorg on the unsafe head
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/reorgs/unsafe_head_test.go#L17
 func TestReorgUnsafeHead(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	ctx := t.Ctx()

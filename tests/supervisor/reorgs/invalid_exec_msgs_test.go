@@ -25,6 +25,7 @@ import (
 
 // TestReorgInvalidExecMsgs tests that the supervisor reorgs the chain when an invalid exec msg is included
 // Each subtest runs a test with  a different invalid message, by modifying the message in the txModifierFn
+// Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/reorgs/invalid_exec_msgs_test.go#L28
 func TestReorgInvalidExecMsgs(gt *testing.T) {
 	gt.Run("invalid log index", func(gt *testing.T) {
 		testReorgInvalidExecMsg(gt, func(msg *suptypes.Message) {
