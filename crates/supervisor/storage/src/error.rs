@@ -1,3 +1,4 @@
+use alloy_eips::BlockNumHash;
 use reth_db::DatabaseError;
 use thiserror::Error;
 
@@ -19,32 +20,38 @@ pub enum StorageError {
     LockPoisoned,
 
     /// The expected entry was not found in the database.
-    #[error("entry not found: {0}")]
-    EntryNotFound(String),
+    #[error(transparent)]
+    EntryNotFound(#[from] EntryNotFoundError),
 
     /// Represents an error that occurred while getting data that is not yet available.
     #[error("data not yet available")]
     FutureData,
-
-    /// Represents an error that occurred while initializing the database with an anchor.
-    #[error("invalid anchor")]
-    InvalidAnchor,
 
     /// Represents an error that occurred when database is not initialized.
     #[error("database not initialized")]
     DatabaseNotInitialised,
 
     /// Represents a conflict occurred while attempting to write to the database.
-    #[error("conflict error: {0}")]
-    ConflictError(String),
+    #[error("conflicting data")]
+    ConflictError,
 
     /// Represents an error that occurred while writing to log database.
     #[error("latest stored block is not parent of the incoming block")]
     BlockOutOfOrder,
 
-    /// Represents an error that occurred while writing to derived block database.
-    #[error("latest stored derived block is not parent of the incoming derived block")]
-    DerivedBlockOutOfOrder,
+    /// Represents an error that occurred when there is inconsistency in log storage
+    #[error("reorg required due to inconsistent storage state")]
+    ReorgRequired,
+
+    /// Represents an error that occurred when attempting to rewind log storage beyond the local
+    /// safe head.
+    #[error("rewinding log storage beyond local safe head. to: {to}, local_safe: {local_safe}")]
+    RewindBeyondLocalSafeHead {
+        /// The target block number to rewind to.
+        to: u64,
+        /// The local safe head block number.
+        local_safe: u64,
+    },
 }
 
 impl PartialEq for StorageError {
@@ -52,14 +59,39 @@ impl PartialEq for StorageError {
         use StorageError::*;
         match (self, other) {
             (Database(a), Database(b)) => a == b,
-            (DatabaseInit(a), DatabaseInit(b)) => format!("{}", a) == format!("{}", b),
+            (DatabaseInit(a), DatabaseInit(b)) => format!("{a}") == format!("{b}"),
             (EntryNotFound(a), EntryNotFound(b)) => a == b,
-            (InvalidAnchor, InvalidAnchor) => true,
-            (DatabaseNotInitialised, DatabaseNotInitialised) => true,
-            (ConflictError(a), ConflictError(b)) => a == b,
+            (DatabaseNotInitialised, DatabaseNotInitialised) | (ConflictError, ConflictError) => {
+                true
+            }
             _ => false,
         }
     }
 }
 
 impl Eq for StorageError {}
+
+/// Entry not found error.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum EntryNotFoundError {
+    /// No derived blocks found for given source block.
+    #[error("no derived blocks for source block, number: {}, hash: {}", .0.number, .0.hash)]
+    MissingDerivedBlocks(BlockNumHash),
+
+    /// Expected source block not found.
+    #[error("source block not found, number: {0}")]
+    SourceBlockNotFound(u64),
+
+    /// Expected derived block not found.
+    #[error("derived block not found, number: {0}")]
+    DerivedBlockNotFound(u64),
+
+    /// Expected log not found.
+    #[error("log not found at block {block_number} index {log_index}")]
+    LogNotFound {
+        /// Block number.
+        block_number: u64,
+        /// Log index within the block.
+        log_index: u32,
+    },
+}

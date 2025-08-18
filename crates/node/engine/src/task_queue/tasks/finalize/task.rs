@@ -1,7 +1,7 @@
 //! A task for finalizing an L2 block.
 
 use crate::{
-    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, ForkchoiceTask, Metrics,
+    EngineClient, EngineState, EngineTaskExt, FinalizeTaskError, SynchronizeTask,
     state::EngineSyncStateUpdate,
 };
 use alloy_provider::Provider;
@@ -23,7 +23,7 @@ pub struct FinalizeTask {
 }
 
 impl FinalizeTask {
-    /// Creates a new [`ForkchoiceTask`].
+    /// Creates a new [`SynchronizeTask`].
     pub const fn new(client: Arc<EngineClient>, cfg: Arc<RollupConfig>, block_number: u64) -> Self {
         Self { client, cfg, block_number }
     }
@@ -44,7 +44,7 @@ impl EngineTaskExt for FinalizeTask {
         let block_fetch_start = Instant::now();
         let block = self
             .client
-            .l2_provider()
+            .l2_engine()
             .get_block(self.block_number.into())
             .full()
             .await
@@ -57,18 +57,14 @@ impl EngineTaskExt for FinalizeTask {
 
         // Dispatch a forkchoice update.
         let fcu_start = Instant::now();
-        ForkchoiceTask::new(
+        SynchronizeTask::new(
             self.client.clone(),
             self.cfg.clone(),
             EngineSyncStateUpdate { finalized_head: Some(block_info), ..Default::default() },
-            None,
         )
         .execute(state)
         .await?;
         let fcu_duration = fcu_start.elapsed();
-
-        // Update metrics.
-        kona_macros::inc!(counter, Metrics::ENGINE_TASK_COUNT, Metrics::FINALIZE_TASK_LABEL);
 
         info!(
             target: "engine",

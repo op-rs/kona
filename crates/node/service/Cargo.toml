@@ -1,7 +1,7 @@
 [package]
 name = "kona-node-service"
 description = "An implementation of the OP Stack consensus node service"
-version = "0.1.0"
+version = "0.1.3"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -13,11 +13,11 @@ workspace = true
 
 [dependencies]
 # workspace
-kona-p2p.workspace = true
+kona-gossip.workspace = true
+kona-disc.workspace = true
 kona-engine.workspace = true
 kona-sources.workspace = true
 kona-genesis.workspace = true
-kona-interop.workspace = true
 kona-derive.workspace = true
 kona-protocol.workspace = true
 kona-providers-alloy.workspace = true
@@ -26,6 +26,7 @@ kona-peers.workspace = true
 kona-macros.workspace = true
 
 # alloy
+alloy-chains.workspace = true
 alloy-signer.workspace = true
 alloy-signer-local.workspace = true
 alloy-primitives.workspace = true
@@ -68,15 +69,24 @@ metrics = { workspace = true, optional = true }
 
 [dev-dependencies]
 rstest.workspace = true
+arbitrary.workspace = true
+rand.workspace = true
+anyhow.workspace = true
+backon.workspace = true
+alloy-primitives = { workspace = true, features = ["k256"] }
+alloy-rpc-types-engine = { workspace = true, features = ["arbitrary"] }
+alloy-consensus = { workspace = true, features = ["arbitrary"] }
+op-alloy-consensus = { workspace = true, features = ["arbitrary", "k256"] }
 
 [features]
 default = []
 metrics = [
 	"dep:metrics",
 	"kona-derive/metrics",
+	"kona-disc/metrics",
 	"kona-engine/metrics",
-	"kona-p2p/metrics",
+	"kona-gossip/metrics",
+	"kona-providers-alloy/metrics",
 	"kona-rpc/metrics",
-	"kona-sources/metrics",
 	"libp2p/metrics",
 ]

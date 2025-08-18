@@ -11,7 +11,7 @@ ARG CANNON_TAG
 # Install deps
 RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates make
 
-ENV GO_VERSION=1.22.7
+ENV GO_VERSION=1.23.8
 
 # Fetch go manually, rather than using a Go base image, so we can copy the installation into the final stage
 RUN curl -sL https://go.dev/dl/go$GO_VERSION.linux-$TARGETARCH.tar.gz -o go$GO_VERSION.linux-$TARGETARCH.tar.gz && \
@@ -30,7 +30,7 @@ RUN git clone https://github.com/ethereum-optimism/optimism && \
 #               Build kona-client @ `CLIENT_TAG`               #
 ################################################################
 
-FROM ghcr.io/op-rs/kona/cannon-builder:0.1.0 AS client-build
+FROM ghcr.io/op-rs/kona/cannon-builder:0.3.0 AS client-build
 SHELL ["/bin/bash", "-c"]
 
 ARG CLIENT_BIN
@@ -68,11 +68,10 @@ COPY --from=cannon-build /cannon-bin $CANNON_BIN_PATH
 COPY --from=client-build /kona-client-elf $CLIENT_BIN_PATH
 
 # Create `prestate.bin.gz`
-# TODO: update `--type` once cannon supports `DCLO` / `DCLZ`.
 RUN $CANNON_BIN_PATH load-elf \
   --path=$CLIENT_BIN_PATH \
   --out=$PRESTATE_OUT_PATH \
-  --type multithreaded64-4
+  --type multithreaded64-5
 
 # Create `prestate-proof.json`
 RUN $CANNON_BIN_PATH run \

@@ -1,6 +1,6 @@
 [package]
 name = "kona-sources"
-version = "0.1.0"
+version = "0.1.2"
 description = "Data source types and utilities for the kona-node"
 
 edition.workspace = true
@@ -16,37 +16,44 @@ workspace = true
 
 [dependencies]
 # Workspace
-kona-derive.workspace = true
 kona-genesis.workspace = true
 kona-protocol.workspace = true
-kona-providers-alloy.workspace = true
 
 # Alloy
 alloy-eips.workspace = true
 alloy-provider = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
 alloy-transport.workspace = true
 alloy-primitives.workspace = true
+alloy-rpc-client.workspace = true
+alloy-transport-http = { workspace = true, features = ["reqwest", "reqwest-rustls-tls", "hyper", "hyper-tls"] }
+
+alloy-signer.workspace = true
+alloy-signer-local.workspace = true
 
 # OP Alloy
-op-alloy-rpc-types-engine = { workspace = true, features = ["std"] }
 op-alloy-network.workspace = true
+op-alloy-rpc-types-engine.workspace = true
 
 # Misc
-lru.workspace = true
-url.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
+derive_more.workspace = true
 
-# `metrics` feature
-metrics = { workspace = true, optional = true }
+# HTTP client and TLS for remote signer
+reqwest = { workspace = true, features = ["json", "rustls-tls", "stream"] }
+url.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rustls.workspace = true
+rustls-pemfile = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["full"] }
+notify.workspace = true
 
 [features]
 default = []
-metrics = [ "dep:metrics", "kona-derive/metrics" ]
 
 [dev-dependencies]
 tokio.workspace = true
-kona-cli.workspace = true
 kona-registry.workspace = true
 serde_json.workspace = true
 alloy-rpc-types = { workspace = true, features = ["eth"] }

@@ -116,7 +116,7 @@ mod tests {
                     received_p2p_id = Some(id);
                 }
                 _ => {
-                    panic!("Unexpected protocol: {:?}", protocol);
+                    panic!("Unexpected protocol: {protocol:?}");
                 }
             }
         }
@@ -157,7 +157,7 @@ mod tests {
                     received_p2p_id = Some(id);
                 }
                 _ => {
-                    panic!("Unexpected protocol: {:?}", protocol);
+                    panic!("Unexpected protocol: {protocol:?}");
                 }
             }
         }

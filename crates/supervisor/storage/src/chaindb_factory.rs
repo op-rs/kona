@@ -72,7 +72,7 @@ impl ChainDbFactory {
         {
             // Try to get it without locking for write
             let dbs = self.dbs.read().map_err(|err| {
-                error!(target: "supervisor_storage", %err, "Failed to acquire read lock on databases");
+                error!(target: "supervisor::storage", %err, "Failed to acquire read lock on databases");
                 StorageError::LockPoisoned
             })?;
             if let Some(db) = dbs.get(&chain_id) {
@@ -82,7 +82,7 @@ impl ChainDbFactory {
 
         // Not found, create and insert
         let mut dbs = self.dbs.write().map_err(|err| {
-            error!(target: "supervisor_storage", %err, "Failed to acquire write lock on databases");
+            error!(target: "supervisor::storage", %err, "Failed to acquire write lock on databases");
             StorageError::LockPoisoned
         })?;
         // Double-check in case another thread inserted
@@ -129,10 +129,10 @@ impl MetricsReporter for ChainDbFactory {
 impl FinalizedL1Storage for ChainDbFactory {
     fn get_finalized_l1(&self) -> Result<BlockInfo, StorageError> {
         self.observe_call(
-            "get_finalized_l1",
+            Metrics::STORAGE_METHOD_GET_FINALIZED_L1,
             || {
                 let guard = self.finalized_l1.read().map_err(|err| {
-                    error!(target: "supervisor_storage", %err, "Failed to acquire read lock on finalized_l1");
+                    error!(target: "supervisor::storage", %err, "Failed to acquire read lock on finalized_l1");
                     StorageError::LockPoisoned
                 })?;
                 guard.as_ref().cloned().ok_or(StorageError::FutureData)
@@ -142,20 +142,20 @@ impl FinalizedL1Storage for ChainDbFactory {
 
     fn update_finalized_l1(&self, block: BlockInfo) -> Result<(), StorageError> {
         self.observe_call(
-            "update_finalized_l1",
+            Metrics::STORAGE_METHOD_UPDATE_FINALIZED_L1,
             || {
                 let mut guard = self
                     .finalized_l1
                     .write()
                     .map_err(|err| {
-                        error!(target: "supervisor_storage", %err, "Failed to acquire write lock on finalized_l1");
+                        error!(target: "supervisor::storage", %err, "Failed to acquire write lock on finalized_l1");
                         StorageError::LockPoisoned
                     })?;
 
                 // Check if the new block number is greater than the current finalized block
                 if let Some(ref current) = *guard {
                     if block.number <= current.number {
-                        error!(target: "supervisor_storage",
+                        error!(target: "supervisor::storage",
                             current_block_number = current.number,
                             new_block_number = block.number,
                             "New finalized block number is not greater than current finalized block number",
@@ -173,6 +173,15 @@ impl FinalizedL1Storage for ChainDbFactory {
 impl CrossChainSafetyProvider for ChainDbFactory {
     fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError> {
         self.get_db(chain_id)?.get_block(block_number)
+    }
+
+    fn get_log(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+        log_index: u32,
+    ) -> Result<Log, StorageError> {
+        self.get_db(chain_id)?.get_log(block_number, log_index)
     }
 
     fn get_block_logs(

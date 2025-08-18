@@ -1,11 +1,13 @@
 //! Provider for derivation-related database operations.
 use crate::{
-    error::StorageError,
+    error::{EntryNotFoundError, StorageError},
     models::{
         BlockTraversal, DerivedBlocks, SourceBlockTraversal, StoredDerivedBlockPair, U64List,
     },
 };
 use alloy_eips::eip1898::BlockNumHash;
+use alloy_primitives::ChainId;
+use derive_more::Constructor;
 use kona_interop::DerivedRefPair;
 use kona_protocol::BlockInfo;
 use reth_db_api::{
@@ -15,16 +17,10 @@ use reth_db_api::{
 use tracing::{error, warn};
 
 /// Provides access to derivation storage operations within a transaction.
-#[derive(Debug)]
+#[derive(Debug, Constructor)]
 pub(crate) struct DerivationProvider<'tx, TX> {
     tx: &'tx TX,
-}
-
-impl<'tx, TX> DerivationProvider<'tx, TX> {
-    /// Creates a new [`DerivationProvider`] instance.
-    pub(crate) const fn new(tx: &'tx TX) -> Self {
-        Self { tx }
-    }
+    chain_id: ChainId,
 }
 
 impl<TX> DerivationProvider<'_, TX>
@@ -39,7 +35,8 @@ where
         let derived_block_pair_opt =
             self.tx.get::<DerivedBlocks>(derived_block_number).inspect_err(|err| {
                 error!(
-                  target: "supervisor_storage",
+                  target: "supervisor::storage",
+                  chain_id = %self.chain_id,
                   derived_block_number,
                   %err,
                   "Failed to get derived block pair"
@@ -48,11 +45,12 @@ where
 
         let derived_block_pair = derived_block_pair_opt.ok_or_else(|| {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
+              chain_id = %self.chain_id,
               derived_block_number,
               "Derived block not found"
             );
-            StorageError::EntryNotFound("derived block not found".to_string())
+            EntryNotFoundError::DerivedBlockNotFound(derived_block_number)
         })?;
 
         Ok(derived_block_pair)
@@ -69,15 +67,14 @@ where
 
         if derived_block_pair.derived.hash != derived_block_id.hash {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
+              chain_id = %self.chain_id,
               derived_block_number = derived_block_id.number,
               expected_hash = %derived_block_id.hash,
               actual_hash = %derived_block_pair.derived.hash,
               "Derived block hash mismatch"
             );
-            return Err(StorageError::EntryNotFound(
-                "derived block hash does not match".to_string(),
-            ));
+            return Err(StorageError::ConflictError);
         }
 
         Ok(derived_block_pair)
@@ -107,23 +104,25 @@ where
         let block_traversal =
             self.tx.get::<BlockTraversal>(source_block_number).inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
                     source_block_number,
                     %err,
                     "Failed to get block traversal info for source block"
                 );
             })?;
 
-        block_traversal.ok_or_else(|| {
+        Ok(block_traversal.ok_or_else(|| {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
+              chain_id = %self.chain_id,
               source_block_number,
               "source block not found"
             );
 
             // todo: replace with a more specific error
-            StorageError::EntryNotFound("source block not found".to_string())
-        })
+            EntryNotFoundError::SourceBlockNotFound(source_block_number)
+        })?)
     }
 
     /// Gets the latest derived [`BlockInfo`] at the given source [`BlockNumHash`].
@@ -136,30 +135,32 @@ where
         &self,
         source_block_id: BlockNumHash,
     ) -> Result<BlockInfo, StorageError> {
-        let mut block_traversal = self.get_block_traversal(source_block_id.number)?;
+        let block_traversal = self.get_block_traversal(source_block_id.number)?;
 
         if block_traversal.source.hash != source_block_id.hash {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 source_block_hash = %source_block_id.hash,
                 "Source block hash mismatch"
             );
-            return Err(StorageError::EntryNotFound("source block hash mismatch".to_string()));
+            return Err(StorageError::ConflictError);
         }
 
-        while block_traversal.derived_block_numbers.is_empty() {
-            let prev_block_traversal =
-                self.get_block_traversal(block_traversal.source.number - 1)?;
-            block_traversal = prev_block_traversal;
+        let mut cursor = self.tx.cursor_read::<BlockTraversal>()?;
+        let walker = cursor.walk_back(Some(source_block_id.number))?;
+
+        for item in walker {
+            let (_, block_traversal) = item?;
+            if let Some(latest_derived_block_number) = block_traversal.derived_block_numbers.last()
+            {
+                let derived_block_pair =
+                    self.get_derived_block_pair_by_number(*latest_derived_block_number)?;
+                return Ok(derived_block_pair.derived.into());
+            }
         }
 
-        let derived_block_number =
-            block_traversal.derived_block_numbers.last().ok_or_else(|| {
-                StorageError::EntryNotFound("no derived blocks for this source block".to_string())
-            })?;
-
-        let derived_block_pair = self.get_derived_block_pair_by_number(*derived_block_number)?;
-        Ok(derived_block_pair.derived.into())
+        Err(EntryNotFoundError::MissingDerivedBlocks(source_block_id).into())
     }
 
     /// Gets the latest derivation state [`DerivedRefPair`], which includes the latest source block
@@ -170,7 +171,8 @@ where
     pub(crate) fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError> {
         let mut cursor = self.tx.cursor_read::<DerivedBlocks>().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 %err,
                 "Failed to get cursor for DerivedBlocks"
             );
@@ -178,7 +180,8 @@ where
 
         let result = cursor.last().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 %err,
                 "Failed to seek to last block"
             );
@@ -186,7 +189,8 @@ where
 
         let (_, block) = result.ok_or_else(|| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 "No blocks found in storage"
             );
             StorageError::DatabaseNotInitialised
@@ -194,7 +198,8 @@ where
 
         let latest_source_block = self.latest_source_block().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 %err,
                 "Failed to get latest source block"
             );
@@ -216,7 +221,10 @@ where
     }
 
     /// Gets the source block for the given source block number.
-    fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError> {
+    pub(crate) fn get_source_block(
+        &self,
+        source_block_number: u64,
+    ) -> Result<BlockInfo, StorageError> {
         let block_traversal = self.get_block_traversal(source_block_number)?;
         Ok(block_traversal.source.into())
     }
@@ -225,7 +233,8 @@ where
     pub(crate) fn latest_source_block(&self) -> Result<BlockInfo, StorageError> {
         let block = self.latest_source_block_traversal().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 %err,
                 "Failed to get latest source block traversal"
             );
@@ -233,26 +242,32 @@ where
 
         Ok(block.source.into())
     }
+
+    /// Gets the activation block, which is the first block in the database.
+    pub(crate) fn get_activation_block(&self) -> Result<BlockInfo, StorageError> {
+        let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
+        let result = cursor.first()?;
+
+        let (_, derived_block_pair) = result.ok_or_else(|| StorageError::DatabaseNotInitialised)?;
+        Ok(derived_block_pair.derived.into())
+    }
 }
 
 impl<TX> DerivationProvider<'_, TX>
 where
     TX: DbTxMut + DbTx,
 {
-    /// initialises the database with a derived block pair anchor.
-    pub(crate) fn initialise(&self, anchor: DerivedRefPair) -> Result<(), StorageError> {
+    /// initialises the database with a derived activation block pair.
+    pub(crate) fn initialise(&self, activation_pair: DerivedRefPair) -> Result<(), StorageError> {
         match self.get_derived_block_pair_by_number(0) {
-            Ok(pair)
-                if pair.derived.hash == anchor.derived.hash &&
-                    pair.source.hash == anchor.source.hash =>
-            {
+            Ok(pair) if activation_pair == pair.clone().into() => {
                 // Anchor matches, nothing to do
                 Ok(())
             }
-            Ok(_) => Err(StorageError::InvalidAnchor),
+            Ok(_) => Err(StorageError::ConflictError),
             Err(StorageError::EntryNotFound(_)) => {
-                self.save_source_block_internal(anchor.source)?;
-                self.save_derived_block_internal(anchor)?;
+                self.save_source_block_internal(activation_pair.source)?;
+                self.save_derived_block_internal(activation_pair)?;
                 Ok(())
             }
             Err(err) => Err(err),
@@ -269,7 +284,9 @@ where
         // todo: use cursor to get the last block(performance improvement)
         let latest_derivation_state = match self.latest_derivation_state() {
             Ok(pair) => pair,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(e) => return Err(e),
         };
 
@@ -281,7 +298,8 @@ where
                 .get_derived_block_pair_by_number(incoming_pair.derived.number)
                 .inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
                     incoming_derived_block_pair = %incoming_pair,
                     %err,
                     "Failed to get derived block pair"
@@ -292,22 +310,21 @@ where
                 return Ok(());
             } else {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
                     %latest_derivation_state,
                     incoming_derived_block_pair = %incoming_pair,
                     "Incoming derived block is not consistent with the latest stored derived block"
                 );
-                return Err(StorageError::ConflictError(
-                    "incoming derived block is not consistent with the stored derived block"
-                        .to_string(),
-                ));
+                return Err(StorageError::ConflictError);
             }
         }
 
         // Latest source block must be same as the incoming source block
         if latest_derivation_state.source != incoming_pair.source {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 latest_source_block = %latest_derivation_state.source,
                 incoming_source = %incoming_pair.source,
                 "Latest source block does not match the incoming derived block source"
@@ -317,12 +334,13 @@ where
 
         if !latest_derivation_state.derived.is_parent_of(&incoming_pair.derived) {
             warn!(
-              target: "supervisor_storage",
+              target: "supervisor::storage",
+              chain_id = %self.chain_id,
               %latest_derivation_state,
               incoming_derived_block_pair = %incoming_pair,
               "Latest stored derived block is not parent of the incoming derived block"
             );
-            return Err(StorageError::DerivedBlockOutOfOrder);
+            return Err(StorageError::BlockOutOfOrder);
         }
 
         self.save_derived_block_internal(incoming_pair)
@@ -338,7 +356,8 @@ where
         // the derived block must be derived from the latest source block
         let mut block_traversal = self.latest_source_block_traversal().inspect_err(|err| {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 incoming_derived_block_pair = %incoming_pair,
                 %err,
                 "Failed to get latest source block traversal"
@@ -348,7 +367,8 @@ where
         let latest_source_block = block_traversal.clone().source.into();
         if incoming_pair.source != latest_source_block {
             warn!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 latest_source_block = %latest_source_block,
                 incoming_source = %incoming_pair.source,
                 "Latest source block does not match the incoming derived block source"
@@ -364,7 +384,8 @@ where
             .put::<DerivedBlocks>(incoming_pair.derived.number, incoming_pair.into())
             .inspect_err(|err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
                     incoming_derived_block_pair = %incoming_pair,
                     %err,
                     "Failed to save derived block pair"
@@ -375,7 +396,8 @@ where
         self.tx.put::<BlockTraversal>(incoming_pair.source.number, block_traversal).inspect_err(
             |err| {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
                     incoming_derived_block_pair = %incoming_pair,
                     %err,
                     "Failed to save derived block numbers for source block"
@@ -393,7 +415,9 @@ where
     pub(crate) fn save_source_block(&self, incoming_source: BlockInfo) -> Result<(), StorageError> {
         let latest_source_block = match self.latest_source_block() {
             Ok(latest_source_block) => latest_source_block,
-            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
+            Err(StorageError::EntryNotFound(_)) => {
+                return Err(StorageError::DatabaseNotInitialised);
+            }
             Err(err) => return Err(err),
         };
 
@@ -409,7 +433,8 @@ where
             let source_block =
                 self.get_source_block(incoming_source.number).inspect_err(|err| {
                     error!(
-                        target: "supervisor_storage",
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
                         incoming_source = %incoming_source,
                         %err,
                         "Failed to get source block"
@@ -420,21 +445,20 @@ where
                 return Ok(());
             } else {
                 error!(
-                    target: "supervisor_storage",
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
                     latest_source_block = %latest_source_block,
                     incoming_source = %incoming_source,
                     "Incoming source block is not consistent with the latest source block"
                 );
-                return Err(StorageError::ConflictError(
-                    "incoming source block is not consistent with the stored source block"
-                        .to_string(),
-                ));
+                return Err(StorageError::ConflictError);
             }
         }
 
         if !latest_source_block.is_parent_of(&incoming_source) {
             error!(
-                target: "supervisor_storage",
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
                 latest_source_block = %latest_source_block,
                 incoming_source = %incoming_source,
                 "Stored latest source block is not parent of the incoming source block"
@@ -454,9 +478,62 @@ where
 
         self.tx.put::<BlockTraversal>(incoming_source.number, block_traversal).inspect_err(
             |err| {
-                error!(target: "supervisor_storage", %err, "Failed to save block traversal");
+                error!(target: "supervisor::storage", chain_id = %self.chain_id, %err, "Failed to save block traversal");
             },
         )?;
+
+        Ok(())
+    }
+
+    /// Rewinds the derivation database from the given derived block onward.
+    /// This removes all derived blocks with number >= the given block number
+    /// and updates the traversal state accordingly.
+    pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
+        let block_pair = self.get_derived_block_pair(*block)?;
+
+        // Delete all derived blocks with number ≥ `block_info.number`
+        {
+            let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
+            let mut walker = cursor.walk(Some(block.number))?;
+            while let Some(Ok((_, _))) = walker.next() {
+                walker.delete_current()?; // we’re already walking from the rewind point
+            }
+        }
+
+        self.rewind_block_traversal_to(&block_pair)
+    }
+
+    /// Rewinds the block traversal for a given derived block pair.
+    /// - If only part of the derived list needs to be removed, it updates the list in-place.
+    /// - If later source blocks exist, they are removed entirely.
+    // TODO: validate the logic in block invalidation and re-org
+    fn rewind_block_traversal_to(
+        &self,
+        block_pair: &StoredDerivedBlockPair,
+    ) -> Result<(), StorageError> {
+        // Retain only valid derived blocks < the invalidated one
+        let mut traversal = self.get_block_traversal(block_pair.source.number)?;
+        traversal.derived_block_numbers.retain(|&num| num < block_pair.derived.number);
+
+        let mut walk_from = block_pair.source.number;
+
+        // If there's still something left, update the entry. Otherwise, skip — let the walker
+        // delete it.
+        if !traversal.derived_block_numbers.is_empty() {
+            self.tx.put::<BlockTraversal>(block_pair.source.number, traversal).inspect_err(
+                |err| {
+                    error!(target: "supervisor::storage", chain_id = %self.chain_id, %err, "Failed to update block traversal");
+                },
+            )?;
+            walk_from += 1;
+        }
+
+        // Walk from (source.number) forward, deleting entries with key ≥ source.number
+        let mut cursor = self.tx.cursor_write::<BlockTraversal>()?;
+        let mut walker = cursor.walk(Some(walk_from))?;
+        while let Some(Ok((_, _))) = walker.next() {
+            walker.delete_current()?;
+        }
 
         Ok(())
     }
@@ -474,6 +551,8 @@ mod tests {
         mdbx::{DatabaseArguments, init_db_for},
     };
     use tempfile::TempDir;
+
+    static CHAIN_ID: ChainId = 1;
 
     fn block_info(number: u64, parent_hash: B256, timestamp: u64) -> BlockInfo {
         BlockInfo { hash: B256::from([number as u8; 32]), number, parent_hash, timestamp }
@@ -502,7 +581,7 @@ mod tests {
     /// Helper to initialize database in a new transaction, committing if successful.
     fn initialize_db(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let res = provider.initialise(*pair);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
@@ -513,7 +592,7 @@ mod tests {
     /// Helper to insert a pair in a new transaction, committing if successful.
     fn insert_pair(db: &DatabaseEnv, pair: &DerivedRefPair) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let res = provider.save_derived_block(*pair);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
@@ -524,7 +603,7 @@ mod tests {
     /// Helper to insert a source block in a new transaction, committing if successful.
     fn insert_source_block(db: &DatabaseEnv, source: &BlockInfo) -> Result<(), StorageError> {
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let res = provider.save_source_block(*source);
         if res.is_ok() {
             tx.commit().expect("Failed to commit transaction");
@@ -545,7 +624,7 @@ mod tests {
 
         // Check that the anchor is present
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let stored = provider.get_derived_block_pair_by_number(0).expect("should exist");
         assert_eq!(stored.source.hash, anchor.source.hash);
         assert_eq!(stored.derived.hash, anchor.derived.hash);
@@ -578,8 +657,8 @@ mod tests {
         let wrong_derived = block_info(0, B256::from([42u8; 32]), 200);
         let wrong_anchor = derived_pair(source, wrong_derived);
 
-        let result = insert_pair(&db, &wrong_anchor);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        let result = initialize_db(&db, &wrong_anchor);
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
@@ -615,7 +694,7 @@ mod tests {
         let derived2 = block_info(2, wrong_parent_hash, 300);
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(matches!(result, Err(StorageError::DerivedBlockOutOfOrder)));
+        assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
     }
 
     #[test]
@@ -630,7 +709,7 @@ mod tests {
         let derived2 = block_info(4, derived1.hash, 400); // should be 2, not 4
         let pair2 = derived_pair(source1, derived2);
         let result = insert_pair(&db, &pair2);
-        assert!(matches!(result, Err(StorageError::DerivedBlockOutOfOrder)));
+        assert!(matches!(result, Err(StorageError::BlockOutOfOrder)));
     }
 
     #[test]
@@ -682,7 +761,7 @@ mod tests {
         let derived_non_monotonic = block_info(1, derived2.hash, 400);
         let pair_non_monotonic = derived_pair(source1, derived_non_monotonic);
         let result = insert_pair(&db, &pair_non_monotonic);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
@@ -706,7 +785,7 @@ mod tests {
 
         // Now check latest_derived_block_at_source returns derived2 for source1
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let source_id1 = BlockNumHash { number: source1.number, hash: source1.hash };
         let latest = provider.latest_derived_block_at_source(source_id1).expect("should exist");
         assert_eq!(latest.number, derived2.number);
@@ -724,7 +803,7 @@ mod tests {
 
         // Use a source block that does not exist
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let source_id = BlockNumHash { number: 9999, hash: B256::from([99u8; 32]) };
         let result = provider.latest_derived_block_at_source(source_id);
         assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
@@ -741,11 +820,11 @@ mod tests {
 
         // Use correct number but wrong hash
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let wrong_hash = B256::from([123u8; 32]);
         let source_id = BlockNumHash { number: source1.number, hash: wrong_hash };
         let result = provider.latest_derived_block_at_source(source_id);
-        assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
@@ -762,7 +841,7 @@ mod tests {
         assert!(insert_pair(&db, &pair2).is_ok());
 
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let latest = provider.latest_derivation_state().expect("should exist");
         assert_eq!(latest, pair2);
@@ -773,10 +852,10 @@ mod tests {
         let db = setup_db();
 
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let result = provider.latest_derivation_state();
-        print!("{:?}", result);
+        print!("{result:?}");
         assert!(
             matches!(result, Err(StorageError::DatabaseNotInitialised)),
             "Should return DatabaseNotInitialised error when no derivation state exists"
@@ -801,7 +880,7 @@ mod tests {
         let source3 = block_info(102, source2.hash, 400);
         assert!(insert_source_block(&db, &source3).is_ok());
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let latest = provider.latest_derivation_state().expect("should exist");
         let expected_derivation_state = DerivedRefPair { source: source3, derived: derived2 };
@@ -815,7 +894,7 @@ mod tests {
             .expect("Failed to init database");
 
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         assert!(matches!(
             provider.latest_derivation_state(),
             Err(StorageError::DatabaseNotInitialised)
@@ -832,7 +911,7 @@ mod tests {
         assert!(initialize_db(&db, &pair1).is_ok());
 
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let derived_block_id = BlockNumHash { number: derived1.number, hash: derived1.hash };
         let source = provider.derived_to_source(derived_block_id).expect("should exist");
@@ -844,7 +923,7 @@ mod tests {
         let db = setup_db();
 
         let tx = db.tx().expect("Could not get tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
 
         let derived_block_id = BlockNumHash { number: 9999, hash: B256::from([9u8; 32]) };
         let result = provider.derived_to_source(derived_block_id);
@@ -926,7 +1005,7 @@ mod tests {
         let old_source = block_info(source0.number, B256::from([1u8; 32]), 400);
         // Try to save a block with a lower number
         let result = insert_source_block(&db, &old_source);
-        assert!(matches!(result, Err(StorageError::ConflictError(_))));
+        assert!(matches!(result, Err(StorageError::ConflictError)));
     }
 
     #[test]
@@ -971,10 +1050,112 @@ mod tests {
         let derived1 = block_info(100, derived0.hash, 200);
 
         let tx = db.tx_mut().expect("Could not get mutable tx");
-        let provider = DerivationProvider::new(&tx);
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
         let mut block_traversal =
             provider.get_block_traversal(source1.number).expect("should exist");
         block_traversal.derived_block_numbers.push(derived1.number);
         assert!(tx.put::<BlockTraversal>(source1.number, block_traversal).is_ok());
+    }
+
+    #[test]
+    fn test_rewind_block_to_success() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to get mutable tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+        let derived_genesis = block_info(9, genesis_block().hash, 201);
+        provider
+            .initialise(derived_pair(genesis_block(), derived_genesis))
+            .expect("initialise should succeed");
+
+        // Setup:
+        // Block 1: derived blocks 10, 11, 12
+        // Block 2: derived blocks 13, 14
+        // We will rewind to (source: 1, derived: 11)
+        // After rewind:
+        // - Block 1 keeps only 10
+        // - Block 2 is removed completely
+
+        // Rewind 2 - to block 10
+        // After rewind: Only genesis left
+
+        let (source1, source2) = {
+            let s1 = block_info(1, genesis_block().hash, 200);
+            let s2 = block_info(2, s1.hash, 300);
+            (s1, s2)
+        };
+        let (derived10, derived11, derived12, derived13, derived14) = {
+            let d1 = block_info(10, derived_genesis.hash, 195);
+            let d2 = block_info(11, d1.hash, 197);
+            let d3 = block_info(12, d2.hash, 290);
+            let d4 = block_info(13, d3.hash, 292);
+            let d5 = block_info(14, d4.hash, 295);
+            (d1, d2, d3, d4, d5)
+        };
+
+        provider.save_source_block(source1).expect("Failed to save source block 1");
+        provider
+            .save_derived_block(derived_pair(source1, derived10))
+            .expect("Failed to save derived block 10");
+        provider
+            .save_derived_block(derived_pair(source1, derived11))
+            .expect("Failed to save derived block 11");
+        provider
+            .save_derived_block(derived_pair(source1, derived12))
+            .expect("Failed to save derived block 12");
+
+        provider.save_source_block(source2).expect("Failed to save source block 2");
+        provider
+            .save_derived_block(derived_pair(source2, derived13))
+            .expect("Failed to save derived block 13");
+        provider
+            .save_derived_block(derived_pair(source2, derived14))
+            .expect("Failed to save derived block 14");
+
+        let rewind_point = derived11;
+        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
+
+        // Expect: source block 1 retains only derived 10
+        let new_state = provider.latest_derivation_state().expect("should succeed");
+        assert_eq!(new_state.derived, derived10);
+        assert_eq!(new_state.source, source1);
+
+        let rewind_point = derived10;
+        provider.rewind_to(&rewind_point.id()).expect("rewind should succeed");
+
+        // Expect: source block 1 retains nothing, genesis should be new latest source
+        let new_state = provider.latest_derivation_state().expect("should succeed");
+        assert_eq!(new_state.derived, derived_genesis);
+        assert_eq!(new_state.source, genesis_block());
+    }
+
+    #[test]
+    fn test_get_activation_block_returns_error_if_empty() {
+        let db = setup_db();
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let result = provider.get_activation_block();
+        assert!(matches!(result, Err(StorageError::DatabaseNotInitialised)));
+    }
+
+    #[test]
+    fn test_get_activation_block_with_multiple_blocks_returns_first() {
+        let db = setup_db();
+
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived1 = block_info(0, genesis_block().hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        let derived2 = block_info(1, derived1.hash, 300);
+        let pair2 = derived_pair(source1, derived2);
+        assert!(insert_pair(&db, &pair2).is_ok());
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let activation = provider.get_activation_block().expect("should exist");
+        assert_eq!(activation, derived1);
     }
 }

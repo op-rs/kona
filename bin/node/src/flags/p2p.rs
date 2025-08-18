@@ -4,25 +4,26 @@
 //!
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/develop/op-node/flags/p2p_flags.go
 
-use crate::flags::GlobalArgs;
-use alloy_primitives::B256;
-use alloy_signer::Signer;
+use crate::flags::{GlobalArgs, SignerArgs};
+use alloy_primitives::{B256, b256};
+use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
 use discv5::{Enr, enr::k256};
+use kona_derive::ChainProvider;
+use kona_disc::LocalNode;
 use kona_genesis::RollupConfig;
+use kona_gossip::GaterConfig;
 use kona_node_service::NetworkConfig;
-use kona_p2p::{GaterConfig, LocalNode};
-use kona_peers::{PeerMonitoring, PeerScoreLevel};
-use kona_sources::RuntimeLoader;
+use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
+use kona_providers_alloy::AlloyChainProvider;
 use libp2p::identity::Keypair;
 use std::{
     net::{IpAddr, SocketAddr},
     num::ParseIntError,
     path::PathBuf,
     str::FromStr,
-    sync::Arc,
 };
 use tokio::time::Duration;
 use url::Url;
@@ -162,6 +163,9 @@ pub struct P2PArgs {
     /// The directory to store the bootstore.
     #[arg(long = "p2p.bootstore", env = "KONA_NODE_P2P_BOOTSTORE")]
     pub bootstore: Option<PathBuf>,
+    /// Disables the bootstore.
+    #[arg(long = "p2p.no-bootstore", env = "KONA_NODE_P2P_NO_BOOTSTORE")]
+    pub disable_bootstore: bool,
     /// Peer Redialing threshold is the maximum amount of times to attempt to redial a peer that
     /// disconnects. By default, peers are *not* redialed. If set to 0, the peer will be
     /// redialed indefinitely.
@@ -211,9 +215,10 @@ pub struct P2PArgs {
     #[arg(long = "p2p.discovery.randomize", env = "KONA_NODE_P2P_DISCOVERY_RANDOMIZE")]
     pub discovery_randomize: Option<u64>,
 
-    /// An optional flag to specify the private key of the sequencer, used to sign unsafe blocks.
-    #[arg(long = "p2p.sequencer.key", env = "KONA_NODE_P2P_SEQUENCER_KEY")]
-    pub sequencer_key: Option<B256>,
+    /// Specify optional remote signer configuration. Note that this argument is mutually exclusive
+    /// with `p2p.sequencer.key` that specifies a local sequencer signer.
+    #[command(flatten)]
+    pub signer: SignerArgs,
 }
 
 impl Default for P2PArgs {
@@ -266,26 +271,6 @@ impl P2PArgs {
         Ok(())
     }
 
-    /// Returns the [`discv5::Config`] from the CLI arguments.
-    pub fn discv5_config(
-        &self,
-        listen_config: discv5::ListenConfig,
-        static_ip: bool,
-    ) -> discv5::Config {
-        // We can use a default listen config here since it
-        // will be overridden by the discovery service builder.
-        let mut builder = discv5::ConfigBuilder::new(listen_config);
-
-        if static_ip {
-            builder.disable_enr_update();
-
-            // If we have a static IP, we don't want to use any kind of NAT discovery mechanism.
-            builder.auto_nat_listen_duration(None);
-        }
-
-        builder.build()
-    }
-
     /// Returns the private key as specified in the raw cli flag or via file path.
     pub fn private_key(&self) -> Option<PrivateKeySigner> {
         if let Some(key) = self.private_key {
@@ -318,17 +303,34 @@ impl P2PArgs {
     /// Returns the unsafe block signer from the CLI arguments.
     pub async fn unsafe_block_signer(
         &self,
-        config: &RollupConfig,
         args: &GlobalArgs,
-        l1_rpc: Option<Url>,
+        rollup_config: &RollupConfig,
+        l1_eth_rpc: Option<Url>,
     ) -> anyhow::Result<alloy_primitives::Address> {
-        // First attempt to load the unsafe block signer from the runtime loader.
-        if let Some(url) = l1_rpc {
-            let mut loader = RuntimeLoader::new(url, Arc::new(config.clone()));
-            let runtime = loader.load_latest().await.map_err(|e| {
-                anyhow::anyhow!("Failed to load runtime: {} {:?}", e, std::error::Error::source(&e))
-            })?;
-            return Ok(runtime.unsafe_block_signer_address);
+        if let Some(l1_eth_rpc) = l1_eth_rpc {
+            /// The storage slot that the unsafe block signer address is stored at.
+            /// Computed as: `bytes32(uint256(keccak256("systemconfig.unsafeblocksigner")) - 1)`
+            const UNSAFE_BLOCK_SIGNER_ADDRESS_STORAGE_SLOT: B256 =
+                b256!("0x65a7ed542fb37fe237fdfbdd70b31598523fe5b32879e307bae27a0bd9581c08");
+
+            let mut provider = AlloyChainProvider::new_http(l1_eth_rpc, 1024);
+            let latest_block_num = provider.latest_block_number().await?;
+            let block_info = provider.block_info_by_number(latest_block_num).await?;
+
+            // Fetch the unsafe block signer address from the system config.
+            let unsafe_block_signer_address = provider
+                .inner
+                .get_storage_at(
+                    rollup_config.l1_system_config_address,
+                    UNSAFE_BLOCK_SIGNER_ADDRESS_STORAGE_SLOT.into(),
+                )
+                .hash(block_info.hash)
+                .await?;
+
+            // Convert the unsafe block signer address to the correct type.
+            return Ok(alloy_primitives::Address::from_slice(
+                &unsafe_block_signer_address.to_be_bytes_vec()[12..],
+            ));
         }
 
         // Otherwise use the genesis signer or the configured unsafe block signer.
@@ -381,7 +383,7 @@ impl P2PArgs {
 
         let discovery_address =
             LocalNode::new(local_node_key, advertise_ip, advertise_tcp_port, advertise_udp_port);
-        let gossip_config = kona_p2p::default_config_builder()
+        let gossip_config = kona_gossip::default_config_builder()
             .mesh_n(self.gossip_mesh_d)
             .mesh_n_low(self.gossip_mesh_dlo)
             .mesh_n_high(self.gossip_mesh_dhi)
@@ -395,30 +397,36 @@ impl P2PArgs {
         });
 
         let discovery_listening_address = SocketAddr::new(self.listen_ip, self.listen_udp_port);
-        let discovery_config = self.discv5_config(discovery_listening_address.into(), static_ip);
+        let discovery_config =
+            NetworkConfig::discv5_config(discovery_listening_address.into(), static_ip);
 
         let mut gossip_address = libp2p::Multiaddr::from(self.listen_ip);
         gossip_address.push(libp2p::multiaddr::Protocol::Tcp(self.listen_tcp_port));
 
-        let local_signer = self
-            .sequencer_key
-            .as_ref()
-            .map(PrivateKeySigner::from_bytes)
-            .transpose()?
-            .map(|s| s.with_chain_id(Some(args.l2_chain_id)));
+        let unsafe_block_signer = self.unsafe_block_signer(args, config, l1_rpc).await?;
+
+        let bootstore = if self.disable_bootstore {
+            None
+        } else {
+            Some(self.bootstore.map_or(
+                BootStoreFile::Default { chain_id: args.l2_chain_id.into() },
+                BootStoreFile::Custom,
+            ))
+        };
 
         Ok(NetworkConfig {
             discovery_config,
             discovery_interval: Duration::from_secs(self.discovery_interval),
             discovery_address,
             discovery_randomize: self.discovery_randomize.map(Duration::from_secs),
+            enr_update: !static_ip,
             gossip_address,
             keypair,
-            unsafe_block_signer: self.unsafe_block_signer(config, args, l1_rpc).await?,
+            unsafe_block_signer,
             gossip_config,
             scoring: self.scoring,
             monitor_peers,
-            bootstore: self.bootstore,
+            bootstore,
             topic_scoring: self.topic_scoring,
             gater_config: GaterConfig {
                 peer_redialing: self.peer_redial,
@@ -426,7 +434,7 @@ impl P2PArgs {
             },
             bootnodes: self.bootnodes,
             rollup_config: config.clone(),
-            local_signer,
+            gossip_signer: self.signer.config(args)?,
         })
     }
 
@@ -547,7 +555,7 @@ mod tests {
             "bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a",
         ]);
         let key = b256!("bcc617ea05150ff60490d3c6058630ba94ae9f12a02a87efd291349ca0e54e0a");
-        assert_eq!(args.p2p.sequencer_key, Some(key));
+        assert_eq!(args.p2p.signer.sequencer_key, Some(key));
     }
 
     #[test]

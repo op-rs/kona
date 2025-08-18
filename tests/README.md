@@ -10,7 +10,7 @@ To install the dependencies, install [`mise`](https://mise.jdx.dev/) run the fol
 mise install
 ```
 
-The [`mise file`](./mise.toml) contains the dependencies and the tools used in the e2e testing. This aims to replicate the one used in the [`monorepo`](https://github.com/ethereum-optimism/optimism/blob/develop/mise.toml).
+The [`mise file`](../mise.toml) contains the dependencies and the tools used in the e2e testing. This aims to replicate the one used in the [`monorepo`](https://github.com/ethereum-optimism/optimism/blob/develop/mise.toml).
 
 ## Description
 
@@ -19,13 +19,13 @@ The interactions with this repository are done through the [`justfile`](./justfi
 To run the e2e tests, run the following command:
 
 ```bash
-just test DEVNET_NAME
+just test-e2e DEVNET_NAME
 ```
 
 Where `DEVNET_NAME` is the name of the devnet to deploy. The devnets are defined in the devnets directory. The `DEVNET_NAME` is the name of the devnet file without the `.yaml` extension. For example, to run the `simple-kona` devnet, run the following command:
 
 ```bash
-just test simple-kona
+just test-e2e simple-kona
 ```
 
 Note that the recipe will generate a `DEVNET_NAME.json` file in the `devnets/specs` directory. This file contains the specifications of the devnet that is tied to the kurtosis devnet that is deployed. This file is used as a network specification for the e2e tests.
@@ -38,19 +38,18 @@ just test-e2e simple-kona <commit_tag>
 
 ### Other recipes
 
-- `just deploy DEVNET_FILE_PATH`: Deploys the devnet specified by `DEVNET_FILE_PATH`. The `DEVNET_FILE_PATH` is the path to the devnet file in the `devnets` directory. For example, to deploy the `simple-kona` devnet, run the following command:
+- `just devnet DEVNET_NAME`: Deploys the devnet specified by `DEVNET_NAME`. The `DEVNET_NAME` is the name of the devnet file without the `.yaml` extension. For example, to deploy the `simple-kona` devnet, run the following command:
 
 ```bash
-just deploy devnets/simple-kona.yaml
+just devnet simple-kona
 ```
 
-- `just isolate_test DEVNET_ENV_URL`: Runs the e2e tests for the devnet specified by `DEVNET_ENV_URL` - does not try to deploy a kurtosis network associated with the devnet. The `DEVNET_ENV_URL` is the URL of the devnet specification file in the `devnets/specs` directory. For example, to run the e2e tests for the `simple-kona` devnet, run the following command:
+- `just cleanup-kurtosis`: Winds down kurtosis, cleaning up the network.
 
-```bash
-just isolate_test devnets/specs/simple-kona-devnet.json
-```
+- `just build-devnet BINARY`: Builds the docker image for the specified binary (`"node"` or `"supervisor"`).
 
-- `just clone-kurtosis-devnet`: Clones the [optimism monorepo](https://github.com/ethereum-optimism/optimism) repository and installs the dependencies.
+- `just update-node-devnet DEVNET`: Updates the devnet with the latest local changes. This is useful to rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
+
 
 ## Using `op-devstack` for testing
 
@@ -65,6 +64,14 @@ Then, you can run the tests using:
 ```bash
 just build-devnet-and-test-e2e DEVNET BINARY
 ```
+
+### Hacks/Notes
+
+For the `op-devstack` to properly parse the nodes of the network (inside the `mixed_preset`) we're using the following hacks/methods:
+
+- All the kona nodes should have the `kona` string in their names.
+- All the op-node nodes should have the `optimism` string in their names.
+- All the sequencer nodes should have the `sequencer` string in their names.
 
 ## Contributing
 

@@ -1,5 +1,7 @@
 //! CLI Options
 
+use kona_genesis::RollupConfig;
+
 /// Metrics to record various CLI options.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CliMetrics;
@@ -61,4 +63,44 @@ impl CliMetrics {
 
     /// Top-level rollup config settings.
     pub const ROLLUP_CONFIG: &'static str = "kona_node_rollup_config";
+}
+
+/// Initializes metrics for the rollup config.
+pub fn init_rollup_config_metrics(config: &RollupConfig) {
+    metrics::describe_gauge!(
+        CliMetrics::ROLLUP_CONFIG,
+        "Rollup configuration settings for the OP Stack"
+    );
+    metrics::describe_gauge!(
+        CliMetrics::HARDFORK_ACTIVATION_TIMES,
+        "Activation times for hardforks in the OP Stack"
+    );
+
+    metrics::gauge!(
+        CliMetrics::ROLLUP_CONFIG,
+        &[
+            ("l1_genesis_block_num", config.genesis.l1.number.to_string()),
+            ("l2_genesis_block_num", config.genesis.l2.number.to_string()),
+            ("genesis_l2_time", config.genesis.l2_time.to_string()),
+            ("l1_chain_id", config.l1_chain_id.to_string()),
+            ("l2_chain_id", config.l2_chain_id.to_string()),
+            ("block_time", config.block_time.to_string()),
+            ("max_sequencer_drift", config.max_sequencer_drift.to_string()),
+            ("sequencer_window_size", config.seq_window_size.to_string()),
+            ("channel_timeout", config.channel_timeout.to_string()),
+            ("granite_channel_timeout", config.granite_channel_timeout.to_string()),
+            ("batch_inbox_address", config.batch_inbox_address.to_string()),
+            ("deposit_contract_address", config.deposit_contract_address.to_string()),
+            ("l1_system_config_address", config.l1_system_config_address.to_string()),
+            ("protocol_versions_address", config.protocol_versions_address.to_string()),
+        ]
+    )
+    .set(1);
+
+    for (fork_name, activation_time) in config.hardforks.iter() {
+        // Set the value of the metric for the given hardfork, using `-1` as a signal that the
+        // fork is not scheduled.
+        metrics::gauge!(CliMetrics::HARDFORK_ACTIVATION_TIMES, "fork" => fork_name)
+            .set(activation_time.map(|t| t as f64).unwrap_or(-1f64));
+    }
 }

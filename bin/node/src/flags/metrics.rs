@@ -12,10 +12,12 @@ use kona_cli::metrics_args::MetricsArgs;
 pub fn init_unified_metrics(args: &MetricsArgs) -> anyhow::Result<()> {
     args.init_metrics()?;
     if args.enabled {
-        kona_p2p::Metrics::init();
+        kona_gossip::Metrics::init();
+        kona_disc::Metrics::init();
         kona_engine::Metrics::init();
         kona_node_service::Metrics::init();
         kona_derive::Metrics::init();
+        kona_providers_alloy::Metrics::init();
         VersionInfo::from_build().register_version_metrics();
     }
     Ok(())

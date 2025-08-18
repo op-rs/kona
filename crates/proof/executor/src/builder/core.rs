@@ -1,4 +1,8 @@
-//! The [StatelessL2Builder] is a block builder that pulls state from a [TrieDB] during execution.
+//! Stateless OP Stack L2 block builder implementation.
+//!
+//! The [StatelessL2Builder] provides a complete block building and execution engine
+//! for OP Stack L2 chains that operates in a stateless manner, pulling required state
+//! data from a [TrieDB] during execution rather than maintaining full state.
 
 use crate::{ExecutorError, ExecutorResult, TrieDB, TrieDBError, TrieDBProvider};
 use alloc::{string::ToString, vec::Vec};
@@ -16,8 +20,52 @@ use op_alloy_rpc_types_engine::OpPayloadAttributes;
 use op_revm::OpSpecId;
 use revm::database::{State, states::bundle_state::BundleRetention};
 
-/// The [`StatelessL2Builder`] is an OP Stack block builder that traverses a merkle patricia trie
-/// via the [`TrieDB`] during execution.
+/// Stateless OP Stack L2 block builder that derives state from trie proofs during execution.
+///
+/// The [`StatelessL2Builder`] is a specialized block execution engine designed for fault proof
+/// systems and stateless verification. Instead of maintaining full L2 state, it dynamically
+/// retrieves required state data from a [`TrieDB`] backed by Merkle proofs and witnesses.
+///
+/// # Architecture
+///
+/// The builder operates in a stateless manner by:
+/// 1. **Trie Database**: Uses [`TrieDB`] to access state via Merkle proofs
+/// 2. **EVM Factory**: Creates execution environments with proof-backed state
+/// 3. **Block Executor**: Executes transactions using witness-provided state
+/// 4. **Receipt Generation**: Produces execution receipts and state commitments
+///
+/// # Stateless Execution Model
+///
+/// Traditional execution engines maintain full state databases, but the stateless model:
+/// - Receives state witnesses containing only required data
+/// - Verifies state access against Merkle proofs
+/// - Executes transactions without persistent state storage
+/// - Produces verifiable execution results and state commitments
+///
+/// # Use Cases
+///
+/// ## Fault Proof Systems
+/// - Enables dispute resolution without full state replication
+/// - Provides verifiable execution results for challenge games
+/// - Supports optimistic rollup fraud proof generation
+///
+/// ## Stateless Verification
+/// - Allows third parties to verify L2 blocks without full state
+/// - Enables light clients to validate L2 execution
+/// - Supports decentralized verification networks
+///
+/// # Performance Characteristics
+///
+/// - **Memory**: Lower memory usage than stateful execution (no full state)
+/// - **I/O**: Higher I/O for proof verification and witness access
+/// - **CPU**: Additional overhead for cryptographic proof verification
+/// - **Determinism**: Guaranteed deterministic execution results
+///
+/// # Type Parameters
+///
+/// * `P` - Trie database provider implementing [`TrieDBProvider`]
+/// * `H` - Trie hinter implementing [`TrieHinter`] for state access optimization
+/// * `Evm` - EVM factory implementing [`EvmFactory`] for execution environment creation
 #[derive(Debug)]
 pub struct StatelessL2Builder<'a, P, H, Evm>
 where
@@ -25,12 +73,23 @@ where
     H: TrieHinter,
     Evm: EvmFactory,
 {
-    /// The [RollupConfig].
+    /// The rollup configuration containing chain parameters and activation heights.
+    ///
+    /// Provides access to network-specific parameters including gas limits,
+    /// hard fork activation heights, and system addresses needed for proper
+    /// L2 block execution and validation.
     pub(crate) config: &'a RollupConfig,
-    /// The inner trie database.
+    /// The trie database providing stateless access to L2 state via Merkle proofs.
+    ///
+    /// The [`TrieDB`] serves as the primary interface for state access during
+    /// execution, resolving account and storage queries using witness data
+    /// and cryptographic proofs rather than a traditional state database.
     pub(crate) trie_db: TrieDB<P, H>,
-    /// The executor factory, used to create new [`op_revm::OpEvm`] instances for block building
-    /// routines.
+    /// The block executor factory for creating OP Stack execution environments.
+    ///
+    /// This factory creates specialized OP Stack execution environments that
+    /// understand OP-specific transaction types, system calls, and state
+    /// management required for proper L2 block execution.
     pub(crate) factory: OpBlockExecutorFactory<OpAlloyReceiptBuilder, RollupConfig, Evm>,
 }
 
@@ -41,7 +100,31 @@ where
     Evm: EvmFactory<Spec = OpSpecId> + 'static,
     <Evm as EvmFactory>::Tx: FromTxWithEncoded<OpTxEnvelope> + FromRecoveredTx<OpTxEnvelope>,
 {
-    /// Creates a new [StatelessL2Builder] instance.
+    /// Creates a new stateless L2 block builder instance.
+    ///
+    /// Initializes the builder with the necessary components for stateless block execution
+    /// including the trie database, execution factory, and rollup configuration.
+    ///
+    /// # Arguments
+    /// * `config` - Rollup configuration with chain parameters and activation heights
+    /// * `evm_factory` - EVM factory for creating execution environments
+    /// * `provider` - Trie database provider for state access
+    /// * `hinter` - Trie hinter for optimizing state access patterns
+    /// * `parent_header` - Sealed header of the parent block to build upon
+    ///
+    /// # Returns
+    /// A new [`StatelessL2Builder`] ready for block building operations
+    ///
+    /// # Usage
+    /// ```rust,ignore
+    /// let builder = StatelessL2Builder::new(
+    ///     &rollup_config,
+    ///     evm_factory,
+    ///     trie_provider,
+    ///     trie_hinter,
+    ///     parent_header,
+    /// );
+    /// ```
     pub fn new(
         config: &'a RollupConfig,
         evm_factory: Evm,
@@ -58,7 +141,67 @@ where
         Self { config, trie_db, factory }
     }
 
-    /// Builds a new block on top of the parent state, using the given [`OpPayloadAttributes`].
+    /// Builds and executes a new L2 block using the provided payload attributes.
+    ///
+    /// This method performs the complete block building and execution process in a stateless
+    /// manner, dynamically retrieving required state data via the trie database and producing
+    /// a fully executed block with receipts and state commitments.
+    ///
+    /// # Arguments
+    /// * `attrs` - Payload attributes containing transactions and block metadata
+    ///
+    /// # Returns
+    /// * `Ok(BlockBuildingOutcome)` - Successfully built and executed block with receipts
+    /// * `Err(ExecutorError)` - Block building or execution failure
+    ///
+    /// # Errors
+    /// This method can fail due to various conditions:
+    ///
+    /// ## Input Validation Errors
+    /// - [`ExecutorError::MissingGasLimit`]: Gas limit not provided in attributes
+    /// - [`ExecutorError::MissingTransactions`]: Transaction list not provided
+    /// - [`ExecutorError::MissingEIP1559Params`]: Required fee parameters missing (post-Holocene)
+    /// - [`ExecutorError::MissingParentBeaconBlockRoot`]: Beacon root missing (post-Dencun)
+    ///
+    /// ## Execution Errors
+    /// - [`ExecutorError::BlockGasLimitExceeded`]: Cumulative gas exceeds block limit
+    /// - [`ExecutorError::UnsupportedTransactionType`]: Unknown transaction type encountered
+    /// - [`ExecutorError::ExecutionError`]: EVM-level execution failures
+    ///
+    /// ## State Access Errors
+    /// - [`ExecutorError::TrieDBError`]: State tree access or proof verification failures
+    /// - Missing account data in witness
+    /// - Invalid Merkle proofs
+    ///
+    /// ## Data Integrity Errors
+    /// - [`ExecutorError::Recovery`]: Transaction signature recovery failures
+    /// - [`ExecutorError::RLPError`]: Data encoding/decoding errors
+    ///
+    /// # Block Building Process
+    ///
+    /// The block building process follows these steps:
+    ///
+    /// 1. **Environment Setup**: Configure EVM environment with proper gas settings
+    /// 2. **Witness Hinting**: Send payload witness hints to optimize state access
+    /// 3. **Transaction Execution**: Execute each transaction in order with state updates
+    /// 4. **Receipt Generation**: Generate execution receipts for all transactions
+    /// 5. **State Commitment**: Compute final state roots and output commitments
+    /// 6. **Block Assembly**: Assemble complete block with header and execution results
+    ///
+    /// # Stateless Execution Details
+    ///
+    /// Unlike traditional execution engines, this builder:
+    /// - Resolves state access via Merkle proofs instead of database lookups
+    /// - Validates all state access against cryptographic witnesses
+    /// - Produces deterministic results independent of execution environment
+    /// - Enables verification without full state replication
+    ///
+    /// # Performance Considerations
+    ///
+    /// - State access latency depends on proof verification overhead
+    /// - Memory usage scales with witness size rather than full state
+    /// - CPU overhead from cryptographic proof verification
+    /// - I/O patterns optimized through trie hinter guidance
     pub fn build_block(
         &mut self,
         attrs: OpPayloadAttributes,

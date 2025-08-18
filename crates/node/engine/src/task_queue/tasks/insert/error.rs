@@ -3,7 +3,7 @@
 //! [InsertTask]: crate::InsertTask
 
 use crate::{
-    EngineTaskError, ForkchoiceTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
+    EngineTaskError, SynchronizeTaskError, task_queue::tasks::task::EngineTaskErrorSeverity,
 };
 use alloy_rpc_types_engine::PayloadStatusEnum;
 use alloy_transport::{RpcError, TransportErrorKind};
@@ -24,7 +24,7 @@ pub enum InsertTaskError {
     /// Unexpected payload status
     #[error("Unexpected payload status: {0}")]
     UnexpectedPayloadStatus(PayloadStatusEnum),
-    /// Inconsistent forchoice state.
+    /// Inconsistent forkchoice state.
     #[error("Inconsistent forkchoice state; Pipeline reset required")]
     InconsistentForkchoiceState,
     /// Error converting the payload + chain genesis into an L2 block info.
@@ -32,7 +32,7 @@ pub enum InsertTaskError {
     L2BlockInfoConstruction(#[from] FromBlockError),
     /// The forkchoice update call to consolidate the block into the engine state failed.
     #[error(transparent)]
-    ForkchoiceUpdateFailed(#[from] ForkchoiceTaskError),
+    ForkchoiceUpdateFailed(#[from] SynchronizeTaskError),
 }
 
 impl EngineTaskError for InsertTaskError {

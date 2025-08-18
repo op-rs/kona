@@ -1,4 +1,4 @@
-//! This module contains the [SpanBatchTransactions] type and logic for encoding and decoding
+//! This module contains the [`SpanBatchTransactions`] type and logic for encoding and decoding
 //! transactions in a span batch.
 
 use crate::{
@@ -27,7 +27,7 @@ pub struct SpanBatchTransactions {
     /// The `to` addresses of the transactions.
     pub tx_tos: Vec<Address>,
     /// The transaction data.
-    pub tx_datas: Vec<Vec<u8>>,
+    pub tx_data: Vec<Vec<u8>>,
     /// The protected bits, standard span-batch bitlist.
     pub protected_bits: SpanBatchBits,
     /// The types of the transactions.
@@ -37,24 +37,24 @@ pub struct SpanBatchTransactions {
 }
 
 impl SpanBatchTransactions {
-    /// Encodes the [SpanBatchTransactions] into a writer.
+    /// Encodes the [`SpanBatchTransactions`] into a writer.
     pub fn encode(&self, w: &mut dyn bytes::BufMut) -> Result<(), SpanBatchError> {
         self.encode_contract_creation_bits(w)?;
         self.encode_tx_sigs(w)?;
         self.encode_tx_tos(w)?;
-        self.encode_tx_datas(w)?;
+        self.encode_tx_data(w)?;
         self.encode_tx_nonces(w)?;
         self.encode_tx_gases(w)?;
         self.encode_protected_bits(w)?;
         Ok(())
     }
 
-    /// Decodes the [SpanBatchTransactions] from a reader.
+    /// Decodes the [`SpanBatchTransactions`] from a reader.
     pub fn decode(&mut self, r: &mut &[u8]) -> Result<(), SpanBatchError> {
         self.decode_contract_creation_bits(r)?;
         self.decode_tx_sigs(r)?;
         self.decode_tx_tos(r)?;
-        self.decode_tx_datas(r)?;
+        self.decode_tx_data(r)?;
         self.decode_tx_nonces(r)?;
         self.decode_tx_gases(r)?;
         self.decode_protected_bits(r)?;
@@ -120,8 +120,8 @@ impl SpanBatchTransactions {
     }
 
     /// Encode the transaction data into a writer.
-    pub fn encode_tx_datas(&self, w: &mut dyn bytes::BufMut) -> Result<(), SpanBatchError> {
-        for data in &self.tx_datas {
+    pub fn encode_tx_data(&self, w: &mut dyn bytes::BufMut) -> Result<(), SpanBatchError> {
+        for data in &self.tx_data {
             w.put_slice(data);
         }
         Ok(())
@@ -202,22 +202,22 @@ impl SpanBatchTransactions {
     }
 
     /// Decode the transaction data from a reader.
-    pub fn decode_tx_datas(&mut self, r: &mut &[u8]) -> Result<(), SpanBatchError> {
-        let mut tx_datas = Vec::new();
+    pub fn decode_tx_data(&mut self, r: &mut &[u8]) -> Result<(), SpanBatchError> {
+        let mut tx_data = Vec::new();
         let mut tx_types = Vec::new();
 
         // Do not need the transaction data header because the RLP stream already includes the
         // length information.
         for _ in 0..self.total_block_tx_count {
-            let (tx_data, tx_type) = read_tx_data(r)?;
-            tx_datas.push(tx_data);
+            let (tx_data_item, tx_type) = read_tx_data(r)?;
+            tx_data.push(tx_data_item);
             tx_types.push(tx_type);
             if matches!(tx_type, TxType::Legacy) {
                 self.legacy_tx_count += 1;
             }
         }
 
-        self.tx_datas = tx_datas;
+        self.tx_data = tx_data;
         self.tx_types = tx_types;
 
         Ok(())
@@ -228,14 +228,14 @@ impl SpanBatchTransactions {
         self.contract_creation_bits.as_ref().iter().map(|b| b.count_ones() as u64).sum()
     }
 
-    /// Retrieve all of the raw transactions from the [SpanBatchTransactions].
+    /// Retrieve all of the raw transactions from the [`SpanBatchTransactions`].
     pub fn full_txs(&self, chain_id: u64) -> Result<Vec<Vec<u8>>, SpanBatchError> {
         let mut txs = Vec::new();
         let mut to_idx = 0;
         let mut protected_bit_idx = 0;
         for idx in 0..self.total_block_tx_count {
-            let mut datas = self.tx_datas[idx as usize].as_slice();
-            let tx = SpanBatchTransactionData::decode(&mut datas)
+            let mut data = self.tx_data[idx as usize].as_slice();
+            let tx = SpanBatchTransactionData::decode(&mut data)
                 .map_err(|_| SpanBatchError::Decoding(SpanDecodingError::InvalidTransactionData))?;
             let nonce = self
                 .tx_nonces
@@ -276,7 +276,7 @@ impl SpanBatchTransactions {
         Ok(txs)
     }
 
-    /// Add raw transactions into the [SpanBatchTransactions].
+    /// Add raw transactions into the [`SpanBatchTransactions`].
     pub fn add_txs(&mut self, txs: Vec<Bytes>, chain_id: u64) -> Result<(), SpanBatchError> {
         let total_block_tx_count = txs.len() as u64;
         let offset = self.total_block_tx_count;
@@ -336,7 +336,7 @@ impl SpanBatchTransactions {
             self.tx_sigs.push(*signature);
             self.contract_creation_bits.set_bit((i + offset) as usize, contract_creation_bit == 1);
             self.tx_nonces.push(nonce);
-            self.tx_datas.push(tx_data_buf);
+            self.tx_data.push(tx_data_buf);
             self.tx_gases.push(gas);
             self.tx_types.push(tx_type);
         }

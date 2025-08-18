@@ -34,11 +34,15 @@ impl L2Finalizer {
     }
 
     /// Enqueues a derived [`OpAttributesWithParent`] for finalization. When a new finalized L1
-    /// block is observed that is `>=` the height of [`OpAttributesWithParent::l1_origin`], the L2
-    /// block associated with the payload attributes will be finalized.
+    /// block is observed that is `>=` the height of [`OpAttributesWithParent::derived_from`], the
+    /// L2 block associated with the payload attributes will be finalized.
     pub fn enqueue_for_finalization(&mut self, attributes: &OpAttributesWithParent) {
         self.awaiting_finalization
-            .entry(attributes.l1_origin.number)
+            .entry(
+                attributes.derived_from.map(|b| b.number).expect(
+                    "Fatal: Cannot enqueue attributes for finalization that weren't derived",
+                ),
+            )
             .and_modify(|n| *n = (*n).max(attributes.block_number()))
             .or_insert(attributes.block_number());
     }
@@ -68,11 +72,11 @@ impl L2Finalizer {
         // If the highest safe block is found, enqueue a finalization task and drain the
         // queue of all L1 blocks not contained in the finalized L1 chain.
         if let Some((_, highest_safe_number)) = highest_safe {
-            let task = EngineTask::Finalize(FinalizeTask::new(
+            let task = EngineTask::Finalize(Box::new(FinalizeTask::new(
                 engine_state.client.clone(),
                 engine_state.rollup.clone(),
                 *highest_safe_number,
-            ));
+            )));
             engine_state.engine.enqueue(task);
 
             self.awaiting_finalization.retain(|&number, _| number > new_finalized_l1.number);

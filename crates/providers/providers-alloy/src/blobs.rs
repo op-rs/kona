@@ -1,6 +1,8 @@
 //! Contains an online implementation of the `BlobProvider` trait.
 
 use crate::BeaconClient;
+#[cfg(feature = "metrics")]
+use crate::Metrics;
 use alloy_eips::eip4844::{Blob, BlobTransactionSidecarItem, IndexedBlobHash};
 use alloy_rpc_types_beacon::sidecar::BlobData;
 use async_trait::async_trait;
@@ -50,10 +52,20 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         slot: u64,
         hashes: &[IndexedBlobHash],
     ) -> Result<Vec<BlobData>, BlobProviderError> {
-        self.beacon_client
+        kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCHES);
+
+        let result = self
+            .beacon_client
             .beacon_blob_side_cars(slot, hashes)
             .await
-            .map_err(|e| BlobProviderError::Backend(e.to_string()))
+            .map_err(|e| BlobProviderError::Backend(e.to_string()));
+
+        #[cfg(feature = "metrics")]
+        if result.is_err() {
+            kona_macros::inc!(gauge, Metrics::BLOB_SIDECAR_FETCH_ERRORS);
+        }
+
+        result
     }
 
     /// Computes the slot for the given timestamp.
@@ -84,11 +96,11 @@ impl<B: BeaconClient> OnlineBlobProvider<B> {
         // Fetch blob sidecars for the slot using the given blob hashes.
         let sidecars = self.fetch_sidecars(slot, blob_hashes).await?;
 
-        // Filter blob sidecars that match the indicies in the specified list.
-        let blob_hash_indicies = blob_hashes.iter().map(|b| b.index).collect::<Vec<u64>>();
+        // Filter blob sidecars that match the indices in the specified list.
+        let blob_hash_indices = blob_hashes.iter().map(|b| b.index).collect::<Vec<u64>>();
         let filtered = sidecars
             .into_iter()
-            .filter(|s| blob_hash_indicies.contains(&s.index))
+            .filter(|s| blob_hash_indices.contains(&s.index))
             .collect::<Vec<_>>();
 
         // Validate the correct number of blob sidecars were retrieved.
@@ -161,7 +173,7 @@ pub trait BlobSidecarProvider {
 }
 
 /// Blanket implementation of the [BlobSidecarProvider] trait for all types that
-/// implemend [BeaconClient], which has a superset of the required functionality.
+/// implement [BeaconClient], which has a superset of the required functionality.
 #[async_trait]
 impl<B: BeaconClient + Send + Sync> BlobSidecarProvider for B {
     async fn beacon_blob_side_cars(

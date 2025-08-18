@@ -137,7 +137,7 @@ impl RollupConfigSet {
     }
 
     /// Returns `true` if interop is enabled for the chain at given timestamp.
-    pub fn is_interop_enabled(&self, chain_id: ChainId, timestamp: u64) -> bool {
+    pub fn is_post_interop(&self, chain_id: ChainId, timestamp: u64) -> bool {
         self.get(chain_id).map(|cfg| cfg.is_post_interop(timestamp)).unwrap_or(false) // if config not found, return false
     }
 
@@ -168,15 +168,15 @@ mod tests {
         set.rollups.insert(chain_id, rollup_config);
 
         // Before interop time
-        assert!(!set.is_interop_enabled(chain_id, 100));
-        assert!(!set.is_interop_enabled(chain_id, 109));
+        assert!(!set.is_post_interop(chain_id, 100));
+        assert!(!set.is_post_interop(chain_id, 109));
         // After interop time (should be true)
-        assert!(set.is_interop_enabled(chain_id, 110));
-        assert!(set.is_interop_enabled(chain_id, 111));
-        assert!(set.is_interop_enabled(chain_id, 200));
+        assert!(set.is_post_interop(chain_id, 110));
+        assert!(set.is_post_interop(chain_id, 111));
+        assert!(set.is_post_interop(chain_id, 200));
 
         // Unknown chain_id returns false
-        assert!(!set.is_interop_enabled(ChainId::from(999u64), 200));
+        assert!(!set.is_post_interop(ChainId::from(999u64), 200));
     }
 
     #[test]

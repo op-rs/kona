@@ -5,7 +5,7 @@
     issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(not(feature = "test-utils"), no_std)]
+#![cfg_attr(not(any(test, feature = "test-utils")), no_std)]
 
 extern crate alloc;
 
@@ -25,5 +25,5 @@ pub(crate) mod util;
 
 pub(crate) mod constants;
 
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

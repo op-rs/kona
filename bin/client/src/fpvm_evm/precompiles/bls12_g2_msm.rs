@@ -34,16 +34,13 @@ where
 
     if input_len > BLS12_MAX_G2_MSM_SIZE_ISTHMUS {
         return Err(PrecompileError::Other(alloc::format!(
-            "G2MSM input length must be at most {}",
-            BLS12_MAX_G2_MSM_SIZE_ISTHMUS
+            "G2MSM input length must be at most {BLS12_MAX_G2_MSM_SIZE_ISTHMUS}"
         )));
     }
 
     if input_len == 0 || input_len % G2_MSM_INPUT_LENGTH != 0 {
         return Err(PrecompileError::Other(alloc::format!(
-            "G2MSM input length should be multiple of {}, was {}",
-            G2_MSM_INPUT_LENGTH,
-            input_len
+            "G2MSM input length should be multiple of {G2_MSM_INPUT_LENGTH}, was {input_len}"
         )));
     }
 

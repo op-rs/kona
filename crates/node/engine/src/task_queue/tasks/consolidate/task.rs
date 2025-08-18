@@ -1,8 +1,8 @@
 //! A task to consolidate the engine state.
 
 use crate::{
-    BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, ForkchoiceTask,
-    Metrics, state::EngineSyncStateUpdate,
+    BuildTask, ConsolidateTaskError, EngineClient, EngineState, EngineTaskExt, SynchronizeTask,
+    state::EngineSyncStateUpdate,
 };
 use async_trait::async_trait;
 use kona_genesis::RollupConfig;
@@ -91,6 +91,13 @@ impl ConsolidateTask {
                 Ok(block_info) if !self.attributes.is_last_in_span => {
                     let total_duration = global_start.elapsed();
 
+                    // Apply a transient update to the safe head.
+                    state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
+                        safe_head: Some(block_info),
+                        local_safe_head: Some(block_info),
+                        ..Default::default()
+                    });
+
                     info!(
                         target: "engine",
                         hash = %block_info.block_info.hash,
@@ -100,19 +107,12 @@ impl ConsolidateTask {
                         "Updated safe head via L1 consolidation"
                     );
 
-                    // Apply a transient update to the safe head.
-                    state.sync_state = state.sync_state.apply_update(EngineSyncStateUpdate {
-                        safe_head: Some(block_info),
-                        local_safe_head: Some(block_info),
-                        ..Default::default()
-                    });
-
                     return Ok(());
                 }
                 Ok(block_info) => {
                     let fcu_start = Instant::now();
 
-                    ForkchoiceTask::new(
+                    SynchronizeTask::new(
                         Arc::clone(&self.client),
                         self.cfg.clone(),
                         EngineSyncStateUpdate {
@@ -120,7 +120,6 @@ impl ConsolidateTask {
                             local_safe_head: Some(block_info),
                             ..Default::default()
                         },
-                        None,
                     )
                     .execute(state)
                     .await
@@ -132,13 +131,6 @@ impl ConsolidateTask {
                     let fcu_duration = fcu_start.elapsed();
 
                     let total_duration = global_start.elapsed();
-
-                    // Update metrics.
-                    kona_macros::inc!(
-                        counter,
-                        Metrics::ENGINE_TASK_COUNT,
-                        Metrics::CONSOLIDATE_TASK_LABEL
-                    );
 
                     info!(
                         target: "engine",

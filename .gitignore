@@ -10,6 +10,15 @@ target/
 # Monorepo workspace
 monorepo/
 
+# Release artifacts
+dist/
+
+# vocs node_modules
+docs/node_modules
+
+# npm package lock
+package-lock.json
+
 # `optimism-package` workspace
 optimism-package/
 
@@ -22,10 +31,13 @@ optimism/
 # kona-host data-dir
 data/
 
+# Ignore jwt hex tokens
+jwt.hex
+
 # FPVM artifacts
-./state.bin.gz
-./meta.json
-./out.json
+state.bin.gz
+meta.json
+out.json
 
 # Prestate artifacts
 prestate-artifacts-*

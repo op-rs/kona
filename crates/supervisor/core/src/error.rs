@@ -1,15 +1,16 @@
 //! [`SupervisorService`](crate::SupervisorService) errors.
 
-use crate::{ChainProcessorError, CrossSafetyError, syncnode::ManagedNodeError};
+use crate::syncnode::ManagedNodeError;
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
+use kona_interop::InteropValidationError;
 use kona_supervisor_storage::StorageError;
 use kona_supervisor_types::AccessListError;
 use op_alloy_rpc_types::SuperchainDAError;
 use thiserror::Error;
 
 /// Custom error type for the Supervisor core logic.
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SupervisorError {
     /// Indicates that a feature or method is not yet implemented.
     #[error("functionality not implemented")]
@@ -29,31 +30,31 @@ pub enum SupervisorError {
     #[error(transparent)]
     SpecError(#[from] SpecError),
 
-    /// Indicates that the supervisor was unable to initialise due to an error.
-    #[error("unable to initialize the supervisor: {0}")]
-    Initialise(String),
+    /// Indicates that error occurred while validating interop config.
+    #[error(transparent)]
+    InteropValidationError(#[from] InteropValidationError),
 
     /// Indicates that error occurred while interacting with the storage layer.
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
+    /// Indicates that managed node not found for the chain.
+    #[error("managed node not found for chain: {0}")]
+    ManagedNodeMissing(u64),
+
     /// Indicates the error occurred while interacting with the managed node.
     #[error(transparent)]
     ManagedNodeError(#[from] ManagedNodeError),
-
-    /// Indicates the error occurred while processing the chain.
-    #[error(transparent)]
-    ChainProcessorError(#[from] ChainProcessorError),
 
     /// Indicates the error occurred while parsing the access_list
     #[error(transparent)]
     AccessListError(#[from] AccessListError),
 
-    /// Indicated the error occurred while initializing the safety checker jobs
+    /// Indicates the error occurred while serializing or deserializing JSON.
     #[error(transparent)]
-    CrossSafetyCheckerError(#[from] CrossSafetyError),
+    SerdeJson(#[from] serde_json::Error),
 
-    /// Indicates the L1 block does not match the epxected L1 block.
+    /// Indicates the L1 block does not match the expected L1 block.
     #[error("L1 block number mismatch. expected: {expected}, but got {got}")]
     L1BlockMismatch {
         /// Expected L1 block.
@@ -61,7 +62,35 @@ pub enum SupervisorError {
         /// Received L1 block.
         got: u64,
     },
+
+    /// Indicates that the chain ID could not be parsed from the access list.
+    #[error("failed to parse chain id from access list")]
+    ChainIdParseError(),
 }
+
+impl PartialEq for SupervisorError {
+    fn eq(&self, other: &Self) -> bool {
+        use SupervisorError::*;
+        match (self, other) {
+            (Unimplemented, Unimplemented) => true,
+            (EmptyDependencySet, EmptyDependencySet) => true,
+            (InteropNotEnabled, InteropNotEnabled) => true,
+            (SpecError(a), SpecError(b)) => a == b,
+            (InteropValidationError(a), InteropValidationError(b)) => a == b,
+            (StorageError(a), StorageError(b)) => a == b,
+            (ManagedNodeMissing(a), ManagedNodeMissing(b)) => a == b,
+            (ManagedNodeError(a), ManagedNodeError(b)) => a == b,
+            (AccessListError(a), AccessListError(b)) => a == b,
+            (SerdeJson(a), SerdeJson(b)) => a.to_string() == b.to_string(),
+            (L1BlockMismatch { expected: a, got: b }, L1BlockMismatch { expected: c, got: d }) => {
+                a == c && b == d
+            }
+            _ => false,
+        }
+    }
+}
+
+impl Eq for SupervisorError {}
 
 /// Extending the [`SuperchainDAError`] to include errors not in the spec.
 #[derive(Error, Debug, PartialEq, Eq, derive_more::TryFrom)]
@@ -102,12 +131,13 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::EmptyDependencySet |
             SupervisorError::InteropNotEnabled |
             SupervisorError::L1BlockMismatch { .. } |
-            SupervisorError::Initialise(_) |
+            SupervisorError::ManagedNodeMissing(_) |
             SupervisorError::ManagedNodeError(_) |
-            SupervisorError::ChainProcessorError(_) |
-            SupervisorError::CrossSafetyCheckerError(_) |
             SupervisorError::StorageError(_) |
-            SupervisorError::AccessListError(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
+            SupervisorError::InteropValidationError(_) |
+            SupervisorError::AccessListError(_) |
+            SupervisorError::ChainIdParseError() |
+            SupervisorError::SerdeJson(_) => ErrorObjectOwned::from(ErrorCode::InternalError),
             SupervisorError::SpecError(err) => err.into(),
         }
     }
@@ -122,10 +152,8 @@ impl From<StorageError> for SpecError {
             StorageError::DatabaseNotInitialised => {
                 Self::from(SuperchainDAError::UninitializedChainDatabase)
             }
-            StorageError::ConflictError(_) => Self::from(SuperchainDAError::ConflictingData),
-            StorageError::BlockOutOfOrder | StorageError::DerivedBlockOutOfOrder => {
-                Self::from(SuperchainDAError::OutOfOrder)
-            }
+            StorageError::ConflictError => Self::from(SuperchainDAError::ConflictingData),
+            StorageError::BlockOutOfOrder => Self::from(SuperchainDAError::OutOfOrder),
             _ => Self::ErrorNotInSpec,
         }
     }
@@ -133,6 +161,8 @@ impl From<StorageError> for SpecError {
 
 #[cfg(test)]
 mod test {
+    use kona_supervisor_storage::EntryNotFoundError;
+
     use super::*;
 
     #[test]
@@ -151,7 +181,7 @@ mod test {
 
         assert_eq!(spec_err, expected_err.into());
 
-        let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::InvalidAnchor));
+        let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::LockPoisoned));
         let expected_err = SpecError::ErrorNotInSpec;
 
         assert_eq!(spec_err, expected_err.into());
@@ -162,7 +192,7 @@ mod test {
         assert_eq!(spec_err, expected_err.into());
 
         let spec_err = ErrorObjectOwned::from(SpecError::from(StorageError::EntryNotFound(
-            "superhead not found".to_string(),
+            EntryNotFoundError::DerivedBlockNotFound(12),
         )));
         let expected_err = SpecError::SuperchainDAError(SuperchainDAError::MissedData);
 
@@ -173,7 +203,7 @@ mod test {
     fn test_supervisor_error_conversion() {
         // This will happen implicitly in server rpc response calls.
         let supervisor_err = ErrorObjectOwned::from(SupervisorError::SpecError(SpecError::from(
-            StorageError::InvalidAnchor,
+            StorageError::LockPoisoned,
         )));
         let expected_err = SpecError::ErrorNotInSpec;
 

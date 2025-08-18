@@ -51,6 +51,23 @@ pub trait DerivationStorageReader: Debug {
     /// * `Ok(DerivedRefPair)` containing the latest derived block pair if it exists.
     /// * `Err(StorageError)` if there is an issue retrieving the pair.
     fn latest_derivation_state(&self) -> Result<DerivedRefPair, StorageError>;
+
+    /// Gets the source block for the given source block number.
+    ///
+    /// # Arguments
+    /// * `source_block_number` - The number of the source block to retrieve.
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the source block information if it exists.
+    /// * `Err(StorageError)` if there is an issue retrieving the source block.
+    fn get_source_block(&self, source_block_number: u64) -> Result<BlockInfo, StorageError>;
+
+    /// Gets the interop activation [`BlockInfo`].
+    ///
+    /// # Returns
+    /// * `Ok(BlockInfo)` containing the activation block information if it exists.
+    /// * `Err(StorageError)` if there is an issue retrieving the activation block.
+    fn get_activation_block(&self) -> Result<BlockInfo, StorageError>;
 }
 
 /// Provides an interface for supervisor storage to write source and derived blocks.
@@ -320,6 +337,23 @@ pub trait CrossChainSafetyProvider {
     /// * `Err(StorageError)` if there is an issue fetching the block.
     fn get_block(&self, chain_id: ChainId, block_number: u64) -> Result<BlockInfo, StorageError>;
 
+    /// Retrieves a [`Log`] by block_number and log_index
+    ///
+    /// # Arguments
+    /// * `chain_id` - The [`ChainId`] of the target chain.
+    /// * `block_number` - The block number to search for the log.
+    /// * `log_index` - The index of the log within the block.
+    ///
+    /// # Returns
+    /// * `Ok(Log)` containing the [`Log`] object.
+    /// * `Err(StorageError)` if there is an issue retrieving the log or if the log is not found.
+    fn get_log(
+        &self,
+        chain_id: ChainId,
+        block_number: u64,
+        log_index: u32,
+    ) -> Result<Log, StorageError>;
+
     /// Retrieves all logs associated with the specified block on the given chain.
     ///
     /// # Arguments
@@ -385,3 +419,45 @@ pub trait CrossChainSafetyProvider {
         block: &BlockInfo,
     ) -> Result<DerivedRefPair, StorageError>;
 }
+
+/// Trait for rewinding supervisor-related state in the database.
+///
+/// This trait provides an interface to revert persisted log data, derivation records,
+/// and safety head references from the latest block back to a specified block number (inclusive).
+/// It is typically used during chain reorganizations or when invalid blocks are detected and need
+/// to be rolled back.
+pub trait StorageRewinder {
+    /// Rewinds the log storage from the latest block down to the specified block (inclusive).
+    /// This method ensures that log storage is never rewound to(since it's inclusive) and beyond
+    /// the local safe head. If the target block is beyond the local safe head, an error is
+    /// returned. Use [`StorageRewinder::rewind`] to rewind to and beyond the local safe head.
+    ///
+    /// # Arguments
+    /// * `to` - The block id to rewind to.
+    ///
+    /// # Errors
+    /// Returns a [`StorageError`] if any database operation fails during the rewind.
+    fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+
+    /// Rewinds all supervisor-managed state (log storage, derivation, and safety head refs)
+    /// from the latest block back to the given block (inclusive).
+    ///
+    /// This method performs a coordinated rewind across all components, ensuring consistency
+    /// of supervisor state after chain reorganizations or rollback of invalid blocks.
+    ///
+    /// # Arguments
+    /// * `to` - The target block id to rewind to. Rewind is performed from the latest block down to
+    ///   this block.
+    ///
+    /// # Errors
+    /// Returns a [`StorageError`] if any part of the rewind process fails.
+    fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+}
+
+/// Combines the reader traits for the database.
+///
+/// Any type that implements [`DerivationStorageReader`], [`HeadRefStorageReader`], and
+/// [`LogStorageReader`] automatically implements this trait.
+pub trait DbReader: DerivationStorageReader + HeadRefStorageReader + LogStorageReader {}
+
+impl<T: DerivationStorageReader + HeadRefStorageReader + LogStorageReader> DbReader for T {}

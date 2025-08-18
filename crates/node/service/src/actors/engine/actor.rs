@@ -12,8 +12,6 @@ use kona_engine::{
 };
 use kona_genesis::RollupConfig;
 use kona_protocol::{BlockInfo, L2BlockInfo, OpAttributesWithParent};
-use kona_sources::RuntimeConfig;
-use op_alloy_provider::ext::engine::OpEngineApi;
 use op_alloy_rpc_types_engine::OpExecutionPayloadEnvelope;
 use std::sync::Arc;
 use tokio::{
@@ -40,8 +38,6 @@ pub struct EngineActor {
     reset_request_rx: mpsc::Receiver<()>,
     /// Handler for inbound queries to the engine.
     inbound_queries: mpsc::Receiver<EngineQueries>,
-    /// A channel to receive [`RuntimeConfig`] from the runtime actor.
-    runtime_config_rx: mpsc::Receiver<RuntimeConfig>,
     /// A channel to receive build requests from the sequencer actor.
     ///
     /// ## Note
@@ -77,8 +73,6 @@ pub struct EngineInboundData {
     pub reset_request_tx: mpsc::Sender<()>,
     /// Handler to send inbound queries to the engine.
     pub inbound_queries_tx: mpsc::Sender<EngineQueries>,
-    /// A channel to send [`RuntimeConfig`] to the engine actor.
-    pub runtime_config_tx: mpsc::Sender<RuntimeConfig>,
     /// A channel that sends new finalized L1 blocks intermittently.
     pub finalized_l1_block_tx: watch::Sender<Option<BlockInfo>>,
 }
@@ -90,8 +84,6 @@ pub struct EngineBuilder {
     pub config: Arc<RollupConfig>,
     /// The engine rpc url.
     pub engine_url: Url,
-    /// The L2 rpc url.
-    pub l2_rpc_url: Url,
     /// The L1 rpc url.
     pub l1_rpc_url: Url,
     /// The engine jwt secret.
@@ -109,10 +101,12 @@ impl EngineBuilder {
         let client = self.client();
         let state = InnerEngineState::default();
         let (engine_state_send, _) = tokio::sync::watch::channel(state);
+        let (engine_queue_length_send, _) = tokio::sync::watch::channel(0);
+
         EngineActorState {
             rollup: self.config,
             client,
-            engine: Engine::new(state, engine_state_send),
+            engine: Engine::new(state, engine_state_send, engine_queue_length_send),
         }
     }
 
@@ -120,7 +114,6 @@ impl EngineBuilder {
     pub fn client(&self) -> Arc<EngineClient> {
         EngineClient::new_http(
             self.engine_url.clone(),
-            self.l2_rpc_url.clone(),
             self.l1_rpc_url.clone(),
             self.config.clone(),
             self.jwt_secret,
@@ -170,7 +163,6 @@ impl EngineActor {
     pub fn new(config: EngineBuilder) -> (EngineInboundData, Self) {
         let (finalized_l1_block_tx, finalized_l1_block_rx) = watch::channel(None);
         let (inbound_queries_tx, inbound_queries_rx) = mpsc::channel(1024);
-        let (runtime_config_tx, runtime_config_rx) = mpsc::channel(1024);
         let (attributes_tx, attributes_rx) = mpsc::channel(1024);
         let (unsafe_block_tx, unsafe_block_rx) = mpsc::channel(1024);
         let (reset_request_tx, reset_request_rx) = mpsc::channel(1024);
@@ -188,7 +180,6 @@ impl EngineActor {
             unsafe_block_rx,
             reset_request_rx,
             inbound_queries: inbound_queries_rx,
-            runtime_config_rx,
             build_request_rx,
             finalizer: L2Finalizer::new(finalized_l1_block_rx),
         };
@@ -197,7 +188,6 @@ impl EngineActor {
             build_request_tx,
             finalized_l1_block_tx,
             inbound_queries_tx,
-            runtime_config_tx,
             attributes_tx,
             unsafe_block_tx,
             reset_request_tx,
@@ -213,7 +203,8 @@ impl EngineActorState {
         &self,
         mut inbound_query_channel: tokio::sync::mpsc::Receiver<EngineQueries>,
     ) -> JoinHandle<()> {
-        let state_recv = self.engine.subscribe();
+        let state_recv = self.engine.state_subscribe();
+        let queue_length_recv = self.engine.queue_length_subscribe();
         let engine_client = self.client.clone();
         let rollup_config = self.rollup.clone();
 
@@ -222,7 +213,10 @@ impl EngineActorState {
                 {
                     trace!(target: "engine", ?req, "Received engine query request.");
 
-                    if let Err(e) = req.handle(&state_recv, &engine_client, &rollup_config).await {
+                    if let Err(e) = req
+                        .handle(&state_recv, &queue_length_recv, &engine_client, &rollup_config)
+                        .await
+                    {
                         warn!(target: "engine", err = ?e, "Failed to handle engine query request.");
                     }
                 }
@@ -358,23 +352,6 @@ impl EngineActorState {
         let sent = engine_l2_safe_head_tx.send_if_modified(update);
         trace!(target: "engine", ?sent, "Attempted L2 Safe Head Update");
     }
-
-    fn runtime_config_update(&mut self, config: RuntimeConfig) {
-        let client = self.client.clone();
-        tokio::task::spawn(async move {
-            debug!(target: "engine", config = ?config, "Received runtime config");
-            let recommended = config.recommended_protocol_version;
-            let required = config.required_protocol_version;
-            match client.signal_superchain_v1(recommended, required).await {
-                Ok(v) => info!(target: "engine", ?v, "[SUPERCHAIN::SIGNAL]"),
-                Err(e) => {
-                    // Since the `engine_signalSuperchainV1` endpoint is OPTIONAL,
-                    // a warning is logged instead of an error.
-                    warn!(target: "engine", ?e, "Failed to send superchain signal (OPTIONAL)");
-                }
-            }
-        });
-    }
 }
 
 #[async_trait]
@@ -454,14 +431,14 @@ impl NodeActor for EngineActor {
                         return Err(EngineError::ChannelClosed);
                     };
 
-                    let task = EngineTask::Build(BuildTask::new(
+                    let task = EngineTask::Build(Box::new(BuildTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
                         // The payload is not derived in this case.
                         false,
                         Some(response_tx),
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 unsafe_block = self.unsafe_block_rx.recv() => {
@@ -470,12 +447,12 @@ impl NodeActor for EngineActor {
                         cancellation.cancel();
                         return Err(EngineError::ChannelClosed);
                     };
-                    let task = EngineTask::Insert(InsertTask::new(
+                    let task = EngineTask::Insert(Box::new(InsertTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         envelope,
                         false, // The payload is not derived in this case. This is an unsafe block.
-                    ));
+                    )));
                     state.engine.enqueue(task);
                 }
                 attributes = self.attributes_rx.recv() => {
@@ -486,17 +463,13 @@ impl NodeActor for EngineActor {
                     };
                     self.finalizer.enqueue_for_finalization(&attributes);
 
-                    let task = EngineTask::Consolidate(ConsolidateTask::new(
+                    let task = EngineTask::Consolidate(Box::new(ConsolidateTask::new(
                         state.client.clone(),
                         state.rollup.clone(),
                         attributes,
                         true,
-                    ));
+                    )));
                     state.engine.enqueue(task);
-                }
-                // Since the runtime actor is optional, we need to check if the channel is closed to ensure we're not immediately resolving the future.
-                Some(config) = self.runtime_config_rx.recv(), if !self.runtime_config_rx.is_closed() => {
-                    state.runtime_config_update(config);
                 }
                 msg = self.finalizer.new_finalized_block() => {
                     if let Err(err) = msg {

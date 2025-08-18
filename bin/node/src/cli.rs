@@ -7,7 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::{cli_styles, metrics_args::MetricsArgs};
+use kona_cli::cli_styles;
 
 /// Subcommands for the CLI.
 #[derive(Debug, PartialEq, Clone, Subcommand)]
@@ -46,16 +46,13 @@ pub struct Cli {
     /// Global arguments for the CLI.
     #[command(flatten)]
     pub global: GlobalArgs,
-    /// Prometheus CLI arguments.
-    #[command(flatten)]
-    pub metrics: MetricsArgs,
 }
 
 impl Cli {
     /// Runs the CLI.
     pub fn run(self) -> Result<()> {
         // Initialize unified metrics
-        init_unified_metrics(&self.metrics)?;
+        init_unified_metrics(&self.global.metrics)?;
 
         // Initialize telemetry - allow subcommands to customize the filter.
         match self.subcommand {
@@ -66,14 +63,9 @@ impl Cli {
             Commands::Info(ref info) => info.init_logs(&self.global)?,
         }
 
-        // If metrics are enabled, initialize the global cli metrics.
-        if self.metrics.enabled {
-            self.global.init_cli_metrics();
-        }
-
         // Allow subcommands to initialize cli metrics.
         match self.subcommand {
-            Commands::Node(ref node) => node.init_cli_metrics(&self.metrics)?,
+            Commands::Node(ref node) => node.init_cli_metrics(&self.global.metrics)?,
             _ => {
                 tracing::debug!(target: "cli", "No CLI metrics initialized for subcommand: {:?}", self.subcommand)
             }
@@ -126,5 +118,38 @@ mod tests {
         let args = vec!["kona-node", subcommand_alias, "--help"];
         let cli = Cli::parse_from(args);
         assert_eq!(cli.subcommand, subcommand);
+    }
+
+    #[rstest]
+    #[case::numeric_optimism("--l2-chain-id", "10", 10)]
+    #[case::numeric_base("--l2-chain-id", "8453", 8453)]
+    #[case::numeric_ethereum("--l2-chain-id", "1", 1)]
+    #[case::string_optimism("--l2-chain-id", "optimism", 10)]
+    #[case::string_base("--l2-chain-id", "base", 8453)]
+    #[case::string_mainnet("--l2-chain-id", "mainnet", 1)]
+    #[case::short_flag_numeric("-c", "10", 10)]
+    #[case::short_flag_string("-c", "optimism", 10)]
+    fn test_cli_l2_chain_id_valid(
+        #[case] flag: &str,
+        #[case] value: &str,
+        #[case] expected_id: u64,
+    ) {
+        let cli = Cli::try_parse_from(["kona-node", flag, value, "registry"]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), expected_id);
+    }
+
+    #[rstest]
+    #[case::invalid_string("invalid_chain")]
+    #[case::empty_string("")]
+    fn test_cli_l2_chain_id_invalid(#[case] invalid_value: &str) {
+        let result = Cli::try_parse_from(["kona-node", "--l2-chain-id", invalid_value, "registry"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cli_l2_chain_id_default() {
+        // Test that the default chain ID is 10 (Optimism)
+        let cli = Cli::try_parse_from(["kona-node", "registry"]).unwrap();
+        assert_eq!(cli.global.l2_chain_id.id(), 10);
     }
 }

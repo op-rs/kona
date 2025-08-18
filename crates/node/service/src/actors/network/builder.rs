@@ -1,13 +1,14 @@
 //! Network Builder Module.
 
 use alloy_primitives::Address;
-use alloy_signer_local::PrivateKeySigner;
 use discv5::{Config as Discv5Config, Enr};
+use kona_disc::{Discv5Builder, LocalNode};
 use kona_genesis::RollupConfig;
-use kona_p2p::{Discv5Builder, GaterConfig, GossipDriverBuilder, LocalNode};
-use kona_peers::{PeerMonitoring, PeerScoreLevel};
+use kona_gossip::{GaterConfig, GossipDriverBuilder};
+use kona_peers::{BootStoreFile, PeerMonitoring, PeerScoreLevel};
+use kona_sources::BlockSigner;
 use libp2p::{Multiaddr, identity::Keypair};
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
 use crate::{
     NetworkBuilderError,
@@ -21,8 +22,13 @@ pub struct NetworkBuilder {
     pub(super) discovery: Discv5Builder,
     /// The gossip driver.
     pub(super) gossip: GossipDriverBuilder,
-    /// A local signer for payloads.
-    pub(super) local_signer: Option<PrivateKeySigner>,
+    /// A signer for payloads.
+    pub(super) signer: Option<BlockSigner>,
+    /// Whether to update the ENR socket after the libp2p Swarm is started.
+    /// This is set to true by default.
+    /// This may be set to false if the node is configured to use a static advertised address (when
+    /// used with a nat for example).
+    pub(super) enr_update: bool,
 }
 
 impl From<NetworkConfig> for NetworkBuilder {
@@ -34,7 +40,9 @@ impl From<NetworkConfig> for NetworkBuilder {
             config.keypair,
             config.discovery_address,
             config.discovery_config,
+            config.gossip_signer,
         )
+        .with_enr_update(config.enr_update)
         .with_discovery_randomize(config.discovery_randomize)
         .with_bootstore(config.bootstore)
         .with_bootnodes(config.bootnodes)
@@ -44,7 +52,6 @@ impl From<NetworkConfig> for NetworkBuilder {
         .with_peer_monitoring(config.monitor_peers)
         .with_topic_scoring(config.topic_scoring)
         .with_gater_config(config.gater_config)
-        .with_local_signer(config.local_signer)
     }
 }
 
@@ -57,11 +64,12 @@ impl NetworkBuilder {
         keypair: Keypair,
         discovery_address: LocalNode,
         discovery_config: discv5::Config,
+        signer: Option<BlockSigner>,
     ) -> Self {
         Self {
             discovery: Discv5Builder::new(
                 discovery_address,
-                rollup_config.l2_chain_id,
+                rollup_config.l2_chain_id.id(),
                 discovery_config,
             ),
             gossip: GossipDriverBuilder::new(
@@ -70,8 +78,14 @@ impl NetworkBuilder {
                 gossip_addr,
                 keypair,
             ),
-            local_signer: None,
+            signer,
+            enr_update: true,
         }
+    }
+
+    /// Sets the ENR update flag for the [`NetworkBuilder`].
+    pub fn with_enr_update(self, enr_update: bool) -> Self {
+        Self { enr_update, ..self }
     }
 
     /// Sets the configuration for the connection gater.
@@ -79,17 +93,14 @@ impl NetworkBuilder {
         Self { gossip: self.gossip.with_gater_config(config), ..self }
     }
 
-    /// Sets the local signer for the [`NetworkBuilder`].
-    pub fn with_local_signer(self, local_signer: Option<PrivateKeySigner>) -> Self {
-        Self { local_signer, ..self }
+    /// Sets the signer for the [`NetworkBuilder`].
+    pub fn with_signer(self, signer: Option<BlockSigner>) -> Self {
+        Self { signer, ..self }
     }
 
     /// Sets the bootstore path for the [`Discv5Builder`].
-    pub fn with_bootstore(self, bootstore: Option<PathBuf>) -> Self {
-        if let Some(bootstore) = bootstore {
-            return Self { discovery: self.discovery.with_bootstore(bootstore), ..self };
-        }
-        self
+    pub fn with_bootstore(self, bootstore: Option<BootStoreFile>) -> Self {
+        Self { discovery: self.discovery.with_bootstore_file(bootstore), ..self }
     }
 
     /// Sets the interval at which to randomize discovery peers.
@@ -152,13 +163,20 @@ impl NetworkBuilder {
         let (gossip, unsafe_block_signer_sender) = self.gossip.build()?;
         let discovery = self.discovery.build()?;
 
-        Ok(NetworkDriver { gossip, discovery, unsafe_block_signer_sender })
+        Ok(NetworkDriver {
+            gossip,
+            discovery,
+            unsafe_block_signer_sender,
+            signer: self.signer,
+            enr_update: self.enr_update,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_chains::Chain;
     use discv5::{ConfigBuilder, ListenConfig, enr::CombinedKey};
     use libp2p::gossipsub::IdentTopic;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -200,6 +218,7 @@ mod tests {
             keypair,
             discovery_address,
             discovery_config,
+            None,
         )
     }
 
@@ -216,7 +235,10 @@ mod tests {
         gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
 
         let driver = network_builder(NetworkBuilderParams {
-            rollup_config: RollupConfig { l2_chain_id: 10, ..Default::default() },
+            rollup_config: RollupConfig {
+                l2_chain_id: Chain::optimism_mainnet(),
+                ..Default::default()
+            },
             signer,
         })
         .with_gossip_address(gossip_addr.clone())
@@ -233,13 +255,14 @@ mod tests {
 
         // Block Handler Assertions
         assert_eq!(driver.gossip.handler.rollup_config.l2_chain_id, id);
-        let v1 = IdentTopic::new(format!("/optimism/{}/0/blocks", id));
+        let v1 = IdentTopic::new(format!("/optimism/{id}/0/blocks"));
+        println!("{:?}", driver.gossip.handler.blocks_v1_topic);
         assert_eq!(driver.gossip.handler.blocks_v1_topic.hash(), v1.hash());
-        let v2 = IdentTopic::new(format!("/optimism/{}/1/blocks", id));
+        let v2 = IdentTopic::new(format!("/optimism/{id}/1/blocks"));
         assert_eq!(driver.gossip.handler.blocks_v2_topic.hash(), v2.hash());
-        let v3 = IdentTopic::new(format!("/optimism/{}/2/blocks", id));
+        let v3 = IdentTopic::new(format!("/optimism/{id}/2/blocks"));
         assert_eq!(driver.gossip.handler.blocks_v3_topic.hash(), v3.hash());
-        let v4 = IdentTopic::new(format!("/optimism/{}/3/blocks", id));
+        let v4 = IdentTopic::new(format!("/optimism/{id}/3/blocks"));
         assert_eq!(driver.gossip.handler.blocks_v4_topic.hash(), v4.hash());
     }
 

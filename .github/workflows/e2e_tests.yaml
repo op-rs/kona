@@ -14,10 +14,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        devnet-config: ["simple-kona", "simple-kona-geth", "large-kona", "simple-kona-sequencer"]
+        devnet-config: ["simple-kona", "simple-kona-geth", "large-kona", "simple-kona-sequencer", "large-kona-sequencer", "simple-kona-conductor", "first-kona-conductor"]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
       - name: Free Disk Space (Ubuntu)
