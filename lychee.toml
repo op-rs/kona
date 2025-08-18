@@ -1,5 +1,3 @@
-progress = true
-
 # Files or directories to exclude
 exclude = [
     "./target/**",
