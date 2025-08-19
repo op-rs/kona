@@ -68,7 +68,7 @@
       },
       "id": 29,
       "panels": [],
-      "title": "L1 Reorg",
+      "title": "Reorg",
       "type": "row"
     },
     {
@@ -137,7 +137,7 @@
         "x": 0,
         "y": 1
       },
-      "id": 30,
+      "id": 33,
       "options": {
         "legend": {
           "calcs": [],
@@ -156,10 +156,10 @@
         {
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "kona_supervisor_reorg_success{service=\"kona-supervisor-supervisor-superchain\"}",
+          "expr": "kona_supervisor_reorg_l1_depth{quantile=\"0.95\"}",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "{{chain_id}}",
           "range": true,
           "refId": "A",
           "useBackend": false,
@@ -167,6 +167,208 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           }
+        }
+      ],
+      "title": "L1 Depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kona_supervisor_reorg_l2_depth{quantile=\"0.95\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{chain_id}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          }
+        }
+      ],
+      "title": "L2 Depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kona_supervisor_reorg_success{namespace=\"kona-supervisor-supervisor-superchain\", method!=\"process_chain_reorg\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{chain_id}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
         }
       ],
       "title": "L1 Reorg Success",
@@ -236,7 +438,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 9
       },
       "id": 31,
       "options": {
@@ -255,15 +457,116 @@
       "pluginVersion": "11.5.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "kona_supervisor_reorg_duration_seconds{quantile=\"1.0\"}",
+          "expr": "kona_supervisor_reorg_duration_seconds{quantile=\"0.95\", method!=\"process_chain_reorg\"}",
           "format": "time_series",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{chain_id}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "L1 Reorg Duration in seconds",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "disableTextWrap": false,
+          "editorMode": "builder",
+          "expr": "kona_supervisor_reorg_error{namespace=\"kona-supervisor-supervisor-superchain\"}",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{chain_id}}",
           "range": true,
           "refId": "A",
           "useBackend": false,
@@ -273,7 +576,7 @@
           }
         }
       ],
-      "title": "L1 Reorg Duration in seconds",
+      "title": "L1 Reorg Error",
       "type": "timeseries"
     },
     {
@@ -282,7 +585,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 25
       },
       "id": 1,
       "panels": [
@@ -350,7 +653,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 18
+            "y": 26
           },
           "id": 2,
           "options": {
@@ -369,13 +672,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_block_processing_success_total{type=\"local_safe\",chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_block_processing_success_total{type=\"local_safe\",chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Processing Speed: local_safe",
@@ -445,7 +748,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 18
+            "y": 26
           },
           "id": 3,
           "options": {
@@ -464,13 +767,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_block_processing_success_total{type=\"local_unsafe\",chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_block_processing_success_total{type=\"local_unsafe\",chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Processing Speed: local_unsafe",
@@ -540,7 +843,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 34
           },
           "id": 4,
           "options": {
@@ -559,13 +862,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_block_processing_success_total{type=\"finalized\",chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_block_processing_success_total{type=\"finalized\",chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Processing Speed: finalized",
@@ -635,7 +938,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 34
           },
           "id": 5,
           "options": {
@@ -654,13 +957,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_block_processing_success_total{type=\"cross_safe\",chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_block_processing_success_total{type=\"cross_safe\",chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Processing Speed: cross_safe",
@@ -730,7 +1033,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 42
           },
           "id": 6,
           "options": {
@@ -749,13 +1052,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_block_processing_success_total{type=\"cross_unsafe\",chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_block_processing_success_total{type=\"cross_unsafe\",chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Processing Speed: cross_unsafe",
@@ -826,7 +1129,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 34
+            "y": 42
           },
           "id": 7,
           "options": {
@@ -845,13 +1148,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_safe\",chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_safe\",chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Latency p95: local_safe",
@@ -922,7 +1225,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 42
+            "y": 50
           },
           "id": 8,
           "options": {
@@ -941,13 +1244,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_unsafe\",chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"local_unsafe\",chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Latency p95: local_unsafe",
@@ -1018,7 +1321,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 42
+            "y": 50
           },
           "id": 9,
           "options": {
@@ -1037,13 +1340,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"finalized\",chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"finalized\",chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Latency p95: finalized",
@@ -1114,7 +1417,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 58
           },
           "id": 10,
           "options": {
@@ -1133,13 +1436,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"cross_safe\",chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"cross_safe\",chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Latency p95: cross_safe",
@@ -1210,7 +1513,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 58
           },
           "id": 11,
           "options": {
@@ -1229,13 +1532,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"cross_unsafe\",chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "supervisor_block_processing_latency_seconds{quantile=\"0.95\",type=\"cross_unsafe\",chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Block Latency p95: cross_unsafe",
@@ -1251,7 +1554,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 26
       },
       "id": 12,
       "panels": [
@@ -1320,7 +1623,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 91
           },
           "id": 13,
           "options": {
@@ -1339,13 +1642,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(kona_supervisor_storage_success_total{chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(kona_supervisor_storage_success_total{chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Storage Success Rate (per Method)",
@@ -1416,7 +1719,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 91
           },
           "id": 14,
           "options": {
@@ -1435,13 +1738,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(kona_supervisor_storage_error_total{chain_id=~\"$chain_id\"}[5m])",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(kona_supervisor_storage_error_total{chain_id=~\"$chain_id\"}[5m])",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Storage Error Rate (per Method)",
@@ -1512,7 +1815,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 98
+            "y": 131
           },
           "id": 15,
           "options": {
@@ -1531,13 +1834,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"derived_to_source|latest_derived_block_at_source|latest_derivation_state|save_derived_block\"}",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"derived_to_source|latest_derived_block_at_source|latest_derivation_state|save_derived_block\"}",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Derivation Storage Latency p95",
@@ -1608,7 +1911,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 98
+            "y": 131
           },
           "id": 16,
           "options": {
@@ -1627,13 +1930,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_latest_block|get_block|get_log|get_logs|store_block_logs\"}",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_latest_block|get_block|get_log|get_logs|store_block_logs\"}",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Log Storage Latency p95",
@@ -1704,7 +2007,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 106
+            "y": 139
           },
           "id": 17,
           "options": {
@@ -1723,13 +2026,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_current_l1|get_safety_head_ref|get_super_head|update_current_l1|update_finalized_using_source|update_current_cross_unsafe|update_current_cross_safe\"}",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"get_current_l1|get_safety_head_ref|get_super_head|update_current_l1|update_finalized_using_source|update_current_cross_unsafe|update_current_cross_safe\"}",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Ref Storage Latency p95",
@@ -1800,7 +2103,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 106
+            "y": 139
           },
           "id": 18,
           "options": {
@@ -1819,13 +2122,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"update_finalized_l1|get_finalized_l1\"}",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "kona_supervisor_storage_duration_seconds{quantile=\"0.95\",chain_id=~\"$chain_id\",method=~\"update_finalized_l1|get_finalized_l1\"}",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Finalized Storage Latency p95",
@@ -1860,7 +2163,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 114
+            "y": 147
           },
           "id": 19,
           "options": {
@@ -1890,13 +2193,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "kona_supervisor_storage_table_entries{chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{table}} - {{chain_id}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "kona_supervisor_storage_table_entries{chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{table}} - {{chain_id}}",
+              "refId": "A"
             }
           ],
           "title": "Storage Table Entries (Bar Gauge, per Chain)",
@@ -1909,6 +2212,20 @@
           },
           "fieldConfig": {
             "defaults": {
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
               "unit": "bytes"
             },
             "overrides": []
@@ -1917,23 +2234,43 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 122
+            "y": 155
           },
           "id": 20,
           "options": {
             "displayMode": "basic",
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "maxVizHeight": 300,
+            "minVizHeight": 16,
+            "minVizWidth": 8,
+            "namePlacement": "auto",
             "orientation": "horizontal",
-            "showUnfilled": true
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true,
+            "sizing": "auto",
+            "valueMode": "color"
           },
+          "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "kona_supervisor_storage_table_size{chain_id=~\"$chain_id\"}",
-              "legendFormat": "{{table}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "kona_supervisor_storage_table_size{chain_id=~\"$chain_id\"}",
+              "legendFormat": "{{table}}",
+              "refId": "A"
             }
           ],
           "title": "Storage Table Size (Bar Gauge, per Chain)",
@@ -1949,7 +2286,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 11
+        "y": 27
       },
       "id": 21,
       "panels": [
@@ -2018,7 +2355,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 91
+            "y": 92
           },
           "id": 22,
           "options": {
@@ -2037,13 +2374,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_rpc_requests_success_total[5m])",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_rpc_requests_success_total[5m])",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Supervisor RPC Success Rate (per Method)",
@@ -2114,7 +2451,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 91
+            "y": 92
           },
           "id": 23,
           "options": {
@@ -2133,13 +2470,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(supervisor_rpc_requests_error_total[5m])",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(supervisor_rpc_requests_error_total[5m])",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Supervisor RPC Error Rate (per Method)",
@@ -2210,7 +2547,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 99
+            "y": 116
           },
           "id": 24,
           "options": {
@@ -2229,13 +2566,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "supervisor_rpc_request_duration_seconds{quantile=\"0.95\"}",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "supervisor_rpc_request_duration_seconds{quantile=\"0.95\"}",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Supervisor RPC Latency p95 (per Method)",
@@ -2251,7 +2588,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 28
       },
       "id": 25,
       "panels": [
@@ -2320,7 +2657,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 92
+            "y": 93
           },
           "id": 26,
           "options": {
@@ -2339,13 +2676,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(managed_node_rpc_requests_success_total[5m])",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(managed_node_rpc_requests_success_total[5m])",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Managed Node RPC Success Rate (per Method)",
@@ -2416,7 +2753,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 92
+            "y": 93
           },
           "id": 27,
           "options": {
@@ -2435,13 +2772,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "rate(managed_node_rpc_requests_error_total[5m])",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "rate(managed_node_rpc_requests_error_total[5m])",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Managed Node RPC Error Rate (per Method)",
@@ -2512,7 +2849,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 100
+            "y": 101
           },
           "id": 28,
           "options": {
@@ -2531,13 +2868,13 @@
           "pluginVersion": "11.5.0",
           "targets": [
             {
-              "expr": "managed_node_rpc_request_duration_seconds{quantile=\"0.95\"}",
-              "legendFormat": "{{method}}",
-              "refId": "A",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${DS_PROMETHEUS}"
-              }
+              },
+              "expr": "managed_node_rpc_request_duration_seconds{quantile=\"0.95\"}",
+              "legendFormat": "{{method}}",
+              "refId": "A"
             }
           ],
           "title": "Managed Node RPC Latency p95 (per Method)",
@@ -2578,6 +2915,6 @@
   "timezone": "",
   "title": "Kona Supervisor Dashboard",
   "uid": "fevgnwku1evi8b",
-  "version": 6,
+  "version": 11,
   "weekStart": ""
 }
