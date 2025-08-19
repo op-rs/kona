@@ -23,12 +23,6 @@ workflows:
         # Ignores `miniz_oxide/serde`, since its `serde` feature implies `std`
         # TODO: Remove once a release has been cut with https://github.com/Frommi/miniz_oxide/pull/178
         "--ignore-missing-propagate=kona-protocol/serde:miniz_oxide/serde",
-        # Ignores `alloy-hardforks/serde`, since its `serde` feature implies `std`
-        # TODO: Remove once a release has been cut with https://github.com/alloy-rs/hardforks/pull/48
-        "--ignore-missing-propagate=kona-genesis/serde:alloy-hardforks/serde",
-        # Ignores `alloy-op-hardforks/serde`, since its `serde` feature implies `std`
-        # TODO: Remove once a release has been cut with https://github.com/alloy-rs/hardforks/pull/48
-        "--ignore-missing-propagate=kona-genesis/serde:alloy-op-hardforks/serde",
         "--show-path",
         "--quiet",
       ]

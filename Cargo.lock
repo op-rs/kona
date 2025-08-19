@@ -270,6 +270,7 @@ dependencies = [
  "alloy-primitives",
  "auto_impl",
  "dyn-clone",
+ "serde",
 ]
 
 [[package]]
@@ -364,6 +365,7 @@ dependencies = [
  "alloy-chains",
  "alloy-hardforks",
  "auto_impl",
+ "serde",
 ]
 
 [[package]]
