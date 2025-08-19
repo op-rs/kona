@@ -1,7 +1,7 @@
 use kona_supervisor_storage::StorageError;
 use thiserror::Error;
 
-/// Represents various errors that can occur during node management,
+/// Represents various errors that can occur during node management.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ManagedNodeError {
     /// Represents an error that occurred while starting the managed node.
