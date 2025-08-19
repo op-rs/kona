@@ -7,10 +7,6 @@ ARG REPO_LOCATION
 FROM ubuntu:22.04 AS dep-setup-stage
 SHELL ["/bin/bash", "-c"]
 
-RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
-    echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99custom && \
-    echo "Acquire::BrokenProxy    true;" >> /etc/apt/apt.conf.d/99custom
-
 # Install deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
   build-essential \
