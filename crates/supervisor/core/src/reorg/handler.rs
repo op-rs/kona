@@ -8,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc};
-use tracing::{info, warn};
+use tracing::{error, info};
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
@@ -94,7 +94,7 @@ where
         let results = future::join_all(handles).await;
         for result in results {
             if let Err(err) = result {
-                warn!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
+                error!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
             }
         }
 
