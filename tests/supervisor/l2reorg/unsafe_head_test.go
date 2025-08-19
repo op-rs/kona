@@ -1,4 +1,4 @@
-package reorgs
+package l2reorg
 
 import (
 	"testing"
