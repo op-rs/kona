@@ -35,9 +35,9 @@ data/
 jwt.hex
 
 # FPVM artifacts
-./state.bin.gz
-./meta.json
-./out.json
+state.bin.gz
+meta.json
+out.json
 
 # Prestate artifacts
 prestate-artifacts-*

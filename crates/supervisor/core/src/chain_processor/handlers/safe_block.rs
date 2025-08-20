@@ -39,7 +39,7 @@ where
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
-            block_number = derived_ref_pair.derived.number,
+            %derived_ref_pair,
             "Processing local safe derived block pair"
         );
 
@@ -382,6 +382,7 @@ mod tests {
         impl StorageRewinder for Db {
             fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
             fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind_to_source(&self, to: &BlockNumHash) -> Result<Option<BlockInfo>, StorageError>;
         }
     );
 

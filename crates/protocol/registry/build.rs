@@ -21,6 +21,10 @@ fn main() {
 
     // Copy the `superchain-registry/chainList.json` file to `etc/chainList.json`
     let chain_list = format!("{src_dir}/superchain-registry/chainList.json");
+    let etc_dir = std::path::Path::new("etc");
+    if !etc_dir.exists() {
+        std::fs::create_dir_all(etc_dir).unwrap();
+    }
     std::fs::copy(chain_list, "etc/chainList.json").unwrap();
 
     // Get the `superchain-registry/superchain/configs` directory`
@@ -67,6 +71,6 @@ fn main() {
         superchain.chains.sort_by(|a, b| a.chain_id.cmp(&b.chain_id));
     }
 
-    std::fs::write("etc/configs.json", serde_json::to_string_pretty(&superchains).unwrap())
-        .unwrap();
+    let output_path = std::path::Path::new("etc/configs.json");
+    std::fs::write(output_path, serde_json::to_string_pretty(&superchains).unwrap()).unwrap();
 }

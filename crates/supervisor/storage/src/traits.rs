@@ -452,6 +452,18 @@ pub trait StorageRewinder {
     /// # Errors
     /// Returns a [`StorageError`] if any part of the rewind process fails.
     fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+
+    /// Rewinds the storage to a specific source block (inclusive), ensuring that all derived blocks
+    /// and logs associated with that source blocks are also reverted.
+    ///
+    /// # Arguments
+    /// * `to` - The source block [`BlockNumHash`] to rewind to.
+    ///
+    /// # Returns
+    /// * [`BlockInfo`] of the derived block that was rewound to, or `None` if no derived blocks
+    ///   were found.
+    /// * `Err(StorageError)` if there is an issue during the rewind operation.
+    fn rewind_to_source(&self, to: &BlockNumHash) -> Result<Option<BlockInfo>, StorageError>;
 }
 
 /// Combines the reader traits for the database.

@@ -42,6 +42,7 @@ impl Metrics {
     pub(crate) const STORAGE_METHOD_GET_FINALIZED_L1: &'static str = "get_finalized_l1";
     pub(crate) const STORAGE_METHOD_REWIND_LOG_STORAGE: &'static str = "rewind_log_storage";
     pub(crate) const STORAGE_METHOD_REWIND: &'static str = "rewind";
+    pub(crate) const STORAGE_METHOD_REWIND_TO_SOURCE: &'static str = "rewind_to_source";
 
     pub(crate) fn init(chain_id: ChainId) {
         Self::describe();
@@ -112,5 +113,6 @@ impl Metrics {
         Self::zero_storage_methods(chain_id, Self::STORAGE_METHOD_GET_FINALIZED_L1);
         Self::zero_storage_methods(chain_id, Self::STORAGE_METHOD_REWIND_LOG_STORAGE);
         Self::zero_storage_methods(chain_id, Self::STORAGE_METHOD_REWIND);
+        Self::zero_storage_methods(chain_id, Self::STORAGE_METHOD_REWIND_TO_SOURCE);
     }
 }

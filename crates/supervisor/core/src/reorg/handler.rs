@@ -8,7 +8,7 @@ use kona_protocol::BlockInfo;
 use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_storage::{DbReader, StorageRewinder};
 use std::{collections::HashMap, sync::Arc};
-use tracing::{info, warn};
+use tracing::{error, info};
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
@@ -36,6 +36,16 @@ where
         self
     }
 
+    /// Wrapper method for segregating concerns between the startup and L1 watcher reorg handlers.
+    pub async fn verify_l1_consistency(&self) -> Result<(), ReorgHandlerError> {
+        info!(
+            target: "supervisor::reorg_handler",
+            "Verifying L1 consistency for each chain..."
+        );
+
+        self.verify_and_handle_chain_reorg().await
+    }
+
     /// Processes a reorg for all chains when a new latest L1 block is received
     pub async fn handle_l1_reorg(&self, latest_block: BlockInfo) -> Result<(), ReorgHandlerError> {
         info!(
@@ -44,6 +54,11 @@ where
             "Reorg detected, processing..."
         );
 
+        self.verify_and_handle_chain_reorg().await
+    }
+
+    /// Verifies the consistency of each chain with the L1 chain and handles any reorgs, if any.
+    async fn verify_and_handle_chain_reorg(&self) -> Result<(), ReorgHandlerError> {
         let mut handles = Vec::with_capacity(self.chain_dbs.len());
 
         for (chain_id, chain_db) in &self.chain_dbs {
@@ -79,7 +94,7 @@ where
         let results = future::join_all(handles).await;
         for result in results {
             if let Err(err) = result {
-                warn!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
+                error!(target: "supervisor::reorg_handler", %err, "Reorg task failed");
             }
         }
 

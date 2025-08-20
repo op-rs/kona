@@ -481,6 +481,43 @@ impl StorageRewinder for ChainDb {
             })?
         })
     }
+
+    fn rewind_to_source(&self, to: &BlockNumHash) -> Result<Option<BlockInfo>, StorageError> {
+        self.observe_call(Metrics::STORAGE_METHOD_REWIND_TO_SOURCE, || {
+            self.env.update(|tx| {
+                let lp = LogProvider::new(tx, self.chain_id);
+                let dp = DerivationProvider::new(tx, self.chain_id);
+                let hp = SafetyHeadRefProvider::new(tx, self.chain_id);
+
+                let derived_target_block = dp.rewind_to_source(to)?;
+                if let Some(rewind_target) = derived_target_block {
+                    lp.rewind_to(&rewind_target.id())?;
+                }
+
+                // get the current latest block to update the safety head refs
+                match lp.get_latest_block() {
+                    Ok(latest_block) => {
+                        hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalUnsafe, &latest_block)?;
+                        hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossUnsafe, &latest_block)?;
+                        hp.reset_safety_head_ref_if_ahead(SafetyLevel::LocalSafe, &latest_block)?;
+                        hp.reset_safety_head_ref_if_ahead(SafetyLevel::CrossSafe, &latest_block)?;
+                        hp.reset_safety_head_ref_if_ahead(SafetyLevel::Finalized, &latest_block)?;
+                    }
+                    Err(StorageError::DatabaseNotInitialised) => {
+                        // If the database returns DatabaseNotInitialised, it means we have rewound
+                        // past the activation block
+                        hp.remove_safety_head_ref(SafetyLevel::LocalUnsafe)?;
+                        hp.remove_safety_head_ref(SafetyLevel::CrossUnsafe)?;
+                        hp.remove_safety_head_ref(SafetyLevel::LocalSafe)?;
+                        hp.remove_safety_head_ref(SafetyLevel::CrossSafe)?;
+                        hp.remove_safety_head_ref(SafetyLevel::Finalized)?;
+                    }
+                    Err(err) => return Err(err),
+                }
+                Ok(derived_target_block)
+            })?
+        })
+    }
 }
 
 impl MetricsReporter for ChainDb {
@@ -1408,5 +1445,179 @@ mod tests {
 
         let latest_log_block = db.get_latest_block();
         assert!(matches!(latest_log_block, Err(StorageError::DatabaseNotInitialised)));
+    }
+
+    #[test]
+    fn test_rewind_to_source_updates_logs_and_heads() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_rewind_to_source");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        // Anchor (activation)
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        // Initialise DB with anchor
+        db.initialise_log_storage(anchor.derived).expect("initialise log storage");
+        db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
+
+        // Build two source entries and several derived blocks
+        let source1 = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 101,
+            parent_hash: anchor.source.hash,
+            timestamp: 0,
+        };
+        let source2 = BlockInfo {
+            hash: B256::from([4u8; 32]),
+            number: 102,
+            parent_hash: source1.hash,
+            timestamp: 0,
+        };
+
+        // Derived blocks chained off the anchor/previous derived blocks
+        let derived1 = BlockInfo {
+            hash: B256::from([10u8; 32]),
+            number: 1,
+            parent_hash: anchor.derived.hash,
+            timestamp: 0,
+        };
+        let derived2 = BlockInfo {
+            hash: B256::from([11u8; 32]),
+            number: 2,
+            parent_hash: derived1.hash,
+            timestamp: 0,
+        };
+        let derived3 = BlockInfo {
+            hash: B256::from([12u8; 32]),
+            number: 3,
+            parent_hash: derived2.hash,
+            timestamp: 0,
+        };
+        let derived4 = BlockInfo {
+            hash: B256::from([13u8; 32]),
+            number: 4,
+            parent_hash: derived3.hash,
+            timestamp: 0,
+        };
+        let derived5 = BlockInfo {
+            hash: B256::from([14u8; 32]),
+            number: 5,
+            parent_hash: derived4.hash,
+            timestamp: 0,
+        };
+
+        // Insert sources and derived blocks into storage (logs + derivation)
+        assert!(db.save_source_block(source1).is_ok());
+        db.store_block_logs(&derived1, vec![]).expect("store logs derived1");
+        db.save_derived_block(DerivedRefPair { source: source1, derived: derived1 })
+            .expect("save derived1");
+
+        db.store_block_logs(&derived2, vec![]).expect("store logs derived2");
+        db.save_derived_block(DerivedRefPair { source: source1, derived: derived2 })
+            .expect("save derived2");
+
+        db.store_block_logs(&derived3, vec![]).expect("store logs derived3");
+        db.save_derived_block(DerivedRefPair { source: source1, derived: derived3 })
+            .expect("save derived3");
+
+        assert!(db.save_source_block(source2).is_ok());
+        db.store_block_logs(&derived4, vec![]).expect("store logs derived4");
+        db.save_derived_block(DerivedRefPair { source: source2, derived: derived4 })
+            .expect("save derived4");
+
+        db.store_block_logs(&derived5, vec![]).expect("store logs derived5");
+        db.save_derived_block(DerivedRefPair { source: source2, derived: derived5 })
+            .expect("save derived5");
+
+        // Advance safety heads to be ahead of anchor so that rewind will need to reset them.
+        db.update_current_cross_unsafe(&derived1).expect("update cross unsafe");
+        db.update_current_cross_unsafe(&derived2).expect("update cross unsafe");
+        db.update_current_cross_unsafe(&derived3).expect("update cross unsafe");
+        db.update_current_cross_unsafe(&derived4).expect("update cross unsafe");
+
+        db.update_current_cross_safe(&derived1).expect("update cross safe");
+        db.update_current_cross_safe(&derived2).expect("update cross safe");
+
+        // Now rewind to source1: expected derived rewind target is derived1 (first derived for
+        // source1)
+        let res = db.rewind_to_source(&source1.id()).expect("rewind_to_source should succeed");
+        assert!(res.is_some(), "expected a derived rewind target");
+        let rewind_target = res.unwrap();
+        assert_eq!(rewind_target, derived1);
+
+        // After rewind, logs should be rewound to before derived1 -> latest block == anchor.derived
+        let latest_log = db.get_latest_block().expect("latest block after rewind");
+        assert_eq!(latest_log, anchor.derived);
+
+        // All safety heads that were ahead should be reset to the new latest (anchor.derived)
+        let local_unsafe = db.get_safety_head_ref(SafetyLevel::LocalUnsafe).expect("local unsafe");
+        let cross_unsafe = db.get_safety_head_ref(SafetyLevel::CrossUnsafe).expect("cross unsafe");
+        let local_safe = db.get_safety_head_ref(SafetyLevel::LocalSafe).expect("local safe");
+        let cross_safe = db.get_safety_head_ref(SafetyLevel::CrossSafe).expect("cross safe");
+
+        assert_eq!(local_unsafe, anchor.derived);
+        assert_eq!(cross_unsafe, anchor.derived);
+        assert_eq!(local_safe, anchor.derived);
+        assert_eq!(cross_safe, anchor.derived);
+    }
+
+    #[test]
+    fn test_rewind_to_source_with_empty_source_returns_none() {
+        let tmp_dir = TempDir::new().expect("create temp dir");
+        let db_path = tmp_dir.path().join("chaindb_rewind_to_source_empty");
+        let db = ChainDb::new(1, &db_path).expect("create db");
+
+        // Anchor (activation)
+        let anchor = DerivedRefPair {
+            source: BlockInfo {
+                hash: B256::from([0u8; 32]),
+                number: 100,
+                parent_hash: B256::from([1u8; 32]),
+                timestamp: 0,
+            },
+            derived: BlockInfo {
+                hash: B256::from([2u8; 32]),
+                number: 0,
+                parent_hash: B256::from([3u8; 32]),
+                timestamp: 0,
+            },
+        };
+
+        // Initialise DB with anchor
+        db.initialise_log_storage(anchor.derived).expect("initialise log storage");
+        db.initialise_derivation_storage(anchor).expect("initialise derivation storage");
+
+        // Insert a source block that has no derived entries
+        let source = BlockInfo {
+            hash: B256::from([3u8; 32]),
+            number: 101,
+            parent_hash: anchor.source.hash,
+            timestamp: 0,
+        };
+        db.save_source_block(source).expect("save source block");
+
+        // Rewind to the source with empty derived list -> should return None
+        let res = db.rewind_to_source(&source.id()).expect("rewind_to_source should succeed");
+        assert!(res.is_none(), "Expected None when source has no derived blocks");
+
+        // Ensure latest log and derivation state remain at the anchor
+        let latest_log = db.get_latest_block().expect("latest block after noop rewind");
+        assert_eq!(latest_log, anchor.derived);
+
+        let latest_pair = db.latest_derivation_state().expect("latest derivation state");
+        assert_eq!(latest_pair, anchor);
     }
 }

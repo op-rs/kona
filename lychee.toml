@@ -1,0 +1,16 @@
+# Config example at: https://lychee.cli.rs/usage/config/
+
+verbose = "debug"
+
+no_progress = false
+
+exclude_all_private = false
+
+exclude = [
+    'foo.bar',
+    'localhost',
+    '^https://github\.com/op-rs/kona/pull/'
+]
+
+# exclude_path values are ignored if cli <inputs> is glob pattern that matches
+# this list, at least in lycheeverse/lychee-action@v2
