@@ -80,6 +80,7 @@ test-e2e-kurtosis DEVNET GO_PKG_NAME="" FILTER="" DEVNET_CUSTOM_PATH="" :
         export DEVNET_CUSTOM_PATH="{{SOURCE}}/devnets/{{DEVNET}}.yaml"
     fi
 
+    export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
     export DEVNET_ENV_URL="ktnative://{{DEVNET}}$DEVNET_CUSTOM_PATH"
     export DISABLE_OP_E2E_LEGACY=true
     export DEVSTACK_ORCHESTRATOR=sysext
