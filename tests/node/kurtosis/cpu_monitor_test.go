@@ -63,15 +63,15 @@ func TestKurtosisCPUMonitor(gt *testing.T) {
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 
-	out.T.Gate().LessOrEqual(len(out.L2CLKonaValidatorNodes), 1, "expected at most one kona-node")
+	out.T.Gate().LessOrEqual(len(out.L2CLKonaNodes()), 1, "expected at most one kona-node")
 
-	opNode := out.L2CLOpValidatorNodes[0]
-	konaNode := out.L2CLKonaValidatorNodes[0]
+	for _, node := range out.L2CLKonaNodes() {
+		// Wait for a few blocks to be produced before checking the CPU usage.
+		dsl.CheckAll(t, node.ReachedFn(types.LocalUnsafe, 40, 80))
 
-	// Wait for a few blocks to be produced before checking the CPU usage.
-	dsl.CheckAll(t, konaNode.ReachedFn(types.LocalUnsafe, 40, 80), opNode.ReachedFn(types.LocalUnsafe, 40, 80))
+		ctx := context.Background()
 
-	ctx := context.Background()
+		GetCPUStats(t, ctx, node.Escape().ID().Key())
+	}
 
-	GetCPUStats(t, ctx, konaNode.Escape().ID().Key())
 }
