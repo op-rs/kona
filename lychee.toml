@@ -8,11 +8,6 @@ exclude_all_private = false
 
 exclude = [
     'foo.bar',
-    'localhost'
-]
-
-# Files or directories to exclude
-exclude_path = [
-    './CHANGELOG.md',
-    '**/CHANGELOG.md'
+    'localhost',
+    '^https://github\.com/op-rs/kona/pull/'
 ]
