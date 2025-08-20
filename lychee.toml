@@ -11,3 +11,6 @@ exclude = [
     'localhost',
     '^https://github\.com/op-rs/kona/pull/'
 ]
+
+# exclude_path values are ignored if cli <inputs> is glob pattern that matches
+# this list, at least in lycheeverse/lychee-action@v2
