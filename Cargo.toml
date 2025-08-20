@@ -238,6 +238,7 @@ tracing = { version = "0.1.41", default-features = false }
 metrics = { version = "0.24.2", default-features = false }
 prometheus = { version = "0.14.0", default-features = false }
 metrics-exporter-prometheus = { version = "0.17.0", default-features = false }
+metrics-process = "2.4.0"
 
 # Testing
 pprof = "0.15.0"
