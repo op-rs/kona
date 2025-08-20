@@ -27,7 +27,7 @@ jobs:
       - name: Check links and create issues
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --config ./lychee.toml --cache-exclude-status 429 '**/README.md' './docs/**/*.md' './docs/**/*.mdx' './docs/**/*.html' './docs/**/*.com'
+          args: --config ./lychee.toml --cache-exclude-status 429 '**/README.md' './docs/**/*.md' './docs/**/*.mdx' './docs/**/*.html' './docs/**/*.json'
           fail: false
           issue-on-error: true
           issue-title: "Link Checker found broken links"
