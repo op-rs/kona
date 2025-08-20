@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
-	node_utils "github.com/op-rs/kona/node/utils"
+	kona_presets "github.com/op-rs/kona/node/presets"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,18 +59,11 @@ func GetCPUStats(t devtest.T, ctx context.Context, serviceName string) {
 // Run this test only in kurtosis.
 func TestKurtosisCPUMonitor(gt *testing.T) {
 	t := devtest.ParallelT(gt)
-	out := node_utils.NewMixedOpKona(t)
+	out := kona_presets.NewMixedOpKona(t)
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 
-<<<<<<<< HEAD:tests/node/kurtosis/cpu_monitor_test.go
 	out.T.Gate().LessOrEqual(len(out.L2CLKonaNodes()), 1, "expected at most one kona-node")
-========
-	out.T.Gate().LessOrEqual(len(out.L2CLKonaValidatorNodes), 1, "expected at most one kona-node")
-
-	opNode := out.L2CLOpValidatorNodes[0]
-	konaNode := out.L2CLKonaValidatorNodes[0]
->>>>>>>> a5407f8b (feat(test/sysgo): run all e2e tests in sysgo):tests/node/common/cpu_monitor_test.go
 
 	for _, node := range out.L2CLKonaNodes() {
 		// Wait for a few blocks to be produced before checking the CPU usage.

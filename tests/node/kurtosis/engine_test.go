@@ -57,7 +57,7 @@ func TestEngine(gt *testing.T) {
 					done <- struct{}{}
 				}()
 
-				queue <- GetDevWS(t, wsRPC, "engine_queue_size", done)
+				queue <- GetDevWS(t, clRPC, "engine_queue_size", done)
 			}()
 
 			// Wait for 40 unsafe blocks to be produced.
