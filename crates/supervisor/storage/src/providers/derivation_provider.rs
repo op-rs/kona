@@ -537,6 +537,60 @@ where
 
         Ok(())
     }
+
+    /// Rewinds the derivation storage to a specific source block.
+    /// This will remove all derived blocks and their traversals from the given source block onward.
+    ///
+    /// # Arguments
+    /// * `source` - The source block number and hash to rewind to.
+    ///
+    /// # Returns
+    /// [`BlockInfo`] of the derived block that was rewound to, or `None` if no derived blocks
+    /// were found.
+    pub(crate) fn rewind_to_source(
+        &self,
+        source: &BlockNumHash,
+    ) -> Result<Option<BlockInfo>, StorageError> {
+        let mut derived_rewind_target: Option<BlockInfo> = None;
+        {
+            let mut cursor = self.tx.cursor_write::<BlockTraversal>()?;
+            let mut walker = cursor.walk(Some(source.number))?;
+            while let Some(Ok((block_number, block_traversal))) = walker.next() {
+                if block_number == source.number && block_traversal.source.hash != source.hash {
+                    warn!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        source_block_number = source.number,
+                        expected_hash = %source.hash,
+                        actual_hash = %block_traversal.source.hash,
+                        "Source block hash mismatch during rewind"
+                    );
+                    return Err(StorageError::ConflictError);
+                }
+
+                if derived_rewind_target.is_none() &&
+                    !block_traversal.derived_block_numbers.is_empty()
+                {
+                    let first_num = block_traversal.derived_block_numbers[0];
+                    let derived_block_pair = self.get_derived_block_pair_by_number(first_num)?;
+                    derived_rewind_target = Some(derived_block_pair.derived.into());
+                }
+
+                walker.delete_current()?;
+            }
+        }
+
+        // Delete all derived blocks with number ≥ `block_info.number`
+        if let Some(rewind_target) = derived_rewind_target {
+            let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
+            let mut walker = cursor.walk(Some(rewind_target.number))?;
+            while let Some(Ok((_, _))) = walker.next() {
+                walker.delete_current()?; // we’re already walking from the rewind point
+            }
+        }
+
+        Ok(derived_rewind_target)
+    }
 }
 
 #[cfg(test)]
@@ -1157,5 +1211,107 @@ mod tests {
 
         let activation = provider.get_activation_block().expect("should exist");
         assert_eq!(activation, derived1);
+    }
+
+    #[test]
+    fn rewind_to_source_returns_none_when_no_source_present() {
+        let db = setup_db();
+        let tx = db.tx_mut().expect("Failed to get mutable tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let source = BlockNumHash { number: 9999, hash: B256::from([9u8; 32]) };
+        let res = provider.rewind_to_source(&source).expect("should succeed");
+        assert!(res.is_none(), "Expected None when no source traversal exists");
+    }
+
+    #[test]
+    fn rewind_to_source_fails_on_source_hash_mismatch() {
+        let db = setup_db();
+
+        let source1 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived1 = block_info(0, genesis_block().hash, 200);
+        let pair1 = derived_pair(source1, derived1);
+        assert!(initialize_db(&db, &pair1).is_ok());
+
+        // insert a source block at number 1 with a certain hash
+        let source_saved = block_info(101, source1.hash, 200);
+        assert!(insert_source_block(&db, &source_saved).is_ok());
+
+        // create provider and call rewind_to_source with same number but different hash
+        let tx = db.tx_mut().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let mismatched_source = BlockNumHash { number: 101, hash: B256::from([42u8; 32]) };
+        let result = provider.rewind_to_source(&mismatched_source);
+        assert!(matches!(result, Err(StorageError::ConflictError)));
+    }
+
+    #[test]
+    fn rewind_to_source_deletes_derived_blocks_and_returns_target() {
+        let db = setup_db();
+
+        let source0 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived0 = block_info(0, genesis_block().hash, 200);
+        let pair0 = derived_pair(source0, derived0);
+        assert!(initialize_db(&db, &pair0).is_ok());
+
+        // Setup source1 with derived 10,11,12 and source2 with 13,14
+        let source1 = block_info(101, source0.hash, 200);
+        let source2 = block_info(102, source1.hash, 300);
+        let derived1 = block_info(1, derived0.hash, 195);
+        let derived2 = block_info(2, derived1.hash, 197);
+        let derived3 = block_info(3, derived2.hash, 290);
+        let derived4 = block_info(4, derived3.hash, 292);
+        let derived5 = block_info(5, derived4.hash, 295);
+
+        assert!(insert_source_block(&db, &source1).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source1, derived1)).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source1, derived2)).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source1, derived3)).is_ok());
+
+        assert!(insert_source_block(&db, &source2).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source2, derived4)).is_ok());
+        assert!(insert_pair(&db, &derived_pair(source2, derived5)).is_ok());
+
+        // Perform rewind_to_source starting at source1
+        let tx = db.tx_mut().expect("Could not get mutable tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+        let source_id = BlockNumHash { number: source1.number, hash: source1.hash };
+        let res = provider.rewind_to_source(&source_id).expect("rewind should succeed");
+
+        // derived_rewind_target should be the first derived block encountered (10)
+        assert!(res.is_some(), "expected a derived rewind target");
+        let target = res.unwrap();
+        assert_eq!(target, derived1);
+
+        let res = provider.get_derived_block_pair_by_number(10);
+        assert!(matches!(res, Err(StorageError::EntryNotFound(_))));
+    }
+
+    #[test]
+    fn rewind_to_source_with_empty_derived_list_returns_none() {
+        let db = setup_db();
+
+        let source0 = block_info(100, B256::from([100u8; 32]), 200);
+        let derived0 = block_info(0, genesis_block().hash, 200);
+        let pair0 = derived_pair(source0, derived0);
+        assert!(initialize_db(&db, &pair0).is_ok());
+
+        // Insert a source block that has no derived_block_numbers
+        let source1 = block_info(101, source0.hash, 200);
+        assert!(insert_source_block(&db, &source1).is_ok());
+
+        // Call rewind_to_source on that source
+        let tx = db.tx_mut().expect("Could not get mutable tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+        let res = provider.rewind_to_source(&source1.id()).expect("rewind should succeed");
+
+        assert!(res.is_none(), "Expected None when source has empty derived list");
+
+        let tx = db.tx().expect("Could not get tx");
+        let provider = DerivationProvider::new(&tx, CHAIN_ID);
+
+        let activation = provider.get_activation_block().expect("activation should exist");
+        assert_eq!(activation, derived0);
     }
 }

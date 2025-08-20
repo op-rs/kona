@@ -3,7 +3,7 @@ module github.com/op-rs/kona
 go 1.24.3
 
 // We're using the "develop" branch of the Optimism repo to include the latest changes to the `devstack` package.
-require github.com/ethereum-optimism/optimism v1.13.6-0.20250815152137-c12091dfd6a8
+require github.com/ethereum-optimism/optimism v1.13.6-0.20250818173129-f6c1dcf0ca26
 
 require github.com/stretchr/testify v1.10.0
 

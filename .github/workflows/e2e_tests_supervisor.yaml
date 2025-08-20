@@ -18,6 +18,8 @@ jobs:
             test-pkg: message
           - devnet-config: simple-supervisor
             test-pkg: rpc
+          - devnet-config: simple-supervisor
+            test-pkg: l2reorg
           - devnet-config: preinterop-supervisor
             test-pkg: pre_interop
     steps:
