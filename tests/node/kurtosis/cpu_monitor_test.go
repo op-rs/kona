@@ -1,4 +1,4 @@
-package node
+package node_kurtosis
 
 import (
 	"context"
@@ -22,7 +22,6 @@ const (
 
 // GetCPUStats executes shell commands to get CPU usage statistics from a service
 func GetCPUStats(t devtest.T, ctx context.Context, serviceName string) {
-
 	kurtosisCtx, err := kurtosis_context.NewKurtosisContextFromLocalEngine()
 	require.NoError(t, err, "failed to create kurtosis context")
 

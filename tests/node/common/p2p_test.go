@@ -99,7 +99,7 @@ func TestP2PChainID(gt *testing.T) {
 
 	out := kona_presets.NewMixedOpKona(t)
 
-	nodes := out.L2CLNodes()
+	nodes := out.L2CLKonaNodes()
 	chainID := nodes[0].PeerInfo().ChainID
 
 	for _, node := range nodes {
@@ -122,7 +122,7 @@ func TestNetworkConnectivity(gt *testing.T) {
 
 	out := kona_presets.NewMixedOpKona(t)
 
-	nodes := out.L2CLValidatorNodes()
+	nodes := out.L2CLNodes()
 	numNodes := len(nodes)
 
 	for _, node := range nodes {
