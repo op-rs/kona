@@ -23,7 +23,7 @@ pub fn init_prometheus_server(addr: IpAddr, metrics_port: u16) -> Result<(), Bui
     thread::spawn(move || {
         loop {
             collector.collect();
-            sleep(Duration::from_secs(1));
+            sleep(Duration::from_secs(60));
         }
     });
 
