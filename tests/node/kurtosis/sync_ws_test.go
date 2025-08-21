@@ -40,9 +40,11 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
 			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			unsafeBlocks := GetKonaWs(t, clRPC, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
+			wsRPC := WebsocketRPC(clRPC)
 
-			safeBlocks := GetKonaWs(t, clRPC, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
+			unsafeBlocks := GetKonaWs(t, wsRPC, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
+
+			safeBlocks := GetKonaWs(t, wsRPC, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
 
 			require.GreaterOrEqual(t, len(unsafeBlocks), 1, "we didn't receive enough unsafe gossip blocks!")
 			require.GreaterOrEqual(t, len(safeBlocks), 1, "we didn't receive enough safe gossip blocks!")
@@ -91,7 +93,9 @@ func TestSyncUnsafe(gt *testing.T) {
 			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
 			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			output := GetKonaWs(t, clRPC, "unsafe_head", time.After(10*time.Second))
+			wsRPC := WebsocketRPC(clRPC)
+
+			output := GetKonaWs(t, wsRPC, "unsafe_head", time.After(10*time.Second))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
@@ -145,7 +149,9 @@ func TestSyncSafe(gt *testing.T) {
 			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
 			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			output := GetKonaWs(t, clRPC, "safe_head", time.After(10*time.Second))
+			wsRPC := WebsocketRPC(clRPC)
+
+			output := GetKonaWs(t, wsRPC, "safe_head", time.After(10*time.Second))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
@@ -199,7 +205,9 @@ func TestSyncFinalized(gt *testing.T) {
 			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
 			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			output := GetKonaWs(t, clRPC, "finalized_head", time.After(4*time.Minute))
+			wsRPC := WebsocketRPC(clRPC)
+
+			output := GetKonaWs(t, wsRPC, "finalized_head", time.After(4*time.Minute))
 
 			// We should check that we received at least 2 finalized blocks within 4 minutes!
 			require.Greater(t, len(output), 1, "we didn't receive enough finalized gossip blocks!")

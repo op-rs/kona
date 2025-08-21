@@ -51,7 +51,7 @@ type push[Out any] struct {
 	} `json:"params"`
 }
 
-func websocketRPC(clRPC string) string {
+func WebsocketRPC(clRPC string) string {
 	// Remove the leading http and replace it with ws.
 	return strings.Replace(clRPC, "http", "ws", 1)
 }

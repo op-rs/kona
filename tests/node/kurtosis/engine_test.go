@@ -33,6 +33,8 @@ func TestEngine(gt *testing.T) {
 			continue
 		}
 
+		wsRPC := WebsocketRPC(clRPC)
+
 		t.Log("node supports dev RPC, running engine test for", node.Escape().ID().Key())
 
 		wg.Add(1)
@@ -55,7 +57,7 @@ func TestEngine(gt *testing.T) {
 					done <- struct{}{}
 				}()
 
-				queue <- GetDevWS(t, clRPC, "engine_queue_size", done)
+				queue <- GetDevWS(t, wsRPC, "engine_queue_size", done)
 			}()
 
 			// Wait for 40 unsafe blocks to be produced.
