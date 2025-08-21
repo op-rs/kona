@@ -227,9 +227,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-evm"
-version = "0.14.0"
+version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef2d6e0448bfd057a4438226b3d2fd547a0530fa4226217dfb1682d09f108bd4"
+checksum = "ff4d88e267e4b599e944e1d32fbbfeaf4b8ea414e54da27306ede37c0798684d"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -341,9 +341,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-op-evm"
-version = "0.14.0"
+version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98354b9c3d50de701a63693d5b6a37e468a93b970b2224f934dd745c727ef998"
+checksum = "ead219a54943c27b0bb568401cbfa6afe04398b97a76fd33b29745d0c0f35b43"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -6631,12 +6631,11 @@ dependencies = [
 
 [[package]]
 name = "op-revm"
-version = "8.1.0"
+version = "9.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ce1dc7533f4e5716c55cd3d62488c6200cb4dfda96e0c75a7e484652464343b"
+checksum = "f6889cdfed74c6c924a54b2357982fce232e06473c6bb73b9a0c71a9151bfabd"
 dependencies = [
  "auto_impl",
- "once_cell",
  "revm",
  "serde",
 ]
@@ -7964,9 +7963,9 @@ dependencies = [
 
 [[package]]
 name = "revm"
-version = "27.1.0"
+version = "28.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e6bf82101a1ad8a2b637363a37aef27f88b4efc8a6e24c72bf5f64923dc5532"
+checksum = "ee5d3f7d031e90ab47c7488061bdc4875abc4e9dcea6c18f5dee09732d0436fb"
 dependencies = [
  "revm-bytecode",
  "revm-context",
@@ -7995,10 +7994,11 @@ dependencies = [
 
 [[package]]
 name = "revm-context"
-version = "8.0.4"
+version = "9.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cd508416a35a4d8a9feaf5ccd06ac6d6661cd31ee2dc0252f9f7316455d71f9"
+checksum = "5c63485b4d1b0e67f342f9a8c0e9f78b6b5f1750863a39bdf6ceabdbaaf4aed1"
 dependencies = [
+ "bitvec",
  "cfg-if",
  "derive-where",
  "revm-bytecode",
@@ -8011,9 +8011,9 @@ dependencies = [
 
 [[package]]
 name = "revm-context-interface"
-version = "9.0.0"
+version = "10.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc90302642d21c8f93e0876e201f3c5f7913c4fcb66fb465b0fd7b707dfe1c79"
+checksum = "550cb8b9465e00bdb0a384922b69f864c5bcc228bed19c8ecbfa69fff2256382"
 dependencies = [
  "alloy-eip2930",
  "alloy-eip7702",
@@ -8054,9 +8054,9 @@ dependencies = [
 
 [[package]]
 name = "revm-handler"
-version = "8.1.0"
+version = "9.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1529c8050e663be64010e80ec92bf480315d21b1f2dbf65540028653a621b27d"
+checksum = "7cb09d07e6799823ce5a344f1604236b53fe1a92bacd7122c0b16286f92254c2"
 dependencies = [
  "auto_impl",
  "derive-where",
@@ -8073,9 +8073,9 @@ dependencies = [
 
 [[package]]
 name = "revm-inspector"
-version = "8.1.0"
+version = "9.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f78db140e332489094ef314eaeb0bd1849d6d01172c113ab0eb6ea8ab9372926"
+checksum = "2770c0d7e9f4f23660dc0b8b954b7a1eee8989ec97f936ebce366c78b6d7b915"
 dependencies = [
  "auto_impl",
  "either",
@@ -8091,9 +8091,9 @@ dependencies = [
 
 [[package]]
 name = "revm-interpreter"
-version = "24.0.0"
+version = "25.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff9d7d9d71e8a33740b277b602165b6e3d25fff091ba3d7b5a8d373bf55f28a7"
+checksum = "b6c938c0d4d617c285203cad8aba1cefeec383fcff2fdf94a4469f588ab979b5"
 dependencies = [
  "revm-bytecode",
  "revm-context-interface",
@@ -8103,9 +8103,9 @@ dependencies = [
 
 [[package]]
 name = "revm-precompile"
-version = "25.0.0"
+version = "26.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cee3f336b83621294b4cfe84d817e3eef6f3d0fce00951973364cc7f860424d"
+checksum = "7f7bb5e8b92891c5ac9dd8dae157bd1d90aab01973ad4f99d4135d507facc3e7"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -8119,7 +8119,6 @@ dependencies = [
  "cfg-if",
  "k256",
  "libsecp256k1",
- "once_cell",
  "p256",
  "revm-primitives",
  "ripemd",
