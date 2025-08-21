@@ -1,18 +1,20 @@
 package node
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	kona_presets "github.com/op-rs/kona/node/presets"
 )
 
 // Ensure that kona-nodes reconnect to the sequencer and sync properly when the connection is dropped.
-func TestConnDropSync(gt *testing.T) {
+func TestRestartSync(gt *testing.T) {
 	t := devtest.SerialT(gt)
 
 	out := kona_presets.NewMixedOpKona(t)
@@ -26,21 +28,32 @@ func TestConnDropSync(gt *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, node := range nodes {
+		t.Logf("testing restarts for node %s", node.Escape().ID().Key())
 		wg.Add(1)
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
 			clName := node.Escape().ID().Key()
 
-			node.DisconnectPeer(&sequencer)
-
-			// Wait for 2 minutes
-			time.Sleep(2 * time.Minute)
+			t.Logf("stopping node %s", clName)
+			node.Stop()
 
 			// Ensure that the node is no longer connected to the sequencer
 			seqPeers := sequencer.Peers()
 			for _, peer := range seqPeers.Peers {
 				t.Require().NotEqual(peer.PeerID, node.PeerInfo().PeerID, "expected node %s to be disconnected from sequencer %s", clName, sequencer.Escape().ID().Key())
 			}
+
+			// Ensure that the node is stopped
+			// Check that calling any rpc method returns an error
+			rpc := GetNodeRPCEndpoint(node)
+			var out *eth.SyncStatus
+			err := rpc.CallContext(context.Background(), &out, "opp2p_syncStatus")
+			t.Require().Error(err, "expected node %s to be stopped", clName)
+
+			time.Sleep(2 * time.Minute)
+
+			t.Logf("starting node %s", clName)
+			node.Start()
 
 			node.ConnectPeer(&sequencer)
 
