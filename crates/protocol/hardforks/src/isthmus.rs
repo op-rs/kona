@@ -18,7 +18,7 @@ pub struct Isthmus;
 
 impl Isthmus {
     /// The depositor account address.
-    pub const DEPOSITOR_ACCOUNT: Address = address!("DeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001");
+    pub const DEPOSITOR_ACCOUNT: Address = address!("0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001");
 
     /// The Enable Isthmus Input Method 4Byte Signature.
     ///
@@ -26,10 +26,10 @@ impl Isthmus {
     pub const ENABLE_ISTHMUS_INPUT: [u8; 4] = hex!("291b0383");
 
     /// EIP-2935 From Address
-    pub const EIP2935_FROM: Address = address!("3462413Af4609098e1E27A490f554f260213D685");
+    pub const EIP2935_FROM: Address = address!("0x3462413Af4609098e1E27A490f554f260213D685");
 
     /// L1 Block Deployer Address
-    pub const L1_BLOCK_DEPLOYER: Address = address!("4210000000000000000000000000000000000003");
+    pub const L1_BLOCK_DEPLOYER: Address = address!("0x4210000000000000000000000000000000000003");
 
     /// The Gas Price Oracle Deployer Address
     pub const GAS_PRICE_ORACLE_DEPLOYER: Address =
@@ -47,7 +47,7 @@ impl Isthmus {
     /// The Gas Price Oracle Address
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
     /// with the Gas Price Oracle Deployer Address and nonce 0.
-    pub const GAS_PRICE_ORACLE: Address = address!("93e57a196454cb919193fa9946f14943cf733845");
+    pub const GAS_PRICE_ORACLE: Address = address!("0x93e57a196454cb919193fa9946f14943cf733845");
 
     /// The Operator Fee Vault Address
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
