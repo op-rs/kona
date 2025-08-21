@@ -650,6 +650,11 @@ mod tests {
 
     static CHAIN_ID: ChainId = 1;
 
+    #[tokio::test]
+    async fn test_online_runtime_loader() {
+        kona_cli::init_test_tracing();
+    }
+
     fn block_info(number: u64, parent_hash: B256, timestamp: u64) -> BlockInfo {
         BlockInfo { hash: B256::from([number as u8; 32]), number, parent_hash, timestamp }
     }

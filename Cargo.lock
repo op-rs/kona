@@ -5249,6 +5249,7 @@ dependencies = [
  "bytes",
  "derive_more",
  "eyre",
+ "kona-cli",
  "kona-interop",
  "kona-protocol",
  "kona-supervisor-metrics",
@@ -5263,6 +5264,7 @@ dependencies = [
  "tempfile",
  "test-fuzz",
  "thiserror 2.0.12",
+ "tokio",
  "tracing",
 ]
 
