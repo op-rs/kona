@@ -42,7 +42,7 @@ impl Isthmus {
     /// The new L1 Block Address
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
     /// with the L1 Block Deployer Address and nonce 0.
-    pub const NEW_L1_BLOCK: Address = address!("ff256497d61dcd71a9e9ff43967c13fde1f72d12");
+    pub const NEW_L1_BLOCK: Address = address!("0xff256497d61dcd71a9e9ff43967c13fde1f72d12");
 
     /// The Gas Price Oracle Address
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
@@ -52,7 +52,7 @@ impl Isthmus {
     /// The Operator Fee Vault Address
     /// This is computed by using go-ethereum's `crypto.CreateAddress` function,
     /// with the Operator Fee Vault Deployer Address and nonce 0.
-    pub const OPERATOR_FEE_VAULT: Address = address!("4fa2be8cd41504037f1838bce3bcc93bc68ff537");
+    pub const OPERATOR_FEE_VAULT: Address = address!("0x4fa2be8cd41504037f1838bce3bcc93bc68ff537");
 
     /// The Isthmus L1 Block Deployer Code Hash
     /// See: <https://specs.optimism.io/protocol/isthmus/derivation.html#l1block-deployment>
