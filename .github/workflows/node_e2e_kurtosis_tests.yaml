@@ -74,6 +74,9 @@ jobs:
       - name: kurtosis tests for node with ${{ matrix.devnet-config }} devnet
         run: just test-e2e-kurtosis "${{ matrix.devnet-config }}" node/kurtosis
 
+      - name: restart tests for node with ${{ matrix.devnet-config }} devnet
+        run: just test-e2e-kurtosis "${{ matrix.devnet-config }}" node/restart
+
       - # Temp fix
         # https://github.com/docker/build-push-action/issues/252
         # https://github.com/moby/buildkit/issues/1896
