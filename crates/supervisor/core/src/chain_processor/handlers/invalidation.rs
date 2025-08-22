@@ -1,6 +1,7 @@
 use super::EventHandler;
 use crate::{
     ChainProcessorError, LogIndexer, ProcessorState,
+    chain_processor::metrics::Metrics,
     syncnode::{BlockProvider, ManagedNodeCommand},
 };
 use alloy_primitives::ChainId;
@@ -8,6 +9,7 @@ use async_trait::async_trait;
 use derive_more::Constructor;
 use kona_interop::{BlockReplacement, DerivedRefPair};
 use kona_protocol::BlockInfo;
+use kona_supervisor_metrics::observe_metrics_for_result_async;
 use kona_supervisor_storage::{DerivationStorage, LogStorage, StorageRewinder};
 use kona_supervisor_types::BlockSeal;
 use std::sync::Arc;
@@ -29,6 +31,28 @@ where
     W: DerivationStorage + StorageRewinder + Send + Sync + 'static,
 {
     async fn handle(
+        &self,
+        block: BlockInfo,
+        state: &mut ProcessorState,
+    ) -> Result<(), ChainProcessorError> {
+        observe_metrics_for_result_async!(
+            Metrics::BLOCK_INVALIDATION_SUCCESS_TOTAL,
+            Metrics::BLOCK_INVALIDATION_ERROR_TOTAL,
+            Metrics::BLOCK_INVALIDATION_LATENCY_SECONDS,
+            "invalidate_block",
+            async {
+                self.inner_handle(block, state).await
+            },
+            "chain_id" => self.chain_id.to_string()
+        )
+    }
+}
+
+impl<W> InvalidationHandler<W>
+where
+    W: DerivationStorage + StorageRewinder + Send + Sync + 'static,
+{
+    async fn inner_handle(
         &self,
         block: BlockInfo,
         state: &mut ProcessorState,
@@ -110,6 +134,29 @@ where
         replacement: BlockReplacement,
         state: &mut ProcessorState,
     ) -> Result<(), ChainProcessorError> {
+        observe_metrics_for_result_async!(
+            Metrics::BLOCK_REPLACEMENT_SUCCESS_TOTAL,
+            Metrics::BLOCK_REPLACEMENT_ERROR_TOTAL,
+            Metrics::BLOCK_REPLACEMENT_LATENCY_SECONDS,
+            "replace_block",
+            async {
+                self.inner_handle(replacement, state).await
+            },
+            "chain_id" => self.chain_id.to_string()
+        )
+    }
+}
+
+impl<P, W> ReplacementHandler<P, W>
+where
+    P: BlockProvider + 'static,
+    W: LogStorage + DerivationStorage + 'static,
+{
+    async fn inner_handle(
+        &self,
+        replacement: BlockReplacement,
+        state: &mut ProcessorState,
+    ) -> Result<(), ChainProcessorError> {
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
@@ -150,13 +197,7 @@ where
         state.clear_invalidated();
         Ok(())
     }
-}
 
-impl<P, W> ReplacementHandler<P, W>
-where
-    P: BlockProvider + 'static,
-    W: LogStorage + DerivationStorage + 'static,
-{
     async fn retry_with_resync_derived_block(
         &self,
         derived_ref_pair: DerivedRefPair,
