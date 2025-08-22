@@ -5010,10 +5010,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kona-rollup"
-version = "1.0.0-rc.1"
-
-[[package]]
 name = "kona-rpc"
 version = "0.3.2"
 dependencies = [
@@ -8274,6 +8270,10 @@ checksum = "8395b4f860856b740f20a296ea2cd4d823e81a2658cf05ef61be22916026a906"
 dependencies = [
  "chrono",
 ]
+
+[[package]]
+name = "rollup"
+version = "0.0.0"
 
 [[package]]
 name = "route-recognizer"
