@@ -5010,6 +5010,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kona-rollup"
+version = "1.0.0-rc.1"
+
+[[package]]
 name = "kona-rpc"
 version = "0.3.2"
 dependencies = [

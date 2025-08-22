@@ -1,0 +1,17 @@
+[package]
+name = "kona-rollup"
+version = "1.0.0-rc.1"
+description = "Kona Rollup"
+
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
