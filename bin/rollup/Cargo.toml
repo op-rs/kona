@@ -1,6 +1,6 @@
 [package]
 name = "kona-rollup"
-version = "1.0.0-rc.1"
+version = "0.0.0"
 description = "Kona Rollup"
 
 edition.workspace = true
