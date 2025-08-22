@@ -28,7 +28,7 @@ func TestL2TransactionInclusion(gt *testing.T) {
 
 	// Ensure the block containing the transaction has propagated to the rest of the network.
 	for _, node := range out.L2ELNodes() {
-		block := node.WaitForBlockNumber(inclusionBlock.Number)
+		block := node.WaitForBlockNumber(inclusionBlock.Number + 1)
 		blockID := block.ID()
 
 		// It's possible that the block has already been included, and `WaitForBlockNumber` returns a block
