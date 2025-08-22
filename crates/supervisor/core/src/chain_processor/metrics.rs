@@ -202,11 +202,10 @@ impl Metrics {
     pub(crate) fn record_block_processing(
         chain_id: ChainId,
         block_type: &'static str,
-        block: BlockInfo,
-        result: &Result<(), ChainProcessorError>,
+        result: &Result<BlockInfo, ChainProcessorError>,
     ) {
         match result {
-            Ok(_) => {
+            Ok(block) => {
                 metrics::counter!(
                     Self::BLOCK_PROCESSING_SUCCESS_TOTAL,
                     "type" => block_type,

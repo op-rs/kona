@@ -33,7 +33,7 @@ where
         &self,
         block: BlockInfo,
         state: &mut ProcessorState,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
@@ -48,16 +48,11 @@ where
                 block_number = block.number,
                 "Invalidated block already set, skipping unsafe event processing"
             );
-            return Ok(());
+            return Ok(block);
         }
 
         let result = self.inner_handle(block).await;
-        Metrics::record_block_processing(
-            self.chain_id,
-            Metrics::BLOCK_TYPE_LOCAL_UNSAFE,
-            block,
-            &result,
-        );
+        Metrics::record_block_processing(self.chain_id, Metrics::BLOCK_TYPE_LOCAL_UNSAFE, &result);
 
         result
     }
@@ -69,10 +64,10 @@ where
     V: InteropValidator + 'static,
     W: LogStorage + 'static,
 {
-    async fn inner_handle(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
+    async fn inner_handle(&self, block: BlockInfo) -> Result<BlockInfo, ChainProcessorError> {
         if self.validator.is_post_interop(self.chain_id, block.timestamp) {
             self.log_indexer.clone().sync_logs(block);
-            return Ok(());
+            return Ok(block);
         }
 
         if self.validator.is_interop_activation_block(self.chain_id, block) {
@@ -92,10 +87,10 @@ where
                     "Failed to initialise log storage for interop activation block"
                 );
             })?;
-            return Ok(());
+            return Ok(block);
         }
 
-        Ok(())
+        Ok(block)
     }
 }
 
