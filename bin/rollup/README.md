@@ -1,3 +1,3 @@
-# kona-rollup
+# rollup
 
 Coming soon.

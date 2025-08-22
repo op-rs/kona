@@ -1,7 +1,7 @@
 [package]
-name = "kona-rollup"
+name = "rollup"
 version = "0.0.0"
-description = "Kona Rollup"
+description = "rollup"
 
 edition.workspace = true
 authors.workspace = true

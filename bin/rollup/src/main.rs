@@ -1,4 +1,4 @@
-//! Kona Rollup Binary.
+//! Kona's Rollup Binary.
 
 #![doc(issue_tracker_base_url = "https://github.com/op-rs/kona/issues/")]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
