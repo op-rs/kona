@@ -42,6 +42,6 @@ jobs:
       - name: common tests for node with sysgo orchestrator
         run: just test-e2e-sysgo node/common
 
-      - name: sysgo specific tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node/sysgo
+      - name: restart tests for node with sysgo orchestrator
+        run: just test-e2e-sysgo node/restart
 

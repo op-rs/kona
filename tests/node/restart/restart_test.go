@@ -1,4 +1,4 @@
-package node
+package node_restart
 
 import (
 	"context"
@@ -10,14 +10,14 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 )
 
 // Ensure that kona-nodes reconnect to the sequencer and sync properly when the connection is dropped.
 func TestRestartSync(gt *testing.T) {
 	t := devtest.SerialT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLKonaValidatorNodes
 	sequencerNodes := out.L2CLSequencerNodes()
@@ -45,7 +45,7 @@ func TestRestartSync(gt *testing.T) {
 
 			// Ensure that the node is stopped
 			// Check that calling any rpc method returns an error
-			rpc := GetNodeRPCEndpoint(node)
+			rpc := node_utils.GetNodeRPCEndpoint(node)
 			var out *eth.SyncStatus
 			err := rpc.CallContext(context.Background(), &out, "opp2p_syncStatus")
 			t.Require().Error(err, "expected node %s to be stopped", clName)
