@@ -7,6 +7,7 @@
 #![deny(rust_2018_idioms)]
 
 /// Main entry point for the rollup binary.
+#[allow(clippy::missing_const_for_fn)]
 fn main() {
     // TODO: Implementation coming soon
 }
