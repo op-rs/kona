@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,7 +59,7 @@ func GetCPUStats(t devtest.T, ctx context.Context, serviceName string) {
 // Run this test only in kurtosis.
 func TestKurtosisCPUMonitor(gt *testing.T) {
 	t := devtest.ParallelT(gt)
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 

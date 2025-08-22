@@ -1,4 +1,4 @@
-package node
+package node_restart
 
 import (
 	"sync"
@@ -8,14 +8,14 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 )
 
 // Ensure that kona-nodes reconnect to the sequencer and sync properly when the connection is dropped.
 func TestConnDropSync(gt *testing.T) {
 	t := devtest.SerialT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLKonaValidatorNodes
 	sequencerNodes := out.L2CLSequencerNodes()

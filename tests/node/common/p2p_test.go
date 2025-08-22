@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/apis"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	"github.com/libp2p/go-libp2p/core/peer"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,7 +58,7 @@ func arePeers(t devtest.T, node *dsl.L2CLNode, otherNodeId peer.ID) {
 func TestP2PMinimal(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLNodes()
 	firstNode := nodes[0]
@@ -83,7 +83,7 @@ func TestP2PMinimal(gt *testing.T) {
 func TestP2PProtocols(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLNodes()
 
@@ -97,7 +97,7 @@ func TestP2PProtocols(gt *testing.T) {
 func TestP2PChainID(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLKonaNodes()
 	chainID := nodes[0].PeerInfo().ChainID
@@ -120,7 +120,7 @@ func TestP2PChainID(gt *testing.T) {
 func TestNetworkConnectivity(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLNodes()
 	numNodes := len(nodes)

@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-node/rollup"
 	"github.com/ethereum-optimism/optimism/op-service/apis"
 	"github.com/ethereum/go-ethereum/common"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +17,7 @@ import (
 func TestP2PPeers(gt *testing.T) {
 	t := devtest.SerialT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	p2pPeersAndPeerStats(t, out)
 
@@ -27,19 +27,19 @@ func TestP2PPeers(gt *testing.T) {
 }
 
 // Ensure that the `opp2p_peers` and `opp2p_self` RPC endpoints return the same information.
-func p2pSelfAndPeers(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
+func p2pSelfAndPeers(t devtest.T, out *node_utils.MixedOpKonaPreset) {
 	nodes := out.L2CLKonaNodes()
 	var wg sync.WaitGroup
 	for _, node := range nodes {
 		wg.Add(1)
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
-			clRPC := GetNodeRPCEndpoint(node)
+			clRPC := node_utils.GetNodeRPCEndpoint(node)
 			clName := node.Escape().ID().Key()
 
 			// Gather the peers for the node.
 			peers := &apis.PeerDump{}
-			require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
+			require.NoError(t, node_utils.SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
 
 			// Check that every peer's info matches the node's info.
 			for _, peer := range peers.Peers {
@@ -48,9 +48,9 @@ func p2pSelfAndPeers(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
 				for _, node := range nodes {
 					// We get the peer's info.
 					otherPeerInfo := &apis.PeerInfo{}
-					otherCLRPC := GetNodeRPCEndpoint(&node)
+					otherCLRPC := node_utils.GetNodeRPCEndpoint(&node)
 					otherCLName := node.Escape().ID().Key()
-					require.NoError(t, SendRPCRequest(otherCLRPC, "opp2p_self", otherPeerInfo), "failed to send RPC request to node %s: %s", clName)
+					require.NoError(t, node_utils.SendRPCRequest(otherCLRPC, "opp2p_self", otherPeerInfo), "failed to send RPC request to node %s: %s", clName)
 
 					// These checks fail for the op-node. It seems that their p2p handler is flaky and doesn't always return the correct peer info.
 					if otherPeerInfo.PeerID == peer.PeerID {
@@ -85,21 +85,21 @@ func p2pSelfAndPeers(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
 }
 
 // Check that the `opp2p_peers` and `opp2p_peerStats` RPC endpoints return coherent information.
-func p2pPeersAndPeerStats(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
+func p2pPeersAndPeerStats(t devtest.T, out *node_utils.MixedOpKonaPreset) {
 	nodes := out.L2CLNodes()
 	var wg sync.WaitGroup
 	for _, node := range nodes {
 		wg.Add(1)
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
-			clRPC := GetNodeRPCEndpoint(node)
+			clRPC := node_utils.GetNodeRPCEndpoint(node)
 			clName := node.Escape().ID().Key()
 
 			peers := &apis.PeerDump{}
-			require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
+			require.NoError(t, node_utils.SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
 
 			peerStats := &apis.PeerStats{}
-			require.NoError(t, SendRPCRequest(clRPC, "opp2p_peerStats", peerStats), "failed to send RPC request to node %s: %s", clName)
+			require.NoError(t, node_utils.SendRPCRequest(clRPC, "opp2p_peerStats", peerStats), "failed to send RPC request to node %s: %s", clName)
 
 			require.Equal(t, peers.TotalConnected, peerStats.Connected, "totalConnected mismatch node %s", clName)
 			require.Equal(t, len(peers.Peers), int(peers.TotalConnected), "peer count mismatch node %s", clName)
@@ -108,14 +108,14 @@ func p2pPeersAndPeerStats(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
 	wg.Wait()
 }
 
-func p2pBanPeer(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
+func p2pBanPeer(t devtest.T, out *node_utils.MixedOpKonaPreset) {
 	nodes := out.L2CLNodes()
 	for _, node := range nodes {
-		clRPC := GetNodeRPCEndpoint(&node)
+		clRPC := node_utils.GetNodeRPCEndpoint(&node)
 		clName := node.Escape().ID().Key()
 
 		peers := &apis.PeerDump{}
-		require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
+		require.NoError(t, node_utils.SendRPCRequest(clRPC, "opp2p_peers", peers, true), "failed to send RPC request to node %s: %s", clName)
 
 		connectedPeers := peers.TotalConnected
 
@@ -129,11 +129,11 @@ func p2pBanPeer(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
 
 		require.NotEmpty(t, peerToBan, "no connected peer found")
 
-		require.NoError(t, SendRPCRequest[any](clRPC, "opp2p_blockPeer", nil, peerToBan), "failed to send RPC request to node %s: %s", clName)
+		require.NoError(t, node_utils.SendRPCRequest[any](clRPC, "opp2p_blockPeer", nil, peerToBan), "failed to send RPC request to node %s: %s", clName)
 
 		// Check that the peer is banned.
 		peersAfterBan := &apis.PeerDump{}
-		require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peersAfterBan, true), "failed to send RPC request to node %s: %s", clName)
+		require.NoError(t, node_utils.SendRPCRequest(clRPC, "opp2p_peers", peersAfterBan, true), "failed to send RPC request to node %s: %s", clName)
 
 		require.Equal(t, connectedPeers, peersAfterBan.TotalConnected, "totalConnected mismatch node %s", clName)
 
@@ -149,11 +149,11 @@ func p2pBanPeer(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
 		require.True(t, contains, "peer %s not banned", peerToBan)
 
 		// Try to unban the peer.
-		require.NoError(t, SendRPCRequest[any](clRPC, "opp2p_unblockPeer", nil, peerToBan), "failed to send RPC request to node %s: %s", clName)
+		require.NoError(t, node_utils.SendRPCRequest[any](clRPC, "opp2p_unblockPeer", nil, peerToBan), "failed to send RPC request to node %s: %s", clName)
 
 		// Check that the peer is unbanned.
 		peersAfterUnban := &apis.PeerDump{}
-		require.NoError(t, SendRPCRequest(clRPC, "opp2p_peers", peersAfterUnban, true), "failed to send RPC request to node %s: %s", clName)
+		require.NoError(t, node_utils.SendRPCRequest(clRPC, "opp2p_peers", peersAfterUnban, true), "failed to send RPC request to node %s: %s", clName)
 
 		require.Equal(t, connectedPeers, peersAfterUnban.TotalConnected, "totalConnected mismatch node %s", clName)
 		require.NotContains(t, peersAfterUnban.BannedPeers, peerToBan, "peer %s is banned", peerToBan)
@@ -161,11 +161,11 @@ func p2pBanPeer(t devtest.T, out *kona_presets.MixedOpKonaPreset) {
 }
 
 func rollupConfig(t devtest.T, node *dsl.L2CLNode) *rollup.Config {
-	clRPC := GetNodeRPCEndpoint(node)
+	clRPC := node_utils.GetNodeRPCEndpoint(node)
 	clName := node.Escape().ID().Key()
 
 	rollupConfig := &rollup.Config{}
-	require.NoError(t, SendRPCRequest(clRPC, "optimism_rollupConfig", rollupConfig), "failed to send RPC request to node %s: %s", clName)
+	require.NoError(t, node_utils.SendRPCRequest(clRPC, "optimism_rollupConfig", rollupConfig), "failed to send RPC request to node %s: %s", clName)
 
 	return rollupConfig
 }
@@ -181,7 +181,7 @@ func rollupConfigMatches(t devtest.T, configA *rollup.Config, configB *rollup.Co
 func TestRollupConfig(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	rollupConfigs := make([]*rollup.Config, 0)
 
