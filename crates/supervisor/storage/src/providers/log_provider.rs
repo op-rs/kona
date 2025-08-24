@@ -66,9 +66,7 @@ where
 
         let latest_block = match self.get_latest_block() {
             Ok(block) => block,
-            Err(StorageError::EntryNotFound(_)) => {
-                return Err(StorageError::DatabaseNotInitialised)
-            }
+            Err(StorageError::EntryNotFound(_)) => return Err(StorageError::DatabaseNotInitialised),
             Err(e) => return Err(e),
         };
 
@@ -411,8 +409,8 @@ mod tests {
     use kona_protocol::BlockInfo;
     use kona_supervisor_types::{ExecutingMessage, Log};
     use reth_db::{
-        mdbx::{init_db_for, DatabaseArguments},
         DatabaseEnv,
+        mdbx::{DatabaseArguments, init_db_for},
     };
     use reth_db_api::Database;
     use tempfile::TempDir;
@@ -611,12 +609,10 @@ mod tests {
         let genesis = genesis_block();
         initialize_db(&db, &genesis).expect("Failed to initialize DB with genesis block");
 
-        assert!(insert_block_logs(
-            &db,
-            &sample_block_info(1, genesis.hash),
-            vec![sample_log(0, true)]
-        )
-        .is_ok());
+        assert!(
+            insert_block_logs(&db, &sample_block_info(1, genesis.hash), vec![sample_log(0, true)])
+                .is_ok()
+        );
 
         let result = log_reader.get_block(2);
         assert!(matches!(result, Err(StorageError::EntryNotFound(_))));
