@@ -5245,9 +5245,8 @@ dependencies = [
  "serde",
  "tempfile",
  "test-fuzz",
- "thiserror 2.0.12",
- "tokio",
  "thiserror 2.0.16",
+ "tokio",
  "tracing",
 ]
 
