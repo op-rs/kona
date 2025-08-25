@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/stack"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/log"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +27,7 @@ func TestConductorLeadershipTransfer(gt *testing.T) {
 	t := devtest.SerialT(gt)
 	logger := testlog.Logger(t, log.LevelInfo).With("Test", "TestConductorLeadershipTransfer")
 
-	sys := kona_presets.NewMixedOpKonaWithConductors(t)
+	sys := node_utils.NewMixedOpKonaWithConductors(t)
 	tracer := t.Tracer()
 	ctx := t.Ctx()
 	logger.Info("Started Conductor Leadership Transfer test")

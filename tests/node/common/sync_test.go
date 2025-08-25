@@ -8,14 +8,14 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 )
 
 // Check that all the nodes in the network are synced to the local safe block and can catch up to the sequencer node.
 func TestL2SafeSync(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLNodes()
 
@@ -33,7 +33,7 @@ func TestL2SafeSync(gt *testing.T) {
 func TestL2UnsafeSync(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLNodes()
 
@@ -52,7 +52,7 @@ func TestL2FinalizedSync(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 	t.Skip("Skipping finalized sync test")
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLNodes()
 
@@ -66,7 +66,7 @@ func TestL2FinalizedSync(gt *testing.T) {
 }
 
 func isSequencer(node *dsl.L2CLNode) bool {
-	return strings.Contains(node.Escape().ID().Key(), string(kona_presets.Sequencer))
+	return strings.Contains(node.Escape().ID().Key(), string(node_utils.Sequencer))
 }
 
 func filterSequencer(nodes []dsl.L2CLNode) []dsl.L2CLNode {
@@ -82,7 +82,7 @@ func filterSequencer(nodes []dsl.L2CLNode) []dsl.L2CLNode {
 func TestSyncWithSequencer(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	nodes := out.L2CLValidatorNodes()
 

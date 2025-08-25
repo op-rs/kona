@@ -30,7 +30,7 @@ jobs:
 
       - uses: taiki-e/install-action@just
 
-      - uses: jdx/mise-action@v2       # installs Mise + runs `mise install`
+      - uses: jdx/mise-action@v3       # installs Mise + runs `mise install`
 
       - name: Setup Go 1.24.3
         uses: actions/setup-go@v5
@@ -42,6 +42,6 @@ jobs:
       - name: common tests for node with sysgo orchestrator
         run: just test-e2e-sysgo node/common
 
-      - name: sysgo specific tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node/sysgo
+      - name: restart tests for node with sysgo orchestrator
+        run: just test-e2e-sysgo node/restart
 

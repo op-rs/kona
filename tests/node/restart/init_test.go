@@ -1,4 +1,4 @@
-package node_kurtosis
+package node_restart
 
 import (
 	"testing"

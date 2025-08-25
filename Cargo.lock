@@ -8272,6 +8272,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "rollup"
+version = "0.0.0"
+
+[[package]]
 name = "route-recognizer"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
