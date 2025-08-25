@@ -61,7 +61,9 @@ test-e2e-sysgo GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
     export DEVSTACK_ORCHESTRATOR=sysgo
 
     cd {{SOURCE}}/.. && just build-node
-    cd {{SOURCE}} && go test -timeout 40m -v ./$GO_PKG_NAME $FILTER
+
+    # Run the test with count=1 to avoid caching the test results.
+    cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER
 
 test-e2e-kurtosis DEVNET GO_PKG_NAME="" FILTER="" DEVNET_CUSTOM_PATH="" :
     #!/bin/bash
@@ -85,13 +87,14 @@ test-e2e-kurtosis DEVNET GO_PKG_NAME="" FILTER="" DEVNET_CUSTOM_PATH="" :
     export DISABLE_OP_E2E_LEGACY=true
     export DEVSTACK_ORCHESTRATOR=sysext
 
-    cd {{SOURCE}} && go test -timeout 40m -v ./$GO_PKG_NAME {{FILTER}}
+    # Run the test with count=1 to avoid caching the test results.
+    cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER 
 
-build-deploy-devnet DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (devnet DEVNET OP_PACKAGE_PATH)
+build-deploy-devnet BINARY DEVNET OP_PACKAGE_PATH="": (build-devnet BINARY) (devnet DEVNET OP_PACKAGE_PATH)
   
-deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (devnet DEVNET OP_PACKAGE_PATH) (test-e2e-kurtosis DEVNET BINARY)
+deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME OP_PACKAGE_PATH="": (devnet DEVNET OP_PACKAGE_PATH) (test-e2e-kurtosis DEVNET GO_PKG_NAME)
 
-build-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET BINARY OP_PACKAGE_PATH)
+build-devnet-and-test-e2e BINARY DEVNET GO_PKG_NAME OP_PACKAGE_PATH="": (build-devnet BINARY) (deploy-devnet-and-test-e2e DEVNET GO_PKG_NAME OP_PACKAGE_PATH)
 
 # Updates the devnet with the latest local changes. This is useful to
 # rapidly iterate on the devnet without having to redeploy the whole kurtosis network.
@@ -115,4 +118,4 @@ update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
 unzip-contract-artifacts:
     #!/bin/bash
     mkdir -p {{SOURCE}}/artifacts/src
-    cd {{SOURCE}}/artifacts && tar -xzf compressed/artifacts.tgz -C src
+    tar -xzf {{SOURCE}}/artifacts/compressed/artifacts.tgz -C {{SOURCE}}/artifacts/src

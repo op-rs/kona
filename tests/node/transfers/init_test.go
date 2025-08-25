@@ -1,4 +1,4 @@
-package node_sysgo
+package node_transfers
 
 import (
 	"testing"
