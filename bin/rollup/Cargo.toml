@@ -1,0 +1,17 @@
+[package]
+name = "rollup"
+version = "0.0.0"
+description = "rollup"
+
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]

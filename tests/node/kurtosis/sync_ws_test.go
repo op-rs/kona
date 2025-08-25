@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	kona_presets "github.com/op-rs/kona/node/presets"
+	node_utils "github.com/op-rs/kona/node/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +25,7 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 
@@ -78,7 +78,7 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 func TestSyncUnsafe(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 
@@ -134,7 +134,7 @@ func TestSyncUnsafe(gt *testing.T) {
 func TestSyncSafe(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 
@@ -190,7 +190,7 @@ func TestSyncSafe(gt *testing.T) {
 func TestSyncFinalized(gt *testing.T) {
 	t := devtest.ParallelT(gt)
 
-	out := kona_presets.NewMixedOpKona(t)
+	out := node_utils.NewMixedOpKona(t)
 
 	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
 
