@@ -261,10 +261,42 @@ impl OpP2PApiServer for P2pRpc {
                 return Err(ErrorObject::from(ErrorCode::InvalidParams));
             }
         };
+
         self.sender
             .send(P2pRpcRequest::DisconnectPeer { peer_id })
             .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+        // We need to wait until both peers are fully disconnected to each other to return from this
+        // method. We try with an exponential backoff and return an error if we fail to
+        // connect to the peer.
+        let is_not_connected = async || {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+
+            self.sender
+                .send(P2pRpcRequest::Peers { out: tx, connected: true })
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+            let peers = rx.await.map_err(|_| {
+                ErrorObject::borrowed(ErrorCode::InternalError.code(), "Failed to get peers", None)
+            })?;
+
+            Ok::<bool, ErrorObject<'_>>(!peers.peers.contains_key(&peer_id.to_string()))
+        };
+
+        if !is_not_connected
+            .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(10))))
+            .await?
+        {
+            return Err(ErrorObject::borrowed(
+                ErrorCode::InvalidParams.code(),
+                "Peers are still connected",
+                None,
+            ));
+        }
+
+        Ok(())
     }
 }
 
