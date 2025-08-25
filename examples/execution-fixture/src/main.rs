@@ -18,7 +18,7 @@
 
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use kona_cli::{LogConfig, log::LogArgs};
+use kona_cli::{LogArgs, LogConfig};
 use kona_executor::test_utils::ExecutorTestFixtureCreator;
 use std::path::PathBuf;
 use tracing::info;

@@ -15,3 +15,18 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+# Workspace
+kona-genesis.workspace = true
+
+kona-cli = { workspace = true, features = ["secrets"] }
+
+# General
+anyhow = { workspace = true, default-features = false }
+clap = { workspace = true, features = ["derive", "env"] }
+
+[dev-dependencies]
+rstest.workspace = true
+
+[build-dependencies]
+vergen = { workspace = true, features = ["build", "cargo", "emit_and_set"] }
+vergen-git2.workspace = true

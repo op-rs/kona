@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use kona_cli::{LogConfig, cli_styles, log::LogArgs};
+use kona_cli::{LogArgs, LogConfig, cli_styles};
 use serde::Serialize;
 use tracing::info;
 use tracing_subscriber::EnvFilter;

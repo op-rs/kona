@@ -4301,13 +4301,17 @@ dependencies = [
 name = "kona-cli"
 version = "0.3.2"
 dependencies = [
+ "alloy-chains",
  "alloy-primitives",
  "anyhow",
  "clap",
+ "kona-genesis",
+ "kona-registry",
  "libc",
  "libp2p",
  "metrics-exporter-prometheus",
  "metrics-process",
+ "rstest",
  "serde",
  "thiserror 2.0.16",
  "tracing",
@@ -8274,6 +8278,15 @@ dependencies = [
 [[package]]
 name = "rollup"
 version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "kona-cli",
+ "kona-genesis",
+ "rstest",
+ "vergen",
+ "vergen-git2",
+]
 
 [[package]]
 name = "route-recognizer"

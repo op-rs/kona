@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use clap::Parser;
-    use kona_cli::metrics_args::MetricsArgs;
+    use kona_cli::MetricsArgs;
     use std::net::{IpAddr, Ipv4Addr};
 
     // Helper struct to parse MetricsArgs within a test CLI structure

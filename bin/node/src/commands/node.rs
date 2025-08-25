@@ -8,7 +8,7 @@ use alloy_rpc_types_engine::JwtSecret;
 use anyhow::{Result, bail};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use kona_cli::{LogConfig, metrics_args::MetricsArgs};
+use kona_cli::{LogConfig, MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_node_service::{NodeMode, RollupNode, RollupNodeService};
 use kona_registry::scr_rollup_config_by_alloy_ident;

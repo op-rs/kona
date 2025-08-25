@@ -3,7 +3,7 @@
 use crate::flags::SupervisorArgs;
 use anyhow::Result;
 use clap::Parser;
-use kona_cli::{LogConfig, cli_styles, log::LogArgs, metrics_args::MetricsArgs};
+use kona_cli::{LogArgs, LogConfig, MetricsArgs, cli_styles};
 use kona_supervisor_service::Service;
 use tracing::{error, info};
 

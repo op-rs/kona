@@ -5,6 +5,12 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
+mod flags;
+pub use flags::{GlobalArgs, LogArgs, MetricsArgs, OverrideArgs};
+
+mod logs;
+pub use logs::{FileLogConfig, LogConfig, LogRotation, StdoutLogConfig};
+
 mod clap;
 pub use clap::cli_styles;
 
@@ -15,9 +21,6 @@ pub use secrets::{KeypairError, ParseKeyError, SecretKeyLoader};
 
 pub mod backtrace;
 
-pub mod log;
-pub use log::LogConfig;
-
 mod tracing;
 pub use tracing::{LogFormat, init_test_tracing};
 
@@ -25,5 +28,3 @@ mod prometheus;
 pub use prometheus::init_prometheus_server;
 
 pub mod sigsegv_handler;
-
-pub mod metrics_args;
