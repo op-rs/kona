@@ -614,7 +614,7 @@ mod tests {
     async fn test_handle_exhaust_l1_calls_provide_l1_on_parent_hash_mismatch() {
         let mut client = MockClient::new();
         client.expect_chain_id().times(1).returning(|| Ok(ChainId::from(42u64)));
-        client.expect_provide_l1().times(1); // Should be called
+        client.expect_provide_l1().times(1).returning(|_| Ok(())); // Should be called
 
         let client = Arc::new(client);
         let db = Arc::new(MockDb::new());
