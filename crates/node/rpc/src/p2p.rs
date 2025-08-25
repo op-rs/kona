@@ -269,7 +269,7 @@ impl OpP2PApiServer for P2pRpc {
 
         // We need to wait until both peers are fully disconnected to each other to return from this
         // method. We try with an exponential backoff and return an error if we fail to
-        // connect to the peer.
+        // disconnect from the peer.
         let is_not_connected = async || {
             let (tx, rx) = tokio::sync::oneshot::channel();
 
