@@ -524,7 +524,7 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, Some(managed_node.clone()), writer.clone()));
 
         let handler = ReplacementHandler::new(
             1, // chain_id
@@ -551,7 +551,7 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, Some(managed_node.clone()), writer.clone()));
 
         state.set_invalidated(DerivedRefPair {
             source: invalidated_block,
@@ -593,7 +593,7 @@ mod tests {
         let writer = Arc::new(mockdb);
         let managed_node = Arc::new(mocknode);
         // Create a mock log indexer
-        let log_indexer = Arc::new(LogIndexer::new(1, managed_node.clone(), writer.clone()));
+        let log_indexer = Arc::new(LogIndexer::new(1, Some(managed_node.clone()), writer.clone()));
 
         state.set_invalidated(DerivedRefPair { source: source_block, derived: invalidated_block });
 

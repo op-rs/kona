@@ -2,10 +2,10 @@
 
 #[cfg(feature = "jsonrpsee")]
 pub mod jsonrpsee;
-#[cfg(feature = "jsonrpsee")]
-pub use jsonrpsee::SupervisorApiServer;
 #[cfg(all(feature = "jsonrpsee", feature = "client"))]
-pub use jsonrpsee::{ManagedModeApiClient, SupervisorApiClient};
+pub use jsonrpsee::{ManagedModeApiClient, SupervisorAdminApiClient, SupervisorApiClient};
+#[cfg(feature = "jsonrpsee")]
+pub use jsonrpsee::{SupervisorAdminApiServer, SupervisorApiServer};
 
 #[cfg(feature = "server")]
 pub mod config;

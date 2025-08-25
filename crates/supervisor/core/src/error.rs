@@ -24,6 +24,10 @@ pub enum SupervisorError {
     #[error("interop not enabled")]
     InteropNotEnabled,
 
+    /// Unsupported chain ID.
+    #[error("unsupported chain ID")]
+    UnsupportedChainId,
+
     /// Data availability errors.
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
@@ -130,6 +134,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
             SupervisorError::InteropNotEnabled |
+            SupervisorError::UnsupportedChainId |
             SupervisorError::L1BlockMismatch { .. } |
             SupervisorError::ManagedNodeMissing(_) |
             SupervisorError::ManagedNodeError(_) |

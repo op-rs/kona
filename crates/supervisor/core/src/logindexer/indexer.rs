@@ -19,7 +19,7 @@ pub struct LogIndexer<P, S> {
     /// The chain ID of the rollup.
     chain_id: ChainId,
     /// Component that provides receipts for a given block hash.
-    block_provider: Arc<P>,
+    block_provider: Mutex<Option<Arc<P>>>,
     /// Component that persists parsed log entries to storage.
     log_storage: Arc<S>,
     /// Protects concurrent catch-up
@@ -37,8 +37,19 @@ where
     /// - `block_provider`: Shared reference to a component capable of fetching block ref and
     ///   receipts.
     /// - `log_storage`: Shared reference to the storage layer for persisting parsed logs.
-    pub fn new(chain_id: ChainId, block_provider: Arc<P>, log_storage: Arc<S>) -> Self {
-        Self { chain_id, block_provider, log_storage, is_catch_up_running: Mutex::new(false) }
+    pub fn new(chain_id: ChainId, block_provider: Option<Arc<P>>, log_storage: Arc<S>) -> Self {
+        Self {
+            chain_id,
+            block_provider: Mutex::new(block_provider),
+            log_storage,
+            is_catch_up_running: Mutex::new(false),
+        }
+    }
+
+    /// Sets the block provider
+    pub async fn set_block_provider(&self, block_provider: Arc<P>) {
+        let mut guard = self.block_provider.lock().await;
+        *guard = Some(block_provider);
     }
 
     /// Asynchronously initiates a background task to catch up and index logs
@@ -80,7 +91,12 @@ where
         let mut current_number = self.log_storage.get_latest_block()?.number + 1;
 
         while current_number < block.number {
-            let current_block = self.block_provider.block_by_number(current_number).await?;
+            let provider = {
+                let guard = self.block_provider.lock().await;
+                guard.as_ref().ok_or(LogIndexerError::NoBlockProvider)?.clone()
+            };
+
+            let current_block = provider.block_by_number(current_number).await?;
             self.process_and_store_logs(&current_block).await?;
             current_number += 1;
         }
@@ -101,7 +117,12 @@ where
     /// # Arguments
     /// - `block`: Metadata about the block being processed.
     pub async fn process_and_store_logs(&self, block: &BlockInfo) -> Result<(), LogIndexerError> {
-        let receipts = self.block_provider.fetch_receipts(block.hash).await?;
+        let provider = {
+            let guard = self.block_provider.lock().await;
+            guard.as_ref().ok_or(LogIndexerError::NoBlockProvider)?.clone()
+        };
+
+        let receipts = provider.fetch_receipts(block.hash).await?;
         let mut log_entries = Vec::with_capacity(receipts.len());
         let mut log_index: u32 = 0;
 
@@ -137,6 +158,10 @@ where
 /// Error type for the [`LogIndexer`].
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum LogIndexerError {
+    /// No block provider set when attempting to index logs.
+    #[error("no block provider set")]
+    NoBlockProvider,
+
     /// Failed to write processed logs for a block to the state manager.
     #[error(transparent)]
     StateWrite(#[from] StorageError),
@@ -235,7 +260,7 @@ mod tests {
             .withf(|block, logs| block.number == 1 && logs.len() == 2)
             .returning(|_, _| Ok(()));
 
-        let log_indexer = LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db));
+        let log_indexer = LogIndexer::new(1, Some(Arc::new(mock_provider)), Arc::new(mock_db));
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_ok());
@@ -265,7 +290,7 @@ mod tests {
             .withf(|block, logs| block.number == 2 && logs.is_empty())
             .returning(|_, _| Ok(()));
 
-        let log_indexer = LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db));
+        let log_indexer = LogIndexer::new(1, Some(Arc::new(mock_provider)), Arc::new(mock_db));
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_ok());
@@ -290,7 +315,7 @@ mod tests {
 
         let mock_db = MockDb::new(); // No call expected
 
-        let log_indexer = LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db));
+        let log_indexer = LogIndexer::new(1, Some(Arc::new(mock_provider)), Arc::new(mock_db));
 
         let result = log_indexer.process_and_store_logs(&block_info).await;
         assert!(result.is_err());
@@ -328,7 +353,8 @@ mod tests {
 
         mock_db.expect_store_block_logs().times(5).returning(move |_, _| Ok(()));
 
-        let indexer = Arc::new(LogIndexer::new(1, Arc::new(mock_provider), Arc::new(mock_db)));
+        let indexer =
+            Arc::new(LogIndexer::new(1, Some(Arc::new(mock_provider)), Arc::new(mock_db)));
 
         indexer.clone().sync_logs(target_block);
 
