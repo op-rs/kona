@@ -1,13 +1,23 @@
-//! Kona's Rollup Binary.
-
-#![doc(issue_tracker_base_url = "https://github.com/op-rs/kona/issues/")]
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/square.png",
+    html_favicon_url = "https://raw.githubusercontent.com/op-rs/kona/main/assets/favicon.ico",
+    issue_tracker_base_url = "https://github.com/op-rs/kona/issues/"
+)]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![deny(missing_docs)]
-#![deny(unused_must_use)]
-#![deny(rust_2018_idioms)]
+#![deny(missing_docs, unused_must_use, rust_2018_idioms)]
 
-/// Main entry point for the rollup binary.
-#[allow(clippy::missing_const_for_fn)]
+pub mod cli;
+pub mod version;
+
 fn main() {
-    // TODO: Implementation coming soon
+    use clap::Parser;
+
+    kona_cli::sigsegv_handler::install();
+    kona_cli::backtrace::enable();
+
+    if let Err(err) = cli::Cli::parse().run() {
+        eprintln!("Error: {err:?}");
+        std::process::exit(1);
+    }
 }

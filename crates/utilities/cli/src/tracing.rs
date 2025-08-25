@@ -9,7 +9,7 @@ use tracing_subscriber::{
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::EnvFilter;
 
-use crate::log::{LogConfig, LogRotation};
+use crate::{LogConfig, LogRotation};
 
 /// The format of the logs.
 #[derive(

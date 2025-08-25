@@ -12,6 +12,14 @@ homepage.workspace = true
 workspace = true
 
 [dependencies]
+# Workspace
+kona-genesis.workspace = true
+kona-registry.workspace = true
+
+# Alloy
+alloy-chains.workspace = true
+
+# General
 tracing.workspace = true
 serde = { workspace = true, features = ["derive"]}
 clap = { workspace = true, features = ["derive", "env"] }
@@ -25,6 +33,9 @@ anyhow = { workspace = true, default-features = false }
 libp2p = { workspace = true, features = ["secp256k1"], optional = true }
 thiserror = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
+
+[dev-dependencies]
+rstest.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

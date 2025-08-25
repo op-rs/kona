@@ -1,10 +1,12 @@
 //! Global arguments for the CLI.
 
+use alloy_chains::Chain;
 use alloy_primitives::Address;
 use clap::Parser;
-use kona_cli::{LogArgs, MetricsArgs};
 use kona_genesis::RollupConfig;
 use kona_registry::OPCHAINS;
+
+use crate::{LogArgs, MetricsArgs, OverrideArgs};
 
 /// Global arguments for the CLI.
 #[derive(Parser, Default, Clone, Debug)]
@@ -19,13 +21,13 @@ pub struct GlobalArgs {
         short = 'c',
         global = true,
         default_value = "10",
-        env = "KONA_NODE_L2_CHAIN_ID",
+        env = "KONA_L2_CHAIN_ID",
         help = "The L2 chain ID to use"
     )]
-    pub l2_chain_id: alloy_chains::Chain,
+    pub l2_chain_id: Chain,
     /// Embed the override flags globally to provide override values adjacent to the configs.
     #[command(flatten)]
-    pub override_args: super::OverrideArgs,
+    pub override_args: OverrideArgs,
     /// Prometheus CLI arguments.
     #[command(flatten)]
     pub metrics: MetricsArgs,
