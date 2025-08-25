@@ -85,7 +85,9 @@ func createJWT(secret []byte) (string, error) {
 		key = secret
 	}
 
+	// typos:disable
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	// typos:enable
 	payload := fmt.Sprintf(`{"iat":%d}`, time.Now().Unix())
 	payloadEnc := base64.RawURLEncoding.EncodeToString([]byte(payload))
 	toSign := header + "." + payloadEnc

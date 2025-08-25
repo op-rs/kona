@@ -91,7 +91,7 @@ func testL2ReorgAfterL1Reorg(gt *testing.T, reorgAfter *eth.BlockID, preChecks, 
 	// Give some time to batcher catch up
 	time.Sleep(5 * time.Second)
 
-	// Start sequencial block building
+	// Start sequential block building
 	trm.GetPOS().Start()
 
 	// Wait sometime(5*5 = 25 at least) so that pos can create required
