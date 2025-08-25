@@ -34,7 +34,8 @@ func TestL2UnsafeSync(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	nodes := out.L2CLNodes()
+	sequencer := out.L2CLSequencerNodes()[0]
+	nodes := out.L2CLValidatorNodes()
 
 	checkFuns := make([]dsl.CheckFunc, 0, len(nodes))
 
