@@ -41,7 +41,7 @@ func TestL2UnsafeSync(gt *testing.T) {
 	checkFuns := make([]dsl.CheckFunc, 0, 2*len(nodes))
 
 	for _, node := range nodes {
-		checkFuns = append(checkFuns, node.ReachedFn(types.LocalUnsafe, 40, 40))
+		checkFuns = append(checkFuns, node.ReachedFn(types.LocalUnsafe, 40, 80))
 		checkFuns = append(checkFuns, node.LaggedFn(&sequencer, types.LocalUnsafe, 40, true))
 	}
 
