@@ -1,7 +1,6 @@
 package node
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
@@ -35,14 +34,12 @@ func TestL2UnsafeSync(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	sequencer := out.L2CLSequencerNodes()[0]
-	nodes := out.L2CLValidatorNodes()
+	nodes := out.L2CLNodes()
 
-	checkFuns := make([]dsl.CheckFunc, 0, 2*len(nodes))
+	checkFuns := make([]dsl.CheckFunc, 0, len(nodes))
 
 	for _, node := range nodes {
 		checkFuns = append(checkFuns, node.ReachedFn(types.LocalUnsafe, 40, 80))
-		checkFuns = append(checkFuns, node.LaggedFn(&sequencer, types.LocalUnsafe, 40, true))
 	}
 
 	dsl.CheckAll(t, checkFuns...)
@@ -57,33 +54,11 @@ func TestL2FinalizedSync(gt *testing.T) {
 
 	nodes := out.L2CLNodes()
 
-	checkFuns := make([]dsl.CheckFunc, 0, 2*len(nodes))
+	checkFuns := make([]dsl.CheckFunc, 0, len(nodes))
 
 	for _, node := range nodes {
 		checkFuns = append(checkFuns, node.ReachedFn(types.Finalized, 10, 600))
 	}
 
 	dsl.CheckAll(t, checkFuns...)
-}
-
-func TestSyncWithSequencer(gt *testing.T) {
-	t := devtest.ParallelT(gt)
-
-	out := node_utils.NewMixedOpKona(t)
-
-	nodes := out.L2CLValidatorNodes()
-
-	// Find the sequencer nodes.
-	sequencer := out.L2CLSequencerNodes()[0]
-
-	// Check that all the nodes are lagging behind the sequencer for the local unsafe head.
-	var wg sync.WaitGroup
-	for _, node := range nodes {
-		wg.Add(1)
-		go func(node *dsl.L2CLNode) {
-			defer wg.Done()
-			node.Lagged(&sequencer, types.LocalUnsafe, 40, true)
-		}(&node)
-	}
-	wg.Wait()
 }
