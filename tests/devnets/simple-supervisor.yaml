@@ -10,7 +10,7 @@ optimism_package:
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
-            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
             log_level: debug
             extra_params: [--experimental.sequencer-api=true]
       network_params:
@@ -35,7 +35,7 @@ optimism_package:
             image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v1.101511.0
           cl:
             type: op-node
-            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v1.13.5
+            image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:develop
             log_level: debug
             extra_params: [--experimental.sequencer-api=true]
       network_params:
@@ -62,7 +62,7 @@ optimism_package:
       image: kona-supervisor:local
       superchain: superchain
       extra_env_vars:
-        RUST_LOG: "supervisor=info"
+        RUST_LOG: "supervisor=info,supervisor::chain_processor=trace"
   test-sequencers:
     sequencer:
       enabled: true

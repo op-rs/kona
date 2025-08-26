@@ -58,3 +58,43 @@ pub struct SubscriptionEvent {
     /// Represents the event data sent by the node
     pub data: Option<ManagedEvent>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+    use serde_json::{json, Value};
+
+    #[test]
+    fn test_output_v0_serialize_camel_case() {
+        let output = OutputV0 {
+            state_root: B256::from([1u8; 32]),
+            message_passer_storage_root: B256::from([2u8; 32]),
+            block_hash: B256::from([3u8; 32]),
+        };
+
+        let json_str = serde_json::to_string(&output).unwrap();
+        let v: Value = serde_json::from_str(&json_str).unwrap();
+
+        // Check that keys are camelCase
+        assert!(v.get("stateRoot").is_some());
+        assert!(v.get("messagePasserStorageRoot").is_some());
+        assert!(v.get("blockHash").is_some());
+    }
+
+    #[test]
+    fn test_output_v0_deserialize_camel_case() {
+        let json_obj = json!({
+            "stateRoot": "0x0101010101010101010101010101010101010101010101010101010101010101",
+            "messagePasserStorageRoot": "0x0202020202020202020202020202020202020202020202020202020202020202",
+            "blockHash": "0x0303030303030303030303030303030303030303030303030303030303030303"
+        });
+
+        let json_str = serde_json::to_string(&json_obj).unwrap();
+        let output: OutputV0 = serde_json::from_str(&json_str).unwrap();
+
+        assert_eq!(output.state_root, B256::from([1u8; 32]));
+        assert_eq!(output.message_passer_storage_root, B256::from([2u8; 32]));
+        assert_eq!(output.block_hash, B256::from([3u8; 32]));
+    }
+}
