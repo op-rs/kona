@@ -484,6 +484,7 @@ where
 
         Ok(())
     }
+
     /// Rewinds the derivation database from the given derived block onward.
     /// This removes all derived blocks with number >= the given block number
     /// and updates the traversal state accordingly.
