@@ -5121,6 +5121,7 @@ dependencies = [
  "kona-registry",
  "kona-supervisor-core",
  "kona-supervisor-service",
+ "metrics",
  "reqwest",
  "serde",
  "serde_json",
@@ -5128,6 +5129,8 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
+ "vergen",
+ "vergen-git2",
 ]
 
 [[package]]
