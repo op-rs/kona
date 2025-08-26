@@ -58,6 +58,11 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
+    /// Returns [`LocalSafe`] block for the given chain.
+    /// 
+    /// [`LocalSafe`]: SafetyLevel::LocalSafe
+    fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
     /// Returns [`CrossSafe`] block for the given chain.
     ///
     /// [`CrossSafe`]: SafetyLevel::CrossSafe
@@ -186,6 +191,13 @@ where
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalUnsafe).map_err(|err| {
             error!(target: "supervisor::service", %chain, %err, "Failed to get local unsafe head ref for chain");
+            SpecError::from(err)
+        })?)
+    }
+
+    fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalSafe).map_err(|err| {
+            error!(target: "supervisor::service", %chain, %err, "Failed to get local safe head ref for chain");
             SpecError::from(err)
         })?)
     }

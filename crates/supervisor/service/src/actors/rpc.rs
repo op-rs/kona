@@ -114,6 +114,7 @@ mod tests {
             fn latest_block_from(&self, l1_block: BlockNumHash, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn derived_to_source_block(&self, chain: ChainId, derived: BlockNumHash) -> Result<BlockInfo, SupervisorError>;
             fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+            fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn finalized(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
             fn finalized_l1(&self) -> Result<BlockInfo, SupervisorError>;
