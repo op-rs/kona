@@ -68,7 +68,7 @@ where
             // fall back to activation block if finalized is None
             None => self.db_provider.get_activation_block()?,
         };
-        
+
         if finalized.number > local_safe.number {
             finalized = local_safe;
         }
