@@ -263,7 +263,10 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         let _attributes_build_start = Instant::now();
         let mut attributes =
             match self.builder.prepare_payload_attributes(unsafe_head, l1_origin.id()).await {
-                Ok(attrs) => attrs,
+                Ok(mut attrs) => {
+                    attrs.no_tx_pool = Some(false);
+                    attrs
+                }
                 Err(PipelineErrorKind::Temporary(_)) => {
                     return Ok(());
                     // Do nothing and allow a retry.
