@@ -43,7 +43,6 @@ func TestRPCLocalUnsafe(gt *testing.T) {
 }
 
 func TestRPCCrossSafe(gt *testing.T) {
-	gt.Skip()
 	t := devtest.ParallelT(gt)
 	sys := presets.NewSimpleInterop(t)
 	client := sys.Supervisor.Escape()
