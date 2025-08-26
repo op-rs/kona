@@ -1,7 +1,6 @@
-package node_kurtosis
+package node
 
 import (
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -9,7 +8,7 @@ import (
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	node_utils "github.com/op-rs/kona/node/utils"
 	"github.com/stretchr/testify/require"
 )
@@ -27,8 +26,6 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
-
 	nodes := out.L2CLKonaNodes()
 
 	var wg sync.WaitGroup
@@ -36,15 +33,10 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 		wg.Add(1)
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
-			clName := node.Escape().ID().Key()
-			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
-			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			wsRPC := WebsocketRPC(clRPC)
+			unsafeBlocks := GetKonaWs(t, node, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
 
-			unsafeBlocks := GetKonaWs(t, wsRPC, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
-
-			safeBlocks := GetKonaWs(t, wsRPC, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
+			safeBlocks := GetKonaWs(t, node, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
 
 			require.GreaterOrEqual(t, len(unsafeBlocks), 1, "we didn't receive enough unsafe gossip blocks!")
 			require.GreaterOrEqual(t, len(safeBlocks), 1, "we didn't receive enough safe gossip blocks!")
@@ -80,8 +72,6 @@ func TestSyncUnsafe(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
-
 	nodes := out.L2CLKonaNodes()
 
 	var wg sync.WaitGroup
@@ -89,37 +79,27 @@ func TestSyncUnsafe(gt *testing.T) {
 		wg.Add(1)
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
-			clName := node.Escape().ID().Key()
-			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
-			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			wsRPC := WebsocketRPC(clRPC)
-
-			output := GetKonaWs(t, wsRPC, "unsafe_head", time.After(10*time.Second))
+			output := GetKonaWs(t, node, "unsafe_head", time.After(10*time.Second))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
 			// We shouldn't have safe heads reorgs in this very simple testnet because there is only one DA layer node.
 			for _, block := range output {
 				for _, node := range nodes {
-					otherCLRPC, err := GetNodeRPCEndpoint(t.Ctx(), &node)
-					require.NoError(t, err, "failed to get RPC endpoint for node %s", node.Escape().ID().Key())
-
 					otherCLNode := node.Escape().ID().Key()
+					otherCLSyncStatus := node.ChainSyncStatus(out.L2Chain.ChainID(), types.LocalUnsafe)
 
-					syncStatus := &eth.SyncStatus{}
-					require.NoError(t, SendRPCRequest(otherCLRPC, "optimism_syncStatus", syncStatus), "impossible to get sync status from node %s", otherCLNode)
-
-					if syncStatus.UnsafeL2.Number < block.Number {
-						t.Log("✗ peer too far behind!", otherCLNode, block.Number, syncStatus.UnsafeL2.Number)
+					if otherCLSyncStatus.Number < block.Number {
+						t.Log("✗ peer too far behind!", otherCLNode, block.Number, otherCLSyncStatus.Number)
 						continue
 					}
 
-					expectedOutputResponse := eth.OutputResponse{}
-					require.NoError(t, SendRPCRequest(otherCLRPC, "optimism_outputAtBlock", &expectedOutputResponse, hexutil.Uint64(block.Number)), "impossible to get block from node %s", otherCLNode)
+					expectedOutputResponse, err := node.Escape().RollupAPI().OutputAtBlock(t.Ctx(), block.Number)
+					require.NoError(t, err, "impossible to get block from node %s", otherCLNode)
 
 					// Make sure the blocks match!
-					require.Equal(t, expectedOutputResponse.BlockRef, block, "block mismatch between %s and %s", otherCLNode, clName)
+					require.Equal(t, expectedOutputResponse.BlockRef, block, "block mismatch between %s and %s", otherCLNode, node.Escape().ID().Key())
 				}
 			}
 
@@ -136,8 +116,6 @@ func TestSyncSafe(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
-
 	nodes := out.L2CLKonaNodes()
 
 	var wg sync.WaitGroup
@@ -146,33 +124,24 @@ func TestSyncSafe(gt *testing.T) {
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
 			clName := node.Escape().ID().Key()
-			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
-			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			wsRPC := WebsocketRPC(clRPC)
-
-			output := GetKonaWs(t, wsRPC, "safe_head", time.After(10*time.Second))
+			output := GetKonaWs(t, node, "safe_head", time.After(10*time.Second))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
 			// We shouldn't have safe heads reorgs in this very simple testnet because there is only one DA layer node.
 			for _, block := range output {
 				for _, node := range nodes {
-					otherCLRPC, err := GetNodeRPCEndpoint(t.Ctx(), &node)
-					require.NoError(t, err, "failed to get RPC endpoint for node %s", node.Escape().ID().Key())
-
 					otherCLNode := node.Escape().ID().Key()
+					otherCLSyncStatus := node.ChainSyncStatus(out.L2Chain.ChainID(), types.LocalSafe)
 
-					syncStatus := &eth.SyncStatus{}
-					require.NoError(t, SendRPCRequest(otherCLRPC, "optimism_syncStatus", syncStatus), "impossible to get sync status from node %s", otherCLNode)
-
-					if syncStatus.SafeL2.Number < block.Number {
-						t.Log("✗ peer too far behind!", otherCLNode, block.Number, syncStatus.SafeL2.Number)
+					if otherCLSyncStatus.Number < block.Number {
+						t.Log("✗ peer too far behind!", otherCLNode, block.Number, otherCLSyncStatus.Number)
 						continue
 					}
 
-					expectedOutputResponse := eth.OutputResponse{}
-					require.NoError(t, SendRPCRequest(otherCLRPC, "optimism_outputAtBlock", &expectedOutputResponse, hexutil.Uint64(block.Number)), "impossible to get block from node %s", otherCLNode)
+					expectedOutputResponse, err := node.Escape().RollupAPI().OutputAtBlock(t.Ctx(), block.Number)
+					require.NoError(t, err, "impossible to get block from node %s", otherCLNode)
 
 					// Make sure the blocks match!
 					require.Equal(t, expectedOutputResponse.BlockRef, block, "block mismatch between %s and %s", otherCLNode, clName)
@@ -192,8 +161,6 @@ func TestSyncFinalized(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	out.T.Gate().Equal(os.Getenv("DEVSTACK_ORCHESTRATOR"), "sysext", "this test is only valid in kurtosis")
-
 	nodes := out.L2CLKonaNodes()
 
 	var wg sync.WaitGroup
@@ -202,12 +169,8 @@ func TestSyncFinalized(gt *testing.T) {
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
 			clName := node.Escape().ID().Key()
-			clRPC, err := GetNodeRPCEndpoint(t.Ctx(), node)
-			require.NoError(t, err, "failed to get RPC endpoint for node %s", clName)
 
-			wsRPC := WebsocketRPC(clRPC)
-
-			output := GetKonaWs(t, wsRPC, "finalized_head", time.After(4*time.Minute))
+			output := GetKonaWs(t, node, "finalized_head", time.After(4*time.Minute))
 
 			// We should check that we received at least 2 finalized blocks within 4 minutes!
 			require.Greater(t, len(output), 1, "we didn't receive enough finalized gossip blocks!")
@@ -216,21 +179,16 @@ func TestSyncFinalized(gt *testing.T) {
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			for _, block := range output {
 				for _, node := range nodes {
-					otherCLRPC, err := GetNodeRPCEndpoint(t.Ctx(), &node)
-					require.NoError(t, err, "failed to get RPC endpoint for node %s", node.Escape().ID().Key())
-
 					otherCLNode := node.Escape().ID().Key()
+					otherCLSyncStatus := node.ChainSyncStatus(out.L2Chain.ChainID(), types.Finalized)
 
-					syncStatus := &eth.SyncStatus{}
-					require.NoError(t, SendRPCRequest(otherCLRPC, "optimism_syncStatus", syncStatus), "impossible to get sync status from node %s", otherCLNode)
-
-					if syncStatus.FinalizedL2.Number < block.Number {
-						t.Log("✗ peer too far behind!", otherCLNode, block.Number, syncStatus.FinalizedL2.Number)
+					if otherCLSyncStatus.Number < block.Number {
+						t.Log("✗ peer too far behind!", otherCLNode, block.Number, otherCLSyncStatus.Number)
 						continue
 					}
 
-					expectedOutputResponse := eth.OutputResponse{}
-					require.NoError(t, SendRPCRequest(otherCLRPC, "optimism_outputAtBlock", &expectedOutputResponse, hexutil.Uint64(block.Number)), "impossible to get block from node %s", otherCLNode)
+					expectedOutputResponse, err := node.Escape().RollupAPI().OutputAtBlock(t.Ctx(), block.Number)
+					require.NoError(t, err, "impossible to get block from node %s", otherCLNode)
 
 					// Make sure the blocks match!
 					require.Equal(t, expectedOutputResponse.BlockRef, block, "block mismatch between %s and %s", otherCLNode, clName)
