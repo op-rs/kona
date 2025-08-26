@@ -63,7 +63,7 @@ pub struct SubscriptionEvent {
 mod tests {
     use super::*;
     use alloy_primitives::B256;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     #[test]
     fn test_output_v0_serialize_camel_case() {
