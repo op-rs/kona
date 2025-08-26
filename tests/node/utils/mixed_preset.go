@@ -156,7 +156,7 @@ func NewMixedOpKona(t devtest.T) *MixedOpKonaPreset {
 	opCLNodes := L2NodeMatcher[stack.L2CLNodeID, stack.L2CLNode](string(OpNode), string(Validator)).Match(l2Net.L2CLNodes())
 	konaCLNodes := L2NodeMatcher[stack.L2CLNodeID, stack.L2CLNode](string(KonaNode), string(Validator)).Match(l2Net.L2CLNodes())
 
-	t.Gate().GreaterOrEqual(len(konaCLNodes), 1, "expected at least one kona-node")
+	t.Gate().GreaterOrEqual(len(konaCLNodes)+len(konaSequencerCLNodes), 1, "expected at least one kona-node")
 
 	opSequencerELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(OpNode), string(Sequencer)).Match(l2Net.L2ELNodes())
 	konaSequencerELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(KonaNode), string(Sequencer)).Match(l2Net.L2ELNodes())

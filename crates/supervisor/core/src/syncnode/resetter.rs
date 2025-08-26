@@ -63,7 +63,12 @@ where
             cross_safe = local_safe;
         }
 
-        let mut finalized = finalized.unwrap_or_else(BlockInfo::default);
+        let mut finalized = match finalized {
+            Some(block) => block,
+            // fall back to activation block if finalized is None
+            None => self.db_provider.get_activation_block()?,
+        };
+
         if finalized.number > local_safe.number {
             finalized = local_safe;
         }

@@ -58,6 +58,11 @@ pub trait SupervisorService: Debug + Send + Sync {
     /// [`LocalUnsafe`]: SafetyLevel::LocalUnsafe
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
+    /// Returns [`LocalSafe`] block for the given chain.
+    ///
+    /// [`LocalSafe`]: SafetyLevel::LocalSafe
+    fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
+
     /// Returns [`CrossSafe`] block for the given chain.
     ///
     /// [`CrossSafe`]: SafetyLevel::CrossSafe
@@ -190,6 +195,13 @@ where
         })?)
     }
 
+    fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
+        Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::LocalSafe).map_err(|err| {
+            error!(target: "supervisor::service", %chain, %err, "Failed to get local safe head ref for chain");
+            SpecError::from(err)
+        })?)
+    }
+
     fn cross_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError> {
         Ok(self.get_db(chain)?.get_safety_head_ref(SafetyLevel::CrossSafe).map_err(|err| {
             error!(target: "supervisor::service", %chain, %err, "Failed to get cross safe head ref for chain");
@@ -307,7 +319,10 @@ where
                 executing_chain_id,
                 executing_descriptor.timestamp,
                 executing_descriptor.timeout,
-            )?;
+            ).map_err(|err| {
+                error!(target: "supervisor::service", %err, "Failed to validate interop timestamps");
+                SpecError::SuperchainDAError(SuperchainDAError::ConflictingData)
+            })?;
 
             // Verify the initiating message exists and valid for corresponding executing message.
             let db = self.get_db(initiating_chain_id)?;
@@ -326,7 +341,10 @@ where
                 error!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to get log for chain");
                 SpecError::from(err)
             })?;
-            access.verify_checksum(&log.hash)?;
+            access.verify_checksum(&log.hash).map_err(|err| {
+                error!(target: "supervisor::service", %initiating_chain_id, %err, "Failed to verify checksum for access list");
+                SpecError::SuperchainDAError(SuperchainDAError::ConflictingData)
+            })?;
 
             // The message must be included in a block that is at least as safe as required
             // by the `min_safety` level
