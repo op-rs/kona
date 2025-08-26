@@ -59,7 +59,7 @@ pub trait SupervisorService: Debug + Send + Sync {
     fn local_unsafe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 
     /// Returns [`LocalSafe`] block for the given chain.
-    /// 
+    ///
     /// [`LocalSafe`]: SafetyLevel::LocalSafe
     fn local_safe(&self, chain: ChainId) -> Result<BlockInfo, SupervisorError>;
 

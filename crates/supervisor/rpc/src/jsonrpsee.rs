@@ -40,9 +40,9 @@ pub trait SupervisorApi {
     async fn local_unsafe(&self, chain_id: HexStringU64) -> RpcResult<BlockNumHash>;
 
     /// Returns the [`LocalSafe`] block for given chain.
-    /// 
+    ///
     /// Todo: link to spec after PR(https://github.com/ethereum-optimism/specs/pull/753) is merged
-    /// 
+    ///
     /// [`LocalSafe`]: SafetyLevel::LocalSafe
     #[method(name = "localSafe")]
     async fn local_safe(&self, chain_id: HexStringU64) -> RpcResult<DerivedIdPair>;
