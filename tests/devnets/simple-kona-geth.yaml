@@ -18,7 +18,7 @@ optimism_package:
             type: op-node
             log_level: "debug"
           sequencer: true
-        kona:
+        kona-validator:
           el:
             type: op-geth
           cl: 

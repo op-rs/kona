@@ -23,7 +23,7 @@ optimism_package:
         granite_time_offset: 0
         fund_dev_accounts: true
       batcher_params:
-        extra_params: []
+        extra_params: [--data-availability-type=calldata]
       proposer_params:
         game_type: 1
         proposal_interval: 10m
@@ -48,7 +48,7 @@ optimism_package:
         granite_time_offset: 0
         fund_dev_accounts: true
       batcher_params:
-        extra_params: []
+        extra_params: [--data-availability-type=calldata]
       proposer_params:
         game_type: 1
         proposal_interval: 10m
@@ -61,6 +61,8 @@ optimism_package:
       type: kona-supervisor
       image: kona-supervisor:local
       superchain: superchain
+      extra_env_vars:
+        RUST_LOG: "supervisor=info"
   test-sequencers:
     sequencer:
       enabled: true

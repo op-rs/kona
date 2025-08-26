@@ -23,7 +23,7 @@ optimism_package:
               KONA_NODE_RPC_WS_ENABLED: "true"
               KONA_NODE_RPC_DEV_ENABLED: "true"
           sequencer: true
-        kona-1:
+        kona-validator-1:
           el:
             type: op-geth
           cl: 
@@ -35,7 +35,7 @@ optimism_package:
               KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
-        kona-2:
+        kona-validator-2:
           el:
             type: op-geth
           cl: 
@@ -47,7 +47,7 @@ optimism_package:
               KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
-        kona-3:
+        kona-validator-3:
           el:
             type: op-geth
           cl: 
@@ -59,7 +59,7 @@ optimism_package:
               KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
-        kona-4:
+        kona-validator-4:
           el:
             type: op-geth
           cl: 
@@ -71,7 +71,7 @@ optimism_package:
               KONA_NODE_RPC_DEV_ENABLED: "true"
             log_level: "info"
           sequencer: false
-        kona-5:
+        kona-validator-5:
         # Note: it seems that op-reth isn't fully compatible with the sequencer mode.
         # So we use op-geth for now.
           el:

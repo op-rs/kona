@@ -14,7 +14,7 @@ use revm::{
     context::{Cfg, ContextTr},
     handler::{EthPrecompiles, PrecompileProvider},
     interpreter::{Gas, InputsImpl, InstructionResult, InterpreterResult},
-    precompile::{PrecompileError, PrecompileResult, Precompiles, bls12_381_const, bn128},
+    precompile::{PrecompileError, PrecompileResult, Precompiles, bls12_381_const, bn254},
     primitives::{hardfork::SpecId, hash_map::HashMap},
 };
 
@@ -187,7 +187,7 @@ where
     vec![
         AcceleratedPrecompile::new(ECRECOVER_ADDR, super::ecrecover::fpvm_ec_recover::<H, O>),
         AcceleratedPrecompile::new(
-            bn128::pair::ADDRESS,
+            bn254::pair::ADDRESS,
             super::bn128_pair::fpvm_bn128_pair::<H, O>,
         ),
     ]
@@ -215,7 +215,7 @@ where
 {
     let mut base = accelerated_ecotone::<H, O>();
     base.push(AcceleratedPrecompile::new(
-        bn128::pair::ADDRESS,
+        bn254::pair::ADDRESS,
         super::bn128_pair::fpvm_bn128_pair_granite::<H, O>,
     ));
     base

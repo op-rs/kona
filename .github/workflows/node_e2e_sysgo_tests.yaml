@@ -1,0 +1,47 @@
+name: Sysgo E2E Tests
+on:
+  push:
+    branches: [main]
+  merge_group:
+  pull_request:
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  node-e2e-sysgo-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    name: node-sysgo-tests
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - uses: ./.github/actions/setup
+        with:
+          channel: stable
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
+
+      - uses: taiki-e/install-action@just
+
+      - uses: jdx/mise-action@v3       # installs Mise + runs `mise install`
+
+      - name: Setup Go 1.24.3
+        uses: actions/setup-go@v5
+        with:
+          # Semantic version range syntax or exact version of Go
+          go-version: '1.24.3'
+          cache-dependency-path: "**/go.sum"
+
+      - name: common tests for node with sysgo orchestrator
+        run: just test-e2e-sysgo node/common
+
+      - name: restart tests for node with sysgo orchestrator
+        run: just test-e2e-sysgo node/restart
+

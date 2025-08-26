@@ -1,5 +1,10 @@
 //! [`ManagedNode`] implementation for subscribing to the events from managed node.
 
+use super::{
+    BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
+    ManagedNodeError, SubscriptionHandler, resetter::Resetter,
+};
+use crate::event::ChainEvent;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_primitives::{B256, ChainId};
@@ -12,12 +17,6 @@ use kona_supervisor_storage::{DerivationStorageReader, HeadRefStorageReader, Log
 use kona_supervisor_types::{BlockSeal, OutputV0, Receipts};
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
-
-use super::{
-    BlockProvider, ManagedNodeClient, ManagedNodeController, ManagedNodeDataProvider,
-    ManagedNodeError, SubscriptionHandler, resetter::Resetter,
-};
-use crate::event::ChainEvent;
 use tracing::{error, trace, warn};
 
 /// [`ManagedNode`] handles the subscription to managed node events.
@@ -127,7 +126,6 @@ where
                 current_source = %derived_ref_pair.source,
                 "Parent hash mismatch. Possible reorg detected"
             );
-            return Ok(());
         }
 
         self.client.provide_l1(new_source).await.inspect_err(|err| {
@@ -392,7 +390,7 @@ mod tests {
         impl LogStorageReader for Db {
             fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
-            fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
+            fn get_log(&self, block_number: u64, log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
 
@@ -613,10 +611,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_exhaust_l1_returns_ok_on_parent_hash_mismatch() {
+    async fn test_handle_exhaust_l1_calls_provide_l1_on_parent_hash_mismatch() {
         let mut client = MockClient::new();
         client.expect_chain_id().times(1).returning(|| Ok(ChainId::from(42u64)));
-        client.expect_provide_l1().times(0); // Should NOT be called
+        client.expect_provide_l1().times(1).returning(|_| Ok(())); // Should be called
 
         let client = Arc::new(client);
         let db = Arc::new(MockDb::new());

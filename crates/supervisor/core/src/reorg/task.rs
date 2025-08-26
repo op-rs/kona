@@ -1,5 +1,5 @@
 use super::metrics::Metrics;
-use crate::{ReorgHandlerError, syncnode::ManagedNodeController};
+use crate::ReorgHandlerError;
 use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{B256, ChainId};
 use alloy_rpc_client::RpcClient;
@@ -13,21 +13,31 @@ use tracing::{debug, info, trace, warn};
 
 /// Handles reorg for a single chain
 #[derive(Debug, Constructor)]
-pub(crate) struct ReorgTask<C, DB> {
+pub(crate) struct ReorgTask<DB> {
     chain_id: ChainId,
     db: Arc<DB>,
     rpc_client: RpcClient,
-    managed_node: Arc<C>,
 }
 
-impl<C, DB> ReorgTask<C, DB>
+#[derive(Debug)]
+struct RewoundState {
+    source: BlockInfo,
+    derived: Option<BlockInfo>,
+}
+
+impl<DB> ReorgTask<DB>
 where
-    C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
     /// Processes reorg for a single chain. If the chain is consistent with the L1 chain,
     /// does nothing.
     pub(crate) async fn process_chain_reorg(&self) -> Result<(), ReorgHandlerError> {
+        trace!(
+            target: "supervisor::reorg_handler",
+            chain_id = %self.chain_id,
+            "Processing reorg for chain..."
+        );
+
         let latest_state = self.db.latest_derivation_state()?;
 
         // Find last valid source block for this chain
@@ -47,23 +57,14 @@ where
             }
         };
 
-        // Reset the node after rewinding the DB.
-        self.managed_node.reset().await.inspect_err(|err| {
-            warn!(
-                target: "supervisor::reorg_handler::managed_node",
-                chain_id = %self.chain_id,
-                %err,
-                "Failed to reset node after reorg"
-            );
-        })?;
-
         // record metrics
         if let Some(rewound_state) = rewound_state {
-            Metrics::record_block_depth(
-                self.chain_id,
-                latest_state.source.number - rewound_state.source.number,
-                latest_state.derived.number - rewound_state.derived.number,
-            );
+            let l1_depth = latest_state.source.number - rewound_state.source.number;
+            let mut l2_depth = 0;
+            if let Some(derived) = rewound_state.derived {
+                l2_depth = latest_state.derived.number - derived.number;
+            }
+            Metrics::record_block_depth(self.chain_id, l1_depth, l2_depth);
         }
         Ok(())
     }
@@ -71,29 +72,35 @@ where
     async fn rewind_to_target_source(
         &self,
         rewind_target_source: BlockInfo,
-    ) -> Result<DerivedRefPair, ReorgHandlerError> {
-        // Get the derived block at the target source block
-        let rewind_target_derived =
-            self.db.latest_derived_block_at_source(rewind_target_source.id())?;
+    ) -> Result<RewoundState, ReorgHandlerError> {
+        trace!(
+            target: "supervisor::reorg_handler",
+            chain_id = %self.chain_id,
+            rewind_target_source = rewind_target_source.number,
+            "Rewinding to target source block..."
+        );
 
-        // rewind_to() method is inclusive, so we need to get the next block.
-        let rewind_to = self.db.get_block(rewind_target_derived.number + 1)?;
         // Call the rewinder to handle the DB rewinding
-        self.db.rewind(&rewind_to.id()).inspect_err(|err| {
-            warn!(
-                target: "supervisor::reorg_handler::db",
-                chain_id = %self.chain_id,
-                %err,
-                "Failed to rewind DB to derived block"
-            );
-        })?;
+        let derived_block_rewounded =
+            self.db.rewind_to_source(&rewind_target_source.id()).inspect_err(|err| {
+                warn!(
+                    target: "supervisor::reorg_handler::db",
+                    chain_id = %self.chain_id,
+                    %err,
+                    "Failed to rewind DB to derived block"
+                );
+            })?;
 
-        Ok(DerivedRefPair { source: rewind_target_source, derived: rewind_target_derived })
+        Ok(RewoundState { source: rewind_target_source, derived: derived_block_rewounded })
     }
 
-    async fn rewind_to_activation_block(
-        &self,
-    ) -> Result<Option<DerivedRefPair>, ReorgHandlerError> {
+    async fn rewind_to_activation_block(&self) -> Result<Option<RewoundState>, ReorgHandlerError> {
+        trace!(
+            target: "supervisor::reorg_handler",
+            chain_id = %self.chain_id,
+            "Rewinding to activation block..."
+        );
+
         // If the rewind target is pre-interop, we need to rewind to the activation block
         match self.db.get_activation_block() {
             Ok(activation_block) => {
@@ -106,9 +113,9 @@ where
                         "Failed to rewind DB to activation block"
                     );
                 })?;
-                Ok(Some(DerivedRefPair {
+                Ok(Some(RewoundState {
                     source: activation_source_block,
-                    derived: activation_block,
+                    derived: Some(activation_block),
                 }))
             }
             Err(StorageError::DatabaseNotInitialised) => {
@@ -149,8 +156,9 @@ where
             return Ok(None);
         }
 
-        let mut common_ancestor = self.find_common_ancestor().await?;
-        let mut current_source = latest_state.source;
+        let common_ancestor = self.find_common_ancestor().await?;
+        let mut prev_source = latest_state.source;
+        let mut current_source = self.db.get_source_block(prev_source.number - 1)?;
 
         while current_source.number > common_ancestor.number {
             if current_source.number % 5 == 0 {
@@ -170,15 +178,16 @@ where
                     block_number = current_source.number,
                     "Found canonical block as rewind target"
                 );
-                common_ancestor = current_source;
                 break;
             }
 
             // Otherwise, walk back to the previous source block
+            prev_source = current_source;
             current_source = self.db.get_source_block(current_source.number - 1)?;
         }
 
-        Ok(Some(common_ancestor))
+        // return the previous source block as the rewind target since rewinding is inclusive
+        Ok(Some(prev_source))
     }
 
     async fn find_common_ancestor(&self) -> Result<BlockInfo, ReorgHandlerError> {
@@ -261,17 +270,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syncnode::{ManagedNodeController, ManagedNodeError};
     use alloy_eips::BlockNumHash;
     use alloy_rpc_types_eth::Header;
     use alloy_transport::mock::*;
-    use async_trait::async_trait;
     use kona_interop::{DerivedRefPair, SafetyLevel};
     use kona_protocol::BlockInfo;
     use kona_supervisor_storage::{
         DerivationStorageReader, HeadRefStorageReader, LogStorageReader, StorageError,
     };
-    use kona_supervisor_types::{BlockSeal, Log, SuperHead};
+    use kona_supervisor_types::{Log, SuperHead};
     use mockall::{mock, predicate};
 
     mock!(
@@ -281,7 +288,7 @@ mod tests {
         impl LogStorageReader for Db {
             fn get_block(&self, block_number: u64) -> Result<BlockInfo, StorageError>;
             fn get_latest_block(&self) -> Result<BlockInfo, StorageError>;
-            fn get_log(&self,block_number: u64,log_index: u32) -> Result<Log, StorageError>;
+            fn get_log(&self, block_number: u64,log_index: u32) -> Result<Log, StorageError>;
             fn get_logs(&self, block_number: u64) -> Result<Vec<Log>, StorageError>;
         }
 
@@ -301,6 +308,7 @@ mod tests {
         impl StorageRewinder for Db {
             fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
             fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind_to_source(&self, to: &BlockNumHash) -> Result<Option<BlockInfo>, StorageError>;
         }
     );
 
@@ -308,24 +316,9 @@ mod tests {
         pub chain_db {}
     );
 
-    mock! (
-        #[derive(Debug)]
-        pub ManagedNode {}
-
-        #[async_trait]
-        impl ManagedNodeController for ManagedNode {
-            async fn reset(&self) -> Result<(), ManagedNodeError>;
-            async fn update_finalized(&self, finalized_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn update_cross_unsafe(&self, cross_unsafe_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn update_cross_safe(&self, source_block_id: BlockNumHash, derived_block_id: BlockNumHash) -> Result<(), ManagedNodeError>;
-            async fn invalidate_block(&self, seal: BlockSeal) -> Result<(), ManagedNodeError>;
-        }
-    );
-
     #[tokio::test]
     async fn test_process_chain_reorg_no_reorg_needed() {
         let mut mock_db = MockDb::new();
-        let mut managed_node = MockManagedNode::new();
 
         let latest_source =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -358,10 +351,7 @@ mod tests {
         };
         asserter.push_success(&canonical_block);
 
-        // Managed node should not be reset
-        managed_node.expect_reset().times(0);
-
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(managed_node));
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
 
         let result = reorg_task.process_chain_reorg().await;
 
@@ -371,7 +361,6 @@ mod tests {
     #[tokio::test]
     async fn test_process_chain_reorg_with_rewind() {
         let mut mock_db = MockDb::new();
-        let mut managed_node = MockManagedNode::new();
 
         let latest_source =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -381,13 +370,14 @@ mod tests {
             derived: BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346),
         };
 
+        let canonical_source =
+            BlockInfo::new(B256::from([5u8; 32]), 95, B256::from([6u8; 32]), 12344);
+
         let rewind_target_source =
-            BlockInfo::new(B256::from([10u8; 32]), 95, B256::from([11u8; 32]), 12340);
+            BlockInfo::new(B256::from([10u8; 32]), 96, B256::from([11u8; 32]), 12340);
 
         let rewind_target_derived =
             BlockInfo::new(B256::from([12u8; 32]), 45, B256::from([13u8; 32]), 12341);
-
-        let next_block = BlockInfo::new(B256::from([14u8; 32]), 46, B256::from([12u8; 32]), 12342);
 
         let finalized_block =
             BlockInfo::new(B256::from([20u8; 32]), 40, B256::from([21u8; 32]), 12330);
@@ -398,15 +388,15 @@ mod tests {
         // Mock finding common ancestor
         mock_db.expect_get_safety_head_ref().times(1).returning(move |_| Ok(finalized_block));
 
-        mock_db.expect_derived_to_source().times(1).returning(move |_| Ok(rewind_target_source));
+        mock_db.expect_derived_to_source().times(1).returning(move |_| Ok(canonical_source));
 
         mock_db.expect_get_source_block().times(5).returning(
             move |block_number| match block_number {
                 99 => Ok(BlockInfo::new(B256::from([16u8; 32]), 99, B256::from([17u8; 32]), 12344)),
                 98 => Ok(BlockInfo::new(B256::from([17u8; 32]), 98, B256::from([18u8; 32]), 12343)),
                 97 => Ok(BlockInfo::new(B256::from([18u8; 32]), 97, B256::from([19u8; 32]), 12342)),
-                96 => Ok(BlockInfo::new(B256::from([19u8; 32]), 96, B256::from([20u8; 32]), 12341)),
-                95 => Ok(rewind_target_source),
+                96 => Ok(rewind_target_source),
+                95 => Ok(canonical_source),
                 _ => Err(StorageError::ConflictError),
             },
         );
@@ -439,11 +429,11 @@ mod tests {
         // Second call for checking if rewind target is canonical
         let canonical_block: Block = Block {
             header: Header {
-                hash: rewind_target_source.hash,
+                hash: canonical_source.hash,
                 inner: alloy_consensus::Header {
-                    number: rewind_target_source.number,
-                    parent_hash: rewind_target_source.parent_hash,
-                    timestamp: rewind_target_source.timestamp,
+                    number: canonical_source.number,
+                    parent_hash: canonical_source.parent_hash,
+                    timestamp: canonical_source.timestamp,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -454,18 +444,11 @@ mod tests {
 
         // Mock rewind operations
         mock_db
-            .expect_latest_derived_block_at_source()
+            .expect_rewind_to_source()
             .times(1)
-            .returning(move |_| Ok(rewind_target_derived));
+            .returning(move |_| Ok(Some(rewind_target_derived)));
 
-        mock_db.expect_get_block().times(1).returning(move |_| Ok(next_block));
-
-        mock_db.expect_rewind().times(1).returning(|_| Ok(()));
-
-        // Managed node should be reset
-        managed_node.expect_reset().times(1).returning(|| Ok(()));
-
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(managed_node));
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
 
         let result = reorg_task.process_chain_reorg().await;
 
@@ -475,7 +458,6 @@ mod tests {
     #[tokio::test]
     async fn test_process_chain_reorg_rewind_pre_interop() {
         let mut mock_db = MockDb::new();
-        let mut managed_node = MockManagedNode::new();
 
         let latest_source =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -547,10 +529,7 @@ mod tests {
         // Mock rewind to activation block
         mock_db.expect_rewind().times(1).returning(|_| Ok(()));
 
-        // Managed node should be reset
-        managed_node.expect_reset().times(1).returning(|| Ok(()));
-
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, Arc::new(managed_node));
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
 
         let result = reorg_task.process_chain_reorg().await;
 
@@ -560,7 +539,6 @@ mod tests {
     #[tokio::test]
     async fn test_process_chain_reorg_storage_error() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         // DB fails to get latest derivation state
         mock_db
@@ -572,7 +550,6 @@ mod tests {
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.process_chain_reorg().await;
@@ -619,8 +596,7 @@ mod tests {
         // Mock RPC response
         asserter.push_success(&latest_source);
 
-        let managed_node = Arc::new(MockManagedNode::new());
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
         let rewind_target = reorg_task.process_chain_reorg().await;
 
         // Should succeed since the latest source block is still canonical
@@ -754,13 +730,12 @@ mod tests {
         // Finally returning the correct block
         asserter.push_success(&finalized_source);
 
-        let managed_node = Arc::new(MockManagedNode::new());
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
         let rewind_target = reorg_task.find_rewind_target(latest_state).await;
 
         // Should succeed since the latest source block is still canonical
         assert!(rewind_target.is_ok());
-        assert_eq!(rewind_target.unwrap(), Some(finalized_state.source));
+        assert_eq!(rewind_target.unwrap(), Some(source_39_info));
     }
 
     #[tokio::test]
@@ -897,13 +872,12 @@ mod tests {
         // Finally returning the correct block
         asserter.push_success(&activation_source);
 
-        let managed_node = Arc::new(MockManagedNode::new());
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
         let rewind_target = reorg_task.find_rewind_target(latest_state).await;
 
         // Should succeed since the latest source block is still canonical
         assert!(rewind_target.is_ok());
-        assert_eq!(rewind_target.unwrap(), Some(activation_state.source));
+        assert_eq!(rewind_target.unwrap(), Some(source_39_info));
     }
 
     #[tokio::test]
@@ -1006,8 +980,7 @@ mod tests {
         // Used in `find_common_ancestor`
         asserter.push_success(&incorrect_source);
 
-        let managed_node = Arc::new(MockManagedNode::new());
-        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client, managed_node);
+        let reorg_task = ReorgTask::new(1, Arc::new(mock_db), rpc_client);
         let rewind_target = reorg_task.find_rewind_target(latest_state).await;
 
         assert!(matches!(rewind_target, Err(ReorgHandlerError::RewindTargetPreInterop)));
@@ -1052,8 +1025,7 @@ mod tests {
         asserter.push_success(&canonical_block);
         asserter.push_success(&non_canonical_block);
 
-        let managed_node = Arc::new(MockManagedNode::new());
-        let reorg_task = ReorgTask::new(1, Arc::new(MockDb::new()), rpc_client, managed_node);
+        let reorg_task = ReorgTask::new(1, Arc::new(MockDb::new()), rpc_client);
 
         let result = reorg_task.is_block_canonical(100, canonical_hash).await;
         assert!(result.is_ok());
@@ -1067,7 +1039,6 @@ mod tests {
     #[tokio::test]
     async fn test_rewind_to_activation_block_success() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         let activation_block =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -1096,7 +1067,6 @@ mod tests {
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_activation_block().await;
@@ -1104,13 +1074,12 @@ mod tests {
         assert!(result.is_ok());
         let pair = result.unwrap().unwrap();
         assert_eq!(pair.source, activation_source);
-        assert_eq!(pair.derived, activation_block);
+        assert_eq!(pair.derived.unwrap(), activation_block);
     }
 
     #[tokio::test]
     async fn test_rewind_to_activation_block_database_not_initialized() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         // Expect get_activation_block to return DatabaseNotInitialised
         mock_db
@@ -1122,7 +1091,6 @@ mod tests {
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_activation_block().await;
@@ -1135,7 +1103,6 @@ mod tests {
     #[tokio::test]
     async fn test_rewind_to_activation_block_storage_error() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         // Expect get_activation_block to return a different storage error
         mock_db
@@ -1147,7 +1114,6 @@ mod tests {
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_activation_block().await;
@@ -1163,7 +1129,6 @@ mod tests {
     #[tokio::test]
     async fn test_rewind_to_activation_block_derived_to_source_fails() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         let activation_block =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -1178,7 +1143,6 @@ mod tests {
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_activation_block().await;
@@ -1194,7 +1158,6 @@ mod tests {
     #[tokio::test]
     async fn test_rewind_to_activation_block_rewind_fails() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         let activation_block =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -1215,7 +1178,6 @@ mod tests {
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_activation_block().await;
@@ -1231,7 +1193,6 @@ mod tests {
     #[tokio::test]
     async fn test_rewind_to_target_source_success() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         let rewind_target_source =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
@@ -1239,30 +1200,17 @@ mod tests {
         let rewind_target_derived =
             BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346);
 
-        let next_block = BlockInfo::new(B256::from([5u8; 32]), 51, B256::from([3u8; 32]), 12347);
-
-        // Expect latest_derived_block_at_source to be called
+        // Expect rewind to be called
         mock_db
-            .expect_latest_derived_block_at_source()
+            .expect_rewind_to_source()
             .times(1)
             .with(predicate::eq(rewind_target_source.id()))
-            .returning(move |_| Ok(rewind_target_derived));
-
-        // Expect get_block to be called for the next block
-        mock_db
-            .expect_get_block()
-            .times(1)
-            .with(predicate::eq(51))
-            .returning(move |_| Ok(next_block));
-
-        // Expect rewind to be called
-        mock_db.expect_rewind().times(1).with(predicate::eq(next_block.id())).returning(|_| Ok(()));
+            .returning(move |_| Ok(Some(rewind_target_derived)));
 
         let reorg_task = ReorgTask::new(
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
@@ -1270,105 +1218,23 @@ mod tests {
         assert!(result.is_ok());
         let pair = result.unwrap();
         assert_eq!(pair.source, rewind_target_source);
-        assert_eq!(pair.derived, rewind_target_derived);
-    }
-
-    #[tokio::test]
-    async fn test_rewind_to_target_source_latest_derived_block_fails() {
-        let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
-
-        let rewind_target_source =
-            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
-
-        // Expect latest_derived_block_at_source to fail
-        mock_db
-            .expect_latest_derived_block_at_source()
-            .times(1)
-            .returning(|_| Err(StorageError::LockPoisoned));
-
-        let reorg_task = ReorgTask::new(
-            1,
-            Arc::new(mock_db),
-            RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
-        );
-
-        let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
-
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
-        ));
-    }
-
-    #[tokio::test]
-    async fn test_rewind_to_target_source_get_block_fails() {
-        let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
-
-        let rewind_target_source =
-            BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
-
-        let rewind_target_derived =
-            BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346);
-
-        // Expect latest_derived_block_at_source to succeed
-        mock_db
-            .expect_latest_derived_block_at_source()
-            .times(1)
-            .returning(move |_| Ok(rewind_target_derived));
-
-        // Expect get_block to fail
-        mock_db.expect_get_block().times(1).returning(|_| Err(StorageError::LockPoisoned));
-
-        let reorg_task = ReorgTask::new(
-            1,
-            Arc::new(mock_db),
-            RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
-        );
-
-        let result = reorg_task.rewind_to_target_source(rewind_target_source).await;
-
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ReorgHandlerError::StorageError(StorageError::LockPoisoned)
-        ));
+        assert_eq!(pair.derived.unwrap(), rewind_target_derived);
     }
 
     #[tokio::test]
     async fn test_rewind_to_target_source_rewind_fails() {
         let mut mock_db = MockDb::new();
-        let managed_node = Arc::new(MockManagedNode::new());
 
         let rewind_target_source =
             BlockInfo::new(B256::from([1u8; 32]), 100, B256::from([2u8; 32]), 12345);
 
-        let rewind_target_derived =
-            BlockInfo::new(B256::from([3u8; 32]), 50, B256::from([4u8; 32]), 12346);
-
-        let next_block = BlockInfo::new(B256::from([5u8; 32]), 51, B256::from([3u8; 32]), 12347);
-
-        // Expect latest_derived_block_at_source to succeed
-        mock_db
-            .expect_latest_derived_block_at_source()
-            .times(1)
-            .returning(move |_| Ok(rewind_target_derived));
-
-        // Expect get_block to succeed
-        mock_db.expect_get_block().times(1).returning(move |_| Ok(next_block));
-
         // Expect rewind to fail
-        mock_db.expect_rewind().times(1).returning(|_| Err(StorageError::LockPoisoned));
+        mock_db.expect_rewind_to_source().times(1).returning(|_| Err(StorageError::LockPoisoned));
 
         let reorg_task = ReorgTask::new(
             1,
             Arc::new(mock_db),
             RpcClient::new(MockTransport::new(Asserter::new()), false),
-            managed_node,
         );
 
         let result = reorg_task.rewind_to_target_source(rewind_target_source).await;

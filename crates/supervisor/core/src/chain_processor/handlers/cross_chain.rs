@@ -24,7 +24,7 @@ impl EventHandler<BlockInfo> for CrossUnsafeHandler {
         &self,
         block: BlockInfo,
         _state: &mut ProcessorState,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
@@ -33,19 +33,14 @@ impl EventHandler<BlockInfo> for CrossUnsafeHandler {
         );
 
         let result = self.inner_handle(block).await;
-        Metrics::record_block_processing(
-            self.chain_id,
-            Metrics::BLOCK_TYPE_CROSS_UNSAFE,
-            block,
-            &result,
-        );
+        Metrics::record_block_processing(self.chain_id, Metrics::BLOCK_TYPE_CROSS_UNSAFE, &result);
 
         result
     }
 }
 
 impl CrossUnsafeHandler {
-    async fn inner_handle(&self, block: BlockInfo) -> Result<(), ChainProcessorError> {
+    async fn inner_handle(&self, block: BlockInfo) -> Result<BlockInfo, ChainProcessorError> {
         self.managed_node_sender
             .send(ManagedNodeCommand::UpdateCrossUnsafe { block_id: block.id() })
             .await
@@ -59,7 +54,7 @@ impl CrossUnsafeHandler {
                 );
                 ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
-        Ok(())
+        Ok(block)
     }
 }
 
@@ -77,7 +72,7 @@ impl EventHandler<DerivedRefPair> for CrossSafeHandler {
         &self,
         derived_ref_pair: DerivedRefPair,
         _state: &mut ProcessorState,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         trace!(
             target: "supervisor::chain_processor",
             chain_id = self.chain_id,
@@ -86,13 +81,7 @@ impl EventHandler<DerivedRefPair> for CrossSafeHandler {
         );
 
         let result = self.inner_handle(derived_ref_pair).await;
-        Metrics::record_block_processing(
-            self.chain_id,
-            Metrics::BLOCK_TYPE_CROSS_SAFE,
-            derived_ref_pair.derived,
-            &result,
-        );
-
+        Metrics::record_block_processing(self.chain_id, Metrics::BLOCK_TYPE_CROSS_SAFE, &result);
         result
     }
 }
@@ -101,7 +90,7 @@ impl CrossSafeHandler {
     async fn inner_handle(
         &self,
         derived_ref_pair: DerivedRefPair,
-    ) -> Result<(), ChainProcessorError> {
+    ) -> Result<BlockInfo, ChainProcessorError> {
         self.managed_node_sender
             .send(ManagedNodeCommand::UpdateCrossSafe {
                 source_block_id: derived_ref_pair.source.id(),
@@ -118,7 +107,7 @@ impl CrossSafeHandler {
                 );
                 ChainProcessorError::ChannelSendFailed(err.to_string())
             })?;
-        Ok(())
+        Ok(derived_ref_pair.derived)
     }
 }
 

@@ -6,13 +6,14 @@
 //! [op-node]: https://github.com/ethereum-optimism/optimism/blob/7a6788836984996747193b91901a824c39032bd8/op-node/p2p/rpc_api.go#L45
 
 use async_trait::async_trait;
+use backon::{ExponentialBuilder, Retryable};
 use ipnet::IpNet;
 use jsonrpsee::{
     core::RpcResult,
     types::{ErrorCode, ErrorObject},
 };
 use kona_gossip::{P2pRpcRequest, PeerCount, PeerDump, PeerInfo, PeerStats};
-use std::{net::IpAddr, str::FromStr};
+use std::{net::IpAddr, str::FromStr, time::Duration};
 
 use crate::{OpP2PApiServer, net::P2pRpc};
 
@@ -194,12 +195,61 @@ impl OpP2PApiServer for P2pRpc {
     async fn opp2p_connect_peer(&self, _peer: String) -> RpcResult<()> {
         use std::str::FromStr;
         kona_macros::inc!(gauge, kona_gossip::Metrics::RPC_CALLS, "method" => "opp2p_connectPeer");
-        let ma = libp2p::Multiaddr::from_str(&_peer)
-            .map_err(|_| ErrorObject::from(ErrorCode::InvalidParams))?;
-        self.sender
-            .send(P2pRpcRequest::ConnectPeer { address: ma })
-            .await
-            .map_err(|_| ErrorObject::from(ErrorCode::InternalError))
+        let ma = libp2p::Multiaddr::from_str(&_peer).map_err(|_| {
+            ErrorObject::borrowed(ErrorCode::InvalidParams.code(), "Invalid multiaddr", None)
+        })?;
+
+        let peer_id = ma
+            .iter()
+            .find_map(|component| match component {
+                libp2p::multiaddr::Protocol::P2p(peer_id) => Some(peer_id),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                ErrorObject::borrowed(
+                    ErrorCode::InvalidParams.code(),
+                    "Impossible to extract peer ID from multiaddr",
+                    None,
+                )
+            })?;
+
+        self.sender.send(P2pRpcRequest::ConnectPeer { address: ma }).await.map_err(|_| {
+            ErrorObject::borrowed(
+                ErrorCode::InternalError.code(),
+                "Failed to send connect peer request",
+                None,
+            )
+        })?;
+
+        // We need to wait until both peers are connected to each other to return from this method.
+        // We try with an exponential backoff and return an error if we fail to connect to the peer.
+        let is_connected = async || {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+
+            self.sender
+                .send(P2pRpcRequest::Peers { out: tx, connected: true })
+                .await
+                .map_err(|_| ErrorObject::from(ErrorCode::InternalError))?;
+
+            let peers = rx.await.map_err(|_| {
+                ErrorObject::borrowed(ErrorCode::InternalError.code(), "Failed to get peers", None)
+            })?;
+
+            Ok::<bool, ErrorObject<'_>>(peers.peers.contains_key(&peer_id.to_string()))
+        };
+
+        if !is_connected
+            .retry(ExponentialBuilder::default().with_total_delay(Some(Duration::from_secs(10))))
+            .await?
+        {
+            return Err(ErrorObject::borrowed(
+                ErrorCode::InvalidParams.code(),
+                "Peer not connected",
+                None,
+            ));
+        }
+
+        Ok(())
     }
 
     async fn opp2p_disconnect_peer(&self, peer_id: String) -> RpcResult<()> {

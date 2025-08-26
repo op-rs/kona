@@ -253,13 +253,13 @@ impl Service {
         let database_factory = self.database_factory.clone();
         let cancel_token = self.cancel_token.clone();
         let event_senders = chain_event_senders.clone();
-        let managed_nodes = self.managed_nodes.clone();
         self.join_set.spawn(async move {
             // Perform one-shot L1 consistency verification at startup to detect any
             // reorgs that occurred while the supervisor was offline, ensuring all
             // chains are in sync with the current canonical L1 state before processing.
             let reorg_handler =
-                ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone(), managed_nodes.clone());
+                ReorgHandler::new(l1_rpc.clone(), chain_dbs_map.clone()).with_metrics();
+
             if let Err(err) = reorg_handler.verify_l1_consistency().await {
                 warn!(target: "supervisor::service", %err, "Startup reorg check failed");
             } else {

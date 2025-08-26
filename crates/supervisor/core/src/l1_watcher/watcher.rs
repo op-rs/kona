@@ -1,4 +1,4 @@
-use crate::{event::ChainEvent, syncnode::ManagedNodeController};
+use crate::event::ChainEvent;
 use alloy_eips::{BlockNumHash, BlockNumberOrTag};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
@@ -15,7 +15,7 @@ use crate::ReorgHandler;
 
 /// A watcher that polls the L1 chain for finalized blocks.
 #[derive(Debug)]
-pub struct L1Watcher<C, DB, F> {
+pub struct L1Watcher<DB, F> {
     /// The Alloy RPC client for L1.
     rpc_client: RpcClient,
     /// The cancellation token, shared between all tasks.
@@ -25,12 +25,11 @@ pub struct L1Watcher<C, DB, F> {
     /// The event senders for each chain.
     event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
     /// The reorg handler.
-    reorg_handler: ReorgHandler<C, DB>,
+    reorg_handler: ReorgHandler<DB>,
 }
 
-impl<C, DB, F> L1Watcher<C, DB, F>
+impl<DB, F> L1Watcher<DB, F>
 where
-    C: ManagedNodeController + Send + Sync + 'static,
     F: FinalizedL1Storage + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
@@ -40,7 +39,7 @@ where
         finalized_l1_storage: Arc<F>,
         event_txs: HashMap<ChainId, mpsc::Sender<ChainEvent>>,
         cancellation: CancellationToken,
-        reorg_handler: ReorgHandler<C, DB>,
+        reorg_handler: ReorgHandler<DB>,
     ) -> Self {
         Self { rpc_client, finalized_l1_storage, event_txs, cancellation, reorg_handler }
     }
@@ -65,7 +64,7 @@ where
                 "eth_getBlockByNumber",
                 (BlockNumberOrTag::Latest, false),
             )
-            .with_poll_interval(Duration::from_secs(5));
+            .with_poll_interval(Duration::from_secs(2));
 
         let latest_head_stream = latest_head_poller.into_stream();
 
@@ -294,10 +293,9 @@ mod tests {
         RpcClient::new(transport, false)
     }
 
-    fn mock_reorg_handler() -> ReorgHandler<MockNode, ChainDb> {
+    fn mock_reorg_handler() -> ReorgHandler<ChainDb> {
         let chain_dbs_map: HashMap<ChainId, Arc<ChainDb>> = HashMap::new();
-        let managed_nodes: HashMap<ChainId, Arc<MockNode>> = HashMap::new();
-        ReorgHandler::new(mock_rpc_client(), chain_dbs_map, managed_nodes)
+        ReorgHandler::new(mock_rpc_client(), chain_dbs_map)
     }
 
     #[tokio::test]

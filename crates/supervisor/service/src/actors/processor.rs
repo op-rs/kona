@@ -205,6 +205,7 @@ mod tests {
         impl StorageRewinder for Db {
             fn rewind_log_storage(&self, to: &BlockNumHash) -> Result<(), StorageError>;
             fn rewind(&self, to: &BlockNumHash) -> Result<(), StorageError>;
+            fn rewind_to_source(&self, to: &BlockNumHash) -> Result<Option<BlockInfo>, StorageError>;
         }
     );
 
