@@ -1,6 +1,6 @@
 //! Contains the supervisor CLI.
 
-use crate::flags::{SupervisorArgs, VersionInfo};
+use crate::{flags::SupervisorArgs, metrics::VersionInfo};
 use anyhow::Result;
 use clap::Parser;
 use kona_cli::{LogConfig, cli_styles, log::LogArgs, metrics_args::MetricsArgs};

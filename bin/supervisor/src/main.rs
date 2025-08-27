@@ -8,6 +8,7 @@
 
 pub mod cli;
 pub mod flags;
+pub mod metrics;
 pub(crate) mod version;
 
 use clap::Parser;
