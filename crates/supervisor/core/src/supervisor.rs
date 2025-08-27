@@ -15,6 +15,7 @@ use kona_supervisor_storage::{
 use kona_supervisor_types::{SuperHead, parse_access_list};
 use op_alloy_rpc_types::SuperchainDAError;
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 use tracing::{error, warn};
 
 use crate::{
@@ -102,7 +103,7 @@ pub struct Supervisor<M> {
 
     // As of now supervisor only supports a single managed node per chain.
     // This is a limitation of the current implementation, but it will be extended in the future.
-    managed_nodes: HashMap<ChainId, Arc<M>>,
+    managed_nodes: RwLock<HashMap<ChainId, Arc<M>>>,
 }
 
 impl<M> Supervisor<M>
@@ -111,12 +112,30 @@ where
 {
     /// Creates a new [`Supervisor`] instance.
     #[allow(clippy::new_without_default, clippy::missing_const_for_fn)]
-    pub fn new(
-        config: Arc<Config>,
-        database_factory: Arc<ChainDbFactory>,
-        managed_nodes: HashMap<ChainId, Arc<M>>,
-    ) -> Self {
-        Self { config, database_factory, managed_nodes }
+    pub fn new(config: Arc<Config>, database_factory: Arc<ChainDbFactory>) -> Self {
+        Self { config, database_factory, managed_nodes: RwLock::new(HashMap::new()) }
+    }
+
+    /// Adds a new managed node to the [`Supervisor`].
+    pub async fn add_managed_node(
+        &self,
+        chain_id: ChainId,
+        managed_node: Arc<M>,
+    ) -> Result<(), SupervisorError> {
+        // todo: instead of passing the chain ID, we should get it from the managed node
+        if !self.config.dependency_set.dependencies.contains_key(&chain_id) {
+            warn!(target: "supervisor::service", %chain_id, "Unsupported chain ID");
+            return Err(SupervisorError::UnsupportedChainId);
+        }
+
+        let mut managed_nodes = self.managed_nodes.write().await;
+        if managed_nodes.contains_key(&chain_id) {
+            warn!(target: "supervisor::service", %chain_id, "Managed node already exists for chain");
+            return Ok(());
+        }
+
+        managed_nodes.insert(chain_id, managed_node.clone());
+        Ok(())
     }
 
     fn verify_safety_level(
@@ -236,9 +255,15 @@ where
         let mut cross_safe_source = BlockNumHash::default();
 
         for id in chain_ids {
-            let Some(managed_node) = self.managed_nodes.get(id) else {
-                error!(target: "supervisor::service", chain_id = %id, "Managed node not found for chain");
-                return Err(SupervisorError::ManagedNodeMissing(*id));
+            let managed_node = {
+                let guard = self.managed_nodes.read().await;
+                match guard.get(id) {
+                    Some(m) => m.clone(),
+                    None => {
+                        error!(target: "supervisor::service", chain_id = %id, "Managed node not found for chain");
+                        return Err(SupervisorError::ManagedNodeMissing(*id));
+                    }
+                }
             };
             let output_v0 = managed_node.output_v0_at_timestamp(timestamp).await?;
             let output_v0_string = serde_json::to_string(&output_v0)

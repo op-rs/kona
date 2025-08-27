@@ -19,6 +19,10 @@ pub enum SupervisorError {
     #[error("empty dependency set")]
     EmptyDependencySet,
 
+    /// Unsupported chain ID.
+    #[error("unsupported chain ID")]
+    UnsupportedChainId,
+
     /// Data availability errors.
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
@@ -118,6 +122,7 @@ impl From<SupervisorError> for ErrorObjectOwned {
             // todo: handle these errors more gracefully
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
+            SupervisorError::UnsupportedChainId |
             SupervisorError::L1BlockMismatch { .. } |
             SupervisorError::ManagedNodeMissing(_) |
             SupervisorError::ManagedNodeError(_) |

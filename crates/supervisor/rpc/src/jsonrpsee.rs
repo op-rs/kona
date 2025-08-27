@@ -122,6 +122,15 @@ pub trait SupervisorApi {
     async fn dependency_set_v1(&self) -> RpcResult<DependencySet>;
 }
 
+/// Supervisor API for admin operations.
+#[cfg_attr(not(feature = "client"), rpc(server, namespace = "admin"))]
+#[cfg_attr(feature = "client", rpc(server, client, namespace = "admin"))]
+pub trait SupervisorAdminApi {
+    /// Adds L2RPC to the supervisor.
+    #[method(name = "addL2RPC")]
+    async fn add_l2_rpc(&self, url: String, jwt_secret: String) -> RpcResult<()>;
+}
+
 /// Represents the topics for subscriptions in the Managed Mode API.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

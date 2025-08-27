@@ -1,34 +1,25 @@
-use std::{io, net::SocketAddr, sync::Arc};
+use std::{io, net::SocketAddr};
 
 use async_trait::async_trait;
-use jsonrpsee::server::ServerBuilder;
-use kona_supervisor_core::{SupervisorRpc, SupervisorService};
-use kona_supervisor_rpc::SupervisorApiServer;
+use derive_more::Constructor;
+use jsonrpsee::{RpcModule, server::ServerBuilder};
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 use crate::SupervisorActor;
 
-pub struct SupervisorRpcActor<T> {
+#[derive(Debug, Constructor)]
+pub struct SupervisorRpcActor<D> {
     rpc_addr: SocketAddr,
-    supervisor: Arc<T>,
+    rpc_module: RpcModule<D>,
     cancel_token: CancellationToken,
 }
 
-impl<T> SupervisorRpcActor<T>
-where
-    T: SupervisorService + 'static,
-{
-    pub fn new(rpc_addr: SocketAddr, supervisor: Arc<T>, cancel_token: CancellationToken) -> Self {
-        Self { rpc_addr, supervisor, cancel_token }
-    }
-}
-
 #[async_trait]
-impl<T> SupervisorActor for SupervisorRpcActor<T>
+impl<D> SupervisorActor for SupervisorRpcActor<D>
 where
-    T: SupervisorService + 'static,
+    D: Send + Sync + 'static,
 {
     type InboundEvent = ();
     type Error = SupervisorRpcActorError;
@@ -37,12 +28,13 @@ where
         info!(
           target: "supervisor::rpc_actor",
           addr = %self.rpc_addr,
-          "Starting Supervisor RPC Actor",
+          "RPC server bound to address",
         );
 
-        let supervisor_rpc = SupervisorRpc::new(self.supervisor.clone());
+        // let supervisor_rpc = SupervisorRpc::new(self.supervisor.clone());
         let server = ServerBuilder::default().build(self.rpc_addr).await?;
-        let handle = server.start(supervisor_rpc.into_rpc());
+        // let mut root = supervisor_rpc.into_rpc();
+        let handle = server.start(self.rpc_module);
 
         let stopped = handle.clone().stopped();
         let cancelled = self.cancel_token.cancelled();
@@ -91,8 +83,8 @@ mod tests {
     use async_trait::async_trait;
     use kona_interop::{DependencySet, ExecutingDescriptor, SafetyLevel};
     use kona_protocol::BlockInfo;
-    use kona_supervisor_core::SupervisorError;
-    use kona_supervisor_rpc::SuperRootOutputRpc;
+    use kona_supervisor_core::{SupervisorError, SupervisorService};
+    use kona_supervisor_rpc::{SuperRootOutputRpc, SupervisorApiServer};
     use kona_supervisor_types::SuperHead;
     use mockall::mock;
     use std::{
@@ -129,7 +121,9 @@ mod tests {
         let supervisor = Arc::new(MockSupervisorService::new());
         let cancel_token = CancellationToken::new();
 
-        let actor = SupervisorRpcActor::new(addr, supervisor, cancel_token.clone());
+        let supervisor_rpc = kona_supervisor_core::rpc::SupervisorRpc::new(supervisor.clone());
+        let rpc_module = supervisor_rpc.into_rpc();
+        let actor = SupervisorRpcActor::new(addr, rpc_module, cancel_token.clone());
 
         let handle = tokio::spawn(actor.start());
 
