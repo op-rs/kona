@@ -1,4 +1,4 @@
-package node_transfers
+package node
 
 import (
 	"testing"
