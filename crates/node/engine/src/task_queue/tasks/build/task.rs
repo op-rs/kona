@@ -93,12 +93,6 @@ impl BuildTask {
         engine_client: &EngineClient,
         attributes_envelope: OpAttributesWithParent,
     ) -> Result<PayloadId, BuildTaskError> {
-        debug!(
-            target: "engine_builder",
-            txs = attributes_envelope.inner.transactions.as_ref().map_or(0, |txs| txs.len()),
-            "Starting new build job"
-        );
-
         // Sanity check if the head is behind the finalized head. If it is, this is a critical
         // error.
         if state.sync_state.unsafe_head().block_info.number <
@@ -256,6 +250,7 @@ impl EngineTaskExt for BuildTask {
         debug!(
             target: "engine_builder",
             txs = self.attributes.inner().transactions.as_ref().map_or(0, |txs| txs.len()),
+            is_deposits = self.attributes.is_deposits_only(),
             "Starting new build job"
         );
 

@@ -263,10 +263,7 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
         let _attributes_build_start = Instant::now();
         let mut attributes =
             match self.builder.prepare_payload_attributes(unsafe_head, l1_origin.id()).await {
-                Ok(mut attrs) => {
-                    attrs.no_tx_pool = Some(false);
-                    attrs
-                }
+                Ok(attrs) => attrs,
                 Err(PipelineErrorKind::Temporary(_)) => {
                     return Ok(());
                     // Do nothing and allow a retry.
@@ -291,9 +288,11 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 }
             };
 
+        // Set the no_tx_pool flag to false by default (since we're building with the sequencer).
         attributes.no_tx_pool = Some(false);
 
         if in_recovery_mode {
+            warn!(target: "sequencer", "Sequencer is in recovery mode, producing empty block");
             attributes.no_tx_pool = Some(true);
         }
 
