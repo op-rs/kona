@@ -288,15 +288,19 @@ impl<AB: AttributesBuilder> SequencerActorState<AB> {
                 }
             };
 
+        attributes.no_tx_pool = Some(false);
+
         if in_recovery_mode {
             attributes.no_tx_pool = Some(true);
         }
 
         // If the next L2 block is beyond the sequencer drift threshold, we must produce an empty
         // block.
-        attributes.no_tx_pool = (attributes.payload_attributes.timestamp >
-            l1_origin.timestamp + self.cfg.max_sequencer_drift(l1_origin.timestamp))
-        .then_some(true);
+        if attributes.payload_attributes.timestamp >
+            l1_origin.timestamp + self.cfg.max_sequencer_drift(l1_origin.timestamp)
+        {
+            attributes.no_tx_pool = Some(true);
+        }
 
         // Do not include transactions in the first Ecotone block.
         if self.cfg.is_first_ecotone_block(attributes.payload_attributes.timestamp) {
