@@ -23,7 +23,7 @@ use reth_db::{
 };
 use reth_db_api::database::Database;
 use std::path::Path;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// Manages the database environment for a single chain.
 /// Provides transactional access to data via providers.
@@ -144,7 +144,7 @@ impl DerivationStorageWriter for ChainDb {
                     .get_block(derived_block.number)
                     .map_err(|err| match err {
                         StorageError::EntryNotFound(_) => {
-                            error!(
+                            warn!(
                                 target: "supervisor::storage",
                                 incoming_block = %derived_block,
                                 "Derived block not found in log storage: {derived_block:?}"
@@ -154,7 +154,7 @@ impl DerivationStorageWriter for ChainDb {
                         other => other, // propagate other errors as-is
                     })?;
                 if block != derived_block {
-                    error!(
+                    warn!(
                         target: "supervisor::storage",
                         incoming_block = %derived_block,
                         stored_log_block = %block,
@@ -340,7 +340,7 @@ impl HeadRefStorageWriter for ChainDb {
                 // Check parent-child relationship with current CrossUnsafe head, if it exists.
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossUnsafe)?;
                 if !parent.is_parent_of(block) {
-                    error!(
+                    warn!(
                         target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block = %block,
@@ -378,7 +378,7 @@ impl HeadRefStorageWriter for ChainDb {
                 // Check parent-child relationship with current CrossUnsafe head, if it exists.
                 let parent = sp.get_safety_head_ref(SafetyLevel::CrossSafe)?;
                 if !parent.is_parent_of(block) {
-                    error!(
+                    warn!(
                         target: "supervisor::storage",
                         chain_id = %self.chain_id,
                         incoming_block = %block,
