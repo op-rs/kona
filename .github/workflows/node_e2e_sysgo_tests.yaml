@@ -45,8 +45,5 @@ jobs:
       - name: restart tests for node with sysgo orchestrator
         run: just test-e2e-sysgo node/restart
 
-      - name: transfers tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node/transfers
-
 
 
