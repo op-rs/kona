@@ -43,7 +43,7 @@ devnet DEVNET OP_PACKAGE_PATH="" CUSTOM_DEVNET_PATH="":
 cleanup-kurtosis:
   kurtosis clean -a
 
-test-e2e-sysgo GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
+test-e2e-sysgo BINARY GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
     #!/bin/bash
     if [ -z "{{GO_PKG_NAME}}" ]; then
         export GO_PKG_NAME="..."
@@ -57,10 +57,20 @@ test-e2e-sysgo GO_PKG_NAME="" FILTER="" : unzip-contract-artifacts
 
     export OP_DEPLOYER_ARTIFACTS="{{SOURCE}}/artifacts"
     export DISABLE_OP_E2E_LEGACY=true
-    export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/release/kona-node"
-    export DEVSTACK_ORCHESTRATOR=sysgo
-
-    cd {{SOURCE}}/.. && just build-node
+    
+    if [ "{{BINARY}}" = "node" ]; then
+        export KONA_NODE_EXEC_PATH="{{SOURCE}}/../target/release/kona-node"
+        export DEVSTACK_ORCHESTRATOR=sysgo
+        cd {{SOURCE}}/.. && just build-node
+    elif [ "{{BINARY}}" = "supervisor" ]; then
+        export DEVSTACK_SUPERVISOR_KIND=kona
+        export KONA_SUPERVISOR_EXEC_PATH="{{SOURCE}}/../target/release/kona-supervisor"
+        export DEVSTACK_ORCHESTRATOR=sysgo
+        cd {{SOURCE}}/.. && just build-supervisor
+    else
+        echo "Invalid BINARY specified. Must be either 'node' or 'supervisor'."
+        exit 1
+    fi
 
     # Run the test with count=1 to avoid caching the test results.
     cd {{SOURCE}} && go test -count=1 -timeout 40m -v ./$GO_PKG_NAME $FILTER
@@ -117,5 +127,5 @@ update-node-devnet DEVNET OP_PACKAGE_PATH="": (build-devnet "node")
 
 unzip-contract-artifacts:
     #!/bin/bash
-    mkdir -p {{SOURCE}}/artifacts/src
-    tar -xzf {{SOURCE}}/artifacts/compressed/artifacts.tgz -C {{SOURCE}}/artifacts/src
+    mkdir -p {{SOURCE}}/packages/contracts-bedrock/forge-artifacts
+    tar -xzf {{SOURCE}}/artifacts/compressed/artifacts.tgz -C {{SOURCE}}/packages/contracts-bedrock/forge-artifacts

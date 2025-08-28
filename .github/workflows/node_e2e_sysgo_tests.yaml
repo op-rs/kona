@@ -40,10 +40,10 @@ jobs:
           cache-dependency-path: "**/go.sum"
 
       - name: common tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node/common
+        run: just test-e2e-sysgo node node/common
 
       - name: restart tests for node with sysgo orchestrator
-        run: just test-e2e-sysgo node/restart
+        run: just test-e2e-sysgo node node/restart
 
 
 
