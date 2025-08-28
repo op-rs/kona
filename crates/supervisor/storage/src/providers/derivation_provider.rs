@@ -14,7 +14,7 @@ use reth_db_api::{
     cursor::DbCursorRO,
     transaction::{DbTx, DbTxMut},
 };
-use tracing::{error, warn};
+use tracing::{error, info, warn};
 
 /// Provides access to derivation storage operations within a transaction.
 #[derive(Debug, Constructor)]
@@ -489,15 +489,97 @@ where
     /// This removes all derived blocks with number >= the given block number
     /// and updates the traversal state accordingly.
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
+        info!(
+            target: "supervisor::storage",
+            chain_id = %self.chain_id,
+            target_block_number = %block.number,
+            target_block_hash = %block.hash,
+            "Starting rewind of derivation storage"
+        );
+
+        // Validate the block exists and get the block pair - this provides hash validation
         let block_pair = self.get_derived_block_pair(*block)?;
 
-        // Delete all derived blocks with number ≥ `block_info.number`
+        // Get the latest block number from DerivedBlocks
+        let latest_block = {
+            let mut cursor = self.tx.cursor_read::<DerivedBlocks>()?;
+            cursor.last()?.map(|(num, _)| num).unwrap_or(block.number)
+        };
+
+        // Check for future block
+        if block.number > latest_block {
+            error!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                latest_block,
+                "Cannot rewind to future block"
+            );
+            return Err(StorageError::FutureData);
+        }
+
+        let total_blocks = latest_block.saturating_sub(block.number);
+        const LOG_INTERVAL: u64 = 100;
+        let mut processed_blocks = 0;
+
+        // Delete all derived blocks with number ≥ `block.number`
         {
             let mut cursor = self.tx.cursor_write::<DerivedBlocks>()?;
             let mut walker = cursor.walk(Some(block.number))?;
-            while let Some(Ok((_, _))) = walker.next() {
-                walker.delete_current()?; // we’re already walking from the rewind point
+
+            info!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                target_block_hash = %block.hash,
+                latest_block,
+                total_blocks,
+                "Starting rewind of derived block storage"
+            );
+
+            while let Some(Ok((key, _stored_block))) = walker.next() {
+                processed_blocks += 1;
+                let percentage = if total_blocks > 0 {
+                    (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                } else {
+                    100.0
+                };
+
+                info!(
+                    target: "supervisor::storage",
+                    chain_id = %self.chain_id,
+                    block_number = %key,
+                    percentage = %format!("{:.2}%", percentage),
+                    processed_blocks,
+                    total_blocks,
+                    "Validated block for rewind"
+                );
+
+                // Remove the block
+                walker.delete_current()?;
+
+                // Log progress periodically or on last block
+                if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
+                    info!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        block_number = %key,
+                        percentage = %format!("{:.2}%", percentage),
+                        processed_blocks,
+                        total_blocks,
+                        "Rewind progress"
+                    );
+                }
             }
+
+            info!(
+                target: "supervisor::storage",
+                target_block_number = %block.number,
+                target_block_hash = %block.hash,
+                chain_id = %self.chain_id,
+                total_blocks,
+                "Rewind completed successfully"
+            );
         }
 
         self.rewind_block_traversal_to(&block_pair)
@@ -607,6 +689,11 @@ mod tests {
     use tempfile::TempDir;
 
     static CHAIN_ID: ChainId = 1;
+
+    #[tokio::test]
+    async fn test_online_runtime_loader() {
+        kona_cli::init_test_tracing();
+    }
 
     fn block_info(number: u64, parent_hash: B256, timestamp: u64) -> BlockInfo {
         BlockInfo { hash: B256::from([number as u8; 32]), number, parent_hash, timestamp }

@@ -27,7 +27,7 @@ use reth_db_api::{
     transaction::{DbTx, DbTxMut},
 };
 use std::fmt::Debug;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 /// A log storage that wraps a transactional reference to the MDBX backend.
 #[derive(Debug, Constructor)]
@@ -84,7 +84,7 @@ where
                 incoming_block = %block,
                 "Incoming log block is not consistent with the stored log block",
             );
-            return Err(StorageError::ConflictError)
+            return Err(StorageError::ConflictError);
         }
 
         if !latest_block.is_parent_of(block) {
@@ -142,23 +142,110 @@ where
     /// Rewinds the log storage by deleting all blocks and logs from the given block onward.
     /// Fails if the given block exists with a mismatching hash (to prevent unsafe deletion).
     pub(crate) fn rewind_to(&self, block: &BlockNumHash) -> Result<(), StorageError> {
-        let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
-        let mut walker = cursor.walk(Some(block.number))?;
+        info!(
+            target: "supervisor::storage",
+            chain_id = %self.chain_id,
+            target_block_number = %block.number,
+            target_block_hash = %block.hash,
+            "Starting rewind of log storage"
+        );
 
-        while let Some(Ok((key, stored_block))) = walker.next() {
-            if key == block.number && block.hash != stored_block.hash {
-                error!(
+        // Get the latest block number from BlockRefs
+        let latest_block = {
+            let mut cursor = self.tx.cursor_read::<BlockRefs>()?;
+            cursor.last()?.map(|(num, _)| num).unwrap_or(block.number)
+        };
+
+        // Check for future block
+        if block.number > latest_block {
+            error!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                latest_block,
+                "Cannot rewind to future block"
+            );
+            return Err(StorageError::FutureData);
+        }
+
+        let total_blocks = latest_block.saturating_sub(block.number);
+        const LOG_INTERVAL: u64 = 100;
+        let mut processed_blocks = 0;
+
+        // Delete all blocks and logs with number ≥ `block.number`
+        {
+            let mut cursor = self.tx.cursor_write::<BlockRefs>()?;
+            let mut walker = cursor.walk(Some(block.number))?;
+
+            info!(
+                target: "supervisor::storage",
+                chain_id = %self.chain_id,
+                target_block_number = %block.number,
+                target_block_hash = %block.hash,
+                latest_block,
+                total_blocks,
+                "Starting rewind of block storage"
+            );
+
+            while let Some(Ok((key, stored_block))) = walker.next() {
+                if key == block.number && block.hash != stored_block.hash {
+                    error!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        %stored_block,
+                        incoming_block = ?block,
+                        "Requested block to rewind does not match stored block"
+                    );
+                    return Err(StorageError::ConflictError);
+                }
+
+                processed_blocks += 1;
+                let percentage = if total_blocks > 0 {
+                    (processed_blocks as f64 / total_blocks as f64 * 100.0).min(100.0)
+                } else {
+                    100.0
+                };
+
+                info!(
                     target: "supervisor::storage",
                     chain_id = %self.chain_id,
-                    %stored_block,
-                    incoming_block = ?block,
-                    "Requested block to rewind does not match stored block",
+                    block_number = %key,
+                    block_hash = %stored_block.hash,
+                    percentage = %format!("{:.2}%", percentage),
+                    processed_blocks,
+                    total_blocks,
+                    "Validated block for rewind"
                 );
-                return Err(StorageError::ConflictError)
+
+                // remove the block
+                walker.delete_current()?;
+                // remove the logs of that block
+                self.tx.delete::<LogEntries>(key, None)?;
+
+                // Log progress periodically or on last block
+                if processed_blocks % LOG_INTERVAL == 0 || processed_blocks == total_blocks {
+                    info!(
+                        target: "supervisor::storage",
+                        chain_id = %self.chain_id,
+                        block_number = %key,
+                        percentage = %format!("{:.2}%", percentage),
+                        processed_blocks,
+                        total_blocks,
+                        "Rewind progress"
+                    );
+                }
             }
-            walker.delete_current()?; // remove the block
-            self.tx.delete::<LogEntries>(key, None)?; // remove the logs of that block
+
+            info!(
+                target: "supervisor::storage",
+                target_block_number = ?block.number,
+                target_block_hash = %block.hash,
+                chain_id = %self.chain_id,
+                total_blocks,
+                "Rewind completed successfully"
+            );
         }
+
         Ok(())
     }
 }
@@ -611,6 +698,54 @@ mod tests {
 
     #[test]
     fn test_rewind_to() {
+        let db = setup_db();
+        let genesis = genesis_block();
+        initialize_db(&db, &genesis).expect("Failed to initialize DB");
+
+        // Add 20 blocks with logs (0 to 20, including genesis)
+        let mut blocks = vec![genesis];
+        for i in 1..=20 {
+            let prev = &blocks[(i - 1) as usize];
+            let block = sample_block_info(i as u64, prev.hash);
+            let logs = (0..3).map(|j| sample_log(j, j % 2 == 0)).collect();
+            insert_block_logs(&db, &block, logs).expect("Failed to insert logs");
+            blocks.push(block);
+        }
+
+        // Rewind to block 3, blocks 3 to 20 should be removed
+        let tx = db.tx_mut().expect("Could not get mutable tx");
+        let provider = LogProvider::new(&tx, CHAIN_ID);
+        provider.rewind_to(&blocks[3].id()).expect("Failed to rewind blocks");
+        tx.commit().expect("Failed to commit rewind");
+
+        // Verify state
+        let tx = db.tx().expect("Could not get RO tx");
+        let provider = LogProvider::new(&tx, CHAIN_ID);
+
+        // Blocks 0 to 2 should still exist
+        for i in 0..=2 {
+            assert!(provider.get_block(i).is_ok(), "block {i} should exist after rewind");
+        }
+
+        // Logs for blocks 1 to 2 should exist
+        for i in 1..=2 {
+            let logs = provider.get_logs(i).expect("logs should exist");
+            assert_eq!(logs.len(), 3, "block {i} should have 3 logs");
+        }
+
+        // Blocks 3 to 20 should be gone
+        for i in 3..=20 {
+            assert!(
+                matches!(provider.get_block(i), Err(StorageError::EntryNotFound(_))),
+                "block {i} should be removed"
+            );
+
+            let logs = provider.get_logs(i).expect("get_logs should not fail");
+            assert!(logs.is_empty(), "logs for block {i} should be empty");
+        }
+    }
+    #[test]
+    fn test_rewind_to2() {
         let db = setup_db();
         let genesis = genesis_block();
         initialize_db(&db, &genesis).expect("Failed to initialize DB");
