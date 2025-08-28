@@ -24,7 +24,6 @@ func TestRestartSync(gt *testing.T) {
 
 	sequencer := sequencerNodes[0]
 
-	var preStopCheckFuns []dsl.CheckFunc
 	for _, node := range nodes {
 		t.Logf("testing restarts for node %s", node.Escape().ID().Key())
 		clName := node.Escape().ID().Key()
@@ -45,12 +44,9 @@ func TestRestartSync(gt *testing.T) {
 		var out *eth.SyncStatus
 		err := rpc.CallContext(context.Background(), &out, "opp2p_syncStatus")
 		t.Require().Error(err, "expected node %s to be stopped", clName)
-
-		// Ensure that the sequencer's head is advancing.
-		preStopCheckFuns = append(preStopCheckFuns, sequencer.AdvancedFn(types.LocalUnsafe, 50, 200))
 	}
 
-	dsl.CheckAll(t, preStopCheckFuns...)
+	sequencer.Advanced(types.LocalUnsafe, 50, 200)
 
 	var postStartCheckFuns []dsl.CheckFunc
 	for _, node := range nodes {
