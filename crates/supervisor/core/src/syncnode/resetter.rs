@@ -53,6 +53,8 @@ where
         };
 
         // check if the source of valid local_safe is canonical
+        // If the source block is not canonical, it mean there is a reorg on L1
+        // this makes sure that we always reset to a valid state
         let source = self.db_provider.derived_to_source(local_safe.id())?;
         if !self.is_canonical(chain_id, source.id()).await? {
             warn!(target: "supervisor::syncnode_resetter", %chain_id, %source, "Source block for the valid local safe is not canonical");
@@ -184,10 +186,7 @@ where
                 ManagedNodeError::GetBlockByNumberFailed(source.number)
             })?;
 
-        canonical_block.map_or_else(
-            || Ok(false),
-            |block| if block.hash() == source.hash { Ok(true) } else { Ok(false) },
-        )
+        canonical_block.map_or_else(|| Ok(false), |block| Ok(block.hash() == source.hash))
     }
 }
 
