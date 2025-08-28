@@ -32,9 +32,45 @@ func TestConnDropSync(gt *testing.T) {
 		node.DisconnectPeer(&sequencer)
 
 		// Ensure that the node is no longer connected to the sequencer
+		t.Logf("node %s is disconnected from sequencer %s", clName, sequencer.Escape().ID().Key())
 		seqPeers := sequencer.Peers()
 		for _, peer := range seqPeers.Peers {
 			t.Require().NotEqual(peer.PeerID, node.PeerInfo().PeerID, "expected node %s to be disconnected from sequencer %s", clName, sequencer.Escape().ID().Key())
+		}
+
+		peers := node.Peers()
+		for _, peer := range peers.Peers {
+			t.Require().NotEqual(peer.PeerID, sequencer.PeerInfo().PeerID, "expected node %s to be disconnected from sequencer %s", clName, sequencer.Escape().ID().Key())
+		}
+
+		currentUnsafeHead := node.ChainSyncStatus(node.ChainID(), types.LocalUnsafe)
+
+		endSignal := make(chan struct{})
+
+		safeHeads, _ := node_utils.GetKonaWsAsync(t, &node, "safe_head", endSignal)
+		unsafeHeads, _ := node_utils.GetKonaWsAsync(t, &node, "unsafe_head", endSignal)
+
+		// Ensures that....
+		// - the node's safe head is advancing and eventually catches up with the unsafe head
+		// - the node's unsafe head is NOT advancing during this time
+		check := func() error {
+			defer close(endSignal)
+
+		outer_loop:
+			for {
+				select {
+				case safeHead := <-safeHeads:
+					t.Logf("node %s safe head is advancing", clName)
+					if safeHead.Number >= currentUnsafeHead.Number {
+						t.Logf("node %s safe head caught up with unsafe head", clName)
+						break outer_loop
+					}
+				case unsafeHead := <-unsafeHeads:
+					return fmt.Errorf("node %s unsafe head is advancing: %d", clName, unsafeHead.Number)
+				}
+			}
+
+			return nil
 		}
 
 		// Check that...
@@ -42,7 +78,7 @@ func TestConnDropSync(gt *testing.T) {
 		// - the node's unsafe head is advancing (through consolidation)
 		// - the node's safe head's number is catching up with the unsafe head's number
 		// - the node's unsafe head is strictly lagging behind the sequencer's unsafe head
-		postDisconnectCheckFuns = append(postDisconnectCheckFuns, node.AdvancedFn(types.LocalSafe, 50, 200), node.AdvancedFn(types.LocalUnsafe, 50, 200), SafeUnsafeMatchedFn(t, node, 50))
+		postDisconnectCheckFuns = append(postDisconnectCheckFuns, node.AdvancedFn(types.LocalSafe, 50, 200), node.AdvancedFn(types.LocalUnsafe, 50, 200), check)
 	}
 
 	postDisconnectCheckFuns = append(postDisconnectCheckFuns, sequencer.AdvancedFn(types.LocalUnsafe, 50, 200))
@@ -72,28 +108,36 @@ func TestConnDropSync(gt *testing.T) {
 		t.Require().True(found, "expected node %s to be connected to reference node %s", clName, sequencer.Escape().ID().Key())
 
 		// Check that the node is resyncing with the unsafe head network
-		postReconnectCheckFuns = append(postReconnectCheckFuns, node.MatchedFn(&sequencer, types.LocalSafe, 50), node.MatchedFn(&sequencer, types.LocalUnsafe, 50))
+		postReconnectCheckFuns = append(postReconnectCheckFuns, node.MatchedFn(&sequencer, types.LocalSafe, 50), node.AdvancedFn(types.LocalUnsafe, 50, 100), MatchedWithinRange(t, node, sequencer, 5, types.LocalUnsafe, 100))
 	}
 
 	dsl.CheckAll(t, postReconnectCheckFuns...)
 }
 
-// MatchedFn returns a lambda that checks the baseNode head with given safety level is matched with the refNode chain sync status provider
-// Composable with other lambdas to wait in parallel
-func SafeUnsafeMatchedFn(t devtest.T, clNode dsl.L2CLNode, attempts int) dsl.CheckFunc {
+func MatchedWithinRange(t devtest.T, baseNode, refNode dsl.L2CLNode, delta uint64, lvl types.SafetyLevel, attempts int) dsl.CheckFunc {
 	logger := t.Logger()
-	chainID := clNode.ChainID()
+	chainID := baseNode.ChainID()
+
 	return func() error {
+		base := baseNode.ChainSyncStatus(chainID, lvl)
+		ref := refNode.ChainSyncStatus(chainID, lvl)
+		logger.Info("Expecting node to match with reference", "base", base.Number, "ref", ref.Number)
 		return retry.Do0(t.Ctx(), attempts, &retry.FixedStrategy{Dur: 2 * time.Second},
 			func() error {
-				base := clNode.ChainSyncStatus(chainID, types.LocalSafe)
-				ref := clNode.ChainSyncStatus(chainID, types.LocalUnsafe)
-				if ref.Hash == base.Hash && ref.Number == base.Number {
-					logger.Info("Node safe and unsafe heads matched", "ref", ref.Number, "base", base.Number)
+				base = baseNode.ChainSyncStatus(chainID, lvl)
+				ref = refNode.ChainSyncStatus(chainID, lvl)
+				if ref.Number <= base.Number+delta || ref.Number >= base.Number-delta {
+					logger.Info("Node matched", "ref", ref.Number, "base", base.Number, "delta", delta)
+					block, err := refNode.Escape().RollupAPI().OutputAtBlock(t.Ctx(), ref.Number)
+					if err != nil {
+						return err
+					}
+					t.Require().Equal(block.BlockRef.Hash, base.Hash, "expected block hash to match")
+					t.Require().Equal(block.BlockRef.Number, base.Number, "expected block number to match")
 					return nil
 				}
-				logger.Info("Node safe and unsafe heads not matched", "safe", base.Number, "unsafe", ref.Number, "ref", ref.Hash, "base", base.Hash)
-				return fmt.Errorf("expected safe and unsafe heads to match")
+				logger.Info("Node sync status", "base", base.Number, "ref", ref.Number)
+				return fmt.Errorf("expected head to match: %s", lvl)
 			})
 	}
 }
