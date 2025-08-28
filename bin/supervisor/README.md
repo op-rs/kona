@@ -1,6 +1,6 @@
 # `kona-supervisor`
 
-A supervisor implementation for the OP stack built in rust.
+A supervisor implementation for the OP Stack built in rust.
 
 ## Installation
 

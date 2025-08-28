@@ -18,7 +18,7 @@ pub fn payload_hash_to_log_hash(payload_hash: B256, addr: Address) -> B256 {
 /// Converts an L2 log into its raw message payload for hashing.
 ///
 /// This payload is defined as the concatenation of all log topics followed by the log data,
-/// in accordance with the OP stack interop messaging spec.
+/// in accordance with the OP Stack interop messaging spec.
 ///
 /// This data is what is hashed to produce the `payloadHash`.
 pub fn log_to_message_payload(log: &Log) -> Bytes {

@@ -71,7 +71,7 @@ lazy_static! {
         .collect();
 }
 
-/// OP stack mainnet boot nodes.
+/// OP Stack mainnet boot nodes.
 pub static OP_RAW_BOOTNODES: &[&str] = &[
     // OP Mainnet Bootnodes
     "enr:-J64QBbwPjPLZ6IOOToOLsSjtFUjjzN66qmBZdUexpO32Klrc458Q24kbty2PdRaLacHM5z-cZQr8mjeQu3pik6jPSOGAYYFIqBfgmlkgnY0gmlwhDaRWFWHb3BzdGFja4SzlAUAiXNlY3AyNTZrMaECmeSnJh7zjKrDSPoNMGXoopeDF4hhpj5I0OsQUUt4u8uDdGNwgiQGg3VkcIIkBg",
@@ -103,7 +103,7 @@ pub static OP_RAW_BOOTNODES: &[&str] = &[
     "enode://77b6b1e72984d5d50e00ae934ffea982902226fe92fa50da42334c2750d8e405b55a5baabeb988c88125368142a64eda5096d0d4522d3b6eef75d166c7d303a9@3.148.100.173:30303",
 ];
 
-/// OP stack testnet boot nodes.
+/// OP Stack testnet boot nodes.
 pub static OP_RAW_TESTNET_BOOTNODES: &[&str] = &[
     // OP Labs
     "enode://2bd2e657bb3c8efffb8ff6db9071d9eb7be70d7c6d7d980ff80fc93b2629675c5f750bc0a5ef27cd788c2e491b8795a7e9a4a6e72178c14acc6753c0e5d77ae4@34.65.205.244:30305",
