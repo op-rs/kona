@@ -127,7 +127,10 @@ where
 
         // Write the length as a big-endian u64 followed by the data.
         self.channel.write(value.len().to_be_bytes().as_ref()).await?;
-        self.channel.write(value.as_ref()).await?;
+        if value.len() > 0 {
+            self.channel.write(value.as_ref()).await?;
+            trace!(target: "oracle_server", "Successfully wrote preimage data for key {preimage_key}");
+        }
 
         trace!(target: "oracle_server", "Successfully wrote preimage data for key {preimage_key}");
 
