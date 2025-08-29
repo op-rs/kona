@@ -132,8 +132,6 @@ where
             trace!(target: "oracle_server", "Successfully wrote preimage data for key {preimage_key}");
         }
 
-        trace!(target: "oracle_server", "Successfully wrote preimage data for key {preimage_key}");
-
         Ok(())
     }
 }
