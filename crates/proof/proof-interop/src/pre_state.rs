@@ -310,4 +310,78 @@ mod test {
         transition_state.encode(&mut rlp_buf);
         assert_eq!(transition_state, TransitionState::decode(&mut rlp_buf.as_slice()).unwrap());
     }
+
+    /// Helper function to create a test TransitionState with three output roots
+    fn create_test_transition_state(step: u64) -> TransitionState {
+        const TIMESTAMP: u64 = 10;
+        const CHAIN_ID_1: u64 = 1;
+        const CHAIN_ID_2: u64 = 2;
+        const CHAIN_ID_3: u64 = 3;
+
+        TransitionState::new(
+            SuperRoot::new(
+                TIMESTAMP,
+                vec![
+                    OutputRootWithChain::new(CHAIN_ID_1, B256::ZERO),
+                    OutputRootWithChain::new(CHAIN_ID_2, B256::ZERO),
+                    OutputRootWithChain::new(CHAIN_ID_3, B256::ZERO),
+                ],
+            ),
+            vec![OptimisticBlock::default(), OptimisticBlock::default()],
+            step,
+        )
+    }
+
+    #[test]
+    fn test_transition_increments_pending_progress() {
+        const INITIAL_STEP: u64 = 1;
+
+        let transition_state = create_test_transition_state(INITIAL_STEP);
+        let initial_len = transition_state.pending_progress.len();
+        let pre_state = super::PreState::TransitionState(transition_state);
+
+        let new_pre_state = pre_state.transition(Some(OptimisticBlock::default())).unwrap();
+        match new_pre_state {
+            super::PreState::TransitionState(post_transition_state) => {
+                assert_eq!(initial_len + 1, post_transition_state.pending_progress.len());
+            }
+            _ => panic!("Expected TransitionState"),
+        }
+    }
+
+    #[test]
+    fn test_transition_state_max_steps() {
+        const INITIAL_STEP: u64 = super::TRANSITION_STATE_MAX_STEPS - 2;
+
+        let transition_state = create_test_transition_state(INITIAL_STEP);
+        let pre_state = super::PreState::TransitionState(transition_state);
+
+        let new_pre_state = pre_state.transition(Some(OptimisticBlock::default())).unwrap();
+        let new_pre_state_2 = new_pre_state.transition(Some(OptimisticBlock::default())).unwrap();
+        let new_pre_state_3 = new_pre_state_2.transition(Some(OptimisticBlock::default())).unwrap();
+        match new_pre_state_3 {
+            super::PreState::SuperRoot(super_root) => {
+                let last_output_root = super_root.output_roots.last().unwrap();
+                assert_eq!(3, last_output_root.chain_id);
+            }
+            _ => panic!("Expected SuperRoot"),
+        }
+    }
+
+    #[test]
+    fn test_active_l2_chain_id_uses_step_as_index() {
+        const INITIAL_STEP: u64 = 1;
+        const EXPECTED_CHAIN_ID_AT_STEP_1: u64 = 2;
+        const EXPECTED_CHAIN_ID_AT_STEP_2: u64 = 3;
+
+        let transition_state = create_test_transition_state(INITIAL_STEP);
+        let pre_state = super::PreState::TransitionState(transition_state);
+
+        let active_l2_chain_id = pre_state.active_l2_chain_id().unwrap();
+        assert_eq!(active_l2_chain_id, EXPECTED_CHAIN_ID_AT_STEP_1);
+
+        let new_pre_state = pre_state.transition(Some(OptimisticBlock::default())).unwrap();
+        let active_chain_id = new_pre_state.active_l2_chain_id().unwrap();
+        assert_eq!(active_chain_id, EXPECTED_CHAIN_ID_AT_STEP_2);
+    }
 }
