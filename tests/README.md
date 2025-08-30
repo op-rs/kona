@@ -4,7 +4,7 @@ This repository contains the e2e testing resources for the kona-node. The e2e te
 
 ## Installation
 
-To install the dependencies, install [`mise`](https://mise.jdx.dev/) run the following command:
+To install the dependencies, install [`mise`](https://mise.jdx.dev/) and run the following command:
 
 ```bash
 mise install
@@ -30,7 +30,7 @@ just test-e2e simple-kona
 
 Note that the recipe will generate a `DEVNET_NAME.json` file in the `devnets/specs` directory. This file contains the specifications of the devnet that is tied to the kurtosis devnet that is deployed. This file is used as a network specification for the e2e tests.
 
-Note that in this example (and the ones below), the devnet will be run with a local docker image that is build from the current version of the code remotely deployed. For example, if working on the branch `my-branch`, the image will be built from the latest commit hash of the `my-branch` branch *present on the remote kona-node repository*. You may also specify a specific commit tag to build from by passing the commit tag as an argument to the `just test-e2e` recipe. For example, to run the `simple-kona` devnet with a specific commit tag, run the following command:
+Note that in this example (and the ones below), the devnet will be run with a local docker image that is built from the current version of the code remotely deployed. For example, if working on the branch `my-branch`, the image will be built from the latest commit hash of the `my-branch` branch *present on the remote kona-node repository*. You may also specify a specific commit tag to build from by passing the commit tag as an argument to the `just test-e2e` recipe. For example, to run the `simple-kona` devnet with a specific commit tag, run the following command:
 
 ```bash
 just test-e2e simple-kona <commit_tag>
