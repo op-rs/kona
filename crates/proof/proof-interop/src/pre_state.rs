@@ -312,20 +312,18 @@ mod test {
     }
 
     /// Helper function to create a test TransitionState with three output roots
-    fn create_test_transition_state(step: u64) -> TransitionState {
+    fn create_test_transition_state(step: u64, chain_count: u64) -> TransitionState {
         const TIMESTAMP: u64 = 10;
-        const CHAIN_ID_1: u64 = 1;
-        const CHAIN_ID_2: u64 = 2;
-        const CHAIN_ID_3: u64 = 3;
+
+        let mut output_roots = Vec::new();
+        for x in 1..chain_count + 1 {
+            output_roots.push(OutputRootWithChain::new(x, B256::ZERO));
+        }
 
         TransitionState::new(
             SuperRoot::new(
                 TIMESTAMP,
-                vec![
-                    OutputRootWithChain::new(CHAIN_ID_1, B256::ZERO),
-                    OutputRootWithChain::new(CHAIN_ID_2, B256::ZERO),
-                    OutputRootWithChain::new(CHAIN_ID_3, B256::ZERO),
-                ],
+                output_roots,
             ),
             vec![OptimisticBlock::default(), OptimisticBlock::default()],
             step,
@@ -334,9 +332,10 @@ mod test {
 
     #[test]
     fn test_transition_increments_pending_progress() {
+        const OUTPUT_ROOTS: u64 = 3;
         const INITIAL_STEP: u64 = 1;
 
-        let transition_state = create_test_transition_state(INITIAL_STEP);
+        let transition_state = create_test_transition_state(INITIAL_STEP, OUTPUT_ROOTS);
         let initial_len = transition_state.pending_progress.len();
         let pre_state = super::PreState::TransitionState(transition_state);
 
@@ -351,18 +350,18 @@ mod test {
 
     #[test]
     fn test_transition_state_max_steps() {
-        const INITIAL_STEP: u64 = super::TRANSITION_STATE_MAX_STEPS - 2;
+        const OUTPUT_ROOTS: u64 = 2;
+        const INITIAL_STEP: u64 = super::TRANSITION_STATE_MAX_STEPS - OUTPUT_ROOTS + 1;
 
-        let transition_state = create_test_transition_state(INITIAL_STEP);
+        let transition_state = create_test_transition_state(INITIAL_STEP, OUTPUT_ROOTS);
         let pre_state = super::PreState::TransitionState(transition_state);
 
         let new_pre_state = pre_state.transition(Some(OptimisticBlock::default())).unwrap();
         let new_pre_state_2 = new_pre_state.transition(Some(OptimisticBlock::default())).unwrap();
-        let new_pre_state_3 = new_pre_state_2.transition(Some(OptimisticBlock::default())).unwrap();
-        match new_pre_state_3 {
+        match new_pre_state_2 {
             super::PreState::SuperRoot(super_root) => {
                 let last_output_root = super_root.output_roots.last().unwrap();
-                assert_eq!(3, last_output_root.chain_id);
+                assert_eq!(OUTPUT_ROOTS, last_output_root.chain_id);
             }
             _ => panic!("Expected SuperRoot"),
         }
@@ -370,11 +369,12 @@ mod test {
 
     #[test]
     fn test_active_l2_chain_id_uses_step_as_index() {
+        const OUTPUT_ROOTS: u64 = 3;
         const INITIAL_STEP: u64 = 1;
         const EXPECTED_CHAIN_ID_AT_STEP_1: u64 = 2;
         const EXPECTED_CHAIN_ID_AT_STEP_2: u64 = 3;
 
-        let transition_state = create_test_transition_state(INITIAL_STEP);
+        let transition_state = create_test_transition_state(INITIAL_STEP, OUTPUT_ROOTS);
         let pre_state = super::PreState::TransitionState(transition_state);
 
         let active_l2_chain_id = pre_state.active_l2_chain_id().unwrap();
