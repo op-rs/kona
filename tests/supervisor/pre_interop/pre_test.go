@@ -104,7 +104,6 @@ func testPreInteropCheckAccessList(t devtest.T, sys *presets.SimpleInterop) {
 
 // Acceptance Test: https://github.com/ethereum-optimism/optimism/blob/develop/op-acceptance-tests/tests/interop/upgrade/pre_test.go
 func TestPreNoInbox(gt *testing.T) {
-	gt.Skip("This test requires op_contract_deployer_params setup in the kurtosis network, which is not available in the devnet setup.")
 	t := devtest.ParallelT(gt)
 	sys := presets.NewSimpleInterop(t)
 	require := t.Require()
@@ -131,7 +130,7 @@ func TestPreNoInbox(gt *testing.T) {
 		interopTime := net.Escape().ChainConfig().InteropTime
 
 		_, err := sys.Supervisor.Escape().QueryAPI().SyncStatus(t.Ctx())
-		require.ErrorContains(err, "supervisor status tracker not ready")
+		require.ErrorContains(err, "chain database is not initialized")
 
 		// confirm we are still pre-interop
 		require.False(net.IsActivated(*interopTime))
