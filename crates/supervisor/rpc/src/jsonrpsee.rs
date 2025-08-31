@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// Supervisor API for interop.
 ///
 /// See spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#methods>.
-// TODO:: add all the methods
+// TODO: add all the methods
 #[cfg_attr(not(feature = "client"), rpc(server, namespace = "supervisor"))]
 #[cfg_attr(feature = "client", rpc(server, client, namespace = "supervisor"))]
 pub trait SupervisorApi {
