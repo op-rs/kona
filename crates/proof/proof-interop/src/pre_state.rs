@@ -327,7 +327,8 @@ mod test {
         TransitionState::new(SuperRoot::new(TIMESTAMP, output_roots), pending_blocks, step)
     }
 
-    // pre_state.transition() with TransitionState variant adds OptimisticBlock to pending_progress vec
+    // pre_state.transition() with TransitionState variant adds
+    // OptimisticBlock to pending_progress vec
     #[test]
     fn test_transition_increments_pending_progress() {
         const OUTPUT_ROOTS: u64 = 3;
@@ -391,7 +392,7 @@ mod test {
         assert_eq!(decoded, pre_state);
     }
 
-    // PreState::TransitionState encodes/decodes correctly via RLP 
+    // PreState::TransitionState encodes/decodes correctly via RLP
     #[test]
     fn test_pre_state_transition_state_encode() {
         const OUTPUT_ROOTS: u64 = 3;
@@ -421,7 +422,8 @@ mod test {
         assert_eq!(TIMESTAMP, timestamp);
     }
 
-    // PreState::TransitionState.transition() returns PreState::SuperRoot if transition_state.step == TRANSITION_STATE_MAX_STEPS
+    // PreState::TransitionState.transition() returns PreState::SuperRoot if transition_state.step
+    // == TRANSITION_STATE_MAX_STEPS
     #[test]
     fn test_transition_state_max_steps() {
         const OUTPUT_ROOTS: u64 = 2;
@@ -441,8 +443,8 @@ mod test {
         }
     }
 
-    // PreState::TransitionState.transition() does not add Block if if pending_progress.len() == pre_state.output_roots.len()
-    // and TRANSITION_STATE_MAX_STEPS not reached
+    // PreState::TransitionState.transition() does not add Block if if pending_progress.len() ==
+    // pre_state.output_roots.len() and TRANSITION_STATE_MAX_STEPS not reached
     #[test]
     fn test_transition_state_step_increment_at_capacity() {
         const TIMESTAMP: u64 = 10;
