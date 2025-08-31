@@ -316,8 +316,12 @@ mod test {
         const TIMESTAMP: u64 = 10;
 
         let mut output_roots = Vec::new();
+        let mut pending_blocks = Vec::new();
         for x in 1..chain_count + 1 {
             output_roots.push(OutputRootWithChain::new(x, B256::ZERO));
+            if x != chain_count {
+                pending_blocks.push(OptimisticBlock::default());
+            }
         }
 
         TransitionState::new(
@@ -325,7 +329,7 @@ mod test {
                 TIMESTAMP,
                 output_roots,
             ),
-            vec![OptimisticBlock::default(), OptimisticBlock::default()],
+            pending_blocks,
             step,
         )
     }
@@ -347,6 +351,81 @@ mod test {
             _ => panic!("Expected TransitionState"),
         }
     }
+    
+    #[test]
+    fn test_transition_hash() {
+        const OUTPUT_ROOTS: u64 = 3;
+        const INITIAL_STEP: u64 = 1;
+
+        let transition_state = create_test_transition_state(INITIAL_STEP, OUTPUT_ROOTS);
+        let hash = transition_state.hash();
+
+        let mut rlp_buf = Vec::with_capacity(transition_state.length());
+        transition_state.encode(&mut rlp_buf);
+        let expected_hash = super::keccak256(&rlp_buf);
+
+        assert_eq!(hash, expected_hash);
+    }
+    
+    #[test]
+    fn test_pre_state_hash() {
+        let pre_state = super::PreState::SuperRoot(SuperRoot::new(
+            10,
+            vec![OutputRootWithChain::new(1, B256::ZERO)],
+        ));
+        let hash = pre_state.hash();
+
+        let mut rlp_buf = Vec::with_capacity(pre_state.length());
+        pre_state.encode(&mut rlp_buf);
+        let expected_hash = super::keccak256(&rlp_buf);
+
+        assert_eq!(hash, expected_hash);
+    }
+    
+    #[test]
+    fn test_pre_state_super_root_encode() {
+        let pre_state = super::PreState::SuperRoot(SuperRoot::new(
+            10,
+            vec![OutputRootWithChain::new(1, B256::ZERO)],
+        ));
+        let mut rlp_buf = Vec::new();
+        pre_state.encode(&mut rlp_buf);
+
+        let decoded = super::PreState::decode(&mut rlp_buf.as_slice()).unwrap();
+        assert_eq!(decoded, pre_state);
+    }
+
+    #[test]
+    fn test_pre_state_transition_state_encode() {
+        const OUTPUT_ROOTS: u64 = 3;
+        const INITIAL_STEP: u64 = 1;
+        let transition_state = create_test_transition_state(INITIAL_STEP, OUTPUT_ROOTS);
+        let pre_state = super::PreState::TransitionState(transition_state);
+        let mut rlp_buf = Vec::new();
+        pre_state.encode(&mut rlp_buf);
+
+        let decoded = super::PreState::decode(&mut rlp_buf.as_slice()).unwrap();
+        assert_eq!(decoded, pre_state);
+    }
+    
+    #[test]
+    fn test_pre_state_timestamp() {
+        const TIMESTAMP: u64 = 10;
+
+        let transition_state = TransitionState::new(
+            SuperRoot::new(
+                TIMESTAMP,
+                vec![OutputRootWithChain::new(1, B256::ZERO)],
+            ),
+            vec![OptimisticBlock::default()],
+            1,
+        );
+
+        let pre_state = super::PreState::TransitionState(transition_state);
+        let timestamp = pre_state.timestamp();
+
+        assert_eq!(TIMESTAMP, timestamp);
+    }
 
     #[test]
     fn test_transition_state_max_steps() {
@@ -366,6 +445,31 @@ mod test {
             _ => panic!("Expected SuperRoot"),
         }
     }
+    
+    #[test]
+    fn test_transition_state_step_increment_at_capacity() {
+        const TIMESTAMP: u64 = 10;
+        const STEP: u64 = 1;
+        let transition_state = TransitionState::new(
+            SuperRoot::new(
+                TIMESTAMP,
+                vec![OutputRootWithChain::new(1, B256::ZERO)],
+            ),
+            vec![OptimisticBlock::default()],
+            STEP,
+        );
+        let transition_state_pending_progress_len = transition_state.pending_progress.len();
+        let pre_state = super::PreState::TransitionState(transition_state);
+
+        let new_pre_state = pre_state.transition(Some(OptimisticBlock::default())).unwrap();
+        match new_pre_state {
+            super::PreState::TransitionState(new_transition_state) => {
+                // Transition does not increase length
+                assert_eq!(transition_state_pending_progress_len, new_transition_state.pending_progress.len());
+            }
+            _ => panic!("Expected TransitionState"),
+        }
+    }
 
     #[test]
     fn test_active_l2_chain_id_uses_step_as_index() {
@@ -383,5 +487,90 @@ mod test {
         let new_pre_state = pre_state.transition(Some(OptimisticBlock::default())).unwrap();
         let active_chain_id = new_pre_state.active_l2_chain_id().unwrap();
         assert_eq!(active_chain_id, EXPECTED_CHAIN_ID_AT_STEP_2);
+    }
+    
+    #[test]
+    fn test_active_l2_chain_id_uses_step_as_index_super_root() {
+        const EXPECTED_CHAIN_ID_AT_STEP_1: u64 = 1;
+        let pre_state = super::PreState::SuperRoot(SuperRoot::new(
+            10,
+            vec![OutputRootWithChain::new(1, B256::ZERO)],
+        ));
+
+        let active_l2_chain_id = pre_state.active_l2_chain_id().unwrap();
+        assert_eq!(active_l2_chain_id, EXPECTED_CHAIN_ID_AT_STEP_1);
+    }
+
+    #[test]
+    fn test_super_root_transition_with_none_optimistic_block() {
+        let super_root = SuperRoot::new(
+            10,
+            vec![OutputRootWithChain::new(1, B256::ZERO)],
+        );
+        let pre_state = super::PreState::SuperRoot(super_root);
+  
+        let result = pre_state.transition(None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_super_root_timestamp() {
+        const TIMESTAMP: u64 = 42;
+        let super_root = SuperRoot::new(
+            TIMESTAMP,
+            vec![OutputRootWithChain::new(1, B256::ZERO)],
+        );
+        let pre_state = super::PreState::SuperRoot(super_root);
+  
+        assert_eq!(pre_state.timestamp(), TIMESTAMP);
+    }
+
+    #[test]
+    fn test_pre_state_decode_empty_buffer() {
+        let mut empty_buf: &[u8] = &[];
+        let result = super::PreState::decode(&mut empty_buf);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), alloy_rlp::Error::UnexpectedLength));
+    }
+
+    #[test]
+    fn test_pre_state_decode_invalid_version() {
+        let mut buf: &[u8] = &[2];
+        let result = super::PreState::decode(&mut buf);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), alloy_rlp::Error::Custom("invalid version byte")));
+    }
+
+    #[test]
+    fn test_transition_state_decode_empty_buffer() {
+        let mut empty_buf: &[u8] = &[];
+        let result = super::TransitionState::decode(&mut empty_buf);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), alloy_rlp::Error::UnexpectedLength));
+    }
+    
+    #[test]
+    fn test_transition_state_decode_invalid_version() {
+        let mut buf: &[u8] = &[2];
+        let result = super::TransitionState::decode(&mut buf);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), alloy_rlp::Error::Custom("invalid version byte")));
+    }
+    
+    #[test]
+    fn test_transition_state_decode_non_list_header() {
+        let mut buf: &[u8] = &[255, 127];
+        let result = super::TransitionState::decode(&mut buf);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), alloy_rlp::Error::UnexpectedString));
+    }
+
+    #[test]
+    fn test_optimistic_block_new() {
+        let block_hash= B256::random();
+        let output_root= B256::random();
+        let optimistic_block = OptimisticBlock::new(block_hash, output_root);
+        assert_eq!(block_hash, optimistic_block.block_hash);
+        assert_eq!(output_root, optimistic_block.output_root);
     }
 }
