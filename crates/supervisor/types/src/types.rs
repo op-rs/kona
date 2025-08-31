@@ -8,8 +8,8 @@ use alloy_primitives::B256;
 use kona_interop::ManagedEvent;
 use serde::{Deserialize, Serialize};
 
-// todo:: Determine appropriate locations for these structs and move them accordingly.
-// todo:: Link these structs to the spec documentation after the related PR is merged.
+// TODO: Determine appropriate locations for these structs and move them accordingly.
+// TODO: Link these structs to the spec documentation after the related PR is merged.
 
 /// Represents a sealed block with its hash, number, and timestamp.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
