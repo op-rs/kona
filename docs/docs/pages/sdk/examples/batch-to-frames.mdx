@@ -25,7 +25,7 @@ The high level transformation is the following.
 Batch -> decompressed batch data -> ChannelOut -> frames[] -> bytes[]
 ```
 
-Given the [`Batch`][batch], the first step to encode the batch
+Given the [`Batch`][batch], the first step is to encode the batch
 using the [`Batch::encode()`][encode-batch] method. The output bytes
 need to then be compressed prior to adding them to the
 [`ChannelOut`][channel-out].
