@@ -5,7 +5,7 @@ use reth_codecs::Compact;
 use serde::{Deserialize, Serialize};
 
 /// Wrapper for `Vec<u64>` to represent a list of numbers.
-// todo: add support for Vec<64> in table
+// todo: add support for Vec<u64> in table
 #[derive(
     Deref, DerefMut, Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Compact,
 )]
