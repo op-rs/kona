@@ -34,7 +34,7 @@ once decoded with the [`Channel::add_frame`][add-frame] method.
 :::
 
 When the [`Channel`][channel] is [`Channel::is_ready()`][is-ready],
-the frame data can taken from the [`Channel`][channel] using
+the frame data can be taken from the [`Channel`][channel] using
 [`Channel::frame_data()`][frame-data]. This data is represented as [`Bytes`][bytes]
 and needs to be decompressed using the respective compression algorithm depending on
 which hardforks are activated (using the `RollupConfig`). For the sake of this example,
