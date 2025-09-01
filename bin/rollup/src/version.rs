@@ -1,4 +1,4 @@
-//! Version information for kona-node.
+//! Version information for kona-rollup.
 
 #![allow(dead_code)]
 
@@ -17,21 +17,21 @@ pub(crate) const VERGEN_CARGO_TARGET_TRIPLE: &str = env!("VERGEN_CARGO_TARGET_TR
 /// The build features.
 pub(crate) const VERGEN_CARGO_FEATURES: &str = env!("VERGEN_CARGO_FEATURES");
 
-/// The short version information for kona-node.
-pub(crate) const SHORT_VERSION: &str = env!("KONA_NODE_SHORT_VERSION");
+/// The short version information for kona-rollup.
+pub(crate) const SHORT_VERSION: &str = env!("KONA_ROLLUP_SHORT_VERSION");
 
-/// The long version information for kona-node.
+/// The long version information for kona-rollup.
 pub(crate) const LONG_VERSION: &str = concat!(
-    env!("KONA_NODE_LONG_VERSION_0"),
+    env!("KONA_ROLLUP_LONG_VERSION_0"),
     "\n",
-    env!("KONA_NODE_LONG_VERSION_1"),
+    env!("KONA_ROLLUP_LONG_VERSION_1"),
     "\n",
-    env!("KONA_NODE_LONG_VERSION_2"),
+    env!("KONA_ROLLUP_LONG_VERSION_2"),
     "\n",
-    env!("KONA_NODE_LONG_VERSION_3"),
+    env!("KONA_ROLLUP_LONG_VERSION_3"),
     "\n",
-    env!("KONA_NODE_LONG_VERSION_4")
+    env!("KONA_ROLLUP_LONG_VERSION_4")
 );
 
 /// The build profile name.
-pub(crate) const BUILD_PROFILE_NAME: &str = env!("KONA_NODE_BUILD_PROFILE");
+pub(crate) const BUILD_PROFILE_NAME: &str = env!("KONA_ROLLUP_BUILD_PROFILE");
