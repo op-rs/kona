@@ -125,9 +125,10 @@ where
             return Err(ChannelOutError::MaxFrameSizeTooSmall);
         }
 
-        // Construct an empty frame.
+        // Construct an empty frame with a provisional `is_last = false`.
+        // The `is_last` flag is determined after reading based on remaining bytes.
         let mut frame =
-            Frame { id: self.id, number: self.frame_number, is_last: self.closed, data: vec![] };
+            Frame { id: self.id, number: self.frame_number, is_last: false, data: vec![] };
 
         let mut max_size = max_size - FRAME_V0_OVERHEAD;
         if max_size > self.ready_bytes() {
@@ -138,6 +139,9 @@ where
         let mut data = Vec::with_capacity(max_size);
         self.compressor.read(&mut data).map_err(ChannelOutError::Compression)?;
         frame.data.extend_from_slice(data.as_slice());
+
+        // Determine if this is the last frame after consuming data.
+        frame.is_last = self.closed && self.ready_bytes() == 0;
 
         // Update the compressed data.
         self.frame_number += 1;
