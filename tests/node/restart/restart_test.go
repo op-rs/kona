@@ -2,11 +2,14 @@ package node_restart
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	node_utils "github.com/op-rs/kona/node/utils"
 )
@@ -17,7 +20,7 @@ func TestRestartSync(gt *testing.T) {
 
 	out := node_utils.NewMixedOpKona(t)
 
-	nodes := out.L2CLKonaValidatorNodes
+	nodes := out.L2CLValidatorNodes()
 	sequencerNodes := out.L2CLSequencerNodes()
 	t.Gate().Greater(len(nodes), 0, "expected at least one validator node")
 	t.Gate().Greater(len(sequencerNodes), 0, "expected at least one sequencer node")
@@ -33,16 +36,24 @@ func TestRestartSync(gt *testing.T) {
 		node.Stop()
 
 		// Ensure that the node is no longer connected to the sequencer
-		seqPeers := sequencer.Peers()
-		for _, peer := range seqPeers.Peers {
-			t.Require().NotEqual(peer.PeerID, nodePeerId, "expected node %s to be disconnected from sequencer %s", clName, sequencer.Escape().ID().Key())
-		}
+		// Retry with an exponential backoff because the node may take a few seconds to stop.
+		_, err := retry.Do(t.Ctx(), 5, &retry.ExponentialStrategy{Max: 10 * time.Second, Min: 1 * time.Second, MaxJitter: 250 * time.Millisecond}, func() (any, error) {
+			seqPeers := sequencer.Peers()
+			for _, peer := range seqPeers.Peers {
+				if peer.PeerID == nodePeerId {
+					return nil, fmt.Errorf("expected node %s to be disconnected from sequencer %s", clName, sequencer.Escape().ID().Key())
+				}
+			}
+			return nil, nil
+		})
+
+		t.Require().NoError(err)
 
 		// Ensure that the node is stopped
 		// Check that calling any rpc method returns an error
 		rpc := node_utils.GetNodeRPCEndpoint(&node)
 		var out *eth.SyncStatus
-		err := rpc.CallContext(context.Background(), &out, "opp2p_syncStatus")
+		err = rpc.CallContext(context.Background(), &out, "opp2p_syncStatus")
 		t.Require().Error(err, "expected node %s to be stopped", clName)
 	}
 
