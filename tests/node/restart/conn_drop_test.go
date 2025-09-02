@@ -54,7 +54,9 @@ func TestConnDropSync(gt *testing.T) {
 		// - the node's safe head is advancing and eventually catches up with the unsafe head
 		// - the node's unsafe head is NOT advancing during this time
 		check := func() error {
-			defer close(endSignal)
+			defer func() {
+				endSignal <- struct{}{}
+			}()
 
 		outer_loop:
 			for {
