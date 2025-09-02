@@ -53,7 +53,6 @@ pub struct P2PArgs {
     /// if set to zero.
     #[arg(
         long = "p2p.advertise.tcp",
-        default_value = "0",
         env = "KONA_NODE_P2P_ADVERTISE_TCP_PORT"
     )]
     pub advertise_tcp_port: Option<u16>,
@@ -61,7 +60,6 @@ pub struct P2PArgs {
     /// Same as `p2p.listen.udp` if set to zero.
     #[arg(
         long = "p2p.advertise.udp",
-        default_value = "0",
         env = "KONA_NODE_P2P_ADVERTISE_UDP_PORT"
     )]
     pub advertise_udp_port: Option<u16>,
