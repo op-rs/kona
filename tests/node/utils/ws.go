@@ -3,7 +3,6 @@ package node_utils
 import (
 	"encoding/json"
 	"strings"
-	"sync"
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
@@ -44,18 +43,13 @@ type push[Out any] struct {
 
 // ---------------------------------------------------------------------------
 
-func AsyncGetPrefixedWs[T any, Out any](t devtest.T, node *dsl.L2CLNode, prefix string, method string, runUntil <-chan T) (<-chan Out, *sync.WaitGroup) {
+func AsyncGetPrefixedWs[T any, Out any](t devtest.T, node *dsl.L2CLNode, prefix string, method string, runUntil <-chan T) <-chan Out {
 	userRPC := node.Escape().UserRPC()
 	wsRPC := strings.Replace(userRPC, "http", "ws", 1)
 
-	output := make(chan Out)
+	output := make(chan Out, 128)
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-
 		conn, _, err := websocket.DefaultDialer.DialContext(t.Ctx(), wsRPC, nil)
 		require.NoError(t, err, "dial: %v", err)
 		defer conn.Close()
@@ -87,21 +81,23 @@ func AsyncGetPrefixedWs[T any, Out any](t devtest.T, node *dsl.L2CLNode, prefix 
 		}()
 
 		// Function to handle JSON reading with error channel
-		readJSON := func(conn *websocket.Conn, msg *json.RawMessage) <-chan error {
-			errChan := make(chan error, 1) // Buffered channel to avoid goroutine leak
+		msgChan := make(chan json.RawMessage, 1) // Buffered channel to avoid goroutine leak
 
-			go func() {
-				errChan <- conn.ReadJSON(msg)
-				close(errChan)
-			}()
+		go func() {
+			var msg json.RawMessage
+			defer close(msgChan)
 
-			return errChan
-		}
+			for {
+				if err := conn.ReadJSON(&msg); err != nil {
+					t.Log("readJSON channel closed")
+					return
+				}
 
-		var msg json.RawMessage
+				msgChan <- msg
+			}
+		}()
 
 		// 4. start a goroutine that keeps reading pushes
-	outer_loop:
 		for {
 			select {
 			case _, ok := <-runUntil:
@@ -111,13 +107,16 @@ func AsyncGetPrefixedWs[T any, Out any](t devtest.T, node *dsl.L2CLNode, prefix 
 				} else {
 					t.Log(method, "subscriber", "stopping: runUntil channel closed")
 				}
-				break outer_loop
+				return
 			case <-t.Ctx().Done():
 				// Clean‑up if necessary, then exit
 				t.Log("unsafe head subscriber", "stopping: context cancelled")
-				break outer_loop
-			case err := <-readJSON(conn, &msg):
-				require.NoError(t, err, "read: %v", err)
+				return
+			case msg, ok := <-msgChan:
+				if !ok {
+					t.Log("readJSON channel closed")
+					return
+				}
 
 				var p push[Out]
 				require.NoError(t, json.Unmarshal(msg, &p), "decode: %v", err)
@@ -129,12 +128,11 @@ func AsyncGetPrefixedWs[T any, Out any](t devtest.T, node *dsl.L2CLNode, prefix 
 
 	}()
 
-	return output, &wg
+	return output
 }
 
 func GetPrefixedWs[T any, Out any](t devtest.T, node *dsl.L2CLNode, prefix string, method string, runUntil <-chan T) []Out {
-	output, wg := AsyncGetPrefixedWs[T, Out](t, node, prefix, method, runUntil)
-	wg.Wait()
+	output := AsyncGetPrefixedWs[T, Out](t, node, prefix, method, runUntil)
 
 	results := make([]Out, 0)
 	for result := range output {
@@ -148,7 +146,7 @@ func GetKonaWs[T any](t devtest.T, node *dsl.L2CLNode, method string, runUntil <
 	return GetPrefixedWs[T, eth.L2BlockRef](t, node, "ws", method, runUntil)
 }
 
-func GetKonaWsAsync[T any](t devtest.T, node *dsl.L2CLNode, method string, runUntil <-chan T) (<-chan eth.L2BlockRef, *sync.WaitGroup) {
+func GetKonaWsAsync[T any](t devtest.T, node *dsl.L2CLNode, method string, runUntil <-chan T) <-chan eth.L2BlockRef {
 	return AsyncGetPrefixedWs[T, eth.L2BlockRef](t, node, "ws", method, runUntil)
 }
 
@@ -156,6 +154,6 @@ func GetDevWS[T any](t devtest.T, node *dsl.L2CLNode, method string, runUntil <-
 	return GetPrefixedWs[T, uint64](t, node, "dev", method, runUntil)
 }
 
-func GetDevWSAsync[T any](t devtest.T, node *dsl.L2CLNode, method string, runUntil <-chan T) (<-chan uint64, *sync.WaitGroup) {
+func GetDevWSAsync[T any](t devtest.T, node *dsl.L2CLNode, method string, runUntil <-chan T) <-chan uint64 {
 	return AsyncGetPrefixedWs[T, uint64](t, node, "dev", method, runUntil)
 }

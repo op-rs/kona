@@ -47,8 +47,8 @@ func TestConnDropSync(gt *testing.T) {
 
 		endSignal := make(chan struct{})
 
-		safeHeads, _ := node_utils.GetKonaWsAsync(t, &node, "safe_head", endSignal)
-		unsafeHeads, _ := node_utils.GetKonaWsAsync(t, &node, "unsafe_head", endSignal)
+		safeHeads := node_utils.GetKonaWsAsync(t, &node, "safe_head", endSignal)
+		unsafeHeads := node_utils.GetKonaWsAsync(t, &node, "unsafe_head", endSignal)
 
 		// Ensures that....
 		// - the node's safe head is advancing and eventually catches up with the unsafe head
