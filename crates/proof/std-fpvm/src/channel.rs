@@ -31,12 +31,12 @@ impl FileChannel {
         Self { read_handle, write_handle }
     }
 
-    /// Returns the a copy of the [FileDescriptor] used for the read end of the channel.
+    /// Returns a copy of the [FileDescriptor] used for the read end of the channel.
     pub const fn read_handle(&self) -> FileDescriptor {
         self.read_handle
     }
 
-    /// Returns the a copy of the [FileDescriptor] used for the write end of the channel.
+    /// Returns a copy of the [FileDescriptor] used for the write end of the channel.
     pub const fn write_handle(&self) -> FileDescriptor {
         self.write_handle
     }

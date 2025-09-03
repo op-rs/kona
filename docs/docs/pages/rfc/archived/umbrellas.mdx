@@ -54,7 +54,7 @@ directories all contain crates, and are not crates themselves - only directories
 #### Publishing Crates
 
 When crates in `kona` are published, they are all published individually, with no
-way to add all kona crates as a dependency. This make discoverability difficult
+way to add all kona crates as a dependency. This makes discoverability difficult
 without accurate and up-to-date documentation, adding overhead.
 
 ## Problem
@@ -63,7 +63,7 @@ As a monorepo, `kona` will likely have a growing number of crates that will make
 it increasingly difficult to discover new `kona` crates and manage `kona` as a
 dependency, for downstream consumers.
 
-Additionally, each crate has it's own independent version, which makes it more nuanced
+Additionally, each crate has its own independent version, which makes it more nuanced
 to manage `kona` dependencies and less clear which crate versions are compatible.
 
 ## Considered Options
@@ -113,7 +113,7 @@ Unfortunately this option now introduces `n + 1` number of crates where `n`
 is the number of subdirectories in `crates/`, but it still only requires
 updates to the subdirectory umbrellas when a crate is added or removed.
 
-The benefit of this is option is the top-level umbrella crate is very much
+The benefit of this option is the top-level umbrella crate is very much
 simplified, since it only needs to re-export the `n` umbrella crates and not
 every crate in the workspace. It also provides the single consumable `kona`
 crate for downstream users that greatly simplifies managing `kona` as a

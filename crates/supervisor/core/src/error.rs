@@ -3,7 +3,6 @@
 use crate::syncnode::ManagedNodeError;
 use derive_more;
 use jsonrpsee::types::{ErrorCode, ErrorObjectOwned};
-use kona_interop::InteropValidationError;
 use kona_supervisor_storage::StorageError;
 use kona_supervisor_types::AccessListError;
 use op_alloy_rpc_types::SuperchainDAError;
@@ -20,19 +19,15 @@ pub enum SupervisorError {
     #[error("empty dependency set")]
     EmptyDependencySet,
 
-    /// Interop has not yet been enabled for the chain.
-    #[error("interop not enabled")]
-    InteropNotEnabled,
+    /// Unsupported chain ID.
+    #[error("unsupported chain ID")]
+    UnsupportedChainId,
 
     /// Data availability errors.
     ///
     /// Spec <https://github.com/ethereum-optimism/specs/blob/main/specs/interop/supervisor.md#protocol-specific-error-codes>.
     #[error(transparent)]
     SpecError(#[from] SpecError),
-
-    /// Indicates that error occurred while validating interop config.
-    #[error(transparent)]
-    InteropValidationError(#[from] InteropValidationError),
 
     /// Indicates that error occurred while interacting with the storage layer.
     #[error(transparent)]
@@ -74,9 +69,7 @@ impl PartialEq for SupervisorError {
         match (self, other) {
             (Unimplemented, Unimplemented) => true,
             (EmptyDependencySet, EmptyDependencySet) => true,
-            (InteropNotEnabled, InteropNotEnabled) => true,
             (SpecError(a), SpecError(b)) => a == b,
-            (InteropValidationError(a), InteropValidationError(b)) => a == b,
             (StorageError(a), StorageError(b)) => a == b,
             (ManagedNodeMissing(a), ManagedNodeMissing(b)) => a == b,
             (ManagedNodeError(a), ManagedNodeError(b)) => a == b,
@@ -129,12 +122,11 @@ impl From<SupervisorError> for ErrorObjectOwned {
             // todo: handle these errors more gracefully
             SupervisorError::Unimplemented |
             SupervisorError::EmptyDependencySet |
-            SupervisorError::InteropNotEnabled |
+            SupervisorError::UnsupportedChainId |
             SupervisorError::L1BlockMismatch { .. } |
             SupervisorError::ManagedNodeMissing(_) |
             SupervisorError::ManagedNodeError(_) |
             SupervisorError::StorageError(_) |
-            SupervisorError::InteropValidationError(_) |
             SupervisorError::AccessListError(_) |
             SupervisorError::ChainIdParseError() |
             SupervisorError::SerdeJson(_) => ErrorObjectOwned::from(ErrorCode::InternalError),

@@ -73,6 +73,7 @@ std = "std"
 structs = "structs"
 ty = "ty"            # Type abbreviation
 vec = "vec"
+typ = "typ"
 
 # Additional allowed words from typos scan
 flate = "flate"      # zlib-flate tool name

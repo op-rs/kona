@@ -1,5 +1,5 @@
 use super::metrics::Metrics;
-use crate::{ReorgHandlerError, reorg::task::ReorgTask, syncnode::ManagedNodeController};
+use crate::{ReorgHandlerError, reorg::task::ReorgTask};
 use alloy_primitives::ChainId;
 use alloy_rpc_client::RpcClient;
 use derive_more::Constructor;
@@ -12,18 +12,15 @@ use tracing::{error, info};
 
 /// Handles L1 reorg operations for multiple chains
 #[derive(Debug, Constructor)]
-pub struct ReorgHandler<C, DB> {
+pub struct ReorgHandler<DB> {
     /// The Alloy RPC client for L1.
     rpc_client: RpcClient,
     /// Per chain dbs.
     chain_dbs: HashMap<ChainId, Arc<DB>>,
-    /// Per chain managed nodes
-    managed_nodes: HashMap<ChainId, Arc<C>>,
 }
 
-impl<C, DB> ReorgHandler<C, DB>
+impl<DB> ReorgHandler<DB>
 where
-    C: ManagedNodeController + Send + Sync + 'static,
     DB: DbReader + StorageRewinder + Send + Sync + 'static,
 {
     /// Initializes the metrics for the reorg handler
@@ -62,17 +59,8 @@ where
         let mut handles = Vec::with_capacity(self.chain_dbs.len());
 
         for (chain_id, chain_db) in &self.chain_dbs {
-            let managed_node = self
-                .managed_nodes
-                .get(chain_id)
-                .ok_or(ReorgHandlerError::ManagedNodeMissing(*chain_id))?;
-
-            let reorg_task = ReorgTask::new(
-                *chain_id,
-                Arc::clone(chain_db),
-                self.rpc_client.clone(),
-                managed_node.clone(),
-            );
+            let reorg_task =
+                ReorgTask::new(*chain_id, Arc::clone(chain_db), self.rpc_client.clone());
 
             let chain_id = *chain_id;
 

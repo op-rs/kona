@@ -20,7 +20,7 @@ optimism_package:
               KONA_NODE_RPC_WS_ENABLED: "true"
               KONA_NODE_RPC_DEV_ENABLED: "true"
           sequencer: true
-        optimism-1:
+        optimism-validator:
           el:
             type: op-geth
           cl:

@@ -131,7 +131,7 @@ impl Predeploys {
     pub const BEACON_BLOCK_ROOT: Address = address!("0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02");
 
     /// The Operator Fee Vault proxy address.
-    pub const OPERATOR_FEE_VAULT: Address = address!("420000000000000000000000000000000000001B");
+    pub const OPERATOR_FEE_VAULT: Address = address!("0x420000000000000000000000000000000000001B");
 
     /// The CrossL2Inbox proxy address.
     pub const CROSS_L2_INBOX: Address = address!("0x4200000000000000000000000000000000000022");
