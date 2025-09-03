@@ -27,7 +27,7 @@ pub trait TrieDBProvider: TrieProvider {
     /// - `hash`: The hash of the RLP-encoded [Header].
     ///
     /// ## Returns
-    /// - Ok(Bytes): The [Header].
+    /// - Ok(Header): The [Header].
     /// - Err(Self::Error): If the [Header] could not be fetched.
     ///
     /// [TrieDB]: crate::TrieDB
