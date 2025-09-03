@@ -1,4 +1,4 @@
-//! Contains the implementations of the [HintRouter] and [PreimageFetcher] traits.]
+//! Contains the implementations of the [HintRouter] and [PreimageFetcher] traits.
 
 use crate::kv::KeyValueStore;
 use async_trait::async_trait;

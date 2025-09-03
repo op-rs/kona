@@ -219,7 +219,7 @@ impl SingleChainHost {
             self.data_dir.is_some()
     }
 
-    /// Reads the [RollupConfig] from the file system and returns it as a string.
+    /// Reads the [RollupConfig] from the file system and returns the deserialized configuration.
     pub fn read_rollup_config(&self) -> Result<RollupConfig, SingleChainHostError> {
         let path = self.rollup_config_path.as_ref().ok_or_else(|| {
             SingleChainHostError::Other(
