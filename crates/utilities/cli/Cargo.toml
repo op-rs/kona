@@ -32,7 +32,7 @@ anyhow = { workspace = true, default-features = false }
 # `secrets` feature
 libp2p = { workspace = true, features = ["secp256k1"], optional = true }
 thiserror = { workspace = true, optional = true }
-alloy-primitives = { workspace = true, optional = true }
+alloy-primitives.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
@@ -42,4 +42,4 @@ libc = "0.2"
 
 [features]
 default = []
-secrets = [ "dep:alloy-primitives", "dep:libp2p", "dep:thiserror" ]
+secrets = [ "dep:libp2p", "dep:thiserror" ]
