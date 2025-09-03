@@ -8,7 +8,7 @@ use crate::{CompressorResult, CompressorWriter, Config, VariantCompressor};
 
 /// Ratio Compressor
 ///
-/// The ratio compressor uses the target size and a compression ration parameter
+/// The ratio compressor uses the target size and a compression ratio parameter
 /// to determine how much data can be written to the compressor before it's
 /// considered full. The full calculation is as follows:
 ///
