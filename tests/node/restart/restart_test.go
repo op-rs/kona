@@ -68,7 +68,7 @@ func TestRestartSync(gt *testing.T) {
 		node.ConnectPeer(&sequencer)
 
 		// Check that the node is resyncing with the network
-		postStartCheckFuns = append(postStartCheckFuns, node.MatchedFn(&sequencer, types.LocalSafe, 50), node.MatchedFn(&sequencer, types.LocalUnsafe, 50))
+		postStartCheckFuns = append(postStartCheckFuns, MatchedWithinRange(t, node, sequencer, 3, types.LocalSafe, 100), MatchedWithinRange(t, node, sequencer, 3, types.LocalUnsafe, 100))
 
 		// Check that the node is connected to the reference node
 		peers := node.Peers()

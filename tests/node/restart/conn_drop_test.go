@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/dsl"
+	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum-optimism/optimism/op-supervisor/supervisor/types"
 	node_utils "github.com/op-rs/kona/node/utils"
@@ -54,10 +55,6 @@ func TestConnDropSync(gt *testing.T) {
 		// - the node's safe head is advancing and eventually catches up with the unsafe head
 		// - the node's unsafe head is NOT advancing during this time
 		check := func() error {
-			defer func() {
-				endSignal <- struct{}{}
-			}()
-
 		outer_loop:
 			for {
 				select {
@@ -71,6 +68,8 @@ func TestConnDropSync(gt *testing.T) {
 					return fmt.Errorf("node %s unsafe head is advancing: %d", clName, unsafeHead.Number)
 				}
 			}
+
+			endSignal <- struct{}{}
 
 			return nil
 		}
@@ -110,7 +109,7 @@ func TestConnDropSync(gt *testing.T) {
 		t.Require().True(found, "expected node %s to be connected to reference node %s", clName, sequencer.Escape().ID().Key())
 
 		// Check that the node is resyncing with the unsafe head network
-		postReconnectCheckFuns = append(postReconnectCheckFuns, node.MatchedFn(&sequencer, types.LocalSafe, 50), node.AdvancedFn(types.LocalUnsafe, 50, 100), MatchedWithinRange(t, node, sequencer, 5, types.LocalUnsafe, 100))
+		postReconnectCheckFuns = append(postReconnectCheckFuns, MatchedWithinRange(t, node, sequencer, 3, types.LocalSafe, 50), node.AdvancedFn(types.LocalUnsafe, 50, 100), MatchedWithinRange(t, node, sequencer, 3, types.LocalUnsafe, 100))
 	}
 
 	dsl.CheckAll(t, postReconnectCheckFuns...)
@@ -129,13 +128,27 @@ func MatchedWithinRange(t devtest.T, baseNode, refNode dsl.L2CLNode, delta uint6
 				base = baseNode.ChainSyncStatus(chainID, lvl)
 				ref = refNode.ChainSyncStatus(chainID, lvl)
 				if ref.Number <= base.Number+delta || ref.Number >= base.Number-delta {
-					logger.Info("Node matched", "ref", ref.Number, "base", base.Number, "delta", delta)
-					block, err := refNode.Escape().RollupAPI().OutputAtBlock(t.Ctx(), ref.Number)
+					logger.Info("Node matched", "ref_id", refNode, "base_id", baseNode, "ref", ref.Number, "base", base.Number, "delta", delta)
+
+					// We get the same block from the head and tail node
+					var headNode dsl.L2CLNode
+					var tailNode eth.BlockID
+					if ref.Number > base.Number {
+						headNode = refNode
+						tailNode = base
+					} else {
+						headNode = baseNode
+						tailNode = ref
+					}
+
+					baseBlock, err := headNode.Escape().RollupAPI().OutputAtBlock(t.Ctx(), tailNode.Number)
 					if err != nil {
 						return err
 					}
-					t.Require().Equal(block.BlockRef.Hash, base.Hash, "expected block hash to match")
-					t.Require().Equal(block.BlockRef.Number, base.Number, "expected block number to match")
+
+					t.Require().Equal(baseBlock.BlockRef.Number, tailNode.Number, "expected block number to match")
+					t.Require().Equal(baseBlock.BlockRef.Hash, tailNode.Hash, "expected block hash to match")
+
 					return nil
 				}
 				logger.Info("Node sync status", "base", base.Number, "ref", ref.Number)
