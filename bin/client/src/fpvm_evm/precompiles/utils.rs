@@ -1,7 +1,5 @@
 //! Utility functions for precompiles
 
-// Use revm's official implementation now that the msm module is public
-pub(crate) use revm::precompile::bls12_381_utils::msm_required_gas;
 
 /// A macro that generates an async block that sends a hint to the host, constructs a key hash
 /// from the hint data, fetches the result of the precompile run from the host, and returns the
