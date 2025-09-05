@@ -41,7 +41,7 @@ jobs:
             monorepo/packages/contracts-bedrock/cache
           key: ${{ matrix.kind }}-${{ hashFiles('monorepo/packages/contracts-bedrock/src/**') }}-forge-artifacts
       - name: Setup Go toolchain
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.22.7"
           cache-dependency-path: |
@@ -126,14 +126,14 @@ jobs:
           git clone https://github.com/ethereum-optimism/optimism.git
       - name: Setup Go toolchain (asterisc cache)
         if: "contains(matrix.target, 'asterisc')"
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.23.8"
           cache-dependency-path: |
             asterisc/go.sum
       - name: Setup Go toolchain (cannon cache)
         if: "contains(matrix.target, 'cannon')"
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.23.8"
           cache-dependency-path: |

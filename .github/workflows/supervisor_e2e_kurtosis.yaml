@@ -42,7 +42,7 @@ jobs:
           toolchain: 1.88
       
       - name: Setup Go 1.24.3
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           # Semantic version range syntax or exact version of Go
           go-version: '1.24.3'
