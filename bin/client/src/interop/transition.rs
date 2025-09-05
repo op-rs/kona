@@ -51,7 +51,7 @@ where
     // Fetch the L2 block hash of the current safe head.
     let safe_head_hash = fetch_l2_safe_head_hash(oracle.as_ref(), &boot.agreed_pre_state).await?;
 
-    // Determine the active L2 chain ID and the fetch rollup configuration.
+    // Determine the active L2 chain ID and fetch the rollup configuration.
     let rollup_config = boot
         .active_rollup_config()
         .map(Arc::new)
