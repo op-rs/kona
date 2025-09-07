@@ -281,3 +281,44 @@ pub enum ConsolidationError {
     #[error(transparent)]
     OracleProvider(#[from] OracleProviderError),
 }
+
+#[cfg(test)]
+mod test {
+    use super::SuperchainConsolidator;
+    use alloy_consensus::Header;
+    use alloy_op_evm::OpEvmFactory;
+    use alloy_primitives::{Address, TxKind, address};
+    use alloy_rlp::Decodable;
+    use kona_preimage::{HintWriter, OracleReader};
+    use kona_proof::CachingOracle;
+    use kona_std_fpvm::FileChannel;
+    use op_alloy_consensus::OpTxEnvelope;
+
+    #[test]
+    fn test_craft_replacement_transaction() {
+        let header = Header::default();
+        let header_hash = header.hash_slow();
+        let sealed_header = header.seal(header_hash);
+
+        const REPLACEMENT_SENDER: Address = address!("deaddeaddeaddeaddeaddeaddeaddeaddead0002");
+        const REPLACEMENT_GAS: u64 = 36000;
+
+        let replacement_tx = SuperchainConsolidator::<
+            '_,
+            CachingOracle<OracleReader<FileChannel>, HintWriter<FileChannel>>,
+            OpEvmFactory,
+        >::craft_replacement_transaction(&sealed_header, header_hash);
+        let decoded_replacement_tx = OpTxEnvelope::decode(&mut replacement_tx.as_ref()).unwrap();
+
+        match decoded_replacement_tx {
+            OpTxEnvelope::Deposit(tx) => {
+                assert_eq!(tx.to, TxKind::Call(Address::ZERO));
+                assert_eq!(tx.from, REPLACEMENT_SENDER);
+                assert_eq!(tx.gas_limit, REPLACEMENT_GAS);
+            }
+            _ => {
+                panic!("Expected deposit transaction");
+            }
+        };
+    }
+}
