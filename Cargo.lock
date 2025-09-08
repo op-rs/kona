@@ -4919,6 +4919,7 @@ dependencies = [
  "kona-proof",
  "kona-protocol",
  "kona-registry",
+ "kona-std-fpvm",
  "op-alloy-consensus",
  "op-alloy-rpc-types-engine",
  "op-revm",
