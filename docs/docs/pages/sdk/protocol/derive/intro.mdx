@@ -148,7 +148,7 @@ assert_eq!(pipeline.origin(), Some(origin));
 ## Producing Payload Attributes
 
 Since the [`Pipeline`][p] trait extends the [`Iterator`][iterator] trait,
-producing [`OpAttributesWithParent`][attributes] is as simple as as calling
+producing [`OpAttributesWithParent`][attributes] is as simple as calling
 [`Iterator::next()`][next] method on the [`DerivationPipeline`][dp].
 
 Extending the example from above, producing the attributes is shown below.
