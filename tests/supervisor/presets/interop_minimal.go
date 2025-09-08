@@ -1,14 +1,15 @@
 package presets
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/ethereum-optimism/optimism/op-chain-ops/devkeys"
 	"github.com/ethereum-optimism/optimism/op-deployer/pkg/deployer/artifacts"
 	"github.com/ethereum-optimism/optimism/op-devstack/devtest"
 	"github.com/ethereum-optimism/optimism/op-devstack/stack"
 	"github.com/ethereum-optimism/optimism/op-devstack/sysgo"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/intentbuilder"
-	"os"
-	"path/filepath"
 )
 
 // WithSimpleInteropMinimal specifies a system that meets the SimpleInterop criteria removing the Challenger.
@@ -36,15 +37,6 @@ func DefaultMinimalInteropSystem(dest *sysgo.DefaultInteropSystemIDs) stack.Opti
 	// Note: we provide L2 CL nodes still, even though they are not used post-interop.
 	// Since we may create an interop infra-setup, before interop is even scheduled to run.
 	opt.Add(sysgo.WithProposer(ids.L2BProposer, ids.L1EL, &ids.L2BCL, &ids.Supervisor))
-
-	// Deploy separate challengers for each chain.  Can be reduced to a single challenger when the DisputeGameFactory
-	// is actually shared.
-	//opt.Add(sysgo.WithL2Challenger(ids.L2ChallengerA, ids.L1EL, ids.L1CL, &ids.Supervisor, &ids.Cluster, &ids.L2ACL, []stack.L2ELNodeID{
-	//	ids.L2AEL, ids.L2BEL,
-	//}))
-	//opt.Add(sysgo.WithL2Challenger(ids.L2ChallengerB, ids.L1EL, ids.L1CL, &ids.Supervisor, &ids.Cluster, &ids.L2BCL, []stack.L2ELNodeID{
-	//	ids.L2BEL, ids.L2AEL,
-	//}))
 
 	opt.Add(sysgo.WithFaucets([]stack.L1ELNodeID{ids.L1EL}, []stack.L2ELNodeID{ids.L2AEL, ids.L2BEL}))
 
