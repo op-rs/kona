@@ -70,11 +70,11 @@ impl GossipCommand {
         let gossip = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), self.gossip_port);
         tracing::info!(target: "gossip", "Starting gossip driver on {:?}", gossip);
 
-        let mut gossip_addr = Multiaddr::from(gossip.ip());
-        gossip_addr.push(libp2p::multiaddr::Protocol::Tcp(gossip.port()));
+        let gossip_addr: Multiaddr = format!("/ip4/{}/tcp/{}", gossip.ip(), gossip.port()).parse()?;
 
-        let CombinedKey::Secp256k1(secret_key) = CombinedKey::generate_secp256k1() else {
-            unreachable!()
+        let secret_key = match CombinedKey::generate_secp256k1() {
+            CombinedKey::Secp256k1(k) => k,
+            _ => unreachable!(),
         };
 
         let disc_ip = Ipv4Addr::UNSPECIFIED;
