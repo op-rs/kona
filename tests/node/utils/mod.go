@@ -10,6 +10,9 @@ import (
 	"github.com/kurtosis-tech/kurtosis/api/golang/engine/lib/kurtosis_context"
 )
 
+const DefaultL1ID = 900
+const DefaultL2ID = 901
+
 // --- Generic RPC request/response types -------------------------------------
 
 // ---------------------------------------------------------------------------

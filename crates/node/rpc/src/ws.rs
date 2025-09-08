@@ -71,6 +71,7 @@ impl WsServer for WsRPC {
             .await
             .map(|state| *state)
         {
+            info!(target: "rpc::ws", "Sending safe head update: {:?}", new_state.sync_state.safe_head());
             current_safe_head = new_state.sync_state.safe_head();
             Self::send_state_update(&sink, current_safe_head).await?;
         }

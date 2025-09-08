@@ -34,9 +34,9 @@ func TestSyncUnsafeBecomesSafe(gt *testing.T) {
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
 
-			unsafeBlocks := GetKonaWs(t, node, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
+			unsafeBlocks := node_utils.GetKonaWs(t, node, "unsafe_head", time.After(SECS_WAIT_FOR_UNSAFE_HEAD*time.Second))
 
-			safeBlocks := GetKonaWs(t, node, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
+			safeBlocks := node_utils.GetKonaWs(t, node, "safe_head", time.After(SECS_WAIT_FOR_SAFE_HEAD*time.Second))
 
 			require.GreaterOrEqual(t, len(unsafeBlocks), 1, "we didn't receive enough unsafe gossip blocks!")
 			require.GreaterOrEqual(t, len(safeBlocks), 1, "we didn't receive enough safe gossip blocks!")
@@ -80,7 +80,7 @@ func TestSyncUnsafe(gt *testing.T) {
 		go func(node *dsl.L2CLNode) {
 			defer wg.Done()
 
-			output := GetKonaWs(t, node, "unsafe_head", time.After(10*time.Second))
+			output := node_utils.GetKonaWs(t, node, "unsafe_head", time.After(10*time.Second))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
@@ -125,7 +125,7 @@ func TestSyncSafe(gt *testing.T) {
 			defer wg.Done()
 			clName := node.Escape().ID().Key()
 
-			output := GetKonaWs(t, node, "safe_head", time.After(10*time.Second))
+			output := node_utils.GetKonaWs(t, node, "safe_head", time.After(10*time.Second))
 
 			// For each block, we check that the block is actually in the chain of the other nodes.
 			// That should always be the case unless there is a reorg or a long sync.
@@ -170,7 +170,7 @@ func TestSyncFinalized(gt *testing.T) {
 			defer wg.Done()
 			clName := node.Escape().ID().Key()
 
-			output := GetKonaWs(t, node, "finalized_head", time.After(4*time.Minute))
+			output := node_utils.GetKonaWs(t, node, "finalized_head", time.After(4*time.Minute))
 
 			// We should check that we received at least 2 finalized blocks within 4 minutes!
 			require.Greater(t, len(output), 1, "we didn't receive enough finalized gossip blocks!")

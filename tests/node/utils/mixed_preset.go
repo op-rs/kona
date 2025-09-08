@@ -156,8 +156,6 @@ func NewMixedOpKona(t devtest.T) *MixedOpKonaPreset {
 	opCLNodes := L2NodeMatcher[stack.L2CLNodeID, stack.L2CLNode](string(OpNode), string(Validator)).Match(l2Net.L2CLNodes())
 	konaCLNodes := L2NodeMatcher[stack.L2CLNodeID, stack.L2CLNode](string(KonaNode), string(Validator)).Match(l2Net.L2CLNodes())
 
-	t.Gate().GreaterOrEqual(len(konaCLNodes)+len(konaSequencerCLNodes), 1, "expected at least one kona-node")
-
 	opSequencerELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(OpNode), string(Sequencer)).Match(l2Net.L2ELNodes())
 	konaSequencerELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(KonaNode), string(Sequencer)).Match(l2Net.L2ELNodes())
 	opELNodes := L2NodeMatcher[stack.L2ELNodeID, stack.L2ELNode](string(OpNode), string(Validator)).Match(l2Net.L2ELNodes())
@@ -268,9 +266,9 @@ func NewDefaultMixedOpKonaSystemIDs(l1ID, l2ID eth.ChainID, opSequencerNodes, ko
 	return ids
 }
 
-func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opSequencerNodes, konaSequencerNodes, opNodes, konaNodes int) stack.Option[*sysgo.Orchestrator] {
-	l1ID := eth.ChainIDFromUInt64(900)
-	l2ID := eth.ChainIDFromUInt64(901)
+func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opSequencerNodes, konaSequencerNodes, opNodes, konaNodes int) stack.CombinedOption[*sysgo.Orchestrator] {
+	l1ID := eth.ChainIDFromUInt64(DefaultL1ID)
+	l2ID := eth.ChainIDFromUInt64(DefaultL2ID)
 	ids := NewDefaultMixedOpKonaSystemIDs(l1ID, l2ID, opSequencerNodes, konaSequencerNodes, opNodes, konaNodes)
 
 	opt := stack.Combine[*sysgo.Orchestrator]()
@@ -316,8 +314,6 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opSequencerNode
 		opt.Add(sysgo.WithL2ELNode(ids.L2ELOpSequencerNodes[i]))
 		opt.Add(sysgo.WithOpNode(ids.L2CLOpSequencerNodes[i], ids.L1CL, ids.L1EL, ids.L2ELOpSequencerNodes[i], sysgo.L2CLOptionFn(func(p devtest.P, id stack.L2CLNodeID, cfg *sysgo.L2CLConfig) {
 			cfg.IsSequencer = true
-			cfg.SequencerSyncMode = sync.ELSync
-			cfg.VerifierSyncMode = sync.ELSync
 		})))
 	}
 
@@ -331,10 +327,7 @@ func DefaultMixedOpKonaSystem(dest *DefaultMixedOpKonaSystemIDs, opSequencerNode
 
 	for i := range ids.L2ELOpNodes {
 		opt.Add(sysgo.WithL2ELNode(ids.L2ELOpNodes[i]))
-		opt.Add(sysgo.WithOpNode(ids.L2CLOpNodes[i], ids.L1CL, ids.L1EL, ids.L2ELOpNodes[i], sysgo.L2CLOptionFn(func(p devtest.P, id stack.L2CLNodeID, cfg *sysgo.L2CLConfig) {
-			cfg.SequencerSyncMode = sync.ELSync
-			cfg.VerifierSyncMode = sync.ELSync
-		})))
+		opt.Add(sysgo.WithOpNode(ids.L2CLOpNodes[i], ids.L1CL, ids.L1EL, ids.L2ELOpNodes[i]))
 	}
 
 	// Connect all nodes to each other in the p2p network.
