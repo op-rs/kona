@@ -1,0 +1,69 @@
+name: Publish Prestate Artifacts
+on:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish-prestate-artifacts: 
+    name: Publish Prestates Artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: ["cannon"]
+        version: ["kona", "kona-int"]
+    steps: 
+      - name: Checkout sources
+        uses: actions/checkout@v5
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          large-packages: false
+      - uses: ./.github/actions/setup
+        with:
+          components: llvm-tools-preview
+          prefix-key: ${{ matrix.kind }}
+
+      - uses: taiki-e/install-action@just
+
+      - name: Generate prestate artifacts
+        run: |
+          HASH="$(cat .config/monorepo)"
+          cd docker/fpvm-prestates
+          just "${{ matrix.kind }}" "${{ matrix.version }}" "${{ github.ref_name }}" "$HASH"
+
+      - name: Show prestate artifacts
+        run: |
+          set -euo pipefail
+          ART_DIR="prestate-artifacts-${{ matrix.kind }}"
+          echo "Artifacts directory: ${ART_DIR}"
+          if [ -d "${ART_DIR}" ]; then
+            ls -lah "${ART_DIR}"
+          else
+            echo "Artifacts directory not found: ${ART_DIR}" >&2
+            exit 1
+          fi
+
+          if [ -f "${ART_DIR}/prestate-proof.json" ]; then
+            echo "\nprestate-proof.json:" 
+            jq -C . "${ART_DIR}/prestate-proof.json" 2>/dev/null || cat "${ART_DIR}/prestate-proof.json"
+            PRESTATE_HASH=$(jq -r .pre "${ART_DIR}/prestate-proof.json" 2>/dev/null || true)
+            if [ -n "${PRESTATE_HASH:-}" ] && [ "${PRESTATE_HASH}" != "null" ]; then
+              echo "PRESTATE_HASH=${PRESTATE_HASH}"
+            fi
+          fi
+
+          if [ -f "${ART_DIR}/meta.json" ]; then
+            echo "\nmeta.json (first 200 lines):"
+            sed -n '1,200p' "${ART_DIR}/meta.json"
+          fi
+
+          if [ -f "${ART_DIR}/prestate.bin.gz" ]; then
+            echo "\nprestate.bin.gz checksum and size:"
+            (command -v sha256sum >/dev/null && sha256sum "${ART_DIR}/prestate.bin.gz") || shasum -a 256 "${ART_DIR}/prestate.bin.gz"
+            du -h "${ART_DIR}/prestate.bin.gz"
+          fi
