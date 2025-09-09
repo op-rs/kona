@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: ["cannon", "asterisc"]
+        kind: ["cannon"]
         version: ["kona", "kona-int"]
     steps: 
       - name: Checkout sources
@@ -28,44 +28,42 @@ jobs:
           components: llvm-tools-preview
           prefix-key: ${{ matrix.kind }}
 
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: oplabs-network-data
+      - uses: taiki-e/install-action@just
 
       - name: Generate prestate artifacts
         run: |
           HASH="$(cat .config/monorepo)"
           cd docker/fpvm-prestates
           just "${{ matrix.kind }}" "${{ matrix.version }}" "${{ github.ref_name }}" "$HASH"
-      - run: 
-           no_output_timeout: 30m 
-           name: Upload prestates artifacts 
-           command: | 
-             # Use the actual hash for tags (hash can be found by reading releases.json) 
-             PRESTATE_HASH=$(jq -r .pre ./prestate-artifacts-${{ matrix.kind }}/prestate-proof.json) 
-  
-             BRANCH_NAME=$(echo "${{ github.ref_name }}" | tr '/' '-') 
-             echo "Publishing ${PRESTATE_HASH} as ${BRANCH_NAME}" 
-             if [[ "" != "${{ github.ref_name }}" ]] 
-             then 
-               echo "Publishing commit hash data" 
-               INFO_FILE=$(mktemp) 
 
-               # Upload the git commit info for each prestate since this won't be recorded in releases.json 
-               (echo "Commit=${{ github.ref_name }}" && echo "Prestate: ${PRESTATE_HASH}") > "${INFO_FILE}" 
+      - name: Show prestate artifacts
+        run: |
+          set -euo pipefail
+          ART_DIR="prestate-artifacts-${{ matrix.kind }}"
+          echo "Artifacts directory: ${ART_DIR}"
+          if [ -d "${ART_DIR}" ]; then
+            ls -lah "${ART_DIR}"
+          else
+            echo "Artifacts directory not found: ${ART_DIR}" >&2
+            exit 1
+          fi
 
-               gsutil cp "${INFO_FILE}" "gs://oplabs-network-data/proofs/op-program/kona/${{ matrix.kind }}/${BRANCH_NAME}-${{ matrix.version }}-prestate.bin.txt" 
-               echo "Published commit hash data successfully" # So we know if any uploads worked 
+          if [ -f "${ART_DIR}/prestate-proof.json" ]; then
+            echo "\nprestate-proof.json:" 
+            jq -C . "${ART_DIR}/prestate-proof.json" 2>/dev/null || cat "${ART_DIR}/prestate-proof.json"
+            PRESTATE_HASH=$(jq -r .pre "${ART_DIR}/prestate-proof.json" 2>/dev/null || true)
+            if [ -n "${PRESTATE_HASH:-}" ] && [ "${PRESTATE_HASH}" != "null" ]; then
+              echo "PRESTATE_HASH=${PRESTATE_HASH}"
+            fi
+          fi
 
-               rm "${INFO_FILE}" # keep things tidy 
-               echo "All commit info published" 
-  
-               # Use the branch name for branches to provide a consistent URL 
-               PRESTATE_HASH="${BRANCH_NAME}-${{ matrix.version }}" 
-             fi 
-             gsutil cp ./prestate-artifacts-${{ matrix.kind }}/prestate.bin.gz \ 
-               "gs://oplabs-network-data/proofs/op-program/kona/${{ matrix.kind }}/${PRESTATE_HASH}-prestate.bin.gz" 
+          if [ -f "${ART_DIR}/meta.json" ]; then
+            echo "\nmeta.json (first 200 lines):"
+            sed -n '1,200p' "${ART_DIR}/meta.json"
+          fi
+
+          if [ -f "${ART_DIR}/prestate.bin.gz" ]; then
+            echo "\nprestate.bin.gz checksum and size:"
+            (command -v sha256sum >/dev/null && sha256sum "${ART_DIR}/prestate.bin.gz") || shasum -a 256 "${ART_DIR}/prestate.bin.gz"
+            du -h "${ART_DIR}/prestate.bin.gz"
+          fi
