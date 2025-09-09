@@ -156,15 +156,15 @@ op-alloy-rpc-jsonrpsee = { version = "0.18.14", default-features = false }
 op-alloy-rpc-types-engine = { version = "0.18.14", default-features = false }
 
 # Execution
-revm = { version = "28.0.1", default-features = false }
+revm = { version = "29.0.0", default-features = false }
 op-revm = { version = "9.0.1", default-features = false }
 alloy-evm = { version = "0.18.3", default-features = false }
 alloy-op-evm = { version = "0.18.3", default-features = false }
 
 # Reth (pinned to v1.4.8 for kona-supervisor-storage)
-reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0" }
+reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.7.0" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.7.0" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.7.0" }
 
 # General
 notify = "6.1"
