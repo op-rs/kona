@@ -100,7 +100,7 @@ where
         }
         PreState::TransitionState(ref transition_state) => {
             // If the claimed L2 block timestamp is less than the prestate timestamp, the
-            // the claim must be invalid.
+            // claim must be invalid.
             if transition_state.pre_state.timestamp >= boot.claimed_l2_timestamp {
                 return Err(FaultProofProgramError::InvalidClaim(
                     boot.agreed_pre_state_commitment,
